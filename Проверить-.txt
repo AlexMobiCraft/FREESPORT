@@ -1,0 +1,34 @@
+Проверить-
+* Project Structure для Next.js
+* Frontend Performance
+
+* 05_data_models.md 
+ - Временные метки и интеграция с 1С - объяснить (onec_id = models.CharField(max_length=100, blank=True, null=True)  # 1C ссылка)
+ - Интеграция и аудит - объяснить
+ - Снапшот данных продукта на момент заказа - объяснить
+
+08_external_apis.md
+# 1С Интеграция услуг с автоматическим выключателем  - проверить и объяснить
+### Интеграция платежей ЮКассы - проверить используя  mcp contex7, или поищи в интернет
+
+09_core_workflows.md
+### Рабочий процесс регистрации и утверждения B2B - проверить и обсудить
+#### SSG (Static Site Generation) - страницы бренда - Объясни что это, какой смысл? 
+
+в ## 4. Структура Компонентов внести изменения после архитектуры фронтенда
+
+  Вариант 1: Техническая подготовка
+  - *agent architect → *create-backend-api-spec - создать API спецификацию
+  - *agent architect → *setup-development-environment - настроить dev окружение
+
+  Вариант 2: Начать разработку
+  - *agent fullstack-dev → *implement-epic-1 - начать кодирование Epic 1
+  - *agent frontend-dev → *setup-nextjs-project - создать Next.js проект
+
+  Вариант 3: Дополнить документацию
+  - *agent architect → *create-database-schema - схема БД под Epic 1
+  - *agent devops → *setup-infrastructure - CI/CD и деплой
+  
+Ask if you don't understand.
+Always communicate in Russian.
+
