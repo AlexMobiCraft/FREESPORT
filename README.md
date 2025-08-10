@@ -79,10 +79,10 @@ docker-compose up -d
 
 ## 📚 Документация
 
-- [API Specification](docs/api-spec.yaml) - OpenAPI 3.0.3 спецификация
 - [Architecture](docs/architecture.md) - Архитектурная документация
 - [User Stories](docs/stories/) - Epic 1 stories (1.1-1.9)
 - [PRD](docs/PRD.md) - Product Requirements Document
+- [API Specification](docs/api-spec.yaml) - OpenAPI 3.0.3 спецификация
 
 ## 🛠️ Разработка
 
@@ -122,15 +122,15 @@ docker-compose up    # Вся платформа
 ## 📈 Progress Tracking
 
 **Epic 1 (Недели 1-2):**
-- [x] Story 1.1: Настройка Git ✅ ЗАВЕРШЕНА
-- [x] Story 1.2: Среда разработки ✅ ЗАВЕРШЕНА
-- [x] Story 1.3: Структура Django ✅ ЗАВЕРШЕНА
-- [x] Story 1.4: Структура Next.js ✅ ЗАВЕРШЕНА
-- [x] Story 1.5: CI/CD инфраструктура ✅ ЗАВЕРШЕНА
-- [x] Story 1.6: Docker контейнеры ✅ ЗАВЕРШЕНА
-- [x] Story 1.7: Тестирование ✅ ЗАВЕРШЕНА
-- [ ] Story 1.8: База данных
-- [ ] Story 1.9: Design brief
+- [x] [Story 1.1:](docs/stories/1.1.git.md) Настройка Git ✅ ЗАВЕРШЕНА
+- [x] [Story 1.2:](docs/stories/1.2.development.md) Среда разработки ✅ ЗАВЕРШЕНА
+- [x] [Story 1.3:](docs/stories/1.3.django-structure.md) Структура Django ✅ ЗАВЕРШЕНА
+- [x] [Story 1.4:](docs/stories/1.4.nextjs-structure.md) Структура Next.js ✅ ЗАВЕРШЕНА
+- [x] [Story 1.5:](docs/stories/1.5.ci-cd.md) CI/CD инфраструктура ✅ ЗАВЕРШЕНА
+- [x] [Story 1.6:](docs/stories/1.6.docker.md) Docker контейнеры ✅ ЗАВЕРШЕНА
+- [x] [Story 1.7:](docs/stories/1.7.testing.md) Тестирование ✅ ЗАВЕРШЕНА
+- [x] [Story 1.8:](docs/stories/1.8.database.md) База данных ✅ ЗАВЕРШЕНА
+- [ ] [Story 1.9:](docs/stories/1.9.design-brief.md) Design brief
 
 ## 📞 Контакты
 
