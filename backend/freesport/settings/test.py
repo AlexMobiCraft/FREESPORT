@@ -4,6 +4,7 @@
 """
 from .base import *
 import tempfile
+from datetime import timedelta
 
 # Отключаем DEBUG для тестов
 DEBUG = False
@@ -90,11 +91,15 @@ MIDDLEWARE = [
 ]
 
 # Настройки для тестирования JWT
-SIMPLE_JWT.update({
+SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=5),
     'REFRESH_TOKEN_LIFETIME': timedelta(minutes=10),
     'SIGNING_KEY': SECRET_KEY,
-})
+    'ALGORITHM': 'HS256',
+    'VERIFYING_KEY': None,
+    'AUTH_HEADER_TYPES': ('Bearer',),
+    'TOKEN_OBTAIN_SERIALIZER': 'rest_framework_simplejwt.serializers.TokenObtainPairSerializer',
+}
 
 # Разрешаем все домены для тестов
 ALLOWED_HOSTS = ['*']
