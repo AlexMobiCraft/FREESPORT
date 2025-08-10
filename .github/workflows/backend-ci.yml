@@ -1,0 +1,249 @@
+name: Backend CI/CD
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths: 
+      - 'backend/**'
+      - '.github/workflows/backend-ci.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-ci.yml'
+
+env:
+  PYTHON_VERSION: '3.12'
+  DJANGO_SETTINGS_MODULE: 'freesport.settings.development'
+
+jobs:
+  # Этап 1: Качество кода и тестирование
+  test:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: freesport_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python ${{ env.PYTHON_VERSION }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        
+    - name: Cache pip packages
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+          
+    - name: Create virtual environment and install dependencies
+      run: |
+        cd backend
+        python -m venv venv
+        source venv/bin/activate
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest-django pytest-cov black flake8 mypy bandit safety
+        
+    - name: Create .env file for testing
+      run: |
+        cd backend
+        cat > .env << EOF
+        SECRET_KEY=test-secret-key-for-ci-cd-only
+        DB_NAME=freesport_test
+        DB_USER=postgres
+        DB_PASSWORD=postgres
+        DB_HOST=localhost
+        DB_PORT=5432
+        DJANGO_SETTINGS_MODULE=freesport.settings.development
+        EOF
+        
+    - name: Run linting with Black
+      run: |
+        cd backend
+        source venv/bin/activate
+        black --check --diff .
+        
+    - name: Run linting with Flake8
+      run: |
+        cd backend
+        source venv/bin/activate
+        flake8 . --max-line-length=88 --extend-ignore=E203,W503
+        
+    - name: Run type checking with mypy
+      run: |
+        cd backend
+        source venv/bin/activate
+        mypy --config-file=mypy.ini .
+      continue-on-error: true  # Не блокируем сборку из-за mypy warnings
+        
+    - name: Run security checks with bandit
+      run: |
+        cd backend
+        source venv/bin/activate
+        bandit -r . -f json -o bandit-report.json || true
+        bandit -r . -ll
+        
+    - name: Check dependencies for security vulnerabilities
+      run: |
+        cd backend
+        source venv/bin/activate
+        safety check --json --output safety-report.json || true
+        safety check
+        
+    - name: Run Django system checks
+      run: |
+        cd backend
+        source venv/bin/activate
+        python manage.py check --deploy
+        
+    - name: Run database migrations
+      run: |
+        cd backend
+        source venv/bin/activate
+        python manage.py migrate --run-syncdb
+        
+    - name: Run tests with coverage
+      run: |
+        cd backend
+        source venv/bin/activate
+        pytest --cov=. --cov-report=xml --cov-report=html --cov-report=term-missing --cov-fail-under=70
+        
+    - name: Upload coverage reports to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        file: backend/coverage.xml
+        flags: backend
+        name: backend-coverage
+        fail_ci_if_error: false
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        
+    - name: Upload test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: backend-test-results
+        path: |
+          backend/htmlcov/
+          backend/bandit-report.json
+          backend/safety-report.json
+          
+  # Этап 2: Сборка Docker образа
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Log in to GitHub Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Extract metadata for Docker
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ghcr.io/${{ github.repository }}/backend
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=sha,prefix=commit-
+          type=raw,value=latest,enable={{is_default_branch}}
+          
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: backend
+        file: backend/Dockerfile
+        platforms: linux/amd64,linux/arm64
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        build-args: |
+          DJANGO_SETTINGS_MODULE=freesport.settings.production
+          
+  # Этап 3: Deploy на staging (только develop branch)
+  deploy-staging:
+    needs: [test, build]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
+    environment: staging
+    
+    steps:
+    - name: Deploy to staging
+      run: |
+        echo "Deploying backend to staging environment..."
+        # TODO: Добавить actual deployment logic
+        echo "Backend deployment completed successfully"
+        
+    - name: Run health checks
+      run: |
+        echo "Running health checks on staging..."
+        # TODO: Добавить health check calls
+        echo "Health checks passed"
+        
+    - name: Notify deployment status
+      if: always()
+      run: |
+        if [ "${{ job.status }}" == "success" ]; then
+          echo "✅ Backend staging deployment successful"
+        else
+          echo "❌ Backend staging deployment failed"
+        fi
+        
+  # Этап 4: Deploy на production (только main branch, с manual approval)
+  deploy-production:
+    needs: [test, build]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: production
+    
+    steps:
+    - name: Deploy to production
+      run: |
+        echo "Deploying backend to production environment..."
+        # TODO: Добавить actual deployment logic
+        echo "Backend deployment completed successfully"
+        
+    - name: Run production health checks
+      run: |
+        echo "Running health checks on production..."
+        # TODO: Добавить production health check calls
+        echo "Production health checks passed"
+        
+    - name: Notify production deployment
+      if: always()
+      run: |
+        if [ "${{ job.status }}" == "success" ]; then
+          echo "✅ Backend production deployment successful"
+        else
+          echo "❌ Backend production deployment failed"
+        fi

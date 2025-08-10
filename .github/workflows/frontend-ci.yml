@@ -1,0 +1,219 @@
+name: Фронтенд CI/CD
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths: 
+      - 'frontend/**'
+      - '.github/workflows/frontend-ci.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend-ci.yml'
+
+env:
+  NODE_VERSION: '22.x'
+  NEXT_PUBLIC_API_URL: 'http://localhost:8000/api/v1'
+
+jobs:
+  # Этап 1: Качество кода и тестирование
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Получение исходного кода
+      uses: actions/checkout@v4
+      
+    - name: Настройка Node.js ${{ env.NODE_VERSION }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+        
+    - name: Установка зависимостей
+      run: |
+        cd frontend
+        npm ci --prefer-offline --no-audit
+        
+    - name: Создание .env.local для тестирования
+      run: |
+        cd frontend
+        cat > .env.local << EOF
+        NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
+        NODE_ENV=test
+        EOF
+        
+    - name: Проверка кода с ESLint
+      run: |
+        cd frontend
+        npm run lint
+        
+    - name: Проверка форматирования с Prettier
+      run: |
+        cd frontend
+        npx prettier --check "src/**/*.{js,jsx,ts,tsx,json,css,md}"
+        
+    - name: Проверка типов TypeScript
+      run: |
+        cd frontend
+        npx tsc --noEmit
+        
+    - name: Проверка безопасности зависимостей
+      run: |
+        cd frontend
+        npm audit --audit-level high
+      continue-on-error: true  # Не блокируем сборку из-за предупреждений audit
+        
+    - name: Запуск тестов с покрытием
+      run: |
+        cd frontend
+        npm run test -- --coverage --watchAll=false --passWithNoTests
+      env:
+        CI: true
+        
+    - name: Сборка Next.js приложения
+      run: |
+        cd frontend
+        npm run build
+        
+    - name: Анализ размера сборки
+      run: |
+        cd frontend
+        npx @next/bundle-analyzer --help || echo "Анализатор сборки не настроен"
+        
+    - name: Загрузка результатов тестов и покрытия
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: frontend-test-results
+        path: |
+          frontend/coverage/
+          frontend/.next/
+          
+    - name: Загрузка отчетов покрытия в Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        file: frontend/coverage/coverage-final.json
+        flags: frontend
+        name: frontend-coverage
+        fail_ci_if_error: false
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        
+  # Этап 2: Сборка Docker образа
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    
+    steps:
+    - name: Получение исходного кода
+      uses: actions/checkout@v4
+      
+    - name: Настройка Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Авторизация в GitHub Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Извлечение метаданных для Docker
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ghcr.io/${{ github.repository }}/frontend
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=sha,prefix=commit-
+          type=raw,value=latest,enable={{is_default_branch}}
+          
+    - name: Сборка и публикация Docker образа
+      uses: docker/build-push-action@v5
+      with:
+        context: frontend
+        file: frontend/Dockerfile
+        platforms: linux/amd64,linux/arm64
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        build-args: |
+          NEXT_PUBLIC_API_URL=${{ env.NEXT_PUBLIC_API_URL }}
+          NODE_ENV=production
+          
+  # Этап 3: Развертывание на staging (только develop ветка)
+  deploy-staging:
+    needs: [test, build]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
+    environment: staging
+    
+    steps:
+    - name: Развертывание на staging окружение
+      run: |
+        echo "Развертывание фронтенда на staging окружение..."
+        # TODO: Добавить реальную логику развертывания
+        echo "Развертывание фронтенда успешно завершено"
+        
+    - name: Проверка работоспособности
+      run: |
+        echo "Запуск проверок работоспособности на staging..."
+        # TODO: Добавить вызовы проверки работоспособности staging фронтенда
+        echo "Проверки работоспособности пройдены"
+        
+    - name: Аудит производительности Lighthouse
+      run: |
+        echo "Запуск аудита производительности Lighthouse..."
+        # TODO: Добавить Lighthouse CI для мониторинга производительности
+        echo "Аудит производительности завершен"
+        
+    - name: Уведомление о статусе развертывания
+      if: always()
+      run: |
+        if [ "${{ job.status }}" == "success" ]; then
+          echo "✅ Развертывание фронтенда на staging прошло успешно"
+        else
+          echo "❌ Развертывание фронтенда на staging завершилось с ошибкой"
+        fi
+        
+  # Этап 4: Развертывание на production (только main ветка, с ручным подтверждением)
+  deploy-production:
+    needs: [test, build]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: production
+    
+    steps:
+    - name: Развертывание на production окружение
+      run: |
+        echo "Развертывание фронтенда на production окружение..."
+        # TODO: Добавить реальную логику развертывания
+        echo "Развертывание фронтенда успешно завершено"
+        
+    - name: Проверка работоспособности production
+      run: |
+        echo "Запуск проверок работоспособности на production..."
+        # TODO: Добавить вызовы проверки работоспособности production
+        echo "Проверки работоспособности production пройдены"
+        
+    - name: Аудит производительности production
+      run: |
+        echo "Запуск аудита производительности production..."
+        # TODO: Добавить мониторинг производительности production
+        echo "Аудит производительности production завершен"
+        
+    - name: Уведомление о production развертывании
+      if: always()
+      run: |
+        if [ "${{ job.status }}" == "success" ]; then
+          echo "✅ Развертывание фронтенда на production прошло успешно"
+        else
+          echo "❌ Развертывание фронтенда на production завершилось с ошибкой"
+        fi

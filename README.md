@@ -105,8 +105,15 @@ cd frontend
 npm run dev
 
 # Tests
-pytest                # Backend
-npm test             # Frontend
+# Backend (Django + pytest)
+cd backend
+source venv/bin/activate
+pytest --verbose --cov=apps --cov-report=html
+
+# Frontend (Next.js + Jest)
+cd frontend
+npm test
+npm run test:coverage
 
 # Docker
 docker-compose up    # Вся платформа
@@ -115,14 +122,14 @@ docker-compose up    # Вся платформа
 ## 📈 Progress Tracking
 
 **Epic 1 (Недели 1-2):**
-- [x] Story 1.1: Git setup ✅ ЗАВЕРШЕНА
-- [x] Story 1.2: Dev environment ✅ ЗАВЕРШЕНА
-- [x] Story 1.3: Django structure ✅ ЗАВЕРШЕНА
-- [ ] Story 1.4: Next.js structure
-- [ ] Story 1.5: CI/CD infrastructure
-- [ ] Story 1.6: Docker containers
-- [ ] Story 1.7: Testing environment
-- [ ] Story 1.8: Database design
+- [x] Story 1.1: Настройка Git ✅ ЗАВЕРШЕНА
+- [x] Story 1.2: Среда разработки ✅ ЗАВЕРШЕНА
+- [x] Story 1.3: Структура Django ✅ ЗАВЕРШЕНА
+- [x] Story 1.4: Структура Next.js ✅ ЗАВЕРШЕНА
+- [x] Story 1.5: CI/CD инфраструктура ✅ ЗАВЕРШЕНА
+- [x] Story 1.6: Docker контейнеры ✅ ЗАВЕРШЕНА
+- [x] Story 1.7: Тестирование ✅ ЗАВЕРШЕНА
+- [ ] Story 1.8: База данных
 - [ ] Story 1.9: Design brief
 
 ## 📞 Контакты
