@@ -167,6 +167,17 @@ class Order(models.Model):
             return self.user.full_name or self.user.email
         return self.customer_name or self.customer_email
 
+    @property
+    def total_items(self):
+        """Общее количество товаров в заказе"""
+        return sum(item.quantity for item in self.items.all())
+
+    @property
+    def calculated_total(self):
+        """Рассчитанная общая сумма заказа"""
+        return sum(item.total_price for item in self.items.all())
+
+    @property
     def can_be_cancelled(self):
         """Можно ли отменить заказ"""
         return self.status in ['pending', 'confirmed']
@@ -219,6 +230,7 @@ class OrderItem(models.Model):
         verbose_name = 'Элемент заказа'
         verbose_name_plural = 'Элементы заказа'
         db_table = 'order_items'
+        unique_together = ('order', 'product')
         indexes = [
             models.Index(fields=['order', 'product']),
         ]

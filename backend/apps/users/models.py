@@ -104,7 +104,9 @@ class User(AbstractUser):
     def wholesale_level(self):
         """Возвращает уровень оптового покупателя (1, 2, 3) или None"""
         if self.role.startswith('wholesale_level'):
-            return int(self.role.split('_')[-1])
+            # Извлекаем число из 'wholesale_level1', 'wholesale_level2', etc.
+            level_part = self.role.replace('wholesale_level', '')
+            return int(level_part) if level_part.isdigit() else None
         return None
 
 

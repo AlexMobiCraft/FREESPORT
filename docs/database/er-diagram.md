@@ -184,7 +184,7 @@ erDiagram
     %% Журнал синхронизации с 1С
     SyncLog {
         id bigint PK
-        sync_type varchar(50) "products, orders, stocks"
+        sync_type varchar(50) "products, stocks, orders, prices"
         status varchar(20) "started, completed, failed"
         records_processed integer
         errors_count integer
@@ -248,16 +248,18 @@ erDiagram
 
 ### Типы синхронизации с 1С
 - **products**: Товары
-- **orders**: Заказы
 - **stocks**: Остатки
+- **orders**: Заказы
+- **prices**: Цены
 
 ### Статусы синхронизации
 - **started**: Начата
 - **completed**: Завершена
 - **failed**: Ошибка
 
-### Уникальные ограничения Cart
-- Уникальная комбинация (cart, product) для CartItem
+### Уникальные ограничения Cart и Orders
+- Уникальная комбинация (cart, product) для CartItem - предотвращает дублирование товаров в корзине
+- Уникальная комбинация (order, product) для OrderItem - предотвращает дублирование товаров в заказе, количество увеличивается в существующей позиции
 
 ## Ограничения и Валидации
 

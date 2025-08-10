@@ -125,10 +125,11 @@ docker-compose up -d
 
 ## 📚 Документация
 
-- [User Stories](docs/stories/) - Этапы разработки (1.1-1.9)
+- [Brief](docs/Brief.md) - Обзор проекта
 - [PRD](docs/PRD.md) - Технические требования (Product Requirements Document)
 - [Architecture](docs/architecture.md) - Архитектурная документация
 - [API Specification](docs/api-spec.yaml) - OpenAPI 3.0.3 спецификация
+- [User Stories](docs/stories/) - Этапы разработки (1.1-1.9)
 
 ## 🛠️ Разработка
 

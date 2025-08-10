@@ -103,8 +103,9 @@ class SyncLog(models.Model):
     
     SYNC_TYPES = [
         ('products', 'Товары'),
-        ('orders', 'Заказы'),
         ('stocks', 'Остатки'),
+        ('orders', 'Заказы'),
+        ('prices', 'Цены'),
     ]
     
     SYNC_STATUSES = [
@@ -134,6 +135,7 @@ class SyncLog(models.Model):
     error_details = models.JSONField(
         'Детали ошибок',
         default=list,
+        blank=True,
         help_text='Список ошибок, возникших при синхронизации'
     )
     started_at = models.DateTimeField(

@@ -218,6 +218,22 @@ class Order(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     notes = models.TextField(blank=True)
+    
+    # Вычисляемые свойства
+    @property
+    def total_items(self):
+        """Общее количество товаров в заказе"""
+        return sum(item.quantity for item in self.items.all())
+
+    @property
+    def calculated_total(self):
+        """Рассчитанная общая сумма заказа"""
+        return sum(item.total_price for item in self.items.all())
+
+    @property
+    def can_be_cancelled(self):
+        """Можно ли отменить заказ"""
+        return self.status in ['pending', 'confirmed']
 
 ORDER_STATUSES = [
     ('pending', 'Ожидает обработки'),
@@ -239,6 +255,9 @@ class OrderItem(models.Model):
     # Снимок данных о продукте на момент заказа
     product_name = models.CharField(max_length=300)
     product_sku = models.CharField(max_length=100)
+    
+    class Meta:
+        unique_together = ('order', 'product')  # Предотвращает дублирование товаров в заказе
 ```
 
 ### Продвинутые модели данных
@@ -274,8 +293,9 @@ class AuditLog(models.Model):
 class SyncLog(models.Model):
     sync_type = models.CharField(max_length=50, choices=[
         ('products', 'Товары'),
-        ('orders', 'Заказы'), 
-        ('stocks', 'Остатки'),
+        ('stocks', 'Остатки'), 
+        ('orders', 'Заказы'),
+        ('prices', 'Цены'),
     ])
     status = models.CharField(max_length=20, choices=[
         ('started', 'Начата'),
@@ -657,6 +677,20 @@ components:
         created_at:
           type: string
           format: date-time
+        # Вычисляемые поля
+        total_items:
+          type: integer
+          description: "Общее количество товаров в заказе"
+          readOnly: true
+        calculated_total:
+          type: number
+          format: decimal
+          description: "Рассчитанная общая сумма заказа на основе позиций"
+          readOnly: true
+        can_be_cancelled:
+          type: boolean
+          description: "Можно ли отменить заказ"
+          readOnly: true
 
     PaymentWebhook:
       type: object
@@ -3176,6 +3210,21 @@ wait_for_health_check() {
 - Service scaling based on demand
 - Connection pooling
 - Cache strategies
+
+---
+
+## История изменений
+
+### 2025-08-10 - Улучшения модели Order и SyncLog
+- **Добавлены вычисляемые свойства Order**:
+  - `total_items` - общее количество товаров в заказе
+  - `calculated_total` - рассчитанная сумма заказа 
+  - `can_be_cancelled` - статус возможности отмены заказа
+- **Добавлено ограничение unique_together в OrderItem**: `('order', 'product')` для предотвращения дубликатов товаров
+- **Обновлены API схемы**: Добавлены readonly поля для новых вычисляемых свойств
+- **Бизнес-логика**: Товар может присутствовать в заказе только в одной позиции, при повторном добавлении увеличивается количество
+- **Обновлены типы синхронизации SyncLog**: Добавлен тип 'prices' для синхронизации цен с 1С
+- **Новые SYNC_TYPES**: ['products', 'stocks', 'orders', 'prices'] вместо ['products', 'orders', 'stocks']
 
 ---
 

@@ -28,7 +28,7 @@
   Вариант 3: Дополнить документацию
   - *agent architect → *create-database-schema - схема БД под Epic 1
   - *agent devops → *setup-infrastructure - CI/CD и деплой
+
   
 Ask if you don't understand.
 Always communicate in Russian.
-

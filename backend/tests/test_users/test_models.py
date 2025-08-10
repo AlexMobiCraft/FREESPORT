@@ -9,10 +9,7 @@ from django.contrib.auth.management.commands import createsuperuser
 from django.core.management import CommandError
 from io import StringIO
 
-from tests.factories import UserFactory, CompanyFactory, AddressFactory
-from apps.users.models import Company, Address
-
-User = get_user_model()
+from tests.conftest import UserFactory, CompanyFactory, AddressFactory
 
 
 @pytest.mark.django_db
@@ -233,6 +230,8 @@ class TestUserModel:
         """
         Тест настройки USERNAME_FIELD
         """
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
         assert User.USERNAME_FIELD == 'email'
         assert 'first_name' in User.REQUIRED_FIELDS
         assert 'last_name' in User.REQUIRED_FIELDS
@@ -241,6 +240,8 @@ class TestUserModel:
         """
         Тест настроек Meta класса
         """
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
         assert User._meta.verbose_name == 'Пользователь'
         assert User._meta.verbose_name_plural == 'Пользователи'
         assert User._meta.db_table == 'users'
@@ -350,7 +351,9 @@ class TestCompanyModel:
         """
         Тест валидации полей компании
         """
+        user = UserFactory.create(role='wholesale_level1')
         company = CompanyFactory.build(
+            user=user,
             legal_name='ИП Иванов Иван Иванович',
             tax_id='123456789012',
             kpp='123456789',
@@ -366,6 +369,7 @@ class TestCompanyModel:
         """
         Тест настроек Meta класса Company
         """
+        from apps.users.models import Company
         assert Company._meta.verbose_name == 'Компания'
         assert Company._meta.verbose_name_plural == 'Компании'
         assert Company._meta.db_table == 'companies'
@@ -483,6 +487,7 @@ class TestAddressModel:
         """
         Тест настроек Meta класса Address
         """
+        from apps.users.models import Address
         assert Address._meta.verbose_name == 'Адрес'
         assert Address._meta.verbose_name_plural == 'Адреса'
         assert Address._meta.db_table == 'addresses'
