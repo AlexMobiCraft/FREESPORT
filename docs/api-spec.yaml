@@ -957,7 +957,7 @@ components:
                 $ref: '#/components/schemas/OrderItem'
             shipping_address:
               $ref: '#/components/schemas/Address'
-            billing_address:
+            legal_address:
               $ref: '#/components/schemas/Address'
             payment_method:
               type: string
@@ -990,7 +990,7 @@ components:
       properties:
         shipping_address:
           $ref: '#/components/schemas/AddressCreate'
-        billing_address:
+        legal_address:
           $ref: '#/components/schemas/AddressCreate'
         payment_method:
           type: string

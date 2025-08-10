@@ -12,18 +12,18 @@ class User(AbstractUser):
     Кастомная модель пользователя с email аутентификацией
     Поддерживает роли для B2B и B2C пользователей
     """
-    
+
     # Роли пользователей согласно архитектурной документации
     ROLE_CHOICES = [
         ('retail', 'Розничный покупатель'),
         ('wholesale_level1', 'Оптовик уровень 1'),
-        ('wholesale_level2', 'Оптовик уровень 2'), 
+        ('wholesale_level2', 'Оптовик уровень 2'),
         ('wholesale_level3', 'Оптовик уровень 3'),
         ('trainer', 'Тренер'),
         ('federation_rep', 'Представитель федерации'),
         ('admin', 'Администратор'),
     ]
-    
+
     # Убираем username, используем email для авторизации
     username = None
     email = models.EmailField('Email адрес', unique=True)
@@ -147,7 +147,7 @@ class Address(models.Model):
     """
     ADDRESS_TYPES = [
         ('shipping', 'Адрес доставки'),
-        ('billing', 'Адрес для выставления счета'),
+        ('legal', 'Юридический адрес'),
     ]
     
     user = models.ForeignKey(
@@ -181,7 +181,21 @@ class Address(models.Model):
         verbose_name = 'Адрес'
         verbose_name_plural = 'Адреса'
         db_table = 'addresses'
-        unique_together = ['user', 'address_type', 'is_default']
+        # Убираем неправильное unique_together ограничение
+    
+    def save(self, *args, **kwargs):
+        """
+        Переопределяем save для корректной логики is_default.
+        Если этот адрес устанавливается как основной, снимаем флаг 
+        со всех других адресов того же типа для этого пользователя.
+        """
+        if self.is_default:
+            # Сбросить флаг is_default у всех других адресов этого же типа для этого пользователя
+            Address.objects.filter(
+                user=self.user, 
+                address_type=self.address_type
+            ).exclude(pk=self.pk).update(is_default=False)
+        super().save(*args, **kwargs)
     
     def __str__(self):
         return f"{self.full_name} - {self.city}, {self.street} {self.building}"

@@ -109,7 +109,7 @@ class UserProfile(models.Model):
     birth_date = models.DateField(blank=True, null=True)
     avatar = models.ImageField(upload_to='avatars/', blank=True)
     delivery_address = models.TextField(blank=True)
-    billing_address = models.TextField(blank=True)
+    legal_address = models.TextField(blank=True)
     preferred_delivery_method = models.CharField(max_length=50, blank=True)
 ```
 

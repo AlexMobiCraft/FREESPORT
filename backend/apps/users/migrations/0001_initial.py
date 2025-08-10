@@ -267,7 +267,7 @@ class Migration(migrations.Migration):
                     models.CharField(
                         choices=[
                             ("shipping", "Адрес доставки"),
-                            ("billing", "Адрес для выставления счета"),
+                            ("legal", "Юридический адрес"),
                         ],
                         default="shipping",
                         max_length=10,

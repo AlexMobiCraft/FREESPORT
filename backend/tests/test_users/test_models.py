@@ -5,8 +5,12 @@ import pytest
 from django.core.exceptions import ValidationError
 from django.contrib.auth import get_user_model, authenticate
 from django.db import IntegrityError
+from django.contrib.auth.management.commands import createsuperuser
+from django.core.management import CommandError
+from io import StringIO
 
-from tests.factories import UserFactory
+from tests.factories import UserFactory, CompanyFactory, AddressFactory
+from apps.users.models import Company, Address
 
 User = get_user_model()
 
@@ -34,7 +38,7 @@ class TestUserModel:
         assert user.role == 'retail'
         assert user.is_active is True
         assert user.is_verified is False  # По умолчанию не верифицирован
-        assert user.username is None  # Используем email для авторизации
+        assert hasattr(user, 'username') is False or user.username is None  # Используем email для авторизации
 
     def test_user_str_representation(self):
         """
@@ -258,3 +262,330 @@ class TestUserModel:
         
         assert authenticated_user is not None
         assert authenticated_user == user
+
+    def test_createsuperuser_without_required_fields_fails(self):
+        """
+        Тест: создание суперпользователя без обязательных полей должно вызывать ошибку
+        """
+        from django.core.management import call_command
+        from django.core.management.base import CommandError
+        
+        with pytest.raises((CommandError, SystemExit)):
+            call_command(
+                'createsuperuser', 
+                email='admin@test.com', 
+                interactive=False,
+                verbosity=0
+            )
+
+    def test_b2c_user_can_have_empty_b2b_fields(self):
+        """
+        Тест: B2C пользователь может иметь пустые B2B поля без ошибок
+        """
+        retail_user = UserFactory.create(
+            role='retail',
+            company_name='',  # Пустое, но не должно вызывать ошибку
+            tax_id='',
+            is_verified=False
+        )
+        
+        retail_user.full_clean()  # Не должно вызывать ValidationError
+        assert retail_user.role == 'retail'
+        assert retail_user.company_name == ''
+        assert retail_user.tax_id == ''
+        assert retail_user.is_b2b_user is False
+
+
+@pytest.mark.django_db
+class TestCompanyModel:
+    """
+    Тесты модели компании Company
+    """
+
+    def test_company_creation(self):
+        """
+        Тест успешного создания компании
+        """
+        user = UserFactory.create(role='wholesale_level1', is_verified=True)
+        company = CompanyFactory.create(
+            user=user,
+            legal_name='ООО "Рога и Копыта"',
+            tax_id='123456789012'
+        )
+        
+        assert company.user == user
+        assert company.legal_name == 'ООО "Рога и Копыта"'
+        assert company.tax_id == '123456789012'
+        assert str(company) == 'ООО "Рога и Копыта" (ИНН: 123456789012)'
+
+    def test_tax_id_uniqueness(self):
+        """
+        Тест: ИНН компании должен быть уникальным
+        """
+        user1 = UserFactory.create(role='wholesale_level1')
+        user2 = UserFactory.create(role='wholesale_level2')
+        
+        CompanyFactory.create(user=user1, tax_id='111222333444')
+        
+        with pytest.raises(IntegrityError):
+            CompanyFactory.create(user=user2, tax_id='111222333444')
+
+    def test_one_to_one_relationship_with_user(self):
+        """
+        Тест связи OneToOne с пользователем
+        """
+        user = UserFactory.create(role='wholesale_level1')
+        company = CompanyFactory.create(user=user)
+        
+        # Проверяем прямую связь
+        assert company.user == user
+        # Проверяем обратную связь
+        assert user.company == company
+        
+        # Попытка создать вторую компанию для того же пользователя должна вызвать ошибку
+        with pytest.raises(IntegrityError):
+            CompanyFactory.create(user=user)
+
+    def test_company_fields_validation(self):
+        """
+        Тест валидации полей компании
+        """
+        company = CompanyFactory.build(
+            legal_name='ИП Иванов Иван Иванович',
+            tax_id='123456789012',
+            kpp='123456789',
+            legal_address='г. Москва, ул. Тверская, д. 1'
+        )
+        
+        company.full_clean()  # Не должно вызывать ValidationError
+        assert company.legal_name == 'ИП Иванов Иван Иванович'
+        assert len(company.tax_id) == 12
+        assert len(company.kpp) == 9
+
+    def test_company_meta_configuration(self):
+        """
+        Тест настроек Meta класса Company
+        """
+        assert Company._meta.verbose_name == 'Компания'
+        assert Company._meta.verbose_name_plural == 'Компании'
+        assert Company._meta.db_table == 'companies'
+
+
+@pytest.mark.django_db
+class TestAddressModel:
+    """
+    Тесты модели адреса Address
+    """
+
+    def test_address_creation(self):
+        """
+        Тест успешного создания адреса
+        """
+        user = UserFactory.create()
+        address = AddressFactory.create(
+            user=user,
+            city='Москва',
+            street='Тверская',
+            building='1',
+            full_name='Иван Иванов'
+        )
+        
+        assert address.user == user
+        assert address.city == 'Москва'
+        assert address.street == 'Тверская'
+        assert address.building == '1'
+        assert 'Москва, Тверская 1' in str(address)
+
+    def test_full_address_property(self):
+        """
+        Тест свойства полного адреса
+        """
+        address = AddressFactory.build(
+            postal_code='123456',
+            city='Москва',
+            street='Тверская',
+            building='1',
+            apartment='101'
+        )
+        
+        expected = '123456, Москва, Тверская, 1, кв. 101'
+        assert address.full_address == expected
+
+    def test_full_address_property_without_apartment(self):
+        """
+        Тест свойства полного адреса без квартиры
+        """
+        address = AddressFactory.build(
+            postal_code='654321',
+            city='Санкт-Петербург',
+            street='Невский проспект',
+            building='50',
+            apartment=''
+        )
+        
+        expected = '654321, Санкт-Петербург, Невский проспект, 50'
+        assert address.full_address == expected
+
+    def test_multiple_addresses_for_user(self):
+        """
+        Тест создания нескольких адресов для одного пользователя
+        """
+        user = UserFactory.create()
+        
+        shipping_address = AddressFactory.create(
+            user=user,
+            address_type='shipping',
+            is_default=True
+        )
+        legal_address = AddressFactory.create(
+            user=user,
+            address_type='legal',
+            is_default=False
+        )
+        
+        assert user.addresses.count() == 2
+        assert shipping_address.address_type == 'shipping'
+        assert legal_address.address_type == 'legal'
+        assert shipping_address.is_default is True
+        assert legal_address.is_default is False
+
+    def test_address_types_choices(self):
+        """
+        Тест валидных типов адресов
+        """
+        user = UserFactory.create()
+        
+        # Тест валидных типов
+        shipping_address = AddressFactory.create(user=user, address_type='shipping')
+        legal_address = AddressFactory.create(user=user, address_type='legal')
+        
+        shipping_address.full_clean()  # Не должно вызывать ValidationError
+        legal_address.full_clean()   # Не должно вызывать ValidationError
+        
+        assert shipping_address.address_type == 'shipping'
+        assert legal_address.address_type == 'legal'
+
+    def test_address_str_representation(self):
+        """
+        Тест строкового представления адреса
+        """
+        address = AddressFactory.create(
+            full_name='Петр Петров',
+            city='Екатеринбург',
+            street='Ленина',
+            building='25'
+        )
+        
+        expected = 'Петр Петров - Екатеринбург, Ленина 25'
+        assert str(address) == expected
+
+    def test_address_meta_configuration(self):
+        """
+        Тест настроек Meta класса Address
+        """
+        assert Address._meta.verbose_name == 'Адрес'
+        assert Address._meta.verbose_name_plural == 'Адреса'
+        assert Address._meta.db_table == 'addresses'
+
+    def test_setting_new_default_address_unsets_old_one(self):
+        """
+        Тест: установка нового адреса по умолчанию снимает флаг со старого
+        """
+        user = UserFactory.create()
+        
+        # Создаем первый адрес как основной
+        addr1 = AddressFactory.create(
+            user=user, 
+            address_type='shipping', 
+            is_default=True
+        )
+        
+        # Создаем второй адрес как не основной
+        addr2 = AddressFactory.create(
+            user=user, 
+            address_type='shipping', 
+            is_default=False
+        )
+        
+        # Устанавливаем второй адрес как основной и сохраняем
+        addr2.is_default = True
+        addr2.save()
+        
+        # Обновляем состояние первого адреса из базы данных
+        addr1.refresh_from_db()
+        
+        # Проверяем, что флаг со старого адреса снят, а у нового установлен
+        assert addr1.is_default is False
+        assert addr2.is_default is True
+        assert user.addresses.filter(address_type='shipping', is_default=True).count() == 1
+
+    def test_multiple_default_addresses_for_different_types(self):
+        """
+        Тест: пользователь может иметь разные адреса по умолчанию для разных типов
+        """
+        user = UserFactory.create()
+        
+        # Создаем основной адрес доставки
+        shipping_addr = AddressFactory.create(
+            user=user,
+            address_type='shipping',
+            is_default=True
+        )
+        
+        # Создаем основной юридический адрес
+        legal_addr = AddressFactory.create(
+            user=user,
+            address_type='legal',
+            is_default=True
+        )
+        
+        # Оба адреса должны остаться основными для своих типов
+        assert shipping_addr.is_default is True
+        assert legal_addr.is_default is True
+        assert user.addresses.filter(is_default=True).count() == 2
+        
+        # Но для каждого типа должен быть только один основной
+        assert user.addresses.filter(address_type='shipping', is_default=True).count() == 1
+        assert user.addresses.filter(address_type='legal', is_default=True).count() == 1
+
+    def test_creating_multiple_default_addresses_same_type_via_factory(self):
+        """
+        Тест: создание второго адреса по умолчанию через фабрику автоматически снимает флаг с первого
+        """
+        user = UserFactory.create()
+        
+        # Создаем первый основной адрес
+        addr1 = AddressFactory.create(
+            user=user,
+            address_type='shipping',
+            is_default=True
+        )
+        
+        # Создаем второй основной адрес - должен автоматически снять флаг с первого
+        addr2 = AddressFactory.create(
+            user=user,
+            address_type='shipping',
+            is_default=True
+        )
+        
+        # Обновляем первый адрес из базы
+        addr1.refresh_from_db()
+        
+        # У первого адреса флаг должен быть снят
+        assert addr1.is_default is False
+        assert addr2.is_default is True
+        assert user.addresses.filter(address_type='shipping', is_default=True).count() == 1
+
+    @pytest.mark.parametrize(
+        "address_type, expected_display",
+        [
+            ('shipping', 'Адрес доставки'),
+            ('legal', 'Юридический адрес'),
+        ]
+    )
+    def test_address_type_display(self, address_type, expected_display):
+        """
+        Тест отображения типов адресов
+        """
+        address = AddressFactory.create(address_type=address_type)
+        assert address.get_address_type_display() == expected_display
