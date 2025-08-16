@@ -19,8 +19,14 @@
       "Bash(python3 -m pytest:*)",
       "WebFetch(domain:*)",
       "Bash(gh issue view:*)",
-      "WebFetch(domain:docs.anthropic.com)"
+      "WebFetch(domain:docs.anthropic.com)",
+      "Bash(echo $PS1)"
     ],
     "deny": []
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "ccusage statusline",
+    "padding": 0  
   }
 }

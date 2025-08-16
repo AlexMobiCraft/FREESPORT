@@ -32,3 +32,11 @@
   
 Ask if you don't understand.
 Always communicate in Russian.
+
+"statusLine": {
+  "enabled": true,
+  "format": "🚀 {basename} | 🌿 {branch} | 📊 {status} | 🕒 {time:HH:mm}",
+  "refreshIntervalMs": 2000,
+  "showFileCount": true,
+ "showGitInfo": true
+}
