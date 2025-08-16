@@ -949,7 +949,143 @@ class ProductFilterSerializer(serializers.Serializer):
 
 ## 4. Структура Компонентов
 
-TODO: Component Structure section will be added here...
+### Frontend Architecture (Next.js 14+)
+
+#### Компонентная архитектура
+
+```
+frontend/src/
+├── app/                          # App Router (Next.js 13+)
+│   ├── (auth)/                   # Route groups
+│   ├── catalog/
+│   ├── product/[id]/
+│   ├── admin/                    # Административные маршруты
+│   └── api/                      # API Routes (BFF)
+├── components/                   # React компоненты
+│   ├── ui/                       # Базовые UI компоненты
+│   │   ├── Button/
+│   │   ├── Input/
+│   │   ├── Modal/
+│   │   └── Toast/
+│   ├── business/                 # Бизнес-логика компоненты
+│   │   ├── ProductCard/
+│   │   ├── Cart/
+│   │   ├── Checkout/
+│   │   └── B2BVerification/
+│   ├── admin/                    # Административные компоненты
+│   │   ├── Dashboard/
+│   │   ├── ApplicationModeration/
+│   │   ├── Integration1CMonitor/
+│   │   └── UserManagement/
+│   └── layout/                   # Лейаут компоненты
+│       ├── Header/
+│       ├── Navigation/
+│       └── Footer/
+├── hooks/                        # Custom React hooks
+├── services/                     # API сервисы
+├── stores/                       # State management (Zustand)
+├── types/                        # TypeScript типы
+└── utils/                        # Утилиты
+```
+
+#### UI Component Library (согласно front-end-spec.md)
+
+**Базовые компоненты:**
+```typescript
+// Кнопки с B2B/B2C вариантами
+interface ButtonProps {
+  variant: 'primary' | 'secondary' | 'outline' | 'ghost' | 'b2b-bulk' | 'danger'
+  size: 'xs' | 'sm' | 'md' | 'lg' | 'xl'
+  mode: 'b2c' | 'b2b' | 'universal'
+}
+
+// Карточки товаров с ролевым ценообразованием  
+interface ProductCardProps {
+  mode: 'b2c' | 'b2b'
+  layout: 'grid' | 'list' | 'compact'
+  product: Product
+  showRRP?: boolean // Для B2B пользователей
+  showMSRP?: boolean // Для B2B пользователей
+}
+
+// Фильтры и сортировка
+interface SortOptionsProps {
+  options: SortOption[]
+  currentSort: string
+  mode: 'b2c' | 'b2b'
+}
+```
+
+**Административные компоненты:**
+```typescript
+// Дашборд админ-панели
+interface AdminDashboardProps {
+  kpis: KPIData
+  alerts: AlertItem[]
+  integrationStatus: Integration1CStatus
+  systemMetrics: SystemMetrics
+}
+
+// Модерация B2B заявок
+interface ModerationListProps {
+  applications: B2BApplication[]
+  filters: ModerationFilters
+  onApprove: (id: string, role: UserRole) => void
+  onReject: (id: string, reason: string) => void
+}
+
+// Мониторинг интеграции с 1С
+interface Integration1CMonitorProps {
+  status: CircuitBreakerStatus
+  syncHistory: SyncLogEntry[]
+  onManualSync: (type: SyncType) => void
+}
+```
+
+#### State Management Strategy
+
+```typescript
+// User store (Zustand)
+interface UserStore {
+  user: User | null
+  userRole: UserRole
+  isAuthenticated: boolean
+  permissions: string[]
+}
+
+// Cart store с поддержкой B2B логики
+interface CartStore {
+  items: CartItem[]
+  userMode: 'b2c' | 'b2b'
+  minimumOrderAmount: number
+  bulkDiscounts: BulkDiscount[]
+}
+
+// UI state для модальных окон, уведомлений
+interface UIStore {
+  modals: ModalState[]
+  notifications: Notification[]
+  theme: 'b2c' | 'b2b'
+}
+```
+
+#### Responsive Design System
+
+```scss
+// Breakpoints (согласно front-end-spec.md)
+$breakpoints: (
+  xs: 0,           // Мобильные телефоны
+  sm: 576px,       // Большие телефоны  
+  md: 768px,       // Планшеты
+  lg: 992px,       // Небольшие ноутбуки
+  xl: 1200px,      // Большие экраны
+  xxl: 1400px      // Широкие мониторы
+);
+
+// Адаптивная типографика
+$text-base: clamp(1rem, 0.95rem + 0.25vw, 1.1rem);
+$text-lg: clamp(1.125rem, 1rem + 0.5vw, 1.25rem);
+```
 
 ---
 
