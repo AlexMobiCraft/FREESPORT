@@ -2,9 +2,38 @@
 Модели пользователей для платформы FREESPORT
 Включает кастомную User модель с ролевой системой B2B/B2C
 """
-from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.db import models
 from django.core.validators import RegexValidator
+
+
+class UserManager(BaseUserManager):
+    """
+    Кастомный менеджер для модели User с email аутентификацией
+    """
+    def create_user(self, email, password=None, **extra_fields):
+        """Создание обычного пользователя"""
+        if not email:
+            raise ValueError('Email обязателен для создания пользователя')
+        
+        email = self.normalize_email(email)
+        user = self.model(email=email, **extra_fields)
+        user.set_password(password)
+        user.save(using=self._db)
+        return user
+    
+    def create_superuser(self, email, password=None, **extra_fields):
+        """Создание суперпользователя"""
+        extra_fields.setdefault('is_staff', True)
+        extra_fields.setdefault('is_superuser', True)
+        extra_fields.setdefault('role', 'admin')
+        
+        if extra_fields.get('is_staff') is not True:
+            raise ValueError('Суперпользователь должен иметь is_staff=True.')
+        if extra_fields.get('is_superuser') is not True:
+            raise ValueError('Суперпользователь должен иметь is_superuser=True.')
+        
+        return self.create_user(email, password, **extra_fields)
 
 
 class User(AbstractUser):
@@ -19,7 +48,7 @@ class User(AbstractUser):
         ('wholesale_level1', 'Оптовик уровень 1'),
         ('wholesale_level2', 'Оптовик уровень 2'),
         ('wholesale_level3', 'Оптовик уровень 3'),
-        ('trainer', 'Тренер'),
+        ('trainer', 'Тренер/Фитнес-клуб'),
         ('federation_rep', 'Представитель федерации'),
         ('admin', 'Администратор'),
     ]
@@ -74,6 +103,8 @@ class User(AbstractUser):
     
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['first_name', 'last_name']
+    
+    objects = UserManager()
     
     class Meta:
         verbose_name = 'Пользователь'
@@ -209,3 +240,34 @@ class Address(models.Model):
         if self.apartment:
             parts.append(f"кв. {self.apartment}")
         return ", ".join(parts)
+
+
+class Favorite(models.Model):
+    """
+    Модель избранных товаров пользователей
+    """
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='favorites',
+        verbose_name='Пользователь'
+    )
+    
+    product = models.ForeignKey(
+        'products.Product',
+        on_delete=models.CASCADE,
+        related_name='favorited_by',
+        verbose_name='Товар'
+    )
+    
+    created_at = models.DateTimeField('Дата добавления', auto_now_add=True)
+    
+    class Meta:
+        verbose_name = 'Избранное'
+        verbose_name_plural = 'Избранные товары'
+        db_table = 'favorites'
+        unique_together = ('user', 'product')
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.user.email} - {self.product.name}"
