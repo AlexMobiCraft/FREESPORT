@@ -9,8 +9,9 @@ import requests
 import json
 
 # Настройка Django environment
+backend_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(backend_path)
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'freesport.settings')
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 django.setup()
 
 from apps.users.models import User

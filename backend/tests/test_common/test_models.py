@@ -1,7 +1,7 @@
 """
 Тесты для общих моделей FREESPORT Platform
 """
-import pytest
+from django.test import TestCase
 from django.core.exceptions import ValidationError
 from django.contrib.auth import get_user_model
 from decimal import Decimal
@@ -13,8 +13,7 @@ from apps.common.models import AuditLog, SyncLog
 User = get_user_model()
 
 
-@pytest.mark.django_db
-class TestAuditLogModel:
+class TestAuditLogModel(TestCase):
     """Тесты модели AuditLog"""
 
     def test_audit_log_creation(self):
@@ -29,13 +28,13 @@ class TestAuditLogModel:
             ip_address='192.168.1.1'
         )
         
-        assert audit_log.user == user
-        assert audit_log.action == 'create'
-        assert audit_log.resource_type == 'Product'
-        assert audit_log.resource_id == '123'
-        assert audit_log.changes == {'name': 'Новый товар', 'price': '1000.00'}
-        assert audit_log.ip_address == '192.168.1.1'
-        assert str(audit_log) == f"{user.email} - create Product#123"
+        self.assertEqual(audit_log.user, user)
+        self.assertEqual(audit_log.action, 'create')
+        self.assertEqual(audit_log.resource_type, 'Product')
+        self.assertEqual(audit_log.resource_id, '123')
+        self.assertEqual(audit_log.changes, {'name': 'Новый товар', 'price': '1000.00'})
+        self.assertEqual(audit_log.ip_address, '192.168.1.1')
+        self.assertEqual(str(audit_log), f"{user.email} - create Product#123")
 
     def test_audit_log_without_user(self):
         """Тест создания записи аудита без пользователя (системные операции)"""

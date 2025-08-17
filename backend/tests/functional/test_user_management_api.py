@@ -7,8 +7,9 @@ import django
 import sys
 
 # Настройка Django окружения
-sys.path.append('/c/Users/38670/DEV_WEB/FREESPORT/backend')
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'freesport.settings.development')
+backend_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(backend_path)
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'freesport.settings')
 django.setup()
 
 from apps.users.models import User
