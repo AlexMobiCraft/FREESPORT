@@ -13,32 +13,28 @@ from .views import (
     UserDashboardView,
     AddressViewSet,
     FavoriteViewSet,
-    OrderHistoryView
+    OrderHistoryView,
 )
 
 # Router для ViewSets
 router = DefaultRouter()
-router.register(r'users/addresses', AddressViewSet, basename='address')
-router.register(r'users/favorites', FavoriteViewSet, basename='favorite')
+router.register(r"users/addresses", AddressViewSet, basename="address")
+router.register(r"users/favorites", FavoriteViewSet, basename="favorite")
 
-app_name = 'users'
+app_name = "users"
 
 urlpatterns = [
     # Аутентификация
-    path('auth/register/', UserRegistrationView.as_view(), name='register'),
-    path('auth/login/', UserLoginView.as_view(), name='login'),
-    path('auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-    
+    path("auth/register/", UserRegistrationView.as_view(), name="register"),
+    path("auth/login/", UserLoginView.as_view(), name="login"),
+    path("auth/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     # Профиль пользователя
-    path('users/profile/', UserProfileView.as_view(), name='profile'),
-    
+    path("users/profile/", UserProfileView.as_view(), name="profile"),
     # Личный кабинет
-    path('users/profile/dashboard/', UserDashboardView.as_view(), name='dashboard'),
-    path('users/orders/', OrderHistoryView.as_view(), name='orders'),
-    
+    path("users/profile/dashboard/", UserDashboardView.as_view(), name="dashboard"),
+    path("users/orders/", OrderHistoryView.as_view(), name="orders"),
     # Системная информация
-    path('users/roles/', user_roles_view, name='roles'),
-    
+    path("users/roles/", user_roles_view, name="roles"),
     # Включаем router для ViewSets
-    path('', include(router.urls)),
+    path("", include(router.urls)),
 ]

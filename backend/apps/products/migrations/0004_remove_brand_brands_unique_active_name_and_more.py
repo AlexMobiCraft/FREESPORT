@@ -4,50 +4,49 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('products', '0003_add_constraints'),
+        ("products", "0003_add_constraints"),
     ]
 
     operations = [
         migrations.RemoveConstraint(
-            model_name='brand',
-            name='brands_unique_active_name',
+            model_name="brand",
+            name="brands_unique_active_name",
         ),
         migrations.RemoveConstraint(
-            model_name='category',
-            name='categories_unique_active_name_parent',
+            model_name="category",
+            name="categories_unique_active_name_parent",
         ),
         migrations.RemoveConstraint(
-            model_name='product',
-            name='products_retail_price_positive',
+            model_name="product",
+            name="products_retail_price_positive",
         ),
         migrations.RemoveConstraint(
-            model_name='product',
-            name='products_opt1_price_positive',
+            model_name="product",
+            name="products_opt1_price_positive",
         ),
         migrations.RemoveConstraint(
-            model_name='product',
-            name='products_opt2_price_positive',
+            model_name="product",
+            name="products_opt2_price_positive",
         ),
         migrations.RemoveConstraint(
-            model_name='product',
-            name='products_opt3_price_positive',
+            model_name="product",
+            name="products_opt3_price_positive",
         ),
         migrations.RemoveConstraint(
-            model_name='product',
-            name='products_trainer_price_positive',
+            model_name="product",
+            name="products_trainer_price_positive",
         ),
         migrations.RemoveConstraint(
-            model_name='product',
-            name='products_federation_price_positive',
+            model_name="product",
+            name="products_federation_price_positive",
         ),
         migrations.RemoveConstraint(
-            model_name='product',
-            name='products_stock_positive',
+            model_name="product",
+            name="products_stock_positive",
         ),
         migrations.RemoveConstraint(
-            model_name='product',
-            name='products_min_order_quantity_positive',
+            model_name="product",
+            name="products_min_order_quantity_positive",
         ),
     ]

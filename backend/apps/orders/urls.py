@@ -8,11 +8,11 @@ from .views import OrderViewSet
 
 # Router для ViewSets
 router = DefaultRouter()
-router.register(r'orders', OrderViewSet, basename='order')
+router.register(r"orders", OrderViewSet, basename="order")
 
-app_name = 'orders'
+app_name = "orders"
 
 urlpatterns = [
     # Включаем router для всех ViewSets
-    path('', include(router.urls)),
+    path("", include(router.urls)),
 ]
