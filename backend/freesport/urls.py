@@ -21,7 +21,7 @@ urlpatterns = [
     path('api/v1/', include('apps.users.urls')),
     path('api/v1/', include('apps.products.urls')),
     # path('api/v1/orders/', include('apps.orders.urls')),
-    # path('api/v1/cart/', include('apps.cart.urls')),
+    path('api/v1/cart/', include('apps.cart.urls')),
 ]
 
 # Статические и медиа файлы в режиме разработки

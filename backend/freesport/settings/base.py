@@ -6,6 +6,19 @@ from pathlib import Path
 from datetime import timedelta
 from decouple import config
 import os
+import sys
+
+# Настройка кодировки для Windows консоли
+if sys.platform == 'win32':
+    import locale
+    # Попытка установить UTF-8 кодировку
+    try:
+        locale.setlocale(locale.LC_ALL, 'ru_RU.UTF-8')
+    except locale.Error:
+        try:
+            locale.setlocale(locale.LC_ALL, 'Russian_Russia.1251')
+        except locale.Error:
+            pass
 
 # Корневая директория проекта
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
