@@ -104,6 +104,7 @@ class Product(models.Model):
     )
     description = models.TextField('Описание')
     short_description = models.CharField('Краткое описание', max_length=500, blank=True)
+    specifications = models.JSONField('Технические характеристики', default=dict, blank=True)
     
     # Ценообразование для различных ролей пользователей
     retail_price = models.DecimalField(

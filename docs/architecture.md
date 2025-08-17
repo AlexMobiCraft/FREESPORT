@@ -164,6 +164,9 @@ class Product(models.Model):
     main_image = models.ImageField(upload_to='products/')
     gallery_images = models.JSONField(default=list, blank=True)
     
+    # Технические характеристики  
+    specifications = models.JSONField('Технические характеристики', default=dict, blank=True)
+    
     # SEO & Meta
     seo_title = models.CharField(max_length=200, blank=True)
     seo_description = models.TextField(blank=True)
@@ -177,6 +180,17 @@ class Product(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     onec_id = models.CharField(max_length=100, blank=True, null=True)  # 1C reference
     last_sync_at = models.DateTimeField(null=True, blank=True)
+    
+    # Computed properties
+    @property
+    def is_in_stock(self):
+        """Проверка наличия товара на складе"""
+        return self.stock_quantity > 0
+
+    @property
+    def can_be_ordered(self):
+        """Можно ли заказать товар (активен и в наличии)"""
+        return self.is_active and self.is_in_stock
 ```
 
 ### Модели управления заказами

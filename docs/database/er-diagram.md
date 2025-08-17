@@ -91,20 +91,20 @@ erDiagram
         category_id bigint FK
         description text
         short_description varchar(500)
-        retail_price decimal(10,2) "Розничная цена"
-        opt1_price decimal(10,2) "Оптовая цена уровень 1"
-        opt2_price decimal(10,2) "Оптовая цена уровень 2"
-        opt3_price decimal(10,2) "Оптовая цена уровень 3"
-        trainer_price decimal(10,2) "Цена для тренера"
-        federation_price decimal(10,2) "Цена для представителя федерации"
-        recommended_retail_price decimal(10,2) "Рекомендованная розничная цена (RRP)"
-        max_suggested_retail_price decimal(10,2) "Максимальная рекомендованная цена (MSRP)"
+        retail_price decimal "Розничная цена"
+        opt1_price decimal "Оптовая цена уровень 1"
+        opt2_price decimal "Оптовая цена уровень 2"
+        opt3_price decimal "Оптовая цена уровень 3"
+        trainer_price decimal "Цена для тренера"
+        federation_price decimal "Цена для представителя федерации"
+        recommended_retail_price decimal "Рекомендованная розничная цена (RRP)"
+        max_suggested_retail_price decimal "Максимальная рекомендованная цена (MSRP)"
         sku varchar(100) UK
         stock_quantity integer
         min_order_quantity integer
         main_image varchar(255)
         gallery_images jsonb
-        weight decimal(8,2)
+        weight decimal
         dimensions jsonb
         specifications jsonb
         is_active boolean
@@ -123,9 +123,9 @@ erDiagram
         customer_email varchar(254) "для гостевых заказов"
         customer_phone varchar(20) "для гостевых заказов"
         status varchar(50) "pending, confirmed, processing, shipped, delivered, cancelled, refunded"
-        total_amount decimal(10,2)
-        discount_amount decimal(10,2)
-        delivery_cost decimal(10,2)
+        total_amount decimal
+        discount_amount decimal
+        delivery_cost decimal
         delivery_address text
         delivery_method varchar(50)
         delivery_date date
@@ -141,8 +141,8 @@ erDiagram
         order_id bigint FK
         product_id bigint FK
         quantity integer
-        unit_price decimal(10,2) "Цена по роли пользователя"
-        total_price decimal(10,2)
+        unit_price decimal "Цена по роли пользователя"
+        total_price decimal
         product_name varchar(300) "Снимок данных на момент заказа"
         product_sku varchar(100) "Снимок данных на момент заказа"
         created_at timestamp

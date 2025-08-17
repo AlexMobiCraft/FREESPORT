@@ -734,7 +734,12 @@ components:
             specifications:
               type: object
               additionalProperties: true
-              description: Технические характеристики
+              description: Технические характеристики товара в формате ключ-значение
+              example:
+                "Материал": "Полиэстер 100%"
+                "Размеры": "S, M, L, XL"
+                "Вес": "0.5 кг"
+                "Цвет": "Синий, красный, черный"
             related_products:
               type: array
               items:
