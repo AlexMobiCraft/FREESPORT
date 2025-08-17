@@ -21,6 +21,11 @@ freesport/
 ├── backend/                    # Django + DRF API
 │   ├── apps/                   # Django приложения
 │   │   ├── users/              # Пользователи и роли
+│   │   │   ├── views/          # ✅ Модульная структура (Story 2.3)
+│   │   │   │   ├── authentication.py  # Регистрация, авторизация
+│   │   │   │   ├── profile.py         # Профиль пользователя
+│   │   │   │   ├── personal_cabinet.py # Дашборд, адреса, избранное
+│   │   │   │   └── misc.py             # Вспомогательные функции
 │   │   ├── products/           # Каталог товаров
 │   │   ├── orders/             # Система заказов
 │   │   ├── cart/               # Корзина покупок
@@ -120,7 +125,7 @@ docker-compose up -d
 
 - **retail** - Розничный покупатель
 - **wholesale_level1-3** - Оптовики (3 уровня ценообразования)
-- **trainer** - Тренеры (специальные цены)
+- **trainer** - Тренер/Фитнес-клуб (специальные цены)
 - **federation_rep** - Представители федераций
 
 ## 📚 Документация
@@ -129,7 +134,7 @@ docker-compose up -d
 - [PRD](docs/PRD.md) - Технические требования (Product Requirements Document)
 - [Architecture](docs/architecture.md) - Архитектурная документация
 - [Frontend Specification](docs/front-end-spec.md) - Полная UI/UX спецификация FREESPORT
-- [API Specification](docs/api-spec.yaml) - OpenAPI 3.0.3 спецификация
+- [API Specification](docs/api-spec.yaml) - OpenAPI 3.1.0 спецификация
 - [User Stories](docs/stories/) - Этапы разработки (1.1-1.9)
 
 ### Спецификация фронтенда
@@ -191,7 +196,7 @@ docker-compose up    # Вся платформа
 
 ## 📈 Отслеживание прогресса
 
-**Этап 1 (Недели 1-2):**
+**Этап 1 (Недели 1-2): Фундамент проекта**
 - [x] [Story 1.1:](docs/stories/1.1.git-setup.md) Настройка Git ✅ ЗАВЕРШЕНА
 - [x] [Story 1.2:](docs/stories/1.2.dev-environment.md) Среда разработки ✅ ЗАВЕРШЕНА
 - [x] [Story 1.3:](docs/stories/1.3.django-structure.md) Структура Django ✅ ЗАВЕРШЕНА
@@ -201,6 +206,18 @@ docker-compose up    # Вся платформа
 - [x] [Story 1.7:](docs/stories/1.7.testing-environment.md) Тестирование ✅ ЗАВЕРШЕНА
 - [x] [Story 1.8:](docs/stories/1.8.database-design.md) База данных ✅ ЗАВЕРШЕНА
 - [x] [Story 1.9:](docs/stories/1.9.design-brief.md) UI/UX спецификация ✅ ЗАВЕРШЕНА
+
+**Этап 2 (Недели 3-4): API Backend**
+- [x] [Story 2.1:](docs/stories/2.1.swagger-documentation.md) API Документация (OpenAPI 3.1) ✅ ЗАВЕРШЕНА
+- [x] [Story 2.2:](docs/stories/2.2.user-management-api.md) User Management API ✅ ЗАВЕРШЕНА
+- [x] [Story 2.3:](docs/stories/2.3.personal-cabinet-api.md) Personal Cabinet API ✅ ЗАВЕРШЕНА
+- [ ] [Story 2.4:](docs/stories/2.4.catalog-api.md) Catalog API
+- [ ] [Story 2.5:](docs/stories/2.5.product-detail-api.md) Product Detail API
+- [ ] [Story 2.6:](docs/stories/2.6.cart-api.md) Cart API
+- [ ] [Story 2.7:](docs/stories/2.7.order-api.md) Order API
+- [ ] [Story 2.8:](docs/stories/2.8.search-api.md) Search API
+- [ ] [Story 2.9:](docs/stories/2.9.filtering-api.md) Filtering API
+- [ ] [Story 2.10:](docs/stories/2.10.pages-api.md) Pages API
 
 ## 📞 Контакты
 

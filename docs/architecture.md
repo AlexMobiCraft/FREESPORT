@@ -316,7 +316,7 @@ class SyncLog(models.Model):
 ### Структура схемы OpenAPI 3.1
 
 ```yaml
-openapi: 3.1.0
+openapi:
 info:
   title: FREESPORT API
   description: Comprehensive e-commerce API supporting B2B/B2C operations
@@ -1041,6 +1041,89 @@ interface Integration1CMonitorProps {
   onManualSync: (type: SyncType) => void
 }
 ```
+
+### Backend Architecture (Django + DRF)
+
+#### Модульная структура приложений
+
+```
+backend/
+├── apps/                             # Django приложения
+│   ├── users/                        # Управление пользователями
+│   │   ├── views/                    # ✅ Модульная структура views (Story 2.3)
+│   │   │   ├── __init__.py           # Экспорт для совместимости
+│   │   │   ├── authentication.py     # UserRegistrationView, UserLoginView
+│   │   │   ├── profile.py            # UserProfileView
+│   │   │   ├── misc.py               # user_roles_view
+│   │   │   └── personal_cabinet.py   # Dashboard, Addresses, Favorites, Orders
+│   │   ├── models.py                 # User, Company, Address, Favorite
+│   │   ├── serializers.py            # DRF serializers с валидацией
+│   │   ├── urls.py                   # Router с ViewSets
+│   │   ├── migrations/               # Database migrations
+│   │   └── admin.py                  # Django admin
+│   ├── products/                     # Каталог товаров
+│   │   ├── models.py                 # Product, Category, Brand
+│   │   ├── views.py                  # API endpoints каталога
+│   │   ├── serializers.py            # Роле-ориентированное ценообразование
+│   │   └── filters.py                # Фильтрация и поиск
+│   ├── orders/                       # Система заказов
+│   │   ├── models.py                 # Order, OrderItem
+│   │   ├── views.py                  # Checkout, order management
+│   │   └── tasks.py                  # Celery tasks для интеграции
+│   ├── cart/                         # Корзина покупок
+│   │   ├── models.py                 # Cart, CartItem
+│   │   └── views.py                  # Session-based cart
+│   └── common/                       # Общие компоненты
+│       ├── permissions.py            # Custom permissions
+│       ├── pagination.py             # Стандартизированная пагинация
+│       ├── exceptions.py             # Обработка ошибок
+│       └── utils.py                  # Общие утилиты
+├── freesport/                        # Django настройки
+│   ├── settings/                     # Модульные настройки
+│   │   ├── base.py                   # OpenAPI 3.1, JWT, DRF
+│   │   ├── development.py            # Dev настройки
+│   │   └── production.py             # Production конфигурация
+│   ├── urls.py                       # Root URL configuration
+│   └── wsgi.py                       # WSGI application
+├── requirements.txt                  # Python dependencies
+├── TODO_TEMPORARY_FIXES.md           # ✅ Документация временных заглушек
+└── manage.py                         # Django CLI
+```
+
+#### Views Architecture Pattern (Реализовано в Story 2.3)
+
+**Модульная организация views для масштабируемости:**
+
+```python
+# apps/users/views/__init__.py - Экспорт для обратной совместимости
+from .authentication import UserRegistrationView, UserLoginView
+from .profile import UserProfileView  
+from .misc import user_roles_view
+from .personal_cabinet import UserDashboardView, AddressViewSet, FavoriteViewSet
+
+# apps/users/views/authentication.py - Аутентификация
+class UserRegistrationView(APIView):
+    """Регистрация с ролевой системой B2B/B2C"""
+    
+class UserLoginView(APIView):
+    """JWT аутентификация"""
+
+# apps/users/views/personal_cabinet.py - Личный кабинет
+class UserDashboardView(APIView):
+    """Агрегированная статистика пользователя"""
+    
+class AddressViewSet(viewsets.ModelViewSet):
+    """CRUD управление адресами с фильтрацией по пользователю"""
+    
+class FavoriteViewSet(viewsets.ModelViewSet):
+    """Управление избранными товарами"""
+```
+
+**Преимущества модульной структуры:**
+- **Разделение ответственности**: Каждый модуль отвечает за свою область
+- **Масштабируемость**: Легко добавлять новые endpoints без загромождения
+- **Тестируемость**: Изолированное тестирование каждого модуля
+- **Совместимость**: Сохранение существующих URL patterns через __init__.py
 
 #### State Management Strategy
 
