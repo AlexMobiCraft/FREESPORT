@@ -10,7 +10,7 @@ djangorestframework==3.14.0
 django-cors-headers==4.3.1
 
 # JWT Authentication
-djangorestframework-simplejwt==5.3.0
+djangorestframework-simplejwt==5.3.1
 
 # Database
 psycopg2-binary==2.9.9
@@ -20,7 +20,8 @@ redis==5.0.1
 django-redis==5.4.0
 
 # API Documentation
-drf-spectacular==0.27.0
+drf-spectacular==0.28.0
+django-filter==23.5
 
 # Security & Validation
 django-ratelimit==4.1.0

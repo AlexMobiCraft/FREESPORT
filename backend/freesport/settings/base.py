@@ -31,6 +31,7 @@ THIRD_PARTY_APPS = [
     'django_redis',
     'drf_spectacular',
     'django_ratelimit',
+    'django_filters',
 ]
 
 # Локальные приложения FREESPORT
@@ -121,6 +122,11 @@ REST_FRAMEWORK = {
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
     ],
+    'DEFAULT_FILTER_BACKENDS': [
+        'django_filters.rest_framework.DjangoFilterBackend',
+        'rest_framework.filters.OrderingFilter',
+        'rest_framework.filters.SearchFilter',
+    ],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
@@ -182,11 +188,86 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Настройки документации API с drf-spectacular
 SPECTACULAR_SETTINGS = {
-    'TITLE': 'FREESPORT Platform API',
+    'TITLE': 'FREESPORT API',
     'DESCRIPTION': 'RESTful API для B2B/B2C платформы спортивных товаров FREESPORT',
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
-    'SCHEMA_PATH_PREFIX': '/api',
+    'SCHEMA_PATH_PREFIX': '/api/v1',
+    'SCHEMA_PATH_PREFIX_TRIM': True,
+    'COMPONENT_SPLIT_REQUEST': True,
+    'SORT_OPERATIONS': False,
+    'ENABLE_DJANGO_DEPLOY_CHECK': False,
+    'DISABLE_ERRORS_AND_WARNINGS': True,
+    # OpenAPI 3.1 настройки согласно architecture.md
+    'OAS_VERSION': '3.1.0',
+    'SCHEMA_COERCE_METHOD_NAMES': {
+        'retrieve': 'get',
+        'list': 'list',
+        'create': 'create',
+        'update': 'update',
+        'partial_update': 'partial_update',
+        'destroy': 'delete'
+    },
+    'SWAGGER_UI_SETTINGS': {
+        'deepLinking': True,
+        'persistAuthorization': True,
+        'displayOperationId': True,
+        'docExpansion': 'list',
+        'filter': True,
+        'showExtensions': True,
+        'showCommonExtensions': True,
+    },
+    'REDOC_UI_SETTINGS': {
+        'nativeScrollbars': True,
+        'theme': {
+            'colors': {
+                'primary': {
+                    'main': '#1976d2'
+                }
+            }
+        },
+        'expandResponses': '200,201',
+        'jsonSampleExpandLevel': 2,
+    },
+    'AUTHENTICATION_WHITELIST': [
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ],
+    'SERVE_AUTHENTICATION': [
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ],
+    'POSTPROCESSING_HOOKS': [
+        'drf_spectacular.hooks.postprocess_schema_enums'
+    ],
+    'ENUM_NAME_OVERRIDES': {
+        'ValidationErrorEnum': 'drf_spectacular.utils.validation_error_enum_class',
+    },
+    'TAGS': [
+        {'name': 'Authentication', 'description': 'Аутентификация и JWT токены'},
+        {'name': 'Users', 'description': 'Управление пользователями и профилями'},
+        {'name': 'Products', 'description': 'Каталог товаров и управление ассортиментом'},
+        {'name': 'Cart', 'description': 'Корзина покупок'},
+        {'name': 'Orders', 'description': 'Управление заказами и их статусами'},
+        {'name': 'Search', 'description': 'Поиск и фильтрация товаров'},
+        {'name': 'System', 'description': 'Системные эндпоинты для мониторинга'},
+        {'name': 'Webhooks', 'description': 'Уведомления от внешних сервисов'},
+    ],
+    'SERVERS': [
+        {
+            'url': 'http://127.0.0.1:8001',
+            'description': 'Development server'
+        },
+        {
+            'url': 'https://api.freesport.ru',
+            'description': 'Production server'
+        }
+    ],
+    # OpenAPI 3.1 Extensions для будущих webhooks (ЮКасса)
+    'EXTENSIONS_INFO': {
+        'x-logo': {
+            'url': 'https://api.freesport.ru/static/logo.png',
+            'altText': 'FREESPORT API'
+        }
+    },
 }
 
 # Настройки безопасности (переопределяются в продакшене)
