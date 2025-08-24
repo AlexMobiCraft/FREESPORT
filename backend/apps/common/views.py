@@ -16,22 +16,25 @@ from django.conf import settings
                 "application/json": {
                     "status": "healthy",
                     "version": "1.0.0",
-                    "environment": "development"
+                    "environment": "development",
                 }
-            }
+            },
         )
     },
-    tags=["System"]
+    tags=["System"],
 )
-@api_view(['GET'])
+@api_view(["GET"])
 @permission_classes([AllowAny])
 def health_check(request):
     """
     Endpoint для проверки состояния API.
     Возвращает информацию о версии и окружении.
     """
-    return Response({
-        "status": "healthy",
-        "version": "1.0.0",
-        "environment": getattr(settings, 'ENVIRONMENT', 'development')
-    }, status=status.HTTP_200_OK)
+    return Response(
+        {
+            "status": "healthy",
+            "version": "1.0.0",
+            "environment": getattr(settings, "ENVIRONMENT", "development"),
+        },
+        status=status.HTTP_200_OK,
+    )

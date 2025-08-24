@@ -4,34 +4,33 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('orders', '0002_add_constraints'),
+        ("orders", "0002_add_constraints"),
     ]
 
     operations = [
         migrations.RemoveConstraint(
-            model_name='order',
-            name='orders_total_amount_positive',
+            model_name="order",
+            name="orders_total_amount_positive",
         ),
         migrations.RemoveConstraint(
-            model_name='order',
-            name='orders_discount_amount_positive',
+            model_name="order",
+            name="orders_discount_amount_positive",
         ),
         migrations.RemoveConstraint(
-            model_name='order',
-            name='orders_delivery_cost_positive',
+            model_name="order",
+            name="orders_delivery_cost_positive",
         ),
         migrations.RemoveConstraint(
-            model_name='orderitem',
-            name='order_items_quantity_positive',
+            model_name="orderitem",
+            name="order_items_quantity_positive",
         ),
         migrations.RemoveConstraint(
-            model_name='orderitem',
-            name='order_items_unit_price_positive',
+            model_name="orderitem",
+            name="order_items_unit_price_positive",
         ),
         migrations.RemoveConstraint(
-            model_name='orderitem',
-            name='order_items_total_price_positive',
+            model_name="orderitem",
+            name="order_items_total_price_positive",
         ),
     ]
