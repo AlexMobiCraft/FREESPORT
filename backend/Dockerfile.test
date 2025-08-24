@@ -1,0 +1,64 @@
+# Dockerfile оптимизированный для тестирования FREESPORT Backend
+FROM python:3.12-slim
+
+# Метаданные образа
+LABEL maintainer="FREESPORT Dev Team"
+LABEL version="1.0-test"
+LABEL description="Django backend для тестирования FREESPORT Platform"
+
+# Аргумент для настроек Django
+ARG DJANGO_SETTINGS_MODULE=freesport.settings.test
+
+# Установка системных зависимостей для тестирования
+RUN apt-get update && apt-get install -y \
+    libpq-dev \
+    gcc \
+    gettext \
+    git \
+    curl \
+    # Инструменты для отладки в тестовой среде
+    procps \
+    vim-tiny \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# Установка переменных окружения для тестов
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONUTF8=1
+ENV DJANGO_SETTINGS_MODULE=${DJANGO_SETTINGS_MODULE}
+
+# Создание рабочей директории
+WORKDIR /app
+
+# Копирование и установка зависимостей
+COPY requirements.txt .
+RUN pip install --upgrade pip \
+    && pip install --no-cache-dir -r requirements.txt \
+    # Дополнительные тестовые инструменты
+    && pip install --no-cache-dir \
+        pytest-xdist \
+        pytest-mock \
+        pytest-env \
+        pytest-sugar \
+        pytest-clarity
+
+# Копирование исходного кода
+COPY . .
+
+# Создание директорий для тестовых артефактов
+RUN mkdir -p /app/test-reports /app/htmlcov /app/test-logs \
+    && chmod -R 755 /app/test-reports /app/htmlcov /app/test-logs
+
+# Настройка прав доступа (для тестовой среды можем оставить root)
+# В продакшене используется отдельный пользователь freesport
+
+# Открытие порта для Django (если нужно)
+EXPOSE 8000
+
+# Проверка работоспособности для тестов
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=2 \
+    CMD python manage.py check || exit 1
+
+# По умолчанию запускаем все тесты с покрытием кода
+CMD ["pytest", "-v", "--tb=short", "--cov=apps", "--cov-report=html", "--cov-report=term-missing", "--cov-fail-under=70"]

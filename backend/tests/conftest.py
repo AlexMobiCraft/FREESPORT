@@ -5,6 +5,28 @@
 import pytest
 from unittest.mock import patch
 from decimal import Decimal
+import uuid
+import time
+import random
+from datetime import datetime
+
+# Глобальный счетчик для обеспечения уникальности
+_unique_counter = 0
+
+def get_unique_suffix():
+    """Генерирует абсолютно уникальный суффикс с глобальным счетчиком, временной меткой и UUID"""
+    global _unique_counter
+    _unique_counter += 1
+    return f"{int(time.time() * 1000)}-{_unique_counter}-{uuid.uuid4().hex[:6]}"
+
+def get_unique_order_number():
+    """Генерирует абсолютно уникальный номер заказа"""
+    global _unique_counter
+    _unique_counter += 1
+    date_part = datetime.now().strftime('%y%m%d')
+    unique_part = f"{_unique_counter:04d}{uuid.uuid4().hex[:3].upper()}"
+    timestamp = int(time.time() * 1000) % 100000  # последние 5 цифр microsecond timestamp
+    return f"FS-{date_part}-{unique_part}-{timestamp}"
 
 # Создание фабрик как lazy functions
 def create_factories():
@@ -25,7 +47,7 @@ def create_factories():
         role = 'retail'
         is_active = True
         is_verified = False
-        phone = ''
+        phone = factory.LazyFunction(lambda: f"+7{random.randint(9000000000, 9999999999)}")
         company_name = ''
         tax_id = ''
         password = factory.PostGenerationMethodCall('set_password', 'default_password123')
@@ -37,7 +59,7 @@ def create_factories():
         
         user = factory.SubFactory(UserFactory, role='wholesale_level1', is_verified=True)
         legal_name = factory.Faker('company', locale='ru_RU')
-        tax_id = factory.Sequence(lambda n: f"{1234567890 + n:012d}")
+        tax_id = factory.LazyFunction(lambda: f"{123456789000 + int(time.time()) % 999999:012d}")
         kpp = factory.Sequence(lambda n: f"{123456000 + n:09d}")
         legal_address = factory.Faker('address', locale='ru_RU')
         bank_name = factory.Faker('company', locale='ru_RU')
@@ -65,7 +87,7 @@ def create_factories():
         class Meta:
             model = 'products.Brand'
 
-        name = factory.Faker('company', locale='ru_RU')
+        name = factory.LazyFunction(lambda: f"Brand-{get_unique_suffix()}")
         slug = factory.LazyAttribute(lambda obj: obj.name.lower().replace(' ', '-'))
         description = factory.Faker('text', max_nb_chars=200, locale='ru_RU')
         is_active = True
@@ -86,12 +108,13 @@ def create_factories():
         class Meta:
             model = 'products.Product'
 
-        name = factory.Faker('catch_phrase', locale='ru_RU')
+        name = factory.Faker('text', max_nb_chars=50, locale='ru_RU')
         slug = factory.LazyAttribute(lambda obj: obj.name.lower().replace(' ', '-'))
         brand = factory.SubFactory(BrandFactory)
         category = factory.SubFactory(CategoryFactory)
         description = factory.Faker('text', max_nb_chars=500, locale='ru_RU')
         short_description = factory.Faker('sentence', nb_words=10, locale='ru_RU')
+        main_image = factory.django.ImageField(color='blue')
         
         # Ценообразование
         retail_price = factory.Faker('pydecimal', left_digits=4, right_digits=2, positive=True)
@@ -102,12 +125,23 @@ def create_factories():
         federation_price = factory.LazyAttribute(lambda obj: obj.retail_price * Decimal('0.75'))
         
         # Инвентаризация
-        sku = factory.Sequence(lambda n: f"SKU-{n:06d}")
+        sku = factory.LazyFunction(lambda: f"SKU-{get_unique_suffix().upper()}")
         stock_quantity = factory.Faker('random_int', min=0, max=1000)
         min_order_quantity = 1
         
         is_active = True
         is_featured = False
+
+    class ProductImageFactory(factory.django.DjangoModelFactory):
+        """Фабрика для создания изображений товаров"""
+        class Meta:
+            model = 'products.ProductImage'
+
+        product = factory.SubFactory(ProductFactory)
+        image = factory.django.ImageField(color='red')
+        alt_text = factory.Faker('sentence', nb_words=5, locale='ru_RU')
+        is_main = False
+        sort_order = factory.Sequence(lambda n: n)
 
     class CartFactory(factory.django.DjangoModelFactory):
         """Фабрика для создания корзин"""
@@ -131,6 +165,7 @@ def create_factories():
             model = 'orders.Order'
 
         user = factory.SubFactory(UserFactory)
+        order_number = factory.LazyFunction(get_unique_order_number)
         status = 'pending'
         total_amount = factory.Faker('pydecimal', left_digits=5, right_digits=2, positive=True)
         delivery_address = factory.Faker('address', locale='ru_RU')
@@ -148,6 +183,7 @@ def create_factories():
         unit_price = factory.Faker('pydecimal', left_digits=4, right_digits=2, positive=True)
         product_name = factory.LazyAttribute(lambda obj: obj.product.name)
         product_sku = factory.LazyAttribute(lambda obj: obj.product.sku)
+        total_price = factory.LazyAttribute(lambda obj: obj.quantity * obj.unit_price)
 
     class AuditLogFactory(factory.django.DjangoModelFactory):
         """Фабрика для создания записей аудита"""
@@ -180,6 +216,7 @@ def create_factories():
         'BrandFactory': BrandFactory,
         'CategoryFactory': CategoryFactory,
         'ProductFactory': ProductFactory,
+        'ProductImageFactory': ProductImageFactory,
         'CartFactory': CartFactory,
         'CartItemFactory': CartItemFactory,
         'OrderFactory': OrderFactory,
@@ -208,12 +245,16 @@ class FactoryWrapper:
     def build(self, *args, **kwargs):
         return get_factories()[self.factory_name].build(*args, **kwargs)
 
+    def create_batch(self, *args, **kwargs):
+        return get_factories()[self.factory_name].create_batch(*args, **kwargs)
+
 UserFactory = FactoryWrapper('UserFactory')
 CompanyFactory = FactoryWrapper('CompanyFactory')
 AddressFactory = FactoryWrapper('AddressFactory')
 BrandFactory = FactoryWrapper('BrandFactory')
 CategoryFactory = FactoryWrapper('CategoryFactory')
 ProductFactory = FactoryWrapper('ProductFactory')
+ProductImageFactory = FactoryWrapper('ProductImageFactory')
 CartFactory = FactoryWrapper('CartFactory')
 CartItemFactory = FactoryWrapper('CartItemFactory')
 OrderFactory = FactoryWrapper('OrderFactory')
@@ -242,47 +283,96 @@ def client():
 
 @pytest.fixture
 def user_factory():
-    """
-    Фабрика для создания пользователей
-    """
-    from tests.factories import UserFactory
     return UserFactory
+
+@pytest.fixture
+def company_factory():
+    return CompanyFactory
+
+@pytest.fixture
+def address_factory():
+    return AddressFactory
+
+@pytest.fixture
+def brand_factory():
+    return BrandFactory
+
+@pytest.fixture
+def category_factory():
+    return CategoryFactory
+
+@pytest.fixture
+def product_factory():
+    return ProductFactory
+
+@pytest.fixture
+def product_image_factory():
+    return ProductImageFactory
+
+@pytest.fixture
+def cart_factory():
+    return CartFactory
+
+@pytest.fixture
+def cart_item_factory():
+    return CartItemFactory
+
+@pytest.fixture
+def order_factory():
+    return OrderFactory
+
+@pytest.fixture
+def order_item_factory():
+    return OrderItemFactory
+
+@pytest.fixture
+def audit_log_factory():
+    return AuditLogFactory
+
+@pytest.fixture
+def sync_log_factory():
+    return SyncLogFactory
 
 
 @pytest.fixture
-def retail_user(db):
+def api_request_factory():
+    """
+    Фабрика для создания mock-запросов
+    """
+    from rest_framework.test import APIRequestFactory
+    return APIRequestFactory()
+
+
+@pytest.fixture
+def retail_user(db, user_factory):
     """
     Розничный пользователь
     """
-    from tests.factories import UserFactory
-    return UserFactory.create(role='retail')
+    return user_factory.create(role='retail')
 
 
 @pytest.fixture
-def wholesale_user(db):
+def wholesale_user(db, user_factory):
     """
     Оптовый пользователь уровень 1
     """
-    from tests.factories import UserFactory
-    return UserFactory.create(role='wholesale_level1', is_verified=True)
+    return user_factory.create(role='wholesale_level1', is_verified=True)
 
 
 @pytest.fixture
-def trainer_user(db):
+def trainer_user(db, user_factory):
     """
     Пользователь-тренер
     """
-    from tests.factories import UserFactory
-    return UserFactory.create(role='trainer', is_verified=True)
+    return user_factory.create(role='trainer', is_verified=True)
 
 
 @pytest.fixture
-def admin_user(db):
+def admin_user(db, user_factory):
     """
     Пользователь-администратор
     """
-    from tests.factories import UserFactory
-    return UserFactory.create(
+    return user_factory.create(
         role='admin', 
         is_staff=True, 
         is_superuser=True, 
@@ -355,3 +445,76 @@ def sample_image():
     return InMemoryUploadedFile(
         img_io, None, 'test.png', 'image/png', len(img_io.getvalue()), None
     )
+
+
+@pytest.fixture
+def access_token(db, user_factory):
+    """
+    Создает розничного пользователя и возвращает JWT токен доступа
+    """
+    from rest_framework_simplejwt.tokens import RefreshToken
+    user = user_factory.create(role='retail')
+    refresh = RefreshToken.for_user(user)
+    return str(refresh.access_token)
+
+
+@pytest.fixture(autouse=True)
+def enable_db_access_for_all_tests(db):
+    """
+    Автоматически включает доступ к базе данных для всех тестов
+    и обеспечивает изоляцию транзакций
+    """
+    pass
+
+
+@pytest.fixture(autouse=True) 
+def clear_db_before_test(transactional_db):
+    """
+    Очищает базу данных перед каждым тестом для полной изоляции
+    """
+    from django.core.cache import cache
+    from django.db import transaction, connection
+    from django.apps import apps
+    
+    # Очищаем кэши Django
+    cache.clear()
+    
+    # Сбрасываем счетчик перед каждым тестом
+    global _unique_counter
+    _unique_counter = 0
+    
+    # Принудительная очистка всех таблиц перед тестом
+    with connection.cursor() as cursor:
+        # Сначала отключаем проверки внешних ключей
+        cursor.execute('SET FOREIGN_KEY_CHECKS = 0;' if connection.vendor == 'mysql' else 'SET CONSTRAINTS ALL DEFERRED;')
+        
+        # Получаем все таблицы модели в правильном порядке (обратном для удаления зависимостей)
+        models = apps.get_models()
+        # Сортируем модели, чтобы сначала очистить зависимые таблицы
+        table_names = []
+        for model in models:
+            if not model._meta.managed or model._meta.proxy:
+                continue
+            table_names.append(model._meta.db_table)
+        
+        # Очищаем все таблицы
+        for table_name in table_names:
+            try:
+                if connection.vendor == 'postgresql':
+                    cursor.execute(f'TRUNCATE TABLE "{table_name}" RESTART IDENTITY CASCADE')
+                elif connection.vendor == 'mysql':
+                    cursor.execute(f'TRUNCATE TABLE `{table_name}`')
+                else:  # SQLite
+                    cursor.execute(f'DELETE FROM "{table_name}"')
+            except Exception:
+                pass  # Игнорируем ошибки для системных таблиц
+        
+        # Включаем обратно проверки внешних ключей
+        if connection.vendor == 'mysql':
+            cursor.execute('SET FOREIGN_KEY_CHECKS = 1;')
+        elif connection.vendor == 'postgresql':
+            cursor.execute('SET CONSTRAINTS ALL IMMEDIATE;')
+    
+    # Используем транзакционную изоляцию
+    with transaction.atomic():
+        yield

@@ -28,6 +28,9 @@ LABEL maintainer="FREESPORT Dev Team"
 LABEL version="1.0"
 LABEL description="Django backend для FREESPORT Platform"
 
+# Аргумент для настроек Django
+ARG DJANGO_SETTINGS_MODULE=freesport.settings.production
+
 # Создание пользователя приложения (не root)
 RUN groupadd -r freesport && useradd -r -g freesport freesport
 
@@ -45,7 +48,7 @@ COPY --from=builder /opt/venv /opt/venv
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV PATH="/opt/venv/bin:$PATH"
-ENV DJANGO_SETTINGS_MODULE=freesport.settings.production
+ENV DJANGO_SETTINGS_MODULE=${DJANGO_SETTINGS_MODULE}
 
 # Создание рабочей директории
 WORKDIR /app
@@ -59,9 +62,6 @@ RUN mkdir -p /app/staticfiles /app/media \
 
 # Переключение на пользователя приложения
 USER freesport
-
-# Сбор статических файлов
-RUN python manage.py collectstatic --noinput --clear
 
 # Открытие порта для Django
 EXPOSE 8000

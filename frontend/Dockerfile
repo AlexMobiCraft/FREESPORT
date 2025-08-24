@@ -30,7 +30,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 # Создание .env.local для сборки
-ARG NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
+ARG NEXT_PUBLIC_API_URL=http://localhost:8001/api/v1
 ARG NODE_ENV=production
 
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL

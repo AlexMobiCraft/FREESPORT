@@ -3,6 +3,7 @@
 """
 import django_filters
 from django.db.models import Q
+from django.contrib.postgres.search import SearchVector, SearchQuery, SearchRank
 from .models import Product, Category, Brand
 
 
@@ -47,7 +48,7 @@ class ProductFilter(django_filters.FilterSet):
     
     search = django_filters.CharFilter(
         method='filter_search',
-        help_text="Поиск по названию товара и артикулу"
+        help_text="Полнотекстовый поиск по названию, описанию и артикулу (PostgreSQL FTS с русскоязычной конфигурацией)"
     )
     
     class Meta:
@@ -145,9 +146,68 @@ class ProductFilter(django_filters.FilterSet):
             return queryset.filter(stock_quantity=0)
     
     def filter_search(self, queryset, name, value):
-        """Поиск по названию товара и артикулу"""
-        return queryset.filter(
-            Q(name__icontains=value) | 
-            Q(sku__icontains=value) |
-            Q(short_description__icontains=value)
-        )
+        """Полнотекстовый поиск с поддержкой PostgreSQL FTS и fallback для других БД"""
+        if not value:
+            return queryset
+        
+        # Валидация длины запроса и защита от XSS
+        search_query = value.strip()
+        if len(search_query) > 100 or '<' in search_query or '>' in search_query:
+            return queryset.none()
+        
+        if len(search_query) < 2:
+            return queryset
+        
+        # Проверяем тип базы данных
+        from django.db import connection
+        
+        if connection.vendor == 'postgresql':
+            # PostgreSQL full-text search с русскоязычной конфигурацией
+            search_vector = (
+                SearchVector('name', weight='A', config='russian') +
+                SearchVector('short_description', weight='B', config='russian') +
+                SearchVector('description', weight='C', config='russian') +
+                SearchVector('sku', weight='A', config='russian')
+            )
+            
+            search_query_obj = SearchQuery(search_query, config='russian')
+            
+            # Добавляем Q-объект для поиска по SKU через icontains
+            sku_q = Q(sku__icontains=search_query)
+
+            # Возвращаем результаты с ранжированием по релевантности
+            return queryset.annotate(
+                search=search_vector,
+                rank=SearchRank(search_vector, search_query_obj)
+            ).filter(
+                Q(search=search_query_obj) | sku_q
+            ).order_by('-rank', '-created_at')
+        else:
+            # Fallback для SQLite и других БД - простой icontains поиск с приоритизацией
+            from django.db.models import Case, When, Value, IntegerField
+
+            # Поиск точного совпадения в названии (высший приоритет)
+            exact_name = queryset.filter(name__iexact=search_query)
+            if exact_name.exists():
+                return exact_name.order_by('-created_at')
+
+            # Поиск частичного совпадения с приоритизацией по полям (регистронезависимый)
+            name_match = Q(name__icontains=search_query)
+            sku_match = Q(sku__icontains=search_query)  
+            desc_match = Q(short_description__icontains=search_query) | Q(description__icontains=search_query)
+
+            # Применяем фильтр
+            results = queryset.filter(name_match | sku_match | desc_match)
+
+            # Добавляем аннотацию для приоритизации и сортируем
+            prioritized_results = results.annotate(
+                priority=Case(
+                    When(name_match, then=Value(1)),
+                    When(sku_match, then=Value(2)),
+                    When(desc_match, then=Value(3)),
+                    default=Value(4),
+                    output_field=IntegerField(),
+                )
+            ).order_by('priority', '-created_at')
+
+            return prioritized_results

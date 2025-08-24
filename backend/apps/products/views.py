@@ -2,6 +2,10 @@
 Views для каталога товаров
 """
 from rest_framework import viewsets, permissions, filters
+from rest_framework.pagination import PageNumberPagination
+
+class CustomPageNumberPagination(PageNumberPagination):
+    page_size_query_param = 'page_size'
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Count, Q, Prefetch
 from drf_spectacular.utils import extend_schema, OpenApiParameter
@@ -23,11 +27,12 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
     ViewSet для товаров с фильтрацией, сортировкой и ролевым ценообразованием
     """
     permission_classes = [permissions.AllowAny]  # Каталог доступен всем
-    filter_backends = [DjangoFilterBackend, filters.OrderingFilter, filters.SearchFilter]
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
     filterset_class = ProductFilter
     ordering_fields = ['name', 'retail_price', 'created_at', 'stock_quantity']
-    ordering = ['-created_at']  # Сортировка по умолчанию
-    search_fields = ['name', 'sku', 'short_description']
+    ordering = ['-created_at']  # Сортировка по умолчанию (override при search)
+
+    pagination_class = CustomPageNumberPagination
     
     def get_queryset(self):
         """Оптимизированный QuerySet с предзагрузкой связанных объектов"""
@@ -53,7 +58,11 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
             OpenApiParameter('max_price', OpenApiTypes.NUMBER, description='Максимальная цена'),
             OpenApiParameter('in_stock', OpenApiTypes.BOOL, description='Товары в наличии'),
             OpenApiParameter('is_featured', OpenApiTypes.BOOL, description='Рекомендуемые товары'),
-            OpenApiParameter('search', OpenApiTypes.STR, description='Поиск по названию и артикулу'),
+            OpenApiParameter(
+                'search', 
+                OpenApiTypes.STR, 
+                description='Полнотекстовый поиск по названию, описанию, артикулу. Поддерживает русский язык, ранжирование по релевантности. Мин. 2 символа, макс. 100'
+            ),
             OpenApiParameter('ordering', OpenApiTypes.STR, description='Сортировка: name, -name, retail_price, -retail_price, created_at, -created_at'),
         ],
         tags=["Products"]

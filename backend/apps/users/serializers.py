@@ -169,7 +169,7 @@ class AddressSerializer(serializers.ModelSerializer):
     class Meta:
         model = Address
         fields = [
-            'id', 'address_type', 'full_name', 'phone', 'city',
+            'id', 'user', 'address_type', 'full_name', 'phone', 'city',
             'street', 'building', 'apartment', 'postal_code',
             'is_default', 'full_address', 'created_at', 'updated_at'
         ]

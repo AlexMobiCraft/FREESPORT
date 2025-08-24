@@ -222,13 +222,16 @@ class Address(models.Model):
         Если этот адрес устанавливается как основной, снимаем флаг 
         со всех других адресов того же типа для этого пользователя.
         """
-        if self.is_default:
+        # Сначала сохраняем объект, чтобы установились все поля
+        super().save(*args, **kwargs)
+        
+        # Затем обрабатываем логику is_default
+        if self.is_default and self.user_id:
             # Сбросить флаг is_default у всех других адресов этого же типа для этого пользователя
             Address.objects.filter(
-                user=self.user, 
+                user_id=self.user_id, 
                 address_type=self.address_type
             ).exclude(pk=self.pk).update(is_default=False)
-        super().save(*args, **kwargs)
     
     def __str__(self):
         return f"{self.full_name} - {self.city}, {self.street} {self.building}"

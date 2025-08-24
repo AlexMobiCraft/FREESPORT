@@ -239,3 +239,41 @@ class Product(models.Model):
     def can_be_ordered(self):
         """Можно ли заказать товар"""
         return self.is_active and self.is_in_stock
+
+
+class ProductImage(models.Model):
+    """
+    Модель изображений товара
+    """
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.CASCADE,
+        related_name='images',
+        verbose_name='Товар'
+    )
+    image = models.ImageField('Изображение', upload_to='products/gallery/')
+    alt_text = models.CharField('Альтернативный текст', max_length=255, blank=True)
+    is_main = models.BooleanField('Основное изображение', default=False)
+    sort_order = models.PositiveIntegerField('Порядок сортировки', default=0)
+    
+    created_at = models.DateTimeField('Дата создания', auto_now_add=True)
+    updated_at = models.DateTimeField('Дата обновления', auto_now=True)
+
+    class Meta:
+        verbose_name = 'Изображение товара'
+        verbose_name_plural = 'Изображения товаров'
+        db_table = 'product_images'
+        ordering = ['sort_order', 'created_at']
+        indexes = [
+            models.Index(fields=['product', 'is_main']),
+            models.Index(fields=['sort_order']),
+        ]
+
+    def __str__(self):
+        return f"Изображение {self.product.name} ({'основное' if self.is_main else 'дополнительное'})"
+
+    def save(self, *args, **kwargs):
+        # Если это основное изображение, убираем флаг у других изображений этого товара
+        if self.is_main:
+            ProductImage.objects.filter(product=self.product, is_main=True).exclude(pk=self.pk).update(is_main=False)
+        super().save(*args, **kwargs)

@@ -15,9 +15,11 @@ class CartItemSerializer(serializers.ModelSerializer):
     """
     product_name = serializers.CharField(source='product.name', read_only=True)
     product_sku = serializers.CharField(source='product.sku', read_only=True)
-    product_image = serializers.URLField(source='product.main_image.url', read_only=True)
+    product_image = serializers.SerializerMethodField()
     unit_price = serializers.SerializerMethodField()
     total_price = serializers.ReadOnlyField()
+    # Добавляем вложенный объект продукта для совместимости с тестами
+    product = serializers.SerializerMethodField()
     
     class Meta:
         model = CartItem
@@ -27,11 +29,43 @@ class CartItemSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'added_at']
     
+    def get_product_image(self, obj):
+        """Получить URL изображения товара"""
+        if obj.product.main_image:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.product.main_image.url)
+            return obj.product.main_image.url
+        return None
+    
     def get_unit_price(self, obj):
         """Получить цену товара для пользователя корзины"""
         user = obj.cart.user
         price = obj.product.get_price_for_user(user)
         return f"{price:.2f}"
+    
+    def get_product(self, obj):
+        """Получить информацию о продукте для совместимости с тестами"""
+        product = obj.product
+        user = obj.cart.user
+        
+        data = {
+            'id': product.id,
+            'name': product.name,
+            'sku': product.sku,
+            'retail_price': str(product.retail_price),
+        }
+        
+        # Добавляем B2B цены если пользователь B2B
+        if user and hasattr(user, 'is_b2b_user') and user.is_b2b_user:
+            if hasattr(product, 'opt1_price') and product.opt1_price:
+                data['opt1_price'] = str(product.opt1_price)
+            if hasattr(product, 'opt2_price') and product.opt2_price:
+                data['opt2_price'] = str(product.opt2_price)
+            if hasattr(product, 'opt3_price') and product.opt3_price:
+                data['opt3_price'] = str(product.opt3_price)
+        
+        return data
 
 
 class CartItemCreateSerializer(serializers.ModelSerializer):

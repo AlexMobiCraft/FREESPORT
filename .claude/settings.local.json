@@ -20,13 +20,32 @@
       "WebFetch(domain:*)",
       "Bash(gh issue view:*)",
       "WebFetch(domain:docs.anthropic.com)",
-      "Bash(echo $PS1)"
+      "Bash(echo $PS1)",
+      "Bash(make test:*)",
+      "Bash(docker-compose:*)",
+      "Bash(docker:*)"
     ],
-    "deny": []
+    "deny": [],
+    "additionalDirectories": [
+      "C:\\c\\Users\\38670\\DEV_WEB"
+    ]
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "start powershell.exe -ExecutionPolicy Bypass -File \".\\play_mp3.ps1\""
+          }
+        ]
+      }
+    ]
   },
   "statusLine": {
     "type": "command",
     "command": "ccusage statusline",
-    "padding": 0  
+    "padding": 0
   }
 }

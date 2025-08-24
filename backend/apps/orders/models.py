@@ -3,6 +3,7 @@
 Поддерживает B2B и B2C заказы с различными способами оплаты и доставки
 """
 import uuid
+from datetime import datetime
 from django.db import models
 from django.contrib.auth import get_user_model
 from django.core.validators import MinValueValidator
@@ -152,8 +153,10 @@ class Order(models.Model):
 
     @staticmethod
     def generate_order_number():
-        """Генерация уникального номера заказа"""
-        return f"FS-{uuid.uuid4().hex[:8].upper()}"
+        """Генерация уникального номера заказа в формате FS-YYMMDD-XXXXX"""
+        date_part = datetime.now().strftime('%y%m%d')
+        random_part = str(uuid.uuid4().hex)[:5].upper()
+        return f"FS-{date_part}-{random_part}"
 
     @property
     def subtotal(self):
