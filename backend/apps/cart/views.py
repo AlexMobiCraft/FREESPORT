@@ -13,7 +13,7 @@ from .serializers import (
     CartSerializer,
     CartItemSerializer,
     CartItemCreateSerializer,
-    CartItemUpdateSerializer
+    CartItemUpdateSerializer,
 )
 from apps.products.models import Product
 
@@ -22,9 +22,10 @@ class CartViewSet(viewsets.ModelViewSet):
     """
     ViewSet для управления корзиной пользователя
     """
+
     permission_classes = [permissions.AllowAny]  # Поддерживаем гостевые корзины
     serializer_class = CartSerializer
-    
+
     def get_queryset(self):
         """Получить корзину текущего пользователя или гостя"""
         if self.request.user.is_authenticated:
@@ -35,7 +36,7 @@ class CartViewSet(viewsets.ModelViewSet):
             if session_key:
                 return Cart.objects.filter(session_key=session_key)
             return Cart.objects.none()
-    
+
     def get_or_create_cart(self):
         """Получить или создать корзину для пользователя/гостя"""
         if self.request.user.is_authenticated:
@@ -47,24 +48,24 @@ class CartViewSet(viewsets.ModelViewSet):
             session_key = self.request.session.session_key
             cart, created = Cart.objects.get_or_create(session_key=session_key)
         return cart
-    
+
     @extend_schema(
         summary="Получить корзину",
         description="Получение содержимого корзины пользователя с ценами",
-        tags=["Cart"]
+        tags=["Cart"],
     )
     def list(self, request, *args, **kwargs):
         """Получить содержимое корзины"""
         cart = self.get_or_create_cart()
         serializer = self.get_serializer(cart)
         return Response(serializer.data)
-    
+
     @extend_schema(
         summary="Очистить корзину",
         description="Удаление всех товаров из корзины",
-        tags=["Cart"]
+        tags=["Cart"],
     )
-    @action(detail=False, methods=['delete'])
+    @action(detail=False, methods=["delete"])
     def clear(self, request):
         """Очистить корзину"""
         cart = self.get_or_create_cart()
@@ -76,8 +77,9 @@ class CartItemViewSet(viewsets.ModelViewSet):
     """
     ViewSet для управления элементами корзины
     """
+
     permission_classes = [permissions.AllowAny]
-    
+
     def get_queryset(self):
         """Получить элементы корзины текущего пользователя"""
         if self.request.user.is_authenticated:
@@ -95,15 +97,15 @@ class CartItemViewSet(viewsets.ModelViewSet):
                 except Cart.DoesNotExist:
                     return CartItem.objects.none()
             return CartItem.objects.none()
-    
+
     def get_serializer_class(self):
         """Выбор serializer в зависимости от действия"""
-        if self.action == 'create':
+        if self.action == "create":
             return CartItemCreateSerializer
-        elif self.action in ['update', 'partial_update']:
+        elif self.action in ["update", "partial_update"]:
             return CartItemUpdateSerializer
         return CartItemSerializer
-    
+
     def get_or_create_cart(self):
         """Получить или создать корзину для пользователя/гостя"""
         if self.request.user.is_authenticated:
@@ -114,13 +116,13 @@ class CartItemViewSet(viewsets.ModelViewSet):
             session_key = self.request.session.session_key
             cart, created = Cart.objects.get_or_create(session_key=session_key)
         return cart
-    
+
     def perform_create(self, serializer):
         """Добавить товар в корзину с логикой объединения"""
         cart = self.get_or_create_cart()
-        product = serializer.validated_data['product']
-        quantity = serializer.validated_data['quantity']
-        
+        product = serializer.validated_data["product"]
+        quantity = serializer.validated_data["quantity"]
+
         # Проверяем, есть ли уже такой товар в корзине
         try:
             cart_item = CartItem.objects.get(cart=cart, product=product)
@@ -131,35 +133,37 @@ class CartItemViewSet(viewsets.ModelViewSet):
         except CartItem.DoesNotExist:
             # Если нет, создаем новый элемент
             self.cart_item = serializer.save(cart=cart)
-    
+
     @extend_schema(
         summary="Добавить товар в корзину",
         description="Добавление товара в корзину с автоматическим объединением одинаковых товаров",
-        tags=["Cart Items"]
+        tags=["Cart Items"],
     )
     def create(self, request, *args, **kwargs):
         """Добавить товар в корзину"""
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
-        
+
         # Возвращаем сериализованный cart_item
-        response_serializer = CartItemSerializer(self.cart_item, context={'request': request})
+        response_serializer = CartItemSerializer(
+            self.cart_item, context={"request": request}
+        )
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
-    
+
     @extend_schema(
         summary="Обновить количество товара",
         description="Изменение количества товара в корзине",
-        tags=["Cart Items"]
+        tags=["Cart Items"],
     )
     def update(self, request, *args, **kwargs):
         """Обновить количество товара в корзине"""
         return super().update(request, *args, **kwargs)
-    
+
     @extend_schema(
         summary="Удалить товар из корзины",
         description="Удаление товара из корзины",
-        tags=["Cart Items"]
+        tags=["Cart Items"],
     )
     def destroy(self, request, *args, **kwargs):
         """Удалить товар из корзины"""

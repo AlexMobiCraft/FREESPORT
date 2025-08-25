@@ -49,9 +49,22 @@ return Response({
    - SUM общей суммы заказов
    - AVG средней суммы заказа
 
-### Когда исправлять:
-- После реализации Story 2.7: Order API
-- Все заглушки помечены комментариями для быстрого поиска
+### Статус исправления:
+✅ **ГОТОВО К ИСПРАВЛЕНИЮ** - Story 2.7: Order API завершена 17 августа 2025
+
+**Order модель реализована** в `apps/orders/models.py`:
+- ✅ Все необходимые поля созданы: id, order_number, status, total_amount, created_at, updated_at
+- ✅ ForeignKey связь с User установлена
+- ✅ OrderItem модель создана для подсчета товаров в заказе
+- ✅ Computed properties реализованы: total_items, calculated_total
+
+**Готовые компоненты для интеграции:**
+- ✅ `Order.objects.filter(user=user)` - фильтрация заказов по пользователю
+- ✅ `order.total_items` - количество товаров в заказе  
+- ✅ `order.calculated_total` - рассчитанная сумма заказа
+- ✅ Агрегация доступна через Django ORM
+
+**Следующий шаг:** Обновить заглушки в UserDashboardView и OrderHistoryView
 
 ### Поиск заглушек:
 ```bash

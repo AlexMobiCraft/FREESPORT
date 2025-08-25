@@ -49,7 +49,11 @@ class TestProductListSerializer:
 
         assert data['name'] == 'Кроссовки'
         assert data['retail_price'] == '5000.00'
+<<<<<<< HEAD
         assert data['category'] == 'Спорт'  # category is StringRelatedField
+=======
+        assert data['category'] == 'Спорт'  # StringRelatedField возвращает __str__ модели
+>>>>>>> 0410f967bb5bc418109acf400d9e34e6f98fb42e
         assert data['brand']['name'] == 'Nike'
 
     def test_product_list_with_user_context(self, user_factory,
@@ -62,6 +66,7 @@ class TestProductListSerializer:
         )
 
         # Тест для retail пользователя
+<<<<<<< HEAD
         class MockRequest:
             def __init__(self, user):
                 self.user = user
@@ -71,6 +76,15 @@ class TestProductListSerializer:
         retail_user = user_factory.create(role='retail')
         serializer = ProductListSerializer(
             product, context={'request': MockRequest(retail_user)}
+=======
+        request_mock = type('MockRequest', (object,), {
+            'user': user_factory.create(role='retail'),
+            'build_absolute_uri': lambda self, url: f'http://testserver{url}' if url else ''
+        })()
+        
+        serializer = ProductListSerializer(
+            product, context={'request': request_mock}
+>>>>>>> 0410f967bb5bc418109acf400d9e34e6f98fb42e
         )
         data = serializer.data
         assert 'current_price' in data
@@ -83,6 +97,7 @@ class TestProductListSerializer:
             retail_price=Decimal('1000.00')
         )
 
+<<<<<<< HEAD
         class MockRequest:
             def __init__(self, user):
                 self.user = user
@@ -94,6 +109,18 @@ class TestProductListSerializer:
         )
         data = serializer.data
         assert 'current_price' in data
+=======
+        request_mock = type('MockRequest', (object,), {
+            'user': user,
+            'build_absolute_uri': lambda self, url: f'http://testserver{url}' if url else ''
+        })()
+        
+        serializer = ProductListSerializer(
+            product, context={'request': request_mock}
+        )
+        data = serializer.data
+        assert 'current_price' in data  # Поле существует в сериализаторе
+>>>>>>> 0410f967bb5bc418109acf400d9e34e6f98fb42e
 
     def test_product_list_filtering(self, user_factory, product_factory):
         """Тест фильтрации товаров"""
@@ -105,8 +132,12 @@ class TestProductListSerializer:
 
         serializer = ProductListSerializer(product)
         data = serializer.data
+<<<<<<< HEAD
         # is_active не включено в fields ProductListSerializer, проверяем can_be_ordered
         assert 'can_be_ordered' in data
+=======
+        assert data['name'] == 'Активный товар'  # Поле is_active не включено в fields
+>>>>>>> 0410f967bb5bc418109acf400d9e34e6f98fb42e
 
 
 @pytest.mark.django_db
@@ -123,10 +154,9 @@ class TestProductDetailSerializer:
             name='Футболка',
             description='Спортивная футболка',
             category=category,
-            brand=brand
+            brand=brand,
+            gallery_images=['/media/products/img1.jpg']  # Добавляем изображения в JSON поле
         )
-        product_image_factory.create(product=product, is_main=True)
-        product_image_factory.create(product=product, is_main=False)
 
         class MockRequest:
             def __init__(self, user):
@@ -135,8 +165,17 @@ class TestProductDetailSerializer:
                 return f'http://testserver{url}' if url else ''
         
         user = user_factory.create()
+        request_mock = type('MockRequest', (object,), {
+            'user': user,
+            'build_absolute_uri': lambda self, url: f'http://testserver{url}' if url else ''
+        })()
+        
         serializer = ProductDetailSerializer(
+<<<<<<< HEAD
             product, context={'request': MockRequest(user)}
+=======
+            product, context={'request': request_mock}
+>>>>>>> 0410f967bb5bc418109acf400d9e34e6f98fb42e
         )
         data = serializer.data
 
@@ -163,8 +202,17 @@ class TestProductDetailSerializer:
                 return f'http://testserver{url}' if url else ''
         
         user = user_factory.create()
+        request_mock = type('MockRequest', (object,), {
+            'user': user,
+            'build_absolute_uri': lambda self, url: f'http://testserver{url}' if url else ''
+        })()
+        
         serializer = ProductDetailSerializer(
+<<<<<<< HEAD
             main_product, context={'request': MockRequest(user)}
+=======
+            main_product, context={'request': request_mock}
+>>>>>>> 0410f967bb5bc418109acf400d9e34e6f98fb42e
         )
         data = serializer.data
 
@@ -187,7 +235,11 @@ class TestCategorySerializer:
         data = serializer.data
 
         assert data['name'] == 'Футбол'
+<<<<<<< HEAD
         assert data['parent'] == parent_category.id  # parent is FK field
+=======
+        assert data['parent'] == parent_category.id  # parent это ID, не объект
+>>>>>>> 0410f967bb5bc418109acf400d9e34e6f98fb42e
 
     def test_category_hierarchy(self, category_factory):
         """Тест иерархии категорий"""
@@ -379,7 +431,11 @@ class TestProductSearchAndFiltering:
         fashion_data = fashion_serializer.data
 
         assert sport_data['category'] == 'Спорт'  # StringRelatedField
+<<<<<<< HEAD
         assert fashion_data['category'] == 'Мода'
+=======
+        assert fashion_data['category'] == 'Мода'  # StringRelatedField
+>>>>>>> 0410f967bb5bc418109acf400d9e34e6f98fb42e
 
 
 @pytest.mark.django_db

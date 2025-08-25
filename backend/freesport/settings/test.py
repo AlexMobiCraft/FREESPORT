@@ -5,6 +5,7 @@ from datetime import timedelta
 # Отключаем DEBUG для тестов
 DEBUG = False
 
+<<<<<<< HEAD
 # Тестовая база данных - поддерживаем как SQLite так и PostgreSQL
 import os
 
@@ -34,23 +35,36 @@ else:
                 'NAME': ':memory:',
             },
         }
+=======
+# Тестовая база данных в памяти для скорости
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": ":memory:",
+        "TEST": {
+            "NAME": ":memory:",
+        },
+>>>>>>> 438d8f8b8c184e00582b93a9cd4f8fdded94036f
     }
+
 
 # Отключаем миграции для быстрых тестов
 class DisableMigrations:
     def __contains__(self, item):
         return True
-    
+
     def __getitem__(self, item):
         return None
+
 
 MIGRATION_MODULES = DisableMigrations()
 
 # Простой хешер паролей для скорости
 PASSWORD_HASHERS = [
-    'django.contrib.auth.hashers.MD5PasswordHasher',
+    "django.contrib.auth.hashers.MD5PasswordHasher",
 ]
 
+<<<<<<< HEAD
 # Настройки кеширования для тестов
 if os.environ.get('REDIS_URL'):
     # Redis кеш для Docker тестов
@@ -71,30 +85,36 @@ else:
             'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
             'LOCATION': 'unique-snowflake',
         }
+=======
+# Отключаем кеширование
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.dummy.DummyCache",
+>>>>>>> 438d8f8b8c184e00582b93a9cd4f8fdded94036f
     }
 
 # Отключаем логирование для тестов
 LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'handlers': {
-        'null': {
-            'class': 'logging.NullHandler',
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "null": {
+            "class": "logging.NullHandler",
         },
     },
-    'root': {
-        'handlers': ['null'],
+    "root": {
+        "handlers": ["null"],
     },
-    'loggers': {
-        'django': {
-            'handlers': ['null'],
-            'propagate': False,
+    "loggers": {
+        "django": {
+            "handlers": ["null"],
+            "propagate": False,
         },
-        'freesport': {
-            'handlers': ['null'],
-            'propagate': False,
+        "freesport": {
+            "handlers": ["null"],
+            "propagate": False,
         },
-    }
+    },
 }
 
 # Медиа файлы во временной директории
@@ -104,36 +124,36 @@ MEDIA_ROOT = tempfile.mkdtemp()
 STATIC_ROOT = tempfile.mkdtemp()
 
 # Отключаем email отправку
-EMAIL_BACKEND = 'django.core.mail.backends.locmem.EmailBackend'
+EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
 
 # Тестовый SECRET_KEY
-SECRET_KEY = 'test-secret-key-for-testing-only-do-not-use-in-production'
+SECRET_KEY = "test-secret-key-for-testing-only-do-not-use-in-production"
 
 # Упрощенная настройка middleware для тестов
 MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'corsheaders.middleware.CorsMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    "django.middleware.security.SecurityMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
 # Настройки для тестирования JWT
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=5),
-    'REFRESH_TOKEN_LIFETIME': timedelta(minutes=10),
-    'SIGNING_KEY': SECRET_KEY,
-    'ALGORITHM': 'HS256',
-    'VERIFYING_KEY': None,
-    'AUTH_HEADER_TYPES': ('Bearer',),
-    'TOKEN_OBTAIN_SERIALIZER': 'rest_framework_simplejwt.serializers.TokenObtainPairSerializer',
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=5),
+    "REFRESH_TOKEN_LIFETIME": timedelta(minutes=10),
+    "SIGNING_KEY": SECRET_KEY,
+    "ALGORITHM": "HS256",
+    "VERIFYING_KEY": None,
+    "AUTH_HEADER_TYPES": ("Bearer",),
+    "TOKEN_OBTAIN_SERIALIZER": "rest_framework_simplejwt.serializers.TokenObtainPairSerializer",
 }
 
 # Разрешаем все домены для тестов
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = ["*"]
 
 # Отключаем CORS проверки
 CORS_ALLOW_ALL_ORIGINS = True
@@ -143,6 +163,9 @@ FACTORY_FOR_DJANGO_FILE_FIELD = True
 
 # Настройки для pytest-django
 USE_TZ = True
+<<<<<<< HEAD
 
 # Отключаем django-ratelimit для тестов
 RATELIMIT_ENABLE = False
+=======
+>>>>>>> 438d8f8b8c184e00582b93a9cd4f8fdded94036f

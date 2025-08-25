@@ -256,13 +256,14 @@ class TestAddressSerializer:
             'is_default': True
         }
 
-        serializer = AddressSerializer(data=data)
+        serializer = AddressSerializer(data=data, context={'user': user})
         assert serializer.is_valid(), serializer.errors
 
         # Передаем пользователя явно при сохранении
         address = serializer.save(user=user)
         assert address.city == 'Москва'
         assert address.is_default is True
+        assert address.user == user
 
     def test_address_validation(self, user_factory):
         """Тест валидации адреса"""

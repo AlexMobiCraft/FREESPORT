@@ -16,30 +16,29 @@ def merge_guest_cart_on_login(sender, instance, created, **kwargs):
     """
     if not created:  # Срабатывает только при обновлении, не при создании
         return
-    
+
     # Ищем гостевую корзину в текущей сессии
-    request = getattr(instance, '_request', None)
-    if not request or not hasattr(request, 'session'):
+    request = getattr(instance, "_request", None)
+    if not request or not hasattr(request, "session"):
         return
-        
+
     session_key = request.session.session_key
     if not session_key:
         return
-    
+
     try:
         guest_cart = Cart.objects.get(session_key=session_key, user__isnull=True)
-        
+
         # Получаем или создаем корзину пользователя
         user_cart, created = Cart.objects.get_or_create(user=instance)
-        
+
         if guest_cart.items.exists():
             # Переносим товары из гостевой корзины
             for guest_item in guest_cart.items.all():
                 try:
                     # Проверяем, есть ли уже такой товар в корзине пользователя
                     user_item = CartItem.objects.get(
-                        cart=user_cart,
-                        product=guest_item.product
+                        cart=user_cart, product=guest_item.product
                     )
                     # Если есть, увеличиваем количество
                     user_item.quantity += guest_item.quantity
@@ -49,12 +48,12 @@ def merge_guest_cart_on_login(sender, instance, created, **kwargs):
                     CartItem.objects.create(
                         cart=user_cart,
                         product=guest_item.product,
-                        quantity=guest_item.quantity
+                        quantity=guest_item.quantity,
                     )
-            
+
             # Удаляем гостевую корзину
             guest_cart.delete()
-            
+
     except Cart.DoesNotExist:
         # Гостевой корзины нет, ничего не делаем
         pass
