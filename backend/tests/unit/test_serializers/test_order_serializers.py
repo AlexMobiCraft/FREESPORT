@@ -140,7 +140,6 @@ class TestOrderItemSerializer:
 class TestOrderCreateSerializer:
     """Тесты сериализатора создания заказа"""
 
-<<<<<<< HEAD
     def test_order_creation_validation(self, user_factory, address_factory, 
                                        cart_factory, product_factory, cart_item_factory):
         """Тест валидации создания заказа"""
@@ -150,14 +149,6 @@ class TestOrderCreateSerializer:
         # Создаем корзину с товарами
         cart = cart_factory.create(user=user)
         product = product_factory.create(stock_quantity=10)
-=======
-    def test_order_creation_validation(self, user_factory, address_factory, cart_factory, product_factory, cart_item_factory):
-        """Тест валидации создания заказа"""
-        user = user_factory.create()
-        address = address_factory.create(user=user)
-        cart = cart_factory.create(user=user)
-        product = product_factory.create()
->>>>>>> 0410f967bb5bc418109acf400d9e34e6f98fb42e
         cart_item_factory.create(cart=cart, product=product, quantity=2)
 
         data = {
@@ -166,65 +157,42 @@ class TestOrderCreateSerializer:
             'delivery_method': 'courier'
         }
 
-<<<<<<< HEAD
-        serializer = OrderCreateSerializer(data=data, context={'user': user})
-=======
         # Создаем mock request
         from unittest.mock import Mock
         mock_request = Mock()
         mock_request.user = user
         
         serializer = OrderCreateSerializer(data=data, context={'request': mock_request})
->>>>>>> 0410f967bb5bc418109acf400d9e34e6f98fb42e
         assert serializer.is_valid(), serializer.errors
 
         order = serializer.save()
         assert order.user == user
 
-<<<<<<< HEAD
     def test_order_creation_with_b2b_user(self, user_factory, address_factory,
                                          cart_factory, product_factory, cart_item_factory):
-        """Тест создания заказа B2B пользователем"""
-        b2b_user = user_factory.create(role='wholesale_level1')
-        company_address = address_factory.create(user=b2b_user)
-        
-        # Создаем корзину с товарами
-        cart = cart_factory.create(user=b2b_user)
-        product = product_factory.create(stock_quantity=10)
-        cart_item_factory.create(cart=cart, product=product, quantity=2)
-
-        data = {
-            'delivery_address': company_address.full_address,
-=======
-    def test_order_creation_with_b2b_user(self, user_factory,
-                                         address_factory, cart_factory, product_factory, cart_item_factory):
         """Тест создания заказа B2B пользователем"""
         b2b_user = user_factory.create(role='wholesale_level1')
         company_address = address_factory.create(
             user=b2b_user,
             address_type='legal'
         )
+        # Создаем корзину с товарами
         cart = cart_factory.create(user=b2b_user)
-        product = product_factory.create()
+        product = product_factory.create(stock_quantity=10)
         cart_item_factory.create(cart=cart, product=product, quantity=5)
 
         data = {
             'delivery_address': str(company_address),
->>>>>>> 0410f967bb5bc418109acf400d9e34e6f98fb42e
             'payment_method': 'bank_transfer',
             'delivery_method': 'pickup'
         }
 
-<<<<<<< HEAD
-        serializer = OrderCreateSerializer(data=data, context={'user': b2b_user})
-=======
         # Создаем mock request
         from unittest.mock import Mock
         mock_request = Mock()
         mock_request.user = b2b_user
         
         serializer = OrderCreateSerializer(data=data, context={'request': mock_request})
->>>>>>> 0410f967bb5bc418109acf400d9e34e6f98fb42e
         assert serializer.is_valid(), serializer.errors
 
         order = serializer.save()
@@ -267,16 +235,12 @@ class TestOrderCreateSerializer:
             'delivery_method': 'courier'
         }
 
-<<<<<<< HEAD
-        serializer = OrderCreateSerializer(data=data, context={'user': user})
-=======
         # Создаем mock request
         from unittest.mock import Mock
         mock_request = Mock()
         mock_request.user = user
         
         serializer = OrderCreateSerializer(data=data, context={'request': mock_request})
->>>>>>> 0410f967bb5bc418109acf400d9e34e6f98fb42e
         assert serializer.is_valid(), serializer.errors
 
         order = serializer.save()
@@ -380,14 +344,9 @@ class TestOrderListSerializer:
         order1 = order_factory.create(user=user1, status='pending')
         order2 = order_factory.create(user=user2, status='shipped')
 
-<<<<<<< HEAD
         # Сериализация заказов первого пользователя
         user1_orders = [order1]
         serializer = OrderListSerializer(user1_orders, many=True)
-=======
-        # Сериализация заказа первого пользователя
-        serializer = OrderDetailSerializer([order1], many=True)
->>>>>>> 0410f967bb5bc418109acf400d9e34e6f98fb42e
         data = serializer.data
 
         assert len(data) == 1
@@ -445,8 +404,6 @@ class TestOrderDetailSerializer:
         assert 'total_amount' in data
 
 
-<<<<<<< HEAD
-=======
 @pytest.mark.django_db
 class TestDeliveryAddressSerializer:
     """Тесты сериализатора адреса доставки"""
@@ -493,7 +450,6 @@ class TestDeliveryAddressSerializer:
         address = serializer.save()
         assert address.city == 'Санкт-Петербург'
 
->>>>>>> 0410f967bb5bc418109acf400d9e34e6f98fb42e
 
 @pytest.mark.django_db
 class TestOrderIntegration:
@@ -517,16 +473,12 @@ class TestOrderIntegration:
             'delivery_method': 'courier'
         }
 
-<<<<<<< HEAD
-        create_serializer = OrderCreateSerializer(data=create_data, context={'user': user})
-=======
         # Создаем mock request
         from unittest.mock import Mock
         mock_request = Mock()
         mock_request.user = user
 
         create_serializer = OrderCreateSerializer(data=create_data, context={'request': mock_request})
->>>>>>> 0410f967bb5bc418109acf400d9e34e6f98fb42e
         assert create_serializer.is_valid()
         order = create_serializer.save()
 
@@ -557,10 +509,6 @@ class TestOrderIntegration:
         brand = brand_factory.create()
 
         # Создаем множество элементов заказа с разными товарами
-<<<<<<< HEAD
-        products = product_factory.create_batch(10)
-        for i, product in enumerate(products):
-=======
         for i in range(10):
             suffix = get_unique_suffix()
             product = product_factory.create(
@@ -569,7 +517,6 @@ class TestOrderIntegration:
                 category=category,
                 brand=brand
             )
->>>>>>> 0410f967bb5bc418109acf400d9e34e6f98fb42e
             order_item_factory.create(order=order, product=product,
                                      quantity=i+1)
 

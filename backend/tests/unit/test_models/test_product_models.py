@@ -34,19 +34,13 @@ class TestBrandModel:
 
     def test_brand_unique_name(self):
         """Тест уникальности названия бренда"""
-<<<<<<<< HEAD:backend/tests/unit/models/test_products_models.py
-        test_brand_name = f'Puma-Test-{int(time.time())}-{uuid.uuid4().hex[:8]}'
         BrandFactory.create(name=test_brand_name)
         
         with pytest.raises(IntegrityError):
             BrandFactory.create(name=test_brand_name)
-========
-        BrandFactory.create(name="Puma")
 
         with pytest.raises(IntegrityError):
             BrandFactory.create(name="Puma")
->>>>>>>> 438d8f8b8c184e00582b93a9cd4f8fdded94036f:backend/tests/unit/test_models/test_product_models.py
-
     def test_brand_meta_configuration(self):
         """Тест настроек Meta класса"""
         assert Brand._meta.verbose_name == "Бренд"
@@ -175,19 +169,13 @@ class TestProductModel:
 
     def test_product_sku_uniqueness(self):
         """Тест уникальности артикула"""
-<<<<<<<< HEAD:backend/tests/unit/models/test_products_models.py
-        test_sku = f'UNIQUE-TEST-{int(time.time())}-{uuid.uuid4().hex[:8].upper()}'
         ProductFactory.create(sku=test_sku)
         
         with pytest.raises(IntegrityError):
             ProductFactory.create(sku=test_sku)
-========
-        ProductFactory.create(sku="UNIQUE-001")
 
         with pytest.raises(IntegrityError):
             ProductFactory.create(sku="UNIQUE-001")
->>>>>>>> 438d8f8b8c184e00582b93a9cd4f8fdded94036f:backend/tests/unit/test_models/test_product_models.py
-
     def test_product_slug_generation(self):
         """Тест автогенерации slug"""
         brand = BrandFactory.create()

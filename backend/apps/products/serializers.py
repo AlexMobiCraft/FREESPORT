@@ -10,7 +10,6 @@ class ProductImageSerializer(serializers.ModelSerializer):
     """
     Serializer для изображений товара
     """
-<<<<<<< HEAD
     url = serializers.SerializerMethodField()
     
     class Meta:
@@ -34,19 +33,12 @@ class ProductImageSerializer(serializers.ModelSerializer):
         if request and hasattr(request, 'build_absolute_uri'):
             return request.build_absolute_uri(url)
         return url
-=======
-
-    url = serializers.URLField()
-    alt_text = serializers.CharField(max_length=200, allow_blank=True)
-    is_primary = serializers.BooleanField(default=False)
->>>>>>> 438d8f8b8c184e00582b93a9cd4f8fdded94036f
 
 
 class BrandSerializer(serializers.ModelSerializer):
     """
     Serializer для брендов
     """
-<<<<<<< HEAD
     slug = serializers.SlugField(required=False)
     
     class Meta:
@@ -59,12 +51,6 @@ class BrandSerializer(serializers.ModelSerializer):
             from django.utils.text import slugify
             attrs['slug'] = slugify(attrs['name'])
         return attrs
-=======
-
-    class Meta:
-        model = Brand
-        fields = ["id", "name", "slug", "logo", "description", "website"]
->>>>>>> 438d8f8b8c184e00582b93a9cd4f8fdded94036f
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -148,31 +134,11 @@ class ProductListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
         fields = [
-<<<<<<< HEAD
             'id', 'name', 'slug', 'sku', 'brand', 'category',
             'short_description', 'main_image', 'current_price', 'price_type',
             'retail_price', 'recommended_retail_price', 'max_suggested_retail_price',
             'stock_quantity', 'min_order_quantity', 'can_be_ordered', 
             'is_featured', 'created_at'
-=======
-            "id",
-            "name",
-            "slug",
-            "sku",
-            "brand",
-            "category",
-            "short_description",
-            "main_image",
-            "current_price",
-            "price_type",
-            "recommended_retail_price",
-            "max_suggested_retail_price",
-            "stock_quantity",
-            "min_order_quantity",
-            "can_be_ordered",
-            "is_featured",
-            "created_at",
->>>>>>> 438d8f8b8c184e00582b93a9cd4f8fdded94036f
         ]
 
     def get_current_price(self, obj):
@@ -239,7 +205,6 @@ class ProductDetailSerializer(ProductListSerializer):
     def get_images(self, obj):
         """Получить галерею изображений включая основное"""
         images = []
-<<<<<<< HEAD
         request = self.context.get('request')
         
         # Основное изображение
@@ -267,30 +232,6 @@ class ProductDetailSerializer(ProductListSerializer):
                     'is_main': False
                 })
         
-=======
-
-        # Основное изображение
-        if obj.main_image:
-            images.append(
-                {
-                    "url": obj.main_image.url,
-                    "alt_text": f"{obj.name} - основное изображение",
-                    "is_primary": True,
-                }
-            )
-
-        # Дополнительные изображения из gallery_images
-        if obj.gallery_images:
-            for idx, img_url in enumerate(obj.gallery_images):
-                images.append(
-                    {
-                        "url": img_url,
-                        "alt_text": f"{obj.name} - изображение {idx + 2}",
-                        "is_primary": False,
-                    }
-                )
-
->>>>>>> 438d8f8b8c184e00582b93a9cd4f8fdded94036f
         return images
 
     def get_related_products(self, obj):

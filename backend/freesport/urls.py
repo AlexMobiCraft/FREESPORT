@@ -23,19 +23,11 @@ urlpatterns = [
     ),
     path("api/redoc/", SpectacularRedocView.as_view(url_name="schema"), name="redoc"),
     # API endpoints
-<<<<<<< HEAD
-    path('api/v1/', include('apps.common.urls')),
-    path('api/v1/', include('apps.users.urls')),
-    path('api/v1/', include('apps.products.urls')),
-    path('api/v1/orders/', include('apps.orders.urls')),
-    path('api/v1/cart/', include('apps.cart.urls')),
-=======
     path("api/v1/", include("apps.common.urls")),
     path("api/v1/", include("apps.users.urls")),
     path("api/v1/", include("apps.products.urls")),
     path("api/v1/", include("apps.orders.urls")),
     path("api/v1/cart/", include("apps.cart.urls")),
->>>>>>> 438d8f8b8c184e00582b93a9cd4f8fdded94036f
 ]
 
 # Статические и медиа файлы в режиме разработки

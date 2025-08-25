@@ -96,7 +96,6 @@ class Order(models.Model):
     delivery_method = models.CharField(
         "Способ доставки", max_length=50, choices=DELIVERY_METHODS
     )
-<<<<<<< HEAD
     delivery_date = models.DateField('Дата доставки', null=True, blank=True)
     tracking_number = models.CharField(
         'Трек-номер',
@@ -104,11 +103,6 @@ class Order(models.Model):
         blank=True,
         help_text='Номер для отслеживания посылки'
     )
-    
-=======
-    delivery_date = models.DateField("Дата доставки", null=True, blank=True)
-
->>>>>>> b9cb5403e397f615917fa522c8bf3e0f81cc0fcf
     # Информация об оплате
     payment_method = models.CharField(
         "Способ оплаты", max_length=50, choices=PAYMENT_METHODS

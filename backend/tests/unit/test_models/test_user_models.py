@@ -71,11 +71,7 @@ class TestUserModel:
         """
         Тест уникальности email
         """
-<<<<<<<< HEAD:backend/tests/unit/models/test_users_models.py
         email = f'duplicate-test-{int(time.time())}-{uuid.uuid4().hex[:8]}@freesport.com'
-========
-        email = "duplicate@freesport.com"
->>>>>>>> 438d8f8b8c184e00582b93a9cd4f8fdded94036f:backend/tests/unit/test_models/test_user_models.py
         UserFactory.create(email=email)
 
         with pytest.raises(IntegrityError):
@@ -204,8 +200,6 @@ class TestUserModel:
         Тест B2B полей для бизнес пользователей
         """
         b2b_user = UserFactory.create(
-<<<<<<<< HEAD:backend/tests/unit/models/test_users_models.py
-            role='wholesale_level1',
             company_name='ООО Спорт Компани',
             tax_id='770123456789',
             is_verified=True
@@ -213,8 +207,6 @@ class TestUserModel:
         
         assert b2b_user.company_name == 'ООО Спорт Компани'
         assert b2b_user.tax_id == '770123456789'
-========
-            role="wholesale_level1",
             company_name="ООО Спорт Компани",
             tax_id="7701234567890",
             is_verified=True,
@@ -222,24 +214,16 @@ class TestUserModel:
 
         assert b2b_user.company_name == "ООО Спорт Компани"
         assert b2b_user.tax_id == "7701234567890"
->>>>>>>> 438d8f8b8c184e00582b93a9cd4f8fdded94036f:backend/tests/unit/test_models/test_user_models.py
-        assert b2b_user.is_verified is True
         assert b2b_user.is_b2b_user is True
 
     def test_default_values(self):
         """
         Тест значений по умолчанию
         """
-<<<<<<<< HEAD:backend/tests/unit/models/test_users_models.py
-        user = UserFactory.create(phone='')
         
         assert user.role == 'retail'
-========
-        user = UserFactory.create()
 
         assert user.role == "retail"
->>>>>>>> 438d8f8b8c184e00582b93a9cd4f8fdded94036f:backend/tests/unit/test_models/test_user_models.py
-        assert user.is_active is True
         assert user.is_verified is False
         assert user.phone == ""
         assert user.company_name == ""
@@ -341,8 +325,6 @@ class TestCompanyModel:
         """
         Тест: ИНН компании должен быть уникальным
         """
-<<<<<<<< HEAD:backend/tests/unit/models/test_users_models.py
-        user1 = UserFactory.create(role='wholesale_level1')
         user2 = UserFactory.create(role='wholesale_level2')
         
         test_tax_id = f'{111222333000 + int(time.time()) % 999:012d}'
@@ -350,16 +332,12 @@ class TestCompanyModel:
         
         with pytest.raises(IntegrityError):
             CompanyFactory.create(user=user2, tax_id=test_tax_id)
-========
-        user1 = UserFactory.create(role="wholesale_level1")
         user2 = UserFactory.create(role="wholesale_level2")
 
         CompanyFactory.create(user=user1, tax_id="111222333444")
 
         with pytest.raises(IntegrityError):
             CompanyFactory.create(user=user2, tax_id="111222333444")
->>>>>>>> 438d8f8b8c184e00582b93a9cd4f8fdded94036f:backend/tests/unit/test_models/test_user_models.py
-
     def test_one_to_one_relationship_with_user(self):
         """
         Тест связи OneToOne с пользователем

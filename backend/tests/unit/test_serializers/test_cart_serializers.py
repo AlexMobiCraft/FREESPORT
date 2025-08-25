@@ -56,7 +56,6 @@ class TestCartItemSerializer:
             quantity=1
         )
 
-<<<<<<< HEAD
         mock_request = Mock()
         mock_request.user = user
         mock_request.build_absolute_uri = Mock(return_value='http://testserver/media/image.jpg')
@@ -64,16 +63,6 @@ class TestCartItemSerializer:
         serializer = CartItemSerializer(
             cart_item,
             context={'request': mock_request}
-=======
-        request_mock = type('MockRequest', (object,), {
-            'user': user,
-            'build_absolute_uri': lambda self, url: f'http://testserver{url}' if url else ''
-        })()
-        
-        serializer = CartItemSerializer(
-            cart_item,
-            context={'request': request_mock}
->>>>>>> 0410f967bb5bc418109acf400d9e34e6f98fb42e
         )
         data = serializer.data
 
@@ -93,7 +82,6 @@ class TestCartItemSerializer:
             quantity=5
         )
 
-<<<<<<< HEAD
         mock_request = Mock()
         mock_request.user = user
         mock_request.build_absolute_uri = Mock(return_value='http://testserver/media/image.jpg')
@@ -101,16 +89,6 @@ class TestCartItemSerializer:
         serializer = CartItemSerializer(
             cart_item,
             context={'request': mock_request}
-=======
-        request_mock = type('MockRequest', (object,), {
-            'user': user,
-            'build_absolute_uri': lambda self, url: f'http://testserver{url}' if url else ''
-        })()
-        
-        serializer = CartItemSerializer(
-            cart_item,
-            context={'request': request_mock}
->>>>>>> 0410f967bb5bc418109acf400d9e34e6f98fb42e
         )
         data = serializer.data
 
@@ -292,8 +270,6 @@ class TestCartItemUpdateSerializer:
         )
         assert not serializer.is_valid()
         assert 'quantity' in serializer.errors
-
-
 
 
 @pytest.mark.django_db

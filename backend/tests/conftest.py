@@ -49,39 +49,24 @@ def create_factories():
         role = "retail"
         is_active = True
         is_verified = False
-<<<<<<< HEAD
         phone = factory.LazyFunction(lambda: f"+7{random.randint(9000000000, 9999999999)}")
-        company_name = ''
-        tax_id = ''
-        password = factory.PostGenerationMethodCall('set_password', 'default_password123')
-=======
-        phone = ""
         company_name = ""
         tax_id = ""
         password = factory.PostGenerationMethodCall(
             "set_password", "default_password123"
         )
->>>>>>> 438d8f8b8c184e00582b93a9cd4f8fdded94036f
 
     class CompanyFactory(factory.django.DjangoModelFactory):
         """Фабрика для создания компаний"""
 
         class Meta:
-<<<<<<< HEAD
-            model = 'users.Company'
-        
-        user = factory.SubFactory(UserFactory, role='wholesale_level1', is_verified=True)
-        legal_name = factory.Faker('company', locale='ru_RU')
-        tax_id = factory.LazyFunction(lambda: f"{123456789000 + int(time.time()) % 999999:012d}")
-=======
             model = "users.Company"
 
         user = factory.SubFactory(
             UserFactory, role="wholesale_level1", is_verified=True
         )
         legal_name = factory.Faker("company", locale="ru_RU")
-        tax_id = factory.Sequence(lambda n: f"{1234567890 + n:012d}")
->>>>>>> 438d8f8b8c184e00582b93a9cd4f8fdded94036f
+        tax_id = factory.LazyFunction(lambda: f"{123456789000 + int(time.time()) % 999999:012d}")
         kpp = factory.Sequence(lambda n: f"{123456000 + n:09d}")
         legal_address = factory.Faker("address", locale="ru_RU")
         bank_name = factory.Faker("company", locale="ru_RU")
@@ -110,18 +95,12 @@ def create_factories():
     class BrandFactory(factory.django.DjangoModelFactory):
         """Фабрика для создания брендов"""
 
-<<<<<<< HEAD
-        name = factory.LazyFunction(lambda: f"Brand-{get_unique_suffix()}")
-        slug = factory.LazyAttribute(lambda obj: obj.name.lower().replace(' ', '-'))
-        description = factory.Faker('text', max_nb_chars=200, locale='ru_RU')
-=======
         class Meta:
             model = "products.Brand"
 
-        name = factory.Faker("company", locale="ru_RU")
+        name = factory.LazyFunction(lambda: f"Brand-{get_unique_suffix()}")
         slug = factory.LazyAttribute(lambda obj: obj.name.lower().replace(" ", "-"))
         description = factory.Faker("text", max_nb_chars=200, locale="ru_RU")
->>>>>>> 438d8f8b8c184e00582b93a9cd4f8fdded94036f
         is_active = True
 
     class CategoryFactory(factory.django.DjangoModelFactory):
@@ -139,16 +118,6 @@ def create_factories():
     class ProductFactory(factory.django.DjangoModelFactory):
         """Фабрика для создания товаров"""
 
-<<<<<<< HEAD
-        name = factory.Faker('text', max_nb_chars=50, locale='ru_RU')
-        slug = factory.LazyAttribute(lambda obj: obj.name.lower().replace(' ', '-'))
-        brand = factory.SubFactory(BrandFactory)
-        category = factory.SubFactory(CategoryFactory)
-        description = factory.Faker('text', max_nb_chars=500, locale='ru_RU')
-        short_description = factory.Faker('sentence', nb_words=10, locale='ru_RU')
-        main_image = factory.django.ImageField(color='blue')
-        
-=======
         class Meta:
             model = "products.Product"
 
@@ -158,8 +127,6 @@ def create_factories():
         category = factory.SubFactory(CategoryFactory)
         description = factory.Faker("text", max_nb_chars=500, locale="ru_RU")
         short_description = factory.Faker("sentence", nb_words=10, locale="ru_RU")
-
->>>>>>> 438d8f8b8c184e00582b93a9cd4f8fdded94036f
         # Ценообразование
         retail_price = factory.Faker(
             "pydecimal", left_digits=4, right_digits=2, positive=True
@@ -181,17 +148,8 @@ def create_factories():
         )
 
         # Инвентаризация
-<<<<<<< HEAD
         sku = factory.LazyFunction(lambda: f"SKU-{get_unique_suffix().upper()}")
-<<<<<<< HEAD
-        stock_quantity = factory.Faker('random_int', min=10, max=1000)
-=======
-        stock_quantity = factory.Faker('random_int', min=0, max=1000)
-=======
-        sku = factory.Sequence(lambda n: f"SKU-{n:06d}")
         stock_quantity = factory.Faker("random_int", min=0, max=1000)
->>>>>>> 438d8f8b8c184e00582b93a9cd4f8fdded94036f
->>>>>>> b9cb5403e397f615917fa522c8bf3e0f81cc0fcf
         min_order_quantity = 1
 
         is_active = True
@@ -233,14 +191,7 @@ def create_factories():
             model = "orders.Order"
 
         user = factory.SubFactory(UserFactory)
-<<<<<<< HEAD
         order_number = factory.LazyFunction(get_unique_order_number)
-        status = 'pending'
-        total_amount = factory.Faker('pydecimal', left_digits=5, right_digits=2, positive=True)
-        delivery_address = factory.Faker('address', locale='ru_RU')
-        delivery_method = 'courier'
-        payment_method = 'card'
-=======
         status = "pending"
         total_amount = factory.Faker(
             "pydecimal", left_digits=5, right_digits=2, positive=True
@@ -248,7 +199,6 @@ def create_factories():
         delivery_address = factory.Faker("address", locale="ru_RU")
         delivery_method = "courier"
         payment_method = "card"
->>>>>>> 438d8f8b8c184e00582b93a9cd4f8fdded94036f
 
     class OrderItemFactory(factory.django.DjangoModelFactory):
         """Фабрика для создания элементов заказа"""
@@ -293,34 +243,19 @@ def create_factories():
         error_details = []
 
     return {
-<<<<<<< HEAD
-        'UserFactory': UserFactory,
-        'CompanyFactory': CompanyFactory,
-        'AddressFactory': AddressFactory,
-        'BrandFactory': BrandFactory,
-        'CategoryFactory': CategoryFactory,
-        'ProductFactory': ProductFactory,
-        'ProductImageFactory': ProductImageFactory,
-        'CartFactory': CartFactory,
-        'CartItemFactory': CartItemFactory,
-        'OrderFactory': OrderFactory,
-        'OrderItemFactory': OrderItemFactory,
-        'AuditLogFactory': AuditLogFactory,
-        'SyncLogFactory': SyncLogFactory,
-=======
         "UserFactory": UserFactory,
         "CompanyFactory": CompanyFactory,
         "AddressFactory": AddressFactory,
         "BrandFactory": BrandFactory,
         "CategoryFactory": CategoryFactory,
         "ProductFactory": ProductFactory,
+        "ProductImageFactory": ProductImageFactory,
         "CartFactory": CartFactory,
         "CartItemFactory": CartItemFactory,
         "OrderFactory": OrderFactory,
         "OrderItemFactory": OrderItemFactory,
         "AuditLogFactory": AuditLogFactory,
         "SyncLogFactory": SyncLogFactory,
->>>>>>> 438d8f8b8c184e00582b93a9cd4f8fdded94036f
     }
 
 
@@ -346,24 +281,9 @@ class FactoryWrapper:
     def build(self, *args, **kwargs):
         return get_factories()[self.factory_name].build(*args, **kwargs)
 
-<<<<<<< HEAD
     def create_batch(self, *args, **kwargs):
         return get_factories()[self.factory_name].create_batch(*args, **kwargs)
 
-UserFactory = FactoryWrapper('UserFactory')
-CompanyFactory = FactoryWrapper('CompanyFactory')
-AddressFactory = FactoryWrapper('AddressFactory')
-BrandFactory = FactoryWrapper('BrandFactory')
-CategoryFactory = FactoryWrapper('CategoryFactory')
-ProductFactory = FactoryWrapper('ProductFactory')
-ProductImageFactory = FactoryWrapper('ProductImageFactory')
-CartFactory = FactoryWrapper('CartFactory')
-CartItemFactory = FactoryWrapper('CartItemFactory')
-OrderFactory = FactoryWrapper('OrderFactory')
-OrderItemFactory = FactoryWrapper('OrderItemFactory')
-AuditLogFactory = FactoryWrapper('AuditLogFactory')
-SyncLogFactory = FactoryWrapper('SyncLogFactory')
-=======
 
 UserFactory = FactoryWrapper("UserFactory")
 CompanyFactory = FactoryWrapper("CompanyFactory")
@@ -371,13 +291,13 @@ AddressFactory = FactoryWrapper("AddressFactory")
 BrandFactory = FactoryWrapper("BrandFactory")
 CategoryFactory = FactoryWrapper("CategoryFactory")
 ProductFactory = FactoryWrapper("ProductFactory")
+ProductImageFactory = FactoryWrapper("ProductImageFactory")
 CartFactory = FactoryWrapper("CartFactory")
 CartItemFactory = FactoryWrapper("CartItemFactory")
 OrderFactory = FactoryWrapper("OrderFactory")
 OrderItemFactory = FactoryWrapper("OrderItemFactory")
 AuditLogFactory = FactoryWrapper("AuditLogFactory")
 SyncLogFactory = FactoryWrapper("SyncLogFactory")
->>>>>>> 438d8f8b8c184e00582b93a9cd4f8fdded94036f
 
 
 @pytest.fixture
@@ -402,14 +322,9 @@ def client():
 
 @pytest.fixture
 def user_factory():
-<<<<<<< HEAD
-=======
     """
     Фабрика для создания пользователей
     """
-    from tests.factories import UserFactory
-
->>>>>>> 438d8f8b8c184e00582b93a9cd4f8fdded94036f
     return UserFactory
 
 @pytest.fixture
@@ -475,13 +390,7 @@ def retail_user(db, user_factory):
     """
     Розничный пользователь
     """
-<<<<<<< HEAD
-    return user_factory.create(role='retail')
-=======
-    from tests.factories import UserFactory
-
-    return UserFactory.create(role="retail")
->>>>>>> 438d8f8b8c184e00582b93a9cd4f8fdded94036f
+    return user_factory.create(role="retail")
 
 
 @pytest.fixture
@@ -489,13 +398,7 @@ def wholesale_user(db, user_factory):
     """
     Оптовый пользователь уровень 1
     """
-<<<<<<< HEAD
-    return user_factory.create(role='wholesale_level1', is_verified=True)
-=======
-    from tests.factories import UserFactory
-
-    return UserFactory.create(role="wholesale_level1", is_verified=True)
->>>>>>> 438d8f8b8c184e00582b93a9cd4f8fdded94036f
+    return user_factory.create(role="wholesale_level1", is_verified=True)
 
 
 @pytest.fixture
@@ -503,13 +406,7 @@ def trainer_user(db, user_factory):
     """
     Пользователь-тренер
     """
-<<<<<<< HEAD
-    return user_factory.create(role='trainer', is_verified=True)
-=======
-    from tests.factories import UserFactory
-
-    return UserFactory.create(role="trainer", is_verified=True)
->>>>>>> 438d8f8b8c184e00582b93a9cd4f8fdded94036f
+    return user_factory.create(role="trainer", is_verified=True)
 
 
 @pytest.fixture
@@ -517,18 +414,8 @@ def admin_user(db, user_factory):
     """
     Пользователь-администратор
     """
-<<<<<<< HEAD
     return user_factory.create(
-        role='admin', 
-        is_staff=True, 
-        is_superuser=True, 
-        is_verified=True
-=======
-    from tests.factories import UserFactory
-
-    return UserFactory.create(
         role="admin", is_staff=True, is_superuser=True, is_verified=True
->>>>>>> 438d8f8b8c184e00582b93a9cd4f8fdded94036f
     )
 
 
@@ -595,8 +482,7 @@ def sample_image():
     img_io.seek(0)
 
     return InMemoryUploadedFile(
-<<<<<<< HEAD
-        img_io, None, 'test.png', 'image/png', len(img_io.getvalue()), None
+        img_io, None, "test.png", "image/png", len(img_io.getvalue()), None
     )
 
 
@@ -606,7 +492,7 @@ def access_token(db, user_factory):
     Создает розничного пользователя и возвращает JWT токен доступа
     """
     from rest_framework_simplejwt.tokens import RefreshToken
-    user = user_factory.create(role='retail')
+    user = user_factory.create(role="retail")
     refresh = RefreshToken.for_user(user)
     return str(refresh.access_token)
 
@@ -671,7 +557,3 @@ def clear_db_before_test(transactional_db):
     # Используем транзакционную изоляцию
     with transaction.atomic():
         yield
-=======
-        img_io, None, "test.png", "image/png", len(img_io.getvalue()), None
-    )
->>>>>>> 438d8f8b8c184e00582b93a9cd4f8fdded94036f

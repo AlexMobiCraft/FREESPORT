@@ -243,7 +243,6 @@ class Product(models.Model):
     def can_be_ordered(self):
         """Можно ли заказать товар"""
         return self.is_active and self.is_in_stock
-<<<<<<< HEAD
 
 
 class ProductImage(models.Model):
@@ -282,5 +281,3 @@ class ProductImage(models.Model):
         if self.is_main:
             ProductImage.objects.filter(product=self.product, is_main=True).exclude(pk=self.pk).update(is_main=False)
         super().save(*args, **kwargs)
-=======
->>>>>>> 438d8f8b8c184e00582b93a9cd4f8fdded94036f

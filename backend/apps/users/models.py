@@ -219,24 +219,15 @@ class Address(models.Model):
         Если этот адрес устанавливается как основной, снимаем флаг
         со всех других адресов того же типа для этого пользователя.
         """
-        # Сначала сохраняем объект, чтобы установились все поля
-        super().save(*args, **kwargs)
-        
-        # Затем обрабатываем логику is_default
-        if self.is_default and self.user_id:
+        # Обрабатываем логику is_default перед сохранением
+        if self.is_default and hasattr(self, 'user') and self.user:
             # Сбросить флаг is_default у всех других адресов этого же типа для этого пользователя
             Address.objects.filter(
-<<<<<<< HEAD
-                user_id=self.user_id, 
-                address_type=self.address_type
-            ).exclude(pk=self.pk).update(is_default=False)
-    
-=======
                 user=self.user, address_type=self.address_type
             ).exclude(pk=self.pk).update(is_default=False)
+        
+        # Сохраняем объект
         super().save(*args, **kwargs)
-
->>>>>>> 438d8f8b8c184e00582b93a9cd4f8fdded94036f
     def __str__(self):
         return f"{self.full_name} - {self.city}, {self.street} {self.building}"
 

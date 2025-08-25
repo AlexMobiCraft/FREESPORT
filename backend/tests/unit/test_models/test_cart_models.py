@@ -45,16 +45,10 @@ class TestCartModel:
         cart = CartFactory.create(user=user)
 
         # Создаем товары с известными ценами
-<<<<<<<< HEAD:backend/tests/unit/models/test_cart_models.py
-        product1 = ProductFactory.create(retail_price=Decimal('1000.00'), stock_quantity=10)
         product2 = ProductFactory.create(retail_price=Decimal('500.00'), stock_quantity=10)
         
-========
-        product1 = ProductFactory.create(retail_price=Decimal("1000.00"))
         product2 = ProductFactory.create(retail_price=Decimal("500.00"))
 
->>>>>>>> 438d8f8b8c184e00582b93a9cd4f8fdded94036f:backend/tests/unit/test_models/test_cart_models.py
-        CartItemFactory.create(cart=cart, product=product1, quantity=2)
         CartItemFactory.create(cart=cart, product=product2, quantity=1)
 
         expected_total = Decimal("1000.00") * 2 + Decimal("500.00") * 1

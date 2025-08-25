@@ -5,7 +5,6 @@ from datetime import timedelta
 # Отключаем DEBUG для тестов
 DEBUG = False
 
-<<<<<<< HEAD
 # Тестовая база данных - поддерживаем как SQLite так и PostgreSQL
 import os
 
@@ -35,16 +34,6 @@ else:
                 'NAME': ':memory:',
             },
         }
-=======
-# Тестовая база данных в памяти для скорости
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": ":memory:",
-        "TEST": {
-            "NAME": ":memory:",
-        },
->>>>>>> 438d8f8b8c184e00582b93a9cd4f8fdded94036f
     }
 
 
@@ -64,7 +53,6 @@ PASSWORD_HASHERS = [
     "django.contrib.auth.hashers.MD5PasswordHasher",
 ]
 
-<<<<<<< HEAD
 # Настройки кеширования для тестов
 if os.environ.get('REDIS_URL'):
     # Redis кеш для Docker тестов
@@ -85,12 +73,6 @@ else:
             'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
             'LOCATION': 'unique-snowflake',
         }
-=======
-# Отключаем кеширование
-CACHES = {
-    "default": {
-        "BACKEND": "django.core.cache.backends.dummy.DummyCache",
->>>>>>> 438d8f8b8c184e00582b93a9cd4f8fdded94036f
     }
 
 # Отключаем логирование для тестов
@@ -163,9 +145,6 @@ FACTORY_FOR_DJANGO_FILE_FIELD = True
 
 # Настройки для pytest-django
 USE_TZ = True
-<<<<<<< HEAD
 
 # Отключаем django-ratelimit для тестов
 RATELIMIT_ENABLE = False
-=======
->>>>>>> 438d8f8b8c184e00582b93a9cd4f8fdded94036f

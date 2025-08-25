@@ -143,16 +143,10 @@ REST_FRAMEWORK = {
         "rest_framework.filters.OrderingFilter",
         "rest_framework.filters.SearchFilter",
     ],
-<<<<<<< HEAD
-        'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-    'PAGE_SIZE': 20,
-    'PAGE_SIZE_QUERY_PARAM': 'page_size',
-    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
-=======
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
+    "PAGE_SIZE_QUERY_PARAM": "page_size",
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
->>>>>>> 438d8f8b8c184e00582b93a9cd4f8fdded94036f
 }
 
 # Конфигурация JWT согласно Story 1.3
