@@ -53,7 +53,7 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
         description="Получение списка товаров с фильтрацией, сортировкой и ролевым ценообразованием",
         parameters=[
             OpenApiParameter('category_id', OpenApiTypes.INT, description='ID категории'),
-            OpenApiParameter('brand', OpenApiTypes.STR, description='Бренд (ID или slug)'),
+            OpenApiParameter('brand', OpenApiTypes.STR, description='Бренд (ID или slug). Поддерживает множественный выбор: brand=nike,adidas'),
             OpenApiParameter('min_price', OpenApiTypes.NUMBER, description='Минимальная цена'),
             OpenApiParameter('max_price', OpenApiTypes.NUMBER, description='Максимальная цена'),
             OpenApiParameter('in_stock', OpenApiTypes.BOOL, description='Товары в наличии'),
@@ -63,6 +63,7 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
                 OpenApiTypes.STR, 
                 description='Полнотекстовый поиск по названию, описанию, артикулу. Поддерживает русский язык, ранжирование по релевантности. Мин. 2 символа, макс. 100'
             ),
+            OpenApiParameter('size', OpenApiTypes.STR, description='Размер товара из спецификаций (XS, S, M, L, XL, XXL, 38, 40, 42 и т.д.)'),
             OpenApiParameter('ordering', OpenApiTypes.STR, description='Сортировка: name, -name, retail_price, -retail_price, created_at, -created_at'),
         ],
         tags=["Products"]

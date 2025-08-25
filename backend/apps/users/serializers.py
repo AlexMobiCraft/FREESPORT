@@ -173,7 +173,7 @@ class AddressSerializer(serializers.ModelSerializer):
             'street', 'building', 'apartment', 'postal_code',
             'is_default', 'full_address', 'created_at', 'updated_at'
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'user', 'created_at', 'updated_at']
 
     def validate_postal_code(self, value):
         """Валидация почтового индекса"""
@@ -182,6 +182,12 @@ class AddressSerializer(serializers.ModelSerializer):
                 'Почтовый индекс должен содержать 6 цифр.'
             )
         return value
+    
+    def save(self, **kwargs):
+        """Автоматически устанавливаем пользователя из контекста"""
+        if 'user' in self.context:
+            kwargs['user'] = self.context['user']
+        return super().save(**kwargs)
 
 
 class CompanySerializer(serializers.ModelSerializer):

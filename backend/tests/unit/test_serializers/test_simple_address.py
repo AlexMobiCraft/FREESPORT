@@ -33,6 +33,7 @@ class TestAddressSerializerSimple:
         user = user_factory.create()
 
         data = {
+            'user': user.id,  # Добавляем пользователя в данные
             'address_type': 'shipping',
             'full_name': 'Тест Тестов',
             'phone': '79000000000',
@@ -42,7 +43,7 @@ class TestAddressSerializerSimple:
             'postal_code': '123456'
         }
 
-        serializer = AddressSerializer(data=data, context={'user': user})
+        serializer = AddressSerializer(data=data)
         assert serializer.is_valid(), serializer.errors
 
         validated_data = serializer.validated_data

@@ -59,6 +59,7 @@ class OrderDetailSerializer(serializers.ModelSerializer):
             "delivery_address",
             "delivery_method",
             "delivery_date",
+            "tracking_number",
             "payment_method",
             "payment_status",
             "notes",
@@ -162,3 +163,45 @@ class OrderStatusUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Order
         fields = ['status']
+        
+    def validate_status(self, value):
+        """Валидация переходов статусов заказа"""
+        if not self.instance:
+            return value
+            
+        current_status = self.instance.status
+        
+        # Не позволяем откатывать статус назад или перескакивать статусы
+        status_order = {
+            'pending': 0,
+            'confirmed': 1, 
+            'processing': 2,
+            'shipped': 3,
+            'delivered': 4,
+            'cancelled': 5,
+            'refunded': 6
+        }
+        
+        current_order = status_order.get(current_status, 0)
+        new_order = status_order.get(value, 0)
+        
+        # Запрещаем переход с конечных статусов
+        if current_status in ['delivered', 'cancelled', 'refunded']:
+            if value != current_status:
+                raise serializers.ValidationError(
+                    f'Невозможно изменить статус с "{current_status}" на "{value}"'
+                )
+        
+        # Запрещаем откат статуса или большие скачки (кроме отмены)
+        if value != 'cancelled':
+            if new_order < current_order:
+                raise serializers.ValidationError(
+                    f'Невозможно откатить статус с "{current_status}" на "{value}"'
+                )
+            # Запрещаем пропуск статусов (можно только на следующий)
+            if new_order > current_order + 1:
+                raise serializers.ValidationError(
+                    f'Невозможно перейти с "{current_status}" на "{value}". Переходы должны быть последовательными.'
+                )
+            
+        return value

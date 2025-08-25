@@ -33,7 +33,7 @@ class CartItemSerializer(serializers.ModelSerializer):
         """Получить URL изображения товара"""
         if obj.product.main_image:
             request = self.context.get('request')
-            if request:
+            if request and hasattr(request, 'build_absolute_uri'):
                 return request.build_absolute_uri(obj.product.main_image.url)
             return obj.product.main_image.url
         return None
@@ -42,7 +42,7 @@ class CartItemSerializer(serializers.ModelSerializer):
         """Получить цену товара для пользователя корзины"""
         user = obj.cart.user
         price = obj.product.get_price_for_user(user)
-        return f"{price:.2f}"
+        return price
     
     def get_product(self, obj):
         """Получить информацию о продукте для совместимости с тестами"""
@@ -135,7 +135,7 @@ class CartSerializer(serializers.ModelSerializer):
     """
     items = CartItemSerializer(many=True, read_only=True)
     total_items = serializers.ReadOnlyField()
-    total_amount = serializers.ReadOnlyField()
+    total_amount = serializers.SerializerMethodField()
     
     class Meta:
         model = Cart
@@ -144,3 +144,7 @@ class CartSerializer(serializers.ModelSerializer):
             'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
+    
+    def get_total_amount(self, obj):
+        """Получить общую стоимость корзины как число"""
+        return obj.total_amount
