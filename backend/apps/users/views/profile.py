@@ -13,13 +13,14 @@ class UserProfileView(RetrieveUpdateAPIView):
     """
     Просмотр и обновление профиля текущего пользователя
     """
+
     serializer_class = UserProfileSerializer
     permission_classes = [permissions.IsAuthenticated]
-    
+
     def get_object(self):
         """Возвращает профиль текущего пользователя"""
         return self.request.user
-    
+
     @extend_schema(
         summary="Получение профиля пользователя",
         description="Получение данных профиля текущего авторизованного пользователя",
@@ -31,15 +32,15 @@ class UserProfileView(RetrieveUpdateAPIView):
                     "application/json": {
                         "detail": "Учетные данные не были предоставлены."
                     }
-                }
-            )
+                },
+            ),
         },
-        tags=["Users"]
+        tags=["Users"],
     )
     def get(self, request, *args, **kwargs):
         """Получение профиля пользователя"""
         return super().get(request, *args, **kwargs)
-    
+
     @extend_schema(
         summary="Обновление профиля пользователя",
         description="Частичное обновление данных профиля пользователя (PATCH)",
@@ -52,13 +53,11 @@ class UserProfileView(RetrieveUpdateAPIView):
                     "application/json": {
                         "tax_id": ["ИНН должен содержать 10 или 12 цифр."]
                     }
-                }
+                },
             ),
-            401: OpenApiResponse(
-                description="Пользователь не авторизован"
-            )
+            401: OpenApiResponse(description="Пользователь не авторизован"),
         },
-        tags=["Users"]
+        tags=["Users"],
     )
     def patch(self, request, *args, **kwargs):
         """Обновление профиля пользователя"""
