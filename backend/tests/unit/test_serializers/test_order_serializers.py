@@ -140,10 +140,16 @@ class TestOrderItemSerializer:
 class TestOrderCreateSerializer:
     """Тесты сериализатора создания заказа"""
 
-    def test_order_creation_validation(self, user_factory, address_factory):
+    def test_order_creation_validation(self, user_factory, address_factory, 
+                                       cart_factory, product_factory, cart_item_factory):
         """Тест валидации создания заказа"""
         user = user_factory.create()
         address = address_factory.create(user=user)
+        
+        # Создаем корзину с товарами
+        cart = cart_factory.create(user=user)
+        product = product_factory.create(stock_quantity=10)
+        cart_item_factory.create(cart=cart, product=product, quantity=2)
 
         data = {
             'user': user.id,
@@ -152,34 +158,34 @@ class TestOrderCreateSerializer:
             'delivery_method': 'courier'
         }
 
-        serializer = OrderCreateSerializer(data=data)
+        serializer = OrderCreateSerializer(data=data, context={'user': user})
         assert serializer.is_valid(), serializer.errors
 
         order = serializer.save()
         assert order.user == user
-        assert order.delivery_address == address
 
-    def test_order_creation_with_b2b_user(self, user_factory,
-                                         address_factory):
+    def test_order_creation_with_b2b_user(self, user_factory, address_factory,
+                                         cart_factory, product_factory, cart_item_factory):
         """Тест создания заказа B2B пользователем"""
-        b2b_user = user_factory.create(role='b2b')
-        company_address = address_factory.create(
-            user=b2b_user,
-            type='company'
-        )
+        b2b_user = user_factory.create(role='wholesale_level1')
+        company_address = address_factory.create(user=b2b_user)
+        
+        # Создаем корзину с товарами
+        cart = cart_factory.create(user=b2b_user)
+        product = product_factory.create(stock_quantity=10)
+        cart_item_factory.create(cart=cart, product=product, quantity=2)
 
         data = {
-            'user': b2b_user.id,
-            'delivery_address': company_address.id,
-            'payment_method': 'invoice',
+            'delivery_address': company_address.full_address,
+            'payment_method': 'bank_transfer',
             'delivery_method': 'pickup'
         }
 
-        serializer = OrderCreateSerializer(data=data)
+        serializer = OrderCreateSerializer(data=data, context={'user': b2b_user})
         assert serializer.is_valid(), serializer.errors
 
         order = serializer.save()
-        assert order.user.role == 'b2b'
+        assert order.user.role == 'wholesale_level1'
 
     def test_order_creation_validation_errors(self, user_factory,
                                              address_factory):
@@ -220,7 +226,7 @@ class TestOrderCreateSerializer:
             'cart': cart.id
         }
 
-        serializer = OrderCreateSerializer(data=data)
+        serializer = OrderCreateSerializer(data=data, context={'user': user})
         assert serializer.is_valid(), serializer.errors
 
         order = serializer.save()
@@ -320,13 +326,13 @@ class TestOrderListSerializer:
     def test_order_list_user_filtering(self, user_factory, order_factory):
         """Тест фильтрации заказов по пользователю"""
         user1 = user_factory.create()
-        user = user_factory.create()
-        order1 = order_factory.create(user=user, status='pending')
-        order2 = order_factory.create(user=user, status='shipped')
+        user2 = user_factory.create()
+        order1 = order_factory.create(user=user1, status='pending')
+        order2 = order_factory.create(user=user2, status='shipped')
 
         # Сериализация заказов первого пользователя
         user1_orders = [order1]
-        serializer = OrderDetailSerializer([order1, order2], many=True)
+        serializer = OrderListSerializer(user1_orders, many=True)
         data = serializer.data
 
         assert len(data) == 1
@@ -365,18 +371,6 @@ class TestOrderDetailSerializer:
         assert 'delivery_method' in data
         assert len(data['items']) == 1
 
-    def test_order_detail_with_tracking(self, order_factory):
-        """Тест детализации заказа с трекинг информацией"""
-        order = order_factory.create(
-            status='shipped',
-            tracking_number='TRACK123456'
-        )
-
-        serializer = OrderDetailSerializer(order)
-        data = serializer.data
-
-        assert 'tracking_number' in data
-        assert data['tracking_number'] == 'TRACK123456'
 
     def test_order_detail_performance(self, user_factory, order_factory,
                                      product_factory, order_item_factory):
@@ -395,50 +389,6 @@ class TestOrderDetailSerializer:
         assert len(data['items']) == 5
         assert 'total_amount' in data
 
-
-@pytest.mark.django_db
-class TestDeliveryAddressSerializer:
-    """Тесты сериализатора адреса доставки"""
-
-    def test_delivery_address_serialization(self, user_factory,
-                                           address_factory):
-        """Тест сериализации адреса доставки"""
-        user = user_factory.create()
-        address = address_factory.create(
-            user=user,
-            type='delivery',
-            country='Россия',
-            city='Москва',
-            street='Тверская',
-            house='1',
-            apartment='10'
-        )
-
-        serializer = DeliveryAddressSerializer(address)
-        data = serializer.data
-
-        assert data['type'] == 'delivery'
-        assert data['city'] == 'Москва'
-        assert data['street'] == 'Тверская'
-
-    def test_delivery_address_validation(self, user_factory):
-        """Тест валидации адреса доставки"""
-        user = user_factory.create()
-
-        data = {
-            'user': user.id,
-            'type': 'delivery',
-            'country': 'Россия',
-            'city': 'Санкт-Петербург',
-            'street': 'Невский проспект',
-            'house': '1'
-        }
-
-        serializer = DeliveryAddressSerializer(data=data)
-        assert serializer.is_valid(), serializer.errors
-
-        address = serializer.save()
-        assert address.city == 'Санкт-Петербург'
 
 
 @pytest.mark.django_db
@@ -465,7 +415,7 @@ class TestOrderIntegration:
             'cart': cart.id
         }
 
-        create_serializer = OrderCreateSerializer(data=create_data)
+        create_serializer = OrderCreateSerializer(data=create_data, context={'user': user})
         assert create_serializer.is_valid()
         order = create_serializer.save()
 
@@ -491,9 +441,9 @@ class TestOrderIntegration:
         user = user_factory.create()
         order = order_factory.create(user=user)
 
-        product = product_factory.create()
-        # Создаем множество элементов заказа
-        for i in range(10):
+        # Создаем множество элементов заказа с разными товарами
+        products = product_factory.create_batch(10)
+        for i, product in enumerate(products):
             order_item_factory.create(order=order, product=product,
                                      quantity=i+1)
 

@@ -27,17 +27,29 @@
     ],
     "deny": [],
     "additionalDirectories": [
-      "C:\\c\\Users\\38670\\DEV_WEB"
+      "C:\\Users\\38670\\DEV_WEB\\FREESPORT"
     ]
   },
   "hooks": {
     "Stop": [
       {
         "matcher": ".*",
+        "hooks": 
+        [
+          {
+            "type": "command",
+            "command": "cmd.exe /c \"start \"\" \"C:\\Users\\38670\\.claude\\Stop.mp3\"\""
+          }
+        ]
+      }
+    ],
+   "Preconfirm": [
+      {
+        "matcher": ".*",
         "hooks": [
           {
             "type": "command",
-            "command": "start powershell.exe -ExecutionPolicy Bypass -File \".\\play_mp3.ps1\""
+            "command": "cmd.exe /c \"start \"\" \"C:\\Users\\38670\\.claude\\await.mp3\"\""
           }
         ]
       }

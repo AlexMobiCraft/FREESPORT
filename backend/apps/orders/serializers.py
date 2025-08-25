@@ -75,11 +75,14 @@ class OrderCreateSerializer(serializers.Serializer):
     notes = serializers.CharField(required=False, allow_blank=True, max_length=1000)
     
     def validate(self, data):
+        # Получаем пользователя из контекста (для тестов) или из request (для API)
+        user = self.context.get('user')
         request = self.context.get('request')
-        if not request or not request.user.is_authenticated:
+        
+        if not user and request and hasattr(request, 'user') and request.user.is_authenticated:
+            user = request.user
+        elif not user:
             raise serializers.ValidationError("Пользователь должен быть авторизован")
-            
-        user = request.user
         
         try:
             cart = Cart.objects.get(user=user)
@@ -109,8 +112,12 @@ class OrderCreateSerializer(serializers.Serializer):
     
     @transaction.atomic
     def create(self, validated_data):
+        # Получаем пользователя из контекста (для тестов) или из request (для API)
+        user = self.context.get('user')
         request = self.context.get('request')
-        user = request.user
+        
+        if not user and request and hasattr(request, 'user'):
+            user = request.user
         cart = Cart.objects.get(user=user)
         
         # Вычисляем общую стоимость
@@ -162,3 +169,32 @@ class OrderStatusUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Order
         fields = ['status']
+    
+    def validate_status(self, value):
+        """Валидация переходов статусов заказа"""
+        instance = self.instance
+        if not instance:
+            return value
+            
+        current_status = instance.status
+        
+        # Определяем допустимые переходы статусов
+        allowed_transitions = {
+            'pending': ['confirmed', 'cancelled'],
+            'confirmed': ['processing', 'cancelled'],
+            'processing': ['shipped', 'cancelled'],
+            'shipped': ['delivered', 'cancelled'],
+            'delivered': [],  # Финальный статус
+            'cancelled': [],  # Финальный статус  
+            'refunded': []    # Финальный статус
+        }
+        
+        # Проверяем, разрешен ли переход
+        if current_status in allowed_transitions:
+            if value not in allowed_transitions[current_status]:
+                raise serializers.ValidationError(
+                    f"Невозможно изменить статус с '{current_status}' на '{value}'. "
+                    f"Допустимые переходы: {allowed_transitions[current_status]}"
+                )
+        
+        return value

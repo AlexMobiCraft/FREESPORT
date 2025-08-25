@@ -135,7 +135,7 @@ class CartSerializer(serializers.ModelSerializer):
     """
     items = CartItemSerializer(many=True, read_only=True)
     total_items = serializers.ReadOnlyField()
-    total_amount = serializers.ReadOnlyField()
+    total_amount = serializers.SerializerMethodField()
     
     class Meta:
         model = Cart
@@ -144,3 +144,7 @@ class CartSerializer(serializers.ModelSerializer):
             'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
+    
+    def get_total_amount(self, obj):
+        """Получить общую стоимость корзины в виде строки"""
+        return f"{obj.total_amount:.2f}"

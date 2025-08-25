@@ -3,6 +3,7 @@
 """
 import pytest
 from decimal import Decimal
+from unittest.mock import Mock
 from django.contrib.auth import get_user_model
 
 from apps.cart.serializers import (
@@ -55,11 +56,13 @@ class TestCartItemSerializer:
             quantity=1
         )
 
+        mock_request = Mock()
+        mock_request.user = user
+        mock_request.build_absolute_uri = Mock(return_value='http://testserver/media/image.jpg')
+        
         serializer = CartItemSerializer(
             cart_item,
-            context={'request': type('obj', (object,), {
-                'user': user
-            })()}
+            context={'request': mock_request}
         )
         data = serializer.data
 
@@ -79,11 +82,13 @@ class TestCartItemSerializer:
             quantity=5
         )
 
+        mock_request = Mock()
+        mock_request.user = user
+        mock_request.build_absolute_uri = Mock(return_value='http://testserver/media/image.jpg')
+        
         serializer = CartItemSerializer(
             cart_item,
-            context={'request': type('obj', (object,), {
-                'user': user
-            })()}
+            context={'request': mock_request}
         )
         data = serializer.data
 
