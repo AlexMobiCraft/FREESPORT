@@ -501,50 +501,37 @@ def access_token(db, user_factory):
 def enable_db_access_for_all_tests(db):
     """
     Автоматически включает доступ к базе данных для всех тестов
-    и обеспечивает изоляцию транзакций
+    с мягким управлением соединениями
     """
     from django.db import connection
     
-    # Обеспечиваем свежее подключение для каждого теста
+    # Минимальная проверка соединения без агрессивных действий
     try:
-        # Более агрессивная проверка подключения
-        if connection.connection:
-            if not connection.is_usable():
-                connection.close()
-            else:
-                # Проверяем подключение через простой запрос
-                with connection.cursor() as cursor:
-                    cursor.execute("SELECT 1")
-        else:
-            # Создаем новое подключение
+        # Просто проверяем, что соединение работает
+        if not connection.is_usable():
             connection.ensure_connection()
     except Exception:
-        # Если подключение сломано, принудительно закрываем его
+        # Если проблема с соединением, пытаемся восстановить
         try:
-            connection.close()
+            connection.ensure_connection()
         except Exception:
             pass
-        # Создаем новое подключение
-        connection.ensure_connection()
     
     yield
     
-    # Более мягкое закрытие подключения после теста
-    try:
-        if connection.connection:
-            connection.close()
-    except Exception:
-        pass
+    # НЕ закрываем соединение - оставляем для следующих тестов
 
 
 @pytest.fixture(autouse=True) 
 def clear_db_before_test(transactional_db):
     """
-    Более безопасная очистка базы данных перед каждым тестом
+    Агрессивная очистка базы данных с полной изоляцией
     """
     from django.core.cache import cache
     from django.db import transaction, connection
-    from django.test.utils import setup_test_environment, teardown_test_environment
+    from django.core.management import call_command
+    from django.contrib.contenttypes.models import ContentType
+    from django.contrib.auth.models import Permission
     
     # Очищаем кэши Django
     cache.clear()
@@ -554,7 +541,7 @@ def clear_db_before_test(transactional_db):
     _unique_counter = 0
     
     try:
-        # Более мягкая очистка через Django ORM
+        # Используем более мягкую очистку через Django ORM
         from django.apps import apps
         
         # Список моделей в порядке зависимостей (от зависимых к независимым)
@@ -574,21 +561,41 @@ def clear_db_before_test(transactional_db):
             'common.SyncLog',
         ]
         
-        with transaction.atomic():
-            # Очистка в правильном порядке
-            for model_name in model_order:
-                try:
-                    model = apps.get_model(model_name)
-                    model.objects.all().delete()
-                except (LookupError, Exception):
-                    # Модель не найдена или ошибка очистки - пропускаем
-                    continue
+        # Очистка через ORM для предотвращения проблем с соединениями
+        for model_name in model_order:
+            try:
+                model = apps.get_model(model_name)
+                model.objects.all().delete()
+            except (LookupError, Exception):
+                # Модель не найдена или ошибка очистки - пропускаем
+                continue
         
+        # Очищаем только проблемные системные таблицы
+        try:
+            # Осторожно очищаем permissions которые вызывают проблемы
+            from django.contrib.auth.models import Group
+            from django.contrib.contenttypes.models import ContentType
+            from django.contrib.auth.models import Permission
+            
+            # Удаляем только пользовательские данные, оставляем системные permissions
+            Group.objects.all().delete()
+        except Exception:
+            pass
+            
         yield
         
-    except Exception as e:
-        # Если стандартная очистка не работает, используем rollback
+        # Очистка после теста - БЕЗ закрытия соединений
         try:
+            cache.clear()
+            # НЕ закрываем соединения - оставляем их для следующих тестов
+        except Exception:
+            pass
+        
+    except Exception as e:
+        # Если агрессивная очистка не работает, fallback на транзакции
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("SET session_replication_role = DEFAULT;")
             transaction.rollback()
         except Exception:
             pass

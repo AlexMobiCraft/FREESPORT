@@ -166,18 +166,23 @@ RATELIMIT_ENABLE = False
 if os.environ.get('DB_HOST'):  # Docker режим
     DATABASES['default'].update({
         'CONN_MAX_AGE': 0,  # Отключаем persistent connections в тестах
-        'CONN_HEALTH_CHECKS': True,
+        'CONN_HEALTH_CHECKS': False,  # Отключаем health checks для изоляции
+        'AUTOCOMMIT': True,
         'OPTIONS': {
-            'connect_timeout': 10,
+            'connect_timeout': 30,
             'server_side_binding': False,
+            'application_name': 'freesport_test',
         },
         'TEST': {
             'NAME': 'test_' + os.environ.get('DB_NAME', 'freesport_test'),
             'SERIALIZE': False,  # Отключаем сериализацию для ускорения
             'CREATE_DB': True,
+            'DEPENDENCIES': [],  # Нет зависимостей от других БД
         },
     })
 
-# Настройки для предотвращения connection already closed
-CONN_HEALTH_CHECKS = True
+# Настройки для предотвращения connection already closed  
 DATABASE_ROUTERS = []
+
+# Дополнительные настройки для изоляции тестов
+DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
