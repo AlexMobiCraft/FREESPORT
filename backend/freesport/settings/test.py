@@ -78,7 +78,7 @@ else:
 # Отключаем логирование для тестов
 LOGGING = {
     "version": 1,
-    "disable_existing_loggers": False,
+    "disable_existing_loggers": True,  # Полностью отключаем существующие логгеры
     "handlers": {
         "null": {
             "class": "logging.NullHandler",
@@ -86,14 +86,27 @@ LOGGING = {
     },
     "root": {
         "handlers": ["null"],
+        "level": "CRITICAL",  # Только критические ошибки
     },
     "loggers": {
         "django": {
             "handlers": ["null"],
+            "level": "CRITICAL",
             "propagate": False,
         },
         "freesport": {
             "handlers": ["null"],
+            "level": "CRITICAL",
+            "propagate": False,
+        },
+        "django.db.backends": {
+            "handlers": ["null"],
+            "level": "CRITICAL",
+            "propagate": False,
+        },
+        "django.request": {
+            "handlers": ["null"],
+            "level": "CRITICAL", 
             "propagate": False,
         },
     },
@@ -148,3 +161,23 @@ USE_TZ = True
 
 # Отключаем django-ratelimit для тестов
 RATELIMIT_ENABLE = False
+
+# Дополнительные настройки БД для стабильных тестов
+if os.environ.get('DB_HOST'):  # Docker режим
+    DATABASES['default'].update({
+        'CONN_MAX_AGE': 0,  # Отключаем persistent connections в тестах
+        'CONN_HEALTH_CHECKS': True,
+        'OPTIONS': {
+            'connect_timeout': 10,
+            'server_side_binding': False,
+        },
+        'TEST': {
+            'NAME': 'test_' + os.environ.get('DB_NAME', 'freesport_test'),
+            'SERIALIZE': False,  # Отключаем сериализацию для ускорения
+            'CREATE_DB': True,
+        },
+    })
+
+# Настройки для предотвращения connection already closed
+CONN_HEALTH_CHECKS = True
+DATABASE_ROUTERS = []

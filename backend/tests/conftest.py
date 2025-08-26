@@ -503,17 +503,48 @@ def enable_db_access_for_all_tests(db):
     Автоматически включает доступ к базе данных для всех тестов
     и обеспечивает изоляцию транзакций
     """
-    pass
+    from django.db import connection
+    
+    # Обеспечиваем свежее подключение для каждого теста
+    try:
+        # Более агрессивная проверка подключения
+        if connection.connection:
+            if not connection.is_usable():
+                connection.close()
+            else:
+                # Проверяем подключение через простой запрос
+                with connection.cursor() as cursor:
+                    cursor.execute("SELECT 1")
+        else:
+            # Создаем новое подключение
+            connection.ensure_connection()
+    except Exception:
+        # Если подключение сломано, принудительно закрываем его
+        try:
+            connection.close()
+        except Exception:
+            pass
+        # Создаем новое подключение
+        connection.ensure_connection()
+    
+    yield
+    
+    # Более мягкое закрытие подключения после теста
+    try:
+        if connection.connection:
+            connection.close()
+    except Exception:
+        pass
 
 
 @pytest.fixture(autouse=True) 
 def clear_db_before_test(transactional_db):
     """
-    Очищает базу данных перед каждым тестом для полной изоляции
+    Более безопасная очистка базы данных перед каждым тестом
     """
     from django.core.cache import cache
     from django.db import transaction, connection
-    from django.apps import apps
+    from django.test.utils import setup_test_environment, teardown_test_environment
     
     # Очищаем кэши Django
     cache.clear()
@@ -522,38 +553,43 @@ def clear_db_before_test(transactional_db):
     global _unique_counter
     _unique_counter = 0
     
-    # Принудительная очистка всех таблиц перед тестом
-    with connection.cursor() as cursor:
-        # Сначала отключаем проверки внешних ключей
-        cursor.execute('SET FOREIGN_KEY_CHECKS = 0;' if connection.vendor == 'mysql' else 'SET CONSTRAINTS ALL DEFERRED;')
+    try:
+        # Более мягкая очистка через Django ORM
+        from django.apps import apps
         
-        # Получаем все таблицы модели в правильном порядке (обратном для удаления зависимостей)
-        models = apps.get_models()
-        # Сортируем модели, чтобы сначала очистить зависимые таблицы
-        table_names = []
-        for model in models:
-            if not model._meta.managed or model._meta.proxy:
-                continue
-            table_names.append(model._meta.db_table)
+        # Список моделей в порядке зависимостей (от зависимых к независимым)
+        model_order = [
+            'cart.CartItem',
+            'orders.OrderItem', 
+            'orders.Order',
+            'cart.Cart',
+            'products.ProductImage',
+            'products.Product',
+            'products.Category',
+            'products.Brand',
+            'users.Address',
+            'users.Company',
+            'users.Favorite',
+            'common.AuditLog',
+            'common.SyncLog',
+        ]
         
-        # Очищаем все таблицы
-        for table_name in table_names:
-            try:
-                if connection.vendor == 'postgresql':
-                    cursor.execute(f'TRUNCATE TABLE "{table_name}" RESTART IDENTITY CASCADE')
-                elif connection.vendor == 'mysql':
-                    cursor.execute(f'TRUNCATE TABLE `{table_name}`')
-                else:  # SQLite
-                    cursor.execute(f'DELETE FROM "{table_name}"')
-            except Exception:
-                pass  # Игнорируем ошибки для системных таблиц
+        with transaction.atomic():
+            # Очистка в правильном порядке
+            for model_name in model_order:
+                try:
+                    model = apps.get_model(model_name)
+                    model.objects.all().delete()
+                except (LookupError, Exception):
+                    # Модель не найдена или ошибка очистки - пропускаем
+                    continue
         
-        # Включаем обратно проверки внешних ключей
-        if connection.vendor == 'mysql':
-            cursor.execute('SET FOREIGN_KEY_CHECKS = 1;')
-        elif connection.vendor == 'postgresql':
-            cursor.execute('SET CONSTRAINTS ALL IMMEDIATE;')
-    
-    # Используем транзакционную изоляцию
-    with transaction.atomic():
+        yield
+        
+    except Exception as e:
+        # Если стандартная очистка не работает, используем rollback
+        try:
+            transaction.rollback()
+        except Exception:
+            pass
         yield

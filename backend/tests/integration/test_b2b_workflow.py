@@ -35,11 +35,13 @@ class B2BWorkflowTest(TestCase):
             slug="test-product",
             category=self.category,
             brand=self.brand,
+            description="Test product for B2B workflow",
             retail_price=1000.00,
-            wholesale_level1_price=800.00,
+            opt1_price=800.00,
             min_order_quantity=5,
             stock_quantity=50,
             is_active=True,
+            sku="B2B-TEST-001",
         )
 
     def test_full_b2b_purchase_workflow(self):

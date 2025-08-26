@@ -1,41 +1,24 @@
 {
   "permissions": {
     "allow": [
-      "Bash(grep:*)",
-      "Bash(ls:*)",
-      "Bash(source:*)",
-      "Bash(find:*)",
-      "Bash(mv:*)",
-      "Bash(mkdir:*)",
-      "Bash(tree:*)",
-      "Bash(ruff:*)",
-      "Bash(touch:*)",
-      "Bash(chmod:*)",
-      "Bash(cat:*)",
-      "Bash(ruff check:*)",
-      "Bash(pytest:*)",
-      "Bash(python:*)",
-      "Bash(python -m pytest:*)",
-      "Bash(python3 -m pytest:*)",
-      "WebFetch(domain:*)",
-      "Bash(gh issue view:*)",
-      "WebFetch(domain:docs.anthropic.com)",
-      "Bash(echo $PS1)",
-      "Bash(make test:*)",
-      "Bash(docker-compose:*)",
-      "Bash(docker:*)"
+      "Bash(docker-compose:*)"
     ],
     "deny": [],
     "additionalDirectories": [
       "C:\\Users\\38670\\DEV_WEB\\FREESPORT"
-    ]
+    ],
+    "ask": []
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "ccusage statusline",
+    "padding": 0
   },
   "hooks": {
     "Stop": [
       {
         "matcher": ".*",
-        "hooks": 
-        [
+        "hooks": [
           {
             "type": "command",
             "command": "cmd.exe /c \"start \"\" \"C:\\Users\\38670\\.claude\\Stop.mp3\"\""
@@ -43,7 +26,7 @@
         ]
       }
     ],
-   "Preconfirm": [
+    "Preconfirm": [
       {
         "matcher": ".*",
         "hooks": [
@@ -54,10 +37,5 @@
         ]
       }
     ]
-  },
-  "statusLine": {
-    "type": "command",
-    "command": "ccusage statusline",
-    "padding": 0
   }
 }

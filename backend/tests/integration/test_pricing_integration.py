@@ -45,13 +45,15 @@ class PricingIntegrationTest(TestCase):
             slug="test-product",
             category=self.category,
             brand=self.brand,
+            description="Test product for pricing integration",
             retail_price=1000.00,
-            wholesale_level1_price=800.00,
-            wholesale_level2_price=750.00,
-            wholesale_level3_price=700.00,
+            opt1_price=800.00,
+            opt2_price=750.00,
+            opt3_price=700.00,
             trainer_price=850.00,
             stock_quantity=10,
             is_active=True,
+            sku="PRICING-TEST-001",
         )
 
     def test_product_api_role_based_pricing(self):
@@ -184,4 +186,4 @@ class PricingIntegrationTest(TestCase):
         # Все цены должны быть одинаковыми
         self.assertEqual(product_price, cart_price)
         self.assertEqual(cart_price, order_price)
-        self.assertEqual(product_price, 750.00)  # wholesale_level2_price
+        self.assertEqual(product_price, 750.00)  # opt2_price

@@ -39,10 +39,12 @@ class UserCartIntegrationTest(TestCase):
             slug="test-product",
             category=self.category,
             brand=self.brand,
+            description="Test product for user cart integration",
             retail_price=100.00,
-            wholesale_level1_price=80.00,
+            opt1_price=80.00,
             stock_quantity=10,
             is_active=True,
+            sku="CART-TEST-001",
         )
 
     def test_guest_to_user_cart_transfer(self):

@@ -175,7 +175,7 @@ class Product(models.Model):
     )
 
     # Инвентаризация
-    sku = models.CharField("Артикул", max_length=100, unique=True)
+    sku = models.CharField("Артикул", max_length=100, unique=True, blank=True)
     stock_quantity = models.PositiveIntegerField("Количество на складе", default=0)
     min_order_quantity = models.PositiveIntegerField(
         "Минимальное количество заказа", default=1
@@ -213,6 +213,10 @@ class Product(models.Model):
     def save(self, *args, **kwargs):
         if not self.slug:
             self.slug = slugify(self.name)
+        if not self.sku:
+            import uuid
+            import time
+            self.sku = f"AUTO-{int(time.time())}-{uuid.uuid4().hex[:8].upper()}"
         super().save(*args, **kwargs)
 
     def __str__(self):

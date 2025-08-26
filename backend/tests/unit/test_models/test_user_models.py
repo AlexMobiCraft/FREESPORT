@@ -200,13 +200,6 @@ class TestUserModel:
         Тест B2B полей для бизнес пользователей
         """
         b2b_user = UserFactory.create(
-            company_name='ООО Спорт Компани',
-            tax_id='770123456789',
-            is_verified=True
-        )
-        
-        assert b2b_user.company_name == 'ООО Спорт Компани'
-        assert b2b_user.tax_id == '770123456789'
             company_name="ООО Спорт Компани",
             tax_id="7701234567890",
             is_verified=True,
@@ -220,9 +213,8 @@ class TestUserModel:
         """
         Тест значений по умолчанию
         """
+        user = UserFactory.create()
         
-        assert user.role == 'retail'
-
         assert user.role == "retail"
         assert user.is_verified is False
         assert user.phone == ""
@@ -325,19 +317,14 @@ class TestCompanyModel:
         """
         Тест: ИНН компании должен быть уникальным
         """
-        user2 = UserFactory.create(role='wholesale_level2')
+        user1 = UserFactory.create(role="wholesale_level1")
+        user2 = UserFactory.create(role="wholesale_level2")
         
         test_tax_id = f'{111222333000 + int(time.time()) % 999:012d}'
         CompanyFactory.create(user=user1, tax_id=test_tax_id)
         
         with pytest.raises(IntegrityError):
             CompanyFactory.create(user=user2, tax_id=test_tax_id)
-        user2 = UserFactory.create(role="wholesale_level2")
-
-        CompanyFactory.create(user=user1, tax_id="111222333444")
-
-        with pytest.raises(IntegrityError):
-            CompanyFactory.create(user=user2, tax_id="111222333444")
     def test_one_to_one_relationship_with_user(self):
         """
         Тест связи OneToOne с пользователем
