@@ -32,7 +32,7 @@ class OrderViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """Получить заказы пользователя"""
         return Order.objects.filter(user=self.request.user).select_related(
-            'user', 'shipping_address', 'billing_address'
+            'user'
         ).prefetch_related('items__product').order_by('-created_at')
     
     def create(self, request, *args, **kwargs):

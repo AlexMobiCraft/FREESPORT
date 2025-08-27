@@ -15,16 +15,14 @@ User = get_user_model()
 class OrderCreationPerformanceTest(TestCase):
     """Тестирование производительности создания заказов"""
 
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        cls.client = APIClient()
+    def setUp(self):
+        self.client = APIClient()
 
         # Создаем пользователей
-        cls.retail_user = User.objects.create_user(
+        self.retail_user = User.objects.create_user(
             email="perf_retail@example.com", password="testpass123", role="retail"
         )
-        cls.wholesale_user = User.objects.create_user(
+        self.wholesale_user = User.objects.create_user(
             email="perf_wholesale@example.com",
             password="testpass123",
             role="wholesale_level1",
@@ -32,20 +30,20 @@ class OrderCreationPerformanceTest(TestCase):
         )
 
         # Создаем товары для тестов
-        cls.category = Category.objects.create(
+        self.category = Category.objects.create(
             name="Performance Category", slug="performance-category"
         )
-        cls.brand = Brand.objects.create(
+        self.brand = Brand.objects.create(
             name="Performance Brand", slug="performance-brand"
         )
 
-        cls.products = []
+        self.products = []
         for i in range(20):
             product = Product.objects.create(
                 name=f"Performance Product {i}",
                 slug=f"performance-product-{i}",
-                category=cls.category,
-                brand=cls.brand,
+                category=self.category,
+                brand=self.brand,
                 description=f"Test product {i} for performance testing",
                 retail_price=100.00 + i * 10,
                 opt1_price=80.00 + i * 8,
@@ -54,9 +52,8 @@ class OrderCreationPerformanceTest(TestCase):
                 is_active=True,
                 sku=f"PERF-{i:03d}",
             )
-            cls.products.append(product)
+            self.products.append(product)
 
-    def setUp(self):
         """Очищаем корзину перед каждым тестом"""
         self.client.force_authenticate(user=self.retail_user)
         self.client.delete("/api/v1/cart/clear/")

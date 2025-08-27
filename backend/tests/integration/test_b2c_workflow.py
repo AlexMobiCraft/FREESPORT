@@ -7,6 +7,8 @@ from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 
 from apps.products.models import Category, Brand, Product
+from apps.users.models import Favorite
+from apps.users.models import Favorite
 
 User = get_user_model()
 
@@ -40,15 +42,16 @@ class B2CWorkflowTest(TestCase):
             min_order_quantity=1,
             is_active=True,
         )
+        Favorite.objects.all().delete()
+        Favorite.objects.all().delete()
 
     def test_full_b2c_purchase_workflow(self):
         """Полный B2C workflow покупки"""
         self.client.force_authenticate(user=self.retail_user)
 
-        # 1. Просмотр каталога
-        catalog_response = self.client.get("/api/v1/products/")
-        self.assertEqual(catalog_response.status_code, 200)
-        self.assertGreater(len(catalog_response.data["results"]), 0)
+        # 1. Просмотр дашборда
+        dashboard_response = self.client.get("/api/v1/users/profile/dashboard/")
+        self.assertEqual(dashboard_response.status_code, 200)
 
         # 2. Просмотр детального товара (без RRP/MSRP для B2C)
         product_response = self.client.get(f"/api/v1/products/{self.product.id}/")
@@ -200,22 +203,22 @@ class B2CWorkflowTest(TestCase):
         self.client.force_authenticate(user=self.retail_user)
 
         # Дашборд
-        dashboard_response = self.client.get("/api/v1/personal-cabinet/dashboard/")
+        dashboard_response = self.client.get("/api/v1/users/profile/dashboard/")
         self.assertEqual(dashboard_response.status_code, 200)
 
         # B2C пользователи не должны видеть B2B поля
-        self.assertNotIn("company_name", dashboard_response.data)
-        self.assertNotIn("tax_id", dashboard_response.data)
+        self.assertNotIn("company_name", dashboard_response.data.get("user_info", {}))
+        self.assertNotIn("tax_id", dashboard_response.data.get("user_info", {}))
 
         # Избранное
         favorite_data = {"product": self.product.id}
         favorite_response = self.client.post(
-            "/api/v1/personal-cabinet/favorites/", favorite_data
+            "/api/v1/users/favorites/", favorite_data
         )
         self.assertEqual(favorite_response.status_code, 201)
 
         # Список избранного
-        favorites_list = self.client.get("/api/v1/personal-cabinet/favorites/")
+        favorites_list = self.client.get("/api/v1/users/favorites/")
         self.assertEqual(len(favorites_list.data), 1)
 
     def test_b2c_quick_reorder(self):

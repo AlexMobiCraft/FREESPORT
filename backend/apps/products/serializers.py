@@ -128,15 +128,15 @@ class ProductListSerializer(serializers.ModelSerializer):
     can_be_ordered = serializers.BooleanField(read_only=True)
 
     # Дополнительные поля для B2B пользователей
-    recommended_retail_price = serializers.SerializerMethodField()
-    max_suggested_retail_price = serializers.SerializerMethodField()
+    rrp = serializers.SerializerMethodField()
+    msrp = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
         fields = [
             'id', 'name', 'slug', 'sku', 'brand', 'category',
             'short_description', 'main_image', 'current_price', 'price_type',
-            'retail_price', 'recommended_retail_price', 'max_suggested_retail_price',
+            'retail_price', 'rrp', 'msrp',
             'stock_quantity', 'min_order_quantity', 'can_be_ordered', 
             'is_featured', 'created_at'
         ]
@@ -158,25 +158,28 @@ class ProductListSerializer(serializers.ModelSerializer):
 
         return request.user.role
 
-    def get_recommended_retail_price(self, obj):
+    def get_rrp(self, obj):
         """RRP отображается только для B2B пользователей"""
         request = self.context.get("request")
-        if not request or not request.user.is_authenticated:
-            return None
-
-        if request.user.is_b2b_user and obj.recommended_retail_price:
+        if request and request.user.is_authenticated and request.user.is_b2b_user and obj.recommended_retail_price:
             return f"{obj.recommended_retail_price:.2f}"
         return None
 
-    def get_max_suggested_retail_price(self, obj):
+    def get_msrp(self, obj):
         """MSRP отображается только для B2B пользователей"""
         request = self.context.get("request")
-        if not request or not request.user.is_authenticated:
-            return None
-
-        if request.user.is_b2b_user and obj.max_suggested_retail_price:
+        if request and request.user.is_authenticated and request.user.is_b2b_user and obj.max_suggested_retail_price:
             return f"{obj.max_suggested_retail_price:.2f}"
         return None
+
+    def to_representation(self, instance):
+        """Conditionally remove rrp and msrp for non-B2B users."""
+        ret = super().to_representation(instance)
+        request = self.context.get("request")
+        if not request or not request.user.is_authenticated or not request.user.is_b2b_user:
+            ret.pop('rrp', None)
+            ret.pop('msrp', None)
+        return ret
 
 
 class ProductDetailSerializer(ProductListSerializer):

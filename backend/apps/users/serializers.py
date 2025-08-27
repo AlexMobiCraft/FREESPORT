@@ -182,6 +182,14 @@ class UserProfileSerializer(serializers.ModelSerializer):
                 )
         return value
 
+    def to_representation(self, instance):
+        """Conditionally remove company_name and tax_id for non-B2B users."""
+        ret = super().to_representation(instance)
+        if not instance.is_b2b_user:
+            ret.pop('company_name', None)
+            ret.pop('tax_id', None)
+        return ret
+
 
 class AddressSerializer(serializers.ModelSerializer):
     """
@@ -278,6 +286,16 @@ class UserDashboardSerializer(serializers.Serializer):
 
     # Статус верификации для B2B
     verification_status = serializers.CharField(read_only=True, required=False)
+
+    def to_representation(self, instance):
+        """Conditionally remove B2B fields for non-B2B users."""
+        ret = super().to_representation(instance)
+        user = instance.get('user_info')
+        if user and not user.is_b2b_user:
+            ret.pop('total_order_amount', None)
+            ret.pop('avg_order_amount', None)
+            ret.pop('verification_status', None)
+        return ret
 
 
 class FavoriteSerializer(serializers.ModelSerializer):

@@ -15,45 +15,43 @@ User = get_user_model()
 class CatalogPerformanceTest(TestCase):
     """Тестирование производительности каталога"""
 
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        cls.client = APIClient()
+    def setUp(self):
+        self.client = APIClient()
 
         # Создаем тестовых пользователей
-        cls.user = User.objects.create_user(
+        self.user = User.objects.create_user(
             email="perf@example.com", password="testpass123"
         )
 
         # Создаем структуру для performance тестов
-        cls.categories = []
-        cls.brands = []
-        cls.products = []
+        self.categories = []
+        self.brands = []
+        self.products = []
 
         # Создаем 10 категорий
         for i in range(10):
             category = Category.objects.create(
                 name=f"Category {i}", slug=f"category-{i}"
             )
-            cls.categories.append(category)
+            self.categories.append(category)
 
         # Создаем 5 брендов
         for i in range(5):
             brand = Brand.objects.create(name=f"Brand {i}", slug=f"brand-{i}")
-            cls.brands.append(brand)
+            self.brands.append(brand)
 
         # Создаем 100 товаров для performance тестирования
         for i in range(100):
             product = Product.objects.create(
                 name=f"Product {i}",
                 slug=f"product-{i}",
-                category=cls.categories[i % 10],
-                brand=cls.brands[i % 5],
+                category=self.categories[i % 10],
+                brand=self.brands[i % 5],
                 retail_price=100.00 + i,
                 stock_quantity=50,
                 is_active=True,
             )
-            cls.products.append(product)
+            self.products.append(product)
 
     def test_catalog_list_performance(self):
         """Тестирование производительности списка товаров"""

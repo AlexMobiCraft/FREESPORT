@@ -128,12 +128,13 @@ class B2BWorkflowTest(TestCase):
         """B2B специфичные данные в дашборде"""
         self.client.force_authenticate(user=self.b2b_user)
 
-        response = self.client.get("/api/v1/personal-cabinet/dashboard/")
+        response = self.client.get("/api/v1/users/profile/dashboard/")
         self.assertEqual(response.status_code, 200)
 
         # B2B пользователи должны видеть дополнительную информацию
-        self.assertIn("company_name", response.data)
-        self.assertEqual(response.data["company_name"], "Test B2B Company")
+        self.assertIn("user_info", response.data)
+        self.assertIn("company_name", response.data["user_info"])
+        self.assertEqual(response.data["user_info"]["company_name"], "Test B2B Company")
 
     def test_b2b_bulk_operations(self):
         """B2B операции с большими объемами"""
