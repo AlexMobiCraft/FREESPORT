@@ -45,10 +45,10 @@ class TestCartModel:
         cart = CartFactory.create(user=user)
 
         # Создаем товары с известными ценами
-        product2 = ProductFactory.create(retail_price=Decimal('500.00'), stock_quantity=10)
-        
-        product2 = ProductFactory.create(retail_price=Decimal("500.00"))
+        product1 = ProductFactory.create(retail_price=Decimal('1000.00'))
+        product2 = ProductFactory.create(retail_price=Decimal('500.00'))
 
+        CartItemFactory.create(cart=cart, product=product1, quantity=2)
         CartItemFactory.create(cart=cart, product=product2, quantity=1)
 
         expected_total = Decimal("1000.00") * 2 + Decimal("500.00") * 1

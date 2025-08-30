@@ -290,7 +290,7 @@ class UserDashboardSerializer(serializers.Serializer):
     def to_representation(self, instance):
         """Conditionally remove B2B fields for non-B2B users."""
         ret = super().to_representation(instance)
-        user = instance.get('user_info')
+        user = instance.user_info
         if user and not user.is_b2b_user:
             ret.pop('total_order_amount', None)
             ret.pop('avg_order_amount', None)

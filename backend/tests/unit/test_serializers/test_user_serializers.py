@@ -12,6 +12,7 @@ from apps.users.serializers import (
     AddressSerializer,
     FavoriteSerializer,
 )
+from apps.users.views.personal_cabinet import DashboardData
 
 User = get_user_model()
 
@@ -331,16 +332,13 @@ class TestUserDashboardSerializer:
         """Тест данных дашборда"""
         user = user_factory.create(role='retail')
 
-        # Создаем объект с правильной структурой для UserDashboardSerializer
-        class DashboardData:
-            def __init__(self, user):
-                self.user_info = user
-                self.orders_count = 5
-                self.favorites_count = 10
-                self.addresses_count = 2
-                self.total_order_amount = 50000.00
-
-        dashboard_data = DashboardData(user)
+        dashboard_data = DashboardData(
+            user_info=user,
+            orders_count=5,
+            favorites_count=10,
+            addresses_count=2,
+            total_order_amount=50000.00
+        )
         serializer = UserDashboardSerializer(dashboard_data)
         data = serializer.data
 

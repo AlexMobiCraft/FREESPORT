@@ -34,13 +34,11 @@ class TestBrandModel:
 
     def test_brand_unique_name(self):
         """Тест уникальности названия бренда"""
+        test_brand_name = "Puma"
         BrandFactory.create(name=test_brand_name)
-        
-        with pytest.raises(IntegrityError):
-            BrandFactory.create(name=test_brand_name)
 
         with pytest.raises(IntegrityError):
-            BrandFactory.create(name="Puma")
+            BrandFactory.create(name=test_brand_name)
     def test_brand_meta_configuration(self):
         """Тест настроек Meta класса"""
         assert Brand._meta.verbose_name == "Бренд"
@@ -169,13 +167,11 @@ class TestProductModel:
 
     def test_product_sku_uniqueness(self):
         """Тест уникальности артикула"""
+        test_sku = "UNIQUE-001"
         ProductFactory.create(sku=test_sku)
-        
-        with pytest.raises(IntegrityError):
-            ProductFactory.create(sku=test_sku)
 
         with pytest.raises(IntegrityError):
-            ProductFactory.create(sku="UNIQUE-001")
+            ProductFactory.create(sku=test_sku)
     def test_product_slug_generation(self):
         """Тест автогенерации slug"""
         brand = BrandFactory.create()

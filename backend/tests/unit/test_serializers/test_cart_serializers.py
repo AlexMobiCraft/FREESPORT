@@ -130,7 +130,7 @@ class TestCartSerializer:
         data = serializer.data
 
         assert data['items'] == []
-        assert data['total_amount'] == 0
+        assert data['total_amount'] == "0.00"
 
     def test_cart_with_multiple_items(self, user_factory, cart_factory,
                                      product_factory, cart_item_factory):
@@ -280,8 +280,16 @@ class TestCartIntegration:
         """Тест полного рабочего процесса корзины"""
         user = user_factory.create()
         cart = cart_factory.create(user=user)
-        product1 = product_factory.create(retail_price=Decimal('100.00'))
-        product2 = product_factory.create(retail_price=Decimal('200.00'))
+        product1 = product_factory.create(
+            retail_price=Decimal('100.00'),
+            stock_quantity=10,
+            min_order_quantity=1
+        )
+        product2 = product_factory.create(
+            retail_price=Decimal('200.00'),
+            stock_quantity=10,
+            min_order_quantity=1
+        )
 
         # Добавление товаров
         add_data1 = {
@@ -289,7 +297,7 @@ class TestCartIntegration:
             'quantity': 2
         }
         add_serializer1 = CartItemCreateSerializer(data=add_data1)
-        assert add_serializer1.is_valid()
+        assert add_serializer1.is_valid(), add_serializer1.errors
         item1 = add_serializer1.save(cart=cart)
 
         add_data2 = {
@@ -297,7 +305,7 @@ class TestCartIntegration:
             'quantity': 1
         }
         add_serializer2 = CartItemCreateSerializer(data=add_data2)
-        assert add_serializer2.is_valid()
+        assert add_serializer2.is_valid(), add_serializer2.errors
         item2 = add_serializer2.save(cart=cart)
 
         # Проверка корзины

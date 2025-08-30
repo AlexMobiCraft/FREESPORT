@@ -126,7 +126,7 @@ class TestProductFilteringAPI:
 
     def test_filter_by_size_single_value(self):
         """Тест фильтрации по размеру - одиночное значение"""
-        url = reverse('products-list')
+        url = reverse('products:product-list')
         
         # Фильтр по размеру XL
         response = self.client.get(url, {'size': 'XL'})
@@ -139,7 +139,7 @@ class TestProductFilteringAPI:
 
     def test_filter_by_size_array_value(self):
         """Тест фильтрации по размеру - значение из массива"""
-        url = reverse('products-list')
+        url = reverse('products:product-list')
         
         # Фильтр по размеру M (который есть в массиве sizes)
         response = self.client.get(url, {'size': 'M'})
@@ -158,7 +158,7 @@ class TestProductFilteringAPI:
 
     def test_filter_by_size_russian_key(self):
         """Тест фильтрации по размеру - русский ключ"""
-        url = reverse('products-list')
+        url = reverse('products:product-list')
         
         # Фильтр по размеру 42 (русский ключ "размер")
         response = self.client.get(url, {'size': '42'})
@@ -171,7 +171,7 @@ class TestProductFilteringAPI:
 
     def test_filter_by_multiple_brands(self):
         """Тест фильтрации по нескольким брендам"""
-        url = reverse('products-list')
+        url = reverse('products:product-list')
         
         # Фильтр по двум брендам через slug
         brand_filter = f"{self.brand_nike.slug},{self.brand_adidas.slug}"
@@ -191,7 +191,7 @@ class TestProductFilteringAPI:
 
     def test_filter_by_brand_mixed_id_slug(self):
         """Тест фильтрации по брендам - смешанные ID и slug"""
-        url = reverse('products-list')
+        url = reverse('products:product-list')
         
         # Комбинируем ID и slug
         brand_filter = f"{self.brand_nike.id},{self.brand_adidas.slug}"
@@ -203,7 +203,7 @@ class TestProductFilteringAPI:
 
     def test_filter_in_stock_true(self):
         """Тест фильтрации товаров в наличии"""
-        url = reverse('products-list')
+        url = reverse('products:product-list')
         
         response = self.client.get(url, {'in_stock': 'true'})
         assert response.status_code == status.HTTP_200_OK
@@ -217,7 +217,7 @@ class TestProductFilteringAPI:
 
     def test_filter_in_stock_false(self):
         """Тест фильтрации товаров НЕ в наличии"""
-        url = reverse('products-list')
+        url = reverse('products:product-list')
         
         response = self.client.get(url, {'in_stock': 'false'})
         assert response.status_code == status.HTTP_200_OK
@@ -226,7 +226,7 @@ class TestProductFilteringAPI:
 
     def test_price_filter_anonymous_user(self):
         """Тест ценовой фильтрации для анонимного пользователя"""
-        url = reverse('products-list')
+        url = reverse('products:product-list')
         
         # Фильтр по диапазону цены для retail
         response = self.client.get(url, {
@@ -244,7 +244,7 @@ class TestProductFilteringAPI:
     def test_price_filter_wholesale_user(self):
         """Тест ценовой фильтрации для оптового пользователя"""
         self.client.force_authenticate(user=self.wholesale_user)
-        url = reverse('products-list')
+        url = reverse('products:product-list')
         
         # Фильтр по диапазону цены для оптовика
         response = self.client.get(url, {
@@ -262,7 +262,7 @@ class TestProductFilteringAPI:
     def test_price_filter_trainer_user(self):
         """Тест ценовой фильтрации для тренера"""
         self.client.force_authenticate(user=self.trainer_user)
-        url = reverse('products-list')
+        url = reverse('products:product-list')
         
         # Фильтр по цене для тренера
         response = self.client.get(url, {
@@ -278,7 +278,7 @@ class TestProductFilteringAPI:
 
     def test_combined_filters(self):
         """Тест комбинирования нескольких фильтров"""
-        url = reverse('products-list')
+        url = reverse('products:product-list')
         
         # Комбинируем фильтры: бренд + цена + размер
         response = self.client.get(url, {
@@ -307,7 +307,7 @@ class TestProductFilteringAPI:
 
     def test_filter_validation_edge_cases(self):
         """Тест валидации edge cases для фильтров"""
-        url = reverse('products-list')
+        url = reverse('products:product-list')
         
         # Отрицательная цена
         response = self.client.get(url, {'min_price': '-100'})
@@ -328,7 +328,7 @@ class TestProductFilteringAPI:
 
     def test_filter_with_search(self):
         """Тест комбинирования фильтров с поиском"""
-        url = reverse('products-list')
+        url = reverse('products:product-list')
         
         # Комбинируем поиск с фильтром размера
         response = self.client.get(url, {
@@ -345,7 +345,7 @@ class TestProductFilteringAPI:
 
     def test_pagination_with_filters(self):
         """Тест пагинации с фильтрами"""
-        url = reverse('products-list')
+        url = reverse('products:product-list')
         
         response = self.client.get(url, {
             'brand': self.brand_nike.slug,
@@ -360,7 +360,7 @@ class TestProductFilteringAPI:
 
     def test_filter_empty_results_graceful_handling(self):
         """Тест graceful обработки пустых результатов"""
-        url = reverse('products-list')
+        url = reverse('products:product-list')
         
         # Фильтр который не должен ничего найти
         response = self.client.get(url, {
@@ -374,7 +374,7 @@ class TestProductFilteringAPI:
 
     def test_size_filter_case_variations(self):
         """Тест фильтрации размеров с различными вариантами case"""
-        url = reverse('products-list')
+        url = reverse('products:product-list')
         
         # Проверяем различные варианты написания
         test_cases = ['xl', 'XL', 'Xl', 'xL']
@@ -440,7 +440,7 @@ class TestProductFilteringPerformance:
 
     def test_multiple_filters_performance(self):
         """Тест производительности при использовании нескольких фильтров"""
-        url = reverse('products-list')
+        url = reverse('products:product-list')
         
         # Комбинируем несколько фильтров
         response = self.client.get(url, {
@@ -457,7 +457,7 @@ class TestProductFilteringPerformance:
 
     def test_size_filter_on_large_dataset(self):
         """Тест фильтра размеров на большом наборе данных"""
-        url = reverse('products-list')
+        url = reverse('products:product-list')
         
         response = self.client.get(url, {'size': 'L'})
         assert response.status_code == status.HTTP_200_OK

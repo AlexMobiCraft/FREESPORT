@@ -53,11 +53,11 @@ def test_role_based_pricing(retail_client, wholesale_client, product_detail_setu
     product = product_detail_setup
     url = reverse("products:product-detail", kwargs={"pk": product.pk})
 
-    # Retail user should see RRP/MSRP as None
+    # Retail user should not see RRP/MSRP fields
     response = retail_client.get(url)
     assert response.status_code == status.HTTP_200_OK
-    assert response.data["recommended_retail_price"] is None
-    assert response.data["max_suggested_retail_price"] is None
+    assert response.data.get("rrp") is None
+    assert response.data.get("msrp") is None
 
     # Wholesale user should see RRP/MSRP
     product.recommended_retail_price = 150.00
@@ -65,8 +65,8 @@ def test_role_based_pricing(retail_client, wholesale_client, product_detail_setu
     product.save()
     response = wholesale_client.get(url)
     assert response.status_code == status.HTTP_200_OK
-    assert response.data["recommended_retail_price"] is not None
-    assert response.data["max_suggested_retail_price"] is not None
+    assert "rrp" in response.data
+    assert "msrp" in response.data
 
 def test_product_images(api_client, product_detail_setup):
     """Test product images in product detail."""

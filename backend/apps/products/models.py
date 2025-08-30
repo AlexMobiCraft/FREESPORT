@@ -13,7 +13,7 @@ class Brand(models.Model):
     """
 
     name = models.CharField("Название бренда", max_length=100, unique=True)
-    slug = models.SlugField("Slug", unique=True)
+    slug = models.SlugField("Slug", max_length=255, unique=True)
     logo = models.ImageField("Логотип", upload_to="brands/", blank=True)
     description = models.TextField("Описание", blank=True)
     website = models.URLField("Веб-сайт", blank=True)
@@ -41,7 +41,7 @@ class Category(models.Model):
     """
 
     name = models.CharField("Название", max_length=200)
-    slug = models.SlugField("Slug", unique=True)
+    slug = models.SlugField("Slug", max_length=255, unique=True)
     parent = models.ForeignKey(
         "self",
         on_delete=models.CASCADE,
@@ -92,7 +92,7 @@ class Product(models.Model):
     """
 
     name = models.CharField("Название", max_length=300)
-    slug = models.SlugField("Slug", unique=True)
+    slug = models.SlugField("Slug", max_length=255, unique=True)
     brand = models.ForeignKey(
         Brand, on_delete=models.CASCADE, related_name="products", verbose_name="Бренд"
     )

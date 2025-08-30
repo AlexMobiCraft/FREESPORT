@@ -1,12 +1,13 @@
 """
 Views для личного кабинета пользователя
 """
+from dataclasses import dataclass
 from rest_framework import status, permissions, viewsets
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from drf_spectacular.utils import extend_schema, OpenApiResponse
 
-from ..models import Address, Favorite
+from ..models import Address, Favorite, User
 from ..serializers import (
     UserDashboardSerializer,
     AddressSerializer,
@@ -14,6 +15,17 @@ from ..serializers import (
     FavoriteCreateSerializer,
     OrderHistorySerializer,
 )
+
+
+@dataclass
+class DashboardData:
+    user_info: User
+    orders_count: int
+    favorites_count: int
+    addresses_count: int
+    total_order_amount: float | None = None
+    avg_order_amount: float | None = None
+    verification_status: str | None = None
 
 
 class UserDashboardView(APIView):
@@ -34,24 +46,28 @@ class UserDashboardView(APIView):
         user = request.user
 
         # Базовые счетчики
-        dashboard_data = {
-            "user_info": user,
-            "orders_count": 0,  # TODO: Будет реализовано после создания Order модели
-            "favorites_count": user.favorites.count(),
-            "addresses_count": user.addresses.count(),
-        }
+        orders_count = 0  # TODO: Будет реализовано после создания Order модели
+        favorites_count = user.favorites.count()
+        addresses_count = user.addresses.count()
 
         # Дополнительная статистика для B2B пользователей
+        total_order_amount = None
+        avg_order_amount = None
+        verification_status = None
         if user.is_b2b_user:
-            dashboard_data.update(
-                {
-                    "total_order_amount": 0,  # TODO: Временно 0, нужна Order модель
-                    "avg_order_amount": 0,  # TODO: Временно 0, нужна Order модель
-                    "verification_status": "verified"
-                    if user.is_verified
-                    else "pending",
-                }
-            )
+            total_order_amount = 0  # TODO: Временно 0, нужна Order модель
+            avg_order_amount = 0  # TODO: Временно 0, нужна Order модель
+            verification_status = "verified" if user.is_verified else "pending"
+
+        dashboard_data = DashboardData(
+            user_info=user,
+            orders_count=orders_count,
+            favorites_count=favorites_count,
+            addresses_count=addresses_count,
+            total_order_amount=total_order_amount,
+            avg_order_amount=avg_order_amount,
+            verification_status=verification_status,
+        )
 
         serializer = UserDashboardSerializer(dashboard_data)
         return Response(serializer.data, status=status.HTTP_200_OK)

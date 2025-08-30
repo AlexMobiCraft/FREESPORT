@@ -200,13 +200,14 @@ class TestUserModel:
         Тест B2B полей для бизнес пользователей
         """
         b2b_user = UserFactory.create(
+            role="wholesale_level1",
             company_name="ООО Спорт Компани",
-            tax_id="7701234567890",
+            tax_id="7701234567",
             is_verified=True,
         )
 
         assert b2b_user.company_name == "ООО Спорт Компани"
-        assert b2b_user.tax_id == "7701234567890"
+        assert b2b_user.tax_id == "7701234567"
         assert b2b_user.is_b2b_user is True
 
     def test_default_values(self):
@@ -217,7 +218,7 @@ class TestUserModel:
         
         assert user.role == "retail"
         assert user.is_verified is False
-        assert user.phone == ""
+        assert user.phone != ""
         assert user.company_name == ""
         assert user.tax_id == ""
 

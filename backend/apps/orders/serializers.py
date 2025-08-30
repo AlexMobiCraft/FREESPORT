@@ -29,6 +29,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
             "total_price",
         ]
         read_only_fields = ["id", "product_name", "product_sku", "total_price"]
+        depth = 1
 
 
 class OrderDetailSerializer(serializers.ModelSerializer):
@@ -128,7 +129,7 @@ class OrderCreateSerializer(serializers.ModelSerializer):
                 )
             if item.quantity < product.min_order_quantity:
                 raise serializers.ValidationError(
-                    f"Минимальное количество заказа для '{product.name}': {product.min_order_quantity}"
+                    f"Минимальное количество для заказа '{product.name}': {product.min_order_quantity}"
                 )
 
         # Валидация способов доставки и оплаты
@@ -245,6 +246,7 @@ class OrderListSerializer(serializers.ModelSerializer):
         model = Order
         fields = [
             "id",
+            "user",
             "order_number",
             "customer_display_name",
             "status",

@@ -126,6 +126,7 @@ class ProductListSerializer(serializers.ModelSerializer):
     current_price = serializers.SerializerMethodField()
     price_type = serializers.SerializerMethodField()
     can_be_ordered = serializers.BooleanField(read_only=True)
+    specifications = serializers.JSONField(read_only=True)
 
     # Дополнительные поля для B2B пользователей
     rrp = serializers.SerializerMethodField()
@@ -136,7 +137,7 @@ class ProductListSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'slug', 'sku', 'brand', 'category',
             'short_description', 'main_image', 'current_price', 'price_type',
-            'retail_price', 'rrp', 'msrp',
+            'retail_price', 'rrp', 'msrp', 'specifications',
             'stock_quantity', 'min_order_quantity', 'can_be_ordered', 
             'is_featured', 'created_at'
         ]
@@ -171,6 +172,15 @@ class ProductListSerializer(serializers.ModelSerializer):
         if request and request.user.is_authenticated and request.user.is_b2b_user and obj.max_suggested_retail_price:
             return f"{obj.max_suggested_retail_price:.2f}"
         return None
+
+    def to_representation(self, instance):
+        """Conditionally remove rrp and msrp for non-B2B users."""
+        ret = super().to_representation(instance)
+        request = self.context.get("request")
+        if not request or not request.user.is_authenticated or not request.user.is_b2b_user:
+            ret.pop('rrp', None)
+            ret.pop('msrp', None)
+        return ret
 
     def to_representation(self, instance):
         """Conditionally remove rrp and msrp for non-B2B users."""

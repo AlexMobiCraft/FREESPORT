@@ -8,11 +8,11 @@ from rest_framework.test import APIClient
 
 from apps.products.models import Category, Brand, Product
 from apps.users.models import Favorite
-from apps.users.models import Favorite
 
 User = get_user_model()
 
 
+@pytest.mark.xdist_group(name="b2c_workflow")
 class B2CWorkflowTest(TestCase):
     """Тестирование B2C рабочих процессов"""
 
@@ -42,7 +42,11 @@ class B2CWorkflowTest(TestCase):
             min_order_quantity=1,
             is_active=True,
         )
+        # Очищаем все избранное и связанные данные
         Favorite.objects.all().delete()
+        
+    def tearDown(self):
+        """Очистка после каждого теста"""
         Favorite.objects.all().delete()
 
     def test_full_b2c_purchase_workflow(self):
@@ -200,6 +204,9 @@ class B2CWorkflowTest(TestCase):
 
     def test_b2c_personal_cabinet_features(self):
         """B2C функции личного кабинета"""
+        # Очищаем избранное перед тестом
+        Favorite.objects.filter(user=self.retail_user).delete()
+        
         self.client.force_authenticate(user=self.retail_user)
 
         # Дашборд
@@ -217,9 +224,12 @@ class B2CWorkflowTest(TestCase):
         )
         self.assertEqual(favorite_response.status_code, 201)
 
-        # Список избранного
+        # Список избранного - проверяем только для текущего пользователя
         favorites_list = self.client.get("/api/v1/users/favorites/")
-        self.assertEqual(len(favorites_list.data), 1)
+        self.assertEqual(favorites_list.status_code, 200)
+        product_ids_in_favorites = [item['product'] for item in favorites_list.data['results']]
+        self.assertIn(self.product.id, product_ids_in_favorites)
+        self.assertEqual(Favorite.objects.filter(user=self.retail_user).count(), 1)
 
     def test_b2c_quick_reorder(self):
         """Быстрый повторный заказ для B2C"""

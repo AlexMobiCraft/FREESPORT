@@ -12,32 +12,31 @@ from apps.products.models import Category, Brand, Product
 User = get_user_model()
 
 
+@pytest.mark.django_db
 class SearchPerformanceTest(TestCase):
     """Тестирование производительности поиска"""
 
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        cls.client = APIClient()
+    def setUp(self):
+        self.client = APIClient()
 
         # Создаем структуру для search performance тестов
-        cls.categories = []
-        cls.brands = []
-        cls.products = []
+        self.categories = []
+        self.brands = []
+        self.products = []
 
         # Создаем 5 категорий
         for i in range(5):
             category = Category.objects.create(
                 name=f"Search Category {i}", slug=f"search-category-{i}"
             )
-            cls.categories.append(category)
+            self.categories.append(category)
 
         # Создаем 3 бренда
         for i in range(3):
             brand = Brand.objects.create(
                 name=f"Search Brand {i}", slug=f"search-brand-{i}"
             )
-            cls.brands.append(brand)
+            self.brands.append(brand)
 
         # Создаем 200 товаров для тестирования поиска
         search_terms = ["футбол", "баскетбол", "теннис", "волейбол", "хоккей"]
@@ -46,14 +45,14 @@ class SearchPerformanceTest(TestCase):
             product = Product.objects.create(
                 name=f"{term} Product {i}",
                 slug=f"{term.lower()}-product-{i}",
-                category=cls.categories[i % 5],
-                brand=cls.brands[i % 3],
+                category=self.categories[i % 5],
+                brand=self.brands[i % 3],
                 retail_price=100.00 + i,
                 stock_quantity=20,
                 is_active=True,
                 description=f"Описание товара для {term} номер {i}",
             )
-            cls.products.append(product)
+            self.products.append(product)
 
     def test_simple_search_performance(self):
         """Производительность простого поиска"""
