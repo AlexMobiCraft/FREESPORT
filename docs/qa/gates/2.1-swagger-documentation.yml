@@ -1,0 +1,20 @@
+schema: 1
+story: '2.1'
+gate: CONCERNS
+status_reason: 'API documentation configured correctly but lacks testing coverage and validation.'
+reviewer: 'Quinn'
+updated: '2025-01-02T16:50:00Z'
+top_issues:
+  - id: 'TEST-001'
+    severity: medium
+    finding: 'No automated tests for documentation endpoints (/api/docs/, /api/redoc/, /api/schema/)'
+    suggested_action: 'Add integration tests to verify endpoints accessibility and schema validity'
+  - id: 'DOC-001'
+    severity: medium  
+    finding: 'Limited documentation coverage - only health check endpoint documented'
+    suggested_action: 'Add comprehensive @extend_schema decorators to all ViewSets'
+  - id: 'MNT-001'
+    severity: low
+    finding: 'No automated validation of documentation completeness'
+    suggested_action: 'Consider adding CI checks for missing endpoint documentation'
+waiver: { active: false }

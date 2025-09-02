@@ -25,17 +25,6 @@
           }
         ]
       }
-    ],
-    "PreToolUse": [
-      {
-        "matcher": ".*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "cmd.exe /c \"start \"\" \"C:\\Users\\38670\\.claude\\await.mp3\"\""
-          }
-        ]
-      }
-    ]
+    ] 
   }
 }
