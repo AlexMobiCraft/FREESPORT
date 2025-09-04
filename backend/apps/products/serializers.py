@@ -182,15 +182,6 @@ class ProductListSerializer(serializers.ModelSerializer):
             ret.pop('msrp', None)
         return ret
 
-    def to_representation(self, instance):
-        """Conditionally remove rrp and msrp for non-B2B users."""
-        ret = super().to_representation(instance)
-        request = self.context.get("request")
-        if not request or not request.user.is_authenticated or not request.user.is_b2b_user:
-            ret.pop('rrp', None)
-            ret.pop('msrp', None)
-        return ret
-
 
 class ProductDetailSerializer(ProductListSerializer):
     """

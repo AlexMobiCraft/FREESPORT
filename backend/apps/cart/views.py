@@ -4,9 +4,7 @@ Views для корзины покупок
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from django.shortcuts import get_object_or_404
-from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiResponse
-from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema, OpenApiResponse
 
 from .models import Cart, CartItem
 from .serializers import (
@@ -15,7 +13,6 @@ from .serializers import (
     CartItemCreateSerializer,
     CartItemUpdateSerializer,
 )
-from apps.products.models import Product
 
 
 class CartViewSet(viewsets.ModelViewSet):
@@ -23,7 +20,8 @@ class CartViewSet(viewsets.ModelViewSet):
     ViewSet для управления корзиной пользователя
     """
 
-    permission_classes = [permissions.AllowAny]  # Поддерживаем гостевые корзины
+    # Поддерживаем гостевые корзины
+    permission_classes = [permissions.AllowAny]
     serializer_class = CartSerializer
 
     def get_queryset(self):
@@ -159,7 +157,8 @@ class CartItemViewSet(viewsets.ModelViewSet):
 
     @extend_schema(
         summary="Добавить товар в корзину",
-        description="Добавление товара в корзину с автоматическим объединением одинаковых товаров",
+        description="Добавление товара в корзину с автоматическим "
+                    "объединением одинаковых товаров",
         tags=["Cart Items"],
     )
     def create(self, request, *args, **kwargs):
@@ -172,7 +171,9 @@ class CartItemViewSet(viewsets.ModelViewSet):
         response_serializer = CartItemSerializer(
             self.cart_item, context={"request": request}
         )
-        return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+        return Response(
+            response_serializer.data, status=status.HTTP_201_CREATED
+        )
 
     @extend_schema(
         summary="Обновить количество товара",

@@ -4,7 +4,7 @@ URL конфигурация для корзины
 from django.urls import path
 from .views import CartViewSet, CartItemViewSet
 
-app_name = 'cart'
+app_name = "cart"
 
 urlpatterns = [
     # GET /cart/ - получить корзину
