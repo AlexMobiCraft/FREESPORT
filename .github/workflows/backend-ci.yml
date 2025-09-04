@@ -113,6 +113,21 @@ jobs:
         source venv/bin/activate
         python manage.py check --deploy
         
+    - name: Validate API documentation completeness
+      run: |
+        cd backend
+        source venv/bin/activate
+        echo "🔍 Проверка полноты API документации..."
+        python manage.py check_api_docs --verbose --fail-on-missing
+        
+    - name: Validate OpenAPI schema generation
+      run: |
+        cd backend
+        source venv/bin/activate
+        echo "📋 Генерация и валидация OpenAPI схемы..."
+        python manage.py spectacular --color --file /tmp/schema.yml --validate
+        echo "✅ OpenAPI схема сгенерирована успешно"
+        
     - name: Run database migrations
       run: |
         cd backend

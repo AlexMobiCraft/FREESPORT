@@ -5,7 +5,7 @@ from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
-from drf_spectacular.utils import extend_schema, OpenApiParameter
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiResponse
 from drf_spectacular.types import OpenApiTypes
 
 from .models import Cart, CartItem
@@ -135,6 +135,29 @@ class CartItemViewSet(viewsets.ModelViewSet):
             self.cart_item = serializer.save(cart=cart)
 
     @extend_schema(
+        summary="Список товаров в корзине",
+        description="Получение списка всех товаров в корзине пользователя",
+        responses={200: CartItemSerializer(many=True)},
+        tags=["Cart Items"],
+    )
+    def list(self, request, *args, **kwargs):
+        """Получить список товаров в корзине"""
+        return super().list(request, *args, **kwargs)
+
+    @extend_schema(
+        summary="Детали товара в корзине",
+        description="Получение детальной информации о товаре в корзине",
+        responses={
+            200: CartItemSerializer,
+            404: OpenApiResponse(description="Товар в корзине не найден"),
+        },
+        tags=["Cart Items"],
+    )
+    def retrieve(self, request, *args, **kwargs):
+        """Получить детали товара в корзине"""
+        return super().retrieve(request, *args, **kwargs)
+
+    @extend_schema(
         summary="Добавить товар в корзину",
         description="Добавление товара в корзину с автоматическим объединением одинаковых товаров",
         tags=["Cart Items"],
@@ -153,12 +176,33 @@ class CartItemViewSet(viewsets.ModelViewSet):
 
     @extend_schema(
         summary="Обновить количество товара",
-        description="Изменение количества товара в корзине",
+        description="Полное изменение товара в корзине",
+        request=CartItemUpdateSerializer,
+        responses={
+            200: CartItemSerializer,
+            400: OpenApiResponse(description="Ошибки валидации"),
+            404: OpenApiResponse(description="Товар в корзине не найден"),
+        },
         tags=["Cart Items"],
     )
     def update(self, request, *args, **kwargs):
         """Обновить количество товара в корзине"""
         return super().update(request, *args, **kwargs)
+
+    @extend_schema(
+        summary="Частичное обновление товара",
+        description="Частичное изменение количества товара в корзине",
+        request=CartItemUpdateSerializer,
+        responses={
+            200: CartItemSerializer,
+            400: OpenApiResponse(description="Ошибки валидации"),
+            404: OpenApiResponse(description="Товар в корзине не найден"),
+        },
+        tags=["Cart Items"],
+    )
+    def partial_update(self, request, *args, **kwargs):
+        """Частичное обновление товара в корзине"""
+        return super().partial_update(request, *args, **kwargs)
 
     @extend_schema(
         summary="Удалить товар из корзины",
