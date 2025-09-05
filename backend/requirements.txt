@@ -1,53 +1,68 @@
-# FREESPORT Backend Dependencies
-# Django 4.2 LTS + Django REST Framework 3.14+
-
-# Core Django
-Django==4.2.16
-django-environ==0.11.2
-requests==2.31.0
-Pillow==10.2.0
-
-# Django REST Framework
-djangorestframework==3.14.0
-django-cors-headers==4.3.1
-
-# JWT Authentication
-djangorestframework-simplejwt==5.3.1
-
-# Database
-psycopg2-binary==2.9.9
-
-# Redis Cache
-redis==5.0.1
-django-redis==5.4.0
-
-# API Documentation
-drf-spectacular==0.28.0
-django-filter==23.5
-
-# Security & Validation
-django-ratelimit==4.1.0
-python-decouple==3.8
-
-# Testing
-pytest==7.4.3
-pytest-django==4.7.0
-pytest-cov==4.1.0
-factory-boy==3.3.0
-
-# Development Tools
-django-debug-toolbar==4.2.0
-django-extensions==3.2.3
-
-# Production Server
-gunicorn==21.2.0
-whitenoise==6.6.0
-
-# Linting & Formatting
+asgiref==3.9.1
+attrs==25.3.0
 black==23.11.0
-flake8==6.1.0
-isort==5.12.0
-
-# Type Checking
-mypy==1.7.1
+bleach==6.2.0
+certifi==2025.8.3
+chardet==5.2.0
+charset-normalizer==3.4.3
+click==8.2.1
+colorama==0.4.6
+coverage==7.10.2
+Django==4.2.16
+django-cors-headers==4.3.1
+django-debug-toolbar==4.2.0
+django-environ==0.11.2
+django-extensions==3.2.3
+django-filter==23.5
+django-ratelimit==4.1.0
+django-redis==5.4.0
 django-stubs==4.2.6
+django-stubs-ext==5.2.2
+djangorestframework==3.14.0
+djangorestframework-simplejwt==5.3.1
+drf-spectacular==0.28.0
+factory-boy==3.3.0
+Faker==37.5.3
+flake8==6.1.0
+gunicorn==21.2.0
+idna==3.10
+inflection==0.5.1
+iniconfig==2.1.0
+isort==5.12.0
+jsonschema==4.25.0
+jsonschema-specifications==2025.4.1
+mccabe==0.7.0
+mypy==1.7.1
+mypy_extensions==1.1.0
+packaging==25.0
+pathspec==0.12.1
+pillow==11.3.0
+platformdirs==4.3.8
+pluggy==1.6.0
+psycopg2-binary==2.9.9
+pycodestyle==2.11.1
+pyflakes==3.1.0
+Pygments==2.19.2
+PyJWT==2.10.1
+pytest==7.4.3
+pytest-cov==4.1.0
+pytest-django==4.7.0
+python-decouple==3.8
+pytz==2025.2
+PyYAML==6.0.2
+redis==5.0.1
+referencing==0.36.2
+requests==2.32.4
+rpds-py==0.27.0
+setuptools==80.9.0
+six==1.17.0
+sqlparse==0.5.3
+transliterate==1.10.2
+types-pytz==2025.2.0.20250809
+types-PyYAML==6.0.12.20250809
+typing_extensions==4.14.1
+tzdata==2025.2
+uritemplate==4.2.0
+urllib3==2.5.0
+webencodings==0.5.1
+whitenoise==6.6.0

@@ -9,11 +9,10 @@
 # 1С Интеграция услуг с автоматическим выключателем  - проверить и объяснить
 ### Интеграция платежей ЮКассы - проверить используя  mcp contex7, или поищи в интернет
 
-Разделить architecture.md на модули: 
-например - 
-docs\architecture\coding-standards.md
-docs\architecture\tech-stack.md
-docs\architecture\source-tree.md
-и т.д. 
+backend\freesport\urls.py with 1 addition
+       28        path("api/v1/", include("apps.products.urls")),
+       29        path("api/v1/", include("apps.orders.urls")),
+       30        path("api/v1/cart/", include("apps.cart.urls")),
+       31 +      path("api/v1/", include("apps.pages.urls"))
 
 

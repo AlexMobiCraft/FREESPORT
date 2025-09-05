@@ -28,6 +28,7 @@ urlpatterns = [
     path("api/v1/", include("apps.products.urls")),
     path("api/v1/", include("apps.orders.urls")),
     path("api/v1/cart/", include("apps.cart.urls")),
+    path("api/v1/", include("apps.pages.urls")),
 ]
 
 # Статические и медиа файлы в режиме разработки

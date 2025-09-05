@@ -120,6 +120,22 @@ python manage.py runserver 8001
 celery \-A freesport worker \--loglevel=info  
 celery \-A freesport beat \--loglevel=info
 
+### **Важные правила работы с Python и виртуальным окружением**
+
+1. **Всегда проверять активацию виртуального окружения перед запуском Python:**
+   - Убедиться, что в терминале отображается `(venv)` или аналогичный индикатор
+   - При необходимости активировать окружение командой:
+     - Linux/Mac: `source venv/bin/activate`
+     - Windows: `venv\\Scripts\\activate`
+
+2. **Обязательно обновлять requirements.txt после установки новых пакетов:**
+   ```bash
+   # После установки любых новых пакетов через pip install
+   pip freeze > requirements.txt
+   ```
+   - Это обеспечивает синхронизацию зависимостей между разработчиками
+   - Позволяет воспроизвести точную среду разработки
+
 **Frontend (Next.js)**
 
 cd frontend  
