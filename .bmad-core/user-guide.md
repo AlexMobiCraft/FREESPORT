@@ -1,17 +1,18 @@
-# Метод BMad - руководство пользователя
+# BMad Method — User Guide
 
-Это руководство поможет вам понять и эффективно использовать метод BMad для гибкого планирования и разработки на основе ИИ.
+This guide will help you understand and effectively use the BMad Method for agile AI-driven planning and development.
 
-## Рабочий процесс BMad Plan and Execute
+## The BMad Plan and Execute Workflow
 
-Во-первых, здесь представлен полный стандартный рабочий процесс планирования и реализации Greenfield. Brownfield очень похож, но рекомендуется сначала разобраться с greenfield, пусть даже на простом проекте, прежде чем браться за brownfield. Метод BMad необходимо установить в корень папки нового проекта. Для фазы планирования можно использовать мощные веб-агенты, что потенциально приведет к получению результатов более высокого качества за меньшую стоимость, чем если бы вы предоставили свой собственный API-ключ или кредиты в некоторых инструментах Agentic. Для планирования наилучшие результаты дают мощные модели мышления и более широкий контекст, а также работа с агентами в качестве партнера.
+First, here is the full standard Greenfield Planning + Execution Workflow. Brownfield is very similar, but it's suggested to understand this greenfield first, even if on a simple project before tackling a brownfield project. The BMad Method needs to be installed to the root of your new project folder. For the planning phase, you can optionally perform it with powerful web agents, potentially resulting in higher quality results at a fraction of the cost it would take to complete if providing your own API key or credits in some Agentic tools. For planning, powerful thinking models and larger context - along with working as a partner with the agents will net the best results.
 
-Если вы собираетесь использовать метод BMad в проекте Brownfield (существующий проект), изучите**[Working in the Brownfield](./working-in-the-brownfield.md)**.
+If you are going to use the BMad Method with a Brownfield project (an existing project), review **[Working in the Brownfield](./working-in-the-brownfield.md)**.
 
-Если диаграммы ниже не отображаются, установите Markdown All in One вместе с плагинами Markdown Preview Mermaid Support в VSCode (или один из форкнутых клонов). С этими плагинами, если вы щелкните правой кнопкой мыши на открытой вкладке, должна появиться опция Open Preview, или проверьте документацию IDE.
-### Рабочий процесс планирования (веб-интерфейс или мощные агенты IDE)
+If the diagrams below don't render, install Markdown All in One along with the Markdown Preview Mermaid Support plugins to VSCode (or one of the forked clones). With these plugins, if you right click on the tab when open, there should be an Open Preview option, or check the IDE documentation.
 
-Перед началом разработки BMad следует структурированному процессу планирования, который в идеале выполняется в веб-интерфейсе для экономичности:
+### The Planning Workflow (Web UI or Powerful IDE Agents)
+
+Before development begins, BMad follows a structured planning workflow that's ideally done in web UI for cost efficiency:
 
 ```mermaid
 graph TD
@@ -72,16 +73,17 @@ graph TD
     style P fill:#34a853,color:#fff
 ```
 
-#### Переход от веб-интерфейса к IDE
+#### Web UI to IDE Transition
 
-**Критическая точка перехода**: Как только PO подтвердит согласование документов, вы должны переключиться с веб-интерфейса на IDE, чтобы начать рабочий процесс разработки:
+**Critical Transition Point**: Once the PO confirms document alignment, you must switch from web UI to IDE to begin the development workflow:
 
-1. **Копирование документов в проект**: Убедитесь, что `docs/prd.md` и `docs/architecture.md` находятся в папке docs вашего проекта (или в другом месте, которое вы можете указать во время установки).
-2. **Переключитесь на IDE**: Откройте проект в выбранной вами IDE Agentic.
-3. **Разделение документов**: С помощью агента PO разделите PRD, а затем архитектуру.
-4. **Начать разработку**: Запустите основной цикл разработки, который следует за
+1. **Copy Documents to Project**: Ensure `docs/prd.md` and `docs/architecture.md` are in your project's docs folder (or a custom location you can specify during installation)
+2. **Switch to IDE**: Open your project in your preferred Agentic IDE
+3. **Document Sharding**: Use the PO agent to shard the PRD and then the Architecture
+4. **Begin Development**: Start the Core Development Cycle that follows
 
-#### Артефакты планирования (стандартные пути)
+#### Planning Artifacts (Standard Paths)
+
 ```text
 PRD              → docs/prd.md
 Architecture     → docs/architecture.md
@@ -91,44 +93,44 @@ QA Assessments   → docs/qa/assessments/
 QA Gates         → docs/qa/gates/
 ```
 
-### Основной цикл разработки (IDE)
+### The Core Development Cycle (IDE)
 
-После завершения планирования и разделения документов BMad следует структурированному рабочему процессу разработки:
+Once planning is complete and documents are sharded, BMad follows a structured development workflow:
 
 ```mermaid
 graph TD
-    A["Начало фазы разработки"] --> B["SM: Рецензии предыдущих этапов,  Dev/QA Заметки"]
-    B --> B2["SM: Черновик следующей истории из «Sharded Этап + Architecture»"]
+    A["Development Phase Start"] --> B["SM: Reviews Previous Story Dev/QA Notes"]
+    B --> B2["SM: Drafts Next Story from Sharded Epic + Architecture"]
     B2 --> S{"High-Risk Story? (Optional)"}
     S -->|Yes| T["QA: *risk + *design on Draft Story"]
     S -->|No| B3
     T --> U["Test Strategy & Risk Profile Created"]
-    U --> B3{"PO: Проверить черновик этапа (необязательно)"}
-    B3 -->|Validation Requested| B4["PO: Проверка этапа по артефактам"]
-    B3 -->|Skip Validation| C{"Согласие пользователя"}
+    U --> B3{"PO: Validate Story Draft (Optional)"}
+    B3 -->|Validation Requested| B4["PO: Validate Story Against Artifacts"]
+    B3 -->|Skip Validation| C{"User Approval"}
     B4 --> C
-    C -->|Approved| D["Dev: Последовательное выполнение задач"]
+    C -->|Approved| D["Dev: Sequential Task Execution"]
     C -->|Needs Changes| B2
-    D --> E["Dev: Реализация задач + тесты"]
-    E --> V{"Проверка QA в середине разработки? (Необязательно)"}
-    V -->|Yes| W["QA: *trace или *nfr для ранней проверки"]
+    D --> E["Dev: Implement Tasks + Tests"]
+    E --> V{"Mid-Dev QA Check? (Optional)"}
+    V -->|Yes| W["QA: *trace or *nfr for Early Validation"]
     V -->|No| F
-    W --> X["Dev: Устранение пробелов в Coverage/NFR"]
-    X --> F["Dev: Выполнить все проверки"]
-    F --> G["Dev: Пометить как готовое к проверке + добавить примечания"]
-    G --> H{"Проверка пользователем"}
+    W --> X["Dev: Address Coverage/NFR Gaps"]
+    X --> F["Dev: Run All Validations"]
+    F --> G["Dev: Mark Ready for Review + Add Notes"]
+    G --> H{"User Verification"}
     H -->|Request QA Review| I["QA: Test Architect Review + Quality Gate"]
-    H -->|Approve Without QA| M["ВАЖНО: Убедитесь, что все регрессионные тесты и линтинг пройдены"]
+    H -->|Approve Without QA| M["IMPORTANT: Verify All Regression Tests and Linting are Passing"]
     I --> J["QA: Test Architecture Analysis + Active Refactoring"]
-    J --> L{"QA Решение"}
+    J --> L{"QA Decision"}
     L -->|Needs Dev Work| D
     L -->|Approved| M
     H -->|Needs Fixes| D
-    M --> N["ВАЖНО: СОХРАНИТЕ ИЗМЕНЕНИЯ ПЕРЕД ПРОДОЛЖЕНИЕМ!"]
-    N --> Y{" Требуется обновление Gate?"}
-    Y -->|Yes| Z["QA: *gate обновить статус"]
+    M --> N["IMPORTANT: COMMIT YOUR CHANGES BEFORE PROCEEDING!"]
+    N --> Y{"Gate Update Needed?"}
+    Y -->|Yes| Z["QA: *gate to Update Status"]
     Y -->|No| K
-    Z --> K["Пометить историю как законченную"]
+    Z --> K["Mark Story as Done"]
     K --> B
 
     style A fill:#f5f5f5,color:#000
@@ -158,12 +160,12 @@ graph TD
     style Z fill:#ffd54f,color:#000
 ```
 
-## Предварительные условия
+## Prerequisites
 
-Перед установкой BMad Method убедитесь, что у вас есть:
+Before installing BMad Method, ensure you have:
 
 - **Node.js** ≥ 18, **npm** ≥ 9
-- **Git** установлен и настроен
+- **Git** installed and configured
 - **(Optional)** VS Code with "Markdown All in One" + "Markdown Preview Mermaid Support" extensions
 
 ## Installation
@@ -184,6 +186,32 @@ If you want to do the planning on the web with Claude (Sonnet 4 or Opus), Gemini
 # Interactive installation (recommended)
 npx bmad-method install
 ```
+
+### Codex (CLI & Web)
+
+BMAD integrates with OpenAI Codex via `AGENTS.md` and committed core agent files.
+
+- Two installation modes:
+  - Codex (local only): keeps `.bmad-core/` ignored for local dev.
+    - `npx bmad-method install -f -i codex -d .`
+  - Codex Web Enabled: ensures `.bmad-core/` is tracked so you can commit it for Codex Web.
+    - `npx bmad-method install -f -i codex-web -d .`
+
+- What gets generated:
+  - `AGENTS.md` at the project root with a BMAD section containing
+    - How-to-use with Codex (CLI & Web)
+    - Agent Directory (Title, ID, When To Use)
+    - Detailed per‑agent sections with source path, when-to-use, activation phrasing, and YAML
+    - Tasks with quick usage notes
+  - If a `package.json` exists, helpful scripts are added:
+    - `bmad:refresh`, `bmad:list`, `bmad:validate`
+
+- Using Codex:
+  - CLI: run `codex` in the project root and prompt naturally, e.g., “As dev, implement …”.
+  - Web: commit `.bmad-core/` and `AGENTS.md`, then open the repo in Codex and prompt the same way.
+
+- Refresh after changes:
+  - Re-run the appropriate install mode (`codex` or `codex-web`) to update the BMAD block in `AGENTS.md`.
 
 ## Special Agents
 
