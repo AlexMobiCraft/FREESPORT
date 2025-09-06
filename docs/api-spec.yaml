@@ -47,6 +47,8 @@ tags:
     description: Заказы и их обработка
   - name: Search
     description: Поиск и фильтрация товаров
+  - name: Pages
+    description: Статические страницы и контент
 
 paths:
   # =============================================================================
@@ -511,6 +513,60 @@ paths:
           description: Доступ запрещен
         '404':
           description: Заказ не найден
+
+  # =============================================================================
+  # PAGES
+  # =============================================================================
+  /pages/:
+    get:
+      tags: [Pages]
+      summary: Получить список статических страниц
+      description: |
+        Возвращает список всех опубликованных статических страниц.
+        Результат кэшируется на 24 часа для лучшей производительности.
+      responses:
+        '200':
+          description: Список статических страниц
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Page'
+
+  /pages/{slug}/:
+    get:
+      tags: [Pages]
+      summary: Получить содержимое страницы
+      description: |
+        Возвращает полное содержимое статической страницы по URL slug.
+        Включает HTML контент, SEO метаданные и кэширование.
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+          description: URL slug страницы
+          example: "about-company"
+      responses:
+        '200':
+          description: Содержимое страницы
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageDetail'
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+              description: "public, max-age=86400"
+        '404':
+          description: Страница не найдена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
 # =============================================================================
 # COMPONENTS SCHEMAS
@@ -1072,6 +1128,62 @@ components:
         error_code:
           type: string
           description: Код ошибки для программной обработки
+
+    # Page Schemas
+    Page:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Уникальный идентификатор страницы
+        title:
+          type: string
+          maxLength: 200
+          description: Заголовок страницы
+        slug:
+          type: string
+          maxLength: 200
+          description: URL slug для SEO-дружественных URL
+          example: "about-company"
+        content:
+          type: string
+          description: HTML содержимое страницы (очищенное и безопасное)
+          example: "<h1>О компании</h1><p>Мы лидеры в сфере спортивных товаров...</p>"
+        seo_title:
+          type: string
+          maxLength: 60
+          description: SEO заголовок для meta title
+          example: "О компании FREESPORT - лидер спортивных товаров"
+        seo_description:
+          type: string
+          maxLength: 160
+          description: SEO описание для meta description
+          example: "FREESPORT - ведущий поставщик спортивных товаров с 2010 года. Качественные товары для всех видов спорта."
+        updated_at:
+          type: string
+          format: date-time
+          description: Время последнего обновления
+        created_at:
+          type: string
+          format: date-time
+          description: Время создания страницы
+
+    PageDetail:
+      allOf:
+        - $ref: '#/components/schemas/Page'
+        - type: object
+          properties:
+            content:
+              type: string
+              description: Полное HTML содержимое страницы с санитизацией
+              example: |
+                <h1>О компании FREESPORT</h1>
+                <p>Мы работаем на рынке спортивных товаров с 2010 года...</p>
+                <ul>
+                  <li>Широкий ассортимент</li>
+                  <li>Гарантия качества</li>
+                  <li>Быстрая доставка</li>
+                </ul>
 
     PaginatedResponse:
       type: object

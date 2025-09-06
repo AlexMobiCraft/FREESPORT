@@ -23,6 +23,11 @@ erDiagram
         last_login timestamp
         created_at timestamp
         updated_at timestamp
+        onec_id varchar(50) UK "ID в системе 1С"
+        onec_guid uuid UK "GUID в системе 1С"
+        last_sync_from_1c timestamp "Время последней синхронизации из 1С"
+        last_sync_to_1c timestamp "Время последней синхронизации в 1С"
+        sync_conflicts jsonb "Конфликты синхронизации"
     }
 
     Company {
@@ -81,6 +86,8 @@ erDiagram
         seo_description text
         created_at timestamp
         updated_at timestamp
+        onec_id varchar(50) UK "ID в системе 1С"
+        last_sync_from_1c timestamp "Время последней синхронизации из 1С"
     }
 
     Product {
@@ -112,6 +119,9 @@ erDiagram
         seo_description text
         created_at timestamp
         updated_at timestamp
+        onec_id varchar(50) UK "ID в системе 1С"
+        onec_guid uuid UK "GUID в системе 1С"
+        last_sync_from_1c timestamp "Время последней синхронизации из 1С"
     }
 
     %% Управление заказами
@@ -134,6 +144,10 @@ erDiagram
         notes text
         created_at timestamp
         updated_at timestamp
+        onec_id varchar(50) UK "ID в системе 1С"
+        exported_to_1c boolean "Экспортирован в 1С"
+        export_to_1c_at timestamp "Время экспорта в 1С"
+        last_sync_from_1c timestamp "Время последней синхронизации из 1С"
     }
 
     OrderItem {
@@ -147,6 +161,7 @@ erDiagram
         product_sku varchar(100) "Снимок данных на момент заказа"
         created_at timestamp
         updated_at timestamp
+        onec_product_id varchar(50) "ID товара в 1С"
     }
 
     %% Управление корзиной
@@ -181,7 +196,56 @@ erDiagram
         timestamp timestamp
     }
 
-    %% Журнал синхронизации с 1С
+    %% Журнал синхронизации с 1С (Расширенный)
+    CustomerSyncLog {
+        id bigint PK
+        operation_type varchar(20) "import_from_1c, export_to_1c, sync_changes"
+        customer_id bigint FK "Ссылка на User"
+        status varchar(10) "success, error, skipped, conflict"
+        details jsonb "Детали синхронизации"
+        changes_made jsonb "Внесенные изменения"
+        conflict_resolution jsonb "Разрешение конфликтов"
+        error_message text
+        created_at timestamp
+        processed_by varchar(100) "Management command или пользователь"
+    }
+
+    ImportLog {
+        id bigint PK
+        import_type varchar(20) "products, customers, orders, stock, prices"
+        total_records integer
+        processed_records integer
+        successful_records integer
+        failed_records integer
+        skipped_records integer
+        status varchar(20) "running, completed, failed, cancelled"
+        file_path varchar(500) "Путь к обрабатываемому файлу"
+        error_details jsonb
+        summary_report jsonb "Итоговый отчет"
+        started_at timestamp
+        finished_at timestamp
+        initiated_by varchar(100) "Management command или пользователь"
+    }
+
+    SyncConflict {
+        id bigint PK
+        conflict_type varchar(20) "customer_data, product_data, order_status, pricing"
+        customer_id bigint FK "null если конфликт не связан с покупателем"
+        product_id bigint FK "null если конфликт не связан с товаром"
+        order_id bigint FK "null если конфликт не связан с заказом"
+        platform_data jsonb "Данные в платформе"
+        onec_data jsonb "Данные в 1С"
+        conflicting_fields jsonb "Список конфликтующих полей"
+        resolution_strategy varchar(20) "manual, platform_wins, onec_wins, merge"
+        is_resolved boolean
+        resolution_details jsonb
+        resolved_at timestamp
+        resolved_by varchar(100)
+        created_at timestamp
+        updated_at timestamp
+    }
+
+    %% Журнал синхронизации с 1С (Совместимость)
     SyncLog {
         id bigint PK
         sync_type varchar(50) "products, stocks, orders, prices"
@@ -210,6 +274,13 @@ erDiagram
     Product ||--o{ OrderItem : "заказанные товары"
     
     User ||--o{ AuditLog : "действия пользователя"
+    
+    %% Связи для интеграции с 1С
+    User ||--o{ CustomerSyncLog : "логи синхронизации покупателя"
+    User ||--o{ SyncConflict : "конфликты синхронизации покупателя"
+    Product ||--o{ SyncConflict : "конфликты синхронизации товара"
+    Order ||--o{ SyncConflict : "конфликты синхронизации заказа"
+    ImportLog ||--o{ CustomerSyncLog : "трекинг импорта"
 ```
 
 ## Бизнес-Правила
@@ -248,6 +319,7 @@ erDiagram
 
 ### Типы синхронизации с 1С
 - **products**: Товары
+- **customers**: Покупатели  
 - **stocks**: Остатки
 - **orders**: Заказы
 - **prices**: Цены
@@ -256,6 +328,31 @@ erDiagram
 - **started**: Начата
 - **completed**: Завершена
 - **failed**: Ошибка
+- **running**: Выполняется
+- **cancelled**: Отменена
+
+### Операции синхронизации покупателей
+- **import_from_1c**: Импорт из 1С
+- **export_to_1c**: Экспорт в 1С
+- **sync_changes**: Синхронизация изменений
+
+### Статусы операций синхронизации
+- **success**: Успешно
+- **error**: Ошибка
+- **skipped**: Пропущено
+- **conflict**: Конфликт данных
+
+### Типы конфликтов синхронизации
+- **customer_data**: Данные покупателя
+- **product_data**: Данные товара
+- **order_status**: Статус заказа
+- **pricing**: Ценообразование
+
+### Стратегии разрешения конфликтов
+- **manual**: Ручное разрешение
+- **platform_wins**: Приоритет платформы
+- **onec_wins**: Приоритет 1С
+- **merge**: Объединение данных
 
 ### Уникальные ограничения Cart и Orders
 - Уникальная комбинация (cart, product) для CartItem - предотвращает дублирование товаров в корзине
