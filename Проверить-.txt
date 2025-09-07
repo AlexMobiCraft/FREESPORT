@@ -15,4 +15,4 @@ backend\freesport\urls.py with 1 addition
        30        path("api/v1/cart/", include("apps.cart.urls")),
        31 +      path("api/v1/", include("apps.pages.urls"))
 
-
+ctx7sk-fc354519-5c0c-4a3d-9411-9e19680a2475

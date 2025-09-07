@@ -93,6 +93,51 @@ class User(AbstractUser):
     created_at = models.DateTimeField("Дата создания", auto_now_add=True)
     updated_at = models.DateTimeField("Дата обновления", auto_now=True)
 
+    # 1C Integration fields
+    SYNC_STATUS_CHOICES = [
+        ('pending', 'Ожидает синхронизации'),
+        ('synced', 'Синхронизирован'),
+        ('error', 'Ошибка синхронизации'),
+        ('conflict', 'Конфликт данных'),
+    ]
+
+    onec_id = models.CharField(
+        'ID в 1С', 
+        max_length=100, 
+        blank=True, 
+        null=True, 
+        unique=True,
+        help_text='Уникальный идентификатор клиента в 1С'
+    )
+    sync_status = models.CharField(
+        'Статус синхронизации',
+        max_length=20,
+        choices=SYNC_STATUS_CHOICES,
+        default='pending',
+        help_text='Статус синхронизации с 1С'
+    )
+    created_in_1c = models.BooleanField(
+        'Создан в 1С',
+        default=False,
+        help_text='Указывает, что пользователь был создан в 1С'
+    )
+    needs_1c_export = models.BooleanField(
+        'Требует экспорта в 1С',
+        default=False,
+        help_text='Требует экспорта данных в 1С'
+    )
+    last_sync_at = models.DateTimeField(
+        'Последняя синхронизация',
+        null=True,
+        blank=True,
+        help_text='Дата и время последней синхронизации с 1С'
+    )
+    sync_error_message = models.TextField(
+        'Ошибка синхронизации',
+        blank=True,
+        help_text='Сообщение об ошибке при синхронизации с 1С'
+    )
+
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["first_name", "last_name"]
 

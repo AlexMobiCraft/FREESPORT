@@ -14,19 +14,7 @@
       "C:\\Users\\38670\\DEV_WEB\\FREESPORT"
     ]
   },
-  "hooks": {
-    "Stop": [
-      {
-        "matcher": ".*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "cmd.exe /c \"start \"\" \"C:\\Users\\38670\\.claude\\Stop.mp3\"\""
-          }
-        ]
-      }
-    ]
-  },
+
   "statusLine": {
     "type": "command",
     "command": "ccusage statusline",

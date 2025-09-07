@@ -11,11 +11,13 @@ FREESPORT \- API-First E-commerce платформа для B2B/B2C продаж
 **Backend:**
 
 * Django 4.2 LTS \+ Django REST Framework 3.14+  
-* PostgreSQL 15+ (база данных с поддержкой партиционирования и JSONB)  
+* **PostgreSQL 15+ (ТОЛЬКО PostgreSQL)** - база данных с поддержкой партиционирования и JSONB
 * Redis 7.0+ (кэширование и сессии)  
 * JWT токены для аутентификации с refresh стратегией  
 * Celery \+ Celery Beat (асинхронные задачи и планировщик)  
 * **drf-spectacular** для спецификации OpenAPI 3.1.0
+
+**ВАЖНО:** Проект разработан исключительно для работы с PostgreSQL. SQLite, MySQL и другие СУБД НЕ поддерживаются.
 
 **Frontend:**
 
@@ -29,9 +31,11 @@ FREESPORT \- API-First E-commerce платформа для B2B/B2C продаж
 **Инфраструктура:**
 
 * Nginx (reverse proxy, SSL, load balancing)  
-* Docker \+ Docker Compose  
-* PostgreSQL с JSONB поддержкой для спецификаций товаров  
+* **Docker \+ Docker Compose (обязательно для разработки и тестирования)**
+* **PostgreSQL 15+ в Docker контейнере** с JSONB поддержкой для спецификаций товаров  
 * **GitHub Actions** (CI/CD)
+
+**КРИТИЧНО:** Все разработка, тестирование и деплой происходят через Docker. Локальная установка БД не поддерживается.
 
 ### **Архитектурные принципы**
 

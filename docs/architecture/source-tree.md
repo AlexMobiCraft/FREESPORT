@@ -91,6 +91,9 @@ apps/products/
 └── views.py                 # API представления
 ```
 
+**ВАЖНО:** Тесты для products находятся в `backend/tests/unit/test_models/test_product_models.py`, 
+не в `apps/products/tests.py` как указано в некоторых устаревших документах.
+
 **Ключевые модели:**
 - `Product` - товары с многоуровневым ценообразованием
 - `Category` - категории товаров с иерархией

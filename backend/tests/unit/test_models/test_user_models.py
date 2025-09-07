@@ -295,6 +295,221 @@ class TestUserModel:
 
 
 @pytest.mark.django_db
+class TestUser1CIntegrationFields:
+    """
+    Тесты полей интеграции с 1С в модели User
+    """
+
+    def test_1c_integration_fields_default_values(self):
+        """
+        Тест значений по умолчанию для полей интеграции с 1С
+        """
+        user = UserFactory.create()
+        
+        assert user.onec_id is None
+        assert user.sync_status == 'pending'
+        assert user.created_in_1c is False
+        assert user.needs_1c_export is False
+        assert user.last_sync_at is None
+        assert user.sync_error_message == ''
+
+    def test_onec_id_uniqueness(self):
+        """
+        Тест уникальности onec_id
+        """
+        unique_onec_id = f'1C-USER-{int(time.time())}-{uuid.uuid4().hex[:8]}'
+        
+        # Создаем первого пользователя с уникальным onec_id
+        user1 = UserFactory.create(onec_id=unique_onec_id)
+        assert user1.onec_id == unique_onec_id
+        
+        # Попытка создать второго пользователя с тем же onec_id должна вызвать ошибку
+        with pytest.raises(IntegrityError):
+            UserFactory.create(onec_id=unique_onec_id)
+
+    def test_onec_id_can_be_null_for_multiple_users(self):
+        """
+        Тест: несколько пользователей могут иметь NULL значение onec_id
+        """
+        user1 = UserFactory.create(onec_id=None)
+        user2 = UserFactory.create(onec_id=None)
+        
+        assert user1.onec_id is None
+        assert user2.onec_id is None
+
+    @pytest.mark.parametrize(
+        "sync_status, expected_display",
+        [
+            ('pending', 'Ожидает синхронизации'),
+            ('synced', 'Синхронизирован'),
+            ('error', 'Ошибка синхронизации'),
+            ('conflict', 'Конфликт данных'),
+        ],
+    )
+    def test_sync_status_choices(self, sync_status, expected_display):
+        """
+        Тест валидных статусов синхронизации
+        """
+        user = UserFactory.create(sync_status=sync_status)
+        assert user.sync_status == sync_status
+        assert user.get_sync_status_display() == expected_display
+
+    def test_invalid_sync_status(self):
+        """
+        Тест невалидного статуса синхронизации
+        """
+        with pytest.raises(ValidationError):
+            user = UserFactory.build(sync_status='invalid_status')
+            user.full_clean()
+
+    def test_created_in_1c_boolean_field(self):
+        """
+        Тест поля created_in_1c
+        """
+        # Пользователь не создан в 1С (по умолчанию)
+        user1 = UserFactory.create(created_in_1c=False)
+        assert user1.created_in_1c is False
+        
+        # Пользователь создан в 1С
+        user2 = UserFactory.create(created_in_1c=True)
+        assert user2.created_in_1c is True
+
+    def test_needs_1c_export_boolean_field(self):
+        """
+        Тест поля needs_1c_export
+        """
+        # Не требует экспорта в 1С (по умолчанию)
+        user1 = UserFactory.create(needs_1c_export=False)
+        assert user1.needs_1c_export is False
+        
+        # Требует экспорта в 1С
+        user2 = UserFactory.create(needs_1c_export=True)
+        assert user2.needs_1c_export is True
+
+    def test_last_sync_at_datetime_field(self):
+        """
+        Тест поля last_sync_at
+        """
+        from django.utils import timezone
+        from datetime import datetime
+        
+        # Может быть NULL (по умолчанию)
+        user1 = UserFactory.create(last_sync_at=None)
+        assert user1.last_sync_at is None
+        
+        # Может содержать дату и время
+        sync_time = timezone.now()
+        user2 = UserFactory.create(last_sync_at=sync_time)
+        assert user2.last_sync_at == sync_time
+
+    def test_sync_error_message_text_field(self):
+        """
+        Тест поля sync_error_message
+        """
+        # Может быть пустым (по умолчанию)
+        user1 = UserFactory.create(sync_error_message='')
+        assert user1.sync_error_message == ''
+        
+        # Может содержать сообщение об ошибке
+        error_msg = 'Ошибка синхронизации: недоступен сервер 1С'
+        user2 = UserFactory.create(sync_error_message=error_msg)
+        assert user2.sync_error_message == error_msg
+        
+        # Может содержать длинное сообщение
+        long_error_msg = 'Очень длинное сообщение об ошибке: ' + 'x' * 1000
+        user3 = UserFactory.create(sync_error_message=long_error_msg)
+        assert user3.sync_error_message == long_error_msg
+
+    def test_1c_integration_fields_validation(self):
+        """
+        Тест валидации полей интеграции с 1С
+        """
+        from django.utils import timezone
+        
+        user = UserFactory.build(
+            onec_id='1C-USER-123456',
+            sync_status='synced',
+            created_in_1c=True,
+            needs_1c_export=False,
+            last_sync_at=timezone.now(),
+            sync_error_message='Все в порядке'
+        )
+        
+        # Валидация должна пройти без ошибок
+        user.full_clean()
+        user.save()
+        
+        assert user.onec_id == '1C-USER-123456'
+        assert user.sync_status == 'synced'
+        assert user.created_in_1c is True
+        assert user.needs_1c_export is False
+        assert user.last_sync_at is not None
+        assert user.sync_error_message == 'Все в порядке'
+
+    def test_1c_integration_scenario_import_from_1c(self):
+        """
+        Тест сценария импорта пользователя из 1С
+        """
+        from django.utils import timezone
+        
+        # Создаем пользователя как будто он был импортирован из 1С
+        imported_user = UserFactory.create(
+            email='imported@company.ru',
+            onec_id='1C-CUSTOMER-987654',
+            sync_status='synced',
+            created_in_1c=True,
+            needs_1c_export=False,
+            last_sync_at=timezone.now(),
+            sync_error_message=''
+        )
+        
+        # Проверяем корректность импорта
+        assert imported_user.onec_id is not None
+        assert imported_user.sync_status == 'synced'
+        assert imported_user.created_in_1c is True
+        assert imported_user.needs_1c_export is False
+        assert imported_user.sync_error_message == ''
+
+    def test_1c_integration_scenario_platform_user_needs_export(self):
+        """
+        Тест сценария пользователя созданного в платформе и требующего экспорта в 1С
+        """
+        # Создаем пользователя в платформе
+        platform_user = UserFactory.create(
+            email='platform@company.ru',
+            onec_id=None,
+            sync_status='pending',
+            created_in_1c=False,
+            needs_1c_export=True,
+            last_sync_at=None,
+            sync_error_message=''
+        )
+        
+        # Проверяем состояние для экспорта в 1С
+        assert platform_user.onec_id is None
+        assert platform_user.sync_status == 'pending'
+        assert platform_user.created_in_1c is False
+        assert platform_user.needs_1c_export is True
+        assert platform_user.last_sync_at is None
+
+    def test_1c_integration_scenario_sync_error(self):
+        """
+        Тест сценария ошибки синхронизации с 1С
+        """
+        # Создаем пользователя с ошибкой синхронизации
+        error_user = UserFactory.create(
+            onec_id='1C-USER-ERROR-123',
+            sync_status='error',
+            sync_error_message='Таймаут соединения с сервером 1С'
+        )
+        
+        # Проверяем состояние ошибки
+        assert error_user.sync_status == 'error'
+        assert 'Таймаут' in error_user.sync_error_message
+        assert error_user.sync_error_message != ''
+
+
+@pytest.mark.django_db
 class TestCompanyModel:
     """
     Тесты модели компании Company

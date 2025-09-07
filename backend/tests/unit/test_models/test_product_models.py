@@ -217,3 +217,110 @@ class TestProductModel:
         assert Product._meta.verbose_name_plural == "Товары"
         assert Product._meta.db_table == "products"
         assert Product._meta.ordering == ["-created_at"]
+
+
+@pytest.mark.django_db 
+class TestProduct1CIntegrationFields:
+    """Тесты полей интеграции с 1С (Story 3.1.1 AC: 3)"""
+
+    def test_onec_id_unique_constraint(self):
+        """Тест уникальности поля onec_id"""
+        # Создаем первый товар с onec_id
+        product1 = ProductFactory.create(onec_id="TEST_1C_ID_001")
+        
+        # Проверяем, что товар создался
+        assert product1.onec_id == "TEST_1C_ID_001"
+        
+        # Пытаемся создать второй товар с тем же onec_id - должна быть ошибка
+        with pytest.raises(IntegrityError):
+            ProductFactory.create(onec_id="TEST_1C_ID_001")
+    
+    def test_onec_id_can_be_null(self):
+        """Тест что onec_id может быть null"""
+        product = ProductFactory.create(onec_id=None)
+        assert product.onec_id is None
+        
+    def test_onec_id_can_be_blank(self):
+        """Тест что onec_id может быть пустым"""
+        product = ProductFactory.create(onec_id="")
+        assert product.onec_id == ""
+        
+    def test_sync_status_choices(self):
+        """Тест выбора статуса синхронизации"""
+        valid_statuses = ['pending', 'syncing', 'synced', 'error', 'conflict']
+        
+        for status in valid_statuses:
+            product = ProductFactory.create(sync_status=status)
+            assert product.sync_status == status
+            
+    def test_sync_status_default_value(self):
+        """Тест значения по умолчанию для sync_status"""
+        product = ProductFactory.create()
+        assert product.sync_status == 'pending'
+        
+    def test_last_sync_at_field(self):
+        """Тест поля last_sync_at"""
+        from datetime import datetime
+        
+        # Создаем товар без last_sync_at
+        product = ProductFactory.create()
+        assert product.last_sync_at is None
+        
+        # Обновляем с датой синхронизации
+        sync_time = datetime.now()
+        product.last_sync_at = sync_time
+        product.save()
+        
+        # Перезагружаем из БД и проверяем
+        product.refresh_from_db()
+        assert product.last_sync_at is not None
+        
+    def test_error_message_field(self):
+        """Тест поля error_message"""
+        error_text = "Ошибка синхронизации с 1С: неверный формат данных"
+        
+        product = ProductFactory.create(
+            sync_status='error',
+            error_message=error_text
+        )
+        
+        assert product.error_message == error_text
+        assert product.sync_status == 'error'
+        
+    def test_error_message_can_be_blank(self):
+        """Тест что error_message может быть пустым"""
+        product = ProductFactory.create()
+        assert product.error_message == ""
+        
+    def test_product_1c_fields_together(self):
+        """Тест использования всех 1С полей вместе"""
+        from datetime import datetime
+        
+        sync_time = datetime.now()
+        product = ProductFactory.create(
+            onec_id="FULL_TEST_001",
+            sync_status='synced',
+            last_sync_at=sync_time,
+            error_message=""
+        )
+        
+        # Проверяем все поля
+        assert product.onec_id == "FULL_TEST_001"
+        assert product.sync_status == 'synced'
+        assert product.last_sync_at is not None
+        assert product.error_message == ""
+        
+        # Проверяем что товар корректно сохраняется и загружается
+        product.refresh_from_db()
+        assert product.onec_id == "FULL_TEST_001"
+        assert product.sync_status == 'synced'
+        
+    def test_product_indexes_exist(self):
+        """Тест что индексы для 1С полей созданы"""
+        # Проверяем что в Meta есть индексы для onec_id и sync_status
+        index_fields = []
+        for index in Product._meta.indexes:
+            index_fields.extend(index.fields)
+            
+        assert 'onec_id' in index_fields
+        assert 'sync_status' in index_fields

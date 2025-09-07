@@ -196,7 +196,23 @@ class Product(models.Model):
     # Временные метки и интеграция с 1С
     created_at = models.DateTimeField("Дата создания", auto_now_add=True)
     updated_at = models.DateTimeField("Дата обновления", auto_now=True)
-    onec_id = models.CharField("ID в 1С", max_length=100, blank=True, null=True)
+    
+    # 1С Integration fields (Story 3.1.1 AC: 3)
+    onec_id = models.CharField("ID в 1С", max_length=100, unique=True, blank=True, null=True)
+    sync_status = models.CharField(
+        "Статус синхронизации",
+        max_length=20,
+        choices=[
+            ('pending', 'Ожидает синхронизации'),
+            ('syncing', 'Синхронизируется'),  
+            ('synced', 'Синхронизирован'),
+            ('error', 'Ошибка синхронизации'),
+            ('conflict', 'Конфликт данных'),
+        ],
+        default='pending'
+    )
+    last_sync_at = models.DateTimeField("Последняя синхронизация", null=True, blank=True)
+    error_message = models.TextField("Сообщение об ошибке", blank=True)
 
     class Meta:
         verbose_name = "Товар"
@@ -208,6 +224,8 @@ class Product(models.Model):
             models.Index(fields=["brand", "is_active"]),
             models.Index(fields=["sku"]),
             models.Index(fields=["stock_quantity"]),
+            models.Index(fields=["onec_id"]),  # 1С integration index
+            models.Index(fields=["sync_status"]),  # Sync status index
         ]
 
     def save(self, *args, **kwargs):
