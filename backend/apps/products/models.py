@@ -177,6 +177,11 @@ class Product(models.Model):
     # Инвентаризация
     sku = models.CharField("Артикул", max_length=100, unique=True, blank=True)
     stock_quantity = models.PositiveIntegerField("Количество на складе", default=0)
+    reserved_quantity = models.PositiveIntegerField(
+        "Зарезервированное количество", 
+        default=0,
+        help_text="Количество товара, зарезервированного в корзинах и заказах"
+    )
     min_order_quantity = models.PositiveIntegerField(
         "Минимальное количество заказа", default=1
     )
@@ -264,7 +269,13 @@ class Product(models.Model):
     @property
     def can_be_ordered(self):
         """Можно ли заказать товар"""
-        return self.is_active and self.is_in_stock
+        available_quantity = self.stock_quantity - self.reserved_quantity
+        return self.is_active and self.is_in_stock and available_quantity >= self.min_order_quantity
+    
+    @property
+    def available_quantity(self):
+        """Доступное количество товара (с учетом резерва)"""
+        return max(0, self.stock_quantity - self.reserved_quantity)
 
 
 class ProductImage(models.Model):

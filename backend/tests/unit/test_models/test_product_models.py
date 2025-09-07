@@ -324,3 +324,171 @@ class TestProduct1CIntegrationFields:
             
         assert 'onec_id' in index_fields
         assert 'sync_status' in index_fields
+
+
+@pytest.mark.django_db
+class TestProductStockLogic:
+    """
+    Тесты логики остатков товаров
+    """
+
+    def test_reserved_quantity_default_value(self):
+        """
+        Тест значения по умолчанию для reserved_quantity
+        """
+        product = ProductFactory.create()
+        assert product.reserved_quantity == 0
+
+    def test_available_quantity_calculation(self):
+        """
+        Тест вычисления доступного количества
+        """
+        product = ProductFactory.create(
+            stock_quantity=10,
+            reserved_quantity=3
+        )
+        
+        assert product.available_quantity == 7
+        
+        # Тест случая когда резерв больше остатка
+        product.reserved_quantity = 15
+        product.save()
+        
+        assert product.available_quantity == 0  # max(0, 10-15) = 0
+
+    def test_is_in_stock_property(self):
+        """
+        Тест свойства is_in_stock
+        """
+        # Товар в наличии
+        product = ProductFactory.create(stock_quantity=5)
+        assert product.is_in_stock is True
+        
+        # Товар не в наличии
+        product.stock_quantity = 0
+        product.save()
+        assert product.is_in_stock is False
+
+    def test_can_be_ordered_basic(self):
+        """
+        Тест базовой логики can_be_ordered
+        """
+        product = ProductFactory.create(
+            is_active=True,
+            stock_quantity=10,
+            reserved_quantity=2,
+            min_order_quantity=1
+        )
+        
+        assert product.can_be_ordered is True
+
+    def test_can_be_ordered_insufficient_available(self):
+        """
+        Тест can_be_ordered при недостаточном доступном количестве
+        """
+        product = ProductFactory.create(
+            is_active=True,
+            stock_quantity=5,
+            reserved_quantity=3,
+            min_order_quantity=5  # Доступно только 2, а минимум 5
+        )
+        
+        assert product.can_be_ordered is False
+
+    def test_can_be_ordered_inactive_product(self):
+        """
+        Тест can_be_ordered для неактивного товара
+        """
+        product = ProductFactory.create(
+            is_active=False,
+            stock_quantity=10,
+            reserved_quantity=0
+        )
+        
+        assert product.can_be_ordered is False
+
+    def test_can_be_ordered_out_of_stock(self):
+        """
+        Тест can_be_ordered для товара без остатков
+        """
+        product = ProductFactory.create(
+            is_active=True,
+            stock_quantity=0,
+            reserved_quantity=0
+        )
+        
+        assert product.can_be_ordered is False
+
+    def test_stock_scenarios_realistic(self):
+        """
+        Тест реалистичных сценариев остатков
+        """
+        # Сценарий 1: Высокий остаток
+        high_stock_product = ProductFactory.create(
+            stock_quantity=100,
+            reserved_quantity=5,
+            min_order_quantity=1
+        )
+        assert high_stock_product.is_in_stock is True
+        assert high_stock_product.can_be_ordered is True
+        assert high_stock_product.available_quantity == 95
+        
+        # Сценарий 2: Низкий остаток
+        low_stock_product = ProductFactory.create(
+            stock_quantity=3,
+            reserved_quantity=1,
+            min_order_quantity=1
+        )
+        assert low_stock_product.is_in_stock is True
+        assert low_stock_product.can_be_ordered is True
+        assert low_stock_product.available_quantity == 2
+        
+        # Сценарий 3: Перепродано (oversold)
+        oversold_product = ProductFactory.create(
+            stock_quantity=5,
+            reserved_quantity=10,
+            min_order_quantity=1
+        )
+        assert oversold_product.is_in_stock is True
+        assert oversold_product.can_be_ordered is False  # available_quantity = 0
+        assert oversold_product.available_quantity == 0
+
+    def test_stock_edge_cases(self):
+        """
+        Тест граничных случаев остатков
+        """
+        # Тест: точно минимальное количество
+        edge_case_product = ProductFactory.create(
+            stock_quantity=5,
+            reserved_quantity=2,
+            min_order_quantity=3  # available_quantity = 3, что равно min_order_quantity
+        )
+        assert edge_case_product.can_be_ordered is True
+        
+        # Тест: на единицу меньше минимального
+        edge_case_product.min_order_quantity = 4
+        edge_case_product.save()
+        assert edge_case_product.can_be_ordered is False
+
+    def test_reserved_quantity_validation(self):
+        """
+        Тест валидации reserved_quantity (должно быть неотрицательным)
+        """
+        product = ProductFactory.create(
+            stock_quantity=10,
+            reserved_quantity=5
+        )
+        
+        # Валидная ситуация
+        assert product.reserved_quantity == 5
+        
+        # Тест что поле имеет правильный тип
+        assert isinstance(product._meta.get_field('reserved_quantity'), type(product._meta.get_field('stock_quantity')))
+
+    def test_stock_fields_help_text(self):
+        """
+        Тест что поля имеют правильный help_text
+        """
+        field = Product._meta.get_field('reserved_quantity')
+        assert 'зарезервированного' in field.help_text.lower()
+        assert 'корзин' in field.help_text.lower() or 'заказ' in field.help_text.lower()
