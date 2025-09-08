@@ -5,6 +5,7 @@
 from django.db import models
 from django.core.validators import MinValueValidator
 from django.utils.text import slugify
+from transliterate import translit
 
 
 class Brand(models.Model):
@@ -28,7 +29,17 @@ class Brand(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.slug:
-            self.slug = slugify(self.name)
+            try:
+                # Транслитерация кириллицы в латиницу, затем slugify
+                transliterated = translit(self.name, 'ru', reversed=True)
+                self.slug = slugify(transliterated)
+            except Exception:
+                # Fallback на обычный slugify
+                self.slug = slugify(self.name)
+            
+            # Если slug все еще пустой, создаем fallback
+            if not self.slug:
+                self.slug = f'brand-{self.pk or 0}'
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -70,7 +81,17 @@ class Category(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.slug:
-            self.slug = slugify(self.name)
+            try:
+                # Транслитерация кириллицы в латиницу, затем slugify
+                transliterated = translit(self.name, 'ru', reversed=True)
+                self.slug = slugify(transliterated)
+            except Exception:
+                # Fallback на обычный slugify
+                self.slug = slugify(self.name)
+            
+            # Если slug все еще пустой, создаем fallback
+            if not self.slug:
+                self.slug = f'category-{self.pk or 0}'
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -235,7 +256,18 @@ class Product(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.slug:
-            self.slug = slugify(self.name)
+            try:
+                # Транслитерация кириллицы в латиницу, затем slugify
+                transliterated = translit(self.name, 'ru', reversed=True)
+                self.slug = slugify(transliterated)
+            except Exception:
+                # Fallback на обычный slugify
+                self.slug = slugify(self.name)
+            
+            # Если slug все еще пустой, создаем fallback
+            if not self.slug:
+                self.slug = f'product-{self.pk or 0}'
+                
         if not self.sku:
             import uuid
             import time

@@ -53,8 +53,8 @@ class TestImportCatalogFrom1CCommand:
         test_products = Product.objects.filter(onec_id__startswith='1C-PRODUCT-')
         assert test_products.count() == 20
         
-        # Проверяем первый товар
-        first_product = test_products.first()
+        # Проверяем конкретный товар
+        first_product = test_products.get(onec_id='1C-PRODUCT-00001')
         assert first_product.name == 'Товар тестовый #1'
         assert first_product.sku == 'SKU-00001'
         assert first_product.sync_status == 'synced'

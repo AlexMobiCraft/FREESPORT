@@ -352,7 +352,7 @@ class Command(BaseCommand):
                 return
         
         # Логирование (только в verbose режиме)
-        if self.verbosity >= 2:
+        if getattr(self, 'verbosity', 1) >= 2:
             self.stdout.write(
                 f'✅ Товар {onec_id} ({product.name}) {action}'
             )

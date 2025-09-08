@@ -324,7 +324,7 @@ class Command(BaseCommand):
                 
                 customer.save(update_fields=updated_fields)
                 
-                if self.verbosity >= 2:
+                if getattr(self, 'verbosity', 1) >= 2:
                     self.stdout.write(
                         f'✅ Обновлен клиент {onec_id}: {", ".join(updated_fields)}'
                     )

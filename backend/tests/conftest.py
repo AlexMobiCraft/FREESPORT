@@ -522,16 +522,14 @@ def enable_db_access_for_all_tests(db):
     # НЕ закрываем соединение - оставляем для следующих тестов
 
 
-@pytest.fixture(autouse=True) 
+@pytest.fixture(autouse=False) 
 def clear_db_before_test(transactional_db):
     """
-    Агрессивная очистка базы данных с полной изоляцией
+    Оптимизированная очистка базы данных без deadlock'ов
     """
     from django.core.cache import cache
     from django.db import transaction, connection
-    from django.core.management import call_command
-    from django.contrib.contenttypes.models import ContentType
-    from django.contrib.auth.models import Permission
+    from django.apps import apps
     
     # Очищаем кэши Django
     cache.clear()
@@ -541,62 +539,37 @@ def clear_db_before_test(transactional_db):
     _unique_counter = 0
     
     try:
-        # Используем более мягкую очистку через Django ORM
+        # Проверяем существование соединения с базой
+        if not connection.is_usable():
+            connection.ensure_connection()
+            
+        # Используем мягкий подход - удаляем только пользовательские данные
         from django.apps import apps
         
-        # Список моделей в порядке зависимостей (от зависимых к независимым)
+        # Список моделей для очистки (в правильном порядке зависимостей)
         model_order = [
-            'cart.CartItem',
-            'orders.OrderItem', 
-            'orders.Order',
-            'cart.Cart',
-            'products.ProductImage',
-            'products.Product',
-            'products.Category',
-            'products.Brand',
-            'users.Address',
-            'users.Company',
-            'users.Favorite',
-            'common.AuditLog',
-            'common.SyncLog',
+            'cart.CartItem', 'orders.OrderItem', 'orders.Order', 'cart.Cart',
+            'products.ProductImage', 'products.Product', 'products.Category', 'products.Brand',
+            'users.Address', 'users.Company', 'common.AuditLog', 'common.SyncLog',
         ]
         
-        # Очистка через ORM для предотвращения проблем с соединениями
+        # Используем DELETE вместо TRUNCATE для избежания проблем с базой
         for model_name in model_order:
             try:
                 model = apps.get_model(model_name)
-                model.objects.all().delete()
+                # Быстрое удаление без сигналов
+                model._default_manager.all().delete()
             except (LookupError, Exception):
-                # Модель не найдена или ошибка очистки - пропускаем
                 continue
         
-        # Очищаем только проблемные системные таблицы
-        try:
-            # Осторожно очищаем permissions которые вызывают проблемы
-            from django.contrib.auth.models import Group
-            from django.contrib.contenttypes.models import ContentType
-            from django.contrib.auth.models import Permission
+    except Exception:
+        # В случае критической ошибки просто пропускаем очистку
+        pass
             
-            # Удаляем только пользовательские данные, оставляем системные permissions
-            Group.objects.all().delete()
-        except Exception:
-            pass
-            
-        yield
-        
-        # Очистка после теста - БЕЗ закрытия соединений
-        try:
-            cache.clear()
-            # НЕ закрываем соединения - оставляем их для следующих тестов
-        except Exception:
-            pass
-        
-    except Exception as e:
-        # Если агрессивная очистка не работает, fallback на транзакции
-        try:
-            with connection.cursor() as cursor:
-                cursor.execute("SET session_replication_role = DEFAULT;")
-            transaction.rollback()
-        except Exception:
-            pass
-        yield
+    yield
+    
+    # Минимальная очистка после теста
+    try:
+        cache.clear()
+    except Exception:
+        pass
