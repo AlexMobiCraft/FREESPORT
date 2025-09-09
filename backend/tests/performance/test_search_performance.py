@@ -1,13 +1,14 @@
 """
 Performance тесты поисковой системы
 """
-import pytest
 import time
-from django.test import TestCase
+
+import pytest
 from django.contrib.auth import get_user_model
+from django.test import TestCase
 from rest_framework.test import APIClient
 
-from apps.products.models import Category, Brand, Product
+from apps.products.models import Brand, Category, Product
 
 User = get_user_model()
 
@@ -215,8 +216,8 @@ class SearchPerformanceTest(TestCase):
 
     def test_search_database_queries_optimization(self):
         """Оптимизация запросов к БД при поиске"""
-        from django.test.utils import override_settings
         from django.db import connection
+        from django.test.utils import override_settings
 
         connection.queries_log.clear()
 

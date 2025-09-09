@@ -4,9 +4,10 @@
 """
 import uuid
 from datetime import datetime
-from django.db import models
+
 from django.contrib.auth import get_user_model
 from django.core.validators import MinValueValidator
+from django.db import models
 
 User = get_user_model()
 
@@ -96,12 +97,12 @@ class Order(models.Model):
     delivery_method = models.CharField(
         "Способ доставки", max_length=50, choices=DELIVERY_METHODS
     )
-    delivery_date = models.DateField('Дата доставки', null=True, blank=True)
+    delivery_date = models.DateField("Дата доставки", null=True, blank=True)
     tracking_number = models.CharField(
-        'Трек-номер',
+        "Трек-номер",
         max_length=100,
         blank=True,
-        help_text='Номер для отслеживания посылки'
+        help_text="Номер для отслеживания посылки",
     )
     # Информация об оплате
     payment_method = models.CharField(
@@ -142,7 +143,7 @@ class Order(models.Model):
     @staticmethod
     def generate_order_number():
         """Генерация уникального номера заказа в формате FS-YYMMDD-XXXXX"""
-        date_part = datetime.now().strftime('%y%m%d')
+        date_part = datetime.now().strftime("%y%m%d")
         random_part = str(uuid.uuid4().hex)[:5].upper()
         return f"FS-{date_part}-{random_part}"
 

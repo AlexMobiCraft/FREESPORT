@@ -2,11 +2,11 @@
 Integration тесты B2C workflow
 """
 import pytest
-from django.test import TestCase
 from django.contrib.auth import get_user_model
+from django.test import TestCase
 from rest_framework.test import APIClient
 
-from apps.products.models import Category, Brand, Product
+from apps.products.models import Brand, Category, Product
 from apps.users.models import Favorite
 
 User = get_user_model()
@@ -44,7 +44,7 @@ class B2CWorkflowTest(TestCase):
         )
         # Очищаем все избранное и связанные данные
         Favorite.objects.all().delete()
-        
+
     def tearDown(self):
         """Очистка после каждого теста"""
         Favorite.objects.all().delete()
@@ -206,7 +206,7 @@ class B2CWorkflowTest(TestCase):
         """B2C функции личного кабинета"""
         # Очищаем избранное перед тестом
         Favorite.objects.filter(user=self.retail_user).delete()
-        
+
         self.client.force_authenticate(user=self.retail_user)
 
         # Дашборд
@@ -219,15 +219,15 @@ class B2CWorkflowTest(TestCase):
 
         # Избранное
         favorite_data = {"product": self.product.id}
-        favorite_response = self.client.post(
-            "/api/v1/users/favorites/", favorite_data
-        )
+        favorite_response = self.client.post("/api/v1/users/favorites/", favorite_data)
         self.assertEqual(favorite_response.status_code, 201)
 
         # Список избранного - проверяем только для текущего пользователя
         favorites_list = self.client.get("/api/v1/users/favorites/")
         self.assertEqual(favorites_list.status_code, 200)
-        product_ids_in_favorites = [item['product'] for item in favorites_list.data['results']]
+        product_ids_in_favorites = [
+            item["product"] for item in favorites_list.data["results"]
+        ]
         self.assertIn(self.product.id, product_ids_in_favorites)
         self.assertEqual(Favorite.objects.filter(user=self.retail_user).count(), 1)
 

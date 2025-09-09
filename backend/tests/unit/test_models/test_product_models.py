@@ -1,15 +1,16 @@
 """
 Тесты для моделей товаров FREESPORT Platform
 """
+import time
+import uuid
+from decimal import Decimal
+
 import pytest
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
-from decimal import Decimal
-import uuid
-import time
 
-from tests.conftest import ProductFactory, BrandFactory, CategoryFactory, UserFactory
-from apps.products.models import Product, Brand, Category
+from apps.products.models import Brand, Category, Product
+from tests.conftest import BrandFactory, CategoryFactory, ProductFactory, UserFactory
 
 
 @pytest.mark.django_db
@@ -39,6 +40,7 @@ class TestBrandModel:
 
         with pytest.raises(IntegrityError):
             BrandFactory.create(name=test_brand_name)
+
     def test_brand_meta_configuration(self):
         """Тест настроек Meta класса"""
         assert Brand._meta.verbose_name == "Бренд"
@@ -172,6 +174,7 @@ class TestProductModel:
 
         with pytest.raises(IntegrityError):
             ProductFactory.create(sku=test_sku)
+
     def test_product_slug_generation(self):
         """Тест автогенерации slug"""
         brand = BrandFactory.create()
@@ -219,7 +222,7 @@ class TestProductModel:
         assert Product._meta.ordering == ["-created_at"]
 
 
-@pytest.mark.django_db 
+@pytest.mark.django_db
 class TestProduct1CIntegrationFields:
     """Тесты полей интеграции с 1С (Story 3.1.1 AC: 3)"""
 
@@ -227,103 +230,100 @@ class TestProduct1CIntegrationFields:
         """Тест уникальности поля onec_id"""
         # Создаем первый товар с onec_id
         product1 = ProductFactory.create(onec_id="TEST_1C_ID_001")
-        
+
         # Проверяем, что товар создался
         assert product1.onec_id == "TEST_1C_ID_001"
-        
+
         # Пытаемся создать второй товар с тем же onec_id - должна быть ошибка
         with pytest.raises(IntegrityError):
             ProductFactory.create(onec_id="TEST_1C_ID_001")
-    
+
     def test_onec_id_can_be_null(self):
         """Тест что onec_id может быть null"""
         product = ProductFactory.create(onec_id=None)
         assert product.onec_id is None
-        
+
     def test_onec_id_can_be_blank(self):
         """Тест что onec_id может быть пустым"""
         product = ProductFactory.create(onec_id="")
         assert product.onec_id == ""
-        
+
     def test_sync_status_choices(self):
         """Тест выбора статуса синхронизации"""
-        valid_statuses = ['pending', 'syncing', 'synced', 'error', 'conflict']
-        
+        valid_statuses = ["pending", "syncing", "synced", "error", "conflict"]
+
         for status in valid_statuses:
             product = ProductFactory.create(sync_status=status)
             assert product.sync_status == status
-            
+
     def test_sync_status_default_value(self):
         """Тест значения по умолчанию для sync_status"""
         product = ProductFactory.create()
-        assert product.sync_status == 'pending'
-        
+        assert product.sync_status == "pending"
+
     def test_last_sync_at_field(self):
         """Тест поля last_sync_at"""
         from datetime import datetime
-        
+
         # Создаем товар без last_sync_at
         product = ProductFactory.create()
         assert product.last_sync_at is None
-        
+
         # Обновляем с датой синхронизации
         sync_time = datetime.now()
         product.last_sync_at = sync_time
         product.save()
-        
+
         # Перезагружаем из БД и проверяем
         product.refresh_from_db()
         assert product.last_sync_at is not None
-        
+
     def test_error_message_field(self):
         """Тест поля error_message"""
         error_text = "Ошибка синхронизации с 1С: неверный формат данных"
-        
-        product = ProductFactory.create(
-            sync_status='error',
-            error_message=error_text
-        )
-        
+
+        product = ProductFactory.create(sync_status="error", error_message=error_text)
+
         assert product.error_message == error_text
-        assert product.sync_status == 'error'
-        
+        assert product.sync_status == "error"
+
     def test_error_message_can_be_blank(self):
         """Тест что error_message может быть пустым"""
         product = ProductFactory.create()
         assert product.error_message == ""
-        
+
     def test_product_1c_fields_together(self):
         """Тест использования всех 1С полей вместе"""
         from datetime import datetime
-        
+
         sync_time = datetime.now()
         product = ProductFactory.create(
             onec_id="FULL_TEST_001",
-            sync_status='synced',
+            sync_status="synced",
             last_sync_at=sync_time,
-            error_message=""
+            error_message="",
         )
-        
+
         # Проверяем все поля
         assert product.onec_id == "FULL_TEST_001"
-        assert product.sync_status == 'synced'
+        assert product.sync_status == "synced"
         assert product.last_sync_at is not None
         assert product.error_message == ""
-        
+
         # Проверяем что товар корректно сохраняется и загружается
         product.refresh_from_db()
         assert product.onec_id == "FULL_TEST_001"
-        assert product.sync_status == 'synced'
-        
+        assert product.sync_status == "synced"
+
     def test_product_indexes_exist(self):
         """Тест что индексы для 1С полей созданы"""
         # Проверяем что в Meta есть индексы для onec_id и sync_status
         index_fields = []
         for index in Product._meta.indexes:
             index_fields.extend(index.fields)
-            
-        assert 'onec_id' in index_fields
-        assert 'sync_status' in index_fields
+
+        assert "onec_id" in index_fields
+        assert "sync_status" in index_fields
 
 
 @pytest.mark.django_db
@@ -343,17 +343,14 @@ class TestProductStockLogic:
         """
         Тест вычисления доступного количества
         """
-        product = ProductFactory.create(
-            stock_quantity=10,
-            reserved_quantity=3
-        )
-        
+        product = ProductFactory.create(stock_quantity=10, reserved_quantity=3)
+
         assert product.available_quantity == 7
-        
+
         # Тест случая когда резерв больше остатка
         product.reserved_quantity = 15
         product.save()
-        
+
         assert product.available_quantity == 0  # max(0, 10-15) = 0
 
     def test_is_in_stock_property(self):
@@ -363,7 +360,7 @@ class TestProductStockLogic:
         # Товар в наличии
         product = ProductFactory.create(stock_quantity=5)
         assert product.is_in_stock is True
-        
+
         # Товар не в наличии
         product.stock_quantity = 0
         product.save()
@@ -374,12 +371,9 @@ class TestProductStockLogic:
         Тест базовой логики can_be_ordered
         """
         product = ProductFactory.create(
-            is_active=True,
-            stock_quantity=10,
-            reserved_quantity=2,
-            min_order_quantity=1
+            is_active=True, stock_quantity=10, reserved_quantity=2, min_order_quantity=1
         )
-        
+
         assert product.can_be_ordered is True
 
     def test_can_be_ordered_insufficient_available(self):
@@ -390,9 +384,9 @@ class TestProductStockLogic:
             is_active=True,
             stock_quantity=5,
             reserved_quantity=3,
-            min_order_quantity=5  # Доступно только 2, а минимум 5
+            min_order_quantity=5,  # Доступно только 2, а минимум 5
         )
-        
+
         assert product.can_be_ordered is False
 
     def test_can_be_ordered_inactive_product(self):
@@ -400,11 +394,9 @@ class TestProductStockLogic:
         Тест can_be_ordered для неактивного товара
         """
         product = ProductFactory.create(
-            is_active=False,
-            stock_quantity=10,
-            reserved_quantity=0
+            is_active=False, stock_quantity=10, reserved_quantity=0
         )
-        
+
         assert product.can_be_ordered is False
 
     def test_can_be_ordered_out_of_stock(self):
@@ -412,11 +404,9 @@ class TestProductStockLogic:
         Тест can_be_ordered для товара без остатков
         """
         product = ProductFactory.create(
-            is_active=True,
-            stock_quantity=0,
-            reserved_quantity=0
+            is_active=True, stock_quantity=0, reserved_quantity=0
         )
-        
+
         assert product.can_be_ordered is False
 
     def test_stock_scenarios_realistic(self):
@@ -425,29 +415,23 @@ class TestProductStockLogic:
         """
         # Сценарий 1: Высокий остаток
         high_stock_product = ProductFactory.create(
-            stock_quantity=100,
-            reserved_quantity=5,
-            min_order_quantity=1
+            stock_quantity=100, reserved_quantity=5, min_order_quantity=1
         )
         assert high_stock_product.is_in_stock is True
         assert high_stock_product.can_be_ordered is True
         assert high_stock_product.available_quantity == 95
-        
+
         # Сценарий 2: Низкий остаток
         low_stock_product = ProductFactory.create(
-            stock_quantity=3,
-            reserved_quantity=1,
-            min_order_quantity=1
+            stock_quantity=3, reserved_quantity=1, min_order_quantity=1
         )
         assert low_stock_product.is_in_stock is True
         assert low_stock_product.can_be_ordered is True
         assert low_stock_product.available_quantity == 2
-        
+
         # Сценарий 3: Перепродано (oversold)
         oversold_product = ProductFactory.create(
-            stock_quantity=5,
-            reserved_quantity=10,
-            min_order_quantity=1
+            stock_quantity=5, reserved_quantity=10, min_order_quantity=1
         )
         assert oversold_product.is_in_stock is True
         assert oversold_product.can_be_ordered is False  # available_quantity = 0
@@ -461,10 +445,10 @@ class TestProductStockLogic:
         edge_case_product = ProductFactory.create(
             stock_quantity=5,
             reserved_quantity=2,
-            min_order_quantity=3  # available_quantity = 3, что равно min_order_quantity
+            min_order_quantity=3,  # available_quantity = 3, что равно min_order_quantity
         )
         assert edge_case_product.can_be_ordered is True
-        
+
         # Тест: на единицу меньше минимального
         edge_case_product.min_order_quantity = 4
         edge_case_product.save()
@@ -474,21 +458,21 @@ class TestProductStockLogic:
         """
         Тест валидации reserved_quantity (должно быть неотрицательным)
         """
-        product = ProductFactory.create(
-            stock_quantity=10,
-            reserved_quantity=5
-        )
-        
+        product = ProductFactory.create(stock_quantity=10, reserved_quantity=5)
+
         # Валидная ситуация
         assert product.reserved_quantity == 5
-        
+
         # Тест что поле имеет правильный тип
-        assert isinstance(product._meta.get_field('reserved_quantity'), type(product._meta.get_field('stock_quantity')))
+        assert isinstance(
+            product._meta.get_field("reserved_quantity"),
+            type(product._meta.get_field("stock_quantity")),
+        )
 
     def test_stock_fields_help_text(self):
         """
         Тест что поля имеют правильный help_text
         """
-        field = Product._meta.get_field('reserved_quantity')
-        assert 'зарезервированного' in field.help_text.lower()
-        assert 'корзин' in field.help_text.lower() or 'заказ' in field.help_text.lower()
+        field = Product._meta.get_field("reserved_quantity")
+        assert "зарезервированного" in field.help_text.lower()
+        assert "корзин" in field.help_text.lower() or "заказ" in field.help_text.lower()

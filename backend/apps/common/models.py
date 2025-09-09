@@ -2,8 +2,8 @@
 Общие модели для платформы FREESPORT
 Включает аудиторский журнал и логи синхронизации с 1С
 """
-from django.db import models
 from django.contrib.auth import get_user_model
+from django.db import models
 
 User = get_user_model()
 

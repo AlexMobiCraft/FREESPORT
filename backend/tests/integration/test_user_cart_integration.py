@@ -2,12 +2,12 @@
 Integration тесты взаимодействия пользователей и корзины
 """
 import pytest
-from django.test import TestCase
 from django.contrib.auth import get_user_model
+from django.test import TestCase
 from rest_framework.test import APIClient
 
-from apps.products.models import Category, Brand, Product
 from apps.cart.models import Cart, CartItem
+from apps.products.models import Brand, Category, Product
 
 User = get_user_model()
 

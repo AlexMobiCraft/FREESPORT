@@ -2,16 +2,18 @@
 Глобальные фикстуры pytest для проекта FREESPORT
 Настройка базовых объектов и утилит для тестирования
 """
-import pytest
-from unittest.mock import patch
-from decimal import Decimal
-import uuid
-import time
 import random
+import time
+import uuid
 from datetime import datetime
+from decimal import Decimal
+from unittest.mock import patch
+
+import pytest
 
 # Глобальный счетчик для обеспечения уникальности
 _unique_counter = 0
+
 
 def get_unique_suffix():
     """Генерирует абсолютно уникальный суффикс с глобальным счетчиком, временной меткой и UUID"""
@@ -19,13 +21,16 @@ def get_unique_suffix():
     _unique_counter += 1
     return f"{int(time.time() * 1000)}-{_unique_counter}-{uuid.uuid4().hex[:6]}"
 
+
 def get_unique_order_number():
     """Генерирует абсолютно уникальный номер заказа"""
     global _unique_counter
     _unique_counter += 1
-    date_part = datetime.now().strftime('%y%m%d')
+    date_part = datetime.now().strftime("%y%m%d")
     unique_part = f"{_unique_counter:04d}{uuid.uuid4().hex[:3].upper()}"
-    timestamp = int(time.time() * 1000) % 100000  # последние 5 цифр microsecond timestamp
+    timestamp = (
+        int(time.time() * 1000) % 100000
+    )  # последние 5 цифр microsecond timestamp
     return f"FS-{date_part}-{unique_part}-{timestamp}"
 
 
@@ -49,7 +54,9 @@ def create_factories():
         role = "retail"
         is_active = True
         is_verified = False
-        phone = factory.LazyFunction(lambda: f"+7{random.randint(9000000000, 9999999999)}")
+        phone = factory.LazyFunction(
+            lambda: f"+7{random.randint(9000000000, 9999999999)}"
+        )
         company_name = ""
         tax_id = ""
         password = factory.PostGenerationMethodCall(
@@ -66,7 +73,9 @@ def create_factories():
             UserFactory, role="wholesale_level1", is_verified=True
         )
         legal_name = factory.Faker("company", locale="ru_RU")
-        tax_id = factory.LazyFunction(lambda: f"{123456789000 + int(time.time()) % 999999:012d}")
+        tax_id = factory.LazyFunction(
+            lambda: f"{123456789000 + int(time.time()) % 999999:012d}"
+        )
         kpp = factory.Sequence(lambda n: f"{123456000 + n:09d}")
         legal_address = factory.Faker("address", locale="ru_RU")
         bank_name = factory.Faker("company", locale="ru_RU")
@@ -157,12 +166,13 @@ def create_factories():
 
     class ProductImageFactory(factory.django.DjangoModelFactory):
         """Фабрика для создания изображений товаров"""
+
         class Meta:
-            model = 'products.ProductImage'
+            model = "products.ProductImage"
 
         product = factory.SubFactory(ProductFactory)
-        image = factory.django.ImageField(color='red')
-        alt_text = factory.Faker('sentence', nb_words=5, locale='ru_RU')
+        image = factory.django.ImageField(color="red")
+        alt_text = factory.Faker("sentence", nb_words=5, locale="ru_RU")
         is_main = False
         sort_order = factory.Sequence(lambda n: n)
 
@@ -327,49 +337,61 @@ def user_factory():
     """
     return UserFactory
 
+
 @pytest.fixture
 def company_factory():
     return CompanyFactory
+
 
 @pytest.fixture
 def address_factory():
     return AddressFactory
 
+
 @pytest.fixture
 def brand_factory():
     return BrandFactory
+
 
 @pytest.fixture
 def category_factory():
     return CategoryFactory
 
+
 @pytest.fixture
 def product_factory():
     return ProductFactory
+
 
 @pytest.fixture
 def product_image_factory():
     return ProductImageFactory
 
+
 @pytest.fixture
 def cart_factory():
     return CartFactory
+
 
 @pytest.fixture
 def cart_item_factory():
     return CartItemFactory
 
+
 @pytest.fixture
 def order_factory():
     return OrderFactory
+
 
 @pytest.fixture
 def order_item_factory():
     return OrderItemFactory
 
+
 @pytest.fixture
 def audit_log_factory():
     return AuditLogFactory
+
 
 @pytest.fixture
 def sync_log_factory():
@@ -382,6 +404,7 @@ def api_request_factory():
     Фабрика для создания mock-запросов
     """
     from rest_framework.test import APIRequestFactory
+
     return APIRequestFactory()
 
 
@@ -472,9 +495,10 @@ def sample_image():
     """
     Создает образец изображения для тестов
     """
-    from PIL import Image
     from io import BytesIO
+
     from django.core.files.uploadedfile import InMemoryUploadedFile
+    from PIL import Image
 
     img = Image.new("RGB", (100, 100), color="red")
     img_io = BytesIO()
@@ -492,6 +516,7 @@ def access_token(db, user_factory):
     Создает розничного пользователя и возвращает JWT токен доступа
     """
     from rest_framework_simplejwt.tokens import RefreshToken
+
     user = user_factory.create(role="retail")
     refresh = RefreshToken.for_user(user)
     return str(refresh.access_token)
@@ -504,7 +529,7 @@ def enable_db_access_for_all_tests(db):
     с мягким управлением соединениями
     """
     from django.db import connection
-    
+
     # Минимальная проверка соединения без агрессивных действий
     try:
         # Просто проверяем, что соединение работает
@@ -516,43 +541,52 @@ def enable_db_access_for_all_tests(db):
             connection.ensure_connection()
         except Exception:
             pass
-    
+
     yield
-    
+
     # НЕ закрываем соединение - оставляем для следующих тестов
 
 
-@pytest.fixture(autouse=False) 
+@pytest.fixture(autouse=False)
 def clear_db_before_test(transactional_db):
     """
     Оптимизированная очистка базы данных без deadlock'ов
     """
-    from django.core.cache import cache
-    from django.db import transaction, connection
     from django.apps import apps
-    
+    from django.core.cache import cache
+    from django.db import connection, transaction
+
     # Очищаем кэши Django
     cache.clear()
-    
+
     # Сбрасываем счетчик перед каждым тестом
     global _unique_counter
     _unique_counter = 0
-    
+
     try:
         # Проверяем существование соединения с базой
         if not connection.is_usable():
             connection.ensure_connection()
-            
+
         # Используем мягкий подход - удаляем только пользовательские данные
         from django.apps import apps
-        
+
         # Список моделей для очистки (в правильном порядке зависимостей)
         model_order = [
-            'cart.CartItem', 'orders.OrderItem', 'orders.Order', 'cart.Cart',
-            'products.ProductImage', 'products.Product', 'products.Category', 'products.Brand',
-            'users.Address', 'users.Company', 'common.AuditLog', 'common.SyncLog',
+            "cart.CartItem",
+            "orders.OrderItem",
+            "orders.Order",
+            "cart.Cart",
+            "products.ProductImage",
+            "products.Product",
+            "products.Category",
+            "products.Brand",
+            "users.Address",
+            "users.Company",
+            "common.AuditLog",
+            "common.SyncLog",
         ]
-        
+
         # Используем DELETE вместо TRUNCATE для избежания проблем с базой
         for model_name in model_order:
             try:
@@ -561,13 +595,13 @@ def clear_db_before_test(transactional_db):
                 model._default_manager.all().delete()
             except (LookupError, Exception):
                 continue
-        
+
     except Exception:
         # В случае критической ошибки просто пропускаем очистку
         pass
-            
+
     yield
-    
+
     # Минимальная очистка после теста
     try:
         cache.clear()

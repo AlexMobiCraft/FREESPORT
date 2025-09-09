@@ -1,13 +1,14 @@
 """
 Тесты для моделей корзины FREESPORT Platform
 """
+from decimal import Decimal
+
 import pytest
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
-from decimal import Decimal
 
-from tests.conftest import CartFactory, CartItemFactory, ProductFactory, UserFactory
 from apps.cart.models import Cart, CartItem
+from tests.conftest import CartFactory, CartItemFactory, ProductFactory, UserFactory
 
 
 @pytest.mark.django_db
@@ -45,8 +46,8 @@ class TestCartModel:
         cart = CartFactory.create(user=user)
 
         # Создаем товары с известными ценами
-        product1 = ProductFactory.create(retail_price=Decimal('1000.00'))
-        product2 = ProductFactory.create(retail_price=Decimal('500.00'))
+        product1 = ProductFactory.create(retail_price=Decimal("1000.00"))
+        product2 = ProductFactory.create(retail_price=Decimal("500.00"))
 
         CartItemFactory.create(cart=cart, product=product1, quantity=2)
         CartItemFactory.create(cart=cart, product=product2, quantity=1)

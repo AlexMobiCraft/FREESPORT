@@ -2,7 +2,8 @@
 URL конфигурация для корзины
 """
 from django.urls import path
-from .views import CartViewSet, CartItemViewSet
+
+from .views import CartItemViewSet, CartViewSet
 
 app_name = "cart"
 

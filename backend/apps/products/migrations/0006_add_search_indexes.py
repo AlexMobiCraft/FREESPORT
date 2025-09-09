@@ -1,6 +1,6 @@
 # Generated manually for Story 2.8: search-api optimization
 
-from django.db import migrations, connection
+from django.db import connection, migrations
 
 
 def add_search_indexes(apps, schema_editor):

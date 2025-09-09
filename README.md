@@ -115,8 +115,8 @@ freesport/
 
 - Python 3.11+
 - Node.js 18+
-- PostgreSQL 15+
-- Docker & Docker Compose
+- **PostgreSQL 15+** (обязательно - SQLite не поддерживается)
+- **Docker & Docker Compose** (обязательно для тестирования)
 
 ### Установка
 

@@ -2,12 +2,12 @@
 Integration тесты гостевых сессий
 """
 import pytest
-from django.test import TestCase
 from django.contrib.auth import get_user_model
+from django.test import TestCase
 from rest_framework.test import APIClient
 
-from apps.products.models import Category, Brand, Product
 from apps.cart.models import Cart, CartItem
+from apps.products.models import Brand, Category, Product
 
 User = get_user_model()
 
@@ -128,8 +128,9 @@ class GuestSessionIntegrationTest(TestCase):
 
     def test_guest_cart_cleanup(self):
         """Очистка старых гостевых корзин"""
-        from django.utils import timezone
         from datetime import timedelta
+
+        from django.utils import timezone
 
         client = APIClient()
 

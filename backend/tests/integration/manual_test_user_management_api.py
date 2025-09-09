@@ -3,8 +3,9 @@
 Простой скрипт для ручного тестирования User Management API
 """
 import os
-import django
 import sys
+
+import django
 
 # Настройка Django окружения
 backend_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -12,9 +13,11 @@ sys.path.append(backend_path)
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "freesport.settings")
 django.setup()
 
-from apps.users.models import User
-import requests
 import json
+
+import requests
+
+from apps.users.models import User
 
 BASE_URL = "http://127.0.0.1:8001/api/v1"
 

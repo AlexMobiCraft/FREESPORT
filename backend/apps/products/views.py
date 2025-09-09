@@ -1,25 +1,28 @@
 """
 Views для каталога товаров
 """
-from rest_framework import viewsets, permissions, filters
+from rest_framework import filters, permissions, viewsets
 from rest_framework.pagination import PageNumberPagination
 
-class CustomPageNumberPagination(PageNumberPagination):
-    page_size_query_param = 'page_size'
-from django_filters.rest_framework import DjangoFilterBackend
-from django.db.models import Count, Q, Prefetch
-from drf_spectacular.utils import extend_schema, OpenApiParameter
-from drf_spectacular.types import OpenApiTypes
 
-from .models import Product, Category, Brand
+class CustomPageNumberPagination(PageNumberPagination):
+    page_size_query_param = "page_size"
+
+
+from django.db.models import Count, Prefetch, Q
+from django_filters.rest_framework import DjangoFilterBackend
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter, extend_schema
+
+from .filters import ProductFilter
+from .models import Brand, Category, Product
 from .serializers import (
-    ProductListSerializer,
-    ProductDetailSerializer,
+    BrandSerializer,
     CategorySerializer,
     CategoryTreeSerializer,
-    BrandSerializer,
+    ProductDetailSerializer,
+    ProductListSerializer,
 )
-from .filters import ProductFilter
 
 
 class ProductViewSet(viewsets.ReadOnlyModelViewSet):
@@ -54,19 +57,41 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
         summary="Список товаров",
         description="Получение списка товаров с фильтрацией, сортировкой и ролевым ценообразованием",
         parameters=[
-            OpenApiParameter("category_id", OpenApiTypes.INT, description="ID категории"),
-            OpenApiParameter("brand", OpenApiTypes.STR, description="Бренд (ID или slug). Поддерживает множественный выбор: brand=nike,adidas"),
-            OpenApiParameter("min_price", OpenApiTypes.NUMBER, description="Минимальная цена"),
-            OpenApiParameter("max_price", OpenApiTypes.NUMBER, description="Максимальная цена"),
-            OpenApiParameter("in_stock", OpenApiTypes.BOOL, description="Товары в наличии"),
-            OpenApiParameter("is_featured", OpenApiTypes.BOOL, description="Рекомендуемые товары"),
+            OpenApiParameter(
+                "category_id", OpenApiTypes.INT, description="ID категории"
+            ),
+            OpenApiParameter(
+                "brand",
+                OpenApiTypes.STR,
+                description="Бренд (ID или slug). Поддерживает множественный выбор: brand=nike,adidas",
+            ),
+            OpenApiParameter(
+                "min_price", OpenApiTypes.NUMBER, description="Минимальная цена"
+            ),
+            OpenApiParameter(
+                "max_price", OpenApiTypes.NUMBER, description="Максимальная цена"
+            ),
+            OpenApiParameter(
+                "in_stock", OpenApiTypes.BOOL, description="Товары в наличии"
+            ),
+            OpenApiParameter(
+                "is_featured", OpenApiTypes.BOOL, description="Рекомендуемые товары"
+            ),
             OpenApiParameter(
                 "search",
                 OpenApiTypes.STR,
-                description="Полнотекстовый поиск по названию, описанию, артикулу. Поддерживает русский язык, ранжирование по релевантности. Мин. 2 символа, макс. 100"
+                description="Полнотекстовый поиск по названию, описанию, артикулу. Поддерживает русский язык, ранжирование по релевантности. Мин. 2 символа, макс. 100",
             ),
-            OpenApiParameter("size", OpenApiTypes.STR, description="Размер товара из спецификаций (XS, S, M, L, XL, XXL, 38, 40, 42 и т.д.)"),
-            OpenApiParameter("ordering", OpenApiTypes.STR, description="Сортировка: name, -name, retail_price, -retail_price, created_at, -created_at"),
+            OpenApiParameter(
+                "size",
+                OpenApiTypes.STR,
+                description="Размер товара из спецификаций (XS, S, M, L, XL, XXL, 38, 40, 42 и т.д.)",
+            ),
+            OpenApiParameter(
+                "ordering",
+                OpenApiTypes.STR,
+                description="Сортировка: name, -name, retail_price, -retail_price, created_at, -created_at",
+            ),
         ],
         tags=["Products"],
     )

@@ -1,13 +1,14 @@
 """
 Performance тесты создания заказов
 """
-import pytest
 import time
-from django.test import TestCase
+
+import pytest
 from django.contrib.auth import get_user_model
+from django.test import TestCase
 from rest_framework.test import APIClient
 
-from apps.products.models import Category, Brand, Product
+from apps.products.models import Brand, Category, Product
 
 User = get_user_model()
 
@@ -218,11 +219,11 @@ class OrderCreationPerformanceTest(TestCase):
     def test_concurrent_order_creation_performance(self):
         """Последовательное создание заказов для проверки производительности"""
         results = []
-        
+
         # Создаем 3 заказа последовательно для разных пользователей
         users_products = [
             (self.retail_user, self.products[0].id),
-            (self.wholesale_user, self.products[1].id), 
+            (self.wholesale_user, self.products[1].id),
             (self.retail_user, self.products[2].id),
         ]
 
@@ -233,8 +234,12 @@ class OrderCreationPerformanceTest(TestCase):
             client.force_authenticate(user=user)
 
             # Добавляем товар
-            cart_response = client.post("/api/v1/cart/items/", {"product": product_id, "quantity": 1})
-            self.assertEqual(cart_response.status_code, 201, f"Cart creation failed for user {i}")
+            cart_response = client.post(
+                "/api/v1/cart/items/", {"product": product_id, "quantity": 1}
+            )
+            self.assertEqual(
+                cart_response.status_code, 201, f"Cart creation failed for user {i}"
+            )
 
             # Создаем заказ
             order_start_time = time.time()
@@ -249,11 +254,13 @@ class OrderCreationPerformanceTest(TestCase):
             order_end_time = time.time()
             response_time = order_end_time - order_start_time
 
-            results.append({
-                "status_code": response.status_code,
-                "response_time": response_time,
-                "user_id": user.id,
-            })
+            results.append(
+                {
+                    "status_code": response.status_code,
+                    "response_time": response_time,
+                    "user_id": user.id,
+                }
+            )
 
         total_time = time.time() - start_time
 
@@ -277,8 +284,8 @@ class OrderCreationPerformanceTest(TestCase):
 
     def test_order_database_queries_optimization(self):
         """Оптимизация запросов к БД при создании заказа"""
-        from django.test.utils import override_settings
         from django.db import connection
+        from django.test.utils import override_settings
 
         self.client.force_authenticate(user=self.retail_user)
 

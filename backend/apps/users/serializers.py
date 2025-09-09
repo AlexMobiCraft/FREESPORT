@@ -1,10 +1,11 @@
 """
 Serializers для API управления пользователями
 """
-from rest_framework import serializers
-from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth import authenticate
-from .models import User, Company, Address, Favorite
+from django.contrib.auth.password_validation import validate_password
+from rest_framework import serializers
+
+from .models import Address, Company, Favorite, User
 
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
@@ -186,8 +187,8 @@ class UserProfileSerializer(serializers.ModelSerializer):
         """Conditionally remove company_name and tax_id for non-B2B users."""
         ret = super().to_representation(instance)
         if not instance.is_b2b_user:
-            ret.pop('company_name', None)
-            ret.pop('tax_id', None)
+            ret.pop("company_name", None)
+            ret.pop("tax_id", None)
         return ret
 
 
@@ -227,8 +228,8 @@ class AddressSerializer(serializers.ModelSerializer):
 
     def save(self, **kwargs):
         """Автоматически устанавливаем пользователя из контекста"""
-        if 'user' in self.context:
-            kwargs['user'] = self.context['user']
+        if "user" in self.context:
+            kwargs["user"] = self.context["user"]
         return super().save(**kwargs)
 
 
@@ -292,9 +293,9 @@ class UserDashboardSerializer(serializers.Serializer):
         ret = super().to_representation(instance)
         user = instance.user_info
         if user and not user.is_b2b_user:
-            ret.pop('total_order_amount', None)
-            ret.pop('avg_order_amount', None)
-            ret.pop('verification_status', None)
+            ret.pop("total_order_amount", None)
+            ret.pop("avg_order_amount", None)
+            ret.pop("verification_status", None)
         return ret
 
 

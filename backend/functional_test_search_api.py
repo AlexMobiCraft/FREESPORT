@@ -6,20 +6,21 @@
 Запуск: python functional_test_search_api.py
 """
 
+import json
 import os
 import sys
+from decimal import Decimal
+
 import django
 import requests
-import json
-from decimal import Decimal
 
 # Настройка Django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'freesport.settings.development')
 django.setup()
 
 from django.contrib.auth import get_user_model
-from apps.products.models import Product, Category, Brand
 
+from apps.products.models import Brand, Category, Product
 
 User = get_user_model()
 
@@ -75,7 +76,7 @@ def setup_test_data():
             'category': category_football,
             'retail_price': Decimal('18999.00'),
             'trainer_price': Decimal('12999.00'),
-            'stock_quantity': 13-6),
+            'stock_quantity': 7,
         },
         {
             'name': "Adidas Predator Freak.1 FG",
@@ -84,7 +85,7 @@ def setup_test_data():
             'description': "Adidas Predator Freak.1 FG футбольные бутсы с технологией Demonskin для улучшенного контроля мяча. Созданы для нападающих.",
             'brand': brand_adidas,
             'category': category_football,
-            'retail_price': Decimal('13-6)999.00'),
+            'retail_price': Decimal('13999.00'),
             'trainer_price': Decimal('11999.00'),
             'stock_quantity': 8,
         },

@@ -2,10 +2,10 @@
 Unit тесты для приложения users
 """
 import pytest
-from django.test import TestCase
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
+from django.test import TestCase
 
 from .models import Address, Favorite
 
@@ -132,7 +132,7 @@ class FavoriteModelTest(TestCase):
             email="test@example.com", password="testpass123"
         )
         # Создаем минимальную структуру для товара
-        from apps.products.models import Category, Brand, Product
+        from apps.products.models import Brand, Category, Product
 
         self.category = Category.objects.create(
             name="Test Category", slug="test-category"

@@ -6,7 +6,11 @@
       "Bash(dir:*)",
       "Bash(ls:*)",
       "Bash(grep:*)",
-      "Read(/C:\\Users\\38670\\DEV_WEB\\FREESPORT/**)"
+      "Read(/C:\\Users\\38670\\DEV_WEB\\FREESPORT/*)",
+      "Bash(make test:*)",
+      "mcp__firecrawl__firecrawl_scrape",
+      "mcp__firecrawl__firecrawl_search",
+      "Bash(curl:*)"
     ],
     "deny": [],
     "ask": [],
@@ -14,7 +18,6 @@
       "C:\\Users\\38670\\DEV_WEB\\FREESPORT"
     ]
   },
-
   "statusLine": {
     "type": "command",
     "command": "ccusage statusline",

@@ -1,9 +1,9 @@
 """
 Views для управления профилем пользователя
 """
+from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import permissions
 from rest_framework.generics import RetrieveUpdateAPIView
-from drf_spectacular.utils import extend_schema, OpenApiResponse
 
 from ..models import User
 from ..serializers import UserProfileSerializer

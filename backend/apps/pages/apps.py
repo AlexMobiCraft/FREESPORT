@@ -2,9 +2,9 @@ from django.apps import AppConfig
 
 
 class PagesConfig(AppConfig):
-    default_auto_field = 'django.db.models.BigAutoField'
-    name = 'apps.pages'
+    default_auto_field = "django.db.models.BigAutoField"
+    name = "apps.pages"
     verbose_name = "Статические страницы"
-    
+
     def ready(self):
         import apps.pages.signals

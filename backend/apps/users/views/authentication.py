@@ -1,14 +1,14 @@
 """
 Views для аутентификации пользователей
 """
-from rest_framework import status, permissions
+from drf_spectacular.utils import OpenApiResponse, extend_schema
+from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
-from drf_spectacular.utils import extend_schema, OpenApiResponse
 
 from ..models import User
-from ..serializers import UserRegistrationSerializer, UserLoginSerializer
+from ..serializers import UserLoginSerializer, UserRegistrationSerializer
 
 
 class UserRegistrationView(APIView):

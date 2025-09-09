@@ -2,18 +2,19 @@
 Views для личного кабинета пользователя
 """
 from dataclasses import dataclass
-from rest_framework import status, permissions, viewsets
+
+from drf_spectacular.utils import OpenApiResponse, extend_schema
+from rest_framework import permissions, status, viewsets
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from drf_spectacular.utils import extend_schema, OpenApiResponse
 
 from ..models import Address, Favorite, User
 from ..serializers import (
-    UserDashboardSerializer,
     AddressSerializer,
-    FavoriteSerializer,
     FavoriteCreateSerializer,
+    FavoriteSerializer,
     OrderHistorySerializer,
+    UserDashboardSerializer,
 )
 
 

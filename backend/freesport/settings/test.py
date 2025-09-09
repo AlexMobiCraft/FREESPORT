@@ -1,40 +1,29 @@
-from .base import *
 import tempfile
 from datetime import timedelta
+
+from .base import *
 
 # Отключаем DEBUG для тестов
 DEBUG = False
 
-# Тестовая база данных - поддерживаем как SQLite так и PostgreSQL
+# Тестовая база данных - ТОЛЬКО PostgreSQL через Docker
 import os
 
-# Если запускается в Docker, используем PostgreSQL, иначе SQLite
-if os.environ.get('DB_HOST'):
-    # PostgreSQL для Docker тестов
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': os.environ.get('DB_NAME', 'freesport_test'),
-            'USER': os.environ.get('DB_USER', 'freesport_user'),
-            'PASSWORD': os.environ.get('DB_PASSWORD', 'password123'),
-            'HOST': os.environ.get('DB_HOST', 'localhost'),
-            'PORT': os.environ.get('DB_PORT', '5432'),
-            'TEST': {
-                'NAME': 'test_' + os.environ.get('DB_NAME', 'freesport_test'),
-            },
-        }
+# ВАЖНО: Тестирование выполняется ТОЛЬКО с PostgreSQL через Docker Compose
+# SQLite больше не поддерживается для тестов из-за ограничений JSON операторов
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.environ.get("DB_NAME", "freesport_test"),
+        "USER": os.environ.get("DB_USER", "freesport_user"), 
+        "PASSWORD": os.environ.get("DB_PASSWORD", "password123"),
+        "HOST": os.environ.get("DB_HOST", "localhost"),
+        "PORT": os.environ.get("DB_PORT", "5432"),
+        "TEST": {
+            "NAME": "test_" + os.environ.get("DB_NAME", "freesport_test"),
+        },
     }
-else:
-    # SQLite в памяти для локальных тестов
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': ':memory:',
-            'TEST': {
-                'NAME': ':memory:',
-            },
-        }
-    }
+}
 
 
 # Отключаем миграции для быстрых тестов
@@ -53,27 +42,17 @@ PASSWORD_HASHERS = [
     "django.contrib.auth.hashers.MD5PasswordHasher",
 ]
 
-# Настройки кеширования для тестов
-if os.environ.get('REDIS_URL'):
-    # Redis кеш для Docker тестов
-    CACHES = {
-        'default': {
-            'BACKEND': 'django_redis.cache.RedisCache',
-            'LOCATION': os.environ.get('REDIS_URL', 'redis://localhost:6379/1'),
-            'OPTIONS': {
-                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-            },
-            'KEY_PREFIX': 'freesport_test'
-        }
+# Настройки кеширования для тестов - ТОЛЬКО Redis через Docker
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": os.environ.get("REDIS_URL", "redis://localhost:6379/1"),
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        },
+        "KEY_PREFIX": "freesport_test",
     }
-else:
-    # Локальный кеш в памяти для локальных тестов
-    CACHES = {
-        'default': {
-            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-            'LOCATION': 'unique-snowflake',
-        }
-    }
+}
 
 # Отключаем логирование для тестов
 LOGGING = {
@@ -106,7 +85,7 @@ LOGGING = {
         },
         "django.request": {
             "handlers": ["null"],
-            "level": "CRITICAL", 
+            "level": "CRITICAL",
             "propagate": False,
         },
     },
@@ -162,27 +141,28 @@ USE_TZ = True
 # Отключаем django-ratelimit для тестов
 RATELIMIT_ENABLE = False
 
-# Дополнительные настройки БД для стабильных тестов
-if os.environ.get('DB_HOST'):  # Docker режим
-    DATABASES['default'].update({
-        'CONN_MAX_AGE': 0,  # Отключаем persistent connections в тестах
-        'CONN_HEALTH_CHECKS': False,  # Отключаем health checks для изоляции
-        'AUTOCOMMIT': True,
-        'OPTIONS': {
-            'connect_timeout': 30,
-            'server_side_binding': False,
-            'application_name': 'freesport_test',
+# Дополнительные настройки PostgreSQL для стабильных тестов
+DATABASES["default"].update(
+    {
+        "CONN_MAX_AGE": 0,  # Отключаем persistent connections в тестах
+        "CONN_HEALTH_CHECKS": False,  # Отключаем health checks для изоляции
+        "AUTOCOMMIT": True,
+        "OPTIONS": {
+            "connect_timeout": 30,
+            "server_side_binding": False,
+            "application_name": "freesport_test",
         },
-        'TEST': {
-            'NAME': 'test_' + os.environ.get('DB_NAME', 'freesport_test'),
-            'SERIALIZE': False,  # Отключаем сериализацию для ускорения
-            'CREATE_DB': True,
-            'DEPENDENCIES': [],  # Нет зависимостей от других БД
+        "TEST": {
+            "NAME": "test_" + os.environ.get("DB_NAME", "freesport_test"),
+            "SERIALIZE": False,  # Отключаем сериализацию для ускорения
+            "CREATE_DB": True,
+            "DEPENDENCIES": [],  # Нет зависимостей от других БД
         },
-    })
+    }
+)
 
-# Настройки для предотвращения connection already closed  
+# Настройки для предотвращения connection already closed
 DATABASE_ROUTERS = []
 
 # Дополнительные настройки для изоляции тестов
-DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
+DEFAULT_AUTO_FIELD = "django.db.models.AutoField"

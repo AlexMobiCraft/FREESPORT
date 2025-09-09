@@ -4,15 +4,15 @@ Views для API управления пользователями
 """
 
 # Импорты для совместимости с существующими URL patterns
-from .authentication import UserRegistrationView, UserLoginView
-from .profile import UserProfileView
+from .authentication import UserLoginView, UserRegistrationView
 from .misc import user_roles_view
 from .personal_cabinet import (
-    UserDashboardView,
     AddressViewSet,
     FavoriteViewSet,
     OrderHistoryView,
+    UserDashboardView,
 )
+from .profile import UserProfileView
 
 __all__ = [
     "UserRegistrationView",

@@ -2,9 +2,10 @@
 Фильтры для каталога товаров
 """
 import django_filters
+from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector
 from django.db.models import Q
-from django.contrib.postgres.search import SearchVector, SearchQuery, SearchRank
-from .models import Product, Category, Brand
+
+from .models import Brand, Category, Product
 
 
 class ProductFilter(django_filters.FilterSet):
@@ -19,7 +20,8 @@ class ProductFilter(django_filters.FilterSet):
 
     # Фильтр по бренду (поддерживает как ID, так и slug)
     brand = django_filters.CharFilter(
-        method="filter_brand", help_text="Бренд по ID или slug. Поддерживает множественный выбор: brand=nike,adidas"
+        method="filter_brand",
+        help_text="Бренд по ID или slug. Поддерживает множественный выбор: brand=nike,adidas",
     )
 
     # Ценовой диапазон
@@ -45,32 +47,41 @@ class ProductFilter(django_filters.FilterSet):
 
     search = django_filters.CharFilter(
         method="filter_search",
-        help_text="Полнотекстовый поиск по названию, описанию и артикулу (PostgreSQL FTS с русскоязычной конфигурацией)"
+        help_text="Полнотекстовый поиск по названию, описанию и артикулу (PostgreSQL FTS с русскоязычной конфигурацией)",
     )
-    
+
     # Фильтр по размеру из JSON specifications
     size = django_filters.CharFilter(
         method="filter_size",
-        help_text="Размер из спецификаций товара (XS, S, M, L, XL, XXL, 38, 40, 42 и т.д.)"
+        help_text="Размер из спецификаций товара (XS, S, M, L, XL, XXL, 38, 40, 42 и т.д.)",
     )
 
     class Meta:
         model = Product
-        fields = ["category_id", "brand", "min_price", "max_price", "in_stock", "is_featured", "search", "size"]
+        fields = [
+            "category_id",
+            "brand",
+            "min_price",
+            "max_price",
+            "in_stock",
+            "is_featured",
+            "search",
+            "size",
+        ]
 
     def filter_brand(self, queryset, name, value):
         """Фильтр по бренду через ID или slug с поддержкой множественного выбора"""
         if not value:
             return queryset
-            
+
         # Поддержка множественных значений: brand=nike,adidas
-        brand_values = [v.strip() for v in value.split(',') if v.strip()]
+        brand_values = [v.strip() for v in value.split(",") if v.strip()]
         if not brand_values:
             return queryset
-            
+
         # Создаем Q-объект для множественного выбора
         brand_queries = Q()
-        
+
         for brand_value in brand_values:
             if brand_value.isdigit():
                 # Фильтр по ID
@@ -78,7 +89,7 @@ class ProductFilter(django_filters.FilterSet):
             else:
                 # Фильтр по slug (case-insensitive)
                 brand_queries |= Q(brand__slug__iexact=brand_value)
-        
+
         return queryset.filter(brand_queries)
 
     def filter_min_price(self, queryset, name, value):
@@ -86,7 +97,7 @@ class ProductFilter(django_filters.FilterSet):
         # Валидация значения
         if value is None or value < 0:
             return queryset
-            
+
         request = self.request
         if not request or not request.user.is_authenticated:
             return queryset.filter(retail_price__gte=value)
@@ -127,7 +138,7 @@ class ProductFilter(django_filters.FilterSet):
         # Валидация значения
         if value is None or value < 0:
             return queryset
-            
+
         request = self.request
         if not request or not request.user.is_authenticated:
             return queryset.filter(retail_price__lte=value)
@@ -176,52 +187,56 @@ class ProductFilter(django_filters.FilterSet):
         """Полнотекстовый поиск с поддержкой PostgreSQL FTS и fallback для других БД"""
         if not value:
             return queryset
-        
+
         # Валидация длины запроса и защита от XSS
         search_query = value.strip()
-        if len(search_query) > 100 or '<' in search_query or '>' in search_query:
+        if len(search_query) > 100 or "<" in search_query or ">" in search_query:
             return queryset.none()
-        
+
         if len(search_query) < 2:
             return queryset
-        
+
         # Проверяем тип базы данных
         from django.db import connection
-        
-        if connection.vendor == 'postgresql':
+
+        if connection.vendor == "postgresql":
             # PostgreSQL full-text search с русскоязычной конфигурацией
             search_vector = (
-                SearchVector('name', weight='A', config='russian') +
-                SearchVector('short_description', weight='B', config='russian') +
-                SearchVector('description', weight='C', config='russian') +
-                SearchVector('sku', weight='A', config='russian')
+                SearchVector("name", weight="A", config="russian")
+                + SearchVector("short_description", weight="B", config="russian")
+                + SearchVector("description", weight="C", config="russian")
+                + SearchVector("sku", weight="A", config="russian")
             )
-            
-            search_query_obj = SearchQuery(search_query, config='russian')
-            
+
+            search_query_obj = SearchQuery(search_query, config="russian")
+
             # Добавляем Q-объект для поиска по SKU через icontains
             sku_q = Q(sku__icontains=search_query)
 
             # Возвращаем результаты с ранжированием по релевантности
-            return queryset.annotate(
-                search=search_vector,
-                rank=SearchRank(search_vector, search_query_obj)
-            ).filter(
-                Q(search=search_query_obj) | sku_q
-            ).order_by('-rank', '-created_at')
+            return (
+                queryset.annotate(
+                    search=search_vector,
+                    rank=SearchRank(search_vector, search_query_obj),
+                )
+                .filter(Q(search=search_query_obj) | sku_q)
+                .order_by("-rank", "-created_at")
+            )
         else:
             # Fallback для SQLite и других БД - простой icontains поиск с приоритизацией
-            from django.db.models import Case, When, Value, IntegerField
+            from django.db.models import Case, IntegerField, Value, When
 
             # Поиск точного совпадения в названии (высший приоритет)
             exact_name = queryset.filter(name__iexact=search_query)
             if exact_name.exists():
-                return exact_name.order_by('-created_at')
+                return exact_name.order_by("-created_at")
 
             # Поиск частичного совпадения с приоритизацией по полям (регистронезависимый)
             name_match = Q(name__icontains=search_query)
-            sku_match = Q(sku__icontains=search_query)  
-            desc_match = Q(short_description__icontains=search_query) | Q(description__icontains=search_query)
+            sku_match = Q(sku__icontains=search_query)
+            desc_match = Q(short_description__icontains=search_query) | Q(
+                description__icontains=search_query
+            )
 
             # Применяем фильтр
             results = queryset.filter(name_match | sku_match | desc_match)
@@ -235,40 +250,41 @@ class ProductFilter(django_filters.FilterSet):
                     default=Value(4),
                     output_field=IntegerField(),
                 )
-            ).order_by('priority', '-created_at')
+            ).order_by("priority", "-created_at")
 
             return prioritized_results
-    
+
     def filter_size(self, queryset, name, value):
-        """Фильтрация по размеру из JSON поля specifications"""
+        """
+        Фильтрация по размеру из JSON поля specifications
+        
+        ВАЖНО: Работает только с PostgreSQL. SQLite не поддерживается.
+        """
         if not value:
             return queryset
-            
+
         # Нормализуем значение размера
         size_value = value.strip()
         if not size_value:
             return queryset
-            
+
         # Создаем Q-объекты для различных вариантов хранения размера в JSON
         size_queries = Q()
-        
+
         # Вариант 1: {"size": "XL"} - одиночный размер
         size_queries |= Q(specifications__size=size_value)
-        
+
         # Вариант 2: {"sizes": ["M", "L", "XL"]} - массив размеров
         size_queries |= Q(specifications__sizes__contains=[size_value])
-        
+
         # Вариант 3: {"размер": "XL"} - русский ключ
         size_queries |= Q(specifications__размер=size_value)
-        
+
         # Вариант 4: {"размеры": ["M", "L", "XL"]} - русский ключ массива
         size_queries |= Q(specifications__размеры__contains=[size_value])
-        
-        # Вариант 5: Case-insensitive поиск для строковых значений
-        from django.db import connection
-        if connection.vendor == 'postgresql':
-            # PostgreSQL поддерживает case-insensitive поиск в JSON
-            size_queries |= Q(specifications__size__iexact=size_value)
-            size_queries |= Q(specifications__размер__iexact=size_value)
-        
+
+        # Вариант 5: Case-insensitive поиск для строковых значений (PostgreSQL)
+        size_queries |= Q(specifications__size__iexact=size_value)
+        size_queries |= Q(specifications__размер__iexact=size_value)
+
         return queryset.filter(size_queries)

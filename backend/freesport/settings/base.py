@@ -2,11 +2,12 @@
 Базовые настройки Django для платформы FREESPORT
 Общая конфигурация для всех окружений
 """
-from pathlib import Path
-from datetime import timedelta
-from decouple import config
 import os
 import sys
+from datetime import timedelta
+from pathlib import Path
+
+from decouple import config
 
 # Настройка кодировки для Windows консоли
 if sys.platform == "win32":

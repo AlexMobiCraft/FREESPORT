@@ -1,6 +1,6 @@
 # Generated manually for user performance optimization
 
-from django.db import migrations, connection
+from django.db import connection, migrations
 
 
 def create_user_indexes(apps, schema_editor):

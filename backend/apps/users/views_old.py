@@ -1,26 +1,25 @@
 """
 Views для API управления пользователями
 """
-from rest_framework import status, permissions, viewsets
-from rest_framework.decorators import action
-from rest_framework.decorators import api_view, permission_classes
+from drf_spectacular.openapi import OpenApiExample
+from drf_spectacular.utils import OpenApiResponse, extend_schema
+from rest_framework import permissions, status, viewsets
+from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.generics import RetrieveUpdateAPIView
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.generics import RetrieveUpdateAPIView
 from rest_framework_simplejwt.tokens import RefreshToken
-from drf_spectacular.utils import extend_schema, OpenApiResponse
-from drf_spectacular.openapi import OpenApiExample
 
-from .models import User, Address, Favorite
+from .models import Address, Favorite, User
 from .serializers import (
-    UserRegistrationSerializer,
+    AddressSerializer,
+    FavoriteCreateSerializer,
+    FavoriteSerializer,
+    OrderHistorySerializer,
+    UserDashboardSerializer,
     UserLoginSerializer,
     UserProfileSerializer,
-    UserDashboardSerializer,
-    AddressSerializer,
-    FavoriteSerializer,
-    FavoriteCreateSerializer,
-    OrderHistorySerializer,
+    UserRegistrationSerializer,
 )
 
 

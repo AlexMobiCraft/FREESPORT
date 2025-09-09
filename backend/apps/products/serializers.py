@@ -1,36 +1,38 @@
 """
 Serializers для каталога товаров
 """
-from rest_framework import serializers
 from django.db.models import Count, Q
-from .models import Product, Category, Brand, ProductImage
+from rest_framework import serializers
+
+from .models import Brand, Category, Product, ProductImage
 
 
 class ProductImageSerializer(serializers.ModelSerializer):
     """
     Serializer для изображений товара
     """
+
     url = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = ProductImage
-        fields = ['url', 'alt_text', 'is_main', 'sort_order']
-    
+        fields = ["url", "alt_text", "is_main", "sort_order"]
+
     def get_url(self, obj):
         """Получить URL изображения с учетом контекста запроса"""
         if isinstance(obj, dict):
-            return obj.get('url', '')
-        
+            return obj.get("url", "")
+
         # Если obj - это модель с полем изображения
-        if hasattr(obj, 'url'):
+        if hasattr(obj, "url"):
             url = obj.url
-        elif hasattr(obj, 'image') and hasattr(obj.image, 'url'):
+        elif hasattr(obj, "image") and hasattr(obj.image, "url"):
             url = obj.image.url
         else:
-            return ''
-        
-        request = self.context.get('request')
-        if request and hasattr(request, 'build_absolute_uri'):
+            return ""
+
+        request = self.context.get("request")
+        if request and hasattr(request, "build_absolute_uri"):
             return request.build_absolute_uri(url)
         return url
 
@@ -39,17 +41,19 @@ class BrandSerializer(serializers.ModelSerializer):
     """
     Serializer для брендов
     """
+
     slug = serializers.SlugField(required=False)
-    
+
     class Meta:
         model = Brand
-        fields = ['id', 'name', 'slug', 'logo', 'description', 'website']
-        
+        fields = ["id", "name", "slug", "logo", "description", "website"]
+
     def validate(self, attrs):
         """Автоматически создаём slug если не указан"""
-        if not attrs.get('slug') and attrs.get('name'):
+        if not attrs.get("slug") and attrs.get("name"):
             from django.utils.text import slugify
-            attrs['slug'] = slugify(attrs['name'])
+
+            attrs["slug"] = slugify(attrs["name"])
         return attrs
 
 
@@ -135,11 +139,25 @@ class ProductListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
         fields = [
-            'id', 'name', 'slug', 'sku', 'brand', 'category',
-            'short_description', 'main_image', 'current_price', 'price_type',
-            'retail_price', 'rrp', 'msrp', 'specifications',
-            'stock_quantity', 'min_order_quantity', 'can_be_ordered', 
-            'is_featured', 'created_at'
+            "id",
+            "name",
+            "slug",
+            "sku",
+            "brand",
+            "category",
+            "short_description",
+            "main_image",
+            "current_price",
+            "price_type",
+            "retail_price",
+            "rrp",
+            "msrp",
+            "specifications",
+            "stock_quantity",
+            "min_order_quantity",
+            "can_be_ordered",
+            "is_featured",
+            "created_at",
         ]
 
     def get_current_price(self, obj):
@@ -162,14 +180,24 @@ class ProductListSerializer(serializers.ModelSerializer):
     def get_rrp(self, obj):
         """RRP отображается только для B2B пользователей"""
         request = self.context.get("request")
-        if request and request.user.is_authenticated and request.user.is_b2b_user and obj.recommended_retail_price:
+        if (
+            request
+            and request.user.is_authenticated
+            and request.user.is_b2b_user
+            and obj.recommended_retail_price
+        ):
             return f"{obj.recommended_retail_price:.2f}"
         return None
 
     def get_msrp(self, obj):
         """MSRP отображается только для B2B пользователей"""
         request = self.context.get("request")
-        if request and request.user.is_authenticated and request.user.is_b2b_user and obj.max_suggested_retail_price:
+        if (
+            request
+            and request.user.is_authenticated
+            and request.user.is_b2b_user
+            and obj.max_suggested_retail_price
+        ):
             return f"{obj.max_suggested_retail_price:.2f}"
         return None
 
@@ -177,9 +205,13 @@ class ProductListSerializer(serializers.ModelSerializer):
         """Conditionally remove rrp and msrp for non-B2B users."""
         ret = super().to_representation(instance)
         request = self.context.get("request")
-        if not request or not request.user.is_authenticated or not request.user.is_b2b_user:
-            ret.pop('rrp', None)
-            ret.pop('msrp', None)
+        if (
+            not request
+            or not request.user.is_authenticated
+            or not request.user.is_b2b_user
+        ):
+            ret.pop("rrp", None)
+            ret.pop("msrp", None)
         return ret
 
 
@@ -209,33 +241,37 @@ class ProductDetailSerializer(ProductListSerializer):
     def get_images(self, obj):
         """Получить галерею изображений включая основное"""
         images = []
-        request = self.context.get('request')
-        
+        request = self.context.get("request")
+
         # Основное изображение
         if obj.main_image:
             url = obj.main_image.url
-            if request and hasattr(request, 'build_absolute_uri'):
+            if request and hasattr(request, "build_absolute_uri"):
                 url = request.build_absolute_uri(url)
-            
-            images.append({
-                'url': url,
-                'alt_text': f'{obj.name} - основное изображение',
-                'is_main': True
-            })
-        
+
+            images.append(
+                {
+                    "url": url,
+                    "alt_text": f"{obj.name} - основное изображение",
+                    "is_main": True,
+                }
+            )
+
         # Дополнительные изображения из gallery_images
         if obj.gallery_images:
             for idx, img_url in enumerate(obj.gallery_images):
                 url = img_url
-                if request and hasattr(request, 'build_absolute_uri'):
+                if request and hasattr(request, "build_absolute_uri"):
                     url = request.build_absolute_uri(url)
-                    
-                images.append({
-                    'url': url,
-                    'alt_text': f'{obj.name} - изображение {idx + 2}',
-                    'is_main': False
-                })
-        
+
+                images.append(
+                    {
+                        "url": url,
+                        "alt_text": f"{obj.name} - изображение {idx + 2}",
+                        "is_main": False,
+                    }
+                )
+
         return images
 
     def get_related_products(self, obj):

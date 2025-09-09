@@ -3,8 +3,8 @@
 Включает кастомную User модель с ролевой системой B2B/B2C
 """
 from django.contrib.auth.models import AbstractUser, BaseUserManager
-from django.db import models
 from django.core.validators import RegexValidator
+from django.db import models
 
 
 class UserManager(BaseUserManager):
@@ -95,47 +95,45 @@ class User(AbstractUser):
 
     # 1C Integration fields
     SYNC_STATUS_CHOICES = [
-        ('pending', 'Ожидает синхронизации'),
-        ('synced', 'Синхронизирован'),
-        ('error', 'Ошибка синхронизации'),
-        ('conflict', 'Конфликт данных'),
+        ("pending", "Ожидает синхронизации"),
+        ("synced", "Синхронизирован"),
+        ("error", "Ошибка синхронизации"),
+        ("conflict", "Конфликт данных"),
     ]
 
     onec_id = models.CharField(
-        'ID в 1С', 
-        max_length=100, 
-        blank=True, 
-        null=True, 
+        "ID в 1С",
+        max_length=100,
+        blank=True,
+        null=True,
         unique=True,
-        help_text='Уникальный идентификатор клиента в 1С'
+        help_text="Уникальный идентификатор клиента в 1С",
     )
     sync_status = models.CharField(
-        'Статус синхронизации',
+        "Статус синхронизации",
         max_length=20,
         choices=SYNC_STATUS_CHOICES,
-        default='pending',
-        help_text='Статус синхронизации с 1С'
+        default="pending",
+        help_text="Статус синхронизации с 1С",
     )
     created_in_1c = models.BooleanField(
-        'Создан в 1С',
+        "Создан в 1С",
         default=False,
-        help_text='Указывает, что пользователь был создан в 1С'
+        help_text="Указывает, что пользователь был создан в 1С",
     )
     needs_1c_export = models.BooleanField(
-        'Требует экспорта в 1С',
-        default=False,
-        help_text='Требует экспорта данных в 1С'
+        "Требует экспорта в 1С", default=False, help_text="Требует экспорта данных в 1С"
     )
     last_sync_at = models.DateTimeField(
-        'Последняя синхронизация',
+        "Последняя синхронизация",
         null=True,
         blank=True,
-        help_text='Дата и время последней синхронизации с 1С'
+        help_text="Дата и время последней синхронизации с 1С",
     )
     sync_error_message = models.TextField(
-        'Ошибка синхронизации',
+        "Ошибка синхронизации",
         blank=True,
-        help_text='Сообщение об ошибке при синхронизации с 1С'
+        help_text="Сообщение об ошибке при синхронизации с 1С",
     )
 
     USERNAME_FIELD = "email"
@@ -265,14 +263,15 @@ class Address(models.Model):
         со всех других адресов того же типа для этого пользователя.
         """
         # Обрабатываем логику is_default перед сохранением
-        if self.is_default and hasattr(self, 'user') and self.user:
+        if self.is_default and hasattr(self, "user") and self.user:
             # Сбросить флаг is_default у всех других адресов этого же типа для этого пользователя
             Address.objects.filter(
                 user=self.user, address_type=self.address_type
             ).exclude(pk=self.pk).update(is_default=False)
-        
+
         # Сохраняем объект
         super().save(*args, **kwargs)
+
     def __str__(self):
         return f"{self.full_name} - {self.city}, {self.street} {self.building}"
 

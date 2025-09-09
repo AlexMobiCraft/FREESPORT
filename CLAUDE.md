@@ -112,8 +112,10 @@ docker-compose down
 
 **Backend (Django)**
 
+⚠️ **ВАЖНО**: Для разработки и тестирования используйте исключительно Docker Compose с PostgreSQL.
+
 cd backend  
-\# Активация виртуального окружения  
+\# Активация виртуального окружения (только для локальной отладки)  
 source venv/bin/activate  \# Linux/Mac  
 venv\\Scripts\\activate     \# Windows  
 \# Установка зависимостей  
@@ -123,6 +125,9 @@ python manage.py runserver 8001
 \# Запуск Celery (в отдельных терминалах)  
 celery \-A freesport worker \--loglevel=info  
 celery \-A freesport beat \--loglevel=info
+
+**РЕКОМЕНДУЕМЫЙ способ - Docker:**
+docker-compose up -d --build
 
 ### **Важные правила работы с Python и виртуальным окружением**
 
@@ -179,24 +184,24 @@ npm run dev
 
 **Основные команды тестирования:**
 
-\# Тестирование в Docker (рекомендуется)
+⚠️ **КРИТИЧЕСКИ ВАЖНО**: Тестирование выполняется ТОЛЬКО с PostgreSQL через Docker Compose!
+
+\# Тестирование в Docker (ЕДИНСТВЕННЫЙ поддерживаемый способ)
 make test                    \# Все тесты с PostgreSQL + Redis
 make test-unit               \# Только unit-тесты  
 make test-integration        \# Только интеграционные тесты
 make test-fast               \# Без пересборки образов
 
-\# Локально
-pytest                       \# Все тесты
-pytest \-m unit              \# Unit-тесты
-pytest \-m integration       \# Интеграционные тесты
-pytest \--cov=apps           \# С покрытием кода
+\# SQLite больше НЕ поддерживается для тестов из-за ограничений JSON операторов
+\# Локальное тестирование через pytest требует настроенного PostgreSQL
 
 **Требования к покрытию:** Общее \>= 70%, критические модули \>= 90%.
 
 ### **Исправления Docker конфигурации (обновлено 23.08.2025)**
 
 **Ключевые исправления:**
-- ✅ Устранено противоречие БД между test.py (SQLite) и Docker (PostgreSQL)
+- ✅ **МИГРАЦИЯ НА PostgreSQL**: Полностью удалена поддержка SQLite для тестов
+- ✅ Устранено противоречие БД - теперь везде только PostgreSQL  
 - ✅ Добавлены недостающие сервисы db и redis в docker-compose.test.yml
 - ✅ Создана nginx конфигурация для основной среды
 - ✅ Создан оптимизированный Dockerfile.test для тестирования

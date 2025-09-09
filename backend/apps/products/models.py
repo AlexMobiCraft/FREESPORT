@@ -2,8 +2,8 @@
 Модели продуктов для платформы FREESPORT
 Включает товары, категории, бренды с роле-ориентированным ценообразованием
 """
-from django.db import models
 from django.core.validators import MinValueValidator
+from django.db import models
 from django.utils.text import slugify
 from transliterate import translit
 
@@ -31,15 +31,15 @@ class Brand(models.Model):
         if not self.slug:
             try:
                 # Транслитерация кириллицы в латиницу, затем slugify
-                transliterated = translit(self.name, 'ru', reversed=True)
+                transliterated = translit(self.name, "ru", reversed=True)
                 self.slug = slugify(transliterated)
             except Exception:
                 # Fallback на обычный slugify
                 self.slug = slugify(self.name)
-            
+
             # Если slug все еще пустой, создаем fallback
             if not self.slug:
-                self.slug = f'brand-{self.pk or 0}'
+                self.slug = f"brand-{self.pk or 0}"
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -83,15 +83,15 @@ class Category(models.Model):
         if not self.slug:
             try:
                 # Транслитерация кириллицы в латиницу, затем slugify
-                transliterated = translit(self.name, 'ru', reversed=True)
+                transliterated = translit(self.name, "ru", reversed=True)
                 self.slug = slugify(transliterated)
             except Exception:
                 # Fallback на обычный slugify
                 self.slug = slugify(self.name)
-            
+
             # Если slug все еще пустой, создаем fallback
             if not self.slug:
-                self.slug = f'category-{self.pk or 0}'
+                self.slug = f"category-{self.pk or 0}"
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -199,9 +199,9 @@ class Product(models.Model):
     sku = models.CharField("Артикул", max_length=100, unique=True, blank=True)
     stock_quantity = models.PositiveIntegerField("Количество на складе", default=0)
     reserved_quantity = models.PositiveIntegerField(
-        "Зарезервированное количество", 
+        "Зарезервированное количество",
         default=0,
-        help_text="Количество товара, зарезервированного в корзинах и заказах"
+        help_text="Количество товара, зарезервированного в корзинах и заказах",
     )
     min_order_quantity = models.PositiveIntegerField(
         "Минимальное количество заказа", default=1
@@ -222,22 +222,26 @@ class Product(models.Model):
     # Временные метки и интеграция с 1С
     created_at = models.DateTimeField("Дата создания", auto_now_add=True)
     updated_at = models.DateTimeField("Дата обновления", auto_now=True)
-    
+
     # 1С Integration fields (Story 3.1.1 AC: 3)
-    onec_id = models.CharField("ID в 1С", max_length=100, unique=True, blank=True, null=True)
+    onec_id = models.CharField(
+        "ID в 1С", max_length=100, unique=True, blank=True, null=True
+    )
     sync_status = models.CharField(
         "Статус синхронизации",
         max_length=20,
         choices=[
-            ('pending', 'Ожидает синхронизации'),
-            ('syncing', 'Синхронизируется'),  
-            ('synced', 'Синхронизирован'),
-            ('error', 'Ошибка синхронизации'),
-            ('conflict', 'Конфликт данных'),
+            ("pending", "Ожидает синхронизации"),
+            ("syncing", "Синхронизируется"),
+            ("synced", "Синхронизирован"),
+            ("error", "Ошибка синхронизации"),
+            ("conflict", "Конфликт данных"),
         ],
-        default='pending'
+        default="pending",
     )
-    last_sync_at = models.DateTimeField("Последняя синхронизация", null=True, blank=True)
+    last_sync_at = models.DateTimeField(
+        "Последняя синхронизация", null=True, blank=True
+    )
     error_message = models.TextField("Сообщение об ошибке", blank=True)
 
     class Meta:
@@ -258,19 +262,20 @@ class Product(models.Model):
         if not self.slug:
             try:
                 # Транслитерация кириллицы в латиницу, затем slugify
-                transliterated = translit(self.name, 'ru', reversed=True)
+                transliterated = translit(self.name, "ru", reversed=True)
                 self.slug = slugify(transliterated)
             except Exception:
                 # Fallback на обычный slugify
                 self.slug = slugify(self.name)
-            
+
             # Если slug все еще пустой, создаем fallback
             if not self.slug:
-                self.slug = f'product-{self.pk or 0}'
-                
+                self.slug = f"product-{self.pk or 0}"
+
         if not self.sku:
-            import uuid
             import time
+            import uuid
+
             self.sku = f"AUTO-{int(time.time())}-{uuid.uuid4().hex[:8].upper()}"
         super().save(*args, **kwargs)
 
@@ -302,8 +307,12 @@ class Product(models.Model):
     def can_be_ordered(self):
         """Можно ли заказать товар"""
         available_quantity = self.stock_quantity - self.reserved_quantity
-        return self.is_active and self.is_in_stock and available_quantity >= self.min_order_quantity
-    
+        return (
+            self.is_active
+            and self.is_in_stock
+            and available_quantity >= self.min_order_quantity
+        )
+
     @property
     def available_quantity(self):
         """Доступное количество товара (с учетом резерва)"""
@@ -314,28 +323,26 @@ class ProductImage(models.Model):
     """
     Модель изображений товара
     """
+
     product = models.ForeignKey(
-        Product,
-        on_delete=models.CASCADE,
-        related_name='images',
-        verbose_name='Товар'
+        Product, on_delete=models.CASCADE, related_name="images", verbose_name="Товар"
     )
-    image = models.ImageField('Изображение', upload_to='products/gallery/')
-    alt_text = models.CharField('Альтернативный текст', max_length=255, blank=True)
-    is_main = models.BooleanField('Основное изображение', default=False)
-    sort_order = models.PositiveIntegerField('Порядок сортировки', default=0)
-    
-    created_at = models.DateTimeField('Дата создания', auto_now_add=True)
-    updated_at = models.DateTimeField('Дата обновления', auto_now=True)
+    image = models.ImageField("Изображение", upload_to="products/gallery/")
+    alt_text = models.CharField("Альтернативный текст", max_length=255, blank=True)
+    is_main = models.BooleanField("Основное изображение", default=False)
+    sort_order = models.PositiveIntegerField("Порядок сортировки", default=0)
+
+    created_at = models.DateTimeField("Дата создания", auto_now_add=True)
+    updated_at = models.DateTimeField("Дата обновления", auto_now=True)
 
     class Meta:
-        verbose_name = 'Изображение товара'
-        verbose_name_plural = 'Изображения товаров'
-        db_table = 'product_images'
-        ordering = ['sort_order', 'created_at']
+        verbose_name = "Изображение товара"
+        verbose_name_plural = "Изображения товаров"
+        db_table = "product_images"
+        ordering = ["sort_order", "created_at"]
         indexes = [
-            models.Index(fields=['product', 'is_main']),
-            models.Index(fields=['sort_order']),
+            models.Index(fields=["product", "is_main"]),
+            models.Index(fields=["sort_order"]),
         ]
 
     def __str__(self):
@@ -344,5 +351,7 @@ class ProductImage(models.Model):
     def save(self, *args, **kwargs):
         # Если это основное изображение, убираем флаг у других изображений этого товара
         if self.is_main:
-            ProductImage.objects.filter(product=self.product, is_main=True).exclude(pk=self.pk).update(is_main=False)
+            ProductImage.objects.filter(product=self.product, is_main=True).exclude(
+                pk=self.pk
+            ).update(is_main=False)
         super().save(*args, **kwargs)

@@ -2,9 +2,9 @@
 Модели корзины покупок для платформы FREESPORT
 Поддерживает как авторизованных, так и гостевых пользователей
 """
-from django.db import models
 from django.contrib.auth import get_user_model
 from django.core.validators import MinValueValidator
+from django.db import models
 
 User = get_user_model()
 

@@ -2,14 +2,15 @@
 Сериализаторы для заказов FREESPORT
 Поддерживает создание заказов из корзины с транзакционной логикой
 """
-from rest_framework import serializers
-from django.db import transaction
 from django.contrib.auth import get_user_model
+from django.db import transaction
+from rest_framework import serializers
 
-from .models import Order, OrderItem
 from apps.cart.models import Cart, CartItem
 from apps.products.models import Product
 from apps.users.models import Address
+
+from .models import Order, OrderItem
 
 User = get_user_model()
 

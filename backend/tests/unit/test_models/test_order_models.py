@@ -1,13 +1,14 @@
 """
 Тесты для моделей заказов FREESPORT Platform
 """
+from decimal import Decimal
+
 import pytest
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
-from decimal import Decimal
 
-from tests.conftest import OrderFactory, OrderItemFactory, ProductFactory, UserFactory
 from apps.orders.models import Order, OrderItem
+from tests.conftest import OrderFactory, OrderItemFactory, ProductFactory, UserFactory
 
 
 @pytest.mark.django_db

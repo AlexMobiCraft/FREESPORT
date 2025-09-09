@@ -2,6 +2,7 @@
 Админ панель для корзины покупок
 """
 from django.contrib import admin
+
 from .models import Cart, CartItem
 
 

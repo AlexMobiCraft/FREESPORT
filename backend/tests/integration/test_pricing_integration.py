@@ -2,11 +2,11 @@
 Integration тесты ролевого ценообразования
 """
 import pytest
-from django.test import TestCase
 from django.contrib.auth import get_user_model
+from django.test import TestCase
 from rest_framework.test import APIClient
 
-from apps.products.models import Category, Brand, Product
+from apps.products.models import Brand, Category, Product
 
 User = get_user_model()
 

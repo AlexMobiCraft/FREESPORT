@@ -3,9 +3,9 @@ Functional тесты Filtering API (Story 2.9)
 Заглушка для будущей реализации фильтрации API
 """
 import pytest
-from rest_framework.test import APITestCase
-from rest_framework import status
 from django.contrib.auth import get_user_model
+from rest_framework import status
+from rest_framework.test import APITestCase
 
 User = get_user_model()
 

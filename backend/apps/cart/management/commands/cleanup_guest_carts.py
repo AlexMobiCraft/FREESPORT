@@ -1,9 +1,11 @@
 """
 Команда для очистки старых гостевых корзин
 """
+from datetime import timedelta
+
 from django.core.management.base import BaseCommand
 from django.utils import timezone
-from datetime import timedelta
+
 from apps.cart.models import Cart
 
 

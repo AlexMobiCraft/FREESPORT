@@ -1,6 +1,6 @@
 # Generated manually for search optimization
 
-from django.db import migrations, connection
+from django.db import connection, migrations
 
 
 def create_search_indexes(apps, schema_editor):

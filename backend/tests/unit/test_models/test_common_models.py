@@ -1,15 +1,16 @@
 """
 Тесты для общих моделей FREESPORT Platform
 """
-import pytest
-from django.test import TestCase
-from django.core.exceptions import ValidationError
-from django.contrib.auth import get_user_model
-from decimal import Decimal
 import json
+from decimal import Decimal
 
-from tests.conftest import AuditLogFactory, SyncLogFactory, UserFactory, ProductFactory
+import pytest
+from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
+from django.test import TestCase
+
 from apps.common.models import AuditLog, SyncLog
+from tests.conftest import AuditLogFactory, ProductFactory, SyncLogFactory, UserFactory
 
 User = get_user_model()
 
