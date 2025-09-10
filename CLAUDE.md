@@ -169,7 +169,7 @@ npm run dev
 * **Форматирование:** Black  
 * **Линтинг:** Flake8  
 * **Сортировка импортов:** isort  
-* **Проверка типов:** mypy
+* **Проверка типов:** mypy + Pylance (VS Code)
 
 **Frontend**
 
@@ -259,3 +259,247 @@ make test-fast               \# Без пересборки образов
 * **ERP интеграция (1С):** Двусторонний обмен данными (товары, заказы, остатки) через Celery.  
 * **Платежные системы:** YuKassa для онлайн платежей.  
 * **Службы доставки:** Интеграция с API CDEK, Boxberry.
+
+## **Стандарты качества кода и типизации**
+
+### **Python Type Hints - Обязательные требования**
+
+**КРИТИЧНО:** Весь новый код ДОЛЖЕН содержать полную типизацию. При изменении существующего кода - добавляйте типизацию.
+
+#### **Обязательные импорты типизации:**
+```python
+from __future__ import annotations
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+from decimal import Decimal
+
+if TYPE_CHECKING:
+    from apps.users.models import User
+    from apps.products.models import Product
+```
+
+#### **Django Models - обязательная типизация:**
+```python
+# ✅ ПРАВИЛЬНО - все методы типизированы
+def save(self, *args, **kwargs) -> None:
+    super().save(*args, **kwargs)
+
+def __str__(self) -> str:
+    return self.name
+
+@property 
+def full_name(self) -> str:
+    return f"{self.first_name} {self.last_name}".strip()
+
+@property
+def is_active_user(self) -> bool:
+    return self.is_active and self.is_verified
+
+# ❌ НЕПРАВИЛЬНО - отсутствует типизация
+def save(self, *args, **kwargs):  # Без -> None
+    super().save(*args, **kwargs)
+```
+
+#### **Django REST Framework - обязательная типизация:**
+```python
+# ✅ ПРАВИЛЬНО - Serializers с типизацией
+def validate_email(self, value: str) -> str:
+    # валидация
+    return value
+
+def validate(self, attrs: Dict[str, Any]) -> Dict[str, Any]:
+    # валидация  
+    return attrs
+
+def create(self, validated_data: Dict[str, Any]) -> User:
+    return User.objects.create(**validated_data)
+
+def get_product_price(self, obj: Product) -> str:
+    return str(obj.retail_price)
+
+# ViewSets с типизацией
+def get_queryset(self) -> QuerySet[Product]:
+    return Product.objects.filter(is_active=True)
+
+def get_serializer_class(self) -> type[ProductSerializer]:
+    return ProductSerializer
+```
+
+#### **Django Managers - правильная типизация:**
+```python
+# ✅ ПРАВИЛЬНО
+class UserManager(BaseUserManager['User']):
+    def create_user(self, email: str, password: str | None = None, **extra_fields) -> User:
+        # implementation
+        return user
+
+    def create_superuser(self, email: str, password: str | None = None, **extra_fields) -> User:
+        # implementation  
+        return user
+
+# В модели User:
+objects: UserManager['User'] = UserManager()  # type: ignore[type-abstract]
+```
+
+#### **OpenAPI/DRF-Spectacular - правильные примеры:**
+```python
+# ✅ ПРАВИЛЬНО - используем OpenApiExample объекты
+from drf_spectacular.utils import OpenApiExample, OpenApiResponse, extend_schema
+
+@extend_schema(
+    responses={
+        200: OpenApiResponse(
+            description="Успешный ответ",
+            examples=[
+                OpenApiExample(
+                    name="success_example",
+                    value={"message": "Success", "data": {...}}
+                )
+            ]
+        )
+    }
+)
+
+# ❌ НЕПРАВИЛЬНО - словари вместо OpenApiExample
+examples={
+    "application/json": {"message": "Success"}  # Pylance ошибка!
+}
+```
+
+### **Правила проверки типизации:**
+
+1. **Перед каждым коммитом:**
+   - Запустить `mypy apps/` для проверки типов
+   - Проверить отсутствие ошибок Pylance в VS Code
+   - Все новые методы ДОЛЖНЫ иметь type hints
+
+2. **При изменении существующего кода:**
+   - Добавить типизацию к изменяемым методам
+   - Добавить недостающие импорты типизации
+   - Исправить найденные Pylance предупреждения
+
+3. **Обязательная типизация для:**
+   - Все методы моделей (`save`, `__str__`, `@property`)
+   - Все методы сериализаторов (`validate_*`, `get_*`, `create`, `update`)
+   - Все методы ViewSet'ов (`get_queryset`, `get_serializer_class`)
+   - Все параметры и возвращаемые значения функций
+
+### **Автоматическая проверка качества:**
+
+```bash
+# Запуск всех проверок качества перед коммитом
+make lint                    # Flake8 + Black + isort
+make type-check             # mypy проверка типов  
+make test                   # Все тесты
+```
+
+### **VS Code настройки для типизации:**
+
+Рекомендуемые настройки в `.vscode/settings.json`:
+```json
+{
+    "python.analysis.typeCheckingMode": "strict",
+    "python.analysis.autoImportCompletions": true,
+    "python.analysis.diagnosticMode": "workspace",
+    "python.linting.mypyEnabled": true,
+    "python.linting.enabled": true
+}
+```
+
+### **Частые ошибки типизации и их исправления:**
+
+1. **OpenApiResponse с dict примерами:**
+   ```python
+   # ❌ Неправильно
+   examples={"key": "value"}
+   
+   # ✅ Правильно  
+   examples=[OpenApiExample(name="example", value={"key": "value"})]
+   ```
+
+2. **Django Managers без типизации:**
+   ```python
+   # ❌ Неправильно
+   objects = UserManager()
+   
+   # ✅ Правильно
+   objects: UserManager['User'] = UserManager()  # type: ignore[type-abstract]
+   ```
+
+3. **Методы без return типов:**
+   ```python
+   # ❌ Неправильно  
+   def save(self, *args, **kwargs):
+   
+   # ✅ Правильно
+   def save(self, *args, **kwargs) -> None:
+   ```
+
+**ВАЖНО:** Нарушение стандартов типизации блокирует merge в develop/main ветки.
+
+### **Команды для проверки качества кода:**
+
+```bash
+# === ОБЯЗАТЕЛЬНЫЕ проверки перед коммитом ===
+docker-compose -f docker-compose.test.yml run --rm backend pytest --no-cov -q  # Быстрые тесты
+docker-compose -f docker-compose.test.yml run --rm backend mypy apps/           # Проверка типов
+docker-compose -f docker-compose.test.yml run --rm backend black --check apps/ # Форматирование
+docker-compose -f docker-compose.test.yml run --rm backend flake8 apps/         # Линтинг
+
+# === ПОЛНАЯ проверка качества ===
+make test                    # Все тесты с покрытием
+make lint                    # Все проверки стиля кода
+make type-check             # Полная проверка типов
+
+# === Исправление проблем ===  
+docker-compose -f docker-compose.test.yml run --rm backend black apps/         # Автоформатирование
+docker-compose -f docker-compose.test.yml run --rm backend isort apps/         # Сортировка импортов
+```
+
+### **Pre-commit хуки (рекомендуется):**
+
+Создайте `.pre-commit-config.yaml` в корне проекта:
+```yaml
+repos:
+  - repo: local
+    hooks:
+      - id: pytest-fast
+        name: Fast tests
+        entry: docker-compose -f docker-compose.test.yml run --rm backend pytest --no-cov -x
+        language: system
+        pass_filenames: false
+        
+      - id: mypy
+        name: mypy type check
+        entry: docker-compose -f docker-compose.test.yml run --rm backend mypy apps/
+        language: system
+        pass_filenames: false
+        
+      - id: black
+        name: black code formatting  
+        entry: docker-compose -f docker-compose.test.yml run --rm backend black --check apps/
+        language: system
+        pass_filenames: false
+```
+
+Установка: `pip install pre-commit && pre-commit install`
+
+### **Исправление legacy кода без типизации:**
+
+При работе с существующим кодом без типизации:
+
+1. **Добавляйте типизацию постепенно** - к файлам которые изменяете
+2. **Начинайте с импортов** - `from __future__ import annotations` 
+3. **Типизируйте новые методы полностью** - все параметры и return типы
+4. **Исправляйте Pylance warnings** - они указывают на реальные проблемы
+5. **Запускайте тесты после изменений** - типизация не должна ломать функциональность
+
+### **Контрольный чек-лист для типизации:**
+
+**✅ Перед коммитом проверить:**
+- [ ] Все новые методы имеют type hints  
+- [ ] Добавлены необходимые импорты типизации
+- [ ] Нет ошибок Pylance в VS Code
+- [ ] `mypy apps/` проходит без ошибок  
+- [ ] Все тесты проходят успешно
+- [ ] OpenAPI примеры используют OpenApiExample объекты
+- [ ] Django Managers правильно типизированы
