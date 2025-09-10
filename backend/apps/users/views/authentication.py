@@ -1,7 +1,7 @@
 """
 Views для аутентификации пользователей
 """
-from drf_spectacular.utils import OpenApiResponse, extend_schema
+from drf_spectacular.utils import OpenApiExample, OpenApiResponse, extend_schema
 from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -25,28 +25,34 @@ class UserRegistrationView(APIView):
         responses={
             201: OpenApiResponse(
                 description="Пользователь успешно зарегистрирован",
-                examples={
-                    "application/json": {
-                        "message": "Пользователь успешно зарегистрирован",
-                        "user": {
-                            "id": 1,
-                            "email": "user@example.com",
-                            "first_name": "Иван",
-                            "last_name": "Петров",
-                            "role": "retail",
-                            "is_verified": True,
-                        },
-                    }
-                },
+                examples=[
+                    OpenApiExample(
+                        name="successful_registration",
+                        value={
+                            "message": "Пользователь успешно зарегистрирован",
+                            "user": {
+                                "id": 1,
+                                "email": "user@example.com",
+                                "first_name": "Иван",
+                                "last_name": "Петров",
+                                "role": "retail",
+                                "is_verified": True,
+                            },
+                        }
+                    )
+                ],
             ),
             400: OpenApiResponse(
                 description="Ошибки валидации",
-                examples={
-                    "application/json": {
-                        "email": ["Пользователь с таким email уже существует."],
-                        "password_confirm": ["Пароли не совпадают."],
-                    }
-                },
+                examples=[
+                    OpenApiExample(
+                        name="validation_errors",
+                        value={
+                            "email": ["Пользователь с таким email уже существует."],
+                            "password_confirm": ["Пароли не совпадают."],
+                        }
+                    )
+                ],
             ),
         },
         tags=["Authentication"],
@@ -90,28 +96,34 @@ class UserLoginView(APIView):
         responses={
             200: OpenApiResponse(
                 description="Успешная аутентификация",
-                examples={
-                    "application/json": {
-                        "access": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
-                        "refresh": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
-                        "user": {
-                            "id": 1,
-                            "email": "user@example.com",
-                            "first_name": "Иван",
-                            "last_name": "Петров",
-                            "role": "retail",
-                            "is_verified": True,
-                        },
-                    }
-                },
+                examples=[
+                    OpenApiExample(
+                        name="successful_login",
+                        value={
+                            "access": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
+                            "refresh": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
+                            "user": {
+                                "id": 1,
+                                "email": "user@example.com",
+                                "first_name": "Иван",
+                                "last_name": "Петров",
+                                "role": "retail",
+                                "is_verified": True,
+                            },
+                        }
+                    )
+                ],
             ),
             400: OpenApiResponse(
                 description="Ошибки аутентификации",
-                examples={
-                    "application/json": {
-                        "non_field_errors": ["Неверный email или пароль."]
-                    }
-                },
+                examples=[
+                    OpenApiExample(
+                        name="authentication_error",
+                        value={
+                            "non_field_errors": ["Неверный email или пароль."]
+                        }
+                    )
+                ],
             ),
         },
         tags=["Authentication"],

@@ -36,13 +36,12 @@ class CartAdmin(admin.ModelAdmin):
     readonly_fields = ("total_items", "total_amount", "created_at", "updated_at")
     inlines = [CartItemInline]
 
+    @admin.display(description="Пользователь")
     def user_display(self, obj):
         """Отображение пользователя или гостя"""
         if obj.user:
             return f"{obj.user.email}"
         return f"Гость ({obj.session_key[:10]}...)"
-
-    user_display.short_description = "Пользователь"
 
 
 @admin.register(CartItem)
@@ -56,10 +55,9 @@ class CartItemAdmin(admin.ModelAdmin):
     search_fields = ("product__name", "product__sku", "cart__user__email")
     readonly_fields = ("total_price", "added_at", "updated_at")
 
+    @admin.display(description="Владелец корзины")
     def cart_user(self, obj):
         """Отображение владельца корзины"""
         if obj.cart.user:
             return f"{obj.cart.user.email}"
         return f"Гость ({obj.cart.session_key[:10]}...)"
-
-    cart_user.short_description = "Владелец корзины"

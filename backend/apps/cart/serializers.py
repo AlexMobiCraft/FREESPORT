@@ -1,10 +1,16 @@
 """
 Serializers для корзины покупок
 """
+from __future__ import annotations
+from typing import TYPE_CHECKING, Any, Dict
+
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
 from .models import Cart, CartItem
+
+if TYPE_CHECKING:
+    from apps.products.models import Product
 
 User = get_user_model()
 
@@ -37,7 +43,7 @@ class CartItemSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id", "added_at"]
 
-    def get_product_image(self, obj):
+    def get_product_image(self, obj: CartItem) -> str | None:
         """Получить URL изображения товара"""
         if obj.product.main_image:
             request = self.context.get("request")
@@ -46,13 +52,13 @@ class CartItemSerializer(serializers.ModelSerializer):
             return obj.product.main_image.url
         return None
 
-    def get_unit_price(self, obj):
+    def get_unit_price(self, obj: CartItem) -> str:
         """Получить цену товара для пользователя корзины"""
         user = obj.cart.user
         price = obj.product.get_price_for_user(user)
-        return price
+        return str(price)
 
-    def get_product(self, obj):
+    def get_product(self, obj: CartItem) -> Dict[str, Any]:
         """Получить информацию о продукте для совместимости с тестами"""
         product = obj.product
         user = obj.cart.user
@@ -85,7 +91,7 @@ class CartItemCreateSerializer(serializers.ModelSerializer):
         model = CartItem
         fields = ["product", "quantity"]
 
-    def validate_product(self, value):
+    def validate_product(self, value: Product) -> Product:
         """Валидация товара"""
         if not value.is_active:
             raise serializers.ValidationError("Товар неактивен")
@@ -115,6 +121,9 @@ class CartItemUpdateSerializer(serializers.ModelSerializer):
     """
     Serializer для обновления количества в элементе корзины
     """
+    
+    if TYPE_CHECKING:
+        instance: CartItem | None
 
     class Meta:
         model = CartItem
@@ -128,6 +137,10 @@ class CartItemUpdateSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         """Валидация остатков на складе"""
+        # Проверяем, что instance установлен
+        if not self.instance:
+            raise serializers.ValidationError("Элемент корзины не найден")
+            
         quantity = attrs["quantity"]
         product = self.instance.product
 

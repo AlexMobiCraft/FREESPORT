@@ -1,10 +1,16 @@
 """
 Views для корзины покупок
 """
+from __future__ import annotations
+from typing import TYPE_CHECKING
+
 from drf_spectacular.utils import OpenApiResponse, extend_schema
-from rest_framework import permissions, status, viewsets
+from rest_framework import mixins, permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
+
+if TYPE_CHECKING:
+    pass  # Пока не используем TYPE_CHECKING импорты
 
 from .models import Cart, CartItem
 from .serializers import (
@@ -15,16 +21,19 @@ from .serializers import (
 )
 
 
-class CartViewSet(viewsets.ModelViewSet):
+class CartViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
     """
     ViewSet для управления корзиной пользователя
+    Использует GenericViewSet + ListModelMixin
+    так как корзина имеет специфичную логику
     """
 
     # Поддерживаем гостевые корзины
     permission_classes = [permissions.AllowAny]
     serializer_class = CartSerializer
+    queryset = Cart.objects.all()  # Базовый queryset для Pylance
 
-    def get_queryset(self):
+    def get_queryset(self):  # type: ignore[override]
         """Получить корзину текущего пользователя или гостя"""
         if self.request.user.is_authenticated:
             return Cart.objects.filter(user=self.request.user)
@@ -77,13 +86,20 @@ class CartItemViewSet(viewsets.ModelViewSet):
     """
 
     permission_classes = [permissions.AllowAny]
+    queryset = CartItem.objects.all()  # Базовый queryset для Pylance
+    serializer_class = CartItemSerializer
 
-    def get_queryset(self):
+    if TYPE_CHECKING:
+        cart_item: CartItem  # Для типизации динамически создаваемого атрибута
+
+    def get_queryset(self):  # type: ignore[override]
         """Получить элементы корзины текущего пользователя"""
         if self.request.user.is_authenticated:
             try:
                 cart = Cart.objects.get(user=self.request.user)
-                return CartItem.objects.filter(cart=cart)
+                return CartItem.objects.filter(cart=cart).select_related(
+                        'product'
+                    )
             except Cart.DoesNotExist:
                 return CartItem.objects.none()
         else:
@@ -91,12 +107,14 @@ class CartItemViewSet(viewsets.ModelViewSet):
             if session_key:
                 try:
                     cart = Cart.objects.get(session_key=session_key)
-                    return CartItem.objects.filter(cart=cart)
+                    return CartItem.objects.filter(cart=cart).select_related(
+                        'product'
+                    )
                 except Cart.DoesNotExist:
                     return CartItem.objects.none()
             return CartItem.objects.none()
 
-    def get_serializer_class(self):
+    def get_serializer_class(self):  # type: ignore[override]
         """Выбор serializer в зависимости от действия"""
         if self.action == "create":
             return CartItemCreateSerializer
@@ -171,7 +189,9 @@ class CartItemViewSet(viewsets.ModelViewSet):
         response_serializer = CartItemSerializer(
             self.cart_item, context={"request": request}
         )
-        return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+        return Response(
+            response_serializer.data, status=status.HTTP_201_CREATED
+        )
 
     @extend_schema(
         summary="Обновить количество товара",

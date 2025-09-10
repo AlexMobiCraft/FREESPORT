@@ -2,10 +2,17 @@
 Модели продуктов для платформы FREESPORT
 Включает товары, категории, бренды с роле-ориентированным ценообразованием
 """
+from __future__ import annotations
+from typing import TYPE_CHECKING
+from decimal import Decimal
+
 from django.core.validators import MinValueValidator
 from django.db import models
 from django.utils.text import slugify
 from transliterate import translit
+
+if TYPE_CHECKING:
+    from apps.users.models import User
 
 
 class Brand(models.Model):
@@ -27,7 +34,7 @@ class Brand(models.Model):
         verbose_name_plural = "Бренды"
         db_table = "brands"
 
-    def save(self, *args, **kwargs):
+    def save(self, *args, **kwargs) -> None:
         if not self.slug:
             try:
                 # Транслитерация кириллицы в латиницу, затем slugify
@@ -42,7 +49,7 @@ class Brand(models.Model):
                 self.slug = f"brand-{self.pk or 0}"
         super().save(*args, **kwargs)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.name
 
 
@@ -79,7 +86,7 @@ class Category(models.Model):
         db_table = "categories"
         ordering = ["sort_order", "name"]
 
-    def save(self, *args, **kwargs):
+    def save(self, *args, **kwargs) -> None:
         if not self.slug:
             try:
                 # Транслитерация кириллицы в латиницу, затем slugify
@@ -94,13 +101,13 @@ class Category(models.Model):
                 self.slug = f"category-{self.pk or 0}"
         super().save(*args, **kwargs)
 
-    def __str__(self):
+    def __str__(self) -> str:
         if self.parent:
             return f"{self.parent.name} > {self.name}"
         return self.name
 
     @property
-    def full_name(self):
+    def full_name(self) -> str:
         """Полное название категории с учетом иерархии"""
         if self.parent:
             return f"{self.parent.full_name} > {self.name}"
@@ -258,7 +265,7 @@ class Product(models.Model):
             models.Index(fields=["sync_status"]),  # Sync status index
         ]
 
-    def save(self, *args, **kwargs):
+    def save(self, *args, **kwargs) -> None:
         if not self.slug:
             try:
                 # Транслитерация кириллицы в латиницу, затем slugify
@@ -279,10 +286,10 @@ class Product(models.Model):
             self.sku = f"AUTO-{int(time.time())}-{uuid.uuid4().hex[:8].upper()}"
         super().save(*args, **kwargs)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.name} ({self.sku})"
 
-    def get_price_for_user(self, user):
+    def get_price_for_user(self, user: User | None) -> Decimal:
         """Получить цену товара для конкретного пользователя на основе его роли"""
         if not user or not user.is_authenticated:
             return self.retail_price
@@ -299,12 +306,12 @@ class Product(models.Model):
         return role_price_mapping.get(user.role, self.retail_price)
 
     @property
-    def is_in_stock(self):
+    def is_in_stock(self) -> bool:
         """Проверка наличия товара на складе"""
         return self.stock_quantity > 0
 
     @property
-    def can_be_ordered(self):
+    def can_be_ordered(self) -> bool:
         """Можно ли заказать товар"""
         available_quantity = self.stock_quantity - self.reserved_quantity
         return (
@@ -314,7 +321,7 @@ class Product(models.Model):
         )
 
     @property
-    def available_quantity(self):
+    def available_quantity(self) -> int:
         """Доступное количество товара (с учетом резерва)"""
         return max(0, self.stock_quantity - self.reserved_quantity)
 
@@ -345,10 +352,10 @@ class ProductImage(models.Model):
             models.Index(fields=["sort_order"]),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"Изображение {self.product.name} ({'основное' if self.is_main else 'дополнительное'})"
 
-    def save(self, *args, **kwargs):
+    def save(self, *args, **kwargs) -> None:
         # Если это основное изображение, убираем флаг у других изображений этого товара
         if self.is_main:
             ProductImage.objects.filter(product=self.product, is_main=True).exclude(

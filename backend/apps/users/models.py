@@ -2,17 +2,23 @@
 Модели пользователей для платформы FREESPORT
 Включает кастомную User модель с ролевой системой B2B/B2C
 """
+from __future__ import annotations
+from typing import TYPE_CHECKING
+
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.core.validators import RegexValidator
 from django.db import models
 
+if TYPE_CHECKING:
+    pass  # Используется для type hints
 
-class UserManager(BaseUserManager):
+
+class UserManager(BaseUserManager['User']):
     """
     Кастомный менеджер для модели User с email аутентификацией
     """
 
-    def create_user(self, email, password=None, **extra_fields):
+    def create_user(self, email: str, password: str | None = None, **extra_fields) -> User:
         """Создание обычного пользователя"""
         if not email:
             raise ValueError("Email обязателен для создания пользователя")
@@ -23,7 +29,7 @@ class UserManager(BaseUserManager):
         user.save(using=self._db)
         return user
 
-    def create_superuser(self, email, password=None, **extra_fields):
+    def create_superuser(self, email: str, password: str | None = None, **extra_fields) -> User:
         """Создание суперпользователя"""
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)
@@ -32,7 +38,9 @@ class UserManager(BaseUserManager):
         if extra_fields.get("is_staff") is not True:
             raise ValueError("Суперпользователь должен иметь is_staff=True.")
         if extra_fields.get("is_superuser") is not True:
-            raise ValueError("Суперпользователь должен иметь is_superuser=True.")
+            raise ValueError(
+                "Суперпользователь должен иметь is_superuser=True."
+            )
 
         return self.create_user(email, password, **extra_fields)
 
@@ -42,6 +50,10 @@ class User(AbstractUser):
     Кастомная модель пользователя с email аутентификацией
     Поддерживает роли для B2B и B2C пользователей
     """
+
+    if TYPE_CHECKING:
+        # Type hints для автогенерируемых Django методов
+        def get_role_display(self) -> str: ...
 
     # Роли пользователей согласно архитектурной документации
     ROLE_CHOICES = [
@@ -139,23 +151,23 @@ class User(AbstractUser):
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["first_name", "last_name"]
 
-    objects = UserManager()
+    objects: UserManager['User'] = UserManager()  # type: ignore[type-abstract]
 
     class Meta:
         verbose_name = "Пользователь"
         verbose_name_plural = "Пользователи"
         db_table = "users"
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.email} ({self.get_role_display()})"
 
     @property
-    def full_name(self):
+    def full_name(self) -> str:
         """Полное имя пользователя"""
         return f"{self.first_name} {self.last_name}".strip()
 
     @property
-    def is_b2b_user(self):
+    def is_b2b_user(self) -> bool:
         """Является ли пользователь B2B клиентом"""
         b2b_roles = [
             "wholesale_level1",
@@ -167,13 +179,13 @@ class User(AbstractUser):
         return self.role in b2b_roles
 
     @property
-    def is_wholesale_user(self):
+    def is_wholesale_user(self) -> bool:
         """Является ли пользователь оптовым покупателем"""
         wholesale_roles = ["wholesale_level1", "wholesale_level2", "wholesale_level3"]
         return self.role in wholesale_roles
 
     @property
-    def wholesale_level(self):
+    def wholesale_level(self) -> int | None:
         """Возвращает уровень оптового покупателя (1, 2, 3) или None"""
         if self.role.startswith("wholesale_level"):
             # Извлекаем число из 'wholesale_level1', 'wholesale_level2', etc.
@@ -212,7 +224,7 @@ class Company(models.Model):
         verbose_name_plural = "Компании"
         db_table = "companies"
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.legal_name} (ИНН: {self.tax_id})"
 
 
@@ -256,7 +268,7 @@ class Address(models.Model):
         db_table = "addresses"
         # Убираем неправильное unique_together ограничение
 
-    def save(self, *args, **kwargs):
+    def save(self, *args, **kwargs) -> None:
         """
         Переопределяем save для корректной логики is_default.
         Если этот адрес устанавливается как основной, снимаем флаг
@@ -272,11 +284,11 @@ class Address(models.Model):
         # Сохраняем объект
         super().save(*args, **kwargs)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.full_name} - {self.city}, {self.street} {self.building}"
 
     @property
-    def full_address(self):
+    def full_address(self) -> str:
         """Полный адрес строкой"""
         parts = [self.postal_code, self.city, self.street, self.building]
         if self.apartment:
@@ -312,5 +324,5 @@ class Favorite(models.Model):
         unique_together = ("user", "product")
         ordering = ["-created_at"]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.user.email} - {self.product.name}"

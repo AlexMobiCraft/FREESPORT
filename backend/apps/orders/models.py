@@ -2,8 +2,10 @@
 Модели заказов для платформы FREESPORT
 Поддерживает B2B и B2C заказы с различными способами оплаты и доставки
 """
+from __future__ import annotations
 import uuid
 from datetime import datetime
+from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 from django.core.validators import MinValueValidator
@@ -132,49 +134,49 @@ class Order(models.Model):
             models.Index(fields=["payment_status"]),
         ]
 
-    def save(self, *args, **kwargs):
+    def save(self, *args, **kwargs) -> None:
         if not self.order_number:
             self.order_number = self.generate_order_number()
         super().save(*args, **kwargs)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"Заказ #{self.order_number}"
 
     @staticmethod
-    def generate_order_number():
+    def generate_order_number() -> str:
         """Генерация уникального номера заказа в формате FS-YYMMDD-XXXXX"""
         date_part = datetime.now().strftime("%y%m%d")
         random_part = str(uuid.uuid4().hex)[:5].upper()
         return f"FS-{date_part}-{random_part}"
 
     @property
-    def subtotal(self):
+    def subtotal(self) -> Decimal:
         """Подытог заказа без учета доставки и скидок"""
         return sum(item.total_price for item in self.items.all())
 
     @property
-    def customer_display_name(self):
+    def customer_display_name(self) -> str:
         """Отображаемое имя клиента"""
         if self.user:
             return self.user.full_name or self.user.email
         return self.customer_name or self.customer_email
 
     @property
-    def total_items(self):
+    def total_items(self) -> int:
         """Общее количество товаров в заказе"""
         return sum(item.quantity for item in self.items.all())
 
     @property
-    def calculated_total(self):
+    def calculated_total(self) -> Decimal:
         """Рассчитанная общая сумма заказа"""
         return sum(item.total_price for item in self.items.all())
 
     @property
-    def can_be_cancelled(self):
+    def can_be_cancelled(self) -> bool:
         """Можно ли отменить заказ"""
         return self.status in ["pending", "confirmed"]
 
-    def can_be_refunded(self):
+    def can_be_refunded(self) -> bool:
         """Можно ли вернуть заказ"""
         return self.status in ["delivered"] and self.payment_status == "paid"
 
@@ -222,7 +224,7 @@ class OrderItem(models.Model):
             models.Index(fields=["order", "product"]),
         ]
 
-    def save(self, *args, **kwargs):
+    def save(self, *args, **kwargs) -> None:
         # Автоматически рассчитываем общую стоимость
         self.total_price = self.unit_price * self.quantity
 
@@ -233,7 +235,7 @@ class OrderItem(models.Model):
 
         super().save(*args, **kwargs)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return (
             f"{self.product_name} x{self.quantity} в заказе #{self.order.order_number}"
         )
