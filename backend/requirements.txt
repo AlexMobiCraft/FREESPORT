@@ -48,6 +48,7 @@ pytest==7.4.3
 pytest-cov==4.1.0
 pytest-django==4.7.0
 python-decouple==3.8
+python-dotenv==1.1.1
 pytz==2025.2
 PyYAML==6.0.2
 redis==5.0.1
@@ -57,7 +58,6 @@ rpds-py==0.27.0
 setuptools==80.9.0
 six==1.17.0
 sqlparse==0.5.3
-tqdm==4.66.1
 transliterate==1.10.2
 types-pytz==2025.2.0.20250809
 types-PyYAML==6.0.12.20250809
