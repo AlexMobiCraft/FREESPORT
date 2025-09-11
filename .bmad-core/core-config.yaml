@@ -18,13 +18,6 @@ devLoadAlwaysFiles:
   - docs/architecture/coding-standards.md
   - docs/architecture/tech-stack.md
   - docs/architecture/source-tree.md
-  - docs/brownfield-architecture.md
-  - docs/architecture/ai-implementation/README.md
-  - docs/architecture/ai-implementation/patterns/role-based-pricing-pattern.md
-  - docs/architecture/ai-implementation/patterns/cart-deduplication-pattern.md
-  - docs/architecture/ai-implementation/patterns/custom-user-email-auth-pattern.md
-  - codebase.xml
-  - codebase.stats.md
 devDebugLog: .ai/debug-log.md
 devStoryLocation: docs/stories
 slashPrefix: BMad
