@@ -44,6 +44,7 @@ jobs:
       env:
         SECRET_KEY: a_test_secret_key_for_ci
         DEBUG: False
+        DB_NAME: test_db
         POSTGRES_DB: test_db
         POSTGRES_USER: runner
         POSTGRES_PASSWORD: password
