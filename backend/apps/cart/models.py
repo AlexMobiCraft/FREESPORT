@@ -21,9 +21,9 @@ class Cart(models.Model):
     Модель корзины покупок
     Поддерживает как авторизованных пользователей, так и гостей (по session_key)
     """
-    
+
     if TYPE_CHECKING:
-        items: QuerySet['CartItem']  # Hint для Pylance о related_name
+        items: QuerySet["CartItem"]  # Hint для Pylance о related_name
 
     user = models.OneToOneField(
         User,
@@ -50,7 +50,7 @@ class Cart(models.Model):
             # Корзина должна иметь либо пользователя, либо session_key
             models.CheckConstraint(
                 check=Q(user__isnull=False) | Q(session_key__isnull=False),
-                name="cart_must_have_user_or_session"
+                name="cart_must_have_user_or_session",
             )
         ]
 
@@ -63,7 +63,8 @@ class Cart(models.Model):
     def total_items(self):
         """Общее количество товаров в корзине"""
         from django.db.models import Sum
-        result = self.items.aggregate(total=Sum('quantity'))['total']
+
+        result = self.items.aggregate(total=Sum("quantity"))["total"]
         return result or 0
 
     @property
@@ -80,7 +81,7 @@ class Cart(models.Model):
         """Очистить корзину"""
         self.items.all().delete()
         # Обновляем только updated_at без лишнего save()
-        self.save(update_fields=['updated_at'])
+        self.save(update_fields=["updated_at"])
 
 
 class CartItem(models.Model):

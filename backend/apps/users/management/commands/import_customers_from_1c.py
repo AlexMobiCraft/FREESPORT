@@ -305,7 +305,7 @@ class Command(BaseCommand):
                 customer = User.objects.create_user(
                     password="temp_password_1c_sync",
                     onec_id=onec_id,
-                    **customer_defaults
+                    **customer_defaults,
                 )
                 action = "создан"
         else:
@@ -318,7 +318,7 @@ class Command(BaseCommand):
                         )
                     )
                 return
-            elif User.objects.filter(email=customer_defaults['email']).exists():
+            elif User.objects.filter(email=customer_defaults["email"]).exists():
                 if not self.dry_run:
                     self.stdout.write(
                         self.style.WARNING(
@@ -328,9 +328,9 @@ class Command(BaseCommand):
                 return
             else:
                 customer = User.objects.create_user(
-                    password="temp_password_1c_sync", 
-                    onec_id=onec_id, 
-                    **customer_defaults
+                    password="temp_password_1c_sync",
+                    onec_id=onec_id,
+                    **customer_defaults,
                 )
                 action = "создан"
 

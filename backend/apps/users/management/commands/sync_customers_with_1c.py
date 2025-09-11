@@ -311,9 +311,7 @@ class Command(BaseCommand):
                 updated_fields.append("first_name")
 
             if update_data.get("phone_number") != customer.phone:
-                customer.phone = update_data.get(
-                    "phone_number", customer.phone
-                )
+                customer.phone = update_data.get("phone_number", customer.phone)
                 updated_fields.append("phone")
 
             if update_data.get("company_name") != customer.company_name:

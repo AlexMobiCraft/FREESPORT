@@ -13,12 +13,14 @@ if TYPE_CHECKING:
     pass  # Используется для type hints
 
 
-class UserManager(BaseUserManager['User']):
+class UserManager(BaseUserManager["User"]):
     """
     Кастомный менеджер для модели User с email аутентификацией
     """
 
-    def create_user(self, email: str, password: str | None = None, **extra_fields) -> User:
+    def create_user(
+        self, email: str, password: str | None = None, **extra_fields
+    ) -> User:
         """Создание обычного пользователя"""
         if not email:
             raise ValueError("Email обязателен для создания пользователя")
@@ -29,7 +31,9 @@ class UserManager(BaseUserManager['User']):
         user.save(using=self._db)
         return user
 
-    def create_superuser(self, email: str, password: str | None = None, **extra_fields) -> User:
+    def create_superuser(
+        self, email: str, password: str | None = None, **extra_fields
+    ) -> User:
         """Создание суперпользователя"""
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)
@@ -38,9 +42,7 @@ class UserManager(BaseUserManager['User']):
         if extra_fields.get("is_staff") is not True:
             raise ValueError("Суперпользователь должен иметь is_staff=True.")
         if extra_fields.get("is_superuser") is not True:
-            raise ValueError(
-                "Суперпользователь должен иметь is_superuser=True."
-            )
+            raise ValueError("Суперпользователь должен иметь is_superuser=True.")
 
         return self.create_user(email, password, **extra_fields)
 
@@ -53,7 +55,8 @@ class User(AbstractUser):
 
     if TYPE_CHECKING:
         # Type hints для автогенерируемых Django методов
-        def get_role_display(self) -> str: ...
+        def get_role_display(self) -> str:
+            ...
 
     # Роли пользователей согласно архитектурной документации
     ROLE_CHOICES = [
@@ -151,7 +154,7 @@ class User(AbstractUser):
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["first_name", "last_name"]
 
-    objects: UserManager['User'] = UserManager()  # type: ignore[type-abstract]
+    objects: UserManager["User"] = UserManager()  # type: ignore[type-abstract]
 
     class Meta:
         verbose_name = "Пользователь"

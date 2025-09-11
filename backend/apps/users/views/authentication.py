@@ -38,7 +38,7 @@ class UserRegistrationView(APIView):
                                 "role": "retail",
                                 "is_verified": True,
                             },
-                        }
+                        },
                     )
                 ],
             ),
@@ -50,7 +50,7 @@ class UserRegistrationView(APIView):
                         value={
                             "email": ["Пользователь с таким email уже существует."],
                             "password_confirm": ["Пароли не совпадают."],
-                        }
+                        },
                     )
                 ],
             ),
@@ -110,7 +110,7 @@ class UserLoginView(APIView):
                                 "role": "retail",
                                 "is_verified": True,
                             },
-                        }
+                        },
                     )
                 ],
             ),
@@ -119,9 +119,7 @@ class UserLoginView(APIView):
                 examples=[
                     OpenApiExample(
                         name="authentication_error",
-                        value={
-                            "non_field_errors": ["Неверный email или пароль."]
-                        }
+                        value={"non_field_errors": ["Неверный email или пароль."]},
                     )
                 ],
             ),

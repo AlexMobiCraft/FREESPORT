@@ -121,7 +121,7 @@ class CartItemUpdateSerializer(serializers.ModelSerializer):
     """
     Serializer для обновления количества в элементе корзины
     """
-    
+
     if TYPE_CHECKING:
         instance: CartItem | None
 
@@ -140,7 +140,7 @@ class CartItemUpdateSerializer(serializers.ModelSerializer):
         # Проверяем, что instance установлен
         if not self.instance:
             raise serializers.ValidationError("Элемент корзины не найден")
-            
+
         quantity = attrs["quantity"]
         product = self.instance.product
 

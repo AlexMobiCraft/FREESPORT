@@ -201,10 +201,10 @@ class Command(BaseCommand):
                         "slug": "testovyj-brend",
                         "description": "Автоматически созданный бренд для тестов",
                         "is_active": True,
-                    }
+                    },
                 )
                 brands = [default_brand]
-        
+
         if not categories:
             categories = list(Category.objects.filter(is_active=True)[:10])
             # КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Если нет категорий, создаем дефолтную
@@ -212,10 +212,10 @@ class Command(BaseCommand):
                 default_category, _ = Category.objects.get_or_create(
                     name="Тестовая категория",
                     defaults={
-                        "slug": "testovaya-kategoriya", 
+                        "slug": "testovaya-kategoriya",
                         "description": "Автоматически созданная категория для тестов",
                         "is_active": True,
-                    }
+                    },
                 )
                 categories = [default_category]
 

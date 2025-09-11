@@ -164,8 +164,10 @@ class TestImportCatalogFrom1CCommand:
         """Тест что --force перезаписывает существующие товары"""
         # Создаем бренд и категорию для тестового товара
         brand = Brand.objects.create(name="Тестовый Бренд", slug="testovyj-brend")
-        category = Category.objects.create(name="Тестовая Категория", slug="testovaya-kategoriya")
-        
+        category = Category.objects.create(
+            name="Тестовая Категория", slug="testovaya-kategoriya"
+        )
+
         # Создаем тестовый товар
         product = Product.objects.create(
             onec_id="1C-PRODUCT-00001",
@@ -187,9 +189,13 @@ class TestImportCatalogFrom1CCommand:
     def test_command_without_force_skips_existing(self):
         """Тест что без --force существующие товары пропускаются"""
         # Создаем бренд и категорию для тестового товара
-        brand = Brand.objects.create(name="Оригинальный Бренд", slug="originalnyj-brend")
-        category = Category.objects.create(name="Оригинальная Категория", slug="originalnaya-kategoriya")
-        
+        brand = Brand.objects.create(
+            name="Оригинальный Бренд", slug="originalnyj-brend"
+        )
+        category = Category.objects.create(
+            name="Оригинальная Категория", slug="originalnaya-kategoriya"
+        )
+
         # Создаем тестовый товар
         original_name = "Оригинальное название"
         product = Product.objects.create(

@@ -285,7 +285,7 @@ class Command(BaseCommand):
                     "slug": "neizvestnyj-brend",
                     "description": "Автоматически созданный бренд для товаров без указанного бренда",
                     "is_active": True,
-                }
+                },
             )
 
         # Поиск или создание категории
@@ -302,7 +302,7 @@ class Command(BaseCommand):
                     "slug": "raznoe",
                     "description": "Автоматически созданная категория для товаров без указанной категории",
                     "is_active": True,
-                }
+                },
             )
 
         # Данные товара

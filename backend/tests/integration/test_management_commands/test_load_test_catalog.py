@@ -81,7 +81,7 @@ class TestLoadTestCatalogCommand:
         # Создаем тестовые данные
         test_brand = Brand.objects.create(name="Тестовый бренд OLD")
         test_category = Category.objects.create(name="Тестовая категория OLD")
-        
+
         Product.objects.create(
             onec_id="TEST-PRODUCT-OLD-001",
             name="Старый тестовый товар",

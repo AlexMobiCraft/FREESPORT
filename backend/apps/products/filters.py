@@ -257,7 +257,7 @@ class ProductFilter(django_filters.FilterSet):
     def filter_size(self, queryset, name, value):
         """
         Фильтрация по размеру из JSON поля specifications
-        
+
         ВАЖНО: Работает только с PostgreSQL. SQLite не поддерживается.
         """
         if not value:

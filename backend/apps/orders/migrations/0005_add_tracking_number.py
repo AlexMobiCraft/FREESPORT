@@ -4,15 +4,19 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('orders', '0004_alter_orderitem_unique_together'),
+        ("orders", "0004_alter_orderitem_unique_together"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='order',
-            name='tracking_number',
-            field=models.CharField(blank=True, help_text='Номер для отслеживания посылки', max_length=100, verbose_name='Трек-номер'),
+            model_name="order",
+            name="tracking_number",
+            field=models.CharField(
+                blank=True,
+                help_text="Номер для отслеживания посылки",
+                max_length=100,
+                verbose_name="Трек-номер",
+            ),
         ),
     ]
