@@ -24,7 +24,7 @@ jobs:
           POSTGRES_PASSWORD: password
         ports:
           - 5432:5432
-        # options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
 
     steps:
     - name: Checkout code
@@ -48,6 +48,7 @@ jobs:
         POSTGRES_USER: runner
         POSTGRES_PASSWORD: password
         DB_HOST: 127.0.0.1
-        DB_PORT: ${{ services.db.ports['5432'] }}
+        # 👇 Вот исправленная строка
+        DB_PORT: ${{ services.db.ports[5432] }} 
       run: |
         pytest
