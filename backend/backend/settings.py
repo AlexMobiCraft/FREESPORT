@@ -41,7 +41,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework_simplejwt",
     # 👇 ИСПРАВЛЕННЫЙ ПУТЬ
-    "apps.users.apps.UsersConfig",
+    "apps.users",
 ]
 
 
