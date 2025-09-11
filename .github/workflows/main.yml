@@ -50,6 +50,5 @@ jobs:
         DB_HOST: 127.0.0.1
         # 👇 Вот исправленная строка
         DB_PORT: ${{ job.services.db.ports[5432] }}
-        PYTHONPATH: backend/
-      run: |
-        pytest --ds=backend.settings -p no:warnings
+      run:
+        pytest
