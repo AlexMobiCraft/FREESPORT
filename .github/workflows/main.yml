@@ -36,7 +36,7 @@ jobs:
         python-version: ${{ matrix.python-version }}
 
     - name: Install Dependencies
-      run: |
+      run:
         python -m pip install --upgrade pip
         pip install -r backend/requirements.txt
     
@@ -47,8 +47,8 @@ jobs:
         POSTGRES_DB: test_db
         POSTGRES_USER: runner
         POSTGRES_PASSWORD: password
-        DB_HOST: 127.0.0.1
+        DB_HOST: db
         # 👇 Вот исправленная строка
-        DB_PORT: ${{ job.services.db.ports[5432] }}
+        DB_PORT: 5432
       run:
         pytest
