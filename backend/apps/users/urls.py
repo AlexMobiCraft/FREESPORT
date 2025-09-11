@@ -31,7 +31,11 @@ urlpatterns = [
     # Профиль пользователя
     path("users/profile/", UserProfileView.as_view(), name="profile"),
     # Личный кабинет
-    path("users/profile/dashboard/", UserDashboardView.as_view(), name="dashboard"),
+    path(
+        "users/profile/dashboard/",
+        UserDashboardView.as_view(),
+        name="dashboard",
+    ),
     path("users/orders/", OrderHistoryView.as_view(), name="orders"),
     # Системная информация
     path("users/roles/", user_roles_view, name="roles"),

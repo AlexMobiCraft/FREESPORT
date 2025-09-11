@@ -5,7 +5,7 @@ from django.db import connection, migrations
 
 def create_user_indexes(apps, schema_editor):
     """
-    Создаем индексы для пользователей с учетом SQLite (DEV) vs PostgreSQL (PROD)
+    Создаем индексы для пользователей с учетом SQLite (DEV) vs PostgreSQL
     """
     db_vendor = connection.vendor
 
@@ -14,24 +14,27 @@ def create_user_indexes(apps, schema_editor):
             # PostgreSQL частичные индексы
             cursor.execute(
                 """
-                CREATE INDEX IF NOT EXISTS users_b2b_users_idx 
-                ON users (role, is_verified, is_active) 
-                WHERE role IN ('wholesale_level1', 'wholesale_level2', 'wholesale_level3', 'trainer', 'federation_rep');
+                CREATE INDEX IF NOT EXISTS users_b2b_users_idx
+                ON users (role, is_verified, is_active)
+                WHERE role IN (
+                    'wholesale_level1', 'wholesale_level2', 'wholesale_level3',
+                    'trainer', 'federation_rep'
+                );
             """
             )
 
             cursor.execute(
                 """
-                CREATE INDEX IF NOT EXISTS users_email_active_idx 
-                ON users (email, is_active) 
+                CREATE INDEX IF NOT EXISTS users_email_active_idx
+                ON users (email, is_active)
                 WHERE is_active = true;
             """
             )
 
             cursor.execute(
                 """
-                CREATE INDEX IF NOT EXISTS addresses_default_idx 
-                ON addresses (user_id, address_type, is_default) 
+                CREATE INDEX IF NOT EXISTS addresses_default_idx
+                ON addresses (user_id, address_type, is_default)
                 WHERE is_default = true;
             """
             )
@@ -39,21 +42,21 @@ def create_user_indexes(apps, schema_editor):
             # SQLite совместимые индексы
             cursor.execute(
                 """
-                CREATE INDEX IF NOT EXISTS users_b2b_users_idx 
+                CREATE INDEX IF NOT EXISTS users_b2b_users_idx
                 ON users (role, is_verified, is_active);
             """
             )
 
             cursor.execute(
                 """
-                CREATE INDEX IF NOT EXISTS users_email_active_idx 
+                CREATE INDEX IF NOT EXISTS users_email_active_idx
                 ON users (email, is_active);
             """
             )
 
             cursor.execute(
                 """
-                CREATE INDEX IF NOT EXISTS addresses_default_idx 
+                CREATE INDEX IF NOT EXISTS addresses_default_idx
                 ON addresses (user_id, address_type, is_default);
             """
             )
@@ -61,14 +64,14 @@ def create_user_indexes(apps, schema_editor):
         # Общие индексы для всех БД
         cursor.execute(
             """
-            CREATE INDEX IF NOT EXISTS companies_tax_id_idx 
+            CREATE INDEX IF NOT EXISTS companies_tax_id_idx
             ON companies (tax_id);
         """
         )
 
         cursor.execute(
             """
-            CREATE INDEX IF NOT EXISTS users_role_idx 
+            CREATE INDEX IF NOT EXISTS users_role_idx
             ON users (role);
         """
         )

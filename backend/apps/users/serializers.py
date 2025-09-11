@@ -64,7 +64,10 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             if not attrs.get("company_name"):
                 raise serializers.ValidationError(
                     {
-                        "company_name": "Название компании обязательно для B2B пользователей."
+                        "company_name": (
+                            "Название компании обязательно для B2B "
+                            "пользователей."
+                        )
                     }
                 )
 
@@ -73,7 +76,10 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
                 if not attrs.get("tax_id"):
                     raise serializers.ValidationError(
                         {
-                            "tax_id": "ИНН обязателен для оптовых покупателей и представителей федерации."
+                            "tax_id": (
+                                "ИНН обязателен для оптовых покупателей и "
+                                "представителей федерации."
+                            )
                         }
                     )
 
@@ -114,17 +120,21 @@ class UserLoginSerializer(serializers.Serializer):
         if email and password:
             # Аутентификация пользователя
             user = authenticate(
-                request=self.context.get("request"), username=email, password=password
+                request=self.context.get("request"),
+                username=email,
+                password=password,
             )
 
             if not user:
                 raise serializers.ValidationError(
-                    "Неверный email или пароль.", code="authorization"
+                    "Неверный email или пароль.",
+                    code="authorization",
                 )
 
             if not user.is_active:
                 raise serializers.ValidationError(
-                    "Аккаунт пользователя деактивирован.", code="authorization"
+                    "Аккаунт пользователя деактивирован.",
+                    code="authorization",
                 )
 
             attrs["user"] = user
@@ -257,7 +267,9 @@ class CompanySerializer(serializers.ModelSerializer):
     def validate_tax_id(self, value):
         """Валидация ИНН компании"""
         if not value.isdigit() or len(value) not in [10, 12]:
-            raise serializers.ValidationError("ИНН должен содержать 10 или 12 цифр.")
+            raise serializers.ValidationError(
+                "ИНН должен содержать 10 или 12 цифр."
+            )
         return value
 
     def validate_kpp(self, value):
@@ -306,11 +318,20 @@ class FavoriteSerializer(serializers.ModelSerializer):
 
     product_name = serializers.CharField(source="product.name", read_only=True)
     product_price = serializers.DecimalField(
-        source="product.retail_price", max_digits=10, decimal_places=2, read_only=True
+        source="product.retail_price",
+        max_digits=10,
+        decimal_places=2,
+        read_only=True,
     )
-    product_image = serializers.CharField(source="product.main_image", read_only=True)
-    product_slug = serializers.CharField(source="product.slug", read_only=True)
-    product_sku = serializers.CharField(source="product.sku", read_only=True)
+    product_image = serializers.CharField(
+        source="product.main_image", read_only=True
+    )
+    product_slug = serializers.CharField(
+        source="product.slug", read_only=True
+    )
+    product_sku = serializers.CharField(
+        source="product.sku", read_only=True
+    )
 
     class Meta:
         model = Favorite
@@ -341,7 +362,9 @@ class FavoriteCreateSerializer(serializers.ModelSerializer):
         from apps.products.models import Product
 
         if not Product.objects.filter(id=value.id, is_active=True).exists():
-            raise serializers.ValidationError("Товар не найден или недоступен.")
+            raise serializers.ValidationError(
+                "Товар не найден или недоступен."
+            )
         return value
 
     def validate(self, attrs):
@@ -379,4 +402,6 @@ class OrderHistorySerializer(serializers.Serializer):
     updated_at = serializers.DateTimeField(read_only=True)
 
     # Базовая информация о товарах в заказе
-    order_items = serializers.ListField(child=serializers.DictField(), read_only=True)
+    order_items = serializers.ListField(
+        child=serializers.DictField(), read_only=True
+    )

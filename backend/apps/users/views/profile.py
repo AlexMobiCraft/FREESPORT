@@ -1,11 +1,10 @@
 """
 Views для управления профилем пользователя
 """
-from drf_spectacular.utils import OpenApiResponse, extend_schema
+from drf_spectacular.utils import extend_schema, OpenApiResponse
 from rest_framework import permissions
 from rest_framework.generics import RetrieveUpdateAPIView
 
-from ..models import User
 from ..serializers import UserProfileSerializer
 
 
@@ -23,7 +22,10 @@ class UserProfileView(RetrieveUpdateAPIView):
 
     @extend_schema(
         summary="Получение профиля пользователя",
-        description="Получение данных профиля текущего авторизованного пользователя",
+        description=(
+            "Получение данных профиля "
+            "текущего авторизованного пользователя"
+        ),
         responses={
             200: UserProfileSerializer,
             401: OpenApiResponse(

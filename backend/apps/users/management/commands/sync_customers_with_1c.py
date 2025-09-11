@@ -77,15 +77,22 @@ class Command(BaseCommand):
         # Валидация параметров
         if not any([self.export_new, self.import_updates, self.full_sync]):
             raise CommandError(
-                "Укажите режим синхронизации: --export-new, --import-updates или --full-sync"
+                (
+                    "Укажите режим синхронизации: --export-new, --import-updates "
+                    "или --full-sync"
+                )
             )
 
         # Заголовок
-        self.stdout.write(self.style.SUCCESS("🔄 Запуск синхронизации клиентов с 1С"))
+        self.stdout.write(
+            self.style.SUCCESS("🔄 Запуск синхронизации клиентов с 1С")
+        )
 
         if self.dry_run:
             self.stdout.write(
-                self.style.WARNING("⚠️  РЕЖИМ DRY-RUN: изменения НЕ будут сохранены")
+                self.style.WARNING(
+                    "⚠️  РЕЖИМ DRY-RUN: изменения НЕ будут сохранены"
+                )
             )
 
         try:
@@ -108,15 +115,15 @@ class Command(BaseCommand):
                     transaction.savepoint_rollback(savepoint)
                     self.stdout.write(
                         self.style.SUCCESS(
-                            f"✅ DRY-RUN завершен: {exported_count} экспортировано, "
-                            f"{imported_count} импортировано"
+                            f"✅ DRY-RUN завершен: {exported_count} "
+                            f"экспортировано, {imported_count} импортировано"
                         )
                     )
                 else:
                     self.stdout.write(
                         self.style.SUCCESS(
-                            f"✅ Синхронизация завершена: {exported_count} экспортировано, "
-                            f"{imported_count} импортировано"
+                            f"✅ Синхронизация завершена: {exported_count} "
+                            f"экспортировано, {imported_count} импортировано"
                         )
                     )
 
@@ -187,7 +194,7 @@ class Command(BaseCommand):
             except Exception as e:
                 self.stdout.write(
                     self.style.ERROR(
-                        f"❌ Ошибка экспорта клиента {customer.id}: {str(e)}"
+                        f"❌ Ошибка экспорта клиента {customer.id}: {e}"
                     )
                 )
                 customer.sync_status = "error"

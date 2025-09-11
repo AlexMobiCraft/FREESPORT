@@ -14,7 +14,9 @@ class Migration(migrations.Migration):
             name="created_in_1c",
             field=models.BooleanField(
                 default=False,
-                help_text="Указывает, что пользователь был создан в 1С",
+                help_text=(
+                    "Указывает, что пользователь был создан в 1С"
+                ),
                 verbose_name="Создан в 1С",
             ),
         ),
@@ -23,7 +25,9 @@ class Migration(migrations.Migration):
             name="last_sync_at",
             field=models.DateTimeField(
                 blank=True,
-                help_text="Дата и время последней синхронизации с 1С",
+                help_text=(
+                    "Дата и время последней синхронизации с 1С"
+                ),
                 null=True,
                 verbose_name="Последняя синхронизация",
             ),
@@ -33,7 +37,9 @@ class Migration(migrations.Migration):
             name="needs_1c_export",
             field=models.BooleanField(
                 default=False,
-                help_text="Требует экспорта данных в 1С",
+                help_text=(
+                    "Требует экспорта данных в 1С"
+                ),
                 verbose_name="Требует экспорта в 1С",
             ),
         ),
@@ -42,7 +48,9 @@ class Migration(migrations.Migration):
             name="onec_id",
             field=models.CharField(
                 blank=True,
-                help_text="Уникальный идентификатор клиента в 1С",
+                help_text=(
+                    "Уникальный идентификатор клиента в 1С"
+                ),
                 max_length=100,
                 null=True,
                 unique=True,
@@ -76,15 +84,26 @@ class Migration(migrations.Migration):
         ),
         # Добавляем индексы для оптимизации производительности (PostgreSQL)
         migrations.RunSQL(
-            "CREATE INDEX idx_users_onec_id ON users (onec_id) WHERE onec_id IS NOT NULL;",
+            """
+            CREATE INDEX idx_users_onec_id
+            ON users (onec_id)
+            WHERE onec_id IS NOT NULL;
+            """.strip(),
             reverse_sql="DROP INDEX IF EXISTS idx_users_onec_id;",
         ),
         migrations.RunSQL(
-            "CREATE INDEX idx_users_sync_status ON users (sync_status);",
+            """
+            CREATE INDEX idx_users_sync_status
+            ON users (sync_status);
+            """.strip(),
             reverse_sql="DROP INDEX IF EXISTS idx_users_sync_status;",
         ),
         migrations.RunSQL(
-            "CREATE INDEX idx_users_last_sync_at ON users (last_sync_at) WHERE last_sync_at IS NOT NULL;",
+            """
+            CREATE INDEX idx_users_last_sync_at
+            ON users (last_sync_at)
+            WHERE last_sync_at IS NOT NULL;
+            """.strip(),
             reverse_sql="DROP INDEX IF EXISTS idx_users_last_sync_at;",
         ),
     ]

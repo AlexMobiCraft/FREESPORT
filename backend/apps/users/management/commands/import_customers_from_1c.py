@@ -10,7 +10,7 @@ Django management команда для импорта клиентов из 1С
 import json
 import time
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
@@ -70,15 +70,21 @@ class Command(BaseCommand):
         # Валидация параметров
         if not self.file_path and not self.use_mock_data:
             raise CommandError(
-                "Укажите либо --file для загрузки из файла, либо --mock-data для тестовых данных"
+                (
+                    "Укажите либо --file для загрузки из файла, либо "
+                    "--mock-data для тестовых данных"
+                )
             )
 
         # Заголовок
-        self.stdout.write(self.style.SUCCESS("🚀 Запуск импорта клиентов из 1С"))
-
+        self.stdout.write(
+            self.style.SUCCESS("🚀 Запуск импорта клиентов из 1С")
+        )
         if self.dry_run:
             self.stdout.write(
-                self.style.WARNING("⚠️  РЕЖИМ DRY-RUN: изменения НЕ будут сохранены")
+                self.style.WARNING(
+                    "⚠️  РЕЖИМ DRY-RUN: изменения НЕ будут сохранены"
+                )
             )
 
         try:
@@ -90,7 +96,9 @@ class Command(BaseCommand):
                 )
             else:
                 customers_data = self._load_data_from_file()
-                self.stdout.write(f"📁 Загружен файл: {len(customers_data)} клиентов")
+                self.stdout.write(
+                    f"📁 Загружен файл: {len(customers_data)} клиентов"
+                )
 
             # Импорт данных
             imported_count = self._import_customers(customers_data)
@@ -99,13 +107,15 @@ class Command(BaseCommand):
             if self.dry_run:
                 self.stdout.write(
                     self.style.SUCCESS(
-                        f"✅ DRY-RUN завершен: {imported_count} клиентов обработано"
+                        f"✅ DRY-RUN завершен: {imported_count} "
+                        f"клиентов обработано"
                     )
                 )
             else:
                 self.stdout.write(
                     self.style.SUCCESS(
-                        f"✅ Импорт завершен успешно: {imported_count} клиентов импортировано"
+                        f"✅ Импорт завершен успешно: {imported_count} "
+                        f"клиентов импортировано"
                     )
                 )
 
@@ -151,8 +161,8 @@ class Command(BaseCommand):
         """Парсинг XML файла (заглушка)"""
         # TODO: Реализовать XML парсер после получения образцов от 1С
         raise CommandError(
-            "XML парсер будет реализован после получения образцов файлов от 1С. "
-            "Используйте --mock-data для тестирования."
+            "XML парсер будет реализован после получения образцов "
+            "файлов от 1С. Используйте --mock-data для тестирования."
         )
 
     def _get_mock_customers_data(self) -> List[Dict]:
@@ -220,14 +230,16 @@ class Command(BaseCommand):
             try:
                 # Обработка клиентов по батчам
                 for i in range(0, len(customers_data), self.chunk_size):
-                    chunk = customers_data[i : i + self.chunk_size]
-                    imported_count += self._process_customers_chunk(chunk, progress_bar)
+                    chunk = customers_data[i: i + self.chunk_size]
+                    imported_count += self._process_customers_chunk(
+                        chunk, progress_bar
+                    )
 
                 if self.dry_run:
                     # Rollback изменений в dry-run режиме
                     transaction.savepoint_rollback(savepoint)
 
-            except Exception as e:
+            except Exception:
                 if not self.dry_run:
                     raise
                 else:
@@ -251,7 +263,8 @@ class Command(BaseCommand):
             except Exception as e:
                 self.stdout.write(
                     self.style.ERROR(
-                        f'❌ Ошибка обработки клиента {customer_data.get("onec_id", "UNKNOWN")}: {str(e)}'
+                        f'❌ Ошибка обработки клиента '
+                        f'{customer_data.get("onec_id", "UNKNOWN")}: {e}'
                     )
                 )
                 if not self.force:
@@ -278,7 +291,7 @@ class Command(BaseCommand):
             "email": customer_data.get("email", ""),
             "first_name": customer_data.get("first_name", ""),
             "last_name": customer_data.get("last_name", ""),
-            "phone": customer_data.get("phone_number", ""),  # phone_number -> phone
+            "phone": customer_data.get("phone_number", ""),
             "role": customer_data.get("role", "retail"),
             "is_active": customer_data.get("is_active", True),
             "company_name": customer_data.get("company_name", ""),
@@ -292,7 +305,8 @@ class Command(BaseCommand):
 
         # Создание или обновление клиента
         if self.force:
-            # Для update_or_create нужно отдельно обрабатывать пароль при создании
+            # Для update_or_create нужно отдельно обрабатывать пароль
+            # при создании
             try:
                 customer = User.objects.get(onec_id=onec_id)
                 # Обновляем существующего
@@ -314,15 +328,20 @@ class Command(BaseCommand):
                 if not self.dry_run:
                     self.stdout.write(
                         self.style.WARNING(
-                            f"⚠️  Клиент {onec_id} уже существует, пропускаем"
+                            f"⚠️  Клиент {onec_id} уже существует, "
+                            f"пропускаем"
                         )
                     )
                 return
-            elif User.objects.filter(email=customer_defaults["email"]).exists():
+            elif User.objects.filter(
+                email=customer_defaults["email"]
+            ).exists():
                 if not self.dry_run:
                     self.stdout.write(
                         self.style.WARNING(
-                            f"⚠️  Клиент с email {customer_defaults['email']} уже существует, пропускаем"
+                            f"⚠️  Клиент с email "
+                            f"{customer_defaults['email']} уже существует, "
+                            f"пропускаем"
                         )
                     )
                 return
@@ -337,5 +356,6 @@ class Command(BaseCommand):
         # Логирование (только в verbose режиме)
         if getattr(self, "verbosity", 1) >= 2:
             self.stdout.write(
-                f"✅ Клиент {onec_id} ({customer.first_name} {customer.last_name}) {action}"
+                f"✅ Клиент {onec_id} ({customer.first_name} "
+                f"{customer.last_name}) {action}"
             )

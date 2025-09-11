@@ -3,7 +3,7 @@ Views для личного кабинета пользователя
 """
 from dataclasses import dataclass
 
-from drf_spectacular.utils import OpenApiResponse, extend_schema
+from drf_spectacular.utils import extend_schema
 from rest_framework import permissions, status, viewsets
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -37,10 +37,12 @@ class UserDashboardView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     @extend_schema(
-        summary="Персональный дашборд",
-        description="Получение агрегированной информации для личного кабинета пользователя",
-        responses={200: UserDashboardSerializer},
-        tags=["Users"],
+        summary="Получение дашборда пользователя",
+        description="Возвращает основные метрики и статистику пользователя",
+        responses={
+            200: UserDashboardSerializer,
+            401: "Пользователь не авторизован"
+        }
     )
     def get(self, request):
         """Получение данных дашборда"""
@@ -117,7 +119,11 @@ class FavoriteViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return Favorite.objects.filter(user=self.request.user).select_related("product")
+        return (
+            Favorite.objects
+            .filter(user=self.request.user)
+            .select_related("product")
+        )
 
     def get_serializer_class(self):
         if self.action == "create":
