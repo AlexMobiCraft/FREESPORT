@@ -3,6 +3,7 @@ Django settings for FREESPORT backend project.
 """
 
 import os
+import sys
 from pathlib import Path
 from datetime import timedelta
 from dotenv import load_dotenv
@@ -18,6 +19,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # ОСНОВНЫЕ НАСТРОЙКИ (CORE SETTINGS)
 # ==============================================================================
 SECRET_KEY = os.environ.get('SECRET_KEY')
+# В режиме тестирования, если SECRET_KEY не задан в окружении,
+# используем временный ключ, чтобы тесты могли запуститься.
+if 'test' in sys.argv and not SECRET_KEY:
+    SECRET_KEY = 'dummy-key-for-testing-dont-use-in-prod'
+
 DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '127.0.0.1,localhost').split(',')
 
@@ -149,3 +155,4 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 # НАСТРОЙКА ПЕРВИЧНОГО КЛЮЧА (DEFAULT PRIMARY KEY)
 # ==============================================================================
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
