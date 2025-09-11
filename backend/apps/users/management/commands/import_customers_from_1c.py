@@ -16,7 +16,6 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils import timezone
 from tqdm import tqdm
-
 from apps.users.models import User
 
 
@@ -71,8 +70,8 @@ class Command(BaseCommand):
         if not self.file_path and not self.use_mock_data:
             raise CommandError(
                 (
-                    "Укажите либо --file для загрузки из файла, либо "
-                    "--mock-data для тестовых данных"
+                    "Укажите либо --file для загрузки из файла, "
+                    "либо --mock-data для тестовых данных"
                 )
             )
 
@@ -83,7 +82,8 @@ class Command(BaseCommand):
         if self.dry_run:
             self.stdout.write(
                 self.style.WARNING(
-                    "⚠️  РЕЖИМ DRY-RUN: изменения НЕ будут сохранены"
+                    "⚠️  РЕЖИМ DRY-RUN: изменения НЕ будут "
+                    "сохранены"
                 )
             )
 
@@ -92,7 +92,8 @@ class Command(BaseCommand):
             if self.use_mock_data:
                 customers_data = self._get_mock_customers_data()
                 self.stdout.write(
-                    f"📦 Загружены тестовые данные: {len(customers_data)} клиентов"
+                    f"📦 Загружены тестовые данные: "
+                    f"{len(customers_data)} клиентов"
                 )
             else:
                 customers_data = self._load_data_from_file()
