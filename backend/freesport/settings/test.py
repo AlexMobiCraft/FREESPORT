@@ -1,6 +1,7 @@
-from .base import * # noqa: F403, F401 # pylint: disable=wildcard-import,unused-wildcard-import
+# pylint: disable=wildcard-import, unused-wildcard-import
 import os
-from typing import Any
+from typing import Any  # pylint: disable=unused-import
+from .base import *  # noqa: F403, F401, F405
 
 # ==============================================================================
 # НАСТРОЙКИ ДЛЯ ТЕСТИРОВАНИЯ (TESTING SETTINGS)
