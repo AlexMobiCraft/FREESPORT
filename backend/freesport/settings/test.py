@@ -1,168 +1,51 @@
-import tempfile
-from datetime import timedelta
+from .base import * # noqa: F403, F401 # pylint: disable=wildcard-import,unused-wildcard-import
+import os
+from typing import Any
 
-from .base import *
+# ==============================================================================
+# НАСТРОЙКИ ДЛЯ ТЕСТИРОВАНИЯ (TESTING SETTINGS)
+# ==============================================================================
 
-# Отключаем DEBUG для тестов
+# Отключаем отладку в тестах для производительности и безопасности
 DEBUG = False
 
-# Тестовая база данных - ТОЛЬКО PostgreSQL через Docker
-import os
+# Используем временный ключ, чтобы не раскрывать продакшен-ключ
+SECRET_KEY = os.environ.get("SECRET_KEY", "django-insecure-test-key-for-ci")
 
-# ВАЖНО: Тестирование выполняется ТОЛЬКО с PostgreSQL через Docker Compose
-# SQLite больше не поддерживается для тестов из-за ограничений JSON операторов
+
+# ==============================================================================
+# БАЗА ДАННЫХ (DATABASE)
+# ==============================================================================
+#
+# Максимально простая конфигурация БД, совместимая с pytest-django.
+# Все значения берутся напрямую из переменных окружения, которые
+# мы устанавливаем в .github/workflows/main.yml.
+#
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.environ.get("DB_NAME", "freesport_test"),
-        "USER": os.environ.get("DB_USER", "freesport_user"),
-        "PASSWORD": os.environ.get("DB_PASSWORD", "password123"),
-        "HOST": os.environ.get("DB_HOST", "localhost"),
-        "PORT": os.environ.get("DB_PORT", "5432"),
-        "TEST": {
-            "NAME": "test_" + os.environ.get("DB_NAME", "freesport_test"),
-        },
+        "NAME": os.environ.get("DB_NAME"),
+        "USER": os.environ.get("DB_USER"),
+        "PASSWORD": os.environ.get("DB_PASSWORD"),
+        "HOST": os.environ.get("DB_HOST"),
+        "PORT": os.environ.get("DB_PORT"),
     }
 }
 
 
-# Отключаем миграции для быстрых тестов
-class DisableMigrations:
-    def __contains__(self, item):
-        return True
+# ==============================================================================
+# УСКОРЕНИЕ ТЕСТОВ (TESTING SPEEDUPS)
+# ==============================================================================
 
-    def __getitem__(self, item):
-        return None
-
-
-MIGRATION_MODULES = DisableMigrations()
-
-# Простой хешер паролей для скорости
+# Используем быстрый (небезопасный) хешер паролей для ускорения
+# создания пользователей в тестах.
 PASSWORD_HASHERS = [
     "django.contrib.auth.hashers.MD5PasswordHasher",
 ]
 
-# Настройки кеширования для тестов - ТОЛЬКО Redis через Docker
-CACHES = {
-    "default": {
-        "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": os.environ.get("REDIS_URL", "redis://localhost:6379/1"),
-        "OPTIONS": {
-            "CLIENT_CLASS": "django_redis.client.DefaultClient",
-        },
-        "KEY_PREFIX": "freesport_test",
-    }
-}
-
-# Отключаем логирование для тестов
-LOGGING = {
-    "version": 1,
-    "disable_existing_loggers": True,  # Полностью отключаем существующие логгеры
-    "handlers": {
-        "null": {
-            "class": "logging.NullHandler",
-        },
-    },
-    "root": {
-        "handlers": ["null"],
-        "level": "CRITICAL",  # Только критические ошибки
-    },
-    "loggers": {
-        "django": {
-            "handlers": ["null"],
-            "level": "CRITICAL",
-            "propagate": False,
-        },
-        "freesport": {
-            "handlers": ["null"],
-            "level": "CRITICAL",
-            "propagate": False,
-        },
-        "django.db.backends": {
-            "handlers": ["null"],
-            "level": "CRITICAL",
-            "propagate": False,
-        },
-        "django.request": {
-            "handlers": ["null"],
-            "level": "CRITICAL",
-            "propagate": False,
-        },
-    },
-}
-
-# Медиа файлы во временной директории
-MEDIA_ROOT = tempfile.mkdtemp()
-
-# Статические файлы во временной директории
-STATIC_ROOT = tempfile.mkdtemp()
-
-# Отключаем email отправку
+# Отключаем email-отправку, заменяя её на "заглушку",
+# которая хранит письма в памяти.
 EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
 
-# Тестовый SECRET_KEY
-SECRET_KEY = "test-secret-key-for-testing-only-do-not-use-in-production"
-
-# Упрощенная настройка middleware для тестов
-MIDDLEWARE = [
-    "django.middleware.security.SecurityMiddleware",
-    "django.contrib.sessions.middleware.SessionMiddleware",
-    "corsheaders.middleware.CorsMiddleware",
-    "django.middleware.common.CommonMiddleware",
-    "django.middleware.csrf.CsrfViewMiddleware",
-    "django.contrib.auth.middleware.AuthenticationMiddleware",
-    "django.contrib.messages.middleware.MessageMiddleware",
-    "django.middleware.clickjacking.XFrameOptionsMiddleware",
-]
-
-# Настройки для тестирования JWT
-SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=5),
-    "REFRESH_TOKEN_LIFETIME": timedelta(minutes=10),
-    "SIGNING_KEY": SECRET_KEY,
-    "ALGORITHM": "HS256",
-    "VERIFYING_KEY": None,
-    "AUTH_HEADER_TYPES": ("Bearer",),
-    "TOKEN_OBTAIN_SERIALIZER": "rest_framework_simplejwt.serializers.TokenObtainPairSerializer",
-}
-
-# Разрешаем все домены для тестов
-ALLOWED_HOSTS = ["*"]
-
-# Отключаем CORS проверки
-CORS_ALLOW_ALL_ORIGINS = True
-
-# Настройки для factory_boy
-FACTORY_FOR_DJANGO_FILE_FIELD = True
-
-# Настройки для pytest-django
-USE_TZ = True
-
-# Отключаем django-ratelimit для тестов
-RATELIMIT_ENABLE = False
-
-# Дополнительные настройки PostgreSQL для стабильных тестов
-DATABASES["default"].update(
-    {
-        "CONN_MAX_AGE": 0,  # Отключаем persistent connections в тестах
-        "CONN_HEALTH_CHECKS": False,  # Отключаем health checks для изоляции
-        "AUTOCOMMIT": True,
-        "OPTIONS": {
-            "connect_timeout": 30,
-            "server_side_binding": False,
-            "application_name": "freesport_test",
-        },
-        "TEST": {
-            "NAME": "test_" + os.environ.get("DB_NAME", "freesport_test"),
-            "SERIALIZE": False,  # Отключаем сериализацию для ускорения
-            "CREATE_DB": True,
-            "DEPENDENCIES": [],  # Нет зависимостей от других БД
-        },
-    }
-)
-
-# Настройки для предотвращения connection already closed
-DATABASE_ROUTERS = []
-
-# Дополнительные настройки для изоляции тестов
-DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
+# Отключаем логирование в консоль, чтобы вывод тестов был чистым.
+LOGGING: dict[str, Any] = {}
