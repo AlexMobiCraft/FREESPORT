@@ -17,4 +17,20 @@ max-line-length = 88
 # Игнорируем определенные ошибки глобально (если нужно).
 # Например, E501 - 'line too long' (уже контролируется max-line-length)
 # W503 - 'line break before binary operator' (конфликтует с Black)
-ignore = E501, W503
+ignore =
+    # --- Совместимость с форматером Black ---
+    W503,  # Разрыв строки перед бинарным оператором, black делает наоборот.
+    E203,  # Пробел перед двоеточием, black делает наоборот.
+
+    # --- Самые частые, но не критичные ошибки ---
+    F401,  # '...' imported but unused (неиспользуемый импорт).
+    F841,  # local variable '...' is assigned to but never used (неиспользуемая переменная).
+    F811,  # redefinition of unused '...' (переопределение неиспользуемой переменной).
+
+    # --- Проблемы в файлах настроек Django из-за "import *" ---
+    F403,  # 'from .base import *' used (использование wildcard import).
+    F405,  # '...' may be undefined (неопределенная переменная из-за wildcard import).
+
+    # --- Другие не критичные ошибки ---
+    E402,  # module level import not at top of file (импорт не в начале файла).
+    E722,  # do not use bare 'except' (использование "голого" except).
