@@ -19,11 +19,23 @@ from ..models import User
                 "application/json": {
                     "roles": [
                         {"key": "retail", "display": "Розничный покупатель"},
-                        {"key": "wholesale_level1", "display": "Оптовик уровень 1"},  # noqa: E501
-                        {"key": "wholesale_level2", "display": "Оптовик уровень 2"},  # noqa: E501
-                        {"key": "wholesale_level3", "display": "Оптовик уровень 3"},  # noqa: E501
+                        {
+                            "key": "wholesale_level1",
+                            "display": "Оптовик уровень 1",
+                        },  # noqa: E501
+                        {
+                            "key": "wholesale_level2",
+                            "display": "Оптовик уровень 2",
+                        },  # noqa: E501
+                        {
+                            "key": "wholesale_level3",
+                            "display": "Оптовик уровень 3",
+                        },  # noqa: E501
                         {"key": "trainer", "display": "Тренер/Фитнес-клуб"},
-                        {"key": "federation_rep", "display": "Представитель федерации"},  # noqa: E501
+                        {
+                            "key": "federation_rep",
+                            "display": "Представитель федерации",
+                        },  # noqa: E501
                     ]
                 }
             },
@@ -38,14 +50,8 @@ def user_roles_view(request):
     Возвращает список доступных ролей пользователей
     """
     # Исключаем роль admin из публичного API
-    public_roles = [
-        choice for choice in User.ROLE_CHOICES
-        if choice[0] != "admin"
-    ]
+    public_roles = [choice for choice in User.ROLE_CHOICES if choice[0] != "admin"]
 
-    roles_data = [
-        {"key": role[0], "display": role[1]}
-        for role in public_roles
-    ]
+    roles_data = [{"key": role[0], "display": role[1]} for role in public_roles]
 
     return Response({"roles": roles_data}, status=status.HTTP_200_OK)

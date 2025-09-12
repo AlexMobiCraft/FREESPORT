@@ -32,24 +32,22 @@ ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "127.0.0.1,localhost").split(","
 # ПРИЛОЖЕНИЯ (APPLICATIONS)
 # ==============================================================================
 INSTALLED_APPS = [
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
-
+    "django.contrib.admin",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
     # Сторонние библиотеки
-    'rest_framework',
-    'rest_framework_simplejwt',
-
+    "rest_framework",
+    "rest_framework_simplejwt",
     # Приложения проекта
-    'apps.users',
-    'apps.products',
-    'apps.cart',
-    'apps.orders',
-    'apps.pages',
-    'apps.common',
+    "apps.users",
+    "apps.products",
+    "apps.cart",
+    "apps.orders",
+    "apps.pages",
+    "apps.common",
 ]
 
 

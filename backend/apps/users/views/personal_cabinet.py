@@ -39,10 +39,7 @@ class UserDashboardView(APIView):
     @extend_schema(
         summary="Получение дашборда пользователя",
         description="Возвращает основные метрики и статистику пользователя",
-        responses={
-            200: UserDashboardSerializer,
-            401: "Пользователь не авторизован"
-        }
+        responses={200: UserDashboardSerializer, 401: "Пользователь не авторизован"},
     )
     def get(self, request):
         """Получение данных дашборда"""
@@ -119,11 +116,7 @@ class FavoriteViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return (
-            Favorite.objects
-            .filter(user=self.request.user)
-            .select_related("product")
-        )
+        return Favorite.objects.filter(user=self.request.user).select_related("product")
 
     def get_serializer_class(self):
         if self.action == "create":

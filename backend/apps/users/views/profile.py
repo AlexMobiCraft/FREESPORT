@@ -23,8 +23,7 @@ class UserProfileView(RetrieveUpdateAPIView):
     @extend_schema(
         summary="Получение профиля пользователя",
         description=(
-            "Получение данных профиля "
-            "текущего авторизованного пользователя"
+            "Получение данных профиля " "текущего авторизованного пользователя"
         ),
         responses={
             200: UserProfileSerializer,

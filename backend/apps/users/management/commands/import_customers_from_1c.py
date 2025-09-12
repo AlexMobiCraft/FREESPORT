@@ -76,15 +76,10 @@ class Command(BaseCommand):
             )
 
         # Заголовок
-        self.stdout.write(
-            self.style.SUCCESS("🚀 Запуск импорта клиентов из 1С")
-        )
+        self.stdout.write(self.style.SUCCESS("🚀 Запуск импорта клиентов из 1С"))
         if self.dry_run:
             self.stdout.write(
-                self.style.WARNING(
-                    "⚠️  РЕЖИМ DRY-RUN: изменения НЕ будут "
-                    "сохранены"
-                )
+                self.style.WARNING("⚠️  РЕЖИМ DRY-RUN: изменения НЕ будут " "сохранены")
             )
 
         try:
@@ -92,14 +87,11 @@ class Command(BaseCommand):
             if self.use_mock_data:
                 customers_data = self._get_mock_customers_data()
                 self.stdout.write(
-                    f"📦 Загружены тестовые данные: "
-                    f"{len(customers_data)} клиентов"
+                    f"📦 Загружены тестовые данные: " f"{len(customers_data)} клиентов"
                 )
             else:
                 customers_data = self._load_data_from_file()
-                self.stdout.write(
-                    f"📁 Загружен файл: {len(customers_data)} клиентов"
-                )
+                self.stdout.write(f"📁 Загружен файл: {len(customers_data)} клиентов")
 
             # Импорт данных
             imported_count = self._import_customers(customers_data)
@@ -108,8 +100,7 @@ class Command(BaseCommand):
             if self.dry_run:
                 self.stdout.write(
                     self.style.SUCCESS(
-                        f"✅ DRY-RUN завершен: {imported_count} "
-                        f"клиентов обработано"
+                        f"✅ DRY-RUN завершен: {imported_count} " f"клиентов обработано"
                     )
                 )
             else:
@@ -231,10 +222,8 @@ class Command(BaseCommand):
             try:
                 # Обработка клиентов по батчам
                 for i in range(0, len(customers_data), self.chunk_size):
-                    chunk = customers_data[i: i + self.chunk_size]
-                    imported_count += self._process_customers_chunk(
-                        chunk, progress_bar
-                    )
+                    chunk = customers_data[i : i + self.chunk_size]
+                    imported_count += self._process_customers_chunk(chunk, progress_bar)
 
                 if self.dry_run:
                     # Rollback изменений в dry-run режиме
@@ -264,7 +253,7 @@ class Command(BaseCommand):
             except Exception as e:
                 self.stdout.write(
                     self.style.ERROR(
-                        f'❌ Ошибка обработки клиента '
+                        f"❌ Ошибка обработки клиента "
                         f'{customer_data.get("onec_id", "UNKNOWN")}: {e}'
                     )
                 )
@@ -329,14 +318,11 @@ class Command(BaseCommand):
                 if not self.dry_run:
                     self.stdout.write(
                         self.style.WARNING(
-                            f"⚠️  Клиент {onec_id} уже существует, "
-                            f"пропускаем"
+                            f"⚠️  Клиент {onec_id} уже существует, " f"пропускаем"
                         )
                     )
                 return
-            elif User.objects.filter(
-                email=customer_defaults["email"]
-            ).exists():
+            elif User.objects.filter(email=customer_defaults["email"]).exists():
                 if not self.dry_run:
                     self.stdout.write(
                         self.style.WARNING(

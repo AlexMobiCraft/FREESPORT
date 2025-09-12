@@ -65,8 +65,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(
                     {
                         "company_name": (
-                            "Название компании обязательно для B2B "
-                            "пользователей."
+                            "Название компании обязательно для B2B " "пользователей."
                         )
                     }
                 )
@@ -267,9 +266,7 @@ class CompanySerializer(serializers.ModelSerializer):
     def validate_tax_id(self, value):
         """Валидация ИНН компании"""
         if not value.isdigit() or len(value) not in [10, 12]:
-            raise serializers.ValidationError(
-                "ИНН должен содержать 10 или 12 цифр."
-            )
+            raise serializers.ValidationError("ИНН должен содержать 10 или 12 цифр.")
         return value
 
     def validate_kpp(self, value):
@@ -323,15 +320,9 @@ class FavoriteSerializer(serializers.ModelSerializer):
         decimal_places=2,
         read_only=True,
     )
-    product_image = serializers.CharField(
-        source="product.main_image", read_only=True
-    )
-    product_slug = serializers.CharField(
-        source="product.slug", read_only=True
-    )
-    product_sku = serializers.CharField(
-        source="product.sku", read_only=True
-    )
+    product_image = serializers.CharField(source="product.main_image", read_only=True)
+    product_slug = serializers.CharField(source="product.slug", read_only=True)
+    product_sku = serializers.CharField(source="product.sku", read_only=True)
 
     class Meta:
         model = Favorite
@@ -362,9 +353,7 @@ class FavoriteCreateSerializer(serializers.ModelSerializer):
         from apps.products.models import Product
 
         if not Product.objects.filter(id=value.id, is_active=True).exists():
-            raise serializers.ValidationError(
-                "Товар не найден или недоступен."
-            )
+            raise serializers.ValidationError("Товар не найден или недоступен.")
         return value
 
     def validate(self, attrs):
@@ -402,6 +391,4 @@ class OrderHistorySerializer(serializers.Serializer):
     updated_at = serializers.DateTimeField(read_only=True)
 
     # Базовая информация о товарах в заказе
-    order_items = serializers.ListField(
-        child=serializers.DictField(), read_only=True
-    )
+    order_items = serializers.ListField(child=serializers.DictField(), read_only=True)

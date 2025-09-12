@@ -1,26 +1,14 @@
 """
 Views для аутентификации пользователей
 """
-from drf_spectacular.utils import (
-    OpenApiExample,
-    OpenApiResponse,
-    extend_schema
-)
-from rest_framework import (
-    permissions,
-    status
-)
+from drf_spectacular.utils import OpenApiExample, OpenApiResponse, extend_schema
+from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework_simplejwt.tokens import (
-    RefreshToken
-)
+from rest_framework_simplejwt.tokens import RefreshToken
 
 # User model is used in the code
-from ..serializers import (
-    UserLoginSerializer,
-    UserRegistrationSerializer
-)
+from ..serializers import UserLoginSerializer, UserRegistrationSerializer
 
 
 class UserRegistrationView(APIView):
@@ -63,9 +51,7 @@ class UserRegistrationView(APIView):
                     OpenApiExample(
                         name="validation_errors",
                         value={
-                            "email": [
-                                "Пользователь с таким email уже существует."
-                            ],
+                            "email": ["Пользователь с таким email уже существует."],
                             "password_confirm": ["Пароли не совпадают."],
                         },
                     )
@@ -117,12 +103,8 @@ class UserLoginView(APIView):
                     OpenApiExample(
                         name="successful_login",
                         value={
-                            "access": (
-                                "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
-                            ),
-                            "refresh": (
-                                "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
-                            ),
+                            "access": ("eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."),
+                            "refresh": ("eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."),
                             "user": {
                                 "id": 1,
                                 "email": "user@example.com",
@@ -140,11 +122,7 @@ class UserLoginView(APIView):
                 examples=[
                     OpenApiExample(
                         name="authentication_error",
-                        value={
-                            "non_field_errors": [
-                                "Неверный email или пароль."
-                            ]
-                        },
+                        value={"non_field_errors": ["Неверный email или пароль."]},
                     )
                 ],
             ),

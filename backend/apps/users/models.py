@@ -40,13 +40,9 @@ class UserManager(BaseUserManager["User"]):
         extra_fields.setdefault("role", "admin")
 
         if extra_fields.get("is_staff") is not True:
-            raise ValueError(
-                "Суперпользователь должен иметь is_staff=True."
-            )
+            raise ValueError("Суперпользователь должен иметь is_staff=True.")
         if extra_fields.get("is_superuser") is not True:
-            raise ValueError(
-                "Суперпользователь должен иметь is_superuser=True."
-            )
+            raise ValueError("Суперпользователь должен иметь is_superuser=True.")
 
         return self.create_user(email, password, **extra_fields)
 
@@ -79,10 +75,7 @@ class User(AbstractUser):
 
     # Дополнительные поля
     role = models.CharField(
-        "Роль пользователя",
-        max_length=20,
-        choices=ROLE_CHOICES,
-        default="retail"
+        "Роль пользователя", max_length=20, choices=ROLE_CHOICES, default="retail"
     )
 
     phone_regex = RegexValidator(
@@ -144,9 +137,7 @@ class User(AbstractUser):
         help_text="Указывает, что пользователь был создан в 1С",
     )
     needs_1c_export = models.BooleanField(
-        "Требует экспорта в 1С",
-        default=False,
-        help_text="Требует экспорта данных в 1С"
+        "Требует экспорта в 1С", default=False, help_text="Требует экспорта данных в 1С"
     )
     last_sync_at = models.DateTimeField(
         "Последняя синхронизация",
@@ -193,11 +184,7 @@ class User(AbstractUser):
     @property
     def is_wholesale_user(self) -> bool:
         """Является ли пользователь оптовым покупателем"""
-        wholesale_roles = [
-            "wholesale_level1",
-            "wholesale_level2",
-            "wholesale_level3"
-        ]
+        wholesale_roles = ["wholesale_level1", "wholesale_level2", "wholesale_level3"]
         return self.role in wholesale_roles
 
     @property
@@ -230,11 +217,7 @@ class Company(models.Model):
     # Банковские реквизиты
     bank_name = models.CharField("Название банка", max_length=200, blank=True)
     bank_bik = models.CharField("БИК банка", max_length=9, blank=True)
-    account_number = models.CharField(
-        "Расчетный счет",
-        max_length=20,
-        blank=True
-    )
+    account_number = models.CharField("Расчетный счет", max_length=20, blank=True)
 
     created_at = models.DateTimeField("Дата создания", auto_now_add=True)
     updated_at = models.DateTimeField("Дата обновления", auto_now=True)
