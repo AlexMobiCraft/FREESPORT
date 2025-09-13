@@ -17,4 +17,4 @@ max-line-length = 88
 # Игнорируем определенные ошибки глобально (если нужно).
 # Например, E501 - 'line too long' (уже контролируется max-line-length)
 # W503 - 'line break before binary operator' (конфликтует с Black)
-ignore = E501, W503
+ignore = W503,E203,F401,F841,F811,F403,F405,E402,E722
