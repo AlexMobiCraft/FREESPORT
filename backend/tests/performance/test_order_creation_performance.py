@@ -277,7 +277,7 @@ class OrderCreationPerformanceTest(TestCase):
 
         avg_response_time = sum(r["response_time"] for r in results) / len(results)
 
-        print(f"Sequential order creation results:")
+        print("Sequential order creation results:")
         print(f"Total time: {total_time:.3f}s")
         print(f"Average response time: {avg_response_time:.3f}s")
         print(f"Max response time: {max(r['response_time'] for r in results):.3f}s")

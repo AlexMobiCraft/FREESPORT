@@ -1,0 +1,12 @@
+[1mapps/common/management/commands/check_api_docs.py[m[36m:[m6[36m:[m1[36m:[m [1m[31mF401[m 'sys' imported but unused
+[1mapps/common/management/commands/check_api_docs.py[m[36m:[m10[36m:[m1[36m:[m [1m[31mF401[m 'django.conf.settings' imported but unused
+[1mapps/common/management/commands/check_api_docs.py[m[36m:[m12[36m:[m1[36m:[m [1m[31mF401[m 'django.urls.get_resolver' imported but unused
+[1mapps/common/management/commands/check_api_docs.py[m[36m:[m13[36m:[m1[36m:[m [1m[31mF401[m 'drf_spectacular.openapi.AutoSchema' imported but unused
+[1mapps/common/management/commands/check_api_docs.py[m[36m:[m14[36m:[m1[36m:[m [1m[31mF401[m 'drf_spectacular.utils.extend_schema' imported but unused
+[1mapps/common/management/commands/check_api_docs.py[m[36m:[m15[36m:[m1[36m:[m [1m[31mF401[m 'rest_framework.viewsets' imported but unused
+[1mapps/common/management/commands/check_api_docs.py[m[36m:[m16[36m:[m1[36m:[m [1m[31mF401[m 'rest_framework.decorators.action' imported but unused
+[1mapps/common/management/commands/check_api_docs.py[m[36m:[m45[36m:[m9[36m:[m [1m[31mF811[m redefinition of unused 'viewsets' from line 15
+[1mapps/common/management/commands/check_api_docs.py[m[36m:[m80[36m:[m9[36m:[m [1m[31mF811[m redefinition of unused 'viewsets' from line 15
+[1mapps/common/management/commands/check_api_docs.py[m[36m:[m150[36m:[m9[36m:[m [1m[31mF841[m local variable 'viewset_class' is assigned to but never used
+[1mapps/common/management/commands/check_api_docs.py[m[36m:[m244[36m:[m13[36m:[m [1m[31mF401[m 'drf_spectacular.openapi.AutoSchema' imported but unused
+[1mapps/common/management/commands/check_api_docs.py[m[36m:[m244[36m:[m13[36m:[m [1m[31mF811[m redefinition of unused 'AutoSchema' from line 13

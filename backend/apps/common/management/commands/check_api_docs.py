@@ -3,22 +3,22 @@ Django management command для проверки полноты API докум�
 Проверяет что все ViewSets имеют @extend_schema декораторы и proper описания.
 """
 import inspect
-import sys
 from typing import Any, Dict, List
 
 from django.apps import apps
-from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
-from django.urls import get_resolver
-from drf_spectacular.openapi import AutoSchema
-from drf_spectacular.utils import extend_schema
-from rest_framework import viewsets
-from rest_framework.decorators import action
 from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet, ViewSet
 
 
 class Command(BaseCommand):
+    """Management-команда для проверки полноты API-документации."""
     help = "Проверяет полноту API документации для всех ViewSets"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.verbosity = 1
+        self.verbose = False
+        self.fail_on_missing = False
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -38,7 +38,7 @@ class Command(BaseCommand):
         self.fail_on_missing = options.get("fail_on_missing", False)
 
         self.stdout.write(
-            self.style.HTTP_INFO("Проверка полноты API документации...\n")
+            self.style.HTTP_INFO("Проверка полноты API документации...\n")  # type: ignore[attr-defined]
         )
 
         # Получаем все ViewSets из приложений
@@ -46,7 +46,7 @@ class Command(BaseCommand):
 
         if not viewsets:
             self.stdout.write(
-                self.style.WARNING("WARNING: Не найдено ни одного ViewSet для проверки")
+                self.style.WARNING("WARNING: Не найдено ни одного ViewSet для проверки")  # type: ignore[attr-defined]
             )
             return
 
@@ -147,7 +147,6 @@ class Command(BaseCommand):
     ) -> List[Dict[str, Any]]:
         """Проверяет документацию для ViewSet."""
         issues = []
-        viewset_class = viewset_info["class"]
 
         if self.verbose:
             self.stdout.write(f'\nПроверка {viewset_info["name"]}:')
@@ -241,7 +240,7 @@ class Command(BaseCommand):
 
         # 5. Проверяем через registry drf-spectacular (если доступен)
         try:
-            from drf_spectacular.openapi import AutoSchema
+            from drf_spectacular.openapi import AutoSchema  # noqa: F401
 
             # Если функция имеет атрибуты схемы
             if hasattr(func, "operation_summary") or hasattr(
@@ -264,7 +263,7 @@ class Command(BaseCommand):
             # Проверяем docstring метода
             if not method.__doc__ or len(method.__doc__.strip()) < 10:
                 issues.append("отсутствует или слишком короткое описание в docstring")
-        except:
+        except Exception:
             pass
 
         return issues
@@ -286,13 +285,13 @@ class Command(BaseCommand):
 
         if undocumented_items:
             self.stdout.write(
-                self.style.ERROR(
+                self.style.ERROR(  # type: ignore[attr-defined]
                     f"ERROR: Найдено {len(undocumented_items)} проблем с документацией:"
                 )
             )
 
             # Группируем проблемы по ViewSet
-            issues_by_viewset = {}
+            issues_by_viewset: dict[str, list[dict[str, Any]]] = {}
             for item in undocumented_items:
                 viewset = item["viewset"]
                 if viewset not in issues_by_viewset:
@@ -307,23 +306,23 @@ class Command(BaseCommand):
                     )
         else:
             self.stdout.write(
-                self.style.SUCCESS("SUCCESS: Все endpoints имеют proper документацию!")
+                self.style.SUCCESS("SUCCESS: Все endpoints имеют proper документацию!")  # type: ignore[attr-defined]
             )
 
         # Статистика
-        self.stdout.write(f"\nСтатистика:")
+        self.stdout.write("\nСтатистика:")
         self.stdout.write(f"  - Всего методов: {total_methods}")
         self.stdout.write(f"  - Документированных: {documented_methods}")
         self.stdout.write(f"  - Покрытие: {coverage_percent:.1f}%")
 
         if coverage_percent >= 90:
-            style = self.style.SUCCESS
+            style = self.style.SUCCESS  # type: ignore[attr-defined]
             prefix = "EXCELLENT"
         elif coverage_percent >= 70:
-            style = self.style.WARNING
+            style = self.style.WARNING  # type: ignore[attr-defined]
             prefix = "WARNING"
         else:
-            style = self.style.ERROR
+            style = self.style.ERROR  # type: ignore[attr-defined]
             prefix = "POOR"
 
         self.stdout.write(

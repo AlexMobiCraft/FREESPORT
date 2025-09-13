@@ -209,7 +209,7 @@ class SearchPerformanceTest(TestCase):
             f"Max search response time {max_response_time:.2f}s exceeds 1.5s",
         )
 
-        print(f"Search stress test results:")
+        print("Search stress test results:")
         print(f"Average response time: {avg_response_time:.3f}s")
         print(f"Max response time: {max_response_time:.3f}s")
         print(f"Min response time: {min(response_times):.3f}s")

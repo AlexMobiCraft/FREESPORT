@@ -214,7 +214,7 @@ class CatalogPerformanceTest(TestCase):
             f"Max response time {max_response_time:.2f}s exceeds 2s",
         )
 
-        print(f"Stress test results:")
+        print("Stress test results:")
         print(f"Average response time: {avg_response_time:.3f}s")
         print(f"Max response time: {max_response_time:.3f}s")
         print(f"Min response time: {min(response_times):.3f}s")
