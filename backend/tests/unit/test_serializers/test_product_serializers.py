@@ -1,3 +1,6 @@
+# pyright: reportGeneralTypeIssues=false
+# pyright: reportUnknownMemberType=false
+# pyright: reportOptionalMemberAccess=false
 """
 Тесты для Product Serializers - Story 2.4 Catalog API
 """
@@ -145,9 +148,9 @@ class TestProductDetailSerializer:
             (object,),
             {
                 "user": user,
-                "build_absolute_uri": lambda self, url: f"http://testserver{url}"
-                if url
-                else "",
+                "build_absolute_uri": (
+                    lambda self, url: f"http://testserver{url}" if url else ""
+                ),
             },
         )()
 
@@ -159,7 +162,7 @@ class TestProductDetailSerializer:
         assert data["name"] == "Футболка"
         assert data["description"] == "Спортивная футболка"
         assert "images" in data
-        # Проверяем что images присутствует (может быть 1 или 2 в зависимости от factory)
+        # Проверяем, что images присутствует (может быть 1 или 2 в зависимости от factory)
         assert len(data["images"]) >= 1
 
     def test_product_detail_with_related_products(
@@ -183,9 +186,9 @@ class TestProductDetailSerializer:
             (object,),
             {
                 "user": user,
-                "build_absolute_uri": lambda self, url: f"http://testserver{url}"
-                if url
-                else "",
+                "build_absolute_uri": (
+                    lambda self, url: f"http://testserver{url}" if url else ""
+                ),
             },
         )()
 

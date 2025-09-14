@@ -284,7 +284,9 @@ class TestProductFilterIntegration:
         assert hasattr(product_filter, "filter_size")
 
     def test_all_role_price_mappings(self):
-        """Тест что все роли пользователей корректно обрабатываются в ценовых фильтрах"""
+        """
+        Тест что все роли пользователей корректно обрабатываются в ценовых фильтрах
+        """
         roles_to_test = [
             "retail",
             "wholesale_level1",

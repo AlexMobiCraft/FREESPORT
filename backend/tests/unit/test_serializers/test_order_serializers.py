@@ -1,4 +1,6 @@
-# pyright: reportGeneralTypeIssues=false, reportUnknownMemberType=false, reportOptionalMemberAccess=false
+# pyright: reportGeneralTypeIssues=false
+# pyright: reportUnknownMemberType=false
+# pyright: reportOptionalMemberAccess=false
 """
 Тесты для Order Serializers - Story 2.7 Order Management API
 """
