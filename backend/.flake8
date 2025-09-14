@@ -7,7 +7,8 @@ exclude =
     __pycache__,
     venv,
     */migrations/,
-    */static/
+    */static/,
+    */legacy/
     
 # Устанавливаем максимальную длину строки.
 # Стандарт Black - 88, стандарт Flake8 по умолчанию - 79.
