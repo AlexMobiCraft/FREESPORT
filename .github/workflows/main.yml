@@ -40,16 +40,30 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r backend/requirements.txt
     
+    - name: Wait for PostgreSQL
+      run: |
+        # Устанавливаем netcat, если он не установлен
+        sudo apt-get install -y netcat
+        # Цикл ожидания
+        for i in {1..30}; do
+          nc -z db 5432 && echo "Postgres is up." && exit 0
+          echo "Waiting for Postgres... ($i/30)"
+          sleep 2
+        done
+        echo "Postgres did not start in time."
+        exit 1
+
     - name: Run tests
       env:
         SECRET_KEY: a_test_secret_key_for_ci
-        DEBUG: False
+        DEBUG: 'False'
+        # 👇 Исправленные переменные окружения
         DB_NAME: test_db
-        POSTGRES_DB: test_db
-        POSTGRES_USER: runner
-        POSTGRES_PASSWORD: password
+        DB_USER: runner
+        DB_PASSWORD: password
         DB_HOST: db
-        # 👇 Вот исправленная строка
         DB_PORT: 5432
-      run:
+      run: |
+        # Запускаем pytest из правильной директории
+        cd backend
         pytest
