@@ -168,9 +168,7 @@ class SearchFilterTest(TestCase):
         # Должны найтись товары с русским текстом
         self.assertGreater(len(result), 0)
         result_descriptions = [p.short_description for p in result]
-        self.assertTrue(
-            any("футбольн" in desc.lower() for desc in result_descriptions)
-        )
+        self.assertTrue(any("футбольн" in desc.lower() for desc in result_descriptions))
 
     def test_search_no_results(self):
         """Тест поиска без результатов"""
@@ -214,9 +212,7 @@ class SearchFilterTest(TestCase):
         # Проверяем, что есть какая-то сортировка
         nike_in_name = [p for p in result if "Nike" in p.name]
         nike_in_desc_only = [
-            p
-            for p in result
-            if "Nike" not in p.name and "Nike" in p.short_description
+            p for p in result if "Nike" not in p.name and "Nike" in p.short_description
         ]
 
         if nike_in_name and nike_in_desc_only:
