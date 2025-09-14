@@ -10,6 +10,17 @@ jobs:
   build:
 
     runs-on: ubuntu-latest
+    
+    # Глобальные переменные окружения для всего job
+    env:
+      SECRET_KEY: a_test_secret_key_for_ci
+      DEBUG: 'False'
+      DB_NAME: test_db
+      DB_USER: runner
+      DB_PASSWORD: password
+      DB_HOST: localhost
+      DB_PORT: 5432
+      
     strategy:
       max-parallel: 4
       matrix:
@@ -52,23 +63,13 @@ jobs:
         echo "Postgres did not start in time."
         exit 1
 
-    - name: Debug DB Environment Variables
+    - name: Lint with flake8
       run: |
-        echo "DB_USER=${{ env.DB_USER }}"
-        echo "DB_HOST=${{ env.DB_HOST }}"
-        echo "DB_NAME=${{ env.DB_NAME }}"
-        echo "DB_PORT=${{ env.DB_PORT }}"
+        pip install flake8
+        # --exit-zero не прерывает выполнение при ошибках, только сообщает о них
+        flake8 backend/ --max-line-length=88 --extend-ignore=E203,W503 --exit-zero
 
     - name: Run tests
-      env:
-        SECRET_KEY: a_test_secret_key_for_ci
-        DEBUG: 'False'
-        DB_NAME: test_db
-        DB_USER: runner
-        DB_PASSWORD: password
-        # 👇 Используем localhost, так как порты сервиса пробрасываются
-        DB_HOST: localhost
-        DB_PORT: 5432
       run: |
         cd backend
         pytest
