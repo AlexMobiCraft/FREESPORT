@@ -42,28 +42,33 @@ jobs:
     
     - name: Wait for PostgreSQL
       run: |
-        # Устанавливаем netcat-traditional, так как netcat - виртуальный пакет
         sudo apt-get update && sudo apt-get install -y netcat-traditional
-        # Цикл ожидания
+        # В GitHub Actions сервисы доступны через localhost
         for i in {1..30}; do
-          nc -z db 5432 && echo "Postgres is up." && exit 0
+          nc -z localhost 5432 && echo "Postgres is up." && exit 0
           echo "Waiting for Postgres... ($i/30)"
           sleep 2
         done
         echo "Postgres did not start in time."
         exit 1
 
+    - name: Debug DB Environment Variables
+      run: |
+        echo "DB_USER=${{ env.DB_USER }}"
+        echo "DB_HOST=${{ env.DB_HOST }}"
+        echo "DB_NAME=${{ env.DB_NAME }}"
+        echo "DB_PORT=${{ env.DB_PORT }}"
+
     - name: Run tests
       env:
         SECRET_KEY: a_test_secret_key_for_ci
         DEBUG: 'False'
-        # 👇 Исправленные переменные окружения
         DB_NAME: test_db
         DB_USER: runner
         DB_PASSWORD: password
-        DB_HOST: db
+        # 👇 Используем localhost, так как порты сервиса пробрасываются
+        DB_HOST: localhost
         DB_PORT: 5432
       run: |
-        # Запускаем pytest из правильной директории
         cd backend
         pytest
