@@ -2,6 +2,8 @@
 Сериализаторы для заказов FREESPORT
 Поддерживает создание заказов из корзины с транзакционной логикой
 """
+from decimal import Decimal
+
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from rest_framework import serializers
@@ -169,23 +171,26 @@ class OrderCreateSerializer(serializers.ModelSerializer):
         """Создание заказа из корзины с транзакционной логикой"""
         cart = validated_data.pop("_cart")
         request = self.context.get("request")
-        user = request.user if request.user.is_authenticated else None
+        user = None
+        if request and request.user and request.user.is_authenticated:
+            user = request.user
 
         # Расчет стоимости доставки (пока статичная)
-        delivery_cost = self._calculate_delivery_cost(validated_data["delivery_method"])
+        delivery_cost = self.calculate_delivery_cost(validated_data["delivery_method"])
 
         # Создаем заказ
         order_data = {"user": user, "delivery_cost": delivery_cost, **validated_data}
 
         # Для гостевых заказов сохраняем контактные данные
         if not user:
-            order_data.update(
-                {
-                    "customer_name": request.data.get("customer_name", ""),
-                    "customer_email": request.data.get("customer_email", ""),
-                    "customer_phone": request.data.get("customer_phone", ""),
-                }
-            )
+            if request and hasattr(request, 'data'):
+                order_data.update(
+                    {
+                        "customer_name": request.data.get("customer_name", ""),
+                        "customer_email": request.data.get("customer_email", ""),
+                        "customer_phone": request.data.get("customer_phone", ""),
+                    }
+                )
 
         order = Order(**order_data)
 
@@ -211,7 +216,7 @@ class OrderCreateSerializer(serializers.ModelSerializer):
                 )
             )
 
-        order.total_amount = total_amount + delivery_cost
+        order.total_amount = total_amount + Decimal(delivery_cost)
         order.save()
 
         # Создаем элементы заказа
@@ -222,7 +227,7 @@ class OrderCreateSerializer(serializers.ModelSerializer):
 
         return order
 
-    def _calculate_delivery_cost(self, delivery_method):
+    def calculate_delivery_cost(self, delivery_method):
         """Расчет стоимости доставки"""
         delivery_costs = {
             "pickup": 0,

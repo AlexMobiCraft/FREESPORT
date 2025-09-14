@@ -164,6 +164,40 @@ class TestOrderModel:
         assert Order._meta.db_table == "orders"
         assert Order._meta.ordering == ["-created_at"]
 
+    def test_generate_order_number_format(self):
+        """Тест формата генерируемого номера заказа"""
+        order_number = Order.generate_order_number()
+
+        assert order_number.startswith("FS-")
+        assert len(order_number) == 15  # FS-YYMMDD-XXXXX
+        assert order_number[3:9].isdigit()  # YYMMDD часть
+        assert order_number[10:].isalnum()  # XXXXX часть содержит только буквы и цифры
+        assert order_number[10:] == order_number[10:].upper()  # XXXXX часть в верхнем регистре
+
+    def test_order_number_auto_generation(self):
+        """Тест автогенерации номера заказа при создании"""
+        order = OrderFactory.create()
+
+        assert order.order_number is not None
+        assert order.order_number.startswith("FS-")
+
+    def test_customer_display_name_with_user(self):
+        """Тест отображаемого имени для авторизованного пользователя"""
+        user = UserFactory.create(first_name="John", last_name="Doe")
+        order = OrderFactory.create(user=user)
+
+        assert order.customer_display_name == "John Doe"
+
+    def test_customer_display_name_guest_order(self):
+        """Тест отображаемого имени для гостевого заказа"""
+        order = OrderFactory.create(
+            user=None,
+            customer_name="Jane Smith",
+            customer_email="jane@example.com",
+        )
+
+        assert order.customer_display_name == "Jane Smith"
+
 
 @pytest.mark.django_db
 class TestOrderItemModel:

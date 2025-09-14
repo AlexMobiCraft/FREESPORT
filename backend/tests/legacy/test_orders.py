@@ -17,7 +17,7 @@ import pytest
 from django.contrib.auth import get_user_model
 from rest_framework import serializers, status
 from rest_framework.test import APIClient
-from typing import Dict, Any # Добавил сюда, чтобы избежать конфликтов с другими импортами
+from typing import Dict, Any
 
 from apps.cart.models import Cart, CartItem
 from apps.orders.models import Order, OrderItem
@@ -54,7 +54,7 @@ class TestOrderModel:
 
     def test_order_number_auto_generation(self, db):
         """Тест автогенерации номера заказа при создании"""
-        user = User.objects.create_user(email="test@example.com", password="testpass")
+        user = User.objects.create_user(email="testuser_order_number@example.com", password="testpass")
         order = Order.objects.create(
             user=user,
             delivery_address="Test Address",
@@ -69,7 +69,7 @@ class TestOrderModel:
     def test_customer_display_name_with_user(self, db):
         """Тест отображаемого имени для авторизованного пользователя"""
         user = User.objects.create_user(
-            email="test@example.com",
+            email="testuser_display_name@example.com",
             password="testpass",
             first_name="John",
             last_name="Doe",
@@ -99,7 +99,7 @@ class TestOrderModel:
 
     def test_can_be_cancelled_statuses(self, db):
         """Тест определения возможности отмены заказа"""
-        user = User.objects.create_user(email="test@example.com", password="testpass")
+        user = User.objects.create_user(email="testuser_cancel@example.com", password="testpass")
 
         # Заказ в статусе pending - можно отменить
         order_pending = Order.objects.create(
@@ -141,7 +141,7 @@ class TestOrderItemModel:
 
     def test_total_price_calculation(self, db):
         """Тест автоматического расчета общей стоимости"""
-        user = User.objects.create_user(email="test@example.com", password="testpass")
+        user = User.objects.create_user(email="testuser_item_calc@example.com", password="testpass")
         brand = Brand.objects.create(name="Test Brand", slug="test-brand")
         category = Category.objects.create(name="Test Category", slug="test-category")
         product = Product.objects.create(
@@ -169,7 +169,7 @@ class TestOrderItemModel:
 
     def test_product_snapshot_data(self, db):
         """Тест сохранения снимка данных товара"""
-        user = User.objects.create_user(email="test@example.com", password="testpass")
+        user = User.objects.create_user(email="testuser_item_snapshot@example.com", password="testpass")
         brand = Brand.objects.create(name="Test Brand", slug="test-brand")
         category = Category.objects.create(name="Test Category", slug="test-category")
         product = Product.objects.create(
@@ -203,7 +203,7 @@ class TestOrderCreateSerializer:
 
     def test_validate_empty_cart(self, db):
         """Тест валидации пустой корзины"""
-        user = User.objects.create_user(email="test@example.com", password="testpass")
+        user = User.objects.create_user(email="testuser_empty_cart@example.com", password="testpass")
         cart = Cart.objects.create(user=user)
 
         # Мокаем request объект
@@ -224,7 +224,7 @@ class TestOrderCreateSerializer:
 
     def test_delivery_cost_calculation(self, db):
         """Тест расчета стоимости доставки"""
-        serializer = OrderCreateSerializer() # type: ignore
+        serializer = OrderCreateSerializer()
 
         assert serializer.calculate_delivery_cost("pickup") == 0
         assert serializer.calculate_delivery_cost("courier") == 500
@@ -254,7 +254,7 @@ class TestOrderDetailSerializer:
         )
 
         serializer = OrderDetailSerializer(order)
-        data = serializer.data # type: ignore
+        data = serializer.data
 
         assert "order_number" in data
         assert "customer_display_name" in data
