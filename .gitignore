@@ -15,6 +15,9 @@
 .idea/
 *.swp
 *.swo
+.kilocodemodes
+.roomodes
+.web-bundles/
 *~
 
 # OS generated files
