@@ -32,9 +32,9 @@ class TestOrderDetailSerializer:
         )
 
         serializer = OrderDetailSerializer(order)
-        data = serializer.data # type: ignore
+        data = serializer.data  # type: ignore
 
-        assert data["status"] == "pending" # type: ignore
+        assert data["status"] == "pending"  # type: ignore
         assert "user" in data
         assert "delivery_address" in data
 
@@ -55,7 +55,7 @@ class TestOrderDetailSerializer:
         assert "total_amount" in data
         assert "delivery_cost" in data
         assert "items" in data
-        assert data["customer_display_name"] == "John Doe" # type: ignore
+        assert data["customer_display_name"] == "John Doe"  # type: ignore
 
     def test_order_with_items_serialization(
         self, user_factory, order_factory, product_factory, order_item_factory
@@ -83,7 +83,7 @@ class TestOrderDetailSerializer:
         data = serializer.data
 
         assert "items" in data
-        assert len(data["items"]) == 2 # type: ignore
+        assert len(data["items"]) == 2  # type: ignore
 
     def test_order_total_calculation(self, order_factory):
         """Тест расчета общей суммы заказа"""
@@ -92,7 +92,7 @@ class TestOrderDetailSerializer:
         serializer = OrderDetailSerializer(order)
         data = serializer.data
 
-        assert data["total_amount"] == "5000.00" # type: ignore
+        assert data["total_amount"] == "5000.00"  # type: ignore
 
 
 @pytest.mark.django_db
@@ -116,9 +116,9 @@ class TestOrderItemSerializer:
         serializer = OrderItemSerializer(order_item)
         data = serializer.data
 
-        assert data["product"]["name"] == "Тестовый товар" # type: ignore
-        assert data["quantity"] == 3 # type: ignore
-        assert data["unit_price"] == "1500.00" # type: ignore
+        assert data["product"]["name"] == "Тестовый товар"  # type: ignore
+        assert data["quantity"] == 3  # type: ignore
+        assert data["unit_price"] == "1500.00"  # type: ignore
 
     def test_order_item_total_calculation(self, order_item_factory):
         """Тест расчета суммы элемента заказа"""
@@ -128,7 +128,7 @@ class TestOrderItemSerializer:
         data = serializer.data
 
         expected_total = Decimal("250.00") * 4
-        assert Decimal(data["total_price"]) == expected_total # type: ignore
+        assert Decimal(data["total_price"]) == expected_total  # type: ignore
 
     def test_order_item_with_discount(self, product_factory, order_item_factory):
         """Тест элемента заказа со скидкой"""
@@ -141,8 +141,8 @@ class TestOrderItemSerializer:
         serializer = OrderItemSerializer(order_item)
         data = serializer.data
 
-        assert data["unit_price"] == "500.00" # type: ignore
-        assert data["total_price"] == "500.00" # type: ignore
+        assert data["unit_price"] == "500.00"  # type: ignore
+        assert data["total_price"] == "500.00"  # type: ignore
 
 
 @pytest.mark.django_db
@@ -182,11 +182,9 @@ class TestOrderCreateSerializer:
         assert serializer.is_valid(), serializer.errors
 
         order = serializer.save()
-        assert order.user == user # type: ignore
+        assert order.user == user  # type: ignore
 
-    def test_validate_empty_cart(
-        self, user_factory, cart_factory
-    ):
+    def test_validate_empty_cart(self, user_factory, cart_factory):
         """Тест валидации пустой корзины"""
         user = user_factory.create()
         cart_factory.create(user=user)
@@ -212,7 +210,9 @@ class TestOrderCreateSerializer:
     ):
         """Тест валидации недостаточного количества товара"""
         user = user_factory.create()
-        product = product_factory.create(stock_quantity=10)  # Создаем с достаточным запасом
+        product = product_factory.create(
+            stock_quantity=10
+        )  # Создаем с достаточным запасом
         cart = cart_factory.create(user=user)
         cart_item_factory.create(cart=cart, product=product, quantity=5)
 
@@ -276,7 +276,7 @@ class TestOrderCreateSerializer:
         assert serializer.is_valid(), serializer.errors
 
         order = serializer.save()
-        assert order.user.role == "wholesale_level1" # type: ignore
+        assert order.user.role == "wholesale_level1"  # type: ignore
 
     def test_order_creation_validation_errors(self, user_factory, address_factory):
         """Тест ошибок валидации при создании заказа"""
@@ -329,7 +329,7 @@ class TestOrderCreateSerializer:
         assert serializer.is_valid(), serializer.errors
 
         order = serializer.save()
-        assert order.items.count() == 2 # type: ignore
+        assert order.items.count() == 2  # type: ignore
 
     def test_order_creation_without_address(self, user_factory, address_factory):
         """Тест создания заказа без адреса доставки"""
@@ -441,7 +441,7 @@ class TestOrderDetailExtended:
         assert "delivery_address" in data
         assert "payment_method" in data
         assert "delivery_method" in data
-        assert len(data["items"]) == 1 # type: ignore
+        assert len(data["items"]) == 1  # type: ignore
 
     def test_order_detail_performance(
         self, user_factory, order_factory, product_factory, order_item_factory
@@ -458,7 +458,7 @@ class TestOrderDetailExtended:
         serializer = OrderDetailSerializer(order)
         data = serializer.data
 
-        assert len(data["items"]) == 5 # type: ignore
+        assert len(data["items"]) == 5  # type: ignore
         assert "total_amount" in data
 
 
@@ -483,9 +483,9 @@ class TestDeliveryAddressSerializer:
         serializer = AddressSerializer(address)
         data = serializer.data
 
-        assert data["address_type"] == "shipping" # type: ignore
-        assert data["city"] == "Москва" # type: ignore
-        assert data["street"] == "Тверская" # type: ignore
+        assert data["address_type"] == "shipping"  # type: ignore
+        assert data["city"] == "Москва"  # type: ignore
+        assert data["street"] == "Тверская"  # type: ignore
 
     def test_delivery_address_validation(self, user_factory):
         """Тест валидации адреса доставки"""
@@ -507,7 +507,7 @@ class TestDeliveryAddressSerializer:
         assert serializer.is_valid(), serializer.errors
 
         address = serializer.save()
-        assert address.city == "Санкт-Петербург" # type: ignore
+        assert address.city == "Санкт-Петербург"  # type: ignore
 
 
 @pytest.mark.django_db
@@ -550,16 +550,16 @@ class TestOrderIntegration:
         order = create_serializer.save()
 
         # Обновление статуса напрямую через модель
-        order.status = "confirmed" # type: ignore
-        order.save() # type: ignore
+        order.status = "confirmed"  # type: ignore
+        order.save()  # type: ignore
         updated_order = order
 
         # Проверка детальной информации
         detail_serializer = OrderDetailSerializer(updated_order)
         detail_data = detail_serializer.data
 
-        assert detail_data["status"] == "confirmed" # type: ignore
-        assert len(detail_data["items"]) == 1 # type: ignore
+        assert detail_data["status"] == "confirmed"  # type: ignore
+        assert len(detail_data["items"]) == 1  # type: ignore
 
     def test_order_performance_with_many_items(
         self,
@@ -592,7 +592,7 @@ class TestOrderIntegration:
         serializer = OrderDetailSerializer(order)
         data = serializer.data
 
-        assert len(data["items"]) == 10 # type: ignore
+        assert len(data["items"]) == 10  # type: ignore
         assert "total_amount" in data
 
     def test_b2b_order_workflow(

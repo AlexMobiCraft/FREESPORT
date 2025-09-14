@@ -54,7 +54,9 @@ class TestOrderModel:
 
     def test_order_number_auto_generation(self, db):
         """Тест автогенерации номера заказа при создании"""
-        user = User.objects.create_user(email="testuser_order_number@example.com", password="testpass")
+        user = User.objects.create_user(
+            email="testuser_order_number@example.com", password="testpass"
+        )
         order = Order.objects.create(
             user=user,
             delivery_address="Test Address",
@@ -99,7 +101,9 @@ class TestOrderModel:
 
     def test_can_be_cancelled_statuses(self, db):
         """Тест определения возможности отмены заказа"""
-        user = User.objects.create_user(email="testuser_cancel@example.com", password="testpass")
+        user = User.objects.create_user(
+            email="testuser_cancel@example.com", password="testpass"
+        )
 
         # Заказ в статусе pending - можно отменить
         order_pending = Order.objects.create(
@@ -141,7 +145,9 @@ class TestOrderItemModel:
 
     def test_total_price_calculation(self, db):
         """Тест автоматического расчета общей стоимости"""
-        user = User.objects.create_user(email="testuser_item_calc@example.com", password="testpass")
+        user = User.objects.create_user(
+            email="testuser_item_calc@example.com", password="testpass"
+        )
         brand = Brand.objects.create(name="Test Brand", slug="test-brand")
         category = Category.objects.create(name="Test Category", slug="test-category")
         product = Product.objects.create(
@@ -169,7 +175,9 @@ class TestOrderItemModel:
 
     def test_product_snapshot_data(self, db):
         """Тест сохранения снимка данных товара"""
-        user = User.objects.create_user(email="testuser_item_snapshot@example.com", password="testpass")
+        user = User.objects.create_user(
+            email="testuser_item_snapshot@example.com", password="testpass"
+        )
         brand = Brand.objects.create(name="Test Brand", slug="test-brand")
         category = Category.objects.create(name="Test Category", slug="test-category")
         product = Product.objects.create(
@@ -203,7 +211,9 @@ class TestOrderCreateSerializer:
 
     def test_validate_empty_cart(self, db):
         """Тест валидации пустой корзины"""
-        user = User.objects.create_user(email="testuser_empty_cart@example.com", password="testpass")
+        user = User.objects.create_user(
+            email="testuser_empty_cart@example.com", password="testpass"
+        )
         cart = Cart.objects.create(user=user)
 
         # Мокаем request объект

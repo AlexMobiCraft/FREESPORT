@@ -119,7 +119,9 @@ def create_factories():
             model = "products.Category"
 
         name = factory.Faker("word", locale="ru_RU")
-        slug = factory.LazyAttribute(lambda obj: f"{obj.name.lower()}-{get_unique_suffix()}")
+        slug = factory.LazyAttribute(
+            lambda obj: f"{obj.name.lower()}-{get_unique_suffix()}"
+        )
         description = factory.Faker("text", max_nb_chars=200, locale="ru_RU")
         is_active = True
         sort_order = factory.Sequence(lambda n: n)

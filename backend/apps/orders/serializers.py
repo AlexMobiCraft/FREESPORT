@@ -183,7 +183,7 @@ class OrderCreateSerializer(serializers.ModelSerializer):
 
         # Для гостевых заказов сохраняем контактные данные
         if not user:
-            if request and hasattr(request, 'data'):
+            if request and hasattr(request, "data"):
                 order_data.update(
                     {
                         "customer_name": request.data.get("customer_name", ""),

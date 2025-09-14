@@ -12,6 +12,7 @@ from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet, ViewSet
 
 class Command(BaseCommand):
     """Management-команда для проверки полноты API-документации."""
+
     help = "Проверяет полноту API документации для всех ViewSets"
 
     def __init__(self, *args, **kwargs):

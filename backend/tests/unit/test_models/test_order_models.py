@@ -172,7 +172,9 @@ class TestOrderModel:
         assert len(order_number) == 15  # FS-YYMMDD-XXXXX
         assert order_number[3:9].isdigit()  # YYMMDD часть
         assert order_number[10:].isalnum()  # XXXXX часть содержит только буквы и цифры
-        assert order_number[10:] == order_number[10:].upper()  # XXXXX часть в верхнем регистре
+        assert (
+            order_number[10:] == order_number[10:].upper()
+        )  # XXXXX часть в верхнем регистре
 
     def test_order_number_auto_generation(self):
         """Тест автогенерации номера заказа при создании"""

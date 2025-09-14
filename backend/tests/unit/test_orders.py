@@ -17,7 +17,10 @@ import pytest
 from django.contrib.auth import get_user_model
 from rest_framework import serializers, status
 from rest_framework.test import APIClient
-from typing import Dict, Any # Добавил сюда, чтобы избежать конфликтов с другими импортами
+from typing import (
+    Dict,
+    Any,
+)  # Добавил сюда, чтобы избежать конфликтов с другими импортами
 
 from apps.cart.models import Cart, CartItem
 from apps.orders.models import Order, OrderItem
@@ -224,7 +227,7 @@ class TestOrderCreateSerializer:
 
     def test_delivery_cost_calculation(self, db):
         """Тест расчета стоимости доставки"""
-        serializer = OrderCreateSerializer() # type: ignore
+        serializer = OrderCreateSerializer()  # type: ignore
 
         assert serializer.calculate_delivery_cost("pickup") == 0
         assert serializer.calculate_delivery_cost("courier") == 500
@@ -254,7 +257,7 @@ class TestOrderDetailSerializer:
         )
 
         serializer = OrderDetailSerializer(order)
-        data = serializer.data # type: ignore
+        data = serializer.data  # type: ignore
 
         assert "order_number" in data
         assert "customer_display_name" in data
