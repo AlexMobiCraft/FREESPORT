@@ -176,18 +176,27 @@
 
 ### 🔵 ФАЗА 3: Integration Sprint (после ответов от 1С)
 
-**Status:** 🔴 **БЛОКИРОВАНО** - Ожидаем ответы от программиста 1С
+**Status:** 🟢 **АКТИВНА** - Данные от 1С получены 15.09.2025. Начинаем интеграцию.
 
 #### **Critical Blocking Factors:**
-- [ ] **DATA_FORMAT_BLOCKER:** Формат данных (CommerceML vs JSON vs CSV)
-- [ ] **PRICE_MAPPING_BLOCKER:** Названия типов цен в 1С
-- [ ] **CUSTOMER_SYNC_BLOCKER:** Формат справочника клиентов  
-- [ ] **API_METHOD_BLOCKER:** Способ передачи данных (FTP vs HTTP vs файлы)
+- [x] **DATA_FORMAT_BLOCKER:** ✅ **Разблокировано.** Формат - XML (CommerceML 3.1).
+- [x] **PRICE_MAPPING_BLOCKER:** ✅ **Разблокировано.** Типы цен определены в `priceLists.xml`.
+- [x] **CUSTOMER_SYNC_BLOCKER:** ✅ **Разблокировано.** Структура контрагентов определена в `contragents.xml`.
+- [x] **API_METHOD_BLOCKER:** ✅ **Разблокировано.** Способ передачи - выгрузка файлов.
+
+**Информация по типам цен (из `priceLists.xml`):**
+- `90d2c899-b3f2-11ea-81c3-00155d3cae02` -> `Опт 1` -> `wholesale_level1`
+- `a91bdb02-b3f2-11ea-81c3-00155d3cae02` -> `Опт 2` -> `wholesale_level2`
+- `c05f0e2b-b3f2-11ea-81c3-00155d3cae02` -> `Опт 3` -> `wholesale_level3`
+- `b86fb8c5-ea2d-11eb-81f3-00155d3cae02` -> `Тренерская` -> `trainer`
+- `3d1482c4-bd77-11e4-afc8-20cf3073dde3` -> `РРЦ` -> `retail` / `RRP`
+- `37c47a93-e1b8-11ec-a301-04421a23d8e8` -> `МРЦ` -> `MSRP`
+- **Внимание:** Тип цены для `federation_rep` не найден. Требуется уточнение или использование одной из существующих.
 
 ##### **Task 3.1.1-B: Реальные парсеры данных (Завершение Story 3.1.1)**
-**📋 Story:** [3.1.1 import-products-structure](docs/stories/3.1.1.import-products-structure.md) - AC: 2,5,7  
-**Assigned:** *agent dev | **Estimate:** 12ч | **Status:** 🔴 Blocked  
-**Due Date:** _После получения ответов от 1С + 3 дня_
+**📋 Story:** [3.1.1 import-products-structure](docs/stories/3.1.1.import-products-structure.md) - AC: 2,5,7
+**Assigned:** *agent dev | **Estimate:** 12ч | **Status:** ⏳ Pending
+**Due Date:** _18.09.2025_
 
 **Subtasks:**
 - [ ] Реализовать парсер формата от 1С (Story AC: 2) - XML/JSON поддержка
@@ -197,15 +206,15 @@
 - [ ] Comprehensive тестирование парсера (Story AC: 7)
 
 **Progress:** 0% □□□□□□□□□□  
-**🔴 Blocking Factor:** DATA_FORMAT_BLOCKER  
+**🔴 Blocking Factor:** Нет.
 **Notes:** _Завершает полную реализацию Story 3.1.1 после Task 3.1.1-A_
 
 ---
 
 ##### **Task 3.1.2-B: Реальная загрузка из файлов 1С (Завершение Story 3.1.2)**
 **📋 Story:** [3.1.2 loading-scripts](docs/stories/3.1.2.loading-scripts.md) - AC: 2 (реальные файлы)  
-**Assigned:** *agent dev | **Estimate:** 8ч | **Status:** 🔴 Blocked  
-**Due Date:** _После получения ответов от 1С + 2 дня_
+**Assigned:** *agent dev | **Estimate:** 8ч | **Status:** ⏳ Pending
+**Due Date:** _18.09.2025_
 
 **Subtasks:**
 - [ ] Обновить команду `load_test_catalog` для реальных файлов (Story AC: 2)
@@ -216,15 +225,15 @@
 - [ ] Тестирование с реальными данными от 1С
 
 **Progress:** 0% □□□□□□□□□□  
-**🔴 Blocking Factor:** DATA_FORMAT_BLOCKER  
+**🔴 Blocking Factor:** Нет.
 **Notes:** _Дополняет существующую команду load_test_catalog реальной загрузкой файлов_
 
 ---
 
 ##### **Task 3.2.1-B: Реальная синхронизация клиентов (Завершение Story 3.2.1)**
 **📋 Story:** [3.2.1 import-existing-customers](docs/stories/3.2.1.import-existing-customers.md) - AC: 3,5,6,7  
-**Assigned:** *agent dev | **Estimate:** 16ч | **Status:** 🔴 Blocked  
-**Due Date:** _После получения ответов от 1С + 1 неделя_
+**Assigned:** *agent dev | **Estimate:** 16ч | **Status:** ⏳ Pending
+**Due Date:** _22.09.2025_
 
 **Subtasks:**
 - [ ] Создать маппинг ролей 1С → роли платформы (Story AC: 3) - `CustomerRoleMapper` 
@@ -234,15 +243,15 @@
 - [ ] Интеграционные тесты (Story AC: 7)
 
 **Progress:** 0% □□□□□□□□□□  
-**🔴 Blocking Factor:** PRICE_MAPPING_BLOCKER + CUSTOMER_SYNC_BLOCKER  
+**🔴 Blocking Factor:** Нет.
 **Notes:** _Завершает полную реализацию Story 3.2.1 после Task 3.2.1-A_
 
 ---
 
 ##### **Task 3.2.3: Bidirectional Sync (Реализация Story 3.2.3)**
 **📋 Story:** [3.2.3 bidirectional-sync](docs/stories/3.2.3.bidirectional-sync.md) - AC: 1,2,3,4,5,6,7  
-**Assigned:** *agent dev | **Estimate:** 20ч | **Status:** 🔴 Blocked  
-**Due Date:** _После получения ответов от 1С + 2 недели_
+**Assigned:** *agent dev | **Estimate:** 20ч | **Status:** ⏳ Pending
+**Due Date:** _29.09.2025_
 
 **Subtasks:**
 - [ ] Создать `CustomerExportService` для передачи в 1С (Story AC: 1,2)
@@ -252,15 +261,15 @@
 - [ ] E2E тестирование двусторонней синхронизации (Story AC: 7)
 
 **Progress:** 0% □□□□□□□□□□  
-**🔴 Blocking Factor:** API_METHOD_BLOCKER  
+**🔴 Blocking Factor:** Нет.
 **Notes:** _ПОЛНОСТЬЮ реализует Story 3.2.3 - критично для полной интеграции_
 
 ---
 
 ##### **Task 3.2.2 + 3.3.1: Conflict Resolution (Реализация Stories 3.2.2, 3.3.1)**
 **📋 Stories:** [3.2.2 conflict-resolution](docs/stories/3.2.2.conflict-resolution.md) + [3.3.1 customer-identity-algorithms](docs/stories/3.3.1.customer-identity-algorithms.md)  
-**Assigned:** *agent dev | **Estimate:** 24ч | **Status:** 🔴 Blocked  
-**Due Date:** _После получения ответов от 1С + 3 недели_
+**Assigned:** *agent dev | **Estimate:** 24ч | **Status:** ⏳ Pending
+**Due Date:** _06.10.2025_
 
 **Subtasks:**
 - [ ] Создать `CustomerConflictResolver` класс (Story 3.2.2 AC: 1,2)
@@ -270,7 +279,7 @@
 - [ ] Тестирование conflict resolution (Story 3.2.2 AC: 7, Story 3.3.1 AC: 6,7)
 
 **Progress:** 0% □□□□□□□□□□  
-**🔴 Blocking Factor:** CUSTOMER_SYNC_BLOCKER  
+**🔴 Blocking Factor:** Нет.
 **Notes:** _Комбинированная реализация Stories 3.2.2 + 3.3.1 - алгоритмы идентификации дублей_
 
 ---
