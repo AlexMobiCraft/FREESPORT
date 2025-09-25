@@ -204,7 +204,9 @@ class Product(models.Model):
 
     # Инвентаризация
     sku = models.CharField("Артикул", max_length=100, unique=True, blank=True)
-    stock_quantity = models.PositiveIntegerField("Количество на складе", default=0)
+    stock_quantity = models.PositiveIntegerField(
+        "Количество на складе", default=0, help_text="Доступное количество на складе"
+    )
     reserved_quantity = models.PositiveIntegerField(
         "Зарезервированное количество",
         default=0,

@@ -6,21 +6,24 @@
 erDiagram
     User ||--o{ Order : places
     User ||--o{ CartItem : has
-    User ||--o{ UserRole : assigned
+    User ||--o{ CustomerSyncLog : logs
+    User ||--o{ SyncConflict : conflicts
     
     Product ||--o{ CartItem : contains
     Product ||--o{ OrderItem : ordered
     Product }|--|| Category : belongs_to
-    Product ||--o{ ProductPrice : has_pricing
+    Product }|--|| Brand : "belongs to"
+    Product ||--o{ SyncConflict : conflicts
     
     Order ||--o{ OrderItem : contains
-    Order }|--|| OrderStatus : has_status
-    Order }|--|| PaymentMethod : paid_with
+    Order ||--o{ SyncConflict : conflicts
     
     Category ||--o{ Category : parent_child
     
-    UserRole }|--|| Role : defines
-    ProductPrice }|--|| PriceType : categorized_by
+    Cart ||--o{ CartItem : contains
+    
+    ImportLog ||--o{ CustomerSyncLog : tracks
+    SyncConflict }|--|| CustomerSyncLog : resolves
 ```
 
 ### Модели управления пользователями
@@ -60,12 +63,7 @@ class User(AbstractUser):
         max_length=20,
         choices=[
             ('retail', 'Розничный покупатель'),
-            ('wholesale_level1', 'Мелкий опт'),
-            ('wholesale_level2', 'Средний опт'),
-            ('wholesale_level3', 'Крупный опт'),
-            ('trainer', 'Тренер'),
-            ('federation_rep', 'Представитель федерации'),
-            ('admin', 'Администратор'),
+            ('wholesale_level1', 'Мелкий опт'),        ('wholesale_level2', 'Средний опт'),        ('wholesale_level3', 'Крупный опт'),        ('trainer', 'Тренер'),        ('federation_rep', 'Представитель федерации'),        ('admin', 'Администратор'),
         ],
         default='retail'
     )
@@ -93,70 +91,46 @@ class Category(models.Model):
 
 class Product(models.Model):
     """
-    Модель товара с многоуровневым ценообразованием и интеграцией 1С
+    Единая модель товара, агрегирующая данные из goods.xml и offers.xml.
+    Каждая запись представляет собой уникальное торговое предложение (SKU).
     """
     # Основная информация
-    name = models.CharField(max_length=255)
+    name = models.CharField(max_length=255) # Наименование из offers.xml
     slug = models.SlugField(max_length=255, unique=True)
-    article = models.CharField(max_length=100, unique=True)
-    description = models.TextField()
-    specifications = models.JSONField(default=dict)  # Технические характеристики
+    sku = models.CharField(max_length=100, unique=True) # Артикул из offers.xml
+    description = models.TextField(blank=True) # Описание из goods.xml
+    specifications = models.JSONField(default=dict)  # Характеристики из offers.xml
     
     # Категории и бренды
     category = models.ForeignKey(Category, on_delete=models.PROTECT)
-    brand = models.CharField(max_length=100)
+    brand = models.ForeignKey(Brand, on_delete=models.PROTECT)
     
     # Ценообразование (розничные и оптовые цены)
-    retail_price = models.DecimalField(max_digits=10, decimal_places=2)  # Розница
-    opt1_price = models.DecimalField(max_digits=10, decimal_places=2)    # Мелкий опт
-    opt2_price = models.DecimalField(max_digits=10, decimal_places=2)    # Средний опт  
-    opt3_price = models.DecimalField(max_digits=10, decimal_places=2)    # Крупный опт
-    trainer_price = models.DecimalField(max_digits=10, decimal_places=2) # Тренерская цена
-    federation_price = models.DecimalField(max_digits=10, decimal_places=2) # Федеративная цена
-    
-    # Информационные цены для B2B
-    rrp_price = models.DecimalField(max_digits=10, decimal_places=2, null=True) # Рекомендованная розничная цена
-    msrp_price = models.DecimalField(max_digits=10, decimal_places=2, null=True) # Максимальная розничная цена
+    retail_price = models.DecimalField(max_digits=10, decimal_places=2)
+    opt1_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    opt2_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    opt3_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    trainer_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    federation_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     
     # Складские остатки
-    stock_quantity = models.PositiveIntegerField(default=0)
-    reserved_quantity = models.PositiveIntegerField(default=0)  # Зарезервировано в заказах
+    stock_quantity = models.PositiveIntegerField(default=0)  # Количество товара на складе (агрегировано из rests.xml)
     
-    # Статусы товара
+    # Статусы
     is_active = models.BooleanField(default=True)
-    is_featured = models.BooleanField(default=False)
     
     # Интеграция с 1С
-    onec_id = models.CharField(max_length=50, blank=True, unique=True, null=True)
-    onec_guid = models.UUIDField(blank=True, null=True, unique=True)
+    onec_id = models.CharField(max_length=100, blank=True, unique=True, null=True) # ID из offers.xml
+    parent_onec_id = models.CharField(max_length=50, blank=True, null=True) # ID из goods.xml для связи
     last_sync_from_1c = models.DateTimeField(blank=True, null=True)
     
     # Системные поля
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
-    @property
-    def is_in_stock(self):
-        """Проверка наличия товара на складе"""
-        return (self.stock_quantity - self.reserved_quantity) > 0
-    
-    @property
-    def available_quantity(self):
-        """Доступное количество для заказа"""
-        return max(0, self.stock_quantity - self.reserved_quantity)
-    
+
     def get_price_for_user(self, user):
-        """Получение цены в зависимости от роли пользователя"""
-        price_mapping = {
-            'retail': self.retail_price,
-            'wholesale_level1': self.opt1_price,
-            'wholesale_level2': self.opt2_price, 
-            'wholesale_level3': self.opt3_price,
-            'trainer': self.trainer_price,
-            'federation_rep': self.federation_price,
-            'admin': self.opt3_price,  # Админы видят лучшую цену
-        }
-        return price_mapping.get(user.role, self.retail_price)
+        # ... логика получения цены ...
+        pass
 ```
 
 ### Модели заказов и корзины
@@ -193,13 +167,7 @@ class Order(models.Model):
     status = models.CharField(
         max_length=20,
         choices=[
-            ('draft', 'Черновик'),
-            ('pending', 'Ожидает обработки'),
-            ('processing', 'В обработке'),
-            ('shipped', 'Отгружен'),
-            ('delivered', 'Доставлен'),
-            ('cancelled', 'Отменен'),
-            ('returned', 'Возвращен'),
+            ('draft', 'Черновик'),        ('pending', 'Ожидает обработки'),        ('processing', 'В обработке'),        ('shipped', 'Отгружен'),        ('delivered', 'Доставлен'),        ('cancelled', 'Отменен'),        ('returned', 'Возвращен'),
         ],
         default='pending'
     )
@@ -218,10 +186,7 @@ class Order(models.Model):
     payment_status = models.CharField(
         max_length=20,
         choices=[
-            ('pending', 'Ожидает оплаты'),
-            ('paid', 'Оплачен'),
-            ('failed', 'Ошибка оплаты'),
-            ('refunded', 'Возвращен'),
+            ('pending', 'Ожидает оплаты'),        ('paid', 'Оплачен'),        ('failed', 'Ошибка оплаты'),        ('refunded', 'Возвращен'),
         ],
         default='pending'
     )
@@ -267,9 +232,7 @@ class CustomerSyncLog(models.Model):
     operation_type = models.CharField(
         max_length=20,
         choices=[
-            ('import_from_1c', 'Импорт из 1С'),
-            ('export_to_1c', 'Экспорт в 1С'),
-            ('sync_changes', 'Синхронизация изменений'),
+            ('import_from_1c', 'Импорт из 1С'),        ('export_to_1c', 'Экспорт в 1С'),        ('sync_changes', 'Синхронизация изменений'),
         ]
     )
     customer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sync_logs')
@@ -278,10 +241,7 @@ class CustomerSyncLog(models.Model):
     status = models.CharField(
         max_length=10,
         choices=[
-            ('success', 'Успешно'),
-            ('error', 'Ошибка'),
-            ('skipped', 'Пропущено'),
-            ('conflict', 'Конфликт данных'),
+            ('success', 'Успешно'),        ('error', 'Ошибка'),        ('skipped', 'Пропущено'),        ('conflict', 'Конфликт данных'),
         ]
     )
     
@@ -302,11 +262,7 @@ class ImportLog(models.Model):
     import_type = models.CharField(
         max_length=20,
         choices=[
-            ('products', 'Товары'),
-            ('customers', 'Покупатели'),
-            ('orders', 'Заказы'),
-            ('stock', 'Остатки'),
-            ('prices', 'Цены'),
+            ('products', 'Товары'),        ('customers', 'Покупатели'),        ('orders', 'Заказы'),        ('stock', 'Остатки'),        ('prices', 'Цены'),
         ]
     )
     
@@ -321,10 +277,7 @@ class ImportLog(models.Model):
     status = models.CharField(
         max_length=20,
         choices=[
-            ('running', 'Выполняется'),
-            ('completed', 'Завершен'),
-            ('failed', 'Ошибка'),
-            ('cancelled', 'Отменен'),
+            ('running', 'Выполняется'),        ('completed', 'Завершен'),        ('failed', 'Ошибка'),        ('cancelled', 'Отменен'),
         ],
         default='running'
     )
@@ -346,10 +299,7 @@ class SyncConflict(models.Model):
     conflict_type = models.CharField(
         max_length=20,
         choices=[
-            ('customer_data', 'Данные покупателя'),
-            ('product_data', 'Данные товара'),
-            ('order_status', 'Статус заказа'),
-            ('pricing', 'Ценообразование'),
+            ('customer_data', 'Данные покупателя'),        ('product_data', 'Данные товара'),        ('order_status', 'Статус заказа'),        ('pricing', 'Ценообразование'),
         ]
     )
     
@@ -367,10 +317,8 @@ class SyncConflict(models.Model):
     resolution_strategy = models.CharField(
         max_length=20,
         choices=[
-            ('manual', 'Ручное разрешение'),
-            ('platform_wins', 'Приоритет платформы'),
-            ('onec_wins', 'Приоритет 1С'),
-            ('merge', 'Объединение данных'),
+            ('manual', 'Ручное разрешение'),        ('platform_wins', 'Приоритет платформы'),
+            ('onec_wins', 'Приоритет 1С'),        ('merge', 'Объединение данных'),
         ],
         default='manual'
     )
@@ -399,6 +347,7 @@ erDiagram
     Product ||--o{ CartItem : contains
     Product ||--o{ OrderItem : ordered
     Product }|--|| Category : belongs_to
+    Product }|--|| Brand : "belongs to"
     Product ||--o{ SyncConflict : conflicts
     
     Order ||--o{ OrderItem : contains
@@ -410,4 +359,4 @@ erDiagram
     
     ImportLog ||--o{ CustomerSyncLog : tracks
     SyncConflict }|--|| CustomerSyncLog : resolves
-```
+```

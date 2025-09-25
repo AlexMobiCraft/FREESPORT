@@ -17,6 +17,9 @@
 local_settings.py
 settings_local.py
 
+# Backups
+backup_db/
+
 # Celery
 celerybeat-schedule
 celerybeat.pid

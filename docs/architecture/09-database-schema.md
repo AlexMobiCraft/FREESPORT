@@ -55,62 +55,40 @@ CREATE TABLE products_category (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Products table with partitioning by brand_id
+-- Unified Product table (representing SKU)
 CREATE TABLE products_product (
     id SERIAL PRIMARY KEY,
     name VARCHAR(300) NOT NULL,
     slug VARCHAR(100) UNIQUE NOT NULL,
+    sku VARCHAR(100) UNIQUE NOT NULL,
     brand_id INTEGER NOT NULL REFERENCES products_brand(id),
     category_id INTEGER NOT NULL REFERENCES products_category(id),
     description TEXT,
-    short_description VARCHAR(500),
+    specifications JSONB DEFAULT '{}',
     
     -- Multi-tier pricing structure
-    retail_price DECIMAL(10,2) NOT NULL,
+    retail_price DECIMAL(10,2),
     opt1_price DECIMAL(10,2),
-    opt2_price DECIMAL(10,2), 
+    opt2_price DECIMAL(10,2),
     opt3_price DECIMAL(10,2),
     trainer_price DECIMAL(10,2),
     federation_price DECIMAL(10,2),
     
-    -- RRP/MSRP для B2B пользователей (FR5)
-    recommended_retail_price DECIMAL(10,2),
-    max_suggested_retail_price DECIMAL(10,2),
-    
     -- Inventory
-    sku VARCHAR(100) UNIQUE NOT NULL,
     stock_quantity INTEGER DEFAULT 0,
-    min_order_quantity INTEGER DEFAULT 1,
-    
-    -- Images stored as JSONB for flexibility
-    main_image VARCHAR(255),
-    gallery_images JSONB DEFAULT '[]',
-    
-    -- SEO & Search
-    seo_title VARCHAR(200),
-    seo_description TEXT,
-    search_vector TSVECTOR, -- Full-text search
     
     -- Status flags
     is_active BOOLEAN DEFAULT TRUE,
-    is_featured BOOLEAN DEFAULT FALSE,
     
     -- Integration & Timestamps
-    onec_id VARCHAR(100),
+    onec_id VARCHAR(100) UNIQUE,
+    parent_onec_id VARCHAR(100),
     last_sync_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     
-    CONSTRAINT chk_positive_prices CHECK (
-        retail_price > 0 AND
-        (opt1_price IS NULL OR opt1_price > 0) AND
-        (opt2_price IS NULL OR opt2_price > 0) AND
-        (opt3_price IS NULL OR opt3_price > 0) AND
-        (trainer_price IS NULL OR trainer_price > 0) AND
-        (federation_price IS NULL OR federation_price > 0)
-    ),
     CONSTRAINT chk_stock_non_negative CHECK (stock_quantity >= 0)
-) PARTITION BY HASH (brand_id);
+);
 
 -- Orders with time-based partitioning
 CREATE TABLE orders_order (
@@ -165,7 +143,7 @@ CREATE TABLE orders_orderitem (
     
     -- Snapshot of product data at time of order
     product_name VARCHAR(300) NOT NULL,
-    product_sku VARCHAR(100) NOT NULL,
+    product_sku VARCHAR(100) NOT NULL, -- This is now sku_article from ProductVariant
     
     -- Композитный FOREIGN KEY включающий partition key
     FOREIGN KEY (order_id, order_created_at) REFERENCES orders_order(id, created_at) ON DELETE CASCADE,
@@ -432,4 +410,4 @@ $$ LANGUAGE plpgsql STABLE;
 - Система согласий (consent management)
 
 ---
-
+

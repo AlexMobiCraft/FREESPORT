@@ -189,3 +189,6 @@ class SyncLog(models.Model):
         return (
             (self.records_processed - self.errors_count) / self.records_processed
         ) * 100
+
+
+

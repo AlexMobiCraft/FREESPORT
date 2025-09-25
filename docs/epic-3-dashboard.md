@@ -18,7 +18,7 @@
 ### 🎯 This Week's Goals
 - [ ] **Task 3.1.1-A:** Product модель (Due: 08.09)
 - [ ] **Task 3.2.1-A:** User модель (Due: 10.09)  
-- [ ] **Task 3.1.4-A:** Поля остатков (Due: 11.09)
+- [ ] **Task 3.1.5-A:** Реализация `ImportSession` и `load_product_stocks` (Due: 25.09)
 - [ ] **Milestone 1.1:** Database models готовы (Due: 11.09)
 
 ### 👤 Active Assignments

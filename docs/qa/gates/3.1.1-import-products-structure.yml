@@ -1,0 +1,28 @@
+schema: 1
+story: 3.1.1
+story_title: import-products-structure
+gate: CONCERNS
+status_reason: 'The initial part of AC#1 (Product model update) is implemented with high quality and full test coverage. However, the story is largely incomplete. The CONCERNS status reflects that the majority of the acceptance criteria are not yet met.'
+reviewer: 'Quinn (Test Architect)'
+updated: '2025-09-23T12:00:00Z'
+
+quality_score: 90
+
+evidence:
+  tests_reviewed: 10
+  risks_identified: 0
+  trace:
+    ac_covered: [1 (partial)]
+    ac_gaps: [1 (partial), 2, 3, 4, 5, 6, 7]
+
+nfr_validation:
+  security: {status: PASS, notes: 'No security implications in this change.'}
+  performance: {status: PASS, notes: 'Indexes were correctly added for new fields.'}
+  reliability: {status: PASS, notes: 'No reliability concerns.'}
+  maintainability: {status: PASS, notes: 'Code is clean and well-tested.'}
+
+recommendations:
+  immediate:
+    - action: 'Complete all remaining acceptance criteria for story 3.1.1.'
+      refs: ['docs/stories/3.1.1.import-products-structure.md']
+  future: []
