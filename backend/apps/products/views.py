@@ -44,7 +44,6 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
             Product.objects.filter(is_active=True)
             .select_related("brand", "category")
             .prefetch_related("category__parent")
-            .order_by(self.ordering[0])
         )
 
     def get_serializer_class(self):
