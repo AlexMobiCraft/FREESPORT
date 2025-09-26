@@ -100,7 +100,8 @@ class Command(BaseCommand):
                 else:
                     self.stdout.write(
                         self.style.SUCCESS(
-                            f"✅ Тестовый каталог загружен: {created_count} товаров создано"
+                            f"✅ Тестовый каталог загружен: {created_count} "
+                            f"товаров создано"
                         )
                     )
 

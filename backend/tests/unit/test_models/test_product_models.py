@@ -445,7 +445,8 @@ class TestProductStockLogic:
         edge_case_product = ProductFactory.create(
             stock_quantity=5,
             reserved_quantity=2,
-            min_order_quantity=3,  # available_quantity = 3, что равно min_order_quantity
+            min_order_quantity=3,  # available_quantity = 3,
+                                   # что равно min_order_quantity
         )
         assert edge_case_product.can_be_ordered is True
 

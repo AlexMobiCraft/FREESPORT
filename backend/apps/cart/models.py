@@ -131,7 +131,8 @@ class CartItem(models.Model):
         # Проверяем наличие на складе
         if self.quantity > self.product.stock_quantity:
             raise ValidationError(
-                f"Недостаточно товара на складе. Доступно: {self.product.stock_quantity}"
+                f"Недостаточно товара на складе. "
+                f"Доступно: {self.product.stock_quantity}"
             )
 
         # Проверяем минимальное количество заказа

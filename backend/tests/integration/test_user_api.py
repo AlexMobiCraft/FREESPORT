@@ -45,18 +45,20 @@ def create_user_and_get_token(api_client):
         # Регистрация
         url = reverse("users:register")
         response = api_client.post(url, registration_data, format="json")
-        assert (
-            response.status_code == 201
-        ), f"Registration failed for role {role} with status {response.status_code}: {response.json()}"
+        assert response.status_code == 201, (
+            f"Registration failed for role {role} with status {response.status_code}: "
+            f"{response.json()}"
+        )
 
         # Авторизация
         url = reverse("users:login")
         response = api_client.post(
             url, {"email": email, "password": TEST_USER_PASSWORD}, format="json"
         )
-        assert (
-            response.status_code == 200
-        ), f"Login failed for role {role} with status {response.status_code}: {response.json()}"
+        assert response.status_code == 200, (
+            f"Login failed for role {role} with status {response.status_code}: "
+            f"{response.json()}"
+        )
 
         return response.data["access"]
 

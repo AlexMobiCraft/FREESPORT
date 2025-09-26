@@ -204,7 +204,8 @@ class PagesCachePerformanceTest(TransactionTestCase):
 
         # Количество страниц должно увеличиться
         self.assertGreater(final_count, initial_count)
-        # Проверяем что увеличилось примерно на 5 (может быть небольшая разница из-за async операций)
+        # Проверяем что увеличилось примерно на 5
+        # (может быть небольшая разница из-за async операций)
         self.assertGreaterEqual(final_count - initial_count, 4)
         self.assertLessEqual(final_count - initial_count, 6)
 

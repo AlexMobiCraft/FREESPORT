@@ -93,7 +93,9 @@ class PagesAPITest(TestCase):
         """Тест HTML sanitization"""
         page = Page.objects.create(
             title="Тест HTML",
-            content='<p>Нормальный текст</p><script>alert("XSS")</script><h1>Заголовок</h1>',
+            content=(
+                '<p>Нормальный текст</p><script>alert("XSS")</script><h1>Заголовок</h1>'
+            ),
             is_published=True,
         )
 
@@ -364,7 +366,8 @@ class PagesAPIPerformanceTest(TestCase):
         response_time = end_time - start_time
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        # API использует пагинацию, поэтому проверяем общее количество, а не количество в results
+        # API использует пагинацию, поэтому проверяем общее количество,
+        # а не количество в results
         self.assertEqual(response.data["count"], 50)
         # Проверяем что получили хотя бы некоторые результаты
         self.assertGreater(len(response.data["results"]), 0)

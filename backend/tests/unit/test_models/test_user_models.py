@@ -761,7 +761,8 @@ class TestAddressModel:
 
     def test_creating_multiple_default_addresses_same_type_via_factory(self):
         """
-        Тест: создание второго адреса по умолчанию через фабрику автоматически снимает флаг с первого
+        Тест: создание второго адреса по умолчанию через фабрику
+        автоматически снимает флаг с первого
         """
         user = UserFactory.create()
 

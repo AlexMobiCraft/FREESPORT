@@ -16,7 +16,8 @@ _unique_counter = 0
 
 
 def get_unique_suffix():
-    """Генерирует абсолютно уникальный суффикс с глобальным счетчиком, временной меткой и UUID"""
+    """Генерирует абсолютно уникальный суффикс с глобальным счетчиком,
+    временной меткой и UUID"""
     global _unique_counter
     _unique_counter += 1
     return f"{int(time.time() * 1000)}-{_unique_counter}-{uuid.uuid4().hex[:6]}"

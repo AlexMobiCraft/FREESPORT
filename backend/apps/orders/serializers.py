@@ -128,11 +128,13 @@ class OrderCreateSerializer(serializers.ModelSerializer):
             if item.quantity > product.stock_quantity:
                 raise serializers.ValidationError(
                     f"Недостаточно товара '{product.name}' на складе. "
-                    f"Доступно: {product.stock_quantity}, запрошено: {item.quantity}"
+                    f"Доступно: {product.stock_quantity} штук, "
+                    f"запрошено: {item.quantity} штук"
                 )
             if item.quantity < product.min_order_quantity:
                 raise serializers.ValidationError(
-                    f"Минимальное количество для заказа '{product.name}': {product.min_order_quantity}"
+                    f"Минимальное количество для заказа '{product.name}': "
+                    f"{product.min_order_quantity}"
                 )
 
         # Валидация способов доставки и оплаты
@@ -146,7 +148,10 @@ class OrderCreateSerializer(serializers.ModelSerializer):
                 "payment_on_delivery",
             ]:
                 raise serializers.ValidationError(
-                    "Для оптовых покупателей доступны только банковский перевод и оплата при получении"
+                    (
+                        "Для оптовых покупателей доступны только банковский перевод и "
+                        "оплата при получении"
+                    )
                 )
 
         attrs["_cart"] = cart

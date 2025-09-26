@@ -1,14 +1,15 @@
+import os
 import tempfile
 from datetime import timedelta
+from pathlib import Path
+from typing import List
 
-from .base import *
+from .base import DATABASES, SECRET_KEY
 
 # Отключаем DEBUG для тестов
 DEBUG = False
 
 # Тестовая база данных - ТОЛЬКО PostgreSQL через Docker
-import os
-
 # ВАЖНО: Тестирование выполняется ТОЛЬКО с PostgreSQL через Docker Compose
 # SQLite больше не поддерживается для тестов из-за ограничений JSON операторов
 DATABASES = {
@@ -57,7 +58,7 @@ CACHES = {
 # Отключаем логирование для тестов
 LOGGING = {
     "version": 1,
-    "disable_existing_loggers": True,  # Полностью отключаем существующие логгеры
+    "disable_existing_loggers": True,
     "handlers": {
         "null": {
             "class": "logging.NullHandler",
@@ -65,7 +66,7 @@ LOGGING = {
     },
     "root": {
         "handlers": ["null"],
-        "level": "CRITICAL",  # Только критические ошибки
+        "level": "CRITICAL",
     },
     "loggers": {
         "django": {
@@ -92,10 +93,10 @@ LOGGING = {
 }
 
 # Медиа файлы во временной директории
-MEDIA_ROOT = tempfile.mkdtemp()
+MEDIA_ROOT = Path(tempfile.mkdtemp())
 
 # Статические файлы во временной директории
-STATIC_ROOT = tempfile.mkdtemp()
+STATIC_ROOT = Path(tempfile.mkdtemp())
 
 # Отключаем email отправку
 EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
@@ -123,7 +124,9 @@ SIMPLE_JWT = {
     "ALGORITHM": "HS256",
     "VERIFYING_KEY": None,
     "AUTH_HEADER_TYPES": ("Bearer",),
-    "TOKEN_OBTAIN_SERIALIZER": "rest_framework_simplejwt.serializers.TokenObtainPairSerializer",
+    "TOKEN_OBTAIN_SERIALIZER": (
+        "rest_framework_simplejwt.serializers.TokenObtainPairSerializer"
+    ),
 }
 
 # Разрешаем все домены для тестов
@@ -144,8 +147,8 @@ RATELIMIT_ENABLE = False
 # Дополнительные настройки PostgreSQL для стабильных тестов
 DATABASES["default"].update(
     {
-        "CONN_MAX_AGE": 0,  # Отключаем persistent connections в тестах
-        "CONN_HEALTH_CHECKS": False,  # Отключаем health checks для изоляции
+        "CONN_MAX_AGE": 0,
+        "CONN_HEALTH_CHECKS": False,
         "AUTOCOMMIT": True,
         "OPTIONS": {
             "connect_timeout": 30,
@@ -154,15 +157,15 @@ DATABASES["default"].update(
         },
         "TEST": {
             "NAME": "test_" + os.environ.get("DB_NAME", "freesport_test"),
-            "SERIALIZE": False,  # Отключаем сериализацию для ускорения
+            "SERIALIZE": False,
             "CREATE_DB": True,
-            "DEPENDENCIES": [],  # Нет зависимостей от других БД
+            "DEPENDENCIES": [],
         },
     }
 )
 
 # Настройки для предотвращения connection already closed
-DATABASE_ROUTERS = []
+DATABASE_ROUTERS: List[str] = []
 
 # Дополнительные настройки для изоляции тестов
 DEFAULT_AUTO_FIELD = "django.db.models.AutoField"

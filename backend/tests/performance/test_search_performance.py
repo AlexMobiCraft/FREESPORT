@@ -166,11 +166,13 @@ class SearchPerformanceTest(TestCase):
 
                 end_time = time.time()
                 response_time = end_time - start_time
-
                 self.assertLess(
                     response_time,
                     0.7,
-                    f"Search sorting by {sort_by} response time {response_time:.2f}s exceeds 0.7s limit",
+                    (
+                        f"Search sorting by {sort_by} response time "
+                        f"{response_time:.2f}s exceeds 0.7s limit"
+                    ),
                 )
                 self.assertEqual(response.status_code, 200)
 

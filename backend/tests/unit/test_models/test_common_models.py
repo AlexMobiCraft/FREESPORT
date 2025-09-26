@@ -264,7 +264,8 @@ class TestSyncLogModel:
 
     def test_sync_log_validation_non_negative_counts(self):
         """Тест корректных неотрицательных счетчиков"""
-        # PositiveIntegerField автоматически поддерживают только неотрицательные значения
+        # PositiveIntegerField автоматически поддерживают только неотрицательные
+        # значения
         sync_log = SyncLogFactory.create(records_processed=100, errors_count=5)
         sync_log.full_clean()  # Должно пройти без ошибок
 

@@ -148,8 +148,10 @@ class BaseFunctionalTest(APITestCase):
         self.assertEqual(
             response.status_code,
             expected_status,
-            f"Ожидался статус {expected_status}, получен {response.status_code}. "
-            f"Ответ: {response.data if hasattr(response, 'data') else response.content}",
+            (
+                f"Ожидался статус {expected_status}, получен {response.status_code}. "
+                f"Ответ: {response.data if hasattr(response, 'data') else ''}"
+            ),
         )
 
     def assert_api_error(self, response, expected_status=status.HTTP_400_BAD_REQUEST):
@@ -157,8 +159,10 @@ class BaseFunctionalTest(APITestCase):
         self.assertEqual(
             response.status_code,
             expected_status,
-            f"Ожидалась ошибка {expected_status}, получен {response.status_code}. "
-            f"Ответ: {response.data if hasattr(response, 'data') else response.content}",
+            (
+                f"Ожидалась ошибка {expected_status}, получен {response.status_code}. "
+                f"Ответ: {response.data if hasattr(response, 'data') else ''}"
+            ),
         )
 
     def print_test_info(self, test_name, description):

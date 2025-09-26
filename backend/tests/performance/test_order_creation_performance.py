@@ -177,7 +177,10 @@ class OrderCreationPerformanceTest(TestCase):
         self.assertLess(
             response_time,
             1.5,
-            f"Large quantity order creation time {response_time:.2f}s exceeds 1.5s limit",
+            (
+                f"Large quantity order creation time {response_time:.2f}s "
+                "exceeds 1.5s limit"
+            ),
         )
         self.assertEqual(response.status_code, 201)
 

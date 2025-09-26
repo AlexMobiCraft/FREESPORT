@@ -44,7 +44,10 @@ class SearchAPITest(TestCase):
                 name="Nike Phantom GT2 Elite FG",
                 sku="NIKE-PHT-001",
                 short_description="Футбольные бутсы для профессиональных игроков",
-                description="Высокотехнологичные футбольные бутсы Nike Phantom GT2 Elite FG для профессионалов",
+                description=(
+                    "Высокотехнологичные футбольные бутсы Nike Phantom "
+                    "GT2 Elite FG для профессионалов"
+                ),
                 brand=self.brand_nike,
                 category=self.category1,
                 retail_price=18999.00,
@@ -57,7 +60,10 @@ class SearchAPITest(TestCase):
                 name="Adidas Predator Freak.1 FG",
                 sku="ADIDAS-PRED-001",
                 short_description="Футбольная обувь Adidas для атаки",
-                description="Adidas Predator Freak.1 FG футбольные бутсы с технологией Demonskin",
+                description=(
+                    "Adidas Predator Freak.1 FG футбольные бутсы с технологией "
+                    "Demonskin"
+                ),
                 brand=self.brand_adidas,
                 category=self.category1,
                 retail_price=15999.00,

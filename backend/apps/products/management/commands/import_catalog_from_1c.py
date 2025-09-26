@@ -71,7 +71,10 @@ class Command(BaseCommand):
         # Валидация параметров
         if not self.file_path and not self.use_mock_data:
             raise CommandError(
-                "Укажите либо --file для загрузки из файла, либо --mock-data для тестовых данных"
+                (
+                    "Укажите либо --file для загрузки из файла, либо --mock-data для "
+                    "тестовых данных"
+                )
             )
 
         # Заголовок
@@ -106,7 +109,8 @@ class Command(BaseCommand):
             else:
                 self.stdout.write(
                     self.style.SUCCESS(
-                        f"✅ Импорт завершен успешно: {imported_count} товаров импортировано"
+                        f"✅ Импорт завершен успешно: {imported_count} "
+                        f"товаров импортировано"
                     )
                 )
 
@@ -170,7 +174,9 @@ class Command(BaseCommand):
                 "name": f"Товар тестовый #{i}",
                 "brand": mock_brands[i % len(mock_brands)],
                 "category": mock_categories[i % len(mock_categories)],
-                "description": f"Описание тестового товара #{i} для демонстрации импорта из 1С",
+                "description": (
+                    f"Описание тестового товара #{i} для демонстрации импорта из 1С"
+                ),
                 "short_description": f"Краткое описание товара #{i}",
                 "sku": f"SKU-{i:05d}",
                 "stock_quantity": (i * 5) % 100,
@@ -249,7 +255,8 @@ class Command(BaseCommand):
             except Exception as e:
                 self.stdout.write(
                     self.style.ERROR(
-                        f'❌ Ошибка обработки товара {product_data.get("onec_id", "UNKNOWN")}: {str(e)}'
+                        f'❌ Ошибка обработки товара '
+                        f'{product_data.get("onec_id", "UNKNOWN")}: {str(e)}'
                     )
                 )
                 if not self.force:
@@ -283,7 +290,10 @@ class Command(BaseCommand):
                 name="Неизвестный бренд",
                 defaults={
                     "slug": "neizvestnyj-brend",
-                    "description": "Автоматически созданный бренд для товаров без указанного бренда",
+                    "description": (
+                        "Автоматически созданный бренд для товаров без указанного "
+                        "бренда"
+                    ),
                     "is_active": True,
                 },
             )
@@ -300,7 +310,10 @@ class Command(BaseCommand):
                 name="Разное",
                 defaults={
                     "slug": "raznoe",
-                    "description": "Автоматически созданная категория для товаров без указанной категории",
+                    "description": (
+                        "Автоматически созданная категория для товаров без "
+                        "указанной категории"
+                    ),
                     "is_active": True,
                 },
             )

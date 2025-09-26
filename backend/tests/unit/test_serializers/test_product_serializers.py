@@ -162,7 +162,8 @@ class TestProductDetailSerializer:
         assert data["name"] == "Футболка"
         assert data["description"] == "Спортивная футболка"
         assert "images" in data
-        # Проверяем, что images присутствует (может быть 1 или 2 в зависимости от factory)
+        # Проверяем, что images присутствует (может быть 1 или 2 в зависимости от
+        # factory)
         assert len(data["images"]) >= 1
 
     def test_product_detail_with_related_products(

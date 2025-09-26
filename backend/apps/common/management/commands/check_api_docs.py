@@ -39,7 +39,7 @@ class Command(BaseCommand):
         self.fail_on_missing = options.get("fail_on_missing", False)
 
         self.stdout.write(
-            self.style.HTTP_INFO("Проверка полноты API документации...\n")  # type: ignore[attr-defined]
+            self.style.HTTP_INFO("Проверка полноты API документации...\n")
         )
 
         # Получаем все ViewSets из приложений
@@ -47,7 +47,9 @@ class Command(BaseCommand):
 
         if not viewsets:
             self.stdout.write(
-                self.style.WARNING("WARNING: Не найдено ни одного ViewSet для проверки")  # type: ignore[attr-defined]
+                self.style.WARNING(
+                    "WARNING: Не найдено ни одного ViewSet для проверки"
+                )
             )
             return
 
@@ -72,8 +74,8 @@ class Command(BaseCommand):
         # Завершаем с ошибкой если требуется
         if undocumented_items and self.fail_on_missing:
             raise CommandError(
-                f"ERROR: Найдено {len(undocumented_items)} недокументированных endpoints. "
-                "CI проверка не пройдена."
+                "ERROR: Найдено {len(undocumented_items)} "
+                "недокументированных endpoints. CI проверка не пройдена."
             )
 
     def _get_all_viewsets(self) -> List[Dict[str, Any]]:
@@ -307,8 +309,8 @@ class Command(BaseCommand):
                     )
         else:
             self.stdout.write(
-                self.style.SUCCESS("SUCCESS: Все endpoints имеют proper документацию!")  # type: ignore[attr-defined]
-            )
+                self.style.SUCCESS("SUCCESS: Все endpoints имеют proper документацию!")
+            )  # type: ignore[attr-defined]
 
         # Статистика
         self.stdout.write("\nСтатистика:")

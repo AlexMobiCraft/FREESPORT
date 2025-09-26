@@ -3,7 +3,7 @@ API Views для заказов FREESPORT
 Поддерживает создание заказов из корзины и просмотр деталей
 """
 from django.shortcuts import get_object_or_404
-from drf_spectacular.utils import OpenApiResponse, extend_schema
+from drf_spectacular.utils import OpenApiExample, OpenApiResponse, extend_schema
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -75,7 +75,13 @@ class OrderViewSet(viewsets.ModelViewSet):
             201: OrderDetailSerializer,
             400: OpenApiResponse(
                 description="Ошибки валидации или пустая корзина",
-                examples={"application/json": {"non_field_errors": ["Корзина пуста"]}},
+                examples=[
+                    OpenApiExample(
+                        "Пустая корзина",
+                        value={"non_field_errors": ["Корзина пуста"]},
+                        media_type="application/json",
+                    )
+                ],
             ),
             401: OpenApiResponse(description="Пользователь не авторизован"),
         },
@@ -95,16 +101,23 @@ class OrderViewSet(viewsets.ModelViewSet):
 
     @extend_schema(
         summary="Отмена заказа",
-        description="Отмена заказа пользователем (только для статусов pending, confirmed)",
+        description=(
+            "Отмена заказа пользователем (только для статусов pending, "
+            "confirmed)"
+        ),
         responses={
             200: OrderDetailSerializer,
             400: OpenApiResponse(
                 description="Заказ не может быть отменен",
-                examples={
-                    "application/json": {
-                        "error": "Заказ не может быть отменен в текущем статусе"
-                    }
-                },
+                examples=[
+                    OpenApiExample(
+                        "Неверный статус",
+                        value={
+                            "error": "Заказ не может быть отменен в текущем статусе"
+                        },
+                        media_type="application/json",
+                    )
+                ],
             ),
             401: OpenApiResponse(description="Пользователь не авторизован"),
             404: OpenApiResponse(description="Заказ не найден"),

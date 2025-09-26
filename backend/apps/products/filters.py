@@ -21,7 +21,9 @@ class ProductFilter(django_filters.FilterSet):
     # Фильтр по бренду (поддерживает как ID, так и slug)
     brand = django_filters.CharFilter(
         method="filter_brand",
-        help_text="Бренд по ID или slug. Поддерживает множественный выбор: brand=nike,adidas",
+        help_text=(
+            "Бренд по ID или slug. Поддерживает множественный выбор: brand=nike,adidas"
+        ),
     )
 
     # Ценовой диапазон
@@ -47,13 +49,18 @@ class ProductFilter(django_filters.FilterSet):
 
     search = django_filters.CharFilter(
         method="filter_search",
-        help_text="Полнотекстовый поиск по названию, описанию и артикулу (PostgreSQL FTS с русскоязычной конфигурацией)",
+        help_text=(
+            "Полнотекстовый поиск по названию, описанию и артикулу "
+            "(PostgreSQL FTS с русскоязычной конфигурацией)"
+        ),
     )
 
     # Фильтр по размеру из JSON specifications
     size = django_filters.CharFilter(
         method="filter_size",
-        help_text="Размер из спецификаций товара (XS, S, M, L, XL, XXL, 38, 40, 42 и т.д.)",
+        help_text=(
+            "Размер из спецификаций товара (XS, S, M, L, XL, XXL, 38, 40, 42 и т.д.)"
+        ),
     )
 
     class Meta:
@@ -228,10 +235,12 @@ class ProductFilter(django_filters.FilterSet):
 
             # Поиск точного совпадения в названии (высший приоритет)
             exact_name = queryset.filter(name__iexact=search_query)
+            # Если найдены точные совпадения, возвращаем их
             if exact_name.exists():
                 return exact_name.order_by("-created_at")
 
-            # Поиск частичного совпадения с приоритизацией по полям (регистронезависимый)
+            # Поиск частичного совпадения с приоритизацией
+            # по полям (регистронезависимый)
             name_match = Q(name__icontains=search_query)
             sku_match = Q(sku__icontains=search_query)
             desc_match = Q(short_description__icontains=search_query) | Q(

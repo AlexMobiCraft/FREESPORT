@@ -29,13 +29,18 @@ from apps.products.models import Brand, Category, Product
 
 User = get_user_model()
 
-# ВНИМАНИЕ: файл устарел и сохранен только для обратной совместимости.
-# Тесты для моделей перенесены в: backend/tests/unit/test_models/test_order_models.py
-# Тесты сериализаторов перенесены в: backend/tests/unit/test_serializers/test_order_serializers.py
+# ВНИМАНИЕ: файл устарел и сохранен только для обратной
+# совместимости.
+# Тесты для моделей перенесены в:
+# backend/tests/unit/test_models/test_order_models.py
+# Тесты сериализаторов перенесены в:
+# backend/tests/unit/test_serializers/test_order_serializers.py
 # Чтобы избежать дублирования, модуль пропускается целиком.
 # pytest.skip(
-#     "Тесты orders разделены по файлам (models/serializers). Этот модуль больше не используется в CI.",
+#     "Тесты orders разделены по файлам (models/serializers). ",
+#     "Этот модуль больше не используется в CI.",
 #     allow_module_level=True,
+{...}
 # )
 
 

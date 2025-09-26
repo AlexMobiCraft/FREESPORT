@@ -40,7 +40,7 @@ class Brand(models.Model):
                 # Транслитерация кириллицы в латиницу, затем slugify
                 transliterated = translit(self.name, "ru", reversed=True)
                 self.slug = slugify(transliterated)
-            except Exception:
+            except RuntimeError:
                 # Fallback на обычный slugify
                 self.slug = slugify(self.name)
 
@@ -50,7 +50,7 @@ class Brand(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self) -> str:
-        return self.name
+        return str(self.name)
 
 
 class Category(models.Model):
@@ -92,7 +92,7 @@ class Category(models.Model):
                 # Транслитерация кириллицы в латиницу, затем slugify
                 transliterated = translit(self.name, "ru", reversed=True)
                 self.slug = slugify(transliterated)
-            except Exception:
+            except RuntimeError:
                 # Fallback на обычный slugify
                 self.slug = slugify(self.name)
 
@@ -102,9 +102,7 @@ class Category(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self) -> str:
-        if self.parent:
-            return f"{self.parent.name} > {self.name}"
-        return self.name
+        return self.full_name
 
     @property
     def full_name(self) -> str:
@@ -273,7 +271,7 @@ class Product(models.Model):
                 # Транслитерация кириллицы в латиницу, затем slugify
                 transliterated = translit(self.name, "ru", reversed=True)
                 self.slug = slugify(transliterated)
-            except Exception:
+            except RuntimeError:
                 # Fallback на обычный slugify
                 self.slug = slugify(self.name)
 
@@ -336,6 +334,7 @@ class ProductImage(models.Model):
     product = models.ForeignKey(
         Product, on_delete=models.CASCADE, related_name="images", verbose_name="Товар"
     )
+    objects = models.Manager()
     image = models.ImageField("Изображение", upload_to="products/gallery/")
     alt_text = models.CharField("Альтернативный текст", max_length=255, blank=True)
     is_main = models.BooleanField("Основное изображение", default=False)
@@ -355,7 +354,8 @@ class ProductImage(models.Model):
         ]
 
     def __str__(self) -> str:
-        return f"Изображение {self.product.name} ({'основное' if self.is_main else 'дополнительное'})"
+        image_type = "основное" if self.is_main else "дополнительное"
+        return f"Изображение {self.product.name} ({image_type})"
 
     def save(self, *args, **kwargs) -> None:
         # Если это основное изображение, убираем флаг у других изображений этого товара

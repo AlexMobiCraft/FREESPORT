@@ -32,7 +32,8 @@ class SearchFilterTest(TestCase):
                 name="Nike Phantom GT2 Elite FG",
                 sku="NikePhantom001",
                 short_description="Футбольные бутсы для профессионалов",
-                description="Высокотехнологичные футбольные бутсы Nike Phantom GT2 Elite FG",
+                description=("Высокотехнологичные футбольные бутсы Nike Phantom GT2 "
+                             "Elite FG"),
                 brand=self.brand,
                 category=self.category,
                 retail_price=18999.00,

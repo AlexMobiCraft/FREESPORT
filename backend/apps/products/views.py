@@ -55,7 +55,10 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
 
     @extend_schema(
         summary="Список товаров",
-        description="Получение списка товаров с фильтрацией, сортировкой и ролевым ценообразованием",
+        description=(
+            "Получение списка товаров с фильтрацией, сортировкой и ролевым "
+            "ценообразованием"
+        ),
         parameters=[
             OpenApiParameter(
                 "category_id", OpenApiTypes.INT, description="ID категории"
@@ -63,7 +66,10 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
             OpenApiParameter(
                 "brand",
                 OpenApiTypes.STR,
-                description="Бренд (ID или slug). Поддерживает множественный выбор: brand=nike,adidas",
+                description=(
+                    "Бренд (ID или slug). Поддерживает множественный выбор: "
+                    "brand=nike,adidas"
+                ),
             ),
             OpenApiParameter(
                 "min_price", OpenApiTypes.NUMBER, description="Минимальная цена"
@@ -80,17 +86,27 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
             OpenApiParameter(
                 "search",
                 OpenApiTypes.STR,
-                description="Полнотекстовый поиск по названию, описанию, артикулу. Поддерживает русский язык, ранжирование по релевантности. Мин. 2 символа, макс. 100",
+                description=(
+                    "Полнотекстовый поиск по названию, описанию, артикулу. "
+                    "Поддерживает русский язык, ранжирование по релевантности. "
+                    "Мин. 2 символа, макс. 100"
+                ),
             ),
             OpenApiParameter(
                 "size",
                 OpenApiTypes.STR,
-                description="Размер товара из спецификаций (XS, S, M, L, XL, XXL, 38, 40, 42 и т.д.)",
+                description=(
+                    "Размер товара из спецификаций (XS, S, M, L, XL, XXL, 38, 40, "
+                    "42 и т.д.)"
+                ),
             ),
             OpenApiParameter(
                 "ordering",
                 OpenApiTypes.STR,
-                description="Сортировка: name, -name, retail_price, -retail_price, created_at, -created_at",
+                description=(
+                    "Сортировка: name, -name, retail_price, -retail_price, "
+                    "created_at, -created_at"
+                ),
             ),
         ],
         tags=["Products"],
@@ -147,7 +163,9 @@ class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
 
     @extend_schema(
         summary="Детали категории",
-        description="Получение детальной информации о категории с навигационной цепочкой",
+        description=(
+            "Получение детальной информации о категории с навигационной цепочкой"
+        ),
         tags=["Categories"],
     )
     def retrieve(self, request, *args, **kwargs):

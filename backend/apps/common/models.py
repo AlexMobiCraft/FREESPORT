@@ -2,6 +2,7 @@
 Общие модели для платформы FREESPORT
 Включает аудиторский журнал и логи синхронизации с 1С
 """
+import logging
 from django.contrib.auth import get_user_model
 from django.db import models
 from django.utils import timezone
@@ -15,38 +16,46 @@ class AuditLog(models.Model):
     Логирует все важные действия пользователей в системе
     """
 
-    user = models.ForeignKey(
+    user: models.ForeignKey = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
         null=True,
         related_name="audit_logs",
         verbose_name="Пользователь",
     )
-    action = models.CharField(
+    action: models.CharField = models.CharField(
         "Действие",
         max_length=100,
         help_text="Тип выполненного действия (create, update, delete, login, etc.)",
     )
-    resource_type = models.CharField(
+    resource_type: models.CharField = models.CharField(
         "Тип ресурса",
         max_length=50,
-        help_text="Тип объекта над которым выполнено действие (User, Product, Order, etc.)",
+        help_text=(
+            "Тип объекта над которым выполнено действие (User, Product, Order, "
+            "etc.)"
+        ),
     )
-    resource_id = models.CharField(
+    resource_id: models.CharField = models.CharField(
         "ID ресурса", max_length=100, help_text="Идентификатор объекта"
     )
-    changes = models.JSONField(
+    changes: models.JSONField = models.JSONField(
         "Изменения", default=dict, help_text="JSON с деталями изменений"
     )
-    ip_address = models.GenericIPAddressField(
+    ip_address: models.GenericIPAddressField = models.GenericIPAddressField(
         "IP адрес", help_text="IP адрес пользователя"
     )
-    user_agent = models.TextField(
+    user_agent: models.TextField = models.TextField(
         "User Agent", help_text="Браузер и устройство пользователя"
     )
-    timestamp = models.DateTimeField("Время действия", auto_now_add=True)
+    timestamp: models.DateTimeField = models.DateTimeField(
+        "Время действия", auto_now_add=True
+    )
+
+    objects = models.Manager()
 
     class Meta:
+        """Мета-опции для модели AuditLog."""
         verbose_name = "Запись аудита"
         verbose_name_plural = "Аудиторский журнал"
         db_table = "audit_logs"
@@ -59,8 +68,13 @@ class AuditLog(models.Model):
         ]
 
     def __str__(self):
-        user_display = self.user.email if self.user else "Anonymous"
-        return f"{user_display} - {self.action} {self.resource_type}#{self.resource_id}"
+        user_display = (
+            getattr(self.user, "email", "Anonymous") if self.user else "Anonymous"
+        )
+        return (
+            f"{user_display} - {self.action} "
+            f"{self.resource_type}#{self.resource_id}"
+        )
 
     @classmethod
     def log_action(
@@ -115,20 +129,33 @@ class SyncLog(models.Model):
         ("failed", "Ошибка"),
     ]
 
-    sync_type = models.CharField("Тип синхронизации", max_length=50, choices=SYNC_TYPES)
-    status = models.CharField("Статус", max_length=20, choices=SYNC_STATUSES)
-    records_processed = models.PositiveIntegerField("Обработано записей", default=0)
-    errors_count = models.PositiveIntegerField("Количество ошибок", default=0)
-    error_details = models.JSONField(
+    sync_type: models.CharField = models.CharField(
+        "Тип синхронизации", max_length=50, choices=SYNC_TYPES
+    )
+    status: models.CharField = models.CharField(
+        "Статус", max_length=20, choices=SYNC_STATUSES
+    )
+    records_processed: models.PositiveIntegerField = models.PositiveIntegerField(
+        "Обработано записей", default=0
+    )
+    errors_count: models.PositiveIntegerField = models.PositiveIntegerField(
+        "Количество ошибок", default=0
+    )
+    error_details: models.JSONField = models.JSONField(
         "Детали ошибок",
         default=list,
         blank=True,
         help_text="Список ошибок, возникших при синхронизации",
     )
-    started_at = models.DateTimeField("Время начала", auto_now_add=True)
-    completed_at = models.DateTimeField("Время завершения", null=True, blank=True)
+    started_at: models.DateTimeField = models.DateTimeField(
+        "Время начала", auto_now_add=True
+    )
+    completed_at: models.DateTimeField = models.DateTimeField(
+        "Время завершения", null=True, blank=True
+    )
 
     class Meta:
+        """Мета-опции для модели SyncLog."""
         verbose_name = "Лог синхронизации"
         verbose_name_plural = "Логи синхронизации"
         db_table = "sync_logs"
@@ -147,18 +174,24 @@ class SyncLog(models.Model):
             )()
             status_display = getattr(self, "get_status_display", lambda: self.status)()
             return f"{sync_type_display} - {status_display} ({self.started_at})"
-        except Exception as e:
-            import logging
+        except AttributeError as e:
 
             logger = logging.getLogger(__name__)
-            logger.error(f"Ошибка в SyncLog.__str__(): {e}")
+            logger.error("Ошибка в SyncLog.__str__(): %s", e)
             logger.error(
-                f"SyncLog pk: {getattr(self, 'pk', 'unknown')}, sync_type: {getattr(self, 'sync_type', 'unknown')}, status: {getattr(self, 'status', 'unknown')}"
+                "SyncLog pk: %s, sync_type: %s, status: %s",
+                getattr(self, 'pk', 'unknown'),
+                getattr(self, 'sync_type', 'unknown'),
+                getattr(self, 'status', 'unknown'),
             )
-            logger.error(f"Тип объекта: {type(self)}")
-            logger.error(f"Модуль: {getattr(self, '__module__', 'unknown')}")
+            logger.error("Тип объекта: %s", type(self))
+            logger.error("Модуль: %s", getattr(self, '__module__', 'unknown'))
             # Fallback к базовому отображению
-            return f"SyncLog(pk={getattr(self, 'pk', 'unknown')}, sync_type={getattr(self, 'sync_type', 'unknown')}, status={getattr(self, 'status', 'unknown')})"
+            return (
+                f"SyncLog(pk={getattr(self, 'pk', 'unknown')}, "
+                f"sync_type={getattr(self, 'sync_type', 'unknown')}, "
+                f"status={getattr(self, 'status', 'unknown')})"
+            )
 
     def mark_completed(self, records_processed=0, errors_count=0, error_details=None):
         """
@@ -169,7 +202,6 @@ class SyncLog(models.Model):
             errors_count: Количество ошибок
             error_details: Список деталей ошибок
         """
-        from django.utils import timezone
 
         self.status = "completed"
         self.records_processed = records_processed
@@ -180,12 +212,11 @@ class SyncLog(models.Model):
 
     def mark_failed(self, error_details=None):
         """
-        Отметить синхронизацию как неудачную
+        Отметить синхронезацию как неудачную
 
         Args:
             error_details: Список деталей ошибок
         """
-        from django.utils import timezone
 
         self.status = "failed"
         self.error_details = error_details or []
