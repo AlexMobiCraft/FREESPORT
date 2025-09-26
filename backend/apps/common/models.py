@@ -4,6 +4,7 @@
 """
 from django.contrib.auth import get_user_model
 from django.db import models
+from django.utils import timezone
 
 User = get_user_model()
 
@@ -139,7 +140,25 @@ class SyncLog(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.get_sync_type_display()} - {self.get_status_display()} ({self.started_at})"
+        try:
+            # Используем getattr для безопасного доступа к методам
+            sync_type_display = getattr(
+                self, "get_sync_type_display", lambda: self.sync_type
+            )()
+            status_display = getattr(self, "get_status_display", lambda: self.status)()
+            return f"{sync_type_display} - {status_display} ({self.started_at})"
+        except Exception as e:
+            import logging
+
+            logger = logging.getLogger(__name__)
+            logger.error(f"Ошибка в SyncLog.__str__(): {e}")
+            logger.error(
+                f"SyncLog pk: {getattr(self, 'pk', 'unknown')}, sync_type: {getattr(self, 'sync_type', 'unknown')}, status: {getattr(self, 'status', 'unknown')}"
+            )
+            logger.error(f"Тип объекта: {type(self)}")
+            logger.error(f"Модуль: {getattr(self, '__module__', 'unknown')}")
+            # Fallback к базовому отображению
+            return f"SyncLog(pk={getattr(self, 'pk', 'unknown')}, sync_type={getattr(self, 'sync_type', 'unknown')}, status={getattr(self, 'status', 'unknown')})"
 
     def mark_completed(self, records_processed=0, errors_count=0, error_details=None):
         """
@@ -189,6 +208,3 @@ class SyncLog(models.Model):
         return (
             (self.records_processed - self.errors_count) / self.records_processed
         ) * 100
-
-
-
