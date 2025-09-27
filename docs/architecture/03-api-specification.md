@@ -1,6 +1,6 @@
 # 3. Спецификация API
 
-### Структура схемы OpenAPI 3.1
+## Структура схемы OpenAPI 3.1
 
 ```yaml
 openapi:
@@ -641,8 +641,19 @@ components:
           description: Price based on user's role
         stock_quantity:
           type: integer
-        is_in_stock:
+          description: "Общее физическое количество товара на складе."
+        reserved_quantity:
+          type: integer
+          description: "Количество товара, зарезервированное в активных корзинах."
+          readOnly: true
+        available_quantity:
+          type: integer
+          description: "Доступное для заказа количество (stock_quantity - reserved_quantity)."
+          readOnly: true
+        is_available:
           type: boolean
+          description: "Доступен ли товар для заказа в данный момент (is_active && available_quantity > 0)."
+          readOnly: true
         brand:
           type: string
         category:
@@ -1021,30 +1032,37 @@ components:
       required: [shipping_address, payment_method]
 ```
 
-### Особенности API интеграции с 1С
+## Особенности API интеграции с 1С
 
-#### Аутентификация
+
+### Аутентификация
+
 - **JWT Bearer Token**: Для пользовательских операций
 - **API Key**: Для интеграции с 1С системой
 
-#### Endpoints для синхронизации покупателей
+### Endpoints для синхронизации покупателей
+
 - `GET /api/1c/customers/` - Получение списка покупателей для синхронизации
 - `POST /api/1c/customers/` - Импорт покупателей из 1С
 - `PUT /api/1c/customers/{onec_id}/` - Обновление конкретного покупателя
 - `GET /api/1c/customers/{onec_id}/` - Получение покупателя по ID 1С
 
-#### Управление заказами
+### Управление заказами
+
 - `GET /api/1c/orders/` - Получение заказов для экспорта в 1С
 - `POST /api/1c/orders/` - Обновление статусов заказов из 1С
 
-#### Управление конфликтами
+### Управление конфликтами
+
 - `GET /api/1c/sync/conflicts/` - Список конфликтов синхронизации
 - `POST /api/1c/sync/conflicts/{id}/resolve/` - Разрешение конфликта
 
-#### Логирование и мониторинг
+### Логирование и мониторинг
+
 - `GET /api/1c/sync/logs/` - Получение логов операций синхронизации
 
-#### Коды ответов
+### Коды ответов
+
 - **200 OK**: Успешная операция
 - **201 Created**: Ресурс создан
 - **202 Accepted**: Операция принята к обработке (асинхронные операции)

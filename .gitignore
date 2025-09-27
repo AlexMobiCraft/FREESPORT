@@ -153,6 +153,9 @@ dmypy.json
 # pytype static type analyzer
 .pytype/
 
+# Архивы
+docs\arhiv
+
 # Мои рабочие документы
 .\docs\Отчет_для_заказчика.md
 Проверить-.txt
