@@ -39,6 +39,7 @@ def update_reserved_quantity_on_delete(sender, instance, **kwargs):
         product.reserved_quantity = 0
     product.save(update_fields=["reserved_quantity"])
 
+
 User = get_user_model()
 
 

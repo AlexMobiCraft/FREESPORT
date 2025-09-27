@@ -47,9 +47,7 @@ class Command(BaseCommand):
 
         if not viewsets:
             self.stdout.write(
-                self.style.WARNING(
-                    "WARNING: Не найдено ни одного ViewSet для проверки"
-                )
+                self.style.WARNING("WARNING: Не найдено ни одного ViewSet для проверки")
             )
             return
 

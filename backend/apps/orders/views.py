@@ -102,8 +102,7 @@ class OrderViewSet(viewsets.ModelViewSet):
     @extend_schema(
         summary="Отмена заказа",
         description=(
-            "Отмена заказа пользователем (только для статусов pending, "
-            "confirmed)"
+            "Отмена заказа пользователем (только для статусов pending, " "confirmed)"
         ),
         responses={
             200: OrderDetailSerializer,

@@ -227,7 +227,13 @@ class OrderCreateSerializer(serializers.ModelSerializer):
         # Создаем элементы заказа
         OrderItem.objects.bulk_create(order_items)
 
-        # Очищаем корзину
+        # Списываем физические остатки со склада
+        for item in order_items:
+            Product.objects.filter(pk=item.product.pk).update(
+                stock_quantity=models.F("stock_quantity") - item.quantity
+            )
+
+        # Очищаем корзину (это вызовет сигнал для уменьшения reserved_quantity)
         cart.clear()
 
         return order

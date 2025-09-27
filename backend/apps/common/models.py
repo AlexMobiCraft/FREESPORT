@@ -32,8 +32,7 @@ class AuditLog(models.Model):
         "Тип ресурса",
         max_length=50,
         help_text=(
-            "Тип объекта над которым выполнено действие (User, Product, Order, "
-            "etc.)"
+            "Тип объекта над которым выполнено действие (User, Product, Order, " "etc.)"
         ),
     )
     resource_id: models.CharField = models.CharField(
@@ -56,6 +55,7 @@ class AuditLog(models.Model):
 
     class Meta:
         """Мета-опции для модели AuditLog."""
+
         verbose_name = "Запись аудита"
         verbose_name_plural = "Аудиторский журнал"
         db_table = "audit_logs"
@@ -156,6 +156,7 @@ class SyncLog(models.Model):
 
     class Meta:
         """Мета-опции для модели SyncLog."""
+
         verbose_name = "Лог синхронизации"
         verbose_name_plural = "Логи синхронизации"
         db_table = "sync_logs"
@@ -175,17 +176,16 @@ class SyncLog(models.Model):
             status_display = getattr(self, "get_status_display", lambda: self.status)()
             return f"{sync_type_display} - {status_display} ({self.started_at})"
         except AttributeError as e:
-
             logger = logging.getLogger(__name__)
             logger.error("Ошибка в SyncLog.__str__(): %s", e)
             logger.error(
                 "SyncLog pk: %s, sync_type: %s, status: %s",
-                getattr(self, 'pk', 'unknown'),
-                getattr(self, 'sync_type', 'unknown'),
-                getattr(self, 'status', 'unknown'),
+                getattr(self, "pk", "unknown"),
+                getattr(self, "sync_type", "unknown"),
+                getattr(self, "status", "unknown"),
             )
             logger.error("Тип объекта: %s", type(self))
-            logger.error("Модуль: %s", getattr(self, '__module__', 'unknown'))
+            logger.error("Модуль: %s", getattr(self, "__module__", "unknown"))
             # Fallback к базовому отображению
             return (
                 f"SyncLog(pk={getattr(self, 'pk', 'unknown')}, "

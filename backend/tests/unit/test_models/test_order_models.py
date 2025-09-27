@@ -167,7 +167,9 @@ class TestOrderModel:
         try:
             # Проверяем, что строка является валидным UUID4
             val = uuid.UUID(order_number, version=4)
-            assert str(val) == order_number, "Сгенерированный номер не соответствует каноническому формату UUID"
+            assert (
+                str(val) == order_number
+            ), "Сгенерированный номер не соответствует каноническому формату UUID"
         except (ValueError, TypeError, AttributeError):
             pytest.fail("Сгенерированный номер заказа не является валидным UUID4")
 

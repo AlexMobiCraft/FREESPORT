@@ -80,13 +80,13 @@ class Command(BaseCommand):
         # Заголовок
         self.stdout.write(
             self.style.SUCCESS("🚀 Запуск импорта каталога товаров из 1С")  # type: ignore
-            )
+        )
 
         if self.dry_run:
             self.stdout.write(
                 self.style.WARNING(  # type: ignore
                     "⚠️  РЕЖИМ DRY-RUN: изменения НЕ будут сохранены"
-                    )
+                )
             )
 
         try:
@@ -259,7 +259,7 @@ class Command(BaseCommand):
             except Exception as e:
                 self.stdout.write(
                     self.style.ERROR(
-                        f'❌ Ошибка обработки товара '
+                        f"❌ Ошибка обработки товара "
                         f'{product_data.get("onec_id", "UNKNOWN")}: {str(e)}'
                     )  # type: ignore
                 )

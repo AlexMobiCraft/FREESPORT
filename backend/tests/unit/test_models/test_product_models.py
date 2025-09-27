@@ -95,7 +95,8 @@ class TestProductModel:
     def test_product_creation(self):
         """Тест создания товара"""
         product = ProductFactory.create(
-            name="Футбольный мяч Nike", retail_price=Decimal("2500.00"))
+            name="Футбольный мяч Nike", retail_price=Decimal("2500.00")
+        )
 
         assert product.name == "Футбольный мяч Nike"
         assert product.retail_price == Decimal("2500.00")
@@ -112,7 +113,9 @@ class ProductComputedPropertiesTest(TestCase):
     def setUp(self):
         """Настройка тестовых данных."""
         self.brand = Brand.objects.create(name="Test Brand", slug="test-brand")
-        self.category = Category.objects.create(name="Test Category", slug="test-category")
+        self.category = Category.objects.create(
+            name="Test Category", slug="test-category"
+        )
         self.product = Product.objects.create(
             name="Test Product",
             slug="test-product",
@@ -151,7 +154,6 @@ class ProductComputedPropertiesTest(TestCase):
         self.product.min_order_quantity = 20
         self.product.save()
         self.assertFalse(self.product.can_be_ordered)
-
 
     def test_product_pricing_for_different_roles(self):
         """Тест ценообразования для разных ролей пользователей"""
@@ -495,7 +497,7 @@ class TestProductStockLogic:
             stock_quantity=5,
             reserved_quantity=2,
             min_order_quantity=3,  # available_quantity = 3,
-                                   # что равно min_order_quantity
+            # что равно min_order_quantity
         )
         assert edge_case_product.can_be_ordered is True
 

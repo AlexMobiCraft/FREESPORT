@@ -53,5 +53,4 @@ LOGGING: dict[str, Any] = {}
 
 # Гарантированно отключаем Django Debug Toolbar в тестах,
 # даже если он был добавлен в другом файле настроек.
-INSTALLED_APPS = [app for app in INSTALLED_APPS if app != 'debug_toolbar']
-
+INSTALLED_APPS = [app for app in INSTALLED_APPS if app != "debug_toolbar"]

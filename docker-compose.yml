@@ -125,6 +125,63 @@ services:
       - freesport-network
     restart: unless-stopped
 
+  # Celery Worker
+  celery:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: freesport-celery-worker
+    command: celery -A freesport worker -l info
+    volumes:
+      - ./backend:/app
+    environment:
+      - DJANGO_SETTINGS_MODULE=freesport.settings.development
+      - SECRET_KEY=development-secret-key-change-in-production
+      - DB_NAME=freesport
+      - DB_USER=freesport_user
+      - DB_PASSWORD=password123
+      - DB_HOST=db
+      - DB_PORT=5432
+      - REDIS_URL=redis://:redis123@redis:6379/0
+      - DEBUG=1
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - freesport-network
+    restart: unless-stopped
+
+  # Celery Beat Scheduler
+  celery-beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: freesport-celery-beat
+    command: celery -A freesport beat -l info
+    volumes:
+      - ./backend:/app
+    environment:
+      - DJANGO_SETTINGS_MODULE=freesport.settings.development
+      - SECRET_KEY=development-secret-key-change-in-production
+      - DB_NAME=freesport
+      - DB_USER=freesport_user
+      - DB_PASSWORD=password123
+      - DB_HOST=db
+      - DB_PORT=5432
+      - REDIS_URL=redis://:redis123@redis:6379/0
+      - DEBUG=1
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - freesport-network
+    restart: unless-stopped
+
+
 volumes:
   postgres_data:
     driver: local

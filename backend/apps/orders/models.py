@@ -54,74 +54,107 @@ class Order(models.Model):
     ]
 
     # Идентификация заказа
-    order_number = cast(str, models.CharField(
-        "Номер заказа", max_length=50, unique=True, editable=False
-    ))
-    user = cast('User | None', models.ForeignKey(
-        User,
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True,
-        related_name="orders",
-        verbose_name="Пользователь",
-    ))
+    order_number = cast(
+        str,
+        models.CharField("Номер заказа", max_length=50, unique=True, editable=False),
+    )
+    user = cast(
+        "User | None",
+        models.ForeignKey(
+            User,
+            on_delete=models.CASCADE,
+            null=True,
+            blank=True,
+            related_name="orders",
+            verbose_name="Пользователь",
+        ),
+    )
 
     # Информация о клиенте (для гостевых заказов)
-    customer_name = cast(str, models.CharField("Имя клиента", max_length=200, blank=True))
+    customer_name = cast(
+        str, models.CharField("Имя клиента", max_length=200, blank=True)
+    )
     customer_email = cast(str, models.EmailField("Email клиента", blank=True))
-    customer_phone = cast(str, models.CharField("Телефон клиента", max_length=20, blank=True))
+    customer_phone = cast(
+        str, models.CharField("Телефон клиента", max_length=20, blank=True)
+    )
 
     # Детали заказа
-    status = cast(str, models.CharField(
-        "Статус заказа", max_length=50, choices=ORDER_STATUSES, default="pending"
-    ))
-    total_amount = cast(Decimal, models.DecimalField(
-        "Общая сумма",
-        max_digits=10,
-        decimal_places=2,
-        validators=[MinValueValidator(0)],
-    ))
-    discount_amount = cast(Decimal, models.DecimalField(
-        "Сумма скидки",
-        max_digits=10,
-        decimal_places=2,
-        default=0,
-        validators=[MinValueValidator(0)],
-    ))
-    delivery_cost = cast(Decimal, models.DecimalField(
-        "Стоимость доставки",
-        max_digits=10,
-        decimal_places=2,
-        default=0,
-        validators=[MinValueValidator(0)],
-    ))
+    status = cast(
+        str,
+        models.CharField(
+            "Статус заказа", max_length=50, choices=ORDER_STATUSES, default="pending"
+        ),
+    )
+    total_amount = cast(
+        Decimal,
+        models.DecimalField(
+            "Общая сумма",
+            max_digits=10,
+            decimal_places=2,
+            validators=[MinValueValidator(0)],
+        ),
+    )
+    discount_amount = cast(
+        Decimal,
+        models.DecimalField(
+            "Сумма скидки",
+            max_digits=10,
+            decimal_places=2,
+            default=0,
+            validators=[MinValueValidator(0)],
+        ),
+    )
+    delivery_cost = cast(
+        Decimal,
+        models.DecimalField(
+            "Стоимость доставки",
+            max_digits=10,
+            decimal_places=2,
+            default=0,
+            validators=[MinValueValidator(0)],
+        ),
+    )
 
     # Информация о доставке
     delivery_address = cast(str, models.TextField("Адрес доставки"))
-    delivery_method = cast(str, models.CharField(
-        "Способ доставки", max_length=50, choices=DELIVERY_METHODS
-    ))
-    delivery_date = cast('datetime.date | None', models.DateField("Дата доставки", null=True, blank=True))
-    tracking_number = cast(str, models.CharField(
-        "Трек-номер",
-        max_length=100,
-        blank=True,
-        help_text="Номер для отслеживания посылки",
-    ))
+    delivery_method = cast(
+        str,
+        models.CharField("Способ доставки", max_length=50, choices=DELIVERY_METHODS),
+    )
+    delivery_date = cast(
+        "datetime.date | None", models.DateField("Дата доставки", null=True, blank=True)
+    )
+    tracking_number = cast(
+        str,
+        models.CharField(
+            "Трек-номер",
+            max_length=100,
+            blank=True,
+            help_text="Номер для отслеживания посылки",
+        ),
+    )
     # Информация об оплате
-    payment_method = cast(str, models.CharField(
-        "Способ оплаты", max_length=50, choices=PAYMENT_METHODS
-    ))
-    payment_status = cast(str, models.CharField(
-        "Статус оплаты", max_length=50, choices=PAYMENT_STATUSES, default="pending"
-    ))
-    payment_id = cast(str, models.CharField("ID платежа (ЮKassa)", max_length=100, blank=True))
+    payment_method = cast(
+        str, models.CharField("Способ оплаты", max_length=50, choices=PAYMENT_METHODS)
+    )
+    payment_status = cast(
+        str,
+        models.CharField(
+            "Статус оплаты", max_length=50, choices=PAYMENT_STATUSES, default="pending"
+        ),
+    )
+    payment_id = cast(
+        str, models.CharField("ID платежа (ЮKassa)", max_length=100, blank=True)
+    )
 
     # Дополнительная информация
     notes = cast(str, models.TextField("Комментарии к заказу", blank=True))
 
     # Временные метки
-    created_at = cast(datetime, models.DateTimeField("Дата создания", auto_now_add=True))
+    created_at = cast(
+        datetime, models.DateTimeField("Дата создания", auto_now_add=True)
+    )
     updated_at = cast(datetime, models.DateTimeField("Дата обновления", auto_now=True))
 
     class Meta:
@@ -186,33 +219,48 @@ class OrderItem(models.Model):
     Элемент заказа - товар с количеством и ценой на момент заказа
     """
 
-    order = cast(Order, models.ForeignKey(
-        Order, on_delete=models.CASCADE, related_name="items", verbose_name="Заказ"
-    ))
-    product = cast('Product', models.ForeignKey(
-        "products.Product", on_delete=models.CASCADE, verbose_name="Товар"
-    ))
-    quantity = cast(int, models.PositiveIntegerField(
-        "Количество", validators=[MinValueValidator(1)]
-    ))
-    unit_price = cast(Decimal, models.DecimalField(
-        "Цена за единицу",
-        max_digits=10,
-        decimal_places=2,
-        validators=[MinValueValidator(0)],
-    ))
-    total_price = cast(Decimal, models.DecimalField(
-        "Общая стоимость",
-        max_digits=10,
-        decimal_places=2,
-        validators=[MinValueValidator(0)],
-    ))
+    order = cast(
+        Order,
+        models.ForeignKey(
+            Order, on_delete=models.CASCADE, related_name="items", verbose_name="Заказ"
+        ),
+    )
+    product = cast(
+        "Product",
+        models.ForeignKey(
+            "products.Product", on_delete=models.CASCADE, verbose_name="Товар"
+        ),
+    )
+    quantity = cast(
+        int,
+        models.PositiveIntegerField("Количество", validators=[MinValueValidator(1)]),
+    )
+    unit_price = cast(
+        Decimal,
+        models.DecimalField(
+            "Цена за единицу",
+            max_digits=10,
+            decimal_places=2,
+            validators=[MinValueValidator(0)],
+        ),
+    )
+    total_price = cast(
+        Decimal,
+        models.DecimalField(
+            "Общая стоимость",
+            max_digits=10,
+            decimal_places=2,
+            validators=[MinValueValidator(0)],
+        ),
+    )
 
     # Снимок данных о продукте на момент заказа
     product_name = cast(str, models.CharField("Название товара", max_length=300))
     product_sku = cast(str, models.CharField("Артикул товара", max_length=100))
 
-    created_at = cast(datetime, models.DateTimeField("Дата создания", auto_now_add=True))
+    created_at = cast(
+        datetime, models.DateTimeField("Дата создания", auto_now_add=True)
+    )
     updated_at = cast(datetime, models.DateTimeField("Дата обновления", auto_now=True))
 
     class Meta:

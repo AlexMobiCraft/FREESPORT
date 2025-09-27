@@ -25,11 +25,15 @@ class Brand(models.Model):
 
     name = cast(str, models.CharField("Название бренда", max_length=100, unique=True))
     slug = cast(str, models.SlugField("Slug", max_length=255, unique=True))
-    logo = cast(models.ImageField, models.ImageField("Логотип", upload_to="brands/", blank=True))
+    logo = cast(
+        models.ImageField, models.ImageField("Логотип", upload_to="brands/", blank=True)
+    )
     description = cast(str, models.TextField("Описание", blank=True))
     website = cast(str, models.URLField("Веб-сайт", blank=True))
     is_active = cast(bool, models.BooleanField("Активный", default=True))
-    created_at = cast(datetime, models.DateTimeField("Дата создания", auto_now_add=True))
+    created_at = cast(
+        datetime, models.DateTimeField("Дата создания", auto_now_add=True)
+    )
     updated_at = cast(datetime, models.DateTimeField("Дата обновления", auto_now=True))
 
     class Meta:
@@ -63,16 +67,22 @@ class Category(models.Model):
 
     name = cast(str, models.CharField("Название", max_length=200))
     slug = cast(str, models.SlugField("Slug", max_length=255, unique=True))
-    parent = cast('Category | None', models.ForeignKey(
-        "self",
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True,
-        related_name="children",
-        verbose_name="Родительская категория",
-    ))
+    parent = cast(
+        "Category | None",
+        models.ForeignKey(
+            "self",
+            on_delete=models.CASCADE,
+            null=True,
+            blank=True,
+            related_name="children",
+            verbose_name="Родительская категория",
+        ),
+    )
     description = cast(str, models.TextField("Описание", blank=True))
-    image = cast(models.ImageField, models.ImageField("Изображение", upload_to="categories/", blank=True))
+    image = cast(
+        models.ImageField,
+        models.ImageField("Изображение", upload_to="categories/", blank=True),
+    )
     is_active = cast(bool, models.BooleanField("Активная", default=True))
     sort_order = cast(int, models.PositiveIntegerField("Порядок сортировки", default=0))
 
@@ -80,7 +90,9 @@ class Category(models.Model):
     seo_title = cast(str, models.CharField("SEO заголовок", max_length=200, blank=True))
     seo_description = cast(str, models.TextField("SEO описание", blank=True))
 
-    created_at = cast(datetime, models.DateTimeField("Дата создания", auto_now_add=True))
+    created_at = cast(
+        datetime, models.DateTimeField("Дата создания", auto_now_add=True)
+    )
     updated_at = cast(datetime, models.DateTimeField("Дата обновления", auto_now=True))
 
     class Meta:
@@ -122,104 +134,154 @@ class Product(models.Model):
 
     name = cast(str, models.CharField("Название", max_length=300))
     slug = cast(str, models.SlugField("Slug", max_length=255, unique=True))
-    brand = cast(Brand, models.ForeignKey(
-        Brand, on_delete=models.CASCADE, related_name="products", verbose_name="Бренд"
-    ))
-    category = cast(Category, models.ForeignKey(
+    brand = cast(
+        Brand,
+        models.ForeignKey(
+            Brand,
+            on_delete=models.CASCADE,
+            related_name="products",
+            verbose_name="Бренд",
+        ),
+    )
+    category = cast(
         Category,
-        on_delete=models.CASCADE,
-        related_name="products",
-        verbose_name="Категория",
-    ))
+        models.ForeignKey(
+            Category,
+            on_delete=models.CASCADE,
+            related_name="products",
+            verbose_name="Категория",
+        ),
+    )
     description = cast(str, models.TextField("Описание"))
-    short_description = cast(str, models.CharField("Краткое описание", max_length=500, blank=True))
-    specifications = cast(dict, models.JSONField(
-        "Технические характеристики", default=dict, blank=True
-    ))
+    short_description = cast(
+        str, models.CharField("Краткое описание", max_length=500, blank=True)
+    )
+    specifications = cast(
+        dict, models.JSONField("Технические характеристики", default=dict, blank=True)
+    )
 
     # Ценообразование для различных ролей пользователей
-    retail_price = cast(Decimal, models.DecimalField(
-        "Розничная цена",
-        max_digits=10,
-        decimal_places=2,
-        validators=[MinValueValidator(0)],
-    ))
-    opt1_price = cast(Decimal | None, models.DecimalField(
-        "Оптовая цена уровень 1",
-        max_digits=10,
-        decimal_places=2,
-        null=True,
-        blank=True,
-        validators=[MinValueValidator(0)],
-    ))
-    opt2_price = cast(Decimal | None, models.DecimalField(
-        "Оптовая цена уровень 2",
-        max_digits=10,
-        decimal_places=2,
-        null=True,
-        blank=True,
-        validators=[MinValueValidator(0)],
-    ))
-    opt3_price = cast(Decimal | None, models.DecimalField(
-        "Оптовая цена уровень 3",
-        max_digits=10,
-        decimal_places=2,
-        null=True,
-        blank=True,
-        validators=[MinValueValidator(0)],
-    ))
-    trainer_price = cast(Decimal | None, models.DecimalField(
-        "Цена для тренера",
-        max_digits=10,
-        decimal_places=2,
-        null=True,
-        blank=True,
-        validators=[MinValueValidator(0)],
-    ))
-    federation_price = cast(Decimal | None, models.DecimalField(
-        "Цена для представителя федерации",
-        max_digits=10,
-        decimal_places=2,
-        null=True,
-        blank=True,
-        validators=[MinValueValidator(0)],
-    ))
+    retail_price = cast(
+        Decimal,
+        models.DecimalField(
+            "Розничная цена",
+            max_digits=10,
+            decimal_places=2,
+            validators=[MinValueValidator(0)],
+        ),
+    )
+    opt1_price = cast(
+        Decimal | None,
+        models.DecimalField(
+            "Оптовая цена уровень 1",
+            max_digits=10,
+            decimal_places=2,
+            null=True,
+            blank=True,
+            validators=[MinValueValidator(0)],
+        ),
+    )
+    opt2_price = cast(
+        Decimal | None,
+        models.DecimalField(
+            "Оптовая цена уровень 2",
+            max_digits=10,
+            decimal_places=2,
+            null=True,
+            blank=True,
+            validators=[MinValueValidator(0)],
+        ),
+    )
+    opt3_price = cast(
+        Decimal | None,
+        models.DecimalField(
+            "Оптовая цена уровень 3",
+            max_digits=10,
+            decimal_places=2,
+            null=True,
+            blank=True,
+            validators=[MinValueValidator(0)],
+        ),
+    )
+    trainer_price = cast(
+        Decimal | None,
+        models.DecimalField(
+            "Цена для тренера",
+            max_digits=10,
+            decimal_places=2,
+            null=True,
+            blank=True,
+            validators=[MinValueValidator(0)],
+        ),
+    )
+    federation_price = cast(
+        Decimal | None,
+        models.DecimalField(
+            "Цена для представителя федерации",
+            max_digits=10,
+            decimal_places=2,
+            null=True,
+            blank=True,
+            validators=[MinValueValidator(0)],
+        ),
+    )
 
     # Информационные цены для B2B пользователей
-    recommended_retail_price = cast(Decimal | None, models.DecimalField(
-        "Рекомендованная розничная цена (RRP)",
-        max_digits=10,
-        decimal_places=2,
-        null=True,
-        blank=True,
-        validators=[MinValueValidator(0)],
-    ))
-    max_suggested_retail_price = cast(Decimal | None, models.DecimalField(
-        "Максимальная рекомендованная цена (MSRP)",
-        max_digits=10,
-        decimal_places=2,
-        null=True,
-        blank=True,
-        validators=[MinValueValidator(0)],
-    ))
+    recommended_retail_price = cast(
+        Decimal | None,
+        models.DecimalField(
+            "Рекомендованная розничная цена (RRP)",
+            max_digits=10,
+            decimal_places=2,
+            null=True,
+            blank=True,
+            validators=[MinValueValidator(0)],
+        ),
+    )
+    max_suggested_retail_price = cast(
+        Decimal | None,
+        models.DecimalField(
+            "Максимальная рекомендованная цена (MSRP)",
+            max_digits=10,
+            decimal_places=2,
+            null=True,
+            blank=True,
+            validators=[MinValueValidator(0)],
+        ),
+    )
 
     # Инвентаризация
-    sku = cast(str, models.CharField("Артикул", max_length=100, unique=True, blank=True))
-    stock_quantity = cast(int, models.PositiveIntegerField(
-        "Количество на складе", default=0, help_text="Доступное количество на складе"
-    ))
-    reserved_quantity = cast(int, models.PositiveIntegerField(
-        "Зарезервированное количество",
-        default=0,
-        help_text="Количество товара, зарезервированного в корзинах и заказах",
-    ))
-    min_order_quantity = cast(int, models.PositiveIntegerField(
-        "Минимальное количество заказа", default=1
-    ))
+    sku = cast(
+        str, models.CharField("Артикул", max_length=100, unique=True, blank=True)
+    )
+    stock_quantity = cast(
+        int,
+        models.PositiveIntegerField(
+            "Количество на складе",
+            default=0,
+            help_text="Доступное количество на складе",
+        ),
+    )
+    reserved_quantity = cast(
+        int,
+        models.PositiveIntegerField(
+            "Зарезервированное количество",
+            default=0,
+            help_text="Количество товара, зарезервированного в корзинах и заказах",
+        ),
+    )
+    min_order_quantity = cast(
+        int, models.PositiveIntegerField("Минимальное количество заказа", default=1)
+    )
 
     # Изображения
-    main_image = cast(models.ImageField, models.ImageField("Основное изображение", upload_to="products/"))
-    gallery_images = cast(list, models.JSONField("Галерея изображений", default=list, blank=True))
+    main_image = cast(
+        models.ImageField,
+        models.ImageField("Основное изображение", upload_to="products/"),
+    )
+    gallery_images = cast(
+        list, models.JSONField("Галерея изображений", default=list, blank=True)
+    )
 
     # SEO и мета информация
     seo_title = cast(str, models.CharField("SEO заголовок", max_length=200, blank=True))
@@ -230,28 +292,35 @@ class Product(models.Model):
     is_featured = cast(bool, models.BooleanField("Рекомендуемый", default=False))
 
     # Временные метки и интеграция с 1С
-    created_at = cast(datetime, models.DateTimeField("Дата создания", auto_now_add=True))
+    created_at = cast(
+        datetime, models.DateTimeField("Дата создания", auto_now_add=True)
+    )
     updated_at = cast(datetime, models.DateTimeField("Дата обновления", auto_now=True))
 
     # 1С Integration fields (Story 3.1.1 AC: 3)
-    onec_id = cast(str | None, models.CharField(
-        "ID в 1С", max_length=100, unique=True, blank=True, null=True
-    ))
-    sync_status = cast(str, models.CharField(
-        "Статус синхронизации",
-        max_length=20,
-        choices=[
-            ("pending", "Ожидает синхронизации"),
-            ("syncing", "Синхронизируется"),
-            ("synced", "Синхронизирован"),
-            ("error", "Ошибка синхронизации"),
-            ("conflict", "Конфликт данных"),
-        ],
-        default="pending",
-    ))
-    last_sync_at = cast(datetime | None, models.DateTimeField(
-        "Последняя синхронизация", null=True, blank=True
-    ))
+    onec_id = cast(
+        str | None,
+        models.CharField("ID в 1С", max_length=100, unique=True, blank=True, null=True),
+    )
+    sync_status = cast(
+        str,
+        models.CharField(
+            "Статус синхронизации",
+            max_length=20,
+            choices=[
+                ("pending", "Ожидает синхронизации"),
+                ("syncing", "Синхронизируется"),
+                ("synced", "Синхронизирован"),
+                ("error", "Ошибка синхронизации"),
+                ("conflict", "Конфликт данных"),
+            ],
+            default="pending",
+        ),
+    )
+    last_sync_at = cast(
+        datetime | None,
+        models.DateTimeField("Последняя синхронизация", null=True, blank=True),
+    )
     error_message = cast(str, models.TextField("Сообщение об ошибке", blank=True))
 
     class Meta:
@@ -331,16 +400,29 @@ class ProductImage(models.Model):
     Модель изображений товара
     """
 
-    product = cast(Product, models.ForeignKey(
-        Product, on_delete=models.CASCADE, related_name="images", verbose_name="Товар"
-    ))
+    product = cast(
+        Product,
+        models.ForeignKey(
+            Product,
+            on_delete=models.CASCADE,
+            related_name="images",
+            verbose_name="Товар",
+        ),
+    )
     objects = models.Manager()
-    image = cast(models.ImageField, models.ImageField("Изображение", upload_to="products/gallery/"))
-    alt_text = cast(str, models.CharField("Альтернативный текст", max_length=255, blank=True))
+    image = cast(
+        models.ImageField,
+        models.ImageField("Изображение", upload_to="products/gallery/"),
+    )
+    alt_text = cast(
+        str, models.CharField("Альтернативный текст", max_length=255, blank=True)
+    )
     is_main = cast(bool, models.BooleanField("Основное изображение", default=False))
     sort_order = cast(int, models.PositiveIntegerField("Порядок сортировки", default=0))
 
-    created_at = cast(datetime, models.DateTimeField("Дата создания", auto_now_add=True))
+    created_at = cast(
+        datetime, models.DateTimeField("Дата создания", auto_now_add=True)
+    )
     updated_at = cast(datetime, models.DateTimeField("Дата обновления", auto_now=True))
 
     class Meta:
@@ -360,7 +442,7 @@ class ProductImage(models.Model):
     def save(self, *args, **kwargs) -> None:
         # Если это основное изображение, убираем флаг у других изображений этого товара
         if self.is_main:
-            ProductImage.objects.filter(
-                product=self.product, is_main=True
-            ).exclude(pk=self.pk).update(is_main=False)
+            ProductImage.objects.filter(product=self.product, is_main=True).exclude(
+                pk=self.pk
+            ).update(is_main=False)
         super().save(*args, **kwargs)
