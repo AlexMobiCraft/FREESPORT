@@ -16,7 +16,7 @@ from typing import Dict, List, Optional
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils import timezone
-from tqdm import tqdm
+from tqdm import tqdm  # type: ignore
 
 from apps.products.models import Brand, Category, Product
 
@@ -78,11 +78,15 @@ class Command(BaseCommand):
             )
 
         # Заголовок
-        self.stdout.write(self.style.SUCCESS("🚀 Запуск импорта каталога товаров из 1С"))
+        self.stdout.write(
+            self.style.SUCCESS("🚀 Запуск импорта каталога товаров из 1С")  # type: ignore
+            )
 
         if self.dry_run:
             self.stdout.write(
-                self.style.WARNING("⚠️  РЕЖИМ DRY-RUN: изменения НЕ будут сохранены")
+                self.style.WARNING(  # type: ignore
+                    "⚠️  РЕЖИМ DRY-RUN: изменения НЕ будут сохранены"
+                    )
             )
 
         try:
@@ -104,18 +108,18 @@ class Command(BaseCommand):
                 self.stdout.write(
                     self.style.SUCCESS(
                         f"✅ DRY-RUN завершен: {imported_count} товаров обработано"
-                    )
+                    )  # type: ignore
                 )
             else:
                 self.stdout.write(
                     self.style.SUCCESS(
                         f"✅ Импорт завершен успешно: {imported_count} "
                         f"товаров импортировано"
-                    )
+                    )  # type: ignore
                 )
 
         except Exception as e:
-            self.stdout.write(self.style.ERROR(f"❌ Ошибка импорта: {str(e)}"))
+            self.stdout.write(self.style.ERROR(f"❌ Ошибка импорта: {str(e)}"))  # type: ignore
             raise
 
     def _load_data_from_file(self) -> List[Dict]:
@@ -257,7 +261,7 @@ class Command(BaseCommand):
                     self.style.ERROR(
                         f'❌ Ошибка обработки товара '
                         f'{product_data.get("onec_id", "UNKNOWN")}: {str(e)}'
-                    )
+                    )  # type: ignore
                 )
                 if not self.force:
                     raise
@@ -283,7 +287,7 @@ class Command(BaseCommand):
         if brand_name:
             brand, _ = Brand.objects.get_or_create(
                 name=brand_name, defaults={"is_active": True}
-            )
+            )  # type: ignore
         else:
             # КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: создаем дефолтный бренд если не указан
             brand, _ = Brand.objects.get_or_create(
@@ -296,7 +300,7 @@ class Command(BaseCommand):
                     ),
                     "is_active": True,
                 },
-            )
+            )  # type: ignore
 
         # Поиск или создание категории
         category_name = product_data.get("category")

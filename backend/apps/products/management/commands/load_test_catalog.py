@@ -66,12 +66,12 @@ class Command(BaseCommand):
 
         # Заголовок
         self.stdout.write(
-            self.style.SUCCESS("🚀 Запуск загрузки тестового каталога товаров")
+            self.style.SUCCESS("🚀 Запуск загрузки тестового каталога товаров")  # type: ignore
         )
 
         if self.dry_run:
             self.stdout.write(
-                self.style.WARNING("⚠️  РЕЖИМ DRY-RUN: изменения НЕ будут сохранены")
+                self.style.WARNING("⚠️  РЕЖИМ DRY-RUN: изменения НЕ будут сохранены")  # type: ignore
             )
 
         try:
@@ -93,20 +93,20 @@ class Command(BaseCommand):
                 if self.dry_run:
                     transaction.savepoint_rollback(savepoint)
                     self.stdout.write(
-                        self.style.SUCCESS(
+                        self.style.SUCCESS(  # type: ignore
                             f"✅ DRY-RUN завершен: {created_count} товаров обработано"
                         )
                     )
                 else:
                     self.stdout.write(
-                        self.style.SUCCESS(
+                        self.style.SUCCESS(  # type: ignore
                             f"✅ Тестовый каталог загружен: {created_count} "
                             f"товаров создано"
                         )
                     )
 
         except Exception as e:
-            self.stdout.write(self.style.ERROR(f"❌ Ошибка загрузки каталога: {str(e)}"))
+            self.stdout.write(self.style.ERROR(f"❌ Ошибка загрузки каталога: {str(e)}"))  # type: ignore
             raise
 
     def _clear_existing_data(self):
@@ -114,17 +114,17 @@ class Command(BaseCommand):
         self.stdout.write("🧹 Очистка существующих тестовых данных...")
 
         # Удаляем товары с тестовыми onec_id
-        deleted_products = Product.objects.filter(
+        deleted_products = Product.objects.filter(  # type: ignore
             onec_id__startswith="TEST-PRODUCT-"
         ).delete()[0]
 
         # Удаляем тестовые бренды
-        deleted_brands = Brand.objects.filter(
+        deleted_brands = Brand.objects.filter(  # type: ignore
             name__startswith="Тестовый бренд"
         ).delete()[0]
 
         # Удаляем тестовые категории
-        deleted_categories = Category.objects.filter(
+        deleted_categories = Category.objects.filter(  # type: ignore
             name__startswith="Тестовая категория"
         ).delete()[0]
 
@@ -152,7 +152,7 @@ class Command(BaseCommand):
 
         brands = []
         for name in brand_names:
-            brand, created = Brand.objects.get_or_create(
+            brand, created = Brand.objects.get_or_create(  # type: ignore
                 name=name, defaults={"is_active": True}
             )
             brands.append(brand)
@@ -178,7 +178,7 @@ class Command(BaseCommand):
 
         categories = []
         for name in category_names:
-            category, created = Category.objects.get_or_create(
+            category, created = Category.objects.get_or_create(  # type: ignore
                 name=name, defaults={"is_active": True}
             )
             categories.append(category)
@@ -193,10 +193,10 @@ class Command(BaseCommand):
 
         # Получаем существующие бренды и категории если не создавали новые
         if not brands:
-            brands = list(Brand.objects.filter(is_active=True)[:10])
+            brands = list(Brand.objects.filter(is_active=True)[:10])  # type: ignore
             # КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Если нет брендов, создаем дефолтный
             if not brands:
-                default_brand, _ = Brand.objects.get_or_create(
+                default_brand, _ = Brand.objects.get_or_create(  # type: ignore
                     name="Тестовый бренд",
                     defaults={
                         "slug": "testovyj-brend",
@@ -207,10 +207,10 @@ class Command(BaseCommand):
                 brands = [default_brand]
 
         if not categories:
-            categories = list(Category.objects.filter(is_active=True)[:10])
+            categories = list(Category.objects.filter(is_active=True)[:10])  # type: ignore
             # КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Если нет категорий, создаем дефолтную
             if not categories:
-                default_category, _ = Category.objects.get_or_create(
+                default_category, _ = Category.objects.get_or_create(  # type: ignore
                     name="Тестовая категория",
                     defaults={
                         "slug": "testovaya-kategoriya",
@@ -235,7 +235,7 @@ class Command(BaseCommand):
             try:
                 product_data = self._generate_product_data(i + 1, brands, categories)
 
-                product, created = Product.objects.get_or_create(
+                product, created = Product.objects.get_or_create(  # type: ignore
                     onec_id=product_data["onec_id"], defaults=product_data
                 )
 
@@ -244,7 +244,7 @@ class Command(BaseCommand):
 
             except Exception as e:
                 self.stdout.write(
-                    self.style.ERROR(f"❌ Ошибка создания товара #{i + 1}: {str(e)}")
+                    self.style.ERROR(f"❌ Ошибка создания товара #{i + 1}: {str(e)}")  # type: ignore
                 )
                 continue
 

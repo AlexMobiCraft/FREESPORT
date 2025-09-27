@@ -4,17 +4,17 @@
 import time
 import uuid
 from decimal import Decimal
-
 import pytest
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
+from django.test import TestCase
 
 from apps.products.models import Brand, Category, Product
-from tests.conftest import BrandFactory, CategoryFactory, ProductFactory, UserFactory
+from tests.factories import BrandFactory, CategoryFactory, ProductFactory, UserFactory
 
 
 @pytest.mark.django_db
-class TestBrandModel:
+class TestBrandModel(TestCase):
     """Тесты модели Brand"""
 
     def test_brand_creation(self):
@@ -95,14 +95,63 @@ class TestProductModel:
     def test_product_creation(self):
         """Тест создания товара"""
         product = ProductFactory.create(
-            name="Футбольный мяч Nike", retail_price=Decimal("2500.00")
-        )
+            name="Футбольный мяч Nike", retail_price=Decimal("2500.00"))
 
         assert product.name == "Футбольный мяч Nike"
         assert product.retail_price == Decimal("2500.00")
         assert product.is_active is True
         assert product.stock_quantity >= 0
-        assert str(product) == f"Футбольный мяч Nike ({product.sku})"
+        assert str(product) == f"{product.name} ({product.sku})"
+
+
+class ProductComputedPropertiesTest(TestCase):
+    """
+    Тесты для вычисляемых свойств модели Product.
+    """
+
+    def setUp(self):
+        """Настройка тестовых данных."""
+        self.brand = Brand.objects.create(name="Test Brand", slug="test-brand")
+        self.category = Category.objects.create(name="Test Category", slug="test-category")
+        self.product = Product.objects.create(
+            name="Test Product",
+            slug="test-product",
+            brand=self.brand,
+            category=self.category,
+            retail_price=100.00,
+            stock_quantity=20,
+            reserved_quantity=5,
+            min_order_quantity=1,
+            is_active=True,
+        )
+
+    def test_available_quantity(self):
+        """Тест правильности расчета доступного количества."""
+        self.assertEqual(self.product.available_quantity, 15)
+
+    def test_can_be_ordered_when_available(self):
+        """Тест, что товар можно заказать, когда он доступен."""
+        self.assertTrue(self.product.can_be_ordered)
+
+    def test_cannot_be_ordered_when_stock_is_fully_reserved(self):
+        """Тест, что товар нельзя заказать, если все зарезервировано."""
+        self.product.reserved_quantity = 20
+        self.product.save()
+        self.assertFalse(self.product.can_be_ordered)
+        self.assertEqual(self.product.available_quantity, 0)
+
+    def test_cannot_be_ordered_when_inactive(self):
+        """Тест, что неактивный товар нельзя заказать."""
+        self.product.is_active = False
+        self.product.save()
+        self.assertFalse(self.product.can_be_ordered)
+
+    def test_cannot_be_ordered_if_available_is_less_than_min_order(self):
+        """Тест, что товар нельзя заказать, если доступно меньше минимальной партии."""
+        self.product.min_order_quantity = 20
+        self.product.save()
+        self.assertFalse(self.product.can_be_ordered)
+
 
     def test_product_pricing_for_different_roles(self):
         """Тест ценообразования для разных ролей пользователей"""
@@ -184,7 +233,7 @@ class TestProductModel:
         )
         product.save()
 
-        assert product.slug == "супер-товар-2024"
+        assert product.slug == "super-tovar-2024"
 
     def test_product_relationships(self):
         """Тест связей товара с брендом и категорией"""

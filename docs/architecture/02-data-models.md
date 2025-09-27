@@ -114,7 +114,8 @@ class Product(models.Model):
     federation_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     
     # Складские остатки
-    stock_quantity = models.PositiveIntegerField(default=0)  # Количество товара на складе (агрегировано из rests.xml)
+    stock_quantity = models.PositiveIntegerField(default=0)  # Общее количество на складе
+    reserved_quantity = models.PositiveIntegerField(default=0) # Количество в корзинах и незавершенных заказах
     
     # Статусы
     is_active = models.BooleanField(default=True)
@@ -147,12 +148,11 @@ class Cart(models.Model):
 
 class CartItem(models.Model):
     """
-    Товары в корзине
+    Товары в корзине. При создании/удалении изменяет `reserved_quantity` у товара.
     """
     cart = models.ForeignKey(Cart, on_delete=models.CASCADE, related_name='items')
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
     quantity = models.PositiveIntegerField(default=1)
-    price_at_add = models.DecimalField(max_digits=10, decimal_places=2)  # Цена на момент добавления
     created_at = models.DateTimeField(auto_now_add=True)
 
 class Order(models.Model):

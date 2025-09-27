@@ -6,10 +6,12 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 from decimal import Decimal
+from typing import cast
 
 from django.contrib.auth import get_user_model
 from django.core.validators import MinValueValidator
 from django.db import models
+from apps.products.models import Product
 
 User = get_user_model()
 
@@ -52,75 +54,75 @@ class Order(models.Model):
     ]
 
     # Идентификация заказа
-    order_number = models.CharField(
+    order_number = cast(str, models.CharField(
         "Номер заказа", max_length=50, unique=True, editable=False
-    )
-    user = models.ForeignKey(
+    ))
+    user = cast('User | None', models.ForeignKey(
         User,
         on_delete=models.CASCADE,
         null=True,
         blank=True,
         related_name="orders",
         verbose_name="Пользователь",
-    )
+    ))
 
     # Информация о клиенте (для гостевых заказов)
-    customer_name = models.CharField("Имя клиента", max_length=200, blank=True)
-    customer_email = models.EmailField("Email клиента", blank=True)
-    customer_phone = models.CharField("Телефон клиента", max_length=20, blank=True)
+    customer_name = cast(str, models.CharField("Имя клиента", max_length=200, blank=True))
+    customer_email = cast(str, models.EmailField("Email клиента", blank=True))
+    customer_phone = cast(str, models.CharField("Телефон клиента", max_length=20, blank=True))
 
     # Детали заказа
-    status = models.CharField(
+    status = cast(str, models.CharField(
         "Статус заказа", max_length=50, choices=ORDER_STATUSES, default="pending"
-    )
-    total_amount = models.DecimalField(
+    ))
+    total_amount = cast(Decimal, models.DecimalField(
         "Общая сумма",
         max_digits=10,
         decimal_places=2,
         validators=[MinValueValidator(0)],
-    )
-    discount_amount = models.DecimalField(
+    ))
+    discount_amount = cast(Decimal, models.DecimalField(
         "Сумма скидки",
         max_digits=10,
         decimal_places=2,
         default=0,
         validators=[MinValueValidator(0)],
-    )
-    delivery_cost = models.DecimalField(
+    ))
+    delivery_cost = cast(Decimal, models.DecimalField(
         "Стоимость доставки",
         max_digits=10,
         decimal_places=2,
         default=0,
         validators=[MinValueValidator(0)],
-    )
+    ))
 
     # Информация о доставке
-    delivery_address = models.TextField("Адрес доставки")
-    delivery_method = models.CharField(
+    delivery_address = cast(str, models.TextField("Адрес доставки"))
+    delivery_method = cast(str, models.CharField(
         "Способ доставки", max_length=50, choices=DELIVERY_METHODS
-    )
-    delivery_date = models.DateField("Дата доставки", null=True, blank=True)
-    tracking_number = models.CharField(
+    ))
+    delivery_date = cast('datetime.date | None', models.DateField("Дата доставки", null=True, blank=True))
+    tracking_number = cast(str, models.CharField(
         "Трек-номер",
         max_length=100,
         blank=True,
         help_text="Номер для отслеживания посылки",
-    )
+    ))
     # Информация об оплате
-    payment_method = models.CharField(
+    payment_method = cast(str, models.CharField(
         "Способ оплаты", max_length=50, choices=PAYMENT_METHODS
-    )
-    payment_status = models.CharField(
+    ))
+    payment_status = cast(str, models.CharField(
         "Статус оплаты", max_length=50, choices=PAYMENT_STATUSES, default="pending"
-    )
-    payment_id = models.CharField("ID платежа (ЮKassa)", max_length=100, blank=True)
+    ))
+    payment_id = cast(str, models.CharField("ID платежа (ЮKassa)", max_length=100, blank=True))
 
     # Дополнительная информация
-    notes = models.TextField("Комментарии к заказу", blank=True)
+    notes = cast(str, models.TextField("Комментарии к заказу", blank=True))
 
     # Временные метки
-    created_at = models.DateTimeField("Дата создания", auto_now_add=True)
-    updated_at = models.DateTimeField("Дата обновления", auto_now=True)
+    created_at = cast(datetime, models.DateTimeField("Дата создания", auto_now_add=True))
+    updated_at = cast(datetime, models.DateTimeField("Дата обновления", auto_now=True))
 
     class Meta:
         verbose_name = "Заказ"
@@ -144,15 +146,13 @@ class Order(models.Model):
 
     @staticmethod
     def generate_order_number() -> str:
-        """Генерация уникального номера заказа в формате FS-YYMMDD-XXXXX"""
-        date_part = datetime.now().strftime("%y%m%d")
-        random_part = str(uuid.uuid4().hex)[:5].upper()
-        return f"FS-{date_part}-{random_part}"
+        """Генерация уникального номера заказа на основе UUID"""
+        return str(uuid.uuid4())
 
     @property
     def subtotal(self) -> Decimal:
         """Подытог заказа без учета доставки и скидок"""
-        return sum(item.total_price for item in self.items.all())
+        return Decimal(sum(item.total_price for item in self.items.all()))
 
     @property
     def customer_display_name(self) -> str:
@@ -169,7 +169,7 @@ class Order(models.Model):
     @property
     def calculated_total(self) -> Decimal:
         """Рассчитанная общая сумма заказа"""
-        return sum(item.total_price for item in self.items.all())
+        return Decimal(sum(item.total_price for item in self.items.all()))
 
     @property
     def can_be_cancelled(self) -> bool:
@@ -186,34 +186,34 @@ class OrderItem(models.Model):
     Элемент заказа - товар с количеством и ценой на момент заказа
     """
 
-    order = models.ForeignKey(
+    order = cast(Order, models.ForeignKey(
         Order, on_delete=models.CASCADE, related_name="items", verbose_name="Заказ"
-    )
-    product = models.ForeignKey(
+    ))
+    product = cast('Product', models.ForeignKey(
         "products.Product", on_delete=models.CASCADE, verbose_name="Товар"
-    )
-    quantity = models.PositiveIntegerField(
+    ))
+    quantity = cast(int, models.PositiveIntegerField(
         "Количество", validators=[MinValueValidator(1)]
-    )
-    unit_price = models.DecimalField(
+    ))
+    unit_price = cast(Decimal, models.DecimalField(
         "Цена за единицу",
         max_digits=10,
         decimal_places=2,
         validators=[MinValueValidator(0)],
-    )
-    total_price = models.DecimalField(
+    ))
+    total_price = cast(Decimal, models.DecimalField(
         "Общая стоимость",
         max_digits=10,
         decimal_places=2,
         validators=[MinValueValidator(0)],
-    )
+    ))
 
     # Снимок данных о продукте на момент заказа
-    product_name = models.CharField("Название товара", max_length=300)
-    product_sku = models.CharField("Артикул товара", max_length=100)
+    product_name = cast(str, models.CharField("Название товара", max_length=300))
+    product_sku = cast(str, models.CharField("Артикул товара", max_length=100))
 
-    created_at = models.DateTimeField("Дата создания", auto_now_add=True)
-    updated_at = models.DateTimeField("Дата обновления", auto_now=True)
+    created_at = cast(datetime, models.DateTimeField("Дата создания", auto_now_add=True))
+    updated_at = cast(datetime, models.DateTimeField("Дата обновления", auto_now=True))
 
     class Meta:
         verbose_name = "Элемент заказа"

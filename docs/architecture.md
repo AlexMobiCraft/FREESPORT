@@ -164,7 +164,8 @@ class Product(models.Model):
     
     # Инвентаризация
     sku = models.CharField(max_length=100, unique=True)
-    stock_quantity = models.PositiveIntegerField(default=0)
+    stock_quantity = models.PositiveIntegerField(default=0) # Общее количество на складе
+    reserved_quantity = models.PositiveIntegerField(default=0) # Зарезервировано в корзинах
     min_order_quantity = models.PositiveIntegerField(default=1)
     
     # Изображения
@@ -191,13 +192,18 @@ class Product(models.Model):
     # Computed properties
     @property
     def is_in_stock(self):
-        """Проверка наличия товара на складе"""
+        """Проверка наличия товара на складе (устарело, используйте available_quantity)"""
         return self.stock_quantity > 0
+
+    @property
+    def available_quantity(self):
+        """Доступное для заказа количество (за вычетом резервов)"""
+        return self.stock_quantity - self.reserved_quantity
 
     @property
     def can_be_ordered(self):
         """Можно ли заказать товар (активен и в наличии)"""
-        return self.is_active and self.is_in_stock
+        return self.is_active and self.available_quantity > 0
 ```
 
 ### Модели управления заказами
@@ -265,6 +271,18 @@ ORDER_STATUSES = [
     ('cancelled', 'Отменен'),
     ('returned', 'Возвращен'),
 ]
+
+#### Логика резервирования товаров
+
+Для предотвращения перепродаж (overselling) в системе реализован механизм атомарного резервирования товаров при добавлении их в корзину. Это достигается с помощью сигналов Django (`pre_save`, `post_delete`) для модели `CartItem`.
+
+- **При добавлении/увеличении** товара в `CartItem`, поле `product.reserved_quantity` атомарно увеличивается.
+- **При удалении/уменьшении** товара из `CartItem`, поле `product.reserved_quantity` атомарно уменьшается.
+
+При создании заказа (`Order`) общее количество (`stock_quantity`) уменьшается, а резерв (`reserved_quantity`) освобождается за счет удаления `CartItem`.
+
+Подробное обоснование и детали реализации описаны в соответствующем архитектурном решении:
+- **ADR:** [Логика резервирования товаров при добавлении в корзину](./decisions/story-3.x-product-reservation-logic.md)
 
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, related_name='items', on_delete=models.CASCADE)
