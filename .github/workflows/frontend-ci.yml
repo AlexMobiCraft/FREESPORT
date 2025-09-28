@@ -100,7 +100,7 @@ jobs:
         name: frontend-coverage
         fail_ci_if_error: false
       env:
-        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}  # Optional: configure in repository secrets
         
   # Этап 2: Сборка Docker образа
   build:
@@ -153,7 +153,7 @@ jobs:
     needs: [test, build]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
-    environment: staging
+    # environment: staging  # Uncomment when staging environment is configured
     
     steps:
     - name: Развертывание на staging окружение
@@ -188,7 +188,7 @@ jobs:
     needs: [test, build]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    environment: production
+    # environment: production  # Uncomment when production environment is configured
     
     steps:
     - name: Развертывание на production окружение
