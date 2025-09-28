@@ -18,14 +18,16 @@ class TestDebugCart:
         # Переопределяем методы для отладки
         def new_clean(self):
             print(
-                f"[DEBUG] Cleaning CartItem {self.id} for product {self.product.id} (qty: {self.quantity})"
+                f"[DEBUG] Cleaning CartItem {self.id} for product "
+                f"{self.product.id} (qty: {self.quantity})"
             )
             # ... исходная логика clean ...
             if not self.product.is_active:
                 raise ValidationError("Товар неактивен")
             if self.quantity > self.product.available_quantity:
                 raise ValidationError(
-                    f"Недостаточно товара на складе. Доступно: {self.product.available_quantity}"
+                    f"Недостаточно товара на складе. "
+                    f"Доступно: {self.product.available_quantity}"
                 )
             if self.quantity < self.product.min_order_quantity:
                 raise ValidationError(
@@ -34,7 +36,8 @@ class TestDebugCart:
 
         def new_save(self, *args, **kwargs):
             print(
-                f"[DEBUG] Saving CartItem {self.id or 'new'} for product {self.product.id} (qty: {self.quantity})"
+                f"[DEBUG] Saving CartItem {self.id or 'new'} for product "
+                f"{self.product.id} (qty: {self.quantity})"
             )
             self.full_clean()
             super(CartItem, self).save(*args, **kwargs)
@@ -42,7 +45,8 @@ class TestDebugCart:
 
         def new_delete(self, *args, **kwargs):
             print(
-                f"[DEBUG] Deleting CartItem {self.id} for product {self.product.id} (qty: {self.quantity})"
+                f"[DEBUG] Deleting CartItem {self.id} for product "
+                f"{self.product.id} (qty: {self.quantity})"
             )
             super(CartItem, self).delete(*args, **kwargs)
 
@@ -63,19 +67,22 @@ class TestDebugCart:
         item1 = CartItemFactory.create(cart=cart, product=product, quantity=2)
         product.refresh_from_db()
         print(
-            f"CartItem 1 ({item1.id}) created. Product stock: {product.stock_quantity}, reserved: {product.reserved_quantity}"
+            f"CartItem 1 ({item1.id}) created. Product stock: "
+            f"{product.stock_quantity}, reserved: {product.reserved_quantity}"
         )
 
         print("Creating CartItem 2...")
         # Создадим другой продукт, чтобы избежать ошибки unique_together
         product2 = ProductFactory.create(stock_quantity=5)
         print(
-            f"Product {product2.id} created with stock_quantity={product2.stock_quantity}"
+            f"Product {product2.id} created with "
+            f"stock_quantity={product2.stock_quantity}"
         )
         item2 = CartItemFactory.create(cart=cart, product=product2, quantity=3)
         product2.refresh_from_db()
         print(
-            f"CartItem 2 ({item2.id}) created. Product2 stock: {product2.stock_quantity}, reserved: {product2.reserved_quantity}"
+            f"CartItem 2 ({item2.id}) created. Product2 stock: "
+            f"{product2.stock_quantity}, reserved: {product2.reserved_quantity}"
         )
 
         assert cart.items.count() == 2

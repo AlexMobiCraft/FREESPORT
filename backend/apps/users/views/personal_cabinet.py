@@ -125,7 +125,9 @@ class FavoriteViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         if user.is_authenticated:
-            return Favorite.objects.filter(user=user).select_related("product")  # type: ignore[attr-defined]
+            return Favorite.objects.filter(user=user).select_related(
+                "product"
+            )  # type: ignore[attr-defined]
         return Favorite.objects.none()  # type: ignore[attr-defined]
 
     def get_serializer_class(self):
@@ -157,7 +159,7 @@ class OrderHistoryView(APIView):
         responses={200: OrderHistorySerializer(many=True)},
         tags=["Users"],
     )
-    def get(self, request):
+    def get(self, request):  # pylint: disable=unused-argument
         """
         Получение истории заказов пользователя
 

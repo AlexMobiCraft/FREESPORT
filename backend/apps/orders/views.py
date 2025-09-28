@@ -143,7 +143,8 @@ class OrderViewSet(viewsets.ModelViewSet):
             return Response(
                 {
                     "error": (
-                        f"Заказ{order_identifier} не может быть отменен в текущем статусе"
+                        f"Заказ{order_identifier} не может быть отменен "
+                        f"в текущем статусе"
                     )
                 },
                 status=status.HTTP_400_BAD_REQUEST,
