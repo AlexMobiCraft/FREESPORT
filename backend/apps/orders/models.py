@@ -4,23 +4,51 @@
 """
 from __future__ import annotations
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 from django.contrib.auth import get_user_model
 from django.core.validators import MinValueValidator
 from django.db import models
-from apps.products.models import Product
+
+if TYPE_CHECKING:
+    from django.db.models.manager import RelatedManager
+    from apps.products.models import Product as ProductType
+    from apps.users.models import User as UserType
 
 User = get_user_model()
 
 
 class Order(models.Model):
-    """
-    Модель заказа
-    Поддерживает как авторизованных пользователей, так и гостевые заказы
-    """
+    """Модель заказа.
+
+    Хранит ключевые сведения о заказе, покупателе и оплате и используется как в B2C,
+    так и в B2B-сценариях."""
+
+    objects = models.Manager()
+
+    if TYPE_CHECKING:
+        items: RelatedManager["OrderItem"]
+        order_number: str
+        user: UserType | None
+        customer_name: str
+        customer_email: str
+        customer_phone: str
+        status: str
+        total_amount: Decimal
+        discount_amount: Decimal
+        delivery_cost: Decimal
+        delivery_address: str
+        delivery_method: str
+        delivery_date: date | None
+        tracking_number: str
+        payment_method: str
+        payment_status: str
+        payment_id: str
+        notes: str
+        created_at: datetime
+        updated_at: datetime
 
     ORDER_STATUSES = [
         ("pending", "Ожидает обработки"),
@@ -59,7 +87,7 @@ class Order(models.Model):
         models.CharField("Номер заказа", max_length=50, unique=True, editable=False),
     )
     user = cast(
-        "User | None",
+        "UserType | None",
         models.ForeignKey(
             User,
             on_delete=models.CASCADE,
@@ -123,7 +151,7 @@ class Order(models.Model):
         models.CharField("Способ доставки", max_length=50, choices=DELIVERY_METHODS),
     )
     delivery_date = cast(
-        "datetime.date | None", models.DateField("Дата доставки", null=True, blank=True)
+        "date | None", models.DateField("Дата доставки", null=True, blank=True)
     )
     tracking_number = cast(
         str,
@@ -158,6 +186,7 @@ class Order(models.Model):
     updated_at = cast(datetime, models.DateTimeField("Дата обновления", auto_now=True))
 
     class Meta:
+        """Метаданные Django ORM для модели `Order`."""
         verbose_name = "Заказ"
         verbose_name_plural = "Заказы"
         db_table = "orders"
@@ -185,24 +214,30 @@ class Order(models.Model):
     @property
     def subtotal(self) -> Decimal:
         """Подытог заказа без учета доставки и скидок"""
-        return Decimal(sum(item.total_price for item in self.items.all()))
+        items_manager = cast("RelatedManager[OrderItem]", self.items)  # type: ignore[attr-defined]
+        return Decimal(sum(item.total_price for item in items_manager.all()))
 
     @property
     def customer_display_name(self) -> str:
         """Отображаемое имя клиента"""
-        if self.user:
-            return self.user.full_name or self.user.email
+        user = cast("UserType | None", self.user)
+        if user:
+            full_name = getattr(user, "full_name", "") or ""
+            email = getattr(user, "email", "") or ""
+            return full_name or email
         return self.customer_name or self.customer_email
 
     @property
     def total_items(self) -> int:
         """Общее количество товаров в заказе"""
-        return sum(item.quantity for item in self.items.all())
+        items_manager = cast("RelatedManager[OrderItem]", self.items)  # type: ignore[attr-defined]
+        return sum(item.quantity for item in items_manager.all())
 
     @property
     def calculated_total(self) -> Decimal:
         """Рассчитанная общая сумма заказа"""
-        return Decimal(sum(item.total_price for item in self.items.all()))
+        items_manager = cast("RelatedManager[OrderItem]", self.items)  # type: ignore[attr-defined]
+        return Decimal(sum(item.total_price for item in items_manager.all()))
 
     @property
     def can_be_cancelled(self) -> bool:
@@ -215,11 +250,20 @@ class Order(models.Model):
 
 
 class OrderItem(models.Model):
-    """
-    Элемент заказа - товар с количеством и ценой на момент заказа
-    """
+    """Элемент заказа с информацией о товаре и зафиксированной цене."""
 
-    objects: models.Manager["OrderItem"] = models.Manager()
+    objects = models.Manager()
+
+    if TYPE_CHECKING:
+        order: Order
+        product: ProductType | None
+        quantity: int
+        unit_price: Decimal
+        total_price: Decimal
+        product_name: str
+        product_sku: str
+        created_at: datetime
+        updated_at: datetime
 
     order = cast(
         Order,
@@ -228,7 +272,7 @@ class OrderItem(models.Model):
         ),
     )
     product = cast(
-        "Product",
+        "ProductType | None",
         models.ForeignKey(
             "products.Product", on_delete=models.CASCADE, verbose_name="Товар"
         ),
@@ -266,6 +310,7 @@ class OrderItem(models.Model):
     updated_at = cast(datetime, models.DateTimeField("Дата обновления", auto_now=True))
 
     class Meta:
+        """Метаданные Django ORM для модели `OrderItem`."""
         verbose_name = "Элемент заказа"
         verbose_name_plural = "Элементы заказа"
         db_table = "order_items"
@@ -279,13 +324,14 @@ class OrderItem(models.Model):
         self.total_price = self.unit_price * self.quantity
 
         # Сохраняем снимок данных продукта
-        if self.product and not self.product_name:
-            self.product_name = self.product.name
-            self.product_sku = self.product.sku
+        product = cast("ProductType | None", self.product)
+        if product and not self.product_name:
+            self.product_name = getattr(product, "name", self.product_name)
+            self.product_sku = getattr(product, "sku", self.product_sku)
 
         super().save(*args, **kwargs)
 
     def __str__(self) -> str:
-        return (
-            f"{self.product_name} x{self.quantity} в заказе #{self.order.order_number}"
-        )
+        order = cast(Order, self.order)
+        order_number = getattr(order, "order_number", "")
+        return f"{self.product_name} x{self.quantity} в заказе #{order_number}"

@@ -161,7 +161,8 @@ def create_factories():
 
         # Инвентаризация
         sku = factory.LazyFunction(lambda: f"SKU-{get_unique_suffix().upper()}")
-        stock_quantity = factory.Faker("random_int", min=0, max=1000)
+        # Фиксированное количество на складе, чтобы избежать случайных падений тестов
+        stock_quantity = 100
         min_order_quantity = 1
 
         is_active = True

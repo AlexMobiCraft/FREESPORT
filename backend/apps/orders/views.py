@@ -2,13 +2,12 @@
 API Views для заказов FREESPORT
 Поддерживает создание заказов из корзины и просмотр деталей
 """
-from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiExample, OpenApiResponse, extend_schema
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from .models import Order, OrderItem
+from .models import Order
 from .serializers import (
     OrderCreateSerializer,
     OrderDetailSerializer,
@@ -128,9 +127,24 @@ class OrderViewSet(viewsets.ModelViewSet):
         """Отменить заказ"""
         order = self.get_object()
 
-        if order.status not in ["pending", "confirmed"]:
+        self.check_object_permissions(request, order)
+
+        if pk is not None and str(pk) != str(order.pk):
             return Response(
-                {"error": "Заказ не может быть отменен в текущем статусе"},
+                {
+                    "error": "Идентификатор заказа не совпадает с найденным объектом"
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if order.status not in ["pending", "confirmed"]:
+            order_identifier = f" {pk}" if pk is not None else ""
+            return Response(
+                {
+                    "error": (
+                        f"Заказ{order_identifier} не может быть отменен в текущем статусе"
+                    )
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
