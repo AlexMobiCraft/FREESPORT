@@ -3,8 +3,6 @@
 import os
 from typing import Any  # pylint: disable=unused-import
 
-from decouple import config
-
 from .base import *  # noqa: F403, F401, F405
 
 # ==============================================================================
@@ -25,15 +23,32 @@ SECRET_KEY = os.environ.get("SECRET_KEY", "django-insecure-test-key-for-ci")
 # Максимально простая конфигурация БД, совместимая с pytest-django.
 # Все значения берутся напрямую из переменных окружения, которые
 # мы устанавливаем в .github/workflows/main.yml.
-#
+
+
+def _get_env_value(primary_key: str, fallback_keys: tuple[str, ...], default: str) -> str:
+    """Возвращает значение переменной окружения с поддержкой fallback."""
+
+    for key in (primary_key, *fallback_keys):
+        value = os.environ.get(key)
+        if value:
+            return value
+    return default
+
+
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": config("DB_NAME", default="freesport_test"),
-        "USER": config("DB_USER", default="postgres"),
-        "PASSWORD": config("DB_PASSWORD", default="postgres"),
-        "HOST": config("DB_HOST", default="localhost"),
-        "PORT": config("DB_PORT", cast=int, default=5432),
+        "NAME": _get_env_value("DB_NAME", ("POSTGRES_DB", "PGDATABASE"), "freesport_test"),
+        "USER": _get_env_value("DB_USER", ("POSTGRES_USER", "PGUSER"), "postgres"),
+        "PASSWORD": _get_env_value(
+            "DB_PASSWORD",
+            ("POSTGRES_PASSWORD", "PGPASSWORD"),
+            "postgres",
+        ),
+        "HOST": _get_env_value("DB_HOST", ("POSTGRES_HOST", "PGHOST"), "localhost"),
+        "PORT": int(
+            _get_env_value("DB_PORT", ("POSTGRES_PORT", "PGPORT"), "5432")
+        ),
     }
 }
 
