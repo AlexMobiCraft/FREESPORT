@@ -1,6 +1,9 @@
 # pylint: disable=wildcard-import, unused-wildcard-import
 import os
 from typing import Any  # pylint: disable=unused-import
+
+from decouple import config
+
 from .base import *  # noqa: F403, F401, F405
 
 # ==============================================================================
@@ -25,11 +28,11 @@ SECRET_KEY = os.environ.get("SECRET_KEY", "django-insecure-test-key-for-ci")
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.environ.get("DB_NAME"),
-        "USER": os.environ.get("DB_USER"),
-        "PASSWORD": os.environ.get("DB_PASSWORD"),
-        "HOST": os.environ.get("DB_HOST"),
-        "PORT": os.environ.get("DB_PORT"),
+        "NAME": config("DB_NAME", default="freesport_test"),
+        "USER": config("DB_USER", default="postgres"),
+        "PASSWORD": config("DB_PASSWORD", default="postgres"),
+        "HOST": config("DB_HOST", default="localhost"),
+        "PORT": config("DB_PORT", cast=int, default=5432),
     }
 }
 
