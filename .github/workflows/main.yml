@@ -20,6 +20,7 @@ jobs:
       DB_PASSWORD: postgres
       DB_HOST: localhost
       DB_PORT: 5432
+      REDIS_URL: redis://localhost:6379/0
       DJANGO_SETTINGS_MODULE: freesport.settings.development
       
     strategy:
@@ -37,6 +38,12 @@ jobs:
         ports:
           - 5432:5432
         options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+      
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: --health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s --health-retries 5
 
     steps:
     - name: Checkout code
@@ -53,17 +60,28 @@ jobs:
         pip install -r backend/requirements.txt
         pip install pytest-django pytest-cov flake8
     
-    - name: Wait for PostgreSQL
+    - name: Wait for PostgreSQL and Redis
       run: |
         sudo apt-get update && sudo apt-get install -y netcat-traditional
         # В GitHub Actions сервисы доступны через localhost
+        echo "Waiting for PostgreSQL..."
         for i in {1..30}; do
-          nc -z localhost 5432 && echo "Postgres is up." && exit 0
+          nc -z localhost 5432 && echo "Postgres is up." && break
           echo "Waiting for Postgres... ($i/30)"
           sleep 2
         done
-        echo "Postgres did not start in time."
-        exit 1
+        
+        echo "Waiting for Redis..."
+        for i in {1..30}; do
+          nc -z localhost 6379 && echo "Redis is up." && break
+          echo "Waiting for Redis... ($i/30)"
+          sleep 2
+        done
+        
+        # Финальная проверка
+        nc -z localhost 5432 || (echo "PostgreSQL failed to start" && exit 1)
+        nc -z localhost 6379 || (echo "Redis failed to start" && exit 1)
+        echo "All services are ready!"
 
     - name: Lint with flake8
       run: |
@@ -81,6 +99,7 @@ jobs:
         DB_PASSWORD=postgres
         DB_HOST=localhost
         DB_PORT=5432
+        REDIS_URL=redis://localhost:6379/0
         DJANGO_SETTINGS_MODULE=freesport.settings.development
         EOF
         

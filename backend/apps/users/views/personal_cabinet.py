@@ -56,6 +56,7 @@ class UserDashboardView(APIView):
 
         # Дополнительная статистика для B2B пользователей
         total_order_amount = None
+        avg_order_amount = None
         verification_status = None
         if user.is_b2b_user:
             total_order_amount = 0  # TODO: Временно 0, нужна Order модель
