@@ -153,11 +153,7 @@ jobs:
     needs: [test, build]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
-<<<<<<< HEAD
-    # environment: staging  # Uncomment when staging environment is configured
-=======
-    : staging
->>>>>>> 4ff088baa951aa4c8d31b061c566a4b992605a21
+    environment: staging
     
     steps:
     - name: Развертывание на staging окружение
@@ -192,7 +188,7 @@ jobs:
     needs: [test, build]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    # environment: production  # Uncomment when production environment is configured
+    environment: production
     
     steps:
     - name: Развертывание на production окружение

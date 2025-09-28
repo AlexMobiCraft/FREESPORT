@@ -231,7 +231,7 @@ jobs:
     needs: [test, build]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    # environment: production  # Uncomment when production environment is configured
+    environment: production
     
     steps:
     - name: Deploy to production
