@@ -153,7 +153,7 @@ jobs:
     needs: [test, build]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
-    environment: staging
+    : staging
     
     steps:
     - name: Развертывание на staging окружение
