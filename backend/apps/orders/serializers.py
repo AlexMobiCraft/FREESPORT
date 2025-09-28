@@ -3,24 +3,25 @@
 Поддерживает создание заказов из корзины с транзакционной логикой
 """
 from decimal import Decimal
+from typing import cast
 
-from django.contrib.auth import get_user_model
+from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
+from django.db.models import F
+from django.db.models.manager import BaseManager
 from rest_framework import serializers
 
-from apps.cart.models import Cart, CartItem
+from apps.cart.models import Cart
 from apps.products.models import Product
-from apps.users.models import Address
 
 from .models import Order, OrderItem
-
-User = get_user_model()
 
 
 class OrderItemSerializer(serializers.ModelSerializer):
     """Сериализатор для элементов заказа"""
 
     class Meta:
+        """Мета-класс для OrderItemSerializer"""
         model = OrderItem
         fields = [
             "id",
@@ -48,6 +49,7 @@ class OrderDetailSerializer(serializers.ModelSerializer):
     can_be_cancelled = serializers.BooleanField(read_only=True)
 
     class Meta:
+        """Мета-класс для OrderDetailSerializer"""
         model = Order
         fields = [
             "id",
@@ -96,6 +98,7 @@ class OrderCreateSerializer(serializers.ModelSerializer):
     """Сериализатор создания заказа из корзины"""
 
     class Meta:
+        """Мета-класс для OrderCreateSerializer"""
         model = Order
         fields = [
             "delivery_address",
@@ -138,7 +141,6 @@ class OrderCreateSerializer(serializers.ModelSerializer):
                 )
 
         # Валидация способов доставки и оплаты
-        delivery_method = attrs.get("delivery_method")
         payment_method = attrs.get("payment_method")
 
         # Проверка совместимости для B2B/B2C
@@ -165,9 +167,12 @@ class OrderCreateSerializer(serializers.ModelSerializer):
             # Гостевая корзина по session
             session_key = request.session.session_key
             if session_key:
+                cart_manager = cast(BaseManager[Cart], getattr(Cart, "objects"))
                 try:
-                    return Cart.objects.get(session_key=session_key, user__isnull=True)
-                except Cart.DoesNotExist:
+                    return cart_manager.get(
+                        session_key=session_key, user__isnull=True
+                    )
+                except ObjectDoesNotExist:
                     pass
         return None
 
@@ -225,12 +230,14 @@ class OrderCreateSerializer(serializers.ModelSerializer):
         order.save()
 
         # Создаем элементы заказа
-        OrderItem.objects.bulk_create(order_items)
+        order_item_manager = cast(BaseManager[OrderItem], getattr(OrderItem, "objects"))
+        order_item_manager.bulk_create(order_items)
 
         # Списываем физические остатки со склада
+        product_manager = cast(BaseManager[Product], getattr(Product, "objects"))
         for item in order_items:
-            Product.objects.filter(pk=item.product.pk).update(
-                stock_quantity=models.F("stock_quantity") - item.quantity
+            product_manager.filter(pk=item.product.pk).update(
+                stock_quantity=F("stock_quantity") - item.quantity
             )
 
         # Очищаем корзину (это вызовет сигнал для уменьшения reserved_quantity)
@@ -260,6 +267,7 @@ class OrderListSerializer(serializers.ModelSerializer):
     total_items = serializers.IntegerField(read_only=True)
 
     class Meta:
+        """Мета-класс для OrderListSerializer"""
         model = Order
         fields = [
             "id",

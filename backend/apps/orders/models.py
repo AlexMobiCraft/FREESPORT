@@ -219,6 +219,8 @@ class OrderItem(models.Model):
     Элемент заказа - товар с количеством и ценой на момент заказа
     """
 
+    objects: models.Manager["OrderItem"] = models.Manager()
+
     order = cast(
         Order,
         models.ForeignKey(

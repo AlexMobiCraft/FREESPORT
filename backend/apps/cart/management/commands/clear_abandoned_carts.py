@@ -53,21 +53,22 @@ class Command(BaseCommand):
             self.stdout.write(
                 self.style.SUCCESS('"Брошенных" корзин не найдено. Завершаю работу.')
             )
-            return
 
         self.stdout.write(
             self.style.WARNING(
                 f"Найдено {count} устаревших позиций в корзинах. Начинаю удаление..."
             )
         )
-
         # Удаляем найденные элементы. Сигнал post_delete на CartItem
         # позаботится об обновлении reserved_quantity у товаров.
         deleted_count, _ = abandoned_cart_items.delete()
 
         self.stdout.write(
             self.style.SUCCESS(
-                f'Успешно удалено {deleted_count} позиций из "брошенных" корзин. Резервы освобождены.'
+                (
+                    f'Успешно удалено {deleted_count} позиций из "брошенных" корзин. '
+                    "Резервы освобождены."
+                )
             )
         )
         logger.info(f"Task clear_abandoned_carts: удалено {deleted_count} позиций.")
