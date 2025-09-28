@@ -216,7 +216,7 @@ jobs:
     needs: [test, build]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
-    # environment: staging  # Uncomment when staging environment is configured
+    environment: staging  # Uncomment when staging environment is configured
     
     steps:
     - name: Deploy to staging
