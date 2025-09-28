@@ -1,7 +1,7 @@
 """
 Вспомогательные views и утилиты
 """
-from drf_spectacular.utils import OpenApiResponse, extend_schema
+from drf_spectacular.utils import OpenApiExample, OpenApiResponse, extend_schema
 from rest_framework import permissions, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
@@ -15,31 +15,20 @@ from ..models import User
     responses={
         200: OpenApiResponse(
             description="Список ролей пользователей",
-            examples={
-                "application/json": {
-                    "roles": [
-                        {"key": "retail", "display": "Розничный покупатель"},
-                        {
-                            "key": "wholesale_level1",
-                            "display": "Оптовик уровень 1",
-                        },  # noqa: E501
-                        {
-                            "key": "wholesale_level2",
-                            "display": "Оптовик уровень 2",
-                        },  # noqa: E501
-                        {
-                            "key": "wholesale_level3",
-                            "display": "Оптовик уровень 3",
-                        },  # noqa: E501
-                        {"key": "trainer", "display": "Тренер/Фитнес-клуб"},
-                        {
-                            "key": "federation_rep",
-                            "display": "Представитель федерации",
-                        },  # noqa: E501
-                    ]
-                }
-            },
-        )
+            examples=[
+                OpenApiExample(
+                    name="Roles Response",
+                    value={
+                        "roles": [
+                            {"key": "retail", "display": "Розничный покупатель"},
+                            {"key": "wholesale_level1", "display": "Оптовик уровень 1"},
+                            {"key": "trainer", "display": "Тренер/Фитнес-клуб"},
+                            {"key": "federation_rep", "display": "Представитель федерации"},
+                        ]
+                    },
+                )
+            ],
+        ),
     },
     tags=["Users"],
 )

@@ -9,13 +9,9 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from ..models import Address, Favorite, User
-from ..serializers import (
-    AddressSerializer,
-    FavoriteCreateSerializer,
-    FavoriteSerializer,
-    OrderHistorySerializer,
-    UserDashboardSerializer,
-)
+from ..serializers import (AddressSerializer, FavoriteCreateSerializer,
+                           FavoriteSerializer, OrderHistorySerializer,
+                           UserDashboardSerializer)
 
 
 @dataclass
@@ -80,7 +76,10 @@ class AddressViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return Address.objects.filter(user=self.request.user)
+        user = self.request.user
+        if user.is_authenticated:
+            return Address.objects.filter(user=user)
+        return Address.objects.none()
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
@@ -116,7 +115,10 @@ class FavoriteViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return Favorite.objects.filter(user=self.request.user).select_related("product")
+        user = self.request.user
+        if user.is_authenticated:
+            return Favorite.objects.filter(user=user).select_related("product")
+        return Favorite.objects.none()
 
     def get_serializer_class(self):
         if self.action == "create":

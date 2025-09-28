@@ -22,6 +22,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
 
     class Meta:
         """Мета-класс для OrderItemSerializer"""
+
         model = OrderItem
         fields = [
             "id",
@@ -50,6 +51,7 @@ class OrderDetailSerializer(serializers.ModelSerializer):
 
     class Meta:
         """Мета-класс для OrderDetailSerializer"""
+
         model = Order
         fields = [
             "id",
@@ -99,6 +101,7 @@ class OrderCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         """Мета-класс для OrderCreateSerializer"""
+
         model = Order
         fields = [
             "delivery_address",
@@ -169,9 +172,7 @@ class OrderCreateSerializer(serializers.ModelSerializer):
             if session_key:
                 cart_manager = cast(BaseManager[Cart], getattr(Cart, "objects"))
                 try:
-                    return cart_manager.get(
-                        session_key=session_key, user__isnull=True
-                    )
+                    return cart_manager.get(session_key=session_key, user__isnull=True)
                 except ObjectDoesNotExist:
                     pass
         return None
@@ -236,7 +237,8 @@ class OrderCreateSerializer(serializers.ModelSerializer):
         # Списываем физические остатки со склада
         product_manager = cast(BaseManager[Product], getattr(Product, "objects"))
         for item in order_items:
-            product_manager.filter(pk=item.product.pk).update(
+            if item.product:
+                product_manager.filter(pk=item.product.pk).update(
                 stock_quantity=F("stock_quantity") - item.quantity
             )
 
@@ -268,6 +270,7 @@ class OrderListSerializer(serializers.ModelSerializer):
 
     class Meta:
         """Мета-класс для OrderListSerializer"""
+
         model = Order
         fields = [
             "id",

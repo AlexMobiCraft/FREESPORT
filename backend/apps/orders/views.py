@@ -2,17 +2,15 @@
 API Views для заказов FREESPORT
 Поддерживает создание заказов из корзины и просмотр деталей
 """
-from drf_spectacular.utils import OpenApiExample, OpenApiResponse, extend_schema
+from drf_spectacular.utils import (OpenApiExample, OpenApiResponse,
+                                   extend_schema)
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from .models import Order
-from .serializers import (
-    OrderCreateSerializer,
-    OrderDetailSerializer,
-    OrderListSerializer,
-)
+from .serializers import (OrderCreateSerializer, OrderDetailSerializer,
+                          OrderListSerializer)
 
 
 class OrderViewSet(viewsets.ModelViewSet):
@@ -32,12 +30,15 @@ class OrderViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         """Получить заказы пользователя"""
-        return (
-            Order.objects.filter(user=self.request.user)
-            .select_related("user")
-            .prefetch_related("items__product")
-            .order_by("-created_at")
-        )
+        user = self.request.user
+        if user.is_authenticated:
+            return (
+                Order.objects.filter(user=user)
+                .select_related("user")
+                .prefetch_related("items__product")
+                .order_by("-created_at")
+            )
+        return Order.objects.none()
 
     @extend_schema(
         summary="Список заказов",
@@ -131,9 +132,7 @@ class OrderViewSet(viewsets.ModelViewSet):
 
         if pk is not None and str(pk) != str(order.pk):
             return Response(
-                {
-                    "error": "Идентификатор заказа не совпадает с найденным объектом"
-                },
+                {"error": "Идентификатор заказа не совпадает с найденным объектом"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 

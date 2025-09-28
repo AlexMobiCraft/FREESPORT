@@ -1,5 +1,6 @@
 import factory
 from factory.django import DjangoModelFactory
+
 from apps.products.models import Brand, Category, Product
 from apps.users.models import User
 

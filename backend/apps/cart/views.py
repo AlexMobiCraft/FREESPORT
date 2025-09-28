@@ -2,6 +2,7 @@
 Views для корзины покупок
 """
 from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 from drf_spectacular.utils import OpenApiResponse, extend_schema
@@ -13,12 +14,8 @@ if TYPE_CHECKING:
     pass  # Пока не используем TYPE_CHECKING импорты
 
 from .models import Cart, CartItem
-from .serializers import (
-    CartItemCreateSerializer,
-    CartItemSerializer,
-    CartItemUpdateSerializer,
-    CartSerializer,
-)
+from .serializers import (CartItemCreateSerializer, CartItemSerializer,
+                          CartItemUpdateSerializer, CartSerializer)
 
 
 class CartViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
@@ -33,7 +30,7 @@ class CartViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
     serializer_class = CartSerializer
     queryset = Cart.objects.all()  # Базовый queryset для Pylance
 
-    def get_queryset(self):  # type: ignore[override]
+    def get_queryset(self):
         """Получить корзину текущего пользователя или гостя"""
         if self.request.user.is_authenticated:
             return Cart.objects.filter(user=self.request.user)
@@ -92,7 +89,7 @@ class CartItemViewSet(viewsets.ModelViewSet):
     if TYPE_CHECKING:
         cart_item: CartItem  # Для типизации динамически создаваемого атрибута
 
-    def get_queryset(self):  # type: ignore[override]
+    def get_queryset(self):
         """Получить элементы корзины текущего пользователя"""
         if self.request.user.is_authenticated:
             try:
@@ -110,7 +107,7 @@ class CartItemViewSet(viewsets.ModelViewSet):
                     return CartItem.objects.none()
             return CartItem.objects.none()
 
-    def get_serializer_class(self):  # type: ignore[override]
+    def get_serializer_class(self):
         """Выбор serializer в зависимости от действия"""
         if self.action == "create":
             return CartItemCreateSerializer

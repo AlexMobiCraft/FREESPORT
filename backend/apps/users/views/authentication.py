@@ -1,7 +1,8 @@
 """
 Views для аутентификации пользователей
 """
-from drf_spectacular.utils import OpenApiExample, OpenApiResponse, extend_schema
+from drf_spectacular.utils import (OpenApiExample, OpenApiResponse,
+                                   extend_schema)
 from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -131,19 +132,18 @@ class UserLoginView(APIView):
     )
     def post(self, request, *args, **kwargs):
         """Аутентификация пользователя"""
-        serializer = UserLoginSerializer(
-            data=request.data, context={"request": request}
-        )
+        serializer = UserLoginSerializer(data=request.data)
 
         if serializer.is_valid():
             user = serializer.validated_data["user"]
 
-            # Создание JWT токенов
+            # Создаем JWT токены
             refresh = RefreshToken.for_user(user)
-
+            access_token = str(refresh.access_token)  # type: ignore[attr-defined]
+            
             return Response(
                 {
-                    "access": str(refresh.access_token),
+                    "access": access_token,
                     "refresh": str(refresh),
                     "user": {
                         "id": user.id,

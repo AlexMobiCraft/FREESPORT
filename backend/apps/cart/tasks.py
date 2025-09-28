@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 
 @shared_task(name="apps.cart.tasks.clear_abandoned_carts_task")
-def clear_abandoned_carts_task(hours: int = 24):
+def clear_abandoned_carts_task(hours: int = 24) -> None:
     """
     Асинхронная задача Celery для запуска команды очистки "брошенных" корзин.
 

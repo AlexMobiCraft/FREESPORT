@@ -4,8 +4,9 @@ Django settings for FREESPORT backend project.
 
 import os
 import sys
-from pathlib import Path
 from datetime import timedelta
+from pathlib import Path
+
 from dotenv import load_dotenv
 
 # Загружаем переменные окружения из файла .env (для локальной разработки)

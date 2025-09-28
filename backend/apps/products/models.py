@@ -3,11 +3,12 @@
 Включает товары, категории, бренды с роле-ориентированным ценообразованием
 """
 from __future__ import annotations
-from typing import TYPE_CHECKING, cast
-from datetime import datetime
+
 import time
 import uuid
+from datetime import datetime
 from decimal import Decimal
+from typing import TYPE_CHECKING, Any, cast
 
 from django.core.validators import MinValueValidator
 from django.db import models
@@ -41,7 +42,7 @@ class Brand(models.Model):
         verbose_name_plural = "Бренды"
         db_table = "brands"
 
-    def save(self, *args, **kwargs) -> None:
+    def save(self, *args: Any, **kwargs: Any) -> None:
         if not self.slug:
             try:
                 # Транслитерация кириллицы в латиницу, затем slugify
@@ -101,7 +102,7 @@ class Category(models.Model):
         db_table = "categories"
         ordering = ["sort_order", "name"]
 
-    def save(self, *args, **kwargs) -> None:
+    def save(self, *args: Any, **kwargs: Any) -> None:
         if not self.slug:
             try:
                 # Транслитерация кириллицы в латиницу, затем slugify
@@ -123,7 +124,7 @@ class Category(models.Model):
     def full_name(self) -> str:
         """Полное название категории с учетом иерархии"""
         if self.parent:
-            return f"{cast(Category, self.parent).full_name} > {self.name}"
+            return f"{self.parent.full_name} > {self.name}"
         return self.name
 
 
@@ -337,7 +338,7 @@ class Product(models.Model):
             models.Index(fields=["sync_status"]),  # Sync status index
         ]
 
-    def save(self, *args, **kwargs) -> None:
+    def save(self, *args: Any, **kwargs: Any) -> None:
         if not self.slug:
             try:
                 # Транслитерация кириллицы в латиницу, затем slugify
@@ -439,7 +440,7 @@ class ProductImage(models.Model):
         image_type = "основное" if self.is_main else "дополнительное"
         return f"Изображение {self.product.name} ({image_type})"
 
-    def save(self, *args, **kwargs) -> None:
+    def save(self, *args: Any, **kwargs: Any) -> None:
         # Если это основное изображение, убираем флаг у других изображений этого товара
         if self.is_main:
             ProductImage.objects.filter(product=self.product, is_main=True).exclude(

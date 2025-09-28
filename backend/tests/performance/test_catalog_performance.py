@@ -72,7 +72,8 @@ class CatalogPerformanceTest(TestCase):
         self.assertEqual(response.status_code, 200)
 
         # Проверяем количество товаров в ответе
-        self.assertGreaterEqual(len(response.data["results"]), 10)
+        response_data = response.json()
+        self.assertGreaterEqual(len(response_data["results"]), 10)
 
     def test_catalog_with_filters_performance(self):
         """Производительность каталога с фильтрами"""
@@ -160,7 +161,8 @@ class CatalogPerformanceTest(TestCase):
             f"Pagination response time {response_time:.2f}s exceeds 1s limit",
         )
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(response.data["results"]), 20)
+        response_data = response.json()
+        self.assertEqual(len(response_data["results"]), 20)
 
     def test_role_based_pricing_performance(self):
         """Производительность ролевого ценообразования"""

@@ -113,7 +113,7 @@ class Command(BaseCommand):
 
         return viewsets
 
-    def _get_viewset_methods(self, viewset_class) -> List[Dict[str, Any]]:
+    def _get_viewset_methods(self, viewset_class: Any) -> List[Dict[str, Any]]:
         """Получает все методы ViewSet, которые нуждаются в документации."""
         methods = []
 
@@ -193,7 +193,7 @@ class Command(BaseCommand):
 
         return issues
 
-    def _has_extend_schema(self, method) -> bool:
+    def _has_extend_schema(self, method: Any) -> bool:
         """Проверяет наличие @extend_schema декоратора у метода."""
 
         # Получаем функцию из метода
@@ -253,7 +253,7 @@ class Command(BaseCommand):
 
         return False
 
-    def _check_schema_quality(self, method, method_name: str) -> List[str]:
+    def _check_schema_quality(self, method: Any, method_name: str) -> List[str]:
         """Проверяет качество схемы документации."""
         issues = []
 
@@ -274,7 +274,7 @@ class Command(BaseCommand):
         undocumented_items: List[Dict[str, Any]],
         total_methods: int,
         documented_methods: int,
-    ):
+    ) -> None:
         """Выводит результаты проверки."""
         coverage_percent = (
             (documented_methods / total_methods * 100) if total_methods > 0 else 0
@@ -286,7 +286,7 @@ class Command(BaseCommand):
 
         if undocumented_items:
             self.stdout.write(
-                self.style.ERROR(  # type: ignore[attr-defined]
+                self.style.ERROR(
                     f"ERROR: Найдено {len(undocumented_items)} проблем с документацией:"
                 )
             )
@@ -308,7 +308,7 @@ class Command(BaseCommand):
         else:
             self.stdout.write(
                 self.style.SUCCESS("SUCCESS: Все endpoints имеют proper документацию!")
-            )  # type: ignore[attr-defined]
+            )
 
         # Статистика
         self.stdout.write("\nСтатистика:")
@@ -317,13 +317,13 @@ class Command(BaseCommand):
         self.stdout.write(f"  - Покрытие: {coverage_percent:.1f}%")
 
         if coverage_percent >= 90:
-            style = self.style.SUCCESS  # type: ignore[attr-defined]
+            style = self.style.SUCCESS
             prefix = "EXCELLENT"
         elif coverage_percent >= 70:
-            style = self.style.WARNING  # type: ignore[attr-defined]
+            style = self.style.WARNING
             prefix = "WARNING"
         else:
-            style = self.style.ERROR  # type: ignore[attr-defined]
+            style = self.style.ERROR
             prefix = "POOR"
 
         self.stdout.write(

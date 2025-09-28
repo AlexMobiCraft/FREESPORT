@@ -1,7 +1,7 @@
 """
 Views для управления профилем пользователя
 """
-from drf_spectacular.utils import extend_schema, OpenApiResponse
+from drf_spectacular.utils import OpenApiExample, OpenApiResponse, extend_schema
 from rest_framework import permissions
 from rest_framework.generics import RetrieveUpdateAPIView
 
@@ -29,11 +29,14 @@ class UserProfileView(RetrieveUpdateAPIView):
             200: UserProfileSerializer,
             401: OpenApiResponse(
                 description="Пользователь не авторизован",
-                examples={
-                    "application/json": {
-                        "detail": "Учетные данные не были предоставлены."
-                    }
-                },
+                examples=[
+                    OpenApiExample(
+                        name="Unauthorized",
+                        value={
+                            "detail": "Учетные данные не были предоставлены."
+                        }
+                    )
+                ],
             ),
         },
         tags=["Users"],
@@ -50,11 +53,14 @@ class UserProfileView(RetrieveUpdateAPIView):
             200: UserProfileSerializer,
             400: OpenApiResponse(
                 description="Ошибки валидации",
-                examples={
-                    "application/json": {
-                        "tax_id": ["ИНН должен содержать 10 или 12 цифр."]
-                    }
-                },
+                examples=[
+                    OpenApiExample(
+                        name="Validation Error",
+                        value={
+                            "tax_id": ["ИНН должен содержать 10 или 12 цифр."]
+                        }
+                    )
+                ],
             ),
             401: OpenApiResponse(description="Пользователь не авторизован"),
         },

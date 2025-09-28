@@ -25,7 +25,9 @@ SECRET_KEY = os.environ.get("SECRET_KEY", "django-insecure-test-key-for-ci")
 # мы устанавливаем в .github/workflows/main.yml.
 
 
-def _get_env_value(primary_key: str, fallback_keys: tuple[str, ...], default: str) -> str:
+def _get_env_value(
+    primary_key: str, fallback_keys: tuple[str, ...], default: str
+) -> str:
     """Возвращает значение переменной окружения с поддержкой fallback."""
 
     for key in (primary_key, *fallback_keys):
@@ -38,7 +40,9 @@ def _get_env_value(primary_key: str, fallback_keys: tuple[str, ...], default: st
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": _get_env_value("DB_NAME", ("POSTGRES_DB", "PGDATABASE"), "freesport_test"),
+        "NAME": _get_env_value(
+            "DB_NAME", ("POSTGRES_DB", "PGDATABASE"), "freesport_test"
+        ),
         "USER": _get_env_value("DB_USER", ("POSTGRES_USER", "PGUSER"), "postgres"),
         "PASSWORD": _get_env_value(
             "DB_PASSWORD",
@@ -46,9 +50,7 @@ DATABASES = {
             "postgres",
         ),
         "HOST": _get_env_value("DB_HOST", ("POSTGRES_HOST", "PGHOST"), "localhost"),
-        "PORT": int(
-            _get_env_value("DB_PORT", ("POSTGRES_PORT", "PGPORT"), "5432")
-        ),
+        "PORT": int(_get_env_value("DB_PORT", ("POSTGRES_PORT", "PGPORT"), "5432")),
     }
 }
 

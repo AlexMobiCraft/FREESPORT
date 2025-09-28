@@ -3,10 +3,11 @@
 Поддерживает B2B и B2C заказы с различными способами оплаты и доставки
 """
 from __future__ import annotations
+
 import uuid
 from datetime import date, datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from django.contrib.auth import get_user_model
 from django.core.validators import MinValueValidator
@@ -14,6 +15,7 @@ from django.db import models
 
 if TYPE_CHECKING:
     from django.db.models.manager import RelatedManager
+
     from apps.products.models import Product as ProductType
     from apps.users.models import User as UserType
 
@@ -187,6 +189,7 @@ class Order(models.Model):
 
     class Meta:
         """Метаданные Django ORM для модели `Order`."""
+
         verbose_name = "Заказ"
         verbose_name_plural = "Заказы"
         db_table = "orders"
@@ -198,7 +201,7 @@ class Order(models.Model):
             models.Index(fields=["payment_status"]),
         ]
 
-    def save(self, *args, **kwargs) -> None:
+    def save(self, *args: Any, **kwargs: Any) -> None:
         if not self.order_number:
             self.order_number = self.generate_order_number()
         super().save(*args, **kwargs)
@@ -214,13 +217,12 @@ class Order(models.Model):
     @property
     def subtotal(self) -> Decimal:
         """Подытог заказа без учета доставки и скидок"""
-        items_manager = cast("RelatedManager[OrderItem]", self.items)  # type: ignore[attr-defined]
-        return Decimal(sum(item.total_price for item in items_manager.all()))
+        return Decimal(sum(item.total_price for item in self.items.all()))
 
     @property
     def customer_display_name(self) -> str:
         """Отображаемое имя клиента"""
-        user = cast("UserType | None", self.user)
+        user = self.user
         if user:
             full_name = getattr(user, "full_name", "") or ""
             email = getattr(user, "email", "") or ""
@@ -230,14 +232,12 @@ class Order(models.Model):
     @property
     def total_items(self) -> int:
         """Общее количество товаров в заказе"""
-        items_manager = cast("RelatedManager[OrderItem]", self.items)  # type: ignore[attr-defined]
-        return sum(item.quantity for item in items_manager.all())
+        return sum(item.quantity for item in self.items.all())
 
     @property
     def calculated_total(self) -> Decimal:
         """Рассчитанная общая сумма заказа"""
-        items_manager = cast("RelatedManager[OrderItem]", self.items)  # type: ignore[attr-defined]
-        return Decimal(sum(item.total_price for item in items_manager.all()))
+        return Decimal(sum(item.total_price for item in self.items.all()))
 
     @property
     def can_be_cancelled(self) -> bool:
@@ -311,6 +311,7 @@ class OrderItem(models.Model):
 
     class Meta:
         """Метаданные Django ORM для модели `OrderItem`."""
+
         verbose_name = "Элемент заказа"
         verbose_name_plural = "Элементы заказа"
         db_table = "order_items"
@@ -319,12 +320,12 @@ class OrderItem(models.Model):
             models.Index(fields=["order", "product"]),
         ]
 
-    def save(self, *args, **kwargs) -> None:
+    def save(self, *args: Any, **kwargs: Any) -> None:
         # Автоматически рассчитываем общую стоимость
         self.total_price = self.unit_price * self.quantity
 
         # Сохраняем снимок данных продукта
-        product = cast("ProductType | None", self.product)
+        product = self.product
         if product and not self.product_name:
             self.product_name = getattr(product, "name", self.product_name)
             self.product_sku = getattr(product, "sku", self.product_sku)
@@ -332,6 +333,6 @@ class OrderItem(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self) -> str:
-        order = cast(Order, self.order)
+        order = self.order
         order_number = getattr(order, "order_number", "")
         return f"{self.product_name} x{self.quantity} в заказе #{order_number}"

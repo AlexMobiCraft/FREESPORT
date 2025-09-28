@@ -11,12 +11,12 @@ import json
 import time
 from decimal import Decimal
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils import timezone
-from tqdm import tqdm  # type: ignore
+from tqdm import tqdm
 
 from apps.products.models import Brand, Category, Product
 
@@ -79,12 +79,12 @@ class Command(BaseCommand):
 
         # Заголовок
         self.stdout.write(
-            self.style.SUCCESS("🚀 Запуск импорта каталога товаров из 1С")  # type: ignore
+            self.style.SUCCESS("🚀 Запуск импорта каталога товаров из 1С")
         )
 
         if self.dry_run:
             self.stdout.write(
-                self.style.WARNING(  # type: ignore
+                self.style.WARNING(
                     "⚠️  РЕЖИМ DRY-RUN: изменения НЕ будут сохранены"
                 )
             )
@@ -108,18 +108,18 @@ class Command(BaseCommand):
                 self.stdout.write(
                     self.style.SUCCESS(
                         f"✅ DRY-RUN завершен: {imported_count} товаров обработано"
-                    )  # type: ignore
+                    )
                 )
             else:
                 self.stdout.write(
                     self.style.SUCCESS(
                         f"✅ Импорт завершен успешно: {imported_count} "
                         f"товаров импортировано"
-                    )  # type: ignore
+                    )
                 )
 
         except Exception as e:
-            self.stdout.write(self.style.ERROR(f"❌ Ошибка импорта: {str(e)}"))  # type: ignore
+            self.stdout.write(self.style.ERROR(f"❌ Ошибка импорта: {str(e)}"))
             raise
 
     def _load_data_from_file(self) -> List[Dict]:
@@ -147,7 +147,10 @@ class Command(BaseCommand):
                 data = json.load(f)
 
             if isinstance(data, dict) and "products" in data:
-                return data["products"]
+                products_data = data["products"]
+                if isinstance(products_data, list):
+                    return products_data
+                return []
             elif isinstance(data, list):
                 return data
             else:
@@ -245,7 +248,7 @@ class Command(BaseCommand):
         progress_bar.close()
         return imported_count
 
-    def _process_products_chunk(self, chunk: List[Dict], progress_bar) -> int:
+    def _process_products_chunk(self, chunk: List[Dict], progress_bar: Any) -> int:
         """Обработка батча товаров"""
 
         processed_count = 0
@@ -261,7 +264,7 @@ class Command(BaseCommand):
                     self.style.ERROR(
                         f"❌ Ошибка обработки товара "
                         f'{product_data.get("onec_id", "UNKNOWN")}: {str(e)}'
-                    )  # type: ignore
+                    )
                 )
                 if not self.force:
                     raise
@@ -275,7 +278,7 @@ class Command(BaseCommand):
 
         return processed_count
 
-    def _process_single_product(self, product_data: Dict):
+    def _process_single_product(self, product_data: Dict) -> None:
         """Обработка одного товара"""
 
         onec_id = product_data.get("onec_id")
@@ -287,7 +290,7 @@ class Command(BaseCommand):
         if brand_name:
             brand, _ = Brand.objects.get_or_create(
                 name=brand_name, defaults={"is_active": True}
-            )  # type: ignore
+            )
         else:
             # КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: создаем дефолтный бренд если не указан
             brand, _ = Brand.objects.get_or_create(
@@ -300,7 +303,7 @@ class Command(BaseCommand):
                     ),
                     "is_active": True,
                 },
-            )  # type: ignore
+            )
 
         # Поиск или создание категории
         category_name = product_data.get("category")

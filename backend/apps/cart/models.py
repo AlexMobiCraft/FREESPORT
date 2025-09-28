@@ -3,6 +3,7 @@
 Поддерживает как авторизованных, так и гостевых пользователей
 """
 from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 from django.contrib.auth import get_user_model
@@ -70,7 +71,8 @@ class Cart(models.Model):
     @property
     def total_amount(self):
         """Общая стоимость товаров в корзине"""
-        total = 0
+        from decimal import Decimal
+        total = Decimal('0')
         for item in self.items.select_related("product").all():
             user = self.user
             price = item.product.get_price_for_user(user)

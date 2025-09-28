@@ -456,8 +456,10 @@ def authenticated_client(retail_user):
 
     client = APIClient()
     refresh = RefreshToken.for_user(retail_user)
-    client.credentials(HTTP_AUTHORIZATION=f"Bearer {refresh.access_token}")
-    client.user = retail_user  # Добавляем ссылку на пользователя для удобства
+    access_token = str(refresh.access_token)
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {access_token}")
+    # Добавляем ссылку на пользователя для удобства (расширяем тип)
+    client.user = retail_user  # type: ignore[attr-defined]
     return client
 
 
@@ -471,8 +473,9 @@ def admin_client(admin_user):
 
     client = APIClient()
     refresh = RefreshToken.for_user(admin_user)
-    client.credentials(HTTP_AUTHORIZATION=f"Bearer {refresh.access_token}")
-    client.user = admin_user  # Добавляем ссылку на пользователя для удобства
+    access_token = str(refresh.access_token)
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {access_token}")
+    client.user = admin_user  # type: ignore[attr-defined]
     return client
 
 
@@ -523,7 +526,8 @@ def access_token(db, user_factory):
 
     user = user_factory.create(role="retail")
     refresh = RefreshToken.for_user(user)
-    return str(refresh.access_token)
+    access_token = str(refresh.access_token)
+    return access_token
 
 
 @pytest.fixture(autouse=True)

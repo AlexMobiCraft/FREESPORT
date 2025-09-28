@@ -2,8 +2,8 @@
 Модели пользователей для платформы FREESPORT
 Включает кастомную User модель с ролевой системой B2B/B2C
 """
-from __future__ import annotations
-from typing import TYPE_CHECKING
+
+from typing import TYPE_CHECKING, Any
 
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.core.validators import RegexValidator
@@ -11,16 +11,14 @@ from django.db import models
 
 if TYPE_CHECKING:
     pass  # Используется для type hints
-
-
 class UserManager(BaseUserManager["User"]):
     """
     Кастомный менеджер для модели User с email аутентификацией
     """
 
     def create_user(
-        self, email: str, password: str | None = None, **extra_fields
-    ) -> User:
+        self, email: str, password: str | None = None, **extra_fields: Any
+    ) -> "User":
         """Создание обычного пользователя"""
         if not email:
             raise ValueError("Email обязателен для создания пользователя")
@@ -32,8 +30,8 @@ class UserManager(BaseUserManager["User"]):
         return user
 
     def create_superuser(
-        self, email: str, password: str | None = None, **extra_fields
-    ) -> User:
+        self, email: str, password: str | None = None, **extra_fields: Any
+    ) -> "User":
         """Создание суперпользователя"""
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)
@@ -70,7 +68,7 @@ class User(AbstractUser):
     ]
 
     # Убираем username, используем email для авторизации
-    username = None
+    username = None  # type: ignore[assignment]
     email = models.EmailField("Email адрес", unique=True)
 
     # Дополнительные поля
@@ -154,7 +152,7 @@ class User(AbstractUser):
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["first_name", "last_name"]
 
-    objects: UserManager["User"] = UserManager()  # type: ignore[type-abstract]
+    objects: "UserManager[User]" = UserManager()  # type: ignore[misc,assignment,type-arg]
 
     class Meta:
         verbose_name = "Пользователь"
@@ -271,7 +269,7 @@ class Address(models.Model):
         db_table = "addresses"
         # Убираем неправильное unique_together ограничение
 
-    def save(self, *args, **kwargs) -> None:
+    def save(self, *args: Any, **kwargs: Any) -> None:
         """
         Переопределяем save для корректной логики is_default.
         Если этот адрес устанавливается как основной, снимаем флаг

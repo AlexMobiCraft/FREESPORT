@@ -1,15 +1,16 @@
 """
 Тесты для моделей заказов FREESPORT Platform
 """
+import uuid
 from decimal import Decimal
 
 import pytest
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
-import uuid
 
 from apps.orders.models import Order, OrderItem
-from tests.conftest import OrderFactory, OrderItemFactory, ProductFactory, UserFactory
+from tests.conftest import (OrderFactory, OrderItemFactory, ProductFactory,
+                            UserFactory)
 
 
 @pytest.mark.django_db

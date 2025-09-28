@@ -70,7 +70,8 @@ class SearchPerformanceTest(TestCase):
             f"Simple search response time {response_time:.2f}s exceeds 0.5s limit",
         )
         self.assertEqual(response.status_code, 200)
-        self.assertGreater(len(response.data["results"]), 0)
+        response_data = response.json()
+        self.assertGreater(len(response_data["results"]), 0)
 
     def test_complex_search_performance(self):
         """Производительность сложного поиска с фильтрами"""
@@ -132,7 +133,8 @@ class SearchPerformanceTest(TestCase):
             f"Empty search response time {response_time:.2f}s exceeds 0.3s limit",
         )
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(response.data["results"]), 0)
+        response_data = response.json()
+        self.assertEqual(len(response_data["results"]), 0)
 
     def test_search_pagination_performance(self):
         """Производительность пагинации поиска"""

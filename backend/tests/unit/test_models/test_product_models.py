@@ -4,13 +4,15 @@
 import time
 import uuid
 from decimal import Decimal
+
 import pytest
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 from django.test import TestCase
 
 from apps.products.models import Brand, Category, Product
-from tests.factories import BrandFactory, CategoryFactory, ProductFactory, UserFactory
+from tests.factories import (BrandFactory, CategoryFactory, ProductFactory,
+                             UserFactory)
 
 
 @pytest.mark.django_db

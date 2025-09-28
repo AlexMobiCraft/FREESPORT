@@ -90,8 +90,9 @@ class OrderCreationPerformanceTest(TestCase):
         self.assertEqual(response.status_code, 201)
 
         # Проверяем, что заказ создался корректно
-        self.assertIn("id", response.data)
-        self.assertEqual(len(response.data["items"]), 1)
+        response_data = response.json()
+        self.assertIn("id", response_data)
+        self.assertEqual(len(response_data["items"]), 1)
 
     def test_multiple_items_order_performance(self):
         """Производительность создания заказа с несколькими товарами"""
@@ -122,7 +123,8 @@ class OrderCreationPerformanceTest(TestCase):
             f"Multi-item order creation time {response_time:.2f}s exceeds 1.5s limit",
         )
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(len(response.data["items"]), 5)
+        response_data = response.json()
+        self.assertEqual(len(response_data["items"]), 5)
 
     def test_b2b_order_performance(self):
         """Производительность создания B2B заказа"""
@@ -215,8 +217,9 @@ class OrderCreationPerformanceTest(TestCase):
         self.assertEqual(response.status_code, 201)
 
         # Проверяем корректность расчетов
-        self.assertGreater(float(response.data["total_amount"]), 0)
-        self.assertEqual(len(response.data["items"]), 10)
+        response_data = response.json()
+        self.assertGreater(float(response_data["total_amount"]), 0)
+        self.assertEqual(len(response_data["items"]), 10)
 
     @pytest.mark.slow
     def test_concurrent_order_creation_performance(self):

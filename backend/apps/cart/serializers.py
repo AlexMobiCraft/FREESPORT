@@ -2,6 +2,7 @@
 Serializers для корзины покупок
 """
 from __future__ import annotations
+
 from typing import TYPE_CHECKING, Any, Dict
 
 from django.contrib.auth import get_user_model
@@ -48,8 +49,8 @@ class CartItemSerializer(serializers.ModelSerializer):
         if obj.product.main_image:
             request = self.context.get("request")
             if request and hasattr(request, "build_absolute_uri"):
-                return request.build_absolute_uri(obj.product.main_image.url)
-            return obj.product.main_image.url
+                return str(request.build_absolute_uri(obj.product.main_image.url))
+            return str(obj.product.main_image.url)
         return None
 
     def get_unit_price(self, obj: CartItem) -> str:

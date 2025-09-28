@@ -14,17 +14,22 @@ on:
 
 env:
   PYTHON_VERSION: '3.12'
-  DJANGO_SETTINGS_MODULE: 'freesport.settings.development'
-
 jobs:
   # Этап 1: Качество кода и тестирование
   test:
     runs-on: ubuntu-latest
-    
+    env:
+      DB_NAME: freesport_test
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_HOST: localhost
+      DB_PORT: 5432
+
     services:
       postgres:
         image: postgres:15
         env:
+          POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: freesport_test
         options: >-

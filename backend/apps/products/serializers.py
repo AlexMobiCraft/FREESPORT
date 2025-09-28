@@ -1,6 +1,8 @@
 """
 Serializers для каталога товаров
 """
+from typing import Any
+
 from django.db.models import Count, Q
 from rest_framework import serializers
 
@@ -108,7 +110,7 @@ class CategorySerializer(serializers.ModelSerializer):
 
     def get_breadcrumbs(self, obj):
         """Получить навигационную цепочку для категории"""
-        breadcrumbs = []
+        breadcrumbs: list[dict[str, Any]] = []
         current = obj
 
         while current:
@@ -126,7 +128,7 @@ class ProductListSerializer(serializers.ModelSerializer):
     """
 
     brand = BrandSerializer(read_only=True)
-    category = serializers.StringRelatedField(read_only=True)
+    category: Any = serializers.StringRelatedField(read_only=True)
     current_price = serializers.SerializerMethodField()
     price_type = serializers.SerializerMethodField()
     can_be_ordered = serializers.BooleanField(read_only=True)
@@ -301,7 +303,7 @@ class ProductDetailSerializer(ProductListSerializer):
 
     def get_category_breadcrumbs(self, obj):
         """Получить навигационную цепочку для категории товара"""
-        breadcrumbs = []
+        breadcrumbs: list[dict[str, Any]] = []
         current = obj.category
 
         while current:

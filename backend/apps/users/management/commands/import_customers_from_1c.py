@@ -10,12 +10,13 @@ Django management команда для импорта клиентов из 1С
 import json
 import time
 from pathlib import Path
-from typing import Dict, List
+from typing import Any, Dict, List
 
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils import timezone
 from tqdm import tqdm
+
 from apps.users.models import User
 
 
@@ -140,7 +141,10 @@ class Command(BaseCommand):
                 data = json.load(f)
 
             if isinstance(data, dict) and "customers" in data:
-                return data["customers"]
+                customers_data = data["customers"]
+                if isinstance(customers_data, list):
+                    return customers_data
+                return []
             elif isinstance(data, list):
                 return data
             else:
@@ -239,7 +243,7 @@ class Command(BaseCommand):
         progress_bar.close()
         return imported_count
 
-    def _process_customers_chunk(self, chunk: List[Dict], progress_bar) -> int:
+    def _process_customers_chunk(self, chunk: List[Dict], progress_bar: Any) -> int:
         """Обработка батча клиентов"""
 
         processed_count = 0
@@ -269,7 +273,7 @@ class Command(BaseCommand):
 
         return processed_count
 
-    def _process_single_customer(self, customer_data: Dict):
+    def _process_single_customer(self, customer_data: Dict) -> None:
         """Обработка одного клиента"""
 
         onec_id = customer_data.get("onec_id")
