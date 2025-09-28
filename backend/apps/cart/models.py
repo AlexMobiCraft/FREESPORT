@@ -72,7 +72,8 @@ class Cart(models.Model):
     def total_amount(self):
         """Общая стоимость товаров в корзине"""
         from decimal import Decimal
-        total = Decimal('0')
+
+        total = Decimal("0")
         for item in self.items.select_related("product").all():
             user = self.user
             price = item.product.get_price_for_user(user)

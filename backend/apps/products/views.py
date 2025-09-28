@@ -16,9 +16,13 @@ from drf_spectacular.utils import OpenApiParameter, extend_schema
 
 from .filters import ProductFilter
 from .models import Brand, Category, Product
-from .serializers import (BrandSerializer, CategorySerializer,
-                          CategoryTreeSerializer, ProductDetailSerializer,
-                          ProductListSerializer)
+from .serializers import (
+    BrandSerializer,
+    CategorySerializer,
+    CategoryTreeSerializer,
+    ProductDetailSerializer,
+    ProductListSerializer,
+)
 
 
 class ProductViewSet(viewsets.ReadOnlyModelViewSet):

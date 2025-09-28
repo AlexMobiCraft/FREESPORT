@@ -2,8 +2,7 @@
 Фильтры для каталога товаров
 """
 import django_filters
-from django.contrib.postgres.search import (SearchQuery, SearchRank,
-                                            SearchVector)
+from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector
 from django.db.models import Q
 
 from .models import Brand, Category, Product

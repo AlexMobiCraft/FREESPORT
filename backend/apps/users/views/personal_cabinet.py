@@ -9,13 +9,21 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from ..models import Address, Favorite, User
-from ..serializers import (AddressSerializer, FavoriteCreateSerializer,
-                           FavoriteSerializer, OrderHistorySerializer,
-                           UserDashboardSerializer)
+from ..serializers import (
+    AddressSerializer,
+    FavoriteCreateSerializer,
+    FavoriteSerializer,
+    OrderHistorySerializer,
+    UserDashboardSerializer,
+)
 
 
 @dataclass
 class DashboardData:
+    """
+    Структура данных для дашборда пользователя
+    """
+
     user_info: User
     orders_count: int
     favorites_count: int
@@ -48,7 +56,6 @@ class UserDashboardView(APIView):
 
         # Дополнительная статистика для B2B пользователей
         total_order_amount = None
-        avg_order_amount = None
         verification_status = None
         if user.is_b2b_user:
             total_order_amount = 0  # TODO: Временно 0, нужна Order модель
@@ -78,8 +85,8 @@ class AddressViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         if user.is_authenticated:
-            return Address.objects.filter(user=user)
-        return Address.objects.none()
+            return Address.objects.filter(user=user)  # type: ignore[attr-defined]
+        return Address.objects.none()  # type: ignore[attr-defined]
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
@@ -117,8 +124,8 @@ class FavoriteViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         if user.is_authenticated:
-            return Favorite.objects.filter(user=user).select_related("product")
-        return Favorite.objects.none()
+            return Favorite.objects.filter(user=user).select_related("product")  # type: ignore[attr-defined]
+        return Favorite.objects.none()  # type: ignore[attr-defined]
 
     def get_serializer_class(self):
         if self.action == "create":
@@ -150,5 +157,18 @@ class OrderHistoryView(APIView):
         tags=["Users"],
     )
     def get(self, request):
+        """
+        Получение истории заказов пользователя
+
+        Args:
+            request: HTTP запрос
+
+        Returns:
+            Response: Список заказов пользователя
+        """
         # TODO: заглушка до реализации Order модели
+        # После реализации Order модели заменить на:
+        # orders = Order.objects.filter(user=request.user).order_by('-created_at')
+        # serializer = OrderHistorySerializer(orders, many=True)
+        # return Response(serializer.data, status=status.HTTP_200_OK)
         return Response({"count": 0, "results": []}, status=status.HTTP_200_OK)

@@ -78,15 +78,11 @@ class Command(BaseCommand):
             )
 
         # Заголовок
-        self.stdout.write(
-            self.style.SUCCESS("🚀 Запуск импорта каталога товаров из 1С")
-        )
+        self.stdout.write(self.style.SUCCESS("🚀 Запуск импорта каталога товаров из 1С"))
 
         if self.dry_run:
             self.stdout.write(
-                self.style.WARNING(
-                    "⚠️  РЕЖИМ DRY-RUN: изменения НЕ будут сохранены"
-                )
+                self.style.WARNING("⚠️  РЕЖИМ DRY-RUN: изменения НЕ будут сохранены")
             )
 
         try:

@@ -239,8 +239,8 @@ class OrderCreateSerializer(serializers.ModelSerializer):
         for item in order_items:
             if item.product:
                 product_manager.filter(pk=item.product.pk).update(
-                stock_quantity=F("stock_quantity") - item.quantity
-            )
+                    stock_quantity=F("stock_quantity") - item.quantity
+                )
 
         # Очищаем корзину (это вызовет сигнал для уменьшения reserved_quantity)
         cart.clear()

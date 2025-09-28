@@ -32,9 +32,7 @@ class UserProfileView(RetrieveUpdateAPIView):
                 examples=[
                     OpenApiExample(
                         name="Unauthorized",
-                        value={
-                            "detail": "Учетные данные не были предоставлены."
-                        }
+                        value={"detail": "Учетные данные не были предоставлены."},
                     )
                 ],
             ),
@@ -56,9 +54,7 @@ class UserProfileView(RetrieveUpdateAPIView):
                 examples=[
                     OpenApiExample(
                         name="Validation Error",
-                        value={
-                            "tax_id": ["ИНН должен содержать 10 или 12 цифр."]
-                        }
+                        value={"tax_id": ["ИНН должен содержать 10 или 12 цифр."]},
                     )
                 ],
             ),

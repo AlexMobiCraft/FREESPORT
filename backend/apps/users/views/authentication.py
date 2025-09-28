@@ -1,8 +1,7 @@
 """
 Views для аутентификации пользователей
 """
-from drf_spectacular.utils import (OpenApiExample, OpenApiResponse,
-                                   extend_schema)
+from drf_spectacular.utils import OpenApiExample, OpenApiResponse, extend_schema
 from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -140,7 +139,7 @@ class UserLoginView(APIView):
             # Создаем JWT токены
             refresh = RefreshToken.for_user(user)
             access_token = str(refresh.access_token)  # type: ignore[attr-defined]
-            
+
             return Response(
                 {
                     "access": access_token,

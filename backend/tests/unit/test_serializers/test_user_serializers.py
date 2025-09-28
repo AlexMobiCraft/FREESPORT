@@ -4,10 +4,14 @@
 import pytest
 from django.contrib.auth import get_user_model
 
-from apps.users.serializers import (AddressSerializer, FavoriteSerializer,
-                                    UserDashboardSerializer,
-                                    UserLoginSerializer, UserProfileSerializer,
-                                    UserRegistrationSerializer)
+from apps.users.serializers import (
+    AddressSerializer,
+    FavoriteSerializer,
+    UserDashboardSerializer,
+    UserLoginSerializer,
+    UserProfileSerializer,
+    UserRegistrationSerializer,
+)
 from apps.users.views.personal_cabinet import DashboardData
 
 User = get_user_model()

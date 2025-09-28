@@ -23,7 +23,10 @@ from ..models import User
                             {"key": "retail", "display": "Розничный покупатель"},
                             {"key": "wholesale_level1", "display": "Оптовик уровень 1"},
                             {"key": "trainer", "display": "Тренер/Фитнес-клуб"},
-                            {"key": "federation_rep", "display": "Представитель федерации"},
+                            {
+                                "key": "federation_rep",
+                                "display": "Представитель федерации",
+                            },
                         ]
                     },
                 )

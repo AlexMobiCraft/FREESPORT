@@ -153,7 +153,7 @@ jobs:
         name: backend-coverage
         fail_ci_if_error: false
       env:
-        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}  # Optional: configure in repository secrets
         
     - name: Upload test results
       uses: actions/upload-artifact@v4
@@ -212,39 +212,26 @@ jobs:
           
   # Этап 3: Deploy на staging (только develop branch)
   deploy-staging:
+    name: Deploy to Staging
     needs: [test, build]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
-    environment: staging
+    # environment: staging  # Uncomment when staging environment is configured
     
     steps:
     - name: Deploy to staging
       run: |
         echo "Deploying backend to staging environment..."
         # TODO: Добавить actual deployment logic
-        echo "Backend deployment completed successfully"
-        
-    - name: Run health checks
-      run: |
-        echo "Running health checks on staging..."
-        # TODO: Добавить health check calls
-        echo "Health checks passed"
-        
-    - name: Notify deployment status
-      if: always()
-      run: |
-        if [ "${{ job.status }}" == "success" ]; then
-          echo "✅ Backend staging deployment successful"
-        else
-          echo "❌ Backend staging deployment failed"
-        fi
+        echo "✅ Backend staging deployment successful"
         
   # Этап 4: Deploy на production (только main branch, с manual approval)
   deploy-production:
+    name: Deploy to Production
     needs: [test, build]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    environment: production
+    # environment: production  # Uncomment when production environment is configured
     
     steps:
     - name: Deploy to production
@@ -262,8 +249,6 @@ jobs:
     - name: Notify production deployment
       if: always()
       run: |
-        if [ "${{ job.status }}" == "success" ]; then
-          echo "✅ Backend production deployment successful"
-        else
-          echo "❌ Backend production deployment failed"
-        fi
+        echo "Notifying about production deployment status..."
+        # TODO: Добавить notification logic (Slack, Teams, etc.)
+        echo "Production deployment notification sent"

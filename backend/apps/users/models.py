@@ -11,6 +11,8 @@ from django.db import models
 
 if TYPE_CHECKING:
     pass  # Используется для type hints
+
+
 class UserManager(BaseUserManager["User"]):
     """
     Кастомный менеджер для модели User с email аутентификацией
