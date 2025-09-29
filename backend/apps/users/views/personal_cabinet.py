@@ -3,11 +3,13 @@ Views для личного кабинета пользователя
 """
 from dataclasses import dataclass
 
+from django.db.models import Avg, Count, Sum
 from drf_spectacular.utils import extend_schema
 from rest_framework import permissions, status, viewsets
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.orders.models import Order
 from ..models import Address, Favorite, User
 from ..serializers import (
     AddressSerializer,
@@ -50,17 +52,18 @@ class UserDashboardView(APIView):
         user = request.user
 
         # Базовые счетчики
-        orders_count = 0  # TODO: Будет реализовано после создания Order модели
         favorites_count = user.favorites.count()
         addresses_count = user.addresses.count()
 
+        # Статистика заказов пользователя
+        order_stats = self._get_order_statistics(user)
+        orders_count = order_stats["count"]
+        total_order_amount = order_stats["total_amount"]
+        avg_order_amount = order_stats["avg_amount"]
+
         # Дополнительная статистика для B2B пользователей
-        total_order_amount = None
-        avg_order_amount = None
         verification_status = None
         if user.is_b2b_user:
-            total_order_amount = 0  # TODO: Временно 0, нужна Order модель
-            avg_order_amount = 0  # TODO: Временно 0, нужна Order модель
             verification_status = "verified" if user.is_verified else "pending"
 
         dashboard_data = DashboardData(
@@ -76,6 +79,34 @@ class UserDashboardView(APIView):
         serializer = UserDashboardSerializer(dashboard_data)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+    def _get_order_statistics(self, user) -> dict:
+        """
+        Получение статистики заказов пользователя
+
+        Args:
+            user: Пользователь для которого получаем статистику
+
+        Returns:
+            dict: Словарь со статистикой заказов
+        """
+        # Получаем QuerySet заказов пользователя
+        user_orders = Order.objects.filter(user=user)
+
+        # Получаем агрегированную статистику заказов
+        stats = user_orders.aggregate(
+            orders_count=Count("id"),
+            total_sum=Sum("total_amount"),
+            average_amount=Avg("total_amount"),
+        )
+
+        return {
+            "count": stats["orders_count"] or 0,
+            "total_amount": (float(stats["total_sum"]) if stats["total_sum"] else None),
+            "avg_amount": (
+                float(stats["average_amount"]) if stats["average_amount"] else None
+            ),
+        }
+
 
 class AddressViewSet(viewsets.ModelViewSet):
     """ViewSet для управления адресами пользователя"""
@@ -86,8 +117,8 @@ class AddressViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         if user.is_authenticated:
-            return Address.objects.filter(user=user)  # type: ignore[attr-defined]
-        return Address.objects.none()  # type: ignore[attr-defined]
+            return Address.objects.filter(user=user)
+        return Address.objects.none()
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
@@ -122,18 +153,19 @@ class FavoriteViewSet(viewsets.ModelViewSet):
 
     permission_classes = [permissions.IsAuthenticated]
 
-    def get_queryset(self):
-        user = self.request.user
-        if user.is_authenticated:
-            return Favorite.objects.filter(user=user).select_related(
-                "product"
-            )  # type: ignore[attr-defined]
-        return Favorite.objects.none()  # type: ignore[attr-defined]
-
     def get_serializer_class(self):
         if self.action == "create":
             return FavoriteCreateSerializer
         return FavoriteSerializer
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_authenticated:
+            return Favorite.objects.filter(user=user)
+        return Favorite.objects.none()
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
 
     @extend_schema(tags=["Users"])
     def list(self, request, *args, **kwargs):
@@ -149,17 +181,17 @@ class FavoriteViewSet(viewsets.ModelViewSet):
 
 
 class OrderHistoryView(APIView):
-    """История заказов пользователя (TODO: заглушка)"""
+    """История заказов пользователя"""
 
     permission_classes = [permissions.IsAuthenticated]
 
     @extend_schema(
         summary="История заказов",
-        description="Получение истории заказов пользователя",
+        description="Получение истории заказов пользователя с пагинацией",
         responses={200: OrderHistorySerializer(many=True)},
         tags=["Users"],
     )
-    def get(self, request):  # pylint: disable=unused-argument
+    def get(self, request):
         """
         Получение истории заказов пользователя
 
@@ -167,11 +199,21 @@ class OrderHistoryView(APIView):
             request: HTTP запрос
 
         Returns:
-            Response: Список заказов пользователя
+            Response: Список заказов пользователя с пагинацией
         """
-        # TODO: заглушка до реализации Order модели
-        # После реализации Order модели заменить на:
-        # orders = Order.objects.filter(user=request.user).order_by('-created_at')
-        # serializer = OrderHistorySerializer(orders, many=True)
-        # return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response({"count": 0, "results": []}, status=status.HTTP_200_OK)
+        # Получаем заказы пользователя, отсортированные по дате создания
+        orders = Order.objects.filter(user=request.user).order_by("-created_at")
+
+        # Применяем фильтрацию по статусу, если указан
+        status_filter = request.query_params.get("status")
+        if status_filter:
+            orders = orders.filter(status=status_filter)
+
+        # Сериализуем данные
+        serializer = OrderHistorySerializer(orders, many=True)
+
+        # Возвращаем ответ в формате совместимом с пагинацией
+        return Response(
+            {"count": orders.count(), "results": serializer.data},
+            status=status.HTTP_200_OK,
+        )

@@ -6,6 +6,7 @@ from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 
 from .models import Address, Company, Favorite, User
+from apps.orders.models import Order
 
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
@@ -374,21 +375,37 @@ class FavoriteCreateSerializer(serializers.ModelSerializer):
         return super().create(validated_data)
 
 
-class OrderHistorySerializer(serializers.Serializer):
+class OrderHistorySerializer(serializers.ModelSerializer):
     """
     Serializer для истории заказов пользователя
-    (будет реализован после создания модели Order)
     """
 
-    id = serializers.IntegerField(read_only=True)
-    order_number = serializers.CharField(read_only=True)
-    status = serializers.CharField(read_only=True)
-    total_amount = serializers.DecimalField(
-        max_digits=10, decimal_places=2, read_only=True
+    items_count = serializers.SerializerMethodField()
+    customer_display_name = serializers.ReadOnlyField()
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
+    payment_status_display = serializers.CharField(
+        source="get_payment_status_display", read_only=True
     )
-    items_count = serializers.IntegerField(read_only=True)
-    created_at = serializers.DateTimeField(read_only=True)
-    updated_at = serializers.DateTimeField(read_only=True)
 
-    # Базовая информация о товарах в заказе
-    order_items = serializers.ListField(child=serializers.DictField(), read_only=True)
+    class Meta:
+        model = Order
+        fields = [
+            "id",
+            "order_number",
+            "status",
+            "status_display",
+            "payment_status",
+            "payment_status_display",
+            "total_amount",
+            "discount_amount",
+            "delivery_cost",
+            "items_count",
+            "customer_display_name",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = fields
+
+    def get_items_count(self, obj) -> int:
+        """Получение количества товаров в заказе"""
+        return obj.total_items

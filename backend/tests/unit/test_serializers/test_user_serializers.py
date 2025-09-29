@@ -7,6 +7,7 @@ from django.contrib.auth import get_user_model
 from apps.users.serializers import (
     AddressSerializer,
     FavoriteSerializer,
+    OrderHistorySerializer,
     UserDashboardSerializer,
     UserLoginSerializer,
     UserProfileSerializer,
@@ -316,3 +317,112 @@ class TestUserDashboardSerializer:
         assert "addresses_count" in data
         assert data["orders_count"] == 5
         assert data["favorites_count"] == 10
+
+
+@pytest.mark.django_db
+class TestOrderHistorySerializer:
+    """Тесты сериализатора истории заказов"""
+
+    def test_order_serialization(self, user_factory, order_factory, order_item_factory):
+        """Тест сериализации заказа для истории"""
+        user = user_factory.create()
+        order = order_factory.create(
+            user=user,
+            order_number="TEST-001",
+            status="delivered",
+            payment_status="paid",
+            total_amount=15000.00,
+            discount_amount=500.00,
+            delivery_cost=300.00,
+        )
+
+        # Добавляем товары в заказ
+        order_item_factory.create(order=order, quantity=2, unit_price=5000.00)
+        order_item_factory.create(order=order, quantity=1, unit_price=5000.00)
+
+        serializer = OrderHistorySerializer(order)
+        data = serializer.data
+
+        # Проверяем основные поля
+        assert data["order_number"] == "TEST-001"
+        assert data["status"] == "delivered"
+        assert data["status_display"] == "Доставлен"
+        assert data["payment_status"] == "paid"
+        assert data["payment_status_display"] == "Оплачен"
+        assert float(data["total_amount"]) == 15000.00
+        assert float(data["discount_amount"]) == 500.00
+        assert float(data["delivery_cost"]) == 300.00
+        assert data["items_count"] == 3  # 2 + 1 товар
+
+        # Проверяем readonly поля
+        assert "created_at" in data
+        assert "updated_at" in data
+        assert "customer_display_name" in data
+
+    def test_order_items_count_calculation(
+        self, user_factory, order_factory, order_item_factory
+    ):
+        """Тест подсчета количества товаров в заказе"""
+        user = user_factory.create()
+        order = order_factory.create(user=user)
+
+        # Создаем несколько товаров с разным количеством
+        order_item_factory.create(order=order, quantity=3)
+        order_item_factory.create(order=order, quantity=2)
+        order_item_factory.create(order=order, quantity=1)
+
+        serializer = OrderHistorySerializer(order)
+        data = serializer.data
+
+        assert data["items_count"] == 6  # 3 + 2 + 1
+
+    def test_empty_order_items_count(self, user_factory, order_factory):
+        """Тест заказа без товаров"""
+        user = user_factory.create()
+        order = order_factory.create(user=user)
+
+        serializer = OrderHistorySerializer(order)
+        data = serializer.data
+
+        assert data["items_count"] == 0
+
+    def test_customer_display_name_for_user_order(self, user_factory, order_factory):
+        """Тест отображения имени клиента для заказа пользователя"""
+        user = user_factory.create(
+            first_name="Иван", last_name="Петров", email="ivan@test.com"
+        )
+        order = order_factory.create(user=user)
+
+        serializer = OrderHistorySerializer(order)
+        data = serializer.data
+
+        # customer_display_name должен возвращать полное имя пользователя
+        expected_name = user.get_full_name() or user.email
+        assert data["customer_display_name"] == expected_name
+
+    def test_readonly_fields(self, user_factory, order_factory):
+        """Тест что все поля только для чтения"""
+        user = user_factory.create()
+        order = order_factory.create(user=user)
+
+        serializer = OrderHistorySerializer(order)
+
+        # Все поля должны быть readonly
+        readonly_fields = serializer.Meta.read_only_fields
+        expected_fields = [
+            "id",
+            "order_number",
+            "status",
+            "status_display",
+            "payment_status",
+            "payment_status_display",
+            "total_amount",
+            "discount_amount",
+            "delivery_cost",
+            "items_count",
+            "customer_display_name",
+            "created_at",
+            "updated_at",
+        ]
+
+        assert set(readonly_fields) == set(expected_fields)

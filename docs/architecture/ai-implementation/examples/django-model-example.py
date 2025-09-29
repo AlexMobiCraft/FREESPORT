@@ -100,7 +100,7 @@ class Product(models.Model):
     is_active = models.BooleanField("Активный", default=True)
     created_at = models.DateTimeField("Дата создания", auto_now_add=True)
     updated_at = models.DateTimeField("Дата обновления", auto_now=True)
-    
+
     # ✅ ПАТТЕРН: Интеграция с 1С
     onec_id = models.CharField("ID в 1С", max_length=100, blank=True, null=True)
 
@@ -123,6 +123,7 @@ class Product(models.Model):
         if not self.sku:
             import uuid
             import time
+
             self.sku = f"AUTO-{int(time.time())}-{uuid.uuid4().hex[:8].upper()}"
         super().save(*args, **kwargs)
 
@@ -166,21 +167,21 @@ class YourNewModel(models.Model):
     Шаблон новой модели по стандартам FREESPORT
     Скопируйте и адаптируйте под свои нужды
     """
-    
+
     # Основные поля
     name = models.CharField("Название", max_length=255)
     slug = models.SlugField("Slug", max_length=255, unique=True, blank=True)
     description = models.TextField("Описание", blank=True)
-    
+
     # SEO поля (если нужны)
     seo_title = models.CharField("SEO заголовок", max_length=200, blank=True)
     seo_description = models.TextField("SEO описание", blank=True)
-    
+
     # Стандартные поля (ОБЯЗАТЕЛЬНО во всех моделях)
     is_active = models.BooleanField("Активный", default=True)
     created_at = models.DateTimeField("Дата создания", auto_now_add=True)
     updated_at = models.DateTimeField("Дата обновления", auto_now=True)
-    
+
     # Интеграция с 1С (если нужна)
     onec_id = models.CharField("ID в 1С", max_length=100, blank=True, null=True)
 
@@ -188,9 +189,9 @@ class YourNewModel(models.Model):
         verbose_name = "Ваша сущность"
         verbose_name_plural = "Ваши сущности"
         db_table = "your_table_name"  # 👈 ВАЖНО: Кастомное имя таблицы
-        ordering = ['-created_at']
+        ordering = ["-created_at"]
         indexes = [
-            models.Index(fields=['is_active']),
+            models.Index(fields=["is_active"]),
             # добавьте индексы по мере необходимости
         ]
 

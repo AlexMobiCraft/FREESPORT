@@ -1,6 +1,8 @@
 # Makefile для FREESPORT Platform
 
-.PHONY: help build up down test test-unit test-integration clean logs shell
+.PHONY: help build up down test test-unit test-integration clean logs shell \
+         format lint migrate createsuperuser collectstatic \
+         docs-validate docs-search-obsolete docs-check-links docs-check-api docs-update-index
 
 # По умолчанию показываем help
 help:
@@ -18,6 +20,13 @@ help:
 	@echo "  test-unit      - Запустить только unit-тесты"
 	@echo "  test-integration - Запустить интеграционные тесты"
 	@echo "  test-fast      - Быстрые тесты (без пересборки образов)"
+	@echo ""
+	@echo "Документация:"
+	@echo "  docs-validate      - Полная валидация документации"
+	@echo "  docs-search-obsolete - Поиск устаревших терминов"
+	@echo "  docs-check-links   - Проверка кросс-ссылок"
+	@echo "  docs-check-api     - Проверка покрытия API"
+	@echo "  docs-update-index  - Обновление индекса документации"
 	@echo ""
 	@echo "Отладка:"
 	@echo "  shell          - Открыть shell в backend контейнере"
@@ -93,8 +102,6 @@ lint:
 
 # Миграции БД
 migrate:
-	docker-compose exec backend python manage.py migrate
-
 # Создание суперпользователя
 createsuperuser:
 	docker-compose exec backend python manage.py createsuperuser
@@ -102,3 +109,28 @@ createsuperuser:
 # Сбор статических файлов
 collectstatic:
 	docker-compose exec backend python manage.py collectstatic --noinput
+
+# Валидация документации
+docs-validate:
+	@echo "Валидация документации..."
+	python scripts/docs_validator.py validate
+
+# Поиск устаревших терминов
+docs-search-obsolete:
+	@echo "Поиск устаревших терминов..."
+	python scripts/docs_validator.py obsolete
+
+# Проверка кросс-ссылок
+docs-check-links:
+	@echo "Проверка кросс-ссылок..."
+	python scripts/docs_validator.py cross-links
+
+# Проверка покрытия API
+docs-check-api:
+	@echo "Проверка покрытия API..."
+	python scripts/docs_validator.py api-coverage
+
+# Обновление индекса документации
+docs-update-index:
+	@echo "Обновление индекса документации..."
+	python scripts/docs_index_generator.py
