@@ -124,9 +124,7 @@ class TestProductFilterBrandFilter:
         queryset = Mock()
 
         with patch.object(queryset, "filter") as mock_filter:
-            product_filter.filter_brand(
-                queryset, "brand", " nike , adidas , 123 "
-            )
+            product_filter.filter_brand(queryset, "brand", " nike , adidas , 123 ")
             mock_filter.assert_called_once()
 
 
@@ -238,9 +236,7 @@ class TestProductFilterStockFilter:
 
         with patch.object(queryset, "filter") as mock_filter:
             product_filter.filter_in_stock(queryset, "in_stock", True)
-            mock_filter.assert_called_once_with(
-                stock_quantity__gt=0, is_active=True
-            )
+            mock_filter.assert_called_once_with(stock_quantity__gt=0, is_active=True)
 
     def test_filter_in_stock_false(self):
         """Тест фильтрации товаров НЕ в наличии"""
