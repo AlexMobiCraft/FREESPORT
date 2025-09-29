@@ -6,7 +6,7 @@ from django.db import connection, migrations
 def add_search_indexes(apps, schema_editor):
     """Добавляет поисковые индексы в зависимости от типа БД"""
     from django.db import connection, transaction
-    
+
     # Используем отдельную транзакцию для безопасности
     try:
         with transaction.atomic():
@@ -18,7 +18,7 @@ def add_search_indexes(apps, schema_editor):
             try:
                 # Используем introspection для проверки существования таблицы
                 table_names = connection.introspection.table_names()
-                table_exists = 'products_product' in table_names
+                table_exists = "products_product" in table_names
             except Exception:
                 # Если introspection не работает, пробуем простой запрос
                 try:
@@ -73,15 +73,15 @@ def add_search_indexes(apps, schema_editor):
                         "CREATE INDEX IF NOT EXISTS products_search_name_idx ON products_product (name)",
                         "CREATE INDEX IF NOT EXISTS products_search_sku_idx ON products_product (sku)",
                         "CREATE INDEX IF NOT EXISTS products_search_category_idx ON products_product (category_id, is_active)",
-                        "CREATE INDEX IF NOT EXISTS products_search_brand_idx ON products_product (brand_id, is_active)"
+                        "CREATE INDEX IF NOT EXISTS products_search_brand_idx ON products_product (brand_id, is_active)",
                     ]
-                    
+
                     for index_sql in indexes:
                         try:
                             cursor.execute(index_sql)
                         except Exception:
                             pass  # Игнорируем ошибки создания отдельных индексов
-                            
+
     except Exception as e:
         # В случае критической ошибки просто пропускаем создание индексов
         # Не поднимаем исключение, чтобы не блокировать миграцию
@@ -91,13 +91,13 @@ def add_search_indexes(apps, schema_editor):
 def remove_search_indexes(apps, schema_editor):
     """Удаляет поисковые индексы"""
     from django.db import connection, transaction
-    
+
     try:
         with transaction.atomic():
             with connection.cursor() as cursor:
                 indexes = [
                     "products_search_gin_idx",
-                    "products_search_category_idx", 
+                    "products_search_category_idx",
                     "products_search_brand_idx",
                     "products_search_name_idx",
                     "products_search_sku_idx",

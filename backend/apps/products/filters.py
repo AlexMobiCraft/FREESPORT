@@ -289,15 +289,15 @@ class ProductFilter(django_filters.FilterSet):
         size_queries |= Q(specifications__размер=size_value)
 
         # Проверяем, используется ли PostgreSQL для поддержки contains lookup
-        is_postgresql = connection.vendor == 'postgresql'
-        
+        is_postgresql = connection.vendor == "postgresql"
+
         if is_postgresql:
             # Вариант 2: {"sizes": ["M", "L", "XL"]} - массив размеров (только PostgreSQL)
             size_queries |= Q(specifications__sizes__contains=[size_value])
-            
+
             # Вариант 4: {"размеры": ["M", "L", "XL"]} - русский ключ массива (только PostgreSQL)
             size_queries |= Q(specifications__размеры__contains=[size_value])
-            
+
             # Вариант 5: Case-insensitive поиск для строковых значений (PostgreSQL)
             size_queries |= Q(specifications__size__iexact=size_value)
             size_queries |= Q(specifications__размер__iexact=size_value)
