@@ -2,7 +2,9 @@
 Фильтры для каталога товаров
 """
 import django_filters
+from django.conf import settings
 from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector
+from django.db import connection
 from django.db.models import Q
 
 from .models import Brand, Category, Product
@@ -283,17 +285,21 @@ class ProductFilter(django_filters.FilterSet):
         # Вариант 1: {"size": "XL"} - одиночный размер
         size_queries |= Q(specifications__size=size_value)
 
-        # Вариант 2: {"sizes": ["M", "L", "XL"]} - массив размеров
-        size_queries |= Q(specifications__sizes__contains=[size_value])
-
         # Вариант 3: {"размер": "XL"} - русский ключ
         size_queries |= Q(specifications__размер=size_value)
 
-        # Вариант 4: {"размеры": ["M", "L", "XL"]} - русский ключ массива
-        size_queries |= Q(specifications__размеры__contains=[size_value])
-
-        # Вариант 5: Case-insensitive поиск для строковых значений (PostgreSQL)
-        size_queries |= Q(specifications__size__iexact=size_value)
-        size_queries |= Q(specifications__размер__iexact=size_value)
+        # Проверяем, используется ли PostgreSQL для поддержки contains lookup
+        is_postgresql = connection.vendor == 'postgresql'
+        
+        if is_postgresql:
+            # Вариант 2: {"sizes": ["M", "L", "XL"]} - массив размеров (только PostgreSQL)
+            size_queries |= Q(specifications__sizes__contains=[size_value])
+            
+            # Вариант 4: {"размеры": ["M", "L", "XL"]} - русский ключ массива (только PostgreSQL)
+            size_queries |= Q(specifications__размеры__contains=[size_value])
+            
+            # Вариант 5: Case-insensitive поиск для строковых значений (PostgreSQL)
+            size_queries |= Q(specifications__size__iexact=size_value)
+            size_queries |= Q(specifications__размер__iexact=size_value)
 
         return queryset.filter(size_queries)

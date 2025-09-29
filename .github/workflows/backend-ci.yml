@@ -84,7 +84,7 @@ jobs:
         DB_HOST=localhost
         DB_PORT=5432
         REDIS_URL=redis://localhost:6379/0
-        DJANGO_SETTINGS_MODULE=freesport.settings.development
+        DJANGO_SETTINGS_MODULE=freesport.settings.test
         EOF
         
     - name: Run linting with Black
