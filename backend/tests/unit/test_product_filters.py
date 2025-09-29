@@ -2,7 +2,6 @@
 Unit-тесты для фильтров товаров (Story 2.9: filtering-api)
 Тестируем фильтрацию по размерам, брендам, ценам, наличию
 """
-from decimal import Decimal
 from unittest.mock import Mock, patch
 
 import pytest
@@ -11,7 +10,7 @@ from django.db.models import Q
 from django.test import RequestFactory
 
 from apps.products.filters import ProductFilter
-from apps.products.models import Brand, Category, Product
+from apps.products.models import Product
 
 User = get_user_model()
 
@@ -125,7 +124,9 @@ class TestProductFilterBrandFilter:
         queryset = Mock()
 
         with patch.object(queryset, "filter") as mock_filter:
-            product_filter.filter_brand(queryset, "brand", " nike , adidas , 123 ")
+            product_filter.filter_brand(
+                queryset, "brand", " nike , adidas , 123 "
+            )
             mock_filter.assert_called_once()
 
 
@@ -133,9 +134,13 @@ class TestProductFilterBrandFilter:
 class TestProductFilterPriceFilters:
     """Unit-тесты для ценовых фильтров"""
 
+    def __init__(self):
+        """Инициализация класса"""
+        self.factory = RequestFactory()
+
     def setup_method(self):
         """Настройка для каждого теста"""
-        self.factory = RequestFactory()
+        pass
 
     def test_filter_min_price_validation(self):
         """Тест валидации минимальной цены"""
@@ -233,7 +238,9 @@ class TestProductFilterStockFilter:
 
         with patch.object(queryset, "filter") as mock_filter:
             product_filter.filter_in_stock(queryset, "in_stock", True)
-            mock_filter.assert_called_once_with(stock_quantity__gt=0, is_active=True)
+            mock_filter.assert_called_once_with(
+                stock_quantity__gt=0, is_active=True
+            )
 
     def test_filter_in_stock_false(self):
         """Тест фильтрации товаров НЕ в наличии"""
@@ -285,7 +292,8 @@ class TestProductFilterIntegration:
 
     def test_all_role_price_mappings(self):
         """
-        Тест что все роли пользователей корректно обрабатываются в ценовых фильтрах
+        Тест что все роли пользователей корректно обрабатываются
+        в ценовых фильтрах
         """
         roles_to_test = [
             "retail",

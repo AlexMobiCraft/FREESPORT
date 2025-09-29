@@ -292,10 +292,10 @@ class ProductFilter(django_filters.FilterSet):
         is_postgresql = connection.vendor == "postgresql"
 
         if is_postgresql:
-            # Вариант 2: {"sizes": ["M", "L", "XL"]} - массив размеров (только PostgreSQL)
+            # Вариант 2: {"sizes": ["M", "L", "XL"]} - массив размеров (PostgreSQL)
             size_queries |= Q(specifications__sizes__contains=[size_value])
 
-            # Вариант 4: {"размеры": ["M", "L", "XL"]} - русский ключ массива (только PostgreSQL)
+            # Вариант 4: {"размеры": ["M", "L", "XL"]} - русский массив (PostgreSQL)
             size_queries |= Q(specifications__размеры__contains=[size_value])
 
             # Вариант 5: Case-insensitive поиск для строковых значений (PostgreSQL)
