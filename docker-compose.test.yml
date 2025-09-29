@@ -9,7 +9,7 @@ services:
     container_name: freesport-test-db
     environment:
       POSTGRES_DB: freesport_test
-      POSTGRES_USER: freesport_user
+      POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password123
     volumes:
       - test_postgres_data:/var/lib/postgresql/data
@@ -18,7 +18,7 @@ services:
     networks:
       - freesport-test-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U freesport_user -d freesport_test"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d freesport_test"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -55,7 +55,7 @@ services:
       - DJANGO_SETTINGS_MODULE=freesport.settings.test
       - SECRET_KEY=test-secret-key-for-testing-only
       - DB_NAME=freesport_test
-      - DB_USER=freesport_user
+      - DB_USER=postgres
       - DB_PASSWORD=password123
       - DB_HOST=db
       - DB_PORT=5432

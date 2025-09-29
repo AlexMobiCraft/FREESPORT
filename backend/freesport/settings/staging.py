@@ -1,6 +1,7 @@
 """
-Настройки Django для локальной разработки FREESPORT
+Настройки Django для staging окружения FREESPORT
 """
+import os
 from .base import *
 
 # ВНИМАНИЕ: не используйте debug=True в продакшене!
@@ -19,11 +20,18 @@ MIDDLEWARE += [
     "debug_toolbar.middleware.DebugToolbarMiddleware",
 ]
 
-# Настройки базы данных для разработки (используем SQLite для простоты)
+# Настройки базы данных для staging (используем PostgreSQL через Docker)
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.environ.get("DB_NAME", "freesport"),
+        "USER": os.environ.get("DB_USER", "postgres"),
+        "PASSWORD": os.environ.get("DB_PASSWORD", "password123"),
+        "HOST": os.environ.get("DB_HOST", "localhost"),
+        "PORT": os.environ.get("DB_PORT", "5432"),
+        "OPTIONS": {
+            "connect_timeout": 10,
+        },
     }
 }
 

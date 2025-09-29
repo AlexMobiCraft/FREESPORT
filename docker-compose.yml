@@ -8,7 +8,7 @@ services:
     container_name: freesport-db
     environment:
       POSTGRES_DB: freesport
-      POSTGRES_USER: freesport_user
+      POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password123
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -17,7 +17,7 @@ services:
     networks:
       - freesport-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U freesport_user -d freesport"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d freesport"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -51,7 +51,7 @@ services:
       - DJANGO_SETTINGS_MODULE=freesport.settings.development
       - SECRET_KEY=development-secret-key-change-in-production
       - DB_NAME=freesport
-      - DB_USER=freesport_user
+      - DB_USER=postgres
       - DB_PASSWORD=password123
       - DB_HOST=db
       - DB_PORT=5432
@@ -138,7 +138,7 @@ services:
       - DJANGO_SETTINGS_MODULE=freesport.settings.development
       - SECRET_KEY=development-secret-key-change-in-production
       - DB_NAME=freesport
-      - DB_USER=freesport_user
+      - DB_USER=postgres
       - DB_PASSWORD=password123
       - DB_HOST=db
       - DB_PORT=5432
@@ -166,7 +166,7 @@ services:
       - DJANGO_SETTINGS_MODULE=freesport.settings.development
       - SECRET_KEY=development-secret-key-change-in-production
       - DB_NAME=freesport
-      - DB_USER=freesport_user
+      - DB_USER=postgres
       - DB_PASSWORD=password123
       - DB_HOST=db
       - DB_PORT=5432
