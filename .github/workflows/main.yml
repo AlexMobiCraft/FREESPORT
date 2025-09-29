@@ -111,6 +111,8 @@ jobs:
     - name: Apply migrations
       run: |
         cd backend
+        # Сбрасываем соединения с БД перед миграциями для избежания проблем с транзакциями
+        python -c "import django; django.setup(); from django.db import connections; connections.close_all()" || true
         python manage.py migrate --noinput
         
     - name: Run tests

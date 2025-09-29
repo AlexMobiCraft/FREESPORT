@@ -145,6 +145,8 @@ jobs:
       run: |
         cd backend
         source venv/bin/activate
+        # Сбрасываем соединения с БД перед миграциями для избежания проблем с транзакциями
+        python -c "import django; django.setup(); from django.db import connections; connections.close_all()" || true
         python manage.py migrate --run-syncdb
         
     - name: Run tests with coverage
