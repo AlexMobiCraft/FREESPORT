@@ -1,5 +1,80 @@
 # Changelog - Исправления тестов
 
+## [2025-09-30 16:23] - Исправление naive datetime warnings
+
+### Исправлено
+
+#### 1. Использование timezone-aware datetime
+- **Файлы:** 
+  - `tests/unit/test_models/test_product_models.py`
+  - `tests/conftest.py`
+- **Проблема:** Использование `datetime.now()` вызывало предупреждения Django о naive datetime
+- **Решение:** Заменено на `timezone.now()` из `django.utils.timezone`
+- **Эффект:** Устранены предупреждения "DateTimeField received a naive datetime"
+
+**Изменения в test_product_models.py:**
+```python
+# Было:
+from datetime import datetime
+sync_time = datetime.now()
+
+# Стало:
+from django.utils import timezone
+sync_time = timezone.now()
+```
+
+**Изменения в conftest.py:**
+```python
+# Было:
+date_part = datetime.now().strftime("%y%m%d")
+
+# Стало:
+date_part = timezone.now().strftime("%y%m%d")
+```
+
+### Проверено
+
+#### 1. Отсутствие return True/False в тестах
+- Проверены все тестовые файлы на наличие `return True` или `return False`
+- **Результат:** Проблем не обнаружено
+
+#### 2. Уникальность значений в фабриках
+- Проверены все фабрики в `conftest.py` на использование уникальных значений
+- **Результат:** Все критичные поля используют `factory.Sequence`, `factory.LazyFunction` или `get_unique_suffix()`
+
+### Добавлено
+
+#### 1. Скрипт для запуска тестов через Docker
+- **Файл:** `run-tests-docker.ps1` (в корне проекта)
+- **Назначение:** Автоматизированный запуск тестов в изолированной Docker среде
+- **Использование:** `.\run-tests-docker.ps1`
+
+#### 2. Руководство по запуску тестов
+- **Файл:** `tests/RUN_TESTS_GUIDE.md`
+- **Содержание:**
+  - Инструкции по запуску через Docker
+  - Команды для локального запуска
+  - Отладка и troubleshooting
+  - Проверка исправлений
+  - Чеклист перед коммитом
+
+### Как проверить исправления
+
+```powershell
+# 1. Запустите Docker Desktop
+
+# 2. Запустите тесты через Docker
+.\run-tests-docker.ps1
+
+# 3. Или запустите конкретные тесты
+docker-compose -f docker-compose.test.yml run --rm backend pytest tests/unit/test_models/test_product_models.py -v
+```
+
+**Ожидаемый результат:**
+- ✅ Нет предупреждений "DateTimeField received a naive datetime"
+- ✅ Нет ошибок "Database access not allowed" (если есть - добавьте `@pytest.mark.django_db`)
+- ✅ Нет ошибок "duplicate key value violates unique constraint"
+
 ## [2025-09-30] - Исправление критичных проблем CI/CD
 
 ### Добавлено

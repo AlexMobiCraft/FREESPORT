@@ -10,6 +10,7 @@ from decimal import Decimal
 from unittest.mock import patch
 
 import pytest
+from django.utils import timezone
 
 # Глобальный счетчик для обеспечения уникальности
 _unique_counter = 0
@@ -27,7 +28,7 @@ def get_unique_order_number():
     """Генерирует абсолютно уникальный номер заказа"""
     global _unique_counter
     _unique_counter += 1
-    date_part = datetime.now().strftime("%y%m%d")
+    date_part = timezone.now().strftime("%y%m%d")
     unique_part = f"{_unique_counter:04d}{uuid.uuid4().hex[:3].upper()}"
     timestamp = (
         int(time.time() * 1000) % 100000
