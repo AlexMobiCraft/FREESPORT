@@ -1,5 +1,29 @@
 # Changelog - Исправления тестов
 
+## [2025-09-30 18:57] - Исправление переменных окружения в GitHub Actions
+
+### Исправлено
+
+#### 1. Отсутствие переменных окружения в шаге тестирования
+- **Файл:** `.github/workflows/backend-ci.yml`
+- **Проблема:** Шаг "Run tests with coverage" не имел переменных окружения, что вызывало ошибки доступа к БД
+- **Решение:** Добавлены все необходимые переменные окружения в секцию `env` шага тестирования
+- **Эффект:** Тесты на GitHub Actions теперь имеют доступ к БД и Redis
+
+**Добавленные переменные:**
+```yaml
+env:
+  SECRET_KEY: test-secret-key-for-ci-cd-only
+  DEBUG: False
+  DJANGO_SETTINGS_MODULE: freesport.settings.test
+  DB_NAME: freesport_test
+  DB_USER: postgres
+  DB_PASSWORD: postgres
+  DB_HOST: localhost
+  DB_PORT: 5432
+  REDIS_URL: redis://localhost:6379/0
+```
+
 ## [2025-09-30 16:23] - Исправление naive datetime warnings
 
 ### Исправлено
