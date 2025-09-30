@@ -623,15 +623,15 @@ def close_db_connections():
     """
     Автоматическое закрытие соединений с БД после каждого теста.
     Предотвращает ошибки "database is being accessed by other users".
-    
+
     ВАЖНО: Закрывает только неактивные соединения, не трогая транзакции.
     """
     yield
-    
+
     # Закрываем все соединения с БД после теста
     try:
         from django.db import connection, connections
-        
+
         # Проверяем, что нет активных транзакций
         if not connection.in_atomic_block:
             connections.close_all()
