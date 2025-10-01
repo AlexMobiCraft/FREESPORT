@@ -110,8 +110,9 @@ jobs:
       run: |
         cd backend
         source venv/bin/activate
-        bandit -r . --exclude venv -f json -o bandit-report.json || true
-        bandit -r . --exclude venv -ll
+        # Сканируем только исходный код приложений, используя конфиг .bandit
+        bandit -r apps/ freesport/ -f json -o bandit-report.json || true
+        bandit -r apps/ freesport/ -ll
         
     - name: Check dependencies for security vulnerabilities
       run: |

@@ -1,5 +1,54 @@
 # Changelog - Исправления тестов
 
+## [2025-10-01 18:32] - Исправление Bandit security checks и PostgreSQL health check
+
+### Исправлено
+
+#### 1. Bandit сканирует виртуальное окружение и зависимости
+- **Файлы:** 
+  - `.github/workflows/backend-ci.yml` (строки 109-115)
+  - `backend/.bandit` (новый файл)
+- **Проблема:** Bandit анализировал venv и находил ложные срабатывания в сторонних библиотеках (eval, exec, pickle в Django, pytest, faker и др.)
+- **Решение:** 
+  - Создан конфигурационный файл `.bandit` с исключениями для venv, htmlcov, test-reports и других служебных директорий
+  - Изменена команда Bandit: теперь сканируются только директории `apps/` и `freesport/` с исходным кодом
+- **Эффект:** Устранены ложные срабатывания в сторонних библиотеках, проверяется только код проекта
+
+**Новая команда Bandit:**
+```yaml
+bandit -r apps/ freesport/ -f json -o bandit-report.json || true
+bandit -r apps/ freesport/ -ll
+```
+
+#### 2. PostgreSQL health check использует root пользователя
+- **Файл:** `.github/workflows/backend-ci.yml` (строка 37)
+- **Проблема:** `pg_isready` без параметра `-U` пытался использовать пользователя root, вызывая ошибку "FATAL: role 'root' does not exist"
+- **Решение:** Добавлен параметр `-U postgres` в health-cmd
+- **Эффект:** Устранена ошибка подключения к PostgreSQL в GitHub Actions
+
+**Исправленная команда:**
+```yaml
+--health-cmd "pg_isready -U postgres"
+```
+
+#### 3. Удалены временные тестовые файлы
+- **Файлы:** 
+  - `backend/test_order_serializer_simple.py` (удален)
+  - `backend/test_serializer_unit.py` (удален)
+- **Проблема:** Временные тестовые файлы в корне backend/ запускались pytest и падали из-за отсутствия декоратора `@pytest.mark.django_db` и проблем с Mock объектами
+- **Решение:** Файлы удалены, так как были созданы для временного тестирования
+- **Эффект:** Устранены 2 падающих теста на GitHub Actions
+
+### Добавлено
+
+#### 1. Конфигурационный файл .bandit
+- **Файл:** `backend/.bandit`
+- **Назначение:** Централизованная конфигурация для Bandit security scanner
+- **Содержание:**
+  - Исключения для venv, htmlcov, test-reports, migrations и других служебных директорий
+  - Уровень серьезности: MEDIUM
+  - Уровень доверия: MEDIUM
+
 ## [2025-09-30 18:57] - Исправление переменных окружения в GitHub Actions
 
 ### Исправлено
