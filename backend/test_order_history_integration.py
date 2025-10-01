@@ -43,7 +43,7 @@ def test_order_history_api():
 
         # Создаем JWT токен
         refresh = JWTRefreshToken.for_user(user)
-        access_token = str(refresh.access_token)
+        access_token = str(refresh)
 
         # Создаем API клиент
         client = APIClient()
