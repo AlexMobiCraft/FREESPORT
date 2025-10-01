@@ -45,7 +45,10 @@ class UserDashboardView(APIView):
     @extend_schema(
         summary="Получение дашборда пользователя",
         description="Возвращает основные метрики и статистику пользователя",
-        responses={200: UserDashboardSerializer, 401: "Пользователь не авторизован"},
+        responses={
+            200: UserDashboardSerializer,
+            401: "Пользователь не авторизован",
+        },
     )
     def get(self, request):
         """Получение данных дашборда"""
@@ -79,7 +82,7 @@ class UserDashboardView(APIView):
         serializer = UserDashboardSerializer(dashboard_data)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    def _get_order_statistics(self, user) -> dict:
+    def _get_order_statistics(self, user: User) -> dict:
         """
         Получение статистики заказов пользователя
 

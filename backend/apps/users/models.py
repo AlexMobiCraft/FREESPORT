@@ -75,7 +75,10 @@ class User(AbstractUser):
 
     # Дополнительные поля
     role = models.CharField(
-        "Роль пользователя", max_length=20, choices=ROLE_CHOICES, default="retail"
+        "Роль пользователя",
+        max_length=20,
+        choices=ROLE_CHOICES,
+        default="retail",
     )
 
     phone_regex = RegexValidator(
@@ -137,7 +140,9 @@ class User(AbstractUser):
         help_text="Указывает, что пользователь был создан в 1С",
     )
     needs_1c_export = models.BooleanField(
-        "Требует экспорта в 1С", default=False, help_text="Требует экспорта данных в 1С"
+        "Требует экспорта в 1С",
+        default=False,
+        help_text="Требует экспорта данных в 1С",
     )
     last_sync_at = models.DateTimeField(
         "Последняя синхронизация",
@@ -154,7 +159,7 @@ class User(AbstractUser):
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["first_name", "last_name"]
 
-    objects: "UserManager[User]" = UserManager()  # type: ignore[misc,assignment]
+    objects: UserManager = UserManager()  # type: ignore[misc,assignment]
 
     class Meta:
         verbose_name = "Пользователь"
@@ -184,7 +189,11 @@ class User(AbstractUser):
     @property
     def is_wholesale_user(self) -> bool:
         """Является ли пользователь оптовым покупателем"""
-        wholesale_roles = ["wholesale_level1", "wholesale_level2", "wholesale_level3"]
+        wholesale_roles = [
+            "wholesale_level1",
+            "wholesale_level2",
+            "wholesale_level3",
+        ]
         return self.role in wholesale_roles
 
     @property

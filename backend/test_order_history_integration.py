@@ -8,12 +8,17 @@ import django
 
 # Настройка Django
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "freesport.settings.test")
-django.setup()
 
-from rest_framework.test import APIClient
-from rest_framework_simplejwt.tokens import RefreshToken
-from apps.orders.models import Order
-from django.contrib.auth import get_user_model
+
+from django.contrib.auth import get_user_model  # noqa: E402
+from rest_framework.test import APIClient  # noqa: E402
+from rest_framework_simplejwt.tokens import (  # noqa: E402
+    RefreshToken as JWTRefreshToken,
+)
+
+from apps.orders.models import Order  # noqa: E402
+
+django.setup()
 
 User = get_user_model()
 
@@ -28,6 +33,7 @@ def test_order_history_api():
 
         unique_email = f"test{int(time.time())}@test.com"
         user = User.objects.create_user(
+            username=unique_email,
             email=unique_email,
             password="testpass123",
             first_name="Test",
@@ -36,7 +42,7 @@ def test_order_history_api():
         print(f"✅ Пользователь создан: {user}")
 
         # Создаем JWT токен
-        refresh = RefreshToken.for_user(user)
+        refresh = JWTRefreshToken.for_user(user)
         access_token = str(refresh.access_token)
 
         # Создаем API клиент

@@ -406,6 +406,6 @@ class OrderHistorySerializer(serializers.ModelSerializer):
         ]
         read_only_fields = fields
 
-    def get_items_count(self, obj) -> int:
+    def get_items_count(self, obj: Order) -> int:
         """Получение количества товаров в заказе"""
-        return obj.total_items
+        return int(obj.total_items)
