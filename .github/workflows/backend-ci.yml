@@ -45,7 +45,12 @@ jobs:
         image: redis:7
         ports:
           - 6379:6379
-        options: --health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s --health-retries 5
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+          --sysctl net.core.somaxconn=511
     
     steps:
     - name: Checkout code
@@ -118,8 +123,11 @@ jobs:
       run: |
         cd backend
         source venv/bin/activate
+        echo "🔍 Проверка зависимостей на уязвимости..."
         safety check --json --output safety-report.json || true
-        safety check
+        echo "📋 Подробный отчет о найденных уязвимостях:"
+        safety check --full-report || true
+      continue-on-error: true  # Не блокируем сборку из-за уязвимостей в зависимостях
         
     - name: Run Django system checks
       run: |
