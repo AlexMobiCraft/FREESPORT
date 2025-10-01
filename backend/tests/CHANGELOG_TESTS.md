@@ -14,10 +14,10 @@
 - **Эффект:** Сборка не блокируется, но разработчики видят список уязвимостей для исправления
 
 #### 2. Redis WARNING: Memory overcommit must be enabled
-- **Файл:** `.github/workflows/backend-ci.yml` (строки 44-53)
-- **Проблема:** Redis выдавал предупреждение о необходимости включения memory overcommit
-- **Решение:** Добавлен параметр `--sysctl net.core.somaxconn=511` в options для Redis service
-- **Эффект:** Устранено предупреждение Redis о настройках памяти
+- **Файл:** `.github/workflows/backend-ci.yml` (строки 44-52)
+- **Проблема:** Redis выдавал предупреждение "Memory overcommit must be enabled!"
+- **Решение:** Предупреждение Redis является информационным и не блокирует работу. В GitHub Actions нельзя изменить `vm.overcommit_memory` на уровне хоста
+- **Эффект:** Предупреждение остается, но не влияет на работу тестов. Для production окружения настройка должна быть выполнена на уровне хоста
 
 **Обновленная конфигурация Safety:**
 ```yaml
@@ -25,16 +25,11 @@
   run: |
     safety check --json --output safety-report.json || true
     safety check --full-report || true
-  continue-on-error: true
+  continue-on-error: true  # Не блокируем сборку
 ```
 
-**Обновленная конфигурация Redis:**
-```yaml
-redis:
-  options: >-
-    --health-cmd "redis-cli ping"
-    --sysctl net.core.somaxconn=511
-```
+**Примечание по Redis:**
+В GitHub Actions невозможно установить `vm.overcommit_memory=1` через `--sysctl`, так как это требует привилегированного режима. Предупреждение можно игнорировать в CI/CD окружении.
 
 ### Рекомендации
 

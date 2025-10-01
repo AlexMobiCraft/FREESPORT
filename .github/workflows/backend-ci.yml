@@ -50,7 +50,6 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-          --sysctl net.core.somaxconn=511
     
     steps:
     - name: Checkout code
