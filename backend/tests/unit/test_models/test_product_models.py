@@ -1,6 +1,4 @@
-"""
-Тесты для моделей товаров FREESPORT Platform
-"""
+"""Тесты для моделей товаров FREESPORT Platform"""
 import time
 import uuid
 from decimal import Decimal
@@ -9,6 +7,7 @@ import pytest
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 from django.test import TestCase
+from django.utils import timezone
 
 from apps.products.models import Brand, Category, Product
 from tests.factories import BrandFactory, CategoryFactory, ProductFactory, UserFactory
@@ -322,7 +321,7 @@ class TestProduct1CIntegrationFields:
         assert product.last_sync_at is None
 
         # Обновляем с датой синхронизации
-        sync_time = datetime.now()
+        sync_time = timezone.now()
         product.last_sync_at = sync_time
         product.save()
 
@@ -346,9 +345,7 @@ class TestProduct1CIntegrationFields:
 
     def test_product_1c_fields_together(self):
         """Тест использования всех 1С полей вместе"""
-        from datetime import datetime
-
-        sync_time = datetime.now()
+        sync_time = timezone.now()
         product = ProductFactory.create(
             onec_id="FULL_TEST_001",
             sync_status="synced",

@@ -34,7 +34,7 @@ jobs:
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: freesport_test
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -U postgres"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -161,6 +161,16 @@ jobs:
         python manage.py migrate --run-syncdb --settings=freesport.settings.test
         
     - name: Run tests with coverage
+      env:
+        SECRET_KEY: test-secret-key-for-ci-cd-only
+        DEBUG: False
+        DJANGO_SETTINGS_MODULE: freesport.settings.test
+        DB_NAME: freesport_test
+        DB_USER: postgres
+        DB_PASSWORD: postgres
+        DB_HOST: localhost
+        DB_PORT: 5432
+        REDIS_URL: redis://localhost:6379/0
       run: |
         cd backend
         source venv/bin/activate

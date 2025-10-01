@@ -28,11 +28,11 @@ class DocsValidator:
 
         # Паттерны для поиска проблем
         self.obsolete_patterns = [
-            r'\bзаглушка\b',
-            r'\bвременно\b',
-            r'\bTODO.*[Оо]тсутствует\b',
-            r'\bбудет\s+реализовано\b',
-            r'\bпланируется\b',
+            r"\bзаглушка\b",
+            r"\bвременно\b",
+            r"\bTODO.*[Оо]тсутствует\b",
+            r"\bбудет\s+реализовано\b",
+            r"\bпланируется\b",
         ]
 
         # Ключевые документы для проверки
@@ -84,7 +84,7 @@ class DocsValidator:
         # Исключаем файлы, где устаревшие термины допустимы
         exclude_patterns = [
             "TODO_TEMPORARY_FIXES.md",  # Этот файл специально для TODO
-            "implementation/",         # Здесь могут быть упоминания для контекста
+            "implementation/",  # Здесь могут быть упоминания для контекста
         ]
 
         for md_file in self.docs_root.rglob("*.md"):
@@ -93,8 +93,8 @@ class DocsValidator:
                 continue
 
             try:
-                content = md_file.read_text(encoding='utf-8')
-                lines = content.split('\n')
+                content = md_file.read_text(encoding="utf-8")
+                lines = content.split("\n")
 
                 for line_num, line in enumerate(lines, 1):
                     for pattern in self.obsolete_patterns:
@@ -121,15 +121,15 @@ class DocsValidator:
         # Проверяем ссылки в каждом файле
         for md_file in self.docs_root.rglob("*.md"):
             try:
-                content = md_file.read_text(encoding='utf-8')
+                content = md_file.read_text(encoding="utf-8")
 
                 # Ищем markdown ссылки вида [text](./path.md)
-                link_pattern = r'\[([^\]]+)\]\(([^)]+)\.md\)'
+                link_pattern = r"\[([^\]]+)\]\(([^)]+)\.md\)"
                 matches = re.findall(link_pattern, content)
 
                 for text, link_path in matches:
                     # Проверяем, существует ли файл
-                    if link_path not in all_files and not link_path.startswith('http'):
+                    if link_path not in all_files and not link_path.startswith("http"):
                         broken_links.append(
                             f"{md_file.relative_to(self.docs_root)}: "
                             f"сломанная ссылка на {link_path}.md"
@@ -148,7 +148,7 @@ class DocsValidator:
         index_path = self.docs_root / "index.md"
         if index_path.exists():
             try:
-                content = index_path.read_text(encoding='utf-8')
+                content = index_path.read_text(encoding="utf-8")
                 required_sections = [
                     "## Корневые документы",
                     "## Architecture",
@@ -210,7 +210,9 @@ class DocsValidator:
             for term in results["obsolete_terms"][:10]:  # Показываем первые 10
                 report.append(f"  • {term}")
             if len(results["obsolete_terms"]) > 10:
-                report.append(f"  ... и ещё {len(results['obsolete_terms']) - 10} упоминаний")
+                report.append(
+                    f"  ... и ещё {len(results['obsolete_terms']) - 10} упоминаний"
+                )
 
         # Сломанные ссылки
         if results["broken_links"]:
