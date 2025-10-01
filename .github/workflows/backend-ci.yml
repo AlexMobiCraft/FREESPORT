@@ -110,8 +110,8 @@ jobs:
       run: |
         cd backend
         source venv/bin/activate
-        bandit -r . -f json -o bandit-report.json || true
-        bandit -r . -ll
+        bandit -r . --exclude venv -f json -o bandit-report.json || true
+        bandit -r . --exclude venv -ll
         
     - name: Check dependencies for security vulnerabilities
       run: |
