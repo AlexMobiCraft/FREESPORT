@@ -1,4 +1,5 @@
 # Dockerfile оптимизированный для тестирования FREESPORT Backend
+# персональный токен доступа (PAT) - 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
 FROM python:3.12-slim
 
 # Метаданные образа
