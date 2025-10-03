@@ -5,6 +5,7 @@
 ### Исправлено
 
 #### 1. Docker build блокирует workflow из-за отсутствия прав
+
 - **Файл:** `.github/workflows/backend-ci.yml` (строки 210-244)
 - **Проблема:** Ошибка "denied: installation not allowed to Create organization package" блокировала весь workflow
 - **Решение:**
@@ -21,6 +22,7 @@
 ### Исправлено
 
 #### 1. API documentation check блокирует сборку
+
 - **Файл:** `.github/workflows/backend-ci.yml` (строки 138-144)
 - **Проблема:** Команда `check_api_docs --fail-on-missing` блокировала сборку из-за 11 недокументированных endpoints (покрытие 52.2%)
 - **Решение:** 
@@ -30,6 +32,7 @@
 - **Эффект:** Сборка не блокируется, но выводится отчет о недокументированных endpoints
 
 **Недокументированные endpoints (11):**
+
 - BrandViewSet: list, retrieve
 - CategoryTreeViewSet: list, retrieve (missing @extend_schema)
 - CategoryViewSet: list, retrieve
@@ -41,6 +44,7 @@
 ### Исправлено
 
 #### 1. Safety check блокирует сборку из-за уязвимостей
+
 - **Файл:** `.github/workflows/backend-ci.yml` (строки 117-125)
 - **Проблема:** Safety check находил 32 High severity уязвимости и завершал сборку с exit code 1
 - **Решение:** 
@@ -50,12 +54,14 @@
 - **Эффект:** Сборка не блокируется, но разработчики видят список уязвимостей для исправления
 
 #### 2. Redis WARNING: Memory overcommit must be enabled
+
 - **Файл:** `.github/workflows/backend-ci.yml` (строки 44-52)
 - **Проблема:** Redis выдавал предупреждение "Memory overcommit must be enabled!"
 - **Решение:** Предупреждение Redis является информационным и не блокирует работу. В GitHub Actions нельзя изменить `vm.overcommit_memory` на уровне хоста
 - **Эффект:** Предупреждение остается, но не влияет на работу тестов. Для production окружения настройка должна быть выполнена на уровне хоста
 
 **Обновленная конфигурация Safety:**
+
 ```yaml
 - name: Check dependencies for security vulnerabilities
   run: |
@@ -70,6 +76,7 @@
 ### Рекомендации
 
 #### Исправление уязвимостей в зависимостях
+
 После успешной сборки проверьте файл `safety-report.json` в артефактах и обновите уязвимые пакеты:
 
 1. Просмотрите отчет Safety в логах GitHub Actions
@@ -83,11 +90,12 @@
 ### Исправлено
 
 #### 1. Bandit сканирует виртуальное окружение и зависимости
+
 - **Файлы:** 
   - `.github/workflows/backend-ci.yml` (строки 109-115)
   - `backend/.bandit` (новый файл)
 - **Проблема:** Bandit анализировал venv и находил ложные срабатывания в сторонних библиотеках (eval, exec, pickle в Django, pytest, faker и др.)
-- **Решение:** 
+- **Решение:**
   - Создан конфигурационный файл `.bandit` с исключениями для venv, htmlcov, test-reports и других служебных директорий
   - Изменена команда Bandit: теперь сканируются только директории `apps/` и `freesport/` с исходным кодом
 - **Эффект:** Устранены ложные срабатывания в сторонних библиотеках, проверяется только код проекта
@@ -105,11 +113,13 @@ bandit -r apps/ freesport/ -ll
 - **Эффект:** Устранена ошибка подключения к PostgreSQL в GitHub Actions
 
 **Исправленная команда:**
+
 ```yaml
 --health-cmd "pg_isready -U postgres"
 ```
 
 #### 3. Удалены временные тестовые файлы
+
 - **Файлы:** 
   - `backend/test_order_serializer_simple.py` (удален)
   - `backend/test_serializer_unit.py` (удален)
@@ -120,6 +130,7 @@ bandit -r apps/ freesport/ -ll
 ### Добавлено
 
 #### 1. Конфигурационный файл .bandit
+
 - **Файл:** `backend/.bandit`
 - **Назначение:** Централизованная конфигурация для Bandit security scanner
 - **Содержание:**
@@ -132,12 +143,14 @@ bandit -r apps/ freesport/ -ll
 ### Исправлено
 
 #### 1. Отсутствие переменных окружения в шаге тестирования
+
 - **Файл:** `.github/workflows/backend-ci.yml`
 - **Проблема:** Шаг "Run tests with coverage" не имел переменных окружения, что вызывало ошибки доступа к БД
 - **Решение:** Добавлены все необходимые переменные окружения в секцию `env` шага тестирования
 - **Эффект:** Тесты на GitHub Actions теперь имеют доступ к БД и Redis
 
 **Добавленные переменные:**
+
 ```yaml
 env:
   SECRET_KEY: test-secret-key-for-ci-cd-only
@@ -156,6 +169,7 @@ env:
 ### Исправлено
 
 #### 1. Использование timezone-aware datetime
+
 - **Файлы:** 
   - `tests/unit/test_models/test_product_models.py`
   - `tests/conftest.py`
@@ -164,6 +178,7 @@ env:
 - **Эффект:** Устранены предупреждения "DateTimeField received a naive datetime"
 
 **Изменения в test_product_models.py:**
+
 ```python
 # Было:
 from datetime import datetime
@@ -175,6 +190,7 @@ sync_time = timezone.now()
 ```
 
 **Изменения в conftest.py:**
+
 ```python
 # Было:
 date_part = datetime.now().strftime("%y%m%d")
@@ -186,21 +202,25 @@ date_part = timezone.now().strftime("%y%m%d")
 ### Проверено
 
 #### 1. Отсутствие return True/False в тестах
+
 - Проверены все тестовые файлы на наличие `return True` или `return False`
 - **Результат:** Проблем не обнаружено
 
 #### 2. Уникальность значений в фабриках
+
 - Проверены все фабрики в `conftest.py` на использование уникальных значений
 - **Результат:** Все критичные поля используют `factory.Sequence`, `factory.LazyFunction` или `get_unique_suffix()`
 
 ### Добавлено
 
 #### 1. Скрипт для запуска тестов через Docker
+
 - **Файл:** `run-tests-docker.ps1` (в корне проекта)
 - **Назначение:** Автоматизированный запуск тестов в изолированной Docker среде
 - **Использование:** `.\run-tests-docker.ps1`
 
 #### 2. Руководство по запуску тестов
+
 - **Файл:** `tests/RUN_TESTS_GUIDE.md`
 - **Содержание:**
   - Инструкции по запуску через Docker
@@ -222,6 +242,7 @@ docker-compose -f docker-compose.test.yml run --rm backend pytest tests/unit/tes
 ```
 
 **Ожидаемый результат:**
+
 - ✅ Нет предупреждений "DateTimeField received a naive datetime"
 - ✅ Нет ошибок "Database access not allowed" (если есть - добавьте `@pytest.mark.django_db`)
 - ✅ Нет ошибок "duplicate key value violates unique constraint"
@@ -231,6 +252,7 @@ docker-compose -f docker-compose.test.yml run --rm backend pytest tests/unit/tes
 ### Добавлено
 
 #### 1. Автоматическое закрытие соединений БД
+
 - **Файл:** `tests/conftest.py`
 - **Изменение:** Добавлена фикстура `close_db_connections` с `autouse=True`
 - **Цель:** Предотвращение ошибки "database is being accessed by other users"
@@ -253,12 +275,14 @@ def close_db_connections():
 ```
 
 #### 2. Маркер django_db в pytest.ini
+
 - **Файл:** `pytest.ini`
 - **Изменение:** Добавлен маркер `django_db` в список markers
 - **Цель:** Явное объявление маркера для тестов с доступом к БД
 - **Эффект:** Устранение предупреждений pytest о неизвестных маркерах
 
 #### 3. Руководство по исправлению тестов
+
 - **Файл:** `tests/TEST_FIXES_GUIDE.md`
 - **Содержание:**
   - Решение проблемы "Database access not allowed"
@@ -270,45 +294,53 @@ def close_db_connections():
 ### Исправленные проблемы
 
 #### Проблема 1: RuntimeError - Database access not allowed
+
 **Симптом:**
 ```
 RuntimeError: Database access not allowed, use the "django_db" mark
 ```
 
 **Решение:**
+
 - Все тесты сериализаторов уже имеют декоратор `@pytest.mark.django_db`
 - Добавлен маркер в pytest.ini для корректной работы
 - Создано руководство для разработчиков
 
 #### Проблема 2: Сравнение с Mock-объектом
+
 **Симптом:**
 ```
 assert "<Mock name='...'>" == 'Доставлен'
 ```
 
 **Решение:**
+
 - Создано руководство с примерами правильного использования Mock
 - Указано на необходимость вызова методов Mock с `()`
 - Добавлены примеры правильного и неправильного кода
 
 #### Проблема 3: Дублирование ключей в БД
+
 **Симптом:**
 ```
 duplicate key value violates unique constraint
 ```
 
 **Решение:**
+
 - В conftest.py уже есть функция `get_unique_suffix()`
 - Добавлены примеры использования в руководстве
 - Рекомендации по генерации уникальных значений
 
 #### Проблема 4: Незакрытые соединения с БД
+
 **Симптом:**
 ```
 database 'test_test_db' is being accessed by other users
 ```
 
 **Решение:**
+
 - Добавлена автоматическая фикстура `close_db_connections`
 - Соединения закрываются после каждого теста
 - Предотвращение утечек соединений
