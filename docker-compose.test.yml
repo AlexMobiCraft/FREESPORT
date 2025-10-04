@@ -1,6 +1,5 @@
 
 # Docker Compose для тестирования FREESPORT Platform
-version: '3.8'
 
 services:
   # PostgreSQL тестовая база данных
@@ -67,7 +66,7 @@ services:
       - PYTEST_CURRENT_TEST=1
       - TEST_RUNNER=pytest
     volumes:
-      - ./backend:/app
+      - /home/alex/FREESPORT/backend:/app
       - test_coverage:/app/htmlcov
     depends_on:
       db:
