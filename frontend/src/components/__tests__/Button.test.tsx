@@ -5,6 +5,23 @@ import React from 'react'
 import { render, screen, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import Button from '@/components/ui/Button'
+import '@testing-library/jest-dom'
+
+// Импортируем типы для использования в тестах
+type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger'
+type ButtonSize = 'sm' | 'md' | 'lg'
+
+// Расширяем типы Jest для включения матчеров из @testing-library/jest-dom
+declare global {
+  namespace jest {
+    interface Matchers<R> {
+      toBeInTheDocument(): R
+      toHaveClass(className: string | string[]): R
+      toBeDisabled(): R
+      toHaveAttribute(attr: string, value?: string): R
+    }
+  }
+}
 
 describe('Button', () => {
   // Тест базовой функциональности
@@ -33,7 +50,7 @@ describe('Button', () => {
     ['ghost', 'bg-transparent'],
     ['danger', 'bg-red-600'],
   ])('применяет правильные стили для варианта %s', (variant, expectedClass) => {
-    render(<Button variant={variant as any}>Кнопка</Button>)
+    render(<Button variant={variant as ButtonVariant}>Кнопка</Button>)
     
     const button = screen.getByRole('button')
     expect(button).toHaveClass(expectedClass)
@@ -45,7 +62,7 @@ describe('Button', () => {
     ['md', 'px-4 py-2 text-base'],
     ['lg', 'px-6 py-3 text-lg'],
   ])('применяет правильные стили для размера %s', (size, expectedClass) => {
-    render(<Button size={size as any}>Кнопка</Button>)
+    render(<Button size={size as ButtonSize}>Кнопка</Button>)
     
     const button = screen.getByRole('button')
     expectedClass.split(' ').forEach(cls => {
@@ -61,7 +78,8 @@ describe('Button', () => {
     
     const button = screen.getByRole('button')
     expect(button).toBeDisabled()
-    expect(button).toHaveClass('opacity-50', 'cursor-not-allowed')
+    expect(button).toHaveClass('opacity-50')
+    expect(button).toHaveClass('cursor-not-allowed')
     
     fireEvent.click(button)
     expect(handleClick).not.toHaveBeenCalled()
@@ -105,6 +123,7 @@ describe('Button', () => {
     const button = screen.getByRole('button')
     expect(button).toHaveAttribute('type', 'button')
     expect(button).toHaveClass('bg-blue-600') // primary variant
-    expect(button).toHaveClass('px-4', 'py-2') // md size
+    expect(button).toHaveClass('px-4') // md size
+    expect(button).toHaveClass('py-2') // md size
   })
 })
