@@ -56,10 +56,14 @@ freesport/
 │   ├── Dockerfile              # Docker образ frontend
 │   └── .env.example            # Пример переменных окружения
 ├── docs/                       # Документация проекта
+│   ├── index.md                # 📚 Главная страница документации
+│   ├── PROJECT_PROGRESS.md     # 📈 Отслеживание прогресса проекта
 │   ├── Brief.md                # Техническое задание
 │   ├── PRD.md                  # Product Requirements Document
 │   ├── architecture.md         # Архитектура системы
 │   ├── front-end-spec.md       # 🎨 UI/UX спецификация FREESPORT
+│   ├── docker-configuration.md # Конфигурация Docker
+│   ├── testing-docker.md       # Тестирование в Docker
 │   ├── api-spec.yaml           # OpenAPI спецификация
 │   ├── api-views-documentation.md # 📋 Документация Django Views и API endpoints
 │   ├── test-catalog-api.md     # 🧪 Структура и организация тестов API
@@ -68,13 +72,9 @@ freesport/
 │   ├── decisions/              # 📋 Архитектурные и технические решения
 │   │   ├── README.md           # Индекс всех документов решений
 │   │   ├── SUMMARY.md          # Сводка архитектурных принципов
-│   │   ├── story-2.1-api-documentation-decisions.md  # OpenAPI 3.1.0
-│   │   ├── story-2.2-user-management-api-decisions.md # JWT + роли
-│   │   ├── story-2.3-personal-cabinet-api-decisions.md # Дашборд
-│   │   ├── story-2.4-catalog-api-decisions.md         # Каталог
-│   │   ├── story-2.5-product-detail-api-decisions.md  # Товары
-│   │   ├── story-2.6-cart-api-decisions.md            # Корзина
-│   │   └── story-2.7-order-api-decisions.md           # Заказы
+│   │   ├── story-2.1-api-documentation-decisions.md
+│   │   ├── ...
+│   │   └── story-2.7-order-api-decisions.md
 │   ├── prd/                    # Детальные требования
 │   │   ├── index.md            # Индекс документации PRD
 │   │   ├── goals-and-background-context.md  # Цели и контекст
@@ -288,31 +288,21 @@ make format         # Форматирование кода
 make lint           # Проверка кода
 ```
 
-## 📈 Отслеживание прогресса
+## 📈 Прогресс проекта
 
-**Этап 1 (Недели 1-2): Фундамент проекта**
-- [x] [Story 1.1:](docs/stories/epic-1/1.1.git-setup.md) Настройка Git ✅ ЗАВЕРШЕНА
-- [x] [Story 1.2:](docs/stories/epic-1/1.2.dev-environment.md) Среда разработки ✅ ЗАВЕРШЕНА
-- [x] [Story 1.3:](docs/stories/epic-1/1.3.django-structure.md) Структура Django ✅ ЗАВЕРШЕНА
-- [x] [Story 1.4:](docs/stories/epic-1/1.4.nextjs-structure.md) Структура Next.js ✅ ЗАВЕРШЕНА
-- [x] [Story 1.5:](docs/stories/epic-1/1.5.cicd-infrastructure.md) CI/CD инфраструктура ✅ ЗАВЕРШЕНА
-- [x] [Story 1.6:](docs/stories/epic-1/1.6.docker-containers.md) Docker контейнеры ✅ ЗАВЕРШЕНА
-- [x] [Story 1.7:](docs/stories/epic-1/1.7.testing-environment.md) Тестирование ✅ ЗАВЕРШЕНА
-- [x] [Story 1.8:](docs/stories/epic-1/1.8.database-design.md) База данных ✅ ЗАВЕРШЕНА
-- [x] [Story 1.9:](docs/stories/epic-1/1.9.design-brief.md) UI/UX спецификация ✅ ЗАВЕРШЕНА
+**Текущий статус:** 🔄 Этап 2 - API Backend (80% завершено)
 
-**Этап 2 (Недели 3-4): API Backend**
-- [x] [Story 2.1:](docs/stories/epic-2/2.1.swagger-documentation.md) API Документация (OpenAPI 3.1) ✅ ЗАВЕРШЕНА
-- [x] [Story 2.2:](docs/stories/epic-2/2.2.user-management-api.md) User Management API ✅ ЗАВЕРШЕНА
-- [x] [Story 2.3:](docs/stories/epic-2/2.3.personal-cabinet-api.md) Personal Cabinet API ✅ ЗАВЕРШЕНА
-- [x] [Story 2.4:](docs/stories/epic-2/2.4.catalog-api.md) Catalog API ✅ ЗАВЕРШЕНА
-- [x] [Story 2.5:](docs/stories/epic-2/2.5.product-detail-api.md) Product Detail API ✅ ЗАВЕРШЕНА
-- [x] [Story 2.6:](docs/stories/epic-2/2.6.cart-api.md) Cart API ✅ ЗАВЕРШЕНА
-- [x] [Story 2.7:](docs/stories/epic-2/2.7.order-api.md) Order API ✅ ЗАВЕРШЕНА
-- [x] [Story 2.8:](docs/stories/epic-2/2.8.search-api.md) Search API ✅ ЗАВЕРШЕНА
-- [ ] [Story 2.9:](docs/stories/epic-2/2.9.filtering-api.md) Filtering API
-- [ ] [Story 2.10:](docs/stories/epic-2/2.10.pages-api.md) Pages API
+- ✅ **Этап 1:** Фундамент проекта - **ЗАВЕРШЕН** (9/9 stories)
+- 🔄 **Этап 2:** API Backend - **В ПРОЦЕССЕ** (8/10 stories)
+- 📋 **Этап 3:** Интеграция с 1С - **ЗАПЛАНИРОВАН** (0/10 stories)
 
+**Детальное отслеживание:** [docs/PROJECT_PROGRESS.md](docs/PROJECT_PROGRESS.md)
+
+### Ближайшие задачи
+
+- 🔄 Story 2.9: Filtering API (в работе)
+- 📋 Story 2.10: Pages API (запланирована)
+- 📋 Начало Этапа 3: Интеграция с 1С
 
 ## 📞 Контакты
 
