@@ -3,10 +3,47 @@
 
 param(
     [string]$DockerContext = "freesport-remote",
-    [string]$ComposeFile = "docker-compose.test.yml"
+    [string]$ComposeFile = "docker-compose.test.yml",
+    [string]$User = "alex",
+    [string]$IP = "192.168.1.130",
+    [string]$SshKeyPath = "C:\\Users\\38670\\.ssh\\id_ed25519"
 )
 
 $script:TestRunExitCode = 1
+
+# Функция запускает ssh-agent и добавляет указанный ключ
+function Start-SshAgentIfNeeded {
+    param(
+        [string]$KeyPath
+    )
+
+    if (-not (Test-Path -Path $KeyPath)) {
+        throw "SSH-ключ не найден: $KeyPath"
+    }
+
+    Start-Service ssh-agent -ErrorAction SilentlyContinue | Out-Null
+    ssh-add $KeyPath | Out-Null
+}
+
+# Функция проверяет наличие Docker контекста и активирует его
+function Ensure-DockerContext {
+    param(
+        [string]$ContextName,
+        [string]$ContextUser,
+        [string]$ContextHost
+    )
+
+    $contexts = docker context ls --format "{{.Name}}"
+    $contextExists = $contexts -split "`n" | Where-Object { $_.Trim() -eq $ContextName }
+
+    if (-not $contextExists) {
+        Write-Host "Создание Docker контекста '$ContextName'..." -ForegroundColor Yellow
+        docker context create $ContextName --docker ([string]::Format("host=ssh://{0}@{1}", $ContextUser, $ContextHost)) | Out-Null
+    }
+
+    Write-Host "Активируем Docker контекст '$ContextName'..." -ForegroundColor Yellow
+    docker context use $ContextName | Out-Null
+}
 
 # Функция проверяет доступность Docker в указанном контексте
 function Test-DockerConnection {
@@ -67,11 +104,14 @@ Write-Host "=== FREESPORT Test Runner ===" -ForegroundColor Cyan
 Write-Host ""
 
 $scriptDirectory = Split-Path -Path $MyInvocation.MyCommand.Path -Parent
-Push-Location $scriptDirectory
+$projectRoot = Split-Path -Path $scriptDirectory -Parent
+Push-Location $projectRoot
 
 try {
     $exitCode = 1
 
+    Start-SshAgentIfNeeded -KeyPath $SshKeyPath
+    Ensure-DockerContext -ContextName $DockerContext -ContextUser $User -ContextHost $IP
     Test-DockerConnection -Context $DockerContext
     Cleanup-PreviousRun -Context $DockerContext -ComposeFile $ComposeFile
     Run-Tests -Context $DockerContext -ComposeFile $ComposeFile

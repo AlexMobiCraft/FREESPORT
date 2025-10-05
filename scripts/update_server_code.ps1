@@ -2,11 +2,12 @@
 # Использование (по умолчанию работает с текущей веткой):
 #   pwsh .\scripts\update_server_code.ps1
 #   pwsh .\scripts\update_server_code.ps1 -Branch feature/x -EnvFileLocal "backend/.env.test"
+#   pwsh .\scripts\update_server_code.ps1 -User alex -IP 192.168.1.130
 # Перед запуском убедитесь, что локальные изменения закоммичены и при необходимости запушены в origin.
 
 param(
     [string]$User = "alex",
-    [string]$ServerHost = "192.168.1.130",
+    [string]$IP = "192.168.1.130",
     [string]$ProjectPathRemote = "~/FREESPORT",
     [string]$DockerContext = "freesport-remote",
     [string]$ComposeFile = "docker-compose.test.yml",
@@ -100,11 +101,11 @@ try {
     Write-Host "Используемая ветка: $Branch" -ForegroundColor Yellow
 
     Write-Host "Обновление кода на сервере..." -ForegroundColor Yellow
-    Invoke-RemoteGitUpdate -ConnectionUser $User -ConnectionHost $ServerHost -RemotePath $ProjectPathRemote -BranchName $Branch
+    Invoke-RemoteGitUpdate -ConnectionUser $User -ConnectionHost $IP -RemotePath $ProjectPathRemote -BranchName $Branch
 
     $absoluteEnvPath = if ([System.IO.Path]::IsPathRooted($EnvFileLocal)) { $EnvFileLocal } else { Join-Path -Path $projectRoot -ChildPath $EnvFileLocal }
     Write-Host "Синхронизация .env файла..." -ForegroundColor Yellow
-    Copy-EnvFileToServer -ConnectionUser $User -ConnectionHost $ServerHost -LocalPath $absoluteEnvPath -RemotePath $EnvFileRemote
+    Copy-EnvFileToServer -ConnectionUser $User -ConnectionHost $IP -LocalPath $absoluteEnvPath -RemotePath $EnvFileRemote
 
     Write-Host "Перезапуск docker compose в контексте '$DockerContext'..." -ForegroundColor Yellow
     Restart-RemoteCompose -Context $DockerContext -ComposeFilePath $ComposeFile
