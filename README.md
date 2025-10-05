@@ -85,22 +85,18 @@ freesport/
 │   │   ├── .md                 # Дополнительная документация
 │   │   └── 2.md                # Дополнительная документация
 │   └── stories/                # User stories (пошаговые инструкции)
-│       ├── 1.1.git-setup.md    # Настройка Git
-│       ├── 1.2.dev-environment.md  # Среда разработки
-│       ├── 1.3.django-structure.md  # Структура Django
-│       ├── 1.4.nextjs-structure.md  # Структура Next.js
-│       ├── 1.5.cicd-infrastructure.md  # CI/CD инфраструктура
-│       ├── 1.6.docker-containers.md  # Docker контейнеры
-│       ├── 1.7.testing-environment.md  # Тестовая среда
-│       ├── 1.8.database-design.md  # Дизайн базы данных
-│       ├── 1.9.design-brief.md # Дизайн бриф
-│       ├── 2.1.swagger-documentation.md ✅ # API документация
-│       ├── 2.2.user-management-api.md ✅   # Пользователи
-│       ├── 2.3.personal-cabinet-api.md ✅  # Личный кабинет
-│       ├── 2.4.catalog-api.md ✅           # Каталог товаров
-│       ├── 2.5.product-detail-api.md ✅    # Детали товара
-│       ├── 2.6.cart-api.md ✅              # Корзина
-│       └── 2.7.order-api.md ✅             # Заказы
+│       ├── epic-1/             # Эпик 1: Фундамент проекта
+│       │   ├── 1.1.git-setup.md
+│       │   ├── ...
+│       │   └── 1.9.design-brief.md
+│       ├── epic-2/             # Эпик 2: API Backend
+│       │   ├── 2.1.swagger-documentation.md
+│       │   ├── ...
+│       │   └── 2.10.pages-api.md
+│       └── epic-3/             # Эпик 3: Интеграция с 1С
+│           ├── 3.1.1.import-products-structure.md
+│           ├── ...
+│           └── 3.5.2.error-notifications.md
 ├── docker/                     # Docker конфигурации
 ├── scripts/                    # Automation scripts
 ├── .github/                    # CI/CD workflows
@@ -154,17 +150,9 @@ docker-compose up -d
 - [PRD](docs/PRD.md) - Технические требования (Product Requirements Document)
 - [Architecture](docs/architecture.md) - Архитектурная документация
 - [API Specification](docs/api-spec.yaml) - OpenAPI 3.1.0 спецификация
-<<<<<<< HEAD
-- [Frontend Specification](docs/front-end-spec.md) - Полная UI/UX спецификация FREESPORT
-- [User Stories](docs/stories/) - Этапы разработки (1.1-1.9)
-
-### Docker и тестирование
-- [Docker Configuration](docs/docker-configuration.md) - Полная документация по Docker настройкам
-- [Testing in Docker](docs/testing-docker.md) - Руководство по тестированию в Docker среде
-=======
 - [API Views Documentation](docs/api-views-documentation.md) - 📋 Подробная документация Django Views и endpoints
 - [Test Catalog API](docs/test-catalog-api.md) - 🧪 Структура и организация тестов API
-- [User Stories](docs/stories/) - Этапы разработки (1.1-1.9)
+- [User Stories](docs/stories/) - Этапы разработки
 
 ### API Views Documentation
 
@@ -210,7 +198,6 @@ docker-compose up -d
 - Coverage reporting с минимальным порогом 80%
 
 ### Спецификация фронтенда
->>>>>>> 438d8f8b8c184e00582b93a9cd4f8fdded94036f
 
 ### Архитектурные решения
 - **[Индекс решений](docs/decisions/README.md)** - Полный каталог принятых технических решений
@@ -304,31 +291,28 @@ make lint           # Проверка кода
 ## 📈 Отслеживание прогресса
 
 **Этап 1 (Недели 1-2): Фундамент проекта**
-- [x] [Story 1.1:](docs/stories/1.1.git-setup.md) Настройка Git ✅ ЗАВЕРШЕНА
-- [x] [Story 1.2:](docs/stories/1.2.dev-environment.md) Среда разработки ✅ ЗАВЕРШЕНА
-- [x] [Story 1.3:](docs/stories/1.3.django-structure.md) Структура Django ✅ ЗАВЕРШЕНА
-- [x] [Story 1.4:](docs/stories/1.4.nextjs-structure.md) Структура Next.js ✅ ЗАВЕРШЕНА
-- [x] [Story 1.5:](docs/stories/1.5.cicd-infrastructure.md) CI/CD инфраструктура ✅ ЗАВЕРШЕНА
-- [x] [Story 1.6:](docs/stories/1.6.docker-containers.md) Docker контейнеры ✅ ЗАВЕРШЕНА
-- [x] [Story 1.7:](docs/stories/1.7.testing-environment.md) Тестирование ✅ ЗАВЕРШЕНА
-- [x] [Story 1.8:](docs/stories/1.8.database-design.md) База данных ✅ ЗАВЕРШЕНА
-- [x] [Story 1.9:](docs/stories/1.9.design-brief.md) UI/UX спецификация ✅ ЗАВЕРШЕНА
+- [x] [Story 1.1:](docs/stories/epic-1/1.1.git-setup.md) Настройка Git ✅ ЗАВЕРШЕНА
+- [x] [Story 1.2:](docs/stories/epic-1/1.2.dev-environment.md) Среда разработки ✅ ЗАВЕРШЕНА
+- [x] [Story 1.3:](docs/stories/epic-1/1.3.django-structure.md) Структура Django ✅ ЗАВЕРШЕНА
+- [x] [Story 1.4:](docs/stories/epic-1/1.4.nextjs-structure.md) Структура Next.js ✅ ЗАВЕРШЕНА
+- [x] [Story 1.5:](docs/stories/epic-1/1.5.cicd-infrastructure.md) CI/CD инфраструктура ✅ ЗАВЕРШЕНА
+- [x] [Story 1.6:](docs/stories/epic-1/1.6.docker-containers.md) Docker контейнеры ✅ ЗАВЕРШЕНА
+- [x] [Story 1.7:](docs/stories/epic-1/1.7.testing-environment.md) Тестирование ✅ ЗАВЕРШЕНА
+- [x] [Story 1.8:](docs/stories/epic-1/1.8.database-design.md) База данных ✅ ЗАВЕРШЕНА
+- [x] [Story 1.9:](docs/stories/epic-1/1.9.design-brief.md) UI/UX спецификация ✅ ЗАВЕРШЕНА
 
 **Этап 2 (Недели 3-4): API Backend**
-- [x] [Story 2.1:](docs/stories/2.1.swagger-documentation.md) API Документация (OpenAPI 3.1) ✅ ЗАВЕРШЕНА
-- [x] [Story 2.2:](docs/stories/2.2.user-management-api.md) User Management API ✅ ЗАВЕРШЕНА
-- [x] [Story 2.3:](docs/stories/2.3.personal-cabinet-api.md) Personal Cabinet API ✅ ЗАВЕРШЕНА
-- [x] [Story 2.4:](docs/stories/2.4.catalog-api.md) Catalog API ✅ ЗАВЕРШЕНА
-- [x] [Story 2.5:](docs/stories/2.5.product-detail-api.md) Product Detail API ✅ ЗАВЕРШЕНА
-- [x] [Story 2.6:](docs/stories/2.6.cart-api.md) Cart API ✅ ЗАВЕРШЕНА
-- [x] [Story 2.7:](docs/stories/2.7.order-api.md) Order API ✅ ЗАВЕРШЕНА
-<<<<<<< HEAD
-- [x] [Story 2.8:](docs/stories/2.8.search-api.md) Search API ✅ ЗАВЕРШЕНА
-=======
-- [ ] [Story 2.8:](docs/stories/2.8.search-api.md) Search API
->>>>>>> 438d8f8b8c184e00582b93a9cd4f8fdded94036f
-- [ ] [Story 2.9:](docs/stories/2.9.filtering-api.md) Filtering API
-- [ ] [Story 2.10:](docs/stories/2.10.pages-api.md) Pages API
+- [x] [Story 2.1:](docs/stories/epic-2/2.1.swagger-documentation.md) API Документация (OpenAPI 3.1) ✅ ЗАВЕРШЕНА
+- [x] [Story 2.2:](docs/stories/epic-2/2.2.user-management-api.md) User Management API ✅ ЗАВЕРШЕНА
+- [x] [Story 2.3:](docs/stories/epic-2/2.3.personal-cabinet-api.md) Personal Cabinet API ✅ ЗАВЕРШЕНА
+- [x] [Story 2.4:](docs/stories/epic-2/2.4.catalog-api.md) Catalog API ✅ ЗАВЕРШЕНА
+- [x] [Story 2.5:](docs/stories/epic-2/2.5.product-detail-api.md) Product Detail API ✅ ЗАВЕРШЕНА
+- [x] [Story 2.6:](docs/stories/epic-2/2.6.cart-api.md) Cart API ✅ ЗАВЕРШЕНА
+- [x] [Story 2.7:](docs/stories/epic-2/2.7.order-api.md) Order API ✅ ЗАВЕРШЕНА
+- [x] [Story 2.8:](docs/stories/epic-2/2.8.search-api.md) Search API ✅ ЗАВЕРШЕНА
+- [ ] [Story 2.9:](docs/stories/epic-2/2.9.filtering-api.md) Filtering API
+- [ ] [Story 2.10:](docs/stories/epic-2/2.10.pages-api.md) Pages API
+
 
 ## 📞 Контакты
 

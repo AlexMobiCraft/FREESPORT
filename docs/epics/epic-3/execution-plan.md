@@ -29,7 +29,7 @@
 
 ##### **Task 3.1.1-A: Дополнить Product модель (Фаза 1 от Story 3.1.1)**
 
-**📋 Story:** [3.1.1 import-products-structure](docs/stories/3.1.1.import-products-structure.md) - AC: 3
+**📋 Story:** [3.1.1 import-products-structure](../../stories/epic-3/3.1.1.import-products-structure.md) - AC: 3
 **Assigned:** *agent dev | **Estimate:** 4ч | **Status:** ✅ Completed
 **Due Date:** 08.09.2025 | **Completed:** 07.09.2025
 
@@ -51,7 +51,7 @@
 
 ##### **Task 3.2.1-A: Дополнить User модель (Фаза 1 от Story 3.2.1)**
 
-**📋 Story:** [3.2.1 import-existing-customers](docs/stories/3.2.1.import-existing-customers.md) - AC: 2
+**📋 Story:** [3.2.1 import-existing-customers](../../stories/epic-3/3.2.1.import-existing-customers.md) - AC: 2
 **Assigned:** *agent dev | **Estimate:** 4ч | **Status:** ✅ **COMPLETED**
 **Due Date:** 10.09.2025
 
@@ -77,7 +77,7 @@
 
 ##### **Task 3.1.2-A: Создать команды-заглушки (Mock реализация для Stories 3.1.1, 3.1.2, 3.2.1)**
 
-**📋 Stories:** [3.1.1](docs/stories/3.1.1.import-products-structure.md) AC:1 + [3.1.2](docs/stories/3.1.2.loading-scripts.md) AC:1,2 + [3.2.1](docs/stories/3.2.1.import-existing-customers.md) AC:1
+**📋 Stories:** [3.1.1](../../stories/epic-3/3.1.1.import-products-structure.md) AC:1 + [3.1.2](../../stories/epic-3/3.1.2.loading-scripts.md) AC:1,2 + [3.2.1](../../stories/epic-3/3.2.1.import-existing-customers.md) AC:1
 **Assigned:** *agent dev | **Estimate:** 8ч | **Status:** ✅ Completed
 **Due Date:** 16.09.2025 | **Completed:** 07.09.2025
 
@@ -98,7 +98,7 @@
 
 ##### **Task 3.1.3: Создать comprehensive тестовые данные (Реализация Story 3.1.3)**
 
-**📋 Story:** [3.1.3 test-catalog-loading](docs/stories/3.1.3.test-catalog-loading.md) - AC: 1,2,3,4,5,6
+**📋 Story:** [3.1.3 test-catalog-loading](../../stories/epic-3/3.1.3.test-catalog-loading.md) - AC: 1,2,3,4,5,6
 **Assigned:** *agent qa | **Estimate:** 12ч | **Status:** ⏳ Pending
 **Due Date:** 18.09.2025
 
@@ -124,7 +124,7 @@
 
 ##### **Task 3.4.1: Test Data Scenarios (Реализация Stories 3.4.1, 3.4.2, 3.4.3)**
 
-**📋 Stories:** [3.4.1](docs/stories/3.4.1.test-data-scenarios.md) + [3.4.2](docs/stories/3.4.2.conflict-scenarios-testing.md) + [3.4.3](docs/stories/3.4.3.data-integrity-checks.md)
+**📋 Stories:** [3.4.1](../../stories/epic-3/3.4.1.test-data-scenarios.md) + [3.4.2](../../stories/epic-3/3.4.2.conflict-scenarios-testing.md) + [3.4.3](../../stories/epic-3/3.4.3.data-integrity-checks.md)
 **Assigned:** *agent dev | **Estimate:** 16ч | **Status:** ⏳ Pending
 **Due Date:** 25.09.2025
 
@@ -145,7 +145,7 @@
 
 ##### **Task 3.5.1-A: Monitoring Infrastructure (Реализация Stories 3.5.1, 3.5.2)**
 
-**📋 Stories:** [3.5.1 monitoring-system](docs/stories/3.5.1.monitoring-system.md) + [3.5.2 error-notifications](docs/stories/3.5.2.error-notifications.md)
+**📋 Stories:** [3.5.1 monitoring-system](../../stories/epic-3/3.5.1.monitoring-system.md) + [3.5.2 error-notifications](../../stories/epic-3/3.5.2.error-notifications.md)
 **Assigned:** *agent dev | **Estimate:** 12ч | **Status:** ⏳ Pending
 **Due Date:** 30.09.2025
 
@@ -190,7 +190,7 @@
 
 ##### **Task 3.1.1-B: Реальные парсеры данных (Завершение Story 3.1.1)**
 
-**📋 Story:** [3.1.1 import-products-structure](docs/stories/3.1.1.import-products-structure.md) - AC: 2,5,7
+**📋 Story:** [3.1.1 import-products-structure](../../stories/epic-3/3.1.1.import-products-structure.md) - AC: 2,5,7
 **Assigned:** *agent dev | **Estimate:** 12ч | **Status:** ⏳ Pending
 **Due Date:** _18.09.2025_
 
@@ -210,7 +210,7 @@
 
 ##### **Task 3.1.2-B: Реальная загрузка из файлов 1С (Завершение Story 3.1.2)**
 
-**📋 Story:** [3.1.2 loading-scripts](docs/stories/3.1.2.loading-scripts.md) - AC: 2 (реальные файлы)
+**📋 Story:** [3.1.2 loading-scripts](../../stories/epic-3/3.1.2.loading-scripts.md) - AC: 2 (реальные файлы)
 **Assigned:** *agent dev | **Estimate:** 8ч | **Status:** ⏳ Pending
 **Due Date:** _18.09.2025_
 
@@ -231,7 +231,7 @@
 
 ##### **Task 3.2.1-B: Реальная синхронизация клиентов (Завершение Story 3.2.1)**
 
-**📋 Story:** [3.2.1 import-existing-customers](docs/stories/3.2.1.import-existing-customers.md) - AC: 3,5,6,7
+**📋 Story:** [3.2.1 import-existing-customers](../../stories/epic-3/3.2.1.import-existing-customers.md) - AC: 3,5,6,7
 **Assigned:** *agent dev | **Estimate:** 16ч | **Status:** ⏳ Pending
 **Due Date:** _22.09.2025_
 
@@ -251,7 +251,7 @@
 
 ##### **Task 3.2.3: Bidirectional Sync (Реализация Story 3.2.3)**
 
-**📋 Story:** [3.2.3 bidirectional-sync](docs/stories/3.2.3.bidirectional-sync.md) - AC: 1,2,3,4,5,6,7
+**📋 Story:** [3.2.3 bidirectional-sync](../../stories/epic-3/3.2.3.bidirectional-sync.md) - AC: 1,2,3,4,5,6,7
 **Assigned:** *agent dev | **Estimate:** 20ч | **Status:** ⏳ Pending
 **Due Date:** _29.09.2025_
 
@@ -271,7 +271,7 @@
 
 ##### **Task 3.2.2 + 3.3.1: Conflict Resolution (Реализация Stories 3.2.2, 3.3.1)**
 
-**📋 Stories:** [3.2.2 conflict-resolution](docs/stories/3.2.2.conflict-resolution.md) + [3.3.1 customer-identity-algorithms](docs/stories/3.3.1.customer-identity-algorithms.md)
+**📋 Stories:** [3.2.2 conflict-resolution](../../stories/epic-3/3.2.2.conflict-resolution.md) + [3.3.1 customer-identity-algorithms](../../stories/epic-3/3.3.1.customer-identity-algorithms.md)
 **Assigned:** *agent dev | **Estimate:** 24ч | **Status:** ⏳ Pending
 **Due Date:** _06.10.2025_
 

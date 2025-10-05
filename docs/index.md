@@ -246,101 +246,24 @@ Comprehensive testing strategy с изоляцией тестов, pytest, Facto
 
 ## Stories
 
-Документы в директории `stories/` содержат пользовательские истории и задачи разработки:
+Документы в директории `stories/` содержат пользовательские истории, сгруппированные по эпикам.
 
-### [Story 1.1: git-setup](./stories/1.1.git-setup.md)
+### [Epic 1: Фундамент проекта](./stories/epic-1/)
 
-Настройка Git репозитория, workflow и конвенций разработки.
+Задачи, связанные с настройкой проекта, созданием архитектуры и базовой инфраструктуры (Stories 1.1 - 1.9).
 
-### [Story 1.2: dev-environment](./stories/1.2.dev-environment.md)
+### [Epic 2: API Backend](./stories/epic-2/)
 
-Настройка среды разработки с Docker и локальными инструментами.
+Разработка основного функционала API, включая управление пользователями, каталогом, корзиной и заказами (Stories 2.1 - 2.10).
 
-### [Story 1.3: django-structure](./stories/1.3.django-structure.md)
+### [Epic 3: Интеграция с 1С](./stories/epic-3/)
 
-Создание модульной структуры Django приложения с apps архитектурой.
-
-### [Story 1.4: nextjs-structure](./stories/1.4.nextjs-structure.md)
-
-Настройка Next.js 14+ структуры с App Router и TypeScript.
-
-### [Story 1.5: cicd-infrastructure](./stories/1.5.cicd-infrastructure.md)
-
-Настройка CI/CD пайплайнов с GitHub Actions и Docker.
-
-### [Story 1.6: docker-containers](./stories/1.6.docker-containers.md)
-
-Конфигурация Docker контейнеров для разработки и production.
-
-### [Story 1.7: testing-environment](./stories/1.7.testing-environment.md)
-
-Настройка comprehensive testing среды с pytest, Jest и Playwright.
-
-### [Story 1.8: database-design](./stories/1.8.database-design.md)
-
-Проектирование PostgreSQL схемы с секционированием и оптимизацией.
-
-### [Story 1.9: design-brief](./stories/1.9.design-brief.md)
-
-Техническое задание на дизайн с учетом B2B/B2C различий.
-
-### [Story 2.1: swagger-documentation](./stories/2.1.swagger-documentation.md)
-
-Внедрение автоматической документации API с помощью Swagger/OpenAPI.
-
-### [Story 2.1.1: swagger-documentation-integration-tests](./stories/2.1.1.swagger-documentation-integration-tests.md)
-
-Интеграционные тесты для Swagger документации.
-
-### [Story 2.1.2: swagger-documentation-viewsets-coverage](./stories/2.1.2.swagger-documentation-viewsets-coverage.md)
-
-Покрытие ViewSets в Swagger документации.
-
-### [Story 2.1.3: swagger-documentation-ci-validation](./stories/2.1.3.swagger-documentation-ci-validation.md)
-
-Валидация Swagger документации в CI/CD пайплайне.
-
-### [Story 2.2: user-management-api](./stories/2.2.user-management-api.md)
-
-Создание API управления пользователями с 7 ролями и B2B верификацией.
-
-### [Story 2.3: personal-cabinet-api](./stories/2.3.personal-cabinet-api.md)
-
-API личного кабинета с адресами, избранным, заказами и профилем компании.
-
-### [Story 2.4: catalog-api](./stories/2.4.catalog-api.md)
-
-API каталога товаров с фильтрацией, поиском и ролевым ценообразованием.
-
-### [Story 2.5: product-detail-api](./stories/2.5.product-detail-api.md)
-
-Детальный API товара с характеристиками и RRP/MSRP для B2B.
-
-### [Story 2.6: cart-api](./stories/2.6.cart-api.md)
-
-API корзины покупок с поддержкой авторизованных и гостевых пользователей.
-
-### [Story 2.7: order-api](./stories/2.7.order-api.md)
-
-API заказов с поддержкой B2B/B2C процессов и экспорта в 1С.
-
-### [Story 2.8: search-api](./stories/2.8.search-api.md)
-
-API поиска товаров с полнотекстовым поиском и умной фильтрацией.
-
-### [Story 2.9: filtering-api](./stories/2.9.filtering-api.md)
-
-Расширенный API фильтрации товаров по категориям, брендам, ценам и характеристикам.
-
-### [Story 2.10: pages-api](./stories/2.10.pages-api.md)
-
-API статических страниц с кэшированием и HTML санитизацией.
+Задачи по интеграции с 1С, включая импорт данных, синхронизацию и обработку ошибок (Stories 3.1 - 3.5).
 
 ---
 
 ## Статистика документации
 
-- **Общее количество документов:** 72
 - **Корневые документы:** 12
 - **Архитектура:** 22 документа
 - **База данных:** 1 документ
@@ -355,6 +278,6 @@ API статических страниц с кэшированием и HTML с
 1. [Project Brief](./Brief.md) - общее понимание проекта
 2. [PRD](./PRD.md) - требования и цели
 3. [Архитектурная документация](./architecture.md) - техническая архитектура
-4. [Stories](./stories/) - конкретные задачи реализации
+4. [Stories](./stories/) - навигация по эпикам и конкретным задачам реализации.
 
 **Последнее обновление:** 06.09.2025
