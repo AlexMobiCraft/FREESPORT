@@ -75,7 +75,7 @@ FREESPORT \- API-First E-commerce платформа для B2B/B2C продаж
 
 **Product Model:**
 
-* Многоуровневое ценообразование (retail\_price, opt1-3\_price, trainer\_price, federation\_price)  
+* Многоуровневое ценообразование (retail\_price, opt1\_price, opt2\_price, opt3\_price, trainer\_price, federation\_price)  
 * Информационные цены для B2B (RRP, MSRP)  
 * JSON спецификации товаров в поле specifications  
 * Интеграция с 1С через onec\_id  
