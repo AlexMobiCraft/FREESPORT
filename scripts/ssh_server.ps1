@@ -5,7 +5,7 @@
 
 param(
     [string]$User = "alex",
-    [string]$IP = "192.168.1.130"
+    [string]$IP = "192.168.0.129"
 )
 
 # Функция подключается по SSH к удалённому серверу разработки
@@ -16,7 +16,7 @@ function Connect-FreesportServer {
     )
 
     Start-Service ssh-agent -ErrorAction SilentlyContinue | Out-Null
-    ssh-add "C:\Users\38670\.ssh\id_ed25519" | Out-Null
+    ssh-add "$HOME\.ssh\id_ed25519" | Out-Null
     ssh "$ConnectionUser@$ConnectionHost"
 }
 
