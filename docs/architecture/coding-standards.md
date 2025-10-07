@@ -3,6 +3,7 @@
 ## Общие принципы
 
 ### Архитектурные принципы
+
 - **API-First подход**: Все функции должны быть доступны через API перед созданием UI
 - **Separation of Concerns**: Четкое разделение бизнес-логики, представления и доступа к данным  
 - **DRY (Don't Repeat Yourself)**: Избегать дублирования кода через переиспользуемые компоненты
@@ -10,6 +11,7 @@
 - **12-Factor App**: Соблюдение принципов для современных веб-приложений
 
 ### Безопасность
+
 - **НИКОГДА** не включать секреты, ключи API или пароли в код
 - **НИКОГДА** не коммитить конфиденциальные данные в репозиторий
 - Использовать переменные окружения для конфигурации
@@ -21,6 +23,7 @@
 ### Стиль кода Python
 
 #### Форматирование
+
 - **Black** для автоматического форматирования кода
 - **Длина строки**: 88 символов (стандарт Black)
 - **Кодировка**: UTF-8 для всех файлов
@@ -34,6 +37,7 @@ black --check .
 ```
 
 #### Импорты
+
 - **isort** для сортировки импортов
 - Порядок импортов:
   1. Стандартная библиотека Python
@@ -57,6 +61,7 @@ from .utils import calculate_price
 ```
 
 #### Линтинг
+
 - **Flake8** для проверки стиля кода
 - Настройки в `backend/.flake8` или `setup.cfg`
 
@@ -66,6 +71,7 @@ flake8 apps/
 ```
 
 #### Типизация
+
 - **mypy** для статической проверки типов
 - Обязательная типизация для всех публичных методов
 - Настройки в `backend/mypy.ini`
@@ -90,7 +96,8 @@ def get_user_data(user_id: int) -> Optional[Dict[str, Union[str, int]]]:
 ### Архитектура Django приложений
 
 #### Структура приложений
-```
+
+```text
 apps/
 ├── users/          # Пользователи и аутентификация
 ├── products/       # Каталог товаров
@@ -100,6 +107,7 @@ apps/
 ```
 
 #### Модели (Models)
+
 ```python
 from django.db import models
 from apps.common.models import BaseModel
@@ -130,6 +138,7 @@ class Product(BaseModel):
 ```
 
 #### Сериализаторы (Serializers)
+
 ```python
 from rest_framework import serializers
 from .models import Product
@@ -152,6 +161,7 @@ class ProductSerializer(serializers.ModelSerializer):
 ```
 
 #### Представления (Views)
+
 ```python
 from rest_framework import viewsets, permissions
 from rest_framework.decorators import action
@@ -180,11 +190,13 @@ class ProductViewSet(viewsets.ModelViewSet):
 ### Тестирование
 
 #### Стратегия тестирования
+
 - **Пирамида тестирования**: Unit > Integration > E2E
 - **Покрытие кода**: минимум 70%, критические модули 90%
 - **Изоляция тестов**: каждый тест должен быть независимым
 
 #### Структура тестов
+
 ```python
 import pytest
 from django.test import TestCase
@@ -217,6 +229,7 @@ class TestProductModel(TestCase):
 ### Стиль кода TypeScript
 
 #### ESLint конфигурация
+
 ```javascript
 // eslint.config.mjs
 import { dirname } from "path";
@@ -238,6 +251,7 @@ export default eslintConfig;
 ```
 
 #### TypeScript стандарты
+
 ```typescript
 // Строгая типизация
 interface User {
@@ -280,6 +294,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
 ```
 
 #### Zustand Store
+
 ```typescript
 // stores/cartStore.ts
 import { create } from 'zustand';
@@ -338,6 +353,7 @@ export const useCartStore = create<CartState>((set, get) => ({
 ### Стилизация (Tailwind CSS)
 
 #### Соглашения по классам
+
 ```typescript
 // Использование cn() для условных классов
 import { cn } from '@/lib/utils';
@@ -445,6 +461,7 @@ describe('ProductCard', () => {
 ## Команды разработки
 
 ### Backend команды
+
 ```bash
 # Форматирование и линтинг
 black .
@@ -466,6 +483,7 @@ python manage.py shell
 ```
 
 ### Frontend команды
+
 ```bash
 # Разработка
 npm run dev                 # Запуск dev сервера
@@ -482,13 +500,15 @@ npm run test:coverage      # Тесты с покрытием
 ## Git Workflow
 
 ### Структура веток
+
 - **main** - продакшен ветка (защищена)
 - **develop** - основная ветка разработки (защищена)
 - **feature/*** - ветки для новых функций
 - **hotfix/*** - ветки для критических исправлений
 
 ### Commit сообщения
-```
+
+```text
 type(scope): краткое описание
 
 Более детальное описание изменений, если необходимо.
@@ -500,6 +520,7 @@ Fixes #123
 ```
 
 Типы commit'ов:
+
 - **feat**: новая функция
 - **fix**: исправление бага
 - **docs**: изменения в документации
@@ -509,6 +530,7 @@ Fixes #123
 - **chore**: обновление сборки или вспомогательных инструментов
 
 ### Pull Request процесс
+
 1. Создать feature ветку от develop
 2. Реализовать функцию с тестами
 3. Убедиться что все тесты проходят
@@ -519,13 +541,15 @@ Fixes #123
 ## Мониторинг качества кода
 
 ### Автоматизация
+
 - **GitHub Actions** для CI/CD
 - Автоматический запуск тестов при PR
 - Проверка покрытия кода
 - Линтинг и форматирование
 
 ### Метрики качества
+
 - **Покрытие тестами**: минимум 70%
 - **Cyclomatic Complexity**: максимум 10
 - **Технический долг**: отслеживание через SonarQube
-- **Performance**: мониторинг времени отклика API
+- **Performance**: мониторинг времени отклика AP
