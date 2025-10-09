@@ -113,10 +113,19 @@ backend/
 │   │   ├── migrations/               # Database migrations
 │   │   └── admin.py                  # Django admin
 │   ├── products/                     # Каталог товаров
-│   │   ├── models.py                 # Product, Category, Brand
+│   │   ├── models.py                 # Product, Category, Brand, ImportSession
 │   │   ├── views.py                  # API endpoints каталога
 │   │   ├── serializers.py            # Роле-ориентированное ценообразование
-│   │   └── filters.py                # Фильтрация и поиск
+│   │   ├── filters.py                # Фильтрация и поиск
+│   │   ├── services/                 # Сервисы для импорта и обработки данных
+│   │   │   ├── __init__.py           # Инициализация модуля сервисов
+│   │   │   ├── parser.py             # XMLDataParser для парсинга файлов 1С
+│   │   │   └── processor.py          # ProductDataProcessor для обработки данных
+│   │   └── management/               # Management команды
+│   │       └── commands/             # Django management команды
+│   │           ├── load_test_catalog.py  # Генерация тестовых данных
+│   │           ├── load_catalog.py       # Импорт реальных данных из XML
+│   │           └── backup_db.py          # Создание резервных копий БД
 │   ├── orders/                       # Система заказов
 │   │   ├── models.py                 # Order, OrderItem
 │   │   ├── views.py                  # Checkout, order management
@@ -145,4 +154,4 @@ backend/
 
 **Модульная организация views для масштабируемости:**
 
-```python
+```python

@@ -2,43 +2,24 @@
 
 **Проект:** FREESPORT - Интеграция с 1С  
 
-## 📊 OVERALL PROGRESS
-
-**Общий прогресс Epic 3:** 25% ■■■□□□□□□□
-
-### 🎯 Key Milestones Status
-
-- [ ] **Milestone 1.1:** Database models готовы (Дедлайн: 11.09.2025)
-- [ ] **Milestone 1.2:** MVP команды и тестовые данные (Дедлайн: 18.09.2025)
-- [ ] **Milestone 2.1:** Независимые компоненты готовы (Дедлайн: 05.10.2025)
-- [ ] **Milestone 3.1:** Полная интеграция с 1С (Дедлайн: зависит от ответов 1С)
-
-### 🚦 Current Phase
-
-**ФАЗА 1: Foundation (Week 1-2)** - Немедленный старт независимых задач
-**Активный трек:** 🟢 Track A (Independent Tasks)
-**Блокирующий фактор:** ⏳ Ожидание ответов программиста 1С
-
----
-
 ## 📅 DETAILED EXECUTION TRACKING
 
-### 🟢 ФАЗА 1: Foundation (07.09 - 21.09.2025)
+### 🟢 ФАЗА 1: Foundation
 
-#### **НЕДЕЛЯ 1: Database Infrastructure (07.09 - 14.09)**
+#### **НЕДЕЛЯ 1: Database Infrastructure**
 
 ##### **Task 3.1.1-A: Дополнить Product модель (Фаза 1 от Story 3.1.1)**
 
 **📋 Story:** [3.1.1 import-products-structure](../../stories/epic-3/3.1.1.import-products-structure.md) - AC: 3
-**Assigned:** *agent dev | **Estimate:** 4ч | **Status:** ✅ Completed
-**Due Date:** 08.09.2025 | **Completed:** 07.09.2025
+**Assigned:** *agent dev | **Estimate:** 4ч | **Status:** ⏳ Pending
+**Due Date:** 08.09.2025 | **Completed:** 
 
 **Subtasks:**
 
-- [x] Добавить `onec_id = CharField(max_length=100, unique=True)` (из Story AC: 3)
+- [x] Добавить `onec_id = CharField(max_length=100, unique=True)`
 - [x] Добавить `sync_status = CharField(choices=SYNC_STATUSES, default='pending')`
 - [x] Добавить `last_sync_at = DateTimeField(null=True, blank=True)`
-- [x] Добавить `error_message = TextField(blank=True)` (дополнительно)
+- [x] Добавить `error_message = TextField(blank=True)`
 - [x] Создать и применить миграцию (`0009_add_1c_integration_fields`)
 - [x] Добавить индексы для оптимизации (onec_id, sync_status)
 - [x] Добавить comprehensive unit тесты для новых полей (10 тестов)
@@ -52,7 +33,7 @@
 ##### **Task 3.2.1-A: Дополнить User модель (Фаза 1 от Story 3.2.1)**
 
 **📋 Story:** [3.2.1 import-existing-customers](../../stories/epic-3/3.2.1.import-existing-customers.md) - AC: 2
-**Assigned:** *agent dev | **Estimate:** 4ч | **Status:** ✅ **COMPLETED**
+**Assigned:** *agent dev | **Estimate:** 4ч | **Status:** ⏳ Pending
 **Due Date:** 10.09.2025
 
 **Subtasks:**
@@ -78,7 +59,7 @@
 ##### **Task 3.1.2-A: Создать команды-заглушки (Mock реализация для Stories 3.1.1, 3.1.2, 3.2.1)**
 
 **📋 Stories:** [3.1.1](../../stories/epic-3/3.1.1.import-products-structure.md) AC:1 + [3.1.2](../../stories/epic-3/3.1.2.loading-scripts.md) AC:1,2 + [3.2.1](../../stories/epic-3/3.2.1.import-existing-customers.md) AC:1
-**Assigned:** *agent dev | **Estimate:** 8ч | **Status:** ✅ Completed
+**Assigned:** *agent dev | **Estimate:** 8ч | **Status:** ⏳ Pending
 **Due Date:** 16.09.2025 | **Completed:** 07.09.2025
 
 **Subtasks:**
@@ -180,12 +161,12 @@
 
 **Информация по типам цен (из `priceLists.xml`):**
 
-- `90d2c899-b3f2-11ea-81c3-00155d3cae02` -> `Опт 1` -> `wholesale_level1`
-- `a91bdb02-b3f2-11ea-81c3-00155d3cae02` -> `Опт 2` -> `wholesale_level2`
-- `c05f0e2b-b3f2-11ea-81c3-00155d3cae02` -> `Опт 3` -> `wholesale_level3`
-- `b86fb8c5-ea2d-11eb-81f3-00155d3cae02` -> `Тренерская` -> `trainer`
-- `3d1482c4-bd77-11e4-afc8-20cf3073dde3` -> `РРЦ` -> `retail` / `RRP`
-- `37c47a93-e1b8-11ec-a301-04421a23d8e8` -> `МРЦ` -> `MSRP`
+- `Опт 1` -> `wholesale_level1`
+- `Опт 2` -> `wholesale_level2`
+- `Опт 3` -> `wholesale_level3`
+- `Тренерская` -> `trainer`
+- `РРЦ` -> `retail` / `RRP`
+- `МРЦ` -> `MSRP`
 - **Внимание:** Тип цены для `federation_rep` не найден. Требуется уточнение или использование одной из существующих.
 
 ##### **Task 3.1.1-B: Реальные парсеры данных (Завершение Story 3.1.1)**
