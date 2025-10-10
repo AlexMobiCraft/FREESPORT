@@ -1,6 +1,40 @@
 # Анализ структуры данных CommerceML (Epic 3) - Версия 2.0
 
-Этот документ описывает фактическую структуру данных, полученных из 1С в формате CommerceML 3.1, на основе детального анализа файлов в директории `backend/tests/legacy/Обмен с сайтом`.
+Этот документ описывает фактическую структуру данных, полученных из 1С в формате CommerceML 3.1, на основе детального анализа файлов.
+
+## Расположение тестовых данных
+
+Для разработки и тестирования используются XML файлы, расположенные в:
+
+```
+backend/tests/fixtures/1c-data/
+├── goods/
+│   └── goods.xml
+├── offers/
+│   └── offers.xml
+├── prices/
+│   └── prices.xml
+├── rests/
+│   └── rests.xml
+├── priceLists/
+│   └── priceLists.xml
+├── groups/
+│   └── groups.xml
+├── storages/
+│   └── storages.xml
+├── units/
+│   └── units.xml
+├── contragents/
+│   └── contragents.xml
+├── propertiesGoods/
+│   └── [свойства товаров]
+└── propertiesOffers/
+    └── [свойства предложений]
+```
+
+**Примечание:** Данные перенесены из `backend/tests/legacy/Обмен с сайтом/` в `backend/tests/fixtures/1c-data/` для соответствия структуре тестов проекта.
+
+---
 
 ## Общая архитектура выгрузки
 

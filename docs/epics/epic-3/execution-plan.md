@@ -8,25 +8,114 @@
 
 #### **НЕДЕЛЯ 1: Database Infrastructure**
 
-##### **Task 3.1.1-A: Дополнить Product модель (Фаза 1 от Story 3.1.1)**
+##### **Task 3.1.1-A: Обновить модели для интеграции**
 
-**📋 Story:** [3.1.1 import-products-structure](../../stories/epic-3/3.1.1.import-products-structure.md) - AC: 3
-**Assigned:** *agent dev | **Estimate:** 4ч | **Status:** ⏳ Pending
-**Due Date:** 08.09.2025 | **Completed:** 
+**📋 Story:** [3.1.1 import-products-structure](../../stories/epic-3/3.1.1.import-products-structure.md) - AC: 1
+**Assigned:** *agent dev | **Estimate:** 6ч | **Status:** ✅ Completed
+**Due Date:** 08.09.2025
 
 **Subtasks:**
 
-- [x] Добавить `onec_id = CharField(max_length=100, unique=True)`
-- [x] Добавить `sync_status = CharField(choices=SYNC_STATUSES, default='pending')`
-- [x] Добавить `last_sync_at = DateTimeField(null=True, blank=True)`
-- [x] Добавить `error_message = TextField(blank=True)`
-- [x] Создать и применить миграцию (`0009_add_1c_integration_fields`)
-- [x] Добавить индексы для оптимизации (onec_id, sync_status)
-- [x] Добавить comprehensive unit тесты для новых полей (10 тестов)
+- [x] **Brand (существующая модель):**
+  - [x] Добавить поле onec_id с индексом
+  - [x] Создать миграцию add_onec_id_to_brand
+  - [ ] Unit тесты (3 теста)
 
-**Progress:** 100% ■■■■■■■■■■  
-**Notes:** _✅ ЗАВЕРШЕН: AC: 3 полностью реализован. Все тесты проходят (10/10). Нет регрессий._  
-**⚠️ СЛЕДУЮЩИЙ ЭТАП:** Story 3.1.1 требует дополнительные tasks для AC: 1,2,5,6,7 (парсер, команда, валидаторы)
+- [x] **Category (существующая модель):**
+  - [x] Добавить поле onec_id с индексом
+  - [x] Создать миграцию add_onec_id_to_category
+  - [ ] Unit тесты (3 теста)
+
+- [x] **Product (существующая модель):**
+  - [x] Добавить: onec_id, parent_onec_id, sync_status, last_sync_at, error_message
+  - [x] Добавить enum SyncStatus
+  - [x] Создать миграцию add_1c_integration_fields
+  - [x] Добавить индексы
+  - [ ] Unit тесты (10 тестов)
+
+- [x] **ImportSession (новая модель):**
+  - [x] Добавить в конец models.py
+  - [x] Определить enums: ImportType, ImportStatus
+  - [x] Создать миграцию add_import_session
+  - [ ] Unit тесты (5 тестов)
+
+**Progress:** 70% ■■■■■■■□□□  
+**Notes:** _Модели обновлены, миграции готовы. Остались unit-тесты._  
+**⚠️ ВАЖНО:** Модели Brand, Category, Product УЖЕ СУЩЕСТВОВАЛИ в models.py - только добавлены поля
+
+---
+
+##### **Task 3.1.1-B: Создать сервисный слой**
+
+**📋 Story:** [3.1.1](../../stories/epic-3/3.1.1.import-products-structure.md) - AC: 2
+**Assigned:** *agent dev | **Estimate:** 12ч | **Status:** 🟡 In Progress
+**Due Date:** 10.09.2025
+
+**Subtasks:**
+
+- [x] Создать директорию `backend/apps/products/services/`
+- [x] Создать `services/__init__.py`
+- [x] Создать `services/parser.py` (заглушки XMLDataParser)
+- [x] Создать `services/processor.py` (заглушки ProductDataProcessor)
+- [ ] Реализовать методы XMLDataParser (parse_goods_xml, parse_offers_xml, parse_prices_xml, parse_rests_xml)
+- [ ] Реализовать методы ProductDataProcessor (create_product_placeholder, enrich_product_from_offer, update_product_prices, update_product_stock)
+- [ ] Unit тесты для XMLDataParser (10 тестов)
+- [ ] Unit тесты для ProductDataProcessor (15 тестов)
+
+**Progress:** 15% ■■□□□□□□□□  
+**Dependencies:** Task 3.1.1-A completed
+**Notes:** _Структура создана, заглушки готовы. Требуется реализация._
+
+---
+
+##### **Task 3.1.1-C: Создать базовую команду**
+
+**📋 Story:** [3.1.1](../../stories/epic-3/3.1.1.import-products-structure.md) - AC: 3, 5
+**Assigned:** *agent dev | **Estimate:** 8ч | **Status:** ⏳ Pending
+**Due Date:** 12.09.2025
+
+**Subtasks:**
+
+- [ ] Создать `backend/apps/products/management/commands/import_catalog_from_1c.py`
+- [ ] Реализовать параметр `--data-dir` (обязательный)
+- [ ] Реализовать флаг `--dry-run`
+- [ ] Реализовать валидацию структуры директории (goods/, offers/, prices/, rests/)
+- [ ] Реализовать создание `ImportSession` в начале
+- [ ] Реализовать оркестрацию XMLDataParser и ProductDataProcessor
+- [ ] Реализовать последовательность: goods → offers → prices → rests
+- [ ] Реализовать обновление статуса `ImportSession` (completed/failed)
+- [ ] Реализовать логирование в `ImportSession.report_details`
+- [ ] Integration тесты (8 тестов)
+
+**Progress:** 0% □□□□□□□□□□  
+**Dependencies:** Task 3.1.1-B completed
+**Notes:** _Базовая команда с --data-dir, будет дополнена в Story 3.1.2_
+
+**Пример использования:**
+```bash
+python manage.py import_catalog_from_1c --data-dir="backend/tests/fixtures/1c-data"
+```
+
+---
+
+##### **Task 3.1.1-D: Ролевое ценообразование**
+
+**📋 Story:** [3.1.1](../../stories/epic-3/3.1.1.import-products-structure.md) - AC: 4
+**Assigned:** *agent dev | **Estimate:** 6ч | **Status:** ⏳ Pending
+**Due Date:** 13.09.2025
+
+**Subtasks:**
+
+- [ ] Создать модель PriceType (onec_id, name, user_role, is_active)
+- [ ] Создать миграцию add_price_type
+- [ ] Реализовать парсинг priceLists.xml
+- [ ] Реализовать маппинг цен на роли (Опт 1→opt1_price, Опт 2→opt2_price, РРЦ→recommended_retail_price)
+- [ ] Реализовать fallback: federation_price → recommended_retail_price
+- [ ] Unit тесты (10 тестов)
+
+**Progress:** 0% □□□□□□□□□□  
+**Dependencies:** Task 3.1.1-C completed
+**Notes:** _Критично для корректного отображения цен по ролям_
 
 ---
 
@@ -38,16 +127,16 @@
 
 **Subtasks:**
 
-- [x] Добавить `onec_id = CharField(max_length=100, unique=True, null=True)` (из Story AC: 2)
-- [x] Добавить `sync_status = CharField(choices=SYNC_STATUSES, default='pending')`
-- [x] Добавить `created_in_1c = BooleanField(default=False)`
-- [x] Добавить `needs_1c_export = BooleanField(default=False)` (из Story)
-- [x] Добавить `last_sync_at = DateTimeField(null=True, blank=True)`
-- [x] Добавить `sync_error_message = TextField(blank=True)` (из Story)
-- [x] Создать миграцию с индексами
-- [x] Обновить тесты пользователей
+- [ ] Добавить `onec_id = CharField(max_length=100, unique=True, null=True)` (из Story AC: 2)
+- [ ] Добавить `sync_status = CharField(choices=SYNC_STATUSES, default='pending')`
+- [ ] Добавить `created_in_1c = BooleanField(default=False)`
+- [ ] Добавить `needs_1c_export = BooleanField(default=False)` (из Story)
+- [ ] Добавить `last_sync_at = DateTimeField(null=True, blank=True)`
+- [ ] Добавить `sync_error_message = TextField(blank=True)` (из Story)
+- [ ] Создать миграцию с индексами
+- [ ] Обновить тесты пользователей
 
-**Progress:** 100% ██████████
+**Progress:** 0% □□□□□□□□□□
 **Notes:** _ЧАСТИЧНО покрывает Story 3.2.1 - только модель, требуются дополнительные tasks_
 **⚠️ ВНИМАНИЕ:** Story 3.2.1 требует команду импорта, маппинг ролей, валидаторы (см. AC: 1,3,5,6,7)
 **Dependencies:** Task 3.1.1-A completed
@@ -60,7 +149,7 @@
 
 **📋 Stories:** [3.1.1](../../stories/epic-3/3.1.1.import-products-structure.md) AC:1 + [3.1.2](../../stories/epic-3/3.1.2.loading-scripts.md) AC:1,2 + [3.2.1](../../stories/epic-3/3.2.1.import-existing-customers.md) AC:1
 **Assigned:** *agent dev | **Estimate:** 8ч | **Status:** ⏳ Pending
-**Due Date:** 16.09.2025 | **Completed:** 07.09.2025
+**Due Date:** 16.09.2025
 
 **Subtasks:**
 
@@ -71,8 +160,8 @@
 - [ ] Добавить progress bars и logging (Story 3.1.1 AC:6, Story 3.2.1 AC:6)
 - [ ] Создать базовые тесты команд (Story 3.1.1 AC:7, Story 3.2.1 AC:7)
 
-**Progress:** 100% ■■■■■■■■■■
-**Notes:** _✅ ЗАВЕРШЕН: Все команды созданы с моковыми данными, progress bars, comprehensive тестами (90+ тестов)_
+**Progress:** 0% □□□□□□□□□□
+**Notes:** _Все команды, моковые данные и тесты еще предстоит реализовать._
 **Dependencies:** Tasks 3.1.1-A, 3.2.1-A, 3.1.4-A completed
 
 ---
@@ -154,10 +243,10 @@
 
 #### **Critical Blocking Factors:**
 
-- [x] **DATA_FORMAT_BLOCKER:** ✅ **Разблокировано.** Формат - XML (CommerceML 3.1).
-- [x] **PRICE_MAPPING_BLOCKER:** ✅ **Разблокировано.** Типы цен определены в `priceLists.xml`.
-- [x] **CUSTOMER_SYNC_BLOCKER:** ✅ **Разблокировано.** Структура контрагентов определена в `contragents.xml`.
-- [x] **API_METHOD_BLOCKER:** ✅ **Разблокировано.** Способ передачи - выгрузка файлов.
+- [ ] **DATA_FORMAT_BLOCKER:** Статус уточняется. Формат ожидается как XML (CommerceML 3.1).
+- [ ] **PRICE_MAPPING_BLOCKER:** Статус уточняется. Типы цен требуют подтверждения в `priceLists.xml`.
+- [ ] **CUSTOMER_SYNC_BLOCKER:** Статус уточняется. Ждем структуру контрагентов из `contragents.xml`.
+- [ ] **API_METHOD_BLOCKER:** Статус уточняется. Нужно подтвердить способ передачи файлов.
 
 **Информация по типам цен (из `priceLists.xml`):**
 
@@ -277,14 +366,14 @@
 **Запрос отправлен:** 05.09.2025
 **Ожидаемый ответ:** 12-19.09.2025 (1-2 недели)
 **Последний follow-up:** _Нет_
-**Status:** ⏳ Ожидание
+**Status:** 🔴 Active
 
 **Ключевые вопросы в запросе:**
 
-- [ ] Формат данных каталога (CommerceML/JSON/CSV)
-- [ ] Способ передачи данных (FTP/HTTP API/файлы)
-- [ ] Названия типов цен в 1С
-- [ ] Формат справочника клиентов
+- [х] Формат данных каталога (CommerceML/JSON/CSV)
+- [х] Способ передачи данных (FTP/HTTP API/файлы)
+- [х] Названия типов цен в 1С
+- [х] Формат справочника клиентов
 - [ ] Требования к заказам для передачи в 1С
 
 **Next Actions:**
@@ -371,8 +460,8 @@
 
 ### 2025-09-07 (Сегодня)
 
-- ✅ Epic 3 план создан и согласован
-- ✅ Tracking документ создан
+- [ ] Epic 3 план требуется уточнение и согласование
+- [ ] Tracking документ в подготовке
 - 🎯 **Next:** Начать Task 3.1.1-A (*agent dev)
 
 ### 2025-09-08
@@ -407,4 +496,4 @@
 
 **🚀 ПЛАН АКТИВЕН И ГОТОВ К ИСПОЛНЕНИЮ!**
 
-*Последнее обновление: 07.09.2025 by BMad Orchestrator*
+*Последнее обновление: 07.09.2025 by BMad Orchestrator

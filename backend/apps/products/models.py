@@ -32,6 +32,21 @@ class Brand(models.Model):
     description = cast(str, models.TextField("Описание", blank=True))
     website = cast(str, models.URLField("Веб-сайт", blank=True))
     is_active = cast(bool, models.BooleanField("Активный", default=True))
+    
+    # Интеграция с 1С
+    onec_id = cast(
+        str,
+        models.CharField(
+            "ID в 1С",
+            max_length=100,
+            unique=True,
+            null=True,
+            blank=True,
+            db_index=True,
+            help_text="Уникальный идентификатор бренда из 1С",
+        ),
+    )
+    
     created_at = cast(
         datetime, models.DateTimeField("Дата создания", auto_now_add=True)
     )
@@ -90,6 +105,20 @@ class Category(models.Model):
     # SEO поля
     seo_title = cast(str, models.CharField("SEO заголовок", max_length=200, blank=True))
     seo_description = cast(str, models.TextField("SEO описание", blank=True))
+    
+    # Интеграция с 1С
+    onec_id = cast(
+        str,
+        models.CharField(
+            "ID в 1С",
+            max_length=100,
+            unique=True,
+            null=True,
+            blank=True,
+            db_index=True,
+            help_text="Уникальный идентификатор категории из 1С",
+        ),
+    )
 
     created_at = cast(
         datetime, models.DateTimeField("Дата создания", auto_now_add=True)
@@ -299,23 +328,43 @@ class Product(models.Model):
     updated_at = cast(datetime, models.DateTimeField("Дата обновления", auto_now=True))
 
     # 1С Integration fields (Story 3.1.1 AC: 3)
+    class SyncStatus(models.TextChoices):
+        PENDING = 'pending', 'Ожидает синхронизации'
+        IN_PROGRESS = 'in_progress', 'Синхронизация'
+        COMPLETED = 'completed', 'Синхронизировано'
+        FAILED = 'failed', 'Ошибка'
+    
     onec_id = cast(
         str | None,
-        models.CharField("ID в 1С", max_length=100, unique=True, blank=True, null=True),
+        models.CharField(
+            "ID товара в 1С (SKU)",
+            max_length=100,
+            unique=True,
+            blank=True,
+            null=True,
+            db_index=True,
+            help_text="Составной ID из offers.xml: parent_id#sku_id",
+        ),
+    )
+    parent_onec_id = cast(
+        str | None,
+        models.CharField(
+            "ID родительского товара в 1С",
+            max_length=100,
+            blank=True,
+            null=True,
+            db_index=True,
+            help_text="ID базового товара из goods.xml",
+        ),
     )
     sync_status = cast(
         str,
         models.CharField(
             "Статус синхронизации",
             max_length=20,
-            choices=[
-                ("pending", "Ожидает синхронизации"),
-                ("syncing", "Синхронизируется"),
-                ("synced", "Синхронизирован"),
-                ("error", "Ошибка синхронизации"),
-                ("conflict", "Конфликт данных"),
-            ],
-            default="pending",
+            choices=SyncStatus.choices,
+            default=SyncStatus.PENDING,
+            db_index=True,
         ),
     )
     last_sync_at = cast(
@@ -335,6 +384,7 @@ class Product(models.Model):
             models.Index(fields=["sku"]),
             models.Index(fields=["stock_quantity"]),
             models.Index(fields=["onec_id"]),  # 1С integration index
+            models.Index(fields=["parent_onec_id"]),  # Parent 1C ID index
             models.Index(fields=["sync_status"]),  # Sync status index
         ]
 
@@ -447,3 +497,70 @@ class ProductImage(models.Model):
                 pk=self.pk
             ).update(is_main=False)
         super().save(*args, **kwargs)
+
+
+class ImportSession(models.Model):
+    """
+    Модель для отслеживания сессий импорта данных из 1С
+    """
+
+    class ImportType(models.TextChoices):
+        CATALOG = "catalog", "Каталог товаров"
+        STOCKS = "stocks", "Остатки товаров"
+        PRICES = "prices", "Цены товаров"
+        CUSTOMERS = "customers", "Клиенты"
+
+    class ImportStatus(models.TextChoices):
+        STARTED = "started", "Начато"
+        IN_PROGRESS = "in_progress", "В процессе"
+        COMPLETED = "completed", "Завершено"
+        FAILED = "failed", "Ошибка"
+
+    import_type = cast(
+        str,
+        models.CharField(
+            "Тип импорта",
+            max_length=20,
+            choices=ImportType.choices,
+            default=ImportType.CATALOG,
+        ),
+    )
+    status = cast(
+        str,
+        models.CharField(
+            "Статус",
+            max_length=20,
+            choices=ImportStatus.choices,
+            default=ImportStatus.STARTED,
+        ),
+    )
+    started_at = cast(
+        datetime, models.DateTimeField("Начало импорта", auto_now_add=True)
+    )
+    finished_at = cast(
+        datetime | None,
+        models.DateTimeField("Окончание импорта", null=True, blank=True),
+    )
+    report_details = cast(
+        dict,
+        models.JSONField(
+            "Детали отчета",
+            default=dict,
+            blank=True,
+            help_text="Статистика: created, updated, skipped, errors",
+        ),
+    )
+    error_message = cast(str, models.TextField("Сообщение об ошибке", blank=True))
+
+    class Meta:
+        verbose_name = "Сессия импорта"
+        verbose_name_plural = "Сессии импорта"
+        db_table = "import_sessions"
+        ordering = ["-started_at"]
+        indexes = [
+            models.Index(fields=["import_type", "status"]),
+            models.Index(fields=["-started_at"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.get_import_type_display()} - {self.get_status_display()} ({self.started_at})"
