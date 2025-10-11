@@ -5,7 +5,7 @@ param(
     [string]$DockerContext = "freesport-remote",
     [string]$ComposeFile = "docker-compose.test.yml",
     [string]$User = "alex",
-    [string]$IP = "192.168.1.130",
+    [string]$IP = "192.168.8.182", #192.168.1.130
     [string]$SshKeyPath = "C:\\Users\\38670\\.ssh\\id_ed25519"
 )
 
