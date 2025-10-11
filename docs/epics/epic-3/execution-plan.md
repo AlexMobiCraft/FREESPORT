@@ -11,60 +11,60 @@
 ##### **Task 3.1.1-A: Обновить модели для интеграции**
 
 **📋 Story:** [3.1.1 import-products-structure](../../stories/epic-3/3.1.1.import-products-structure.md) - AC: 1
-**Assigned:** *agent dev | **Estimate:** 6ч | **Status:** ✅ Completed
+**Assigned:** *agent dev | **Estimate:** 6ч | **Status:** ⏳ Pending
 **Due Date:** 08.09.2025
 
 **Subtasks:**
 
-- [x] **Brand (существующая модель):**
-  - [x] Добавить поле onec_id с индексом
-  - [x] Создать миграцию add_onec_id_to_brand
+- [ ] **Brand (существующая модель):**
+  - [ ] Добавить поле onec_id с индексом
+  - [ ] Создать миграцию add_onec_id_to_brand
   - [ ] Unit тесты (3 теста)
 
-- [x] **Category (существующая модель):**
-  - [x] Добавить поле onec_id с индексом
-  - [x] Создать миграцию add_onec_id_to_category
+- [ ] **Category (существующая модель):**
+  - [ ] Добавить поле onec_id с индексом
+  - [ ] Создать миграцию add_onec_id_to_category
   - [ ] Unit тесты (3 теста)
 
-- [x] **Product (существующая модель):**
-  - [x] Добавить: onec_id, parent_onec_id, sync_status, last_sync_at, error_message
-  - [x] Добавить enum SyncStatus
-  - [x] Создать миграцию add_1c_integration_fields
-  - [x] Добавить индексы
+- [ ] **Product (существующая модель):**
+  - [ ] Добавить: onec_id, parent_onec_id, sync_status, last_sync_at, error_message
+  - [ ] Добавить enum SyncStatus
+  - [ ] Создать миграцию add_1c_integration_fields
+  - [ ] Добавить индексы
   - [ ] Unit тесты (10 тестов)
 
-- [x] **ImportSession (новая модель):**
-  - [x] Добавить в конец models.py
-  - [x] Определить enums: ImportType, ImportStatus
-  - [x] Создать миграцию add_import_session
+- [ ] **ImportSession (новая модель):**
+  - [ ] Добавить в конец models.py
+  - [ ] Определить enums: ImportType, ImportStatus
+  - [ ] Создать миграцию add_import_session
   - [ ] Unit тесты (5 тестов)
 
-**Progress:** 70% ■■■■■■■□□□  
-**Notes:** _Модели обновлены, миграции готовы. Остались unit-тесты._  
-**⚠️ ВАЖНО:** Модели Brand, Category, Product УЖЕ СУЩЕСТВОВАЛИ в models.py - только добавлены поля
+**Progress:** 0% □□□□□□□□□□  
+**Notes:** _Задача не начата. Требуется обновление моделей и создание миграций._  
+**⚠️ ВАЖНО:** Модели Brand, Category, Product УЖЕ СУЩЕСТВУЮТ в models.py - нужно только добавить поля
 
 ---
 
 ##### **Task 3.1.1-B: Создать сервисный слой**
 
 **📋 Story:** [3.1.1](../../stories/epic-3/3.1.1.import-products-structure.md) - AC: 2
-**Assigned:** *agent dev | **Estimate:** 12ч | **Status:** 🟡 In Progress
+**Assigned:** *agent dev | **Estimate:** 12ч | **Status:** ⏳ Pending
 **Due Date:** 10.09.2025
 
 **Subtasks:**
 
-- [x] Создать директорию `backend/apps/products/services/`
-- [x] Создать `services/__init__.py`
-- [x] Создать `services/parser.py` (заглушки XMLDataParser)
-- [x] Создать `services/processor.py` (заглушки ProductDataProcessor)
+- [ ] Создать директорию `backend/apps/products/services/`
+- [ ] Создать `services/__init__.py`
+- [ ] Создать `services/parser.py` с классом XMLDataParser
+- [ ] Создать `services/processor.py` с классом ProductDataProcessor
 - [ ] Реализовать методы XMLDataParser (parse_goods_xml, parse_offers_xml, parse_prices_xml, parse_rests_xml)
 - [ ] Реализовать методы ProductDataProcessor (create_product_placeholder, enrich_product_from_offer, update_product_prices, update_product_stock)
 - [ ] Unit тесты для XMLDataParser (10 тестов)
 - [ ] Unit тесты для ProductDataProcessor (15 тестов)
 
-**Progress:** 15% ■■□□□□□□□□  
+**Progress:** 0% □□□□□□□□□□  
 **Dependencies:** Task 3.1.1-A completed
-**Notes:** _Структура создана, заглушки готовы. Требуется реализация._
+**Notes:** _Требуется создание сервисного слоя и реализация всех методов парсера (включая parse_rests_xml для Story 3.1.5)._
 
 ---
 
@@ -239,7 +239,7 @@ python manage.py import_catalog_from_1c --data-dir="backend/tests/fixtures/1c-da
 
 ### 🔵 ФАЗА 3: Integration Sprint (после ответов от 1С)
 
-**Status:** 🟢 **АКТИВНА** - Данные от 1С получены 15.09.2025. Начинаем интеграцию.
+**Status:** ⏳ **ОЖИДАНИЕ** - Ожидаем данные от 1С для начала интеграции.
 
 #### **Critical Blocking Factors:**
 
@@ -416,10 +416,10 @@ python manage.py import_catalog_from_1c --data-dir="backend/tests/fixtures/1c-da
 ### Week 1 (07.09 - 14.09.2025)
 
 **Target:** Complete Milestone 1.1 (Database models)
-**Status:** 🚀 Starting
-**Completed:** _None yet_
-**Blockers:** _None_
-**Notes:** _План согласован, начинаем выполнение_
+**Status:** ⏳ Planned
+**Completed:** _Не начато_
+**Blockers:** _Нет_
+**Notes:** _План требует актуализации перед началом работ_
 
 ### Week 2 (14.09 - 21.09.2025)
 
@@ -458,10 +458,11 @@ python manage.py import_catalog_from_1c --data-dir="backend/tests/fixtures/1c-da
 
 ## 📝 DAILY UPDATES LOG
 
-### 2025-09-07 (Сегодня)
+### 2025-10-11 (Сегодня)
 
-- [ ] Epic 3 план требуется уточнение и согласование
-- [ ] Tracking документ в подготовке
+- [x] Epic 3 execution plan актуализирован
+- [x] Все ошибочные отметки о выполнении сброшены
+- [x] Story 3.1.5 валидирована и приведена к формату шаблона
 - 🎯 **Next:** Начать Task 3.1.1-A (*agent dev)
 
 ### 2025-09-08
@@ -474,7 +475,7 @@ python manage.py import_catalog_from_1c --data-dir="backend/tests/fixtures/1c-da
 ## 🔄 PLAN UPDATE HISTORY
 
 **v1.0 (07.09.2025):** Первоначальный план создан
-**v1.1 (TBD):** _Ожидаем обновления по результатам первой недели_
+**v1.1 (11.10.2025):** Сброшены ошибочные отметки о выполнении, актуализированы статусы задач
 
 ---
 
@@ -489,11 +490,11 @@ python manage.py import_catalog_from_1c --data-dir="backend/tests/fixtures/1c-da
 
 **1С Programmer:** _[контакт нужно добавить]_ - Status: ⏳ Awaiting response
 
-**Next Review:** 08.09.2025 (ежедневный checkpoint)
-**Next Milestone Review:** 11.09.2025 (Milestone 1.1)
+**Next Review:** 12.10.2025 (ежедневный checkpoint)
+**Next Milestone Review:** 18.10.2025 (Milestone 1.1)
 
 ---
 
 **🚀 ПЛАН АКТИВЕН И ГОТОВ К ИСПОЛНЕНИЮ!**
 
-*Последнее обновление: 07.09.2025 by BMad Orchestrator
+*Последнее обновление: 11.10.2025 by Product Owner (актуализация статусов)
