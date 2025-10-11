@@ -6,7 +6,7 @@
 
 Для разработки и тестирования используются XML файлы, расположенные в:
 
-```
+```text
 backend/tests/fixtures/1c-data/
 ├── goods/
 │   └── import_files/
@@ -36,7 +36,8 @@ backend/tests/fixtures/1c-data/
     └── [свойства предложений]
 ```
 
-**Примечание:** Данные перенесены из `backend/tests/legacy/Обмен с сайтом/` в `backend/tests/fixtures/1c-data/` для соответствия структуре тестов проекта.
+**Примечание:**
+ Данные перенесены из `backend/tests/legacy/Обмен с сайтом/` в `backend/tests/fixtures/1c-data/` для соответствия структуре тестов проекта.
 
 ---
 
