@@ -386,21 +386,38 @@ python manage.py import_catalog_from_1c --data-dir="backend/tests/fixtures/1c-da
 
 ##### **Task 3.2.2 + 3.3.1: Conflict Resolution (Реализация Stories 3.2.2, 3.3.1)**
 
-**📋 Stories:** [3.2.2 conflict-resolution](../../stories/epic-3/3.2.2.conflict-resolution.md) + [3.3.1 customer-identity-algorithms](../../stories/epic-3/3.3.1.customer-identity-algorithms.md)
-**Assigned:** *agent dev | **Estimate:** 24ч | **Status:** ⏳ Pending
-**Due Date:** _06.10.2025_
+**📋 Stories:** [3.2.2 conflict-resolution](../../stories/epic-3/3.2.2.conflict-resolution.md) (SP: 8) + [3.3.1 customer-identity-algorithms](../../stories/epic-3/3.3.1.customer-identity-algorithms.md) (SP: 5)
+**Assigned:** *agent dev | **Estimate:** 16ч | **Status:** ⏳ Pending
+**Due Date:** _04.10.2025_
 
 **Subtasks:**
 
-- [ ] Создать `CustomerConflictResolver` класс (Story 3.2.2 AC: 1,2)
-- [ ] Реализовать алгоритмы нечеткого поиска (Story 3.3.1 AC: 1,2,3)
-- [ ] Создать `CustomerIdentityResolver` с ML подходами (Story 3.3.1 AC: 4,5)
-- [ ] Настроить Django Admin для модерации конфликтов (Story 3.2.2 AC: 4,5,6)
-- [ ] Тестирование conflict resolution (Story 3.2.2 AC: 7, Story 3.3.1 AC: 6,7)
+**CustomerIdentityResolver (Story 3.3.1 - детерминированная идентификация):**
+- [ ] Создать `CustomerIdentityResolver` в `apps/users/services/identity_resolution.py`
+- [ ] Реализовать метод `identify_customer(onec_customer_data)` с приоритетами:
+  - [ ] Приоритет 1: поиск по `onec_id` (100% точность)
+  - [ ] Приоритет 2: поиск по `onec_guid` (100% точность)
+  - [ ] Приоритет 3: поиск по `tax_id` (ИНН для B2B)
+  - [ ] Приоритет 4: поиск по `email` (для B2C)
+- [ ] Реализовать методы нормализации: `normalize_inn()`, `normalize_email()`
+- [ ] Логирование всех попыток идентификации в CustomerSyncLog
+- [ ] Unit тесты для всех сценариев идентификации (Story 3.3.1 AC: 7)
+
+**CustomerConflictResolver (Story 3.2.2 - стратегия onec_wins):**
+- [ ] Создать `CustomerConflictResolver` в `apps/users/services/conflict_resolution.py`
+- [ ] Реализовать единственную стратегию: `onec_wins` (1C как источник истины)
+- [ ] Реализовать метод `resolve_conflict(existing_customer, onec_data, conflict_source)`
+- [ ] Обработка сценария `portal_registration`: присвоение статуса 'confirmed_client'
+- [ ] Обработка сценария `data_import`: перезапись конфликтующих полей данными из 1С
+- [ ] Email уведомления администратору при каждом конфликте
+- [ ] Создание записей в SyncConflict с архивом (platform_data + onec_data)
+- [ ] Логирование в CustomerSyncLog с детализацией изменений
+- [ ] Unit и Integration тесты для обоих сценариев (Story 3.2.2 AC: 7)
 
 **Progress:** 0% □□□□□□□□□□
 **🔴 Blocking Factor:** Нет.
-**Notes:** _Комбинированная реализация Stories 3.2.2 + 3.3.1 - алгоритмы идентификации дублей_
+**Notes:** _Упрощенная стратегия: детерминированная идентификация + 1C как единственный источник истины. Без fuzzy matching, без Django Admin модерации._
+**⚠️ ВАЖНО:** Все конфликты разрешаются автоматически, email уведомления обязательны, полный audit trail в SyncConflict.
 
 ---
 

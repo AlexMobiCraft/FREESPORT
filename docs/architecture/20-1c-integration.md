@@ -469,32 +469,52 @@ sequenceDiagram
 
 ### 7.2 Стратегии разрешения конфликтов
 
+**Принцип:** 1C как единственный источник истины. Все конфликты разрешаются автоматически.
+
 ```python
 class CustomerConflictResolver:
-    """Разрешение конфликтов данных клиентов"""
+    """Упрощенная система разрешения конфликтов: 1C как источник истины"""
     
-    RESOLUTION_STRATEGIES = {
-        'email_conflict': 'merge_by_email',
-        'data_mismatch': 'latest_wins',
-        'role_conflict': 'manual_review',
-        'duplicate_customer': 'merge_customers',
-    }
-    
-    def resolve_customer_conflict(self, platform_customer, onec_customer):
-        """Разрешение конфликта данных клиента"""
+    def resolve_conflict(self, existing_customer, onec_data, conflict_source):
+        """
+        Единственная стратегия: onec_wins
         
-        conflicts = self.detect_conflicts(platform_customer, onec_customer)
-        
-        for conflict_type, conflict_data in conflicts.items():
-            strategy = self.RESOLUTION_STRATEGIES.get(conflict_type)
+        Args:
+            existing_customer: Существующий клиент в БД
+            onec_data: Данные из 1С
+            conflict_source: 'portal_registration' или 'data_import'
+        """
+        with transaction.atomic():
+            # Архивируем текущие данные
+            platform_data = self._serialize_customer(existing_customer)
             
-            if strategy == 'merge_by_email':
-                return self.merge_customers_by_email(platform_customer, onec_customer)
-            elif strategy == 'latest_wins':
-                return self.apply_latest_changes(platform_customer, onec_customer)
-            elif strategy == 'manual_review':
-                self.create_manual_review_task(conflict_data)
-                return None
+            if conflict_source == 'portal_registration':
+                # Присваиваем статус, НЕ изменяя данные из 1С
+                existing_customer.is_confirmed_client = True
+                existing_customer.save()
+            
+            elif conflict_source == 'data_import':
+                # Обогащаем профиль и перезаписываем конфликтующие поля
+                existing_customer.onec_id = onec_data.get('onec_id')
+                existing_customer.onec_guid = onec_data.get('onec_guid')
+                
+                # Перезаписываем все конфликтующие поля данными из 1С
+                for field in self.CONFLICTING_FIELDS:
+                    if new_value := onec_data.get(field):
+                        setattr(existing_customer, field, new_value)
+                
+                existing_customer.last_sync_from_1c = timezone.now()
+                existing_customer.save()
+            
+            # Создаем запись в SyncConflict для аудита
+            self._create_sync_conflict_record(
+                existing_customer, platform_data, onec_data, conflict_source
+            )
+            
+            # Отправляем email уведомление администратору
+            self._send_notification(
+                existing_customer, platform_data, onec_data, conflict_source
+            )
 ```
 
 ### 7.3 Workflow синхронизации клиентов
@@ -664,18 +684,17 @@ class IntegrationErrorHandler:
         'validation_error': 'skip_and_log',
         'database_error': 'retry_with_backoff',
         'file_parse_error': 'stop_and_report',
-        'customer_conflict': 'queue_for_manual_review',
-        'duplicate_customer': 'attempt_merge',
+        'customer_conflict': 'auto_resolve_onec_wins',
+        'duplicate_customer': 'auto_resolve_onec_wins',
         '1c_api_error': 'retry_with_exponential_backoff',
     }
     
     def handle_customer_sync_error(self, error_type, error_data, context):
         """Специализированная обработка ошибок синхронизации клиентов"""
         
-        if error_type == 'customer_conflict':
-            return self.queue_conflict_for_review(error_data, context)
-        elif error_type == 'duplicate_customer':
-            return self.attempt_customer_merge(error_data, context)
+        if error_type in ('customer_conflict', 'duplicate_customer'):
+            # Автоматическое разрешение: 1C всегда имеет приоритет
+            return self.auto_resolve_conflict(error_data, context)
         else:
             return self.handle_generic_error(error_type, error_data, context)
 
@@ -687,7 +706,7 @@ class CustomerSyncMonitor:
         
         return {
             'customers_synced_today': self.get_customers_synced_today(),
-            'pending_conflicts': self.get_pending_conflicts_count(),
+            'auto_resolved_conflicts_today': self.get_auto_resolved_conflicts_count(),
             'sync_errors_last_24h': self.get_recent_errors(),
             'export_queue_size': self.get_export_queue_size(),
             'last_successful_import': self.get_last_successful_import(),
