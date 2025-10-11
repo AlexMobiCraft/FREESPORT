@@ -195,6 +195,7 @@ docker-compose -f docker-compose.test.yml exec db psql -U postgres -d freesport_
 - Django settings: `freesport.settings.test`
 
 **Просмотр логов CI:**
+
 1. Перейдите в GitHub репозиторий
 2. Вкладка "Actions"
 3. Выберите последний workflow run
@@ -202,7 +203,7 @@ docker-compose -f docker-compose.test.yml exec db psql -U postgres -d freesport_
 
 ## Структура тестов
 
-```
+```text
 backend/tests/
 ├── unit/                    # Unit тесты (изолированные)
 │   ├── test_models/        # Тесты моделей
