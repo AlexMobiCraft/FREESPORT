@@ -3,6 +3,7 @@
     "reportMissingImports": "none",
     "reportMissingTypeStubs": "none",
     "ignore": [
-        "transliterate"
+        "transliterate",
+        "django_filters.rest_framework"
     ]
 }

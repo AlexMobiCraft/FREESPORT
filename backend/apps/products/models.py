@@ -8,7 +8,7 @@ import time
 import uuid
 from datetime import datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, ClassVar, cast
 
 from django.core.validators import MinValueValidator
 from django.db import models
@@ -16,6 +16,8 @@ from django.utils.text import slugify
 from transliterate import translit
 
 if TYPE_CHECKING:
+    from django.db.models import Manager as DjangoManager
+
     from apps.users.models import User
 
 
@@ -52,6 +54,9 @@ class Brand(models.Model):
     )
     updated_at = cast(datetime, models.DateTimeField("Дата обновления", auto_now=True))
 
+    if TYPE_CHECKING:
+        objects: ClassVar[DjangoManager["Brand"]]
+
     class Meta:
         verbose_name = "Бренд"
         verbose_name_plural = "Бренды"
@@ -84,7 +89,7 @@ class Category(models.Model):
     name = cast(str, models.CharField("Название", max_length=200))
     slug = cast(str, models.SlugField("Slug", max_length=255, unique=True))
     parent = cast(
-        "Category | None",
+        models.ForeignKey["Category"],
         models.ForeignKey(
             "self",
             on_delete=models.CASCADE,
@@ -132,8 +137,7 @@ class Category(models.Model):
         ordering = ["sort_order", "name"]
 
     if TYPE_CHECKING:
-        parent: "Category | None"
-        parent_id: "int | None"
+        objects: ClassVar[DjangoManager["Category"]]
 
     def save(self, *args: Any, **kwargs: Any) -> None:
         if not self.slug:
@@ -156,11 +160,10 @@ class Category(models.Model):
     @property
     def full_name(self) -> str:
         """Полное название категории с учетом иерархии"""
-        if self.parent_id:
-            parent = cast("Category", self.parent)
+        parent = cast("Category | None", self.parent)
+        if parent:
             return f"{parent.full_name} > {self.name}"
         return self.name
-
 
 class Product(models.Model):
     """
@@ -260,6 +263,9 @@ class Product(models.Model):
             validators=[MinValueValidator(0)],
         ),
     )
+
+    if TYPE_CHECKING:
+        objects: ClassVar[DjangoManager["Product"]]
 
     # Информационные цены для B2B пользователей
     recommended_retail_price = cast(
@@ -556,6 +562,9 @@ class ImportSession(models.Model):
         ),
     )
     error_message = cast(str, models.TextField("Сообщение об ошибке", blank=True))
+
+    if TYPE_CHECKING:
+        objects: ClassVar[DjangoManager["ImportSession"]]
 
     class Meta:
         verbose_name = "Сессия импорта"
