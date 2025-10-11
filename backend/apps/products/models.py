@@ -32,7 +32,7 @@ class Brand(models.Model):
     description = cast(str, models.TextField("Описание", blank=True))
     website = cast(str, models.URLField("Веб-сайт", blank=True))
     is_active = cast(bool, models.BooleanField("Активный", default=True))
-    
+
     # Интеграция с 1С
     onec_id = cast(
         str,
@@ -46,7 +46,7 @@ class Brand(models.Model):
             help_text="Уникальный идентификатор бренда из 1С",
         ),
     )
-    
+
     created_at = cast(
         datetime, models.DateTimeField("Дата создания", auto_now_add=True)
     )
@@ -105,7 +105,7 @@ class Category(models.Model):
     # SEO поля
     seo_title = cast(str, models.CharField("SEO заголовок", max_length=200, blank=True))
     seo_description = cast(str, models.TextField("SEO описание", blank=True))
-    
+
     # Интеграция с 1С
     onec_id = cast(
         str,
@@ -329,11 +329,11 @@ class Product(models.Model):
 
     # 1С Integration fields (Story 3.1.1 AC: 3)
     class SyncStatus(models.TextChoices):
-        PENDING = 'pending', 'Ожидает синхронизации'
-        IN_PROGRESS = 'in_progress', 'Синхронизация'
-        COMPLETED = 'completed', 'Синхронизировано'
-        FAILED = 'failed', 'Ошибка'
-    
+        PENDING = "pending", "Ожидает синхронизации"
+        IN_PROGRESS = "in_progress", "Синхронизация"
+        COMPLETED = "completed", "Синхронизировано"
+        FAILED = "failed", "Ошибка"
+
     onec_id = cast(
         str | None,
         models.CharField(
@@ -563,4 +563,7 @@ class ImportSession(models.Model):
         ]
 
     def __str__(self) -> str:
-        return f"{self.get_import_type_display()} - {self.get_status_display()} ({self.started_at})"
+        return (
+            f"{self.get_import_type_display()} - "
+            f"{self.get_status_display()} ({self.started_at})"
+        )
