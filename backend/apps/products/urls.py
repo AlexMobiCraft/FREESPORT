@@ -13,7 +13,8 @@ router.register(r"categories", CategoryViewSet, basename="category")
 router.register(r"categories-tree", CategoryTreeViewSet, basename="category-tree")
 router.register(r"brands", BrandViewSet, basename="brand")
 
-app_name = "products"
+APP_NAME = "products"
+app_name = APP_NAME
 
 urlpatterns = [
     # Включаем router для всех ViewSets
