@@ -1,2 +1,8 @@
-{ "typeCheckingMode": "basic", "reportMissingImports": 
-"none", "reportMissingTypeStubs": "none" }
+{
+    "typeCheckingMode": "basic",
+    "reportMissingImports": "none",
+    "reportMissingTypeStubs": "none",
+    "ignore": [
+        "transliterate"
+    ]
+}

@@ -131,6 +131,10 @@ class Category(models.Model):
         db_table = "categories"
         ordering = ["sort_order", "name"]
 
+    if TYPE_CHECKING:
+        parent: "Category | None"
+        parent_id: "int | None"
+
     def save(self, *args: Any, **kwargs: Any) -> None:
         if not self.slug:
             try:
@@ -152,8 +156,9 @@ class Category(models.Model):
     @property
     def full_name(self) -> str:
         """Полное название категории с учетом иерархии"""
-        if self.parent:
-            return f"{self.parent.full_name} > {self.name}"
+        if self.parent_id:
+            parent = cast("Category", self.parent)
+            return f"{parent.full_name} > {self.name}"
         return self.name
 
 
@@ -561,6 +566,15 @@ class ImportSession(models.Model):
             models.Index(fields=["import_type", "status"]),
             models.Index(fields=["-started_at"]),
         ]
+
+    if TYPE_CHECKING:
+        def get_import_type_display(self) -> str:
+            """Заглушка для метода Django, возвращающего название типа импорта."""
+            return ""
+
+        def get_status_display(self) -> str:
+            """Заглушка для метода Django, возвращающего название статуса."""
+            return ""
 
     def __str__(self) -> str:
         return (
