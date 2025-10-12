@@ -54,6 +54,7 @@ class User(AbstractUser):
     # Интеграция с 1С
     onec_id = models.CharField(max_length=50, blank=True, unique=True, null=True)
     onec_guid = models.UUIDField(blank=True, null=True, unique=True)
+    created_in_1c = models.BooleanField(default=False)  # True если клиент импортирован из 1С
     last_sync_from_1c = models.DateTimeField(blank=True, null=True)
     last_sync_to_1c = models.DateTimeField(blank=True, null=True)
     sync_conflicts = models.JSONField(default=dict, blank=True)  # Храним конфликты синхронизации

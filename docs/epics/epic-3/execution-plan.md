@@ -147,6 +147,7 @@ python manage.py import_catalog_from_1c --data-dir="backend/tests/fixtures/1c-da
 **Notes:** _ЧАСТИЧНО покрывает Story 3.2.1 v1.4 - только модели, требуется Task 3.2.1-B для полной реализации_
 **⚠️ ВНИМАНИЕ:** Story 3.2.1 также требует команду импорта, парсер/процессор, маппинг ролей (см. Task 3.2.1-B)
 **Dependencies:** Task 3.1.1-A completed (ImportSession model)
+**⚠️ КРИТИЧНО:** Эта задача ДОЛЖНА быть выполнена ПОСЛЕ Task 3.1.1-A, так как CustomerSyncLog требует ForeignKey на ImportSession
 
 ---
 
