@@ -69,14 +69,14 @@
 **Статус:** 📋 **ЗАПЛАНИРОВАН** (0/10 stories)
 
 - [ ] [Story 3.1.1:](stories/epic-3/3.1.1.import-products-structure.md) Импорт структуры товаров
-- [ ] [Story 3.1.2:](stories/epic-3/3.1.2.import-products-prices.md) Импорт цен товаров
-- [ ] [Story 3.2.1:](stories/epic-3/3.2.1.export-orders-structure.md) Экспорт структуры заказов
-- [ ] [Story 3.2.2:](stories/epic-3/3.2.2.export-orders-status.md) Экспорт статусов заказов
-- [ ] [Story 3.3.1:](stories/epic-3/3.3.1.sync-inventory.md) Синхронизация остатков
+- [ ] [Story 3.1.2:](stories/epic-3/3.1.2.loading-scripts.md) Импорт цен товаров
+- [ ] [Story 3.2.1:](stories/epic-3/3.2.1.import-existing-customers.md) Экспорт структуры заказов
+- [ ] [Story 3.2.2:](stories/epic-3/3.2.2.conflict-resolution.md) Экспорт статусов заказов
+- [ ] [Story 3.3.1:](stories/epic-3/3.3.1.customer-identity-algorithms.md) Синхронизация остатков
 - [ ] [Story 3.3.2:](stories/epic-3/3.3.2.sync-prices.md) Синхронизация цен
-- [ ] [Story 3.4.1:](stories/epic-3/3.4.1.error-handling.md) Обработка ошибок
-- [ ] [Story 3.4.2:](stories/epic-3/3.4.2.retry-logic.md) Логика повторных попыток
-- [ ] [Story 3.5.1:](stories/epic-3/3.5.1.sync-monitoring.md) Мониторинг синхронизации
+- [ ] [Story 3.4.1:](stories/epic-3/3.4.1.test-data-scenarios.md) Обработка ошибок
+- [ ] [Story 3.4.2:](stories/epic-3/3.4.2.conflict-scenarios-testing.md) Логика повторных попыток
+- [ ] [Story 3.5.1:](stories/epic-3/3.5.1.monitoring-system.md) Мониторинг синхронизации
 - [ ] [Story 3.5.2:](stories/epic-3/3.5.2.error-notifications.md) Уведомления об ошибках
 
 **Планируемые результаты:**
