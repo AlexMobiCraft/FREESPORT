@@ -290,24 +290,45 @@ class DocsValidator:
 
     def _find_api_endpoints(self) -> Set[str]:
         """Найти все API endpoints в коде."""
-        endpoints = set()
+        endpoints: Set[str] = set()
 
         if not self.backend_dir.exists():
             return endpoints
 
-        # Ищем ViewSet и APIView классы
-        for py_file in self.backend_dir.rglob("views*.py"):
+        for py_file in self.backend_dir.rglob("*.py"):
+            if py_file.name == "__init__.py":
+                continue
+
             try:
-                content = py_file.read_text(encoding='utf-8')
-
-                # Ищем классы ViewSet
-                viewset_pattern = r'class\s+(\w+(?:ViewSet|APIView))\s*\('
-                for match in re.finditer(viewset_pattern, content):
-                    class_name = match.group(1)
-                    endpoints.add(class_name)
-
+                content = py_file.read_text(encoding="utf-8")
             except Exception:
-                pass
+                continue
+
+            parts = py_file.relative_to(self.backend_dir).parts
+            is_views_module = any(part == "views" for part in parts[:-1]) or py_file.name == "views.py"
+
+            if is_views_module:
+                class_pattern = r"class\s+(\w+)\s*\(([^)]*)\)"
+                for match in re.finditer(class_pattern, content):
+                    class_name = match.group(1)
+                    base_classes = match.group(2)
+                    if any(keyword in base_classes for keyword in ("ViewSet", "APIView")):
+                        endpoints.add(class_name)
+
+            if py_file.name == "urls.py":
+                router_pattern = r"router\.register\(\s*r?['\"]([^'\"]+)['\"]\s*,\s*([\w\.]+)"
+                for match in re.finditer(router_pattern, content):
+                    view_ref = match.group(2)
+                    class_name = view_ref.split('.')[-1]
+                    if class_name:
+                        endpoints.add(class_name)
+
+                path_pattern = r"(?:path|re_path)\(\s*['\"][^'\"]+['\"]\s*,\s*([\w\.]+)\.as_view"
+                for match in re.finditer(path_pattern, content):
+                    view_ref = match.group(1)
+                    class_name = view_ref.split('.')[-1]
+                    if class_name:
+                        endpoints.add(class_name)
 
         return endpoints
 
