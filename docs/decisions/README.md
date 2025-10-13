@@ -4,19 +4,19 @@
 
 ## Сводка всех решений
 
-**[SUMMARY.md](SUMMARY.md)** - Полная сводка всех архитектурных и технических решений API Backend
+**[SUMMARY.md](./SUMMARY.md)** - Полная сводка всех архитектурных и технических решений API Backend
 
 ## Принятые решения
 
 ### API Backend (Эпик 2)
 
-- **[story-2.1-api-documentation-decisions.md](story-2.1-api-documentation-decisions.md)** - API Documentation: OpenAPI 3.1.0, drf-spectacular, Swagger UI
-- **[story-2.2-user-management-api-decisions.md](story-2.2-user-management-api-decisions.md)** - User Management API: ролевая система B2B/B2C, JWT аутентификация, email-based логин
-- **[story-2.3-personal-cabinet-api-decisions.md](story-2.3-personal-cabinet-api-decisions.md)** - Personal Cabinet API: модульная организация, дашборд, адреса, избранное
-- **[story-2.4-catalog-api-decisions.md](story-2.4-catalog-api-decisions.md)** - Catalog API: ролевое ценообразование, иерархические категории, фильтрация
-- **[story-2.5-product-detail-api-decisions.md](story-2.5-product-detail-api-decisions.md)** - Product Detail API: JSON спецификации, галерея изображений, связанные товары
-- **[story-2.6-cart-api-decisions.md](story-2.6-cart-api-decisions.md)** - Cart API: гибридная система корзин, автоперенос, валидация товаров
-- **[story-2.7-order-api-decisions.md](story-2.7-order-api-decisions.md)** - Order API: транзакционная модель заказов, валидация корзины, ролевое ценообразование
+- **[story-2.1-api-documentation-decisions.md](./story-2.1-api-documentation-decisions.md)** - API Documentation: OpenAPI 3.1.0, drf-spectacular, Swagger UI
+- **[story-2.2-user-management-api-decisions.md](./story-2.2-user-management-api-decisions.md)** - User Management API: ролевая система B2B/B2C, JWT аутентификация, email-based логин
+- **[story-2.3-personal-cabinet-api-decisions.md](./story-2.3-personal-cabinet-api-decisions.md)** - Personal Cabinet API: модульная организация, дашборд, адреса, избранное
+- **[story-2.4-catalog-api-decisions.md](./story-2.4-catalog-api-decisions.md)** - Catalog API: ролевое ценообразование, иерархические категории, фильтрация
+- **[story-2.5-product-detail-api-decisions.md](./story-2.5-product-detail-api-decisions.md)** - Product Detail API: JSON спецификации, галерея изображений, связанные товары
+- **[story-2.6-cart-api-decisions.md](./story-2.6-cart-api-decisions.md)** - Cart API: гибридная система корзин, автоперенос, валидация товаров
+- **[story-2.7-order-api-decisions.md](./story-2.7-order-api-decisions.md)** - Order API: транзакционная модель заказов, валидация корзины, ролевое ценообразование
 
 ## Процесс документирования решений
 
