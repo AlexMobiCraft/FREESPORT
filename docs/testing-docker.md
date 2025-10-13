@@ -8,8 +8,6 @@
 
 ## Важные изменения
 
-**SQLite больше не поддерживается** для тестирования из-за ограничений JSON операторов, используемых в фильтрации товаров. Все тесты должны выполняться с PostgreSQL через Docker Compose.
-
 ## Архитектура тестирования
 
 ### Тестовая среда vs Среда разработки
@@ -83,7 +81,7 @@ db:
   container_name: freesport-test-db
   environment:
     POSTGRES_DB: freesport_test
-    POSTGRES_USER: freesport_user
+    POSTGRES_USER: postgres
     POSTGRES_PASSWORD: password123
   ports:
     - "5433:5432"  # Избегаем конфликта с основной БД
@@ -91,7 +89,7 @@ db:
     - /tmp         # Ускоряем временные операции
   shm_size: 256mb  # Больше памяти для PostgreSQL
   healthcheck:
-    test: ["CMD-SHELL", "pg_isready -U freesport_user -d freesport_test"]
+    test: ["CMD-SHELL", "pg_isready -U postgres -d freesport_test"]
     interval: 10s  # Быстрее проверки
     timeout: 5s
     retries: 5
@@ -185,36 +183,23 @@ CMD ["pytest",
 
 ### Адаптивные настройки БД
 
-```python  
+```python
 # backend/freesport/settings/test.py
 import os
 
-if os.environ.get('DB_HOST'):
-    # PostgreSQL для Docker тестов
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': os.environ.get('DB_NAME', 'freesport_test'),
-            'USER': os.environ.get('DB_USER', 'freesport_user'),
-            'PASSWORD': os.environ.get('DB_PASSWORD', 'password123'),
-            'HOST': os.environ.get('DB_HOST', 'localhost'),
-            'PORT': os.environ.get('DB_PORT', '5432'),
-            'TEST': {
-                'NAME': 'test_' + os.environ.get('DB_NAME', 'freesport_test'),
-            },
-        }
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.environ.get('DB_NAME', 'freesport_test'),
+        'USER': os.environ.get('DB_USER', 'postgres'),
+        'PASSWORD': os.environ.get('DB_PASSWORD', 'password123'),
+        'HOST': os.environ.get('DB_HOST', 'localhost'),
+        'PORT': os.environ.get('DB_PORT', '5432'),
+        'TEST': {
+            'NAME': 'test_' + os.environ.get('DB_NAME', 'freesport_test'),
+        },
     }
-else:
-    # SQLite для локальных тестов
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': ':memory:',
-            'TEST': {
-                'NAME': ':memory:',
-            },
-        }
-    }
+}
 ```
 
 ### Адаптивные настройки кеша
@@ -403,7 +388,7 @@ docker-compose -f docker-compose.test.yml run --rm backend pytest -v -s tests/te
 docker-compose -f docker-compose.test.yml run --rm backend bash
 
 # Подключение к тестовой БД
-docker-compose -f docker-compose.test.yml exec db psql -U freesport_user -d freesport_test
+docker-compose -f docker-compose.test.yml exec db psql -U postgres -d freesport_test
 
 # Проверка Redis
 docker-compose -f docker-compose.test.yml exec redis redis-cli -a redis123
@@ -483,7 +468,7 @@ docker-compose -f docker-compose.test.yml ps
 docker-compose -f docker-compose.test.yml logs db
 
 # Ручная проверка подключения
-docker-compose -f docker-compose.test.yml exec db pg_isready -U freesport_user -d freesport_test
+docker-compose -f docker-compose.test.yml exec db pg_isready -U postgres -d freesport_test
 ```
 
 **4. Медленные тесты**

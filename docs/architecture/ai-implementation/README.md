@@ -87,7 +87,7 @@
 - [`docs/architecture/10-testing-strategy.md`](../10-testing-strategy.md) - 🔥 **Эталон** стратегии тестирования
 - [`TESTING_COMPLIANCE_REPORT.md`](./TESTING_COMPLIANCE_REPORT.md) - 🆕 Отчет о соответствии тестов требованиям
 - [`CLAUDE.md`](../../../CLAUDE.md) - Инструкции для AI агентов
-- [`backend/docs/testing-standards.md`](../../../backend/docs/testing-standards.md) - Стандарты тестирования
+- [`frontend/docs/testing-standards.md`](../../../frontend/docs/testing-standards.md) - Стандарты тестирования
 
 ## 🏷️ Теги для поиска
 

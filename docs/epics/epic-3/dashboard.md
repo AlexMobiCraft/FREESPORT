@@ -77,4 +77,4 @@ _None yet - starting today_
 - ❓ No technical surprises in models
 
 ---
-**📊 For detailed tracking see:** [`epic-3-execution-plan.md`](./epic-3-execution-plan.md)
+**📊 For detailed tracking see:** [`execution-plan.md`](./execution-plan.md)

@@ -38,7 +38,7 @@ freesport/
 
 **Backend (Django 4.2 LTS):**
 - ✅ Django REST Framework 3.14+
-- ✅ PostgreSQL 15+ (production) / SQLite (development)
+- ✅ PostgreSQL 15+ (production)
 - ✅ Redis 7.0+ for caching
 - ✅ JWT authentication with refresh tokens
 - ✅ drf-spectacular for OpenAPI documentation
@@ -143,9 +143,9 @@ npm run dev
 DJANGO_ENVIRONMENT=development
 SECRET_KEY=your-super-secret-key-change-this-in-production
 
-# === DATABASE (для локальной разработки использует SQLite) ===
+# === DATABASE (локальная разработка через PostgreSQL Docker) ===
 DB_NAME=freesport
-DB_USER=freesport_user
+DB_USER=postgres
 DB_PASSWORD=password123
 DB_HOST=localhost
 DB_PORT=5432
@@ -272,12 +272,12 @@ scripts\test.bat
 
 ## Database Setup
 
-### Development (SQLite)
+### Development (PostgreSQL Docker)
 
-**По умолчанию для разработки используется SQLite:**
-- ✅ Быстрая настройка без дополнительных зависимостей
-- ✅ Автоматически создается в `backend/db.sqlite3`
-- ✅ Идеально для локальной разработки
+**По умолчанию для разработки используется PostgreSQL:**
+- ✅ Запускается через `docker-compose up -d`
+- ✅ Конфигурация хранится в `backend/.env`
+- ✅ Полностью совпадает с staging/production окружениями
 
 ### Testing (PostgreSQL in Docker)
 
@@ -288,8 +288,9 @@ services:
     image: postgres:15-alpine
     environment:
       POSTGRES_DB: freesport_test
-      POSTGRES_USER: freesport_user
+      POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password123
+
     ports:
       - "5433:5432"  # Не конфликтует с основной БД
 ```
@@ -300,10 +301,11 @@ services:
 ```bash
 # Переменные в .env
 DB_NAME=freesport
-DB_USER=freesport_user
+DB_USER=postgres
 DB_PASSWORD=secure-password
 DB_HOST=db-host
 DB_PORT=5432
+
 DB_SSLMODE=require
 ```
 
@@ -514,10 +516,6 @@ docker-compose ps
 #### 2. Database migration проблемы
 
 ```bash
-# Сбросить миграции (SQLite)
-rm backend/db.sqlite3
-python backend/manage.py migrate
-
 # PostgreSQL в Docker
 docker-compose down -v  # удалить volumes
 docker-compose up -d

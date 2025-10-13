@@ -14,13 +14,13 @@
     python scripts/docs_link_checker.py --fix          # Автоисправление (где возможно)
 """
 
-import os
 import re
 import sys
 from pathlib import Path
 from typing import List, Dict, Set, Tuple, Optional
-from urllib.parse import urlparse
 import argparse
+
+from exclude_utils import load_exclude_patterns
 
 
 class Colors:
@@ -37,7 +37,7 @@ class Colors:
 class LinkChecker:
     """Проверка ссылок в markdown документах."""
 
-    def __init__(self, docs_dir: Path, check_external: bool = False):
+    def __init__(self, docs_dir: Path, check_external: bool = False, exclude_patterns: List[str] | None = None):
         self.docs_dir = docs_dir
         self.project_root = docs_dir.parent
         self.check_external = check_external
@@ -45,6 +45,7 @@ class LinkChecker:
         self.warnings: List[Dict] = []
         self.checked_files = 0
         self.total_links = 0
+        self.exclude_patterns = list(exclude_patterns or [])
 
     def print_header(self, text: str):
         """Печать заголовка."""
@@ -87,6 +88,27 @@ class LinkChecker:
     def is_external_url(self, url: str) -> bool:
         """Проверка, является ли URL внешним."""
         return url.startswith(('http://', 'https://', 'mailto:', 'ftp://'))
+
+    def _is_excluded(self, path: Path) -> bool:
+        """Проверить, входит ли путь в список исключений."""
+        try:
+            rel_path = path.relative_to(self.project_root).as_posix()
+        except ValueError:
+            return False
+        return any(self._match_pattern(rel_path, pattern) for pattern in self.exclude_patterns)
+
+    def _match_pattern(self, path: str, pattern: str) -> bool:
+        """Проверить совпадение пути с шаблоном исключения."""
+        if pattern.endswith('/**'):
+            prefix = pattern[:-3]
+            return path.startswith(prefix)
+        if pattern.endswith('/*'):
+            prefix = pattern[:-2]
+            if not path.startswith(prefix):
+                return False
+            remainder = path[len(prefix):]
+            return remainder.startswith('/') and remainder.count('/') <= 1
+        return path == pattern
 
     def resolve_link_path(self, link_url: str, source_file: Path) -> Optional[Path]:
         """Разрешить путь ссылки относительно исходного файла."""
@@ -156,6 +178,9 @@ class LinkChecker:
                 'link': link
             }
 
+        if self._is_excluded(target_path):
+            return None
+
         # Проверяем якорь, если есть
         if '#' in url:
             anchor = url.split('#')[1]
@@ -184,7 +209,7 @@ class LinkChecker:
         """Проверить все ссылки в документации."""
         self.print_header("🔗 ПРОВЕРКА КРОСС-ССЫЛОК В ДОКУМЕНТАЦИИ")
 
-        md_files = list(self.docs_dir.rglob("*.md"))
+        md_files = [f for f in self.docs_dir.rglob("*.md") if not self._is_excluded(f)]
         self.checked_files = len(md_files)
 
         print(f"Найдено {len(md_files)} markdown файлов\n")
@@ -196,6 +221,9 @@ class LinkChecker:
                 self.total_links += len(links)
 
                 for link in links:
+                    if self._is_excluded(link['file']):
+                        continue
+
                     issue = self.check_link(link)
 
                     if issue:
@@ -325,6 +353,13 @@ def main():
         help='Сохранить отчет в файл'
     )
 
+    parser.add_argument(
+        '--exclude',
+        nargs='*',
+        default=[],
+        help='Дополнительные исключения (относительно корня проекта)'
+    )
+
     args = parser.parse_args()
 
     # Определяем пути
@@ -337,8 +372,10 @@ def main():
         sys.exit(1)
 
     # Создаем checker и запускаем проверку
-    checker = LinkChecker(docs_dir, check_external=args.external)
-    errors, warnings = checker.check_all_links()
+    exclude_patterns = load_exclude_patterns(project_root, args.exclude)
+
+    checker = LinkChecker(docs_dir, check_external=args.external, exclude_patterns=exclude_patterns)
+    checker.check_all_links()
 
     # Выводим результаты
     success = checker.print_results()

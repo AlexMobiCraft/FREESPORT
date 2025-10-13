@@ -72,30 +72,10 @@ freesport/
 
 ### 🔴 Решенные критические проблемы
 
-#### 1. Противоречие настроек БД
-**Проблема:** test.py использовал SQLite, а docker-compose.test.yml - PostgreSQL
+#### 1. Унификация настроек БД
+**Проблема:** Тестовая среда не соответствовала production-конфигурации
 
-**Решение:**
-```python
-# backend/freesport/settings/test.py
-if os.environ.get('DB_HOST'):
-    # PostgreSQL для Docker тестов
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': os.environ.get('DB_NAME', 'freesport_test'),
-            # ...
-        }
-    }
-else:
-    # SQLite для локальных тестов
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': ':memory:',
-        }
-    }
-```
+**Решение:** Во всех окружениях используется PostgreSQL с параметрами из `.env`
 
 #### 2. Отсутствующие сервисы в тестовой среде
 **Проблема:** docker-compose.test.yml не содержал db и redis сервисы
@@ -275,7 +255,7 @@ docker-compose logs -f backend
 docker-compose exec backend bash
 
 # Подключение к БД
-docker-compose exec db psql -U freesport_user -d freesport
+docker-compose exec db psql -U postgres -d freesport
 ```
 
 ### Volumes и данные
@@ -288,7 +268,7 @@ docker volume ls | grep freesport
 docker-compose -f docker-compose.test.yml down --volumes
 
 # Бэкап БД (для разработки)
-docker-compose exec db pg_dump -U freesport_user freesport > backup.sql
+docker-compose exec db pg_dump -U postgres freesport > backup.sql
 ```
 
 ## Производительность и оптимизация
@@ -375,7 +355,7 @@ chmod -R 755 scripts/
 ```bash
 # Проверить health check БД
 docker-compose ps
-docker-compose exec db pg_isready -U freesport_user
+docker-compose exec db pg_isready -U postgres
 ```
 
 **4. Проблемы с Redis**

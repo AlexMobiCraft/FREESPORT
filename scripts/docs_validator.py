@@ -22,7 +22,10 @@ import sys
 from pathlib import Path
 from datetime import datetime, timedelta
 from typing import List, Dict, Set, Tuple
+import argparse
 import json
+
+from exclude_utils import load_exclude_patterns
 
 # Устанавливаем кодировку UTF-8 для вывода в консоли Windows
 if sys.platform == 'win32':
@@ -58,13 +61,14 @@ class Colors:
 class DocsValidator:
     """Валидатор документации проекта."""
 
-    def __init__(self, project_root: Path):
+    def __init__(self, project_root: Path, exclude_patterns: List[str] | None = None):
         self.project_root = project_root
         self.docs_dir = project_root / "docs"
         self.backend_dir = project_root / "backend"
         self.errors: List[str] = []
         self.warnings: List[str] = []
         self.info: List[str] = []
+        self.exclude_patterns = list(exclude_patterns or [])
 
     def print_header(self, text: str):
         """Печать заголовка."""
@@ -99,7 +103,26 @@ class DocsValidator:
 
     def get_all_markdown_files(self) -> List[Path]:
         """Получить все markdown файлы в docs."""
-        return list(self.docs_dir.rglob("*.md"))
+        files = list(self.docs_dir.rglob("*.md"))
+        return [f for f in files if not self._is_excluded(f)]
+
+    def _is_excluded(self, file_path: Path) -> bool:
+        """Проверить, входит ли файл в список исключений."""
+        rel_path = file_path.relative_to(self.project_root).as_posix()
+        return any(self._match_pattern(rel_path, pattern) for pattern in self.exclude_patterns)
+
+    def _match_pattern(self, path: str, pattern: str) -> bool:
+        """Проверка совпадения пути с паттерном исключения."""
+        if pattern.endswith("/**"):
+            prefix = pattern[:-3]
+            return path.startswith(prefix)
+        if pattern.endswith("/*"):
+            prefix = pattern[:-2]
+            if not path.startswith(prefix):
+                return False
+            remainder = path[len(prefix):]
+            return remainder.startswith('/') and remainder.count('/') <= 1
+        return path == pattern
 
     def validate_cross_references(self) -> bool:
         """Проверка кросс-ссылок между документами."""
@@ -111,7 +134,7 @@ class DocsValidator:
         # Паттерны для поиска ссылок
         link_patterns = [
             r'\[([^\]]+)\]\(([^)]+\.md[^)]*)\)',  # [text](file.md)
-            r'\[([^\]]+)\]\(\.\.?/[^)]+\.md[^)]*\)',  # [text](../file.md)
+            r'\[([^\]]+)\]\(((?:\.\.?/)[^)]+)\)',  # [text](../file.md)
         ]
 
         for md_file in md_files:
@@ -454,14 +477,26 @@ class DocsValidator:
 
 def main():
     """Главная функция."""
+    parser = argparse.ArgumentParser(
+        description='Валидация документации FREESPORT'
+    )
+    parser.add_argument('command', nargs='?', default='validate',
+                        choices=['validate', 'obsolete', 'cross-links', 'api-coverage'],
+                        help='Команда для выполнения')
+    parser.add_argument('--exclude', nargs='*', default=[],
+                        help='Дополнительные исключения (относительно корня проекта)')
+
+    args = parser.parse_args()
+
     # Определяем корень проекта
     script_dir = Path(__file__).parent
     project_root = script_dir.parent
 
-    validator = DocsValidator(project_root)
+    exclude_patterns = load_exclude_patterns(project_root, args.exclude)
 
-    # Парсим аргументы
-    command = sys.argv[1] if len(sys.argv) > 1 else 'validate'
+    validator = DocsValidator(project_root, exclude_patterns=exclude_patterns)
+
+    command = args.command
 
     if command == 'validate':
         success = validator.run_full_validation()

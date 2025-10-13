@@ -333,7 +333,7 @@ server {
 # Production Environment Variables
 # Database
 POSTGRES_DB=freesport
-POSTGRES_USER=freesport_user
+POSTGRES_USER=postgres
 POSTGRES_PASSWORD=secure_password_change_me
 
 # Redis
@@ -342,7 +342,7 @@ REDIS_URL=redis://:secure_redis_password_change_me@redis:6379/0
 
 # Django
 SECRET_KEY=your_secret_key_50_chars_minimum_change_me
-DATABASE_URL=postgresql://freesport_user:secure_password_change_me@db:5432/freesport
+DATABASE_URL=postgresql://postgres:secure_password_change_me@db:5432/freesport
 DEBUG=False
 ALLOWED_HOSTS=yourdomain.com,www.yourdomain.com
 

@@ -70,7 +70,7 @@
 | Runtime            | Python                  | 3.11+   | Используется в Docker                |
 | Framework          | Django                  | 4.2.16  | LTS версия, стабильная основа        |
 | API Framework      | Django REST Framework   | 3.14.0  | Для REST API                         |
-| База данных        | PostgreSQL              | 15+     | В продакшене, SQLite в разработке    |
+| База данных        | PostgreSQL              | 15+     | Во всех средах через Docker          |
 | Кэширование        | Redis                   | 7.0+    | Для Celery и кэширования             |
 | Аутентификация     | SimpleJWT               | 5.3.1   | JWT токены с refresh                 |
 | API документация   | drf-spectacular         | 0.28.0  | OpenAPI 3.1.0 спецификация          |
@@ -113,7 +113,7 @@ FREESPORT/
 │   │   └── settings/          # Настройки для разных сред
 │   ├── tests/                 # Интеграционные тесты
 │   ├── requirements.txt       # Python зависимости (69 пакетов)
-│   └── db.sqlite3            # SQLite БД для разработки (430KB)
+│   └── db.sqlite3            # Исторический артефакт (не используется)
 ├── frontend/                   # Next.js приложение
 │   ├── src/
 │   │   ├── app/              # Next.js App Router (файловая маршрутизация)
@@ -202,10 +202,10 @@ FREESPORT/
 
 ### Критический технический долг
 
-1. **База данных для разработки**: SQLite вместо PostgreSQL
-   - **Файл**: `backend/freesport/settings/development.py:24`
-   - **Проблема**: Несоответствие продакшну может привести к проблемам
-   - **Обходной путь**: Docker-compose.yml использует PostgreSQL
+1. **База данных для разработки**: использование PostgreSQL обязательно
+   - **Файл**: `backend/freesport/settings/development.py`
+   - **Статус**: Настройки переключены на PostgreSQL
+   - **Примечание**: Старый `db.sqlite3` сохранён для истории, но не применяется
 
 2. **Временные заглушки удалены**: ✅ **ИСПРАВЛЕНО**
    - **Статус**: TODO_TEMPORARY_FIXES.md показывает, что Order модель реализована
@@ -235,7 +235,7 @@ FREESPORT/
 ### Внутренние точки интеграции
 
 - **Backend-Frontend**: REST API на порту 8001 (изменен с 8000)
-- **База данных**: PostgreSQL в продакшене, SQLite в разработке
+- **База данных**: PostgreSQL во всех средах (Docker Compose)
 - **Кэширование**: Redis для Celery и Django cache framework
 
 ## Разработка и развертывание
@@ -264,7 +264,7 @@ FREESPORT/
 ### Текущее покрытие тестами
 
 - **Система тестирования**: pytest с полной изоляцией
-- **База для тестов**: SQLite (быстро), PostgreSQL через Docker
+- **База для тестов**: PostgreSQL через Docker
 - **Конфигурация**: `backend/pytest.ini`
 - **Команды**: `make test`, `pytest`, Docker тесты
 

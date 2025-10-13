@@ -2,17 +2,17 @@
 
 **Дата принятия решений:** 21 августа 2025  
 **Статус реализации:** COMPLETED - все решения реализованы и протестированы  
-**Story:** [2.8.search-api.md](../stories/2.8.search-api.md)
+**Story:** [2.8.search-api.md](../stories/epic-2/2.8.search-api.md)
 
 ## Context
 
 - Каталог требовал релевантного поиска по русскому языку с учетом B2B/B2C специфики и существующих фильтров.
-- Production окружение использует PostgreSQL, но разработка ведётся на SQLite, что требовало кросс-БД решения.
+- Production окружение использует PostgreSQL.
 - Поиск должен был бесшовно встраиваться в текущие `ProductFilter` и не ломать API контракты фронтенда.
 
 ## Decision
 
-- Реализована двухуровневая архитектура: PostgreSQL full-text search + SQLite fallback с приоритизацией результатов.
+- Реализована архитектура: PostgreSQL full-text search.
 - Расширен `ProductFilter.filter_search()` без изменения ViewSet, обеспечена совместимость с пагинацией/сортировкой.
 - Определены веса полей, ранжирование и механизмы логирования запросов для последующей аналитики.
 
@@ -28,41 +28,38 @@
 
 ## 1. Архитектурные решения
 
-### 1.1 Database-Agnostic поисковая архитектура
+### 1.1 PostgreSQL поисковая архитектура
 
-**Решение:** Реализация двухуровневой поисковой архитектуры с PostgreSQL full-text search для production и SQLite fallback для development.
+**Решение:** Реализация единой поисковой архитектуры на базе PostgreSQL full-text search для всех окружений.
 
 **Обоснование:**
+
 - PostgreSQL FTS обеспечивает мощный полнотекстовый поиск с морфологией
-- SQLite fallback обеспечивает совместимость в development окружении
-- Автоматическое определение типа БД позволяет seamless переключение
+- Единая конфигурация упрощает сопровождение и снижает риски расхождения окружений
+- Индексы и ранжирование оптимизированы под PostgreSQL и соответствуют производственным требованиям
 
 **Альтернативы рассмотрены:**
+
 - Elasticsearch: избыточно для текущих требований, добавляет сложность инфраструктуры
-- Только PostgreSQL: нарушает совместимость с development на SQLite
-- Только простой поиск: не соответствует требованиям русскоязычного поиска
+- SQLite: не поддерживает требуемые FTS возможности и JSON операторы
+- Простой `icontains` поиск: не соответствует требованиям русскоязычной морфологии
 
 **Реализация:**
+
 ```python
 def filter_search(self, queryset, name, value):
-    from django.db import connection
-    
-    if connection.vendor == 'postgresql':
-        # PostgreSQL full-text search с русскоязычной конфигурацией
-        search_vector = (
-            SearchVector('name', weight='A', config='russian') +
-            SearchVector('short_description', weight='B', config='russian') +
-            SearchVector('description', weight='C', config='russian') +
-            SearchVector('sku', weight='A', config='russian')
-        )
-        return queryset.annotate(
-            search=search_vector,
-            rank=SearchRank(search_vector, search_query_obj)
-        ).filter(search=search_query_obj).order_by('-rank', '-created_at')
-    else:
-        # SQLite fallback с приоритизацией
-        return results.order_by('-created_at')
-```
+    # PostgreSQL full-text search с русскоязычной конфигурацией
+    search_vector = (
+        SearchVector('name', weight='A', config='russian') +
+        SearchVector('short_description', weight='B', config='russian') +
+        SearchVector('description', weight='C', config='russian') +
+        SearchVector('sku', weight='A', config='russian')
+    )
+    search_query_obj = SearchQuery(value, config='russian')
+    return queryset.annotate(
+        search=search_vector,
+        rank=SearchRank(search_vector, search_query_obj)
+    ).filter(search=search_query_obj).order_by('-rank', '-created_at')
 
 ### 1.2 Интеграция через django-filter
 

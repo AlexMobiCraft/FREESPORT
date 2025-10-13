@@ -13,13 +13,14 @@
     python scripts/docs_index_generator.py --stats      # Только статистика
 """
 
-import os
 import re
 import sys
 from pathlib import Path
-from typing import List, Dict, Tuple
-from datetime import datetime
+from typing import List, Dict, Tuple, Iterator
 import argparse
+from datetime import datetime
+
+from exclude_utils import load_exclude_patterns
 
 
 class Colors:
@@ -36,16 +37,15 @@ class Colors:
 class DocsIndexGenerator:
     """Генератор индекса документации."""
 
-    def __init__(self, docs_dir: Path, dry_run: bool = False):
+    def __init__(self, docs_dir: Path, dry_run: bool = False, exclude_patterns: List[str] | None = None):
         self.docs_dir = docs_dir
         self.project_root = docs_dir.parent
         self.dry_run = dry_run
-        self.stats = {
-            'total_files': 0,
-            'by_category': {},
-            'total_size': 0,
-            'last_updated': datetime.now().strftime('%d.%m.%Y')
-        }
+        self.total_files = 0
+        self.total_size = 0
+        self.stats_by_category: Dict[str, int] = {}
+        self.last_updated = datetime.now().strftime('%d.%m.%Y')
+        self.exclude_patterns = list(exclude_patterns or [])
 
     def print_header(self, text: str):
         """Печать заголовка."""
@@ -117,7 +117,7 @@ class DocsIndexGenerator:
         """Сканировать директорию и собрать информацию о файлах."""
         files_info = []
 
-        md_files = sorted(directory.glob("*.md"))
+        md_files = sorted(self._iter_markdown_files(directory))
 
         for md_file in md_files:
             # Пропускаем служебные файлы
@@ -137,10 +137,38 @@ class DocsIndexGenerator:
                 'relative_path': md_file.relative_to(self.docs_dir)
             })
 
-            self.stats['total_files'] += 1
-            self.stats['total_size'] += size
+            self.total_files += 1
+            self.total_size += size
 
         return files_info
+
+    def _is_excluded(self, path: Path) -> bool:
+        """Проверить, находится ли путь в списке исключений."""
+        try:
+            rel_path = path.relative_to(self.project_root).as_posix()
+        except ValueError:
+            return False
+        return any(self._match_pattern(rel_path, pattern) for pattern in self.exclude_patterns)
+
+    def _match_pattern(self, path: str, pattern: str) -> bool:
+        """Проверить совпадение пути с шаблоном исключения."""
+        if pattern.endswith('/**'):
+            prefix = pattern[:-3]
+            return path.startswith(prefix)
+        if pattern.endswith('/*'):
+            prefix = pattern[:-2]
+            if not path.startswith(prefix):
+                return False
+            remainder = path[len(prefix):]
+            return remainder.startswith('/') and remainder.count('/') <= 1
+        return path == pattern
+
+    def _iter_markdown_files(self, directory: Path) -> Iterator[Path]:
+        """Итерация по Markdown файлам в директории с учетом исключений."""
+        for md_file in directory.glob("*.md"):
+            if self._is_excluded(md_file):
+                continue
+            yield md_file
 
     def generate_category_index(self, category_dir: Path, files: List[Dict]) -> str:
         """Сгенерировать индекс для категории."""
@@ -184,7 +212,7 @@ class DocsIndexGenerator:
 
         lines.append("---")
         lines.append("")
-        lines.append(f"**Последнее обновление:** {self.stats['last_updated']}")
+        lines.append(f"**Последнее обновление:** {self.last_updated}")
 
         return '\n'.join(lines)
 
@@ -212,7 +240,6 @@ class DocsIndexGenerator:
         """Обновить главный индекс docs/index.md."""
         self.print_header("📝 ОБНОВЛЕНИЕ ГЛАВНОГО ИНДЕКСА")
 
-        # Сканируем все категории
         categories = {
             'architecture': 'Архитектура',
             'decisions': 'Решения',
@@ -225,72 +252,69 @@ class DocsIndexGenerator:
             'releases': 'Релизы'
         }
 
-        category_stats = {}
+        category_stats: Dict[str, Dict[str, object]] = {}
+        self.stats_by_category = {}
 
         for category_dir_name, category_title in categories.items():
             category_path = self.docs_dir / category_dir_name
 
-            if category_path.exists() and category_path.is_dir():
-                files = self.scan_directory(category_path)
+            if not category_path.exists() or not category_path.is_dir():
+                continue
 
-                # Подсчитываем файлы в подкаталогах
-                subdirs_count = sum(1 for _ in category_path.rglob("*.md"))
+            files = self.scan_directory(category_path)
 
-                category_stats[category_dir_name] = {
-                    'title': category_title,
-                    'count': subdirs_count,
-                    'files': files
-                }
-
-                self.stats['by_category'][category_dir_name] = subdirs_count
-
-        # Обновляем статистику в существующем index.md
-        index_file = self.docs_dir / "index.md"
-
-        if index_file.exists():
-            content = index_file.read_text(encoding='utf-8')
-
-            # Обновляем секцию статистики
-            stats_section = self._generate_stats_section(category_stats)
-
-            # Ищем секцию статистики
-            stats_pattern = r'## Статистика документации.*?(?=##|\Z)'
-            if re.search(stats_pattern, content, re.DOTALL):
-                content = re.sub(
-                    stats_pattern,
-                    stats_section,
-                    content,
-                    flags=re.DOTALL
-                )
-            else:
-                # Добавляем в конец
-                content += f"\n\n{stats_section}"
-
-            # Обновляем дату
-            date_pattern = r'\*\*Последнее обновление:\*\* \d{2}\.\d{2}\.\d{4}'
-            content = re.sub(
-                date_pattern,
-                f"**Последнее обновление:** {self.stats['last_updated']}",
-                content
+            subdirs_count = sum(
+                1
+                for file_path in category_path.rglob("*.md")
+                if not self._is_excluded(file_path)
             )
 
-            if not self.dry_run:
-                index_file.write_text(content, encoding='utf-8')
-                print(f"{Colors.GREEN}✅ Обновлен: {index_file.relative_to(self.project_root)}{Colors.RESET}")
-            else:
-                print(f"{Colors.YELLOW}[DRY RUN] Будет обновлен: {index_file.relative_to(self.project_root)}{Colors.RESET}")
+            category_stats[category_dir_name] = {
+                'title': category_title,
+                'count': subdirs_count,
+                'files': files
+            }
 
-        else:
+            self.stats_by_category[category_dir_name] = subdirs_count
+
+        index_file = self.docs_dir / "index.md"
+
+        if not index_file.exists():
             print(f"{Colors.YELLOW}⚠️  Файл index.md не найден{Colors.RESET}")
+            return
 
-    def _generate_stats_section(self, category_stats: Dict) -> str:
+        content = index_file.read_text(encoding='utf-8')
+        stats_section = self._generate_stats_section(category_stats)
+
+        stats_pattern = r'## Статистика документации.*?(?=##|\Z)'
+        if re.search(stats_pattern, content, re.DOTALL):
+            content = re.sub(stats_pattern, stats_section, content, flags=re.DOTALL)
+        else:
+            if not content.endswith("\n"):
+                content += "\n"
+            content += f"\n{stats_section}"
+
+        date_pattern = r'\*\*Последнее обновление:\*\* \d{2}\.\d{2}\.\d{4}'
+        content = re.sub(
+            date_pattern,
+            f"**Последнее обновление:** {self.last_updated}",
+            content
+        )
+
+        if not self.dry_run:
+            index_file.write_text(content, encoding='utf-8')
+            print(f"{Colors.GREEN}✅ Обновлен: {index_file.relative_to(self.project_root)}{Colors.RESET}")
+        else:
+            print(f"{Colors.YELLOW}[DRY RUN] Будет обновлен: {index_file.relative_to(self.project_root)}{Colors.RESET}")
+
+    def _generate_stats_section(self, category_stats: Dict[str, Dict[str, object]]) -> str:
         """Сгенерировать секцию статистики."""
         lines = [
             "## Статистика документации",
             ""
         ]
 
-        for category, info in category_stats.items():
+        for category, info in sorted(category_stats.items()):
             lines.append(f"- **{info['title']}:** {info['count']} документов")
 
         lines.append("")
@@ -313,6 +337,8 @@ class DocsIndexGenerator:
             # Обрабатываем подкаталоги (например, epic-1, epic-2)
             for subdir in category_dir.iterdir():
                 if subdir.is_dir():
+                    if self._is_excluded(subdir):
+                        continue
                     files = self.scan_directory(subdir)
 
                     if files:
@@ -330,13 +356,13 @@ class DocsIndexGenerator:
         self.print_header("📊 СТАТИСТИКА ДОКУМЕНТАЦИИ")
 
         print(f"{Colors.BOLD}Общая информация:{Colors.RESET}")
-        print(f"  Всего файлов: {self.stats['total_files']}")
-        print(f"  Общий размер: {self.stats['total_size'] / 1024:.1f} KB")
-        print(f"  Дата обновления: {self.stats['last_updated']}")
+        print(f"  Всего файлов: {self.total_files}")
+        print(f"  Общий размер: {self.total_size / 1024:.1f} KB")
+        print(f"  Дата обновления: {self.last_updated}")
 
-        if self.stats['by_category']:
+        if self.stats_by_category:
             print(f"\n{Colors.BOLD}По категориям:{Colors.RESET}")
-            for category, count in sorted(self.stats['by_category'].items()):
+            for category, count in sorted(self.stats_by_category.items()):
                 print(f"  {category}: {count} файлов")
 
     def run(self, stats_only: bool = False):
@@ -345,6 +371,8 @@ class DocsIndexGenerator:
             # Только сканируем и показываем статистику
             for category_dir in self.docs_dir.iterdir():
                 if category_dir.is_dir():
+                    if self._is_excluded(category_dir):
+                        continue
                     self.scan_directory(category_dir)
             self.print_statistics()
         else:
@@ -374,6 +402,12 @@ def main():
         action='store_true',
         help='Показать только статистику'
     )
+    parser.add_argument(
+        '--exclude',
+        nargs='*',
+        default=[],
+        help='Дополнительные исключения (относительно корня проекта)'
+    )
 
     args = parser.parse_args()
 
@@ -387,7 +421,9 @@ def main():
         sys.exit(1)
 
     # Создаем генератор и запускаем
-    generator = DocsIndexGenerator(docs_dir, dry_run=args.dry_run)
+    exclude_patterns = load_exclude_patterns(project_root, args.exclude)
+
+    generator = DocsIndexGenerator(docs_dir, dry_run=args.dry_run, exclude_patterns=exclude_patterns)
     generator.run(stats_only=args.stats)
 
     sys.exit(0)

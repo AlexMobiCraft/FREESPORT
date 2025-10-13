@@ -98,7 +98,7 @@ Health checks для мониторинга доступности (docker-compo
 
 ```yaml
 healthcheck:
-  test: ["CMD-SHELL", "pg_isready -U freesport_user -d freesport"]
+  test: ["CMD-SHELL", "pg_isready -U postgres -d freesport"]
   interval: 30s
   timeout: 10s  
   retries: 5
