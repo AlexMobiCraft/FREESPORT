@@ -33,6 +33,18 @@ make docs-search-obsolete
 
 # Проверка кросс-ссылок
 make docs-check-links
+
+# Синхронизация API (код ↔ документация)
+make docs-sync-api
+
+# Синхронизация решений (docs ↔ код)
+make docs-sync-decisions
+
+# Полная синхронизация (API и решения)
+make docs-sync-all
+
+# Обновление индексов документации с записью
+make docs-update-index-apply
 ```
 
 **Триггеры:**
@@ -101,11 +113,27 @@ docs-search-obsolete:
 
 # Проверка ссылок
 docs-check-links:
-	python scripts/docs_link_checker.py
+	python scripts/docs_validator.py cross-links
 
 # Обновление индекса
 docs-update-index:
 	python scripts/docs_index_generator.py
+
+# Синхронизация API ↔ Views
+docs-sync-api:
+	python scripts/docs_sync.py api-sync
+
+# Синхронизация решений ↔ Код
+docs-sync-decisions:
+	python scripts/docs_sync.py decisions-sync
+
+# Полная синхронизация
+docs-sync-all:
+	python scripts/docs_sync.py all
+
+# Обновление индекса с применением изменений
+docs-update-index-apply:
+	python scripts/docs_sync.py update-index --apply
 ```
 
 ## Категории документов
