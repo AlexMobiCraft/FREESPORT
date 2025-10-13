@@ -27,6 +27,10 @@ help:
 	@echo "  docs-check-links   - Проверка кросс-ссылок"
 	@echo "  docs-check-api     - Проверка покрытия API"
 	@echo "  docs-update-index  - Обновление индекса документации"
+	@echo "  docs-sync-api      - Сверка API (код ↔ docs)"
+	@echo "  docs-sync-decisions - Сверка решений (docs ↔ код)"
+	@echo "  docs-sync-all      - Выполнить все синхронизации"
+	@echo "  docs-update-index-apply - Обновить индексы с записью"
 	@echo ""
 	@echo "Отладка:"
 	@echo "  shell          - Открыть shell в backend контейнере"
@@ -134,3 +138,23 @@ docs-check-api:
 docs-update-index:
 	@echo "Обновление индекса документации..."
 	python scripts/docs_index_generator.py
+
+# Синхронизация документации: API ↔ Views
+docs-sync-api:
+	@echo "Синхронизация API (код ↔ документация)..."
+	python scripts/docs_sync.py api-sync
+
+# Синхронизация документации: Decisions ↔ Код
+docs-sync-decisions:
+	@echo "Синхронизация решений (docs ↔ код)..."
+	python scripts/docs_sync.py decisions-sync
+
+# Синхронизация: все шаги
+docs-sync-all:
+	@echo "Полная синхронизация документации..."
+	python scripts/docs_sync.py all
+
+# Обновление индексов с применением изменений
+docs-update-index-apply:
+	@echo "Обновление индексов документации (apply)..."
+	python scripts/docs_sync.py update-index --apply
