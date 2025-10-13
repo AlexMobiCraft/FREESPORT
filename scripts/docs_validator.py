@@ -295,8 +295,21 @@ class DocsValidator:
         if not self.backend_dir.exists():
             return endpoints
 
+        excluded_dirs = {"venv", "htmlcov", ".mypy_cache", "__pycache__"}
+
         for py_file in self.backend_dir.rglob("*.py"):
             if py_file.name == "__init__.py":
+                continue
+
+            try:
+                relative_parts = py_file.relative_to(self.backend_dir).parts
+            except ValueError:
+                continue
+
+            if any(part in excluded_dirs for part in relative_parts):
+                continue
+
+            if "apps" not in relative_parts:
                 continue
 
             try:
@@ -304,7 +317,7 @@ class DocsValidator:
             except Exception:
                 continue
 
-            parts = py_file.relative_to(self.backend_dir).parts
+            parts = relative_parts
             is_views_module = any(part == "views" for part in parts[:-1]) or py_file.name == "views.py"
 
             if is_views_module:
@@ -348,7 +361,7 @@ class DocsValidator:
                     content = doc_file.read_text(encoding='utf-8')
 
                     # Ищем упоминания ViewSet/APIView
-                    pattern = r'(\w+(?:ViewSet|APIView))'
+                    pattern = r'(\w+(?:ViewSet|APIView|View))'
                     for match in re.finditer(pattern, content):
                         documented.add(match.group(1))
 

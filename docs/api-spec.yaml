@@ -133,6 +133,8 @@ paths:
     post:
       tags: [Authentication]
       summary: Обновление токена доступа
+      description: |
+        Получение нового access токена на основе действующего refresh токена.
       requestBody:
         required: true
         content:
@@ -155,6 +157,12 @@ paths:
                   access:
                     type: string
                     description: Новый JWT access token
+        '401':
+          description: Недействительный refresh токен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
   # =============================================================================
   # USER MANAGEMENT
