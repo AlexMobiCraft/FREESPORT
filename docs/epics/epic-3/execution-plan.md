@@ -92,6 +92,7 @@
 **Notes:** _Базовая команда с --data-dir, будет дополнена в Story 3.1.2_
 
 **Пример использования:**
+
 ```bash
 python manage.py import_catalog_from_1c --data-dir="backend/tests/fixtures/1c-data"
 ```
