@@ -110,7 +110,8 @@ python manage.py import_catalog_from_1c --data-dir="backend/tests/fixtures/1c-da
 - [ ] Создать модель PriceType (onec_id, name, user_role, is_active)
 - [ ] Создать миграцию add_price_type
 - [ ] Реализовать парсинг priceLists.xml
-- [ ] Реализовать маппинг цен на роли (Опт 1→opt1_price, Опт 2→opt2_price, РРЦ→recommended_retail_price)
+- [ ] Реализовать маппинг цен на роли (Опт 1→opt1_price, Опт 2→opt2_price,  
+  Опт 3→opt3_price, РРЦ→recommended_retail_price)
 - [ ] Реализовать fallback: federation_price → recommended_retail_price
 - [ ] Unit тесты (10 тестов)
 
