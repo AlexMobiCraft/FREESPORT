@@ -356,7 +356,7 @@ DB_SSLMODE=require
 2. **Django Support:** включить Django support
 3. **Test Runner:** pytest
 4. **Code Style:** Black formatter
-5. **Database:** SQLite для development
+5. **Database:** PostgreSQL для development
 
 ## Debugging
 
@@ -582,7 +582,7 @@ if sys.platform == "win32":
 
 ### Различия от Development
 
-1. **Database:** PostgreSQL вместо SQLite
+1. **Database:** PostgreSQL
 2. **Cache:** Redis с персистентностью  
 3. **Static files:** S3/CDN вместо локальных файлов
 4. **Environment:** `DJANGO_ENVIRONMENT=production`

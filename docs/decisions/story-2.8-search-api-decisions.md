@@ -41,7 +41,6 @@
 **Альтернативы рассмотрены:**
 
 - Elasticsearch: избыточно для текущих требований, добавляет сложность инфраструктуры
-- SQLite: не поддерживает требуемые FTS возможности и JSON операторы
 - Простой `icontains` поиск: не соответствует требованиям русскоязычной морфологии
 
 **Реализация:**
@@ -191,20 +190,10 @@ CREATE INDEX products_search_brand_idx ON products_product
 (brand_id, is_active) WHERE name IS NOT NULL;
 ```
 
-**SQLite индексы:**
-```sql
--- Простые индексы для основных полей
-CREATE INDEX products_search_name_idx ON products_product (name);
-CREATE INDEX products_search_sku_idx ON products_product (sku);
-CREATE INDEX products_search_category_idx ON products_product (category_id, is_active);
-CREATE INDEX products_search_brand_idx ON products_product (brand_id, is_active);
-```
-
 **Обоснование:**
 - GIN индексы оптимальны для full-text search в PostgreSQL
 - Составные индексы ускоряют комбинированные запросы
 - Условие `WHERE name IS NOT NULL` исключает некорректные записи
-- SQLite индексы обеспечивают базовую оптимизацию
 
 ## 3. Решения по тестированию
 
