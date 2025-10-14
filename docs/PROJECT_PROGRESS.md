@@ -70,7 +70,7 @@
 
 - [ ] [Story 3.1.1:](stories/epic-3/3.1.1.import-products-structure.md) Импорт структуры товаров
 - [ ] [Story 3.1.2:](stories/epic-3/3.1.2.loading-scripts.md) Импорт цен товаров
-- [ ] [Story 3.2.1:](stories/epic-3/3.2.1.import-existing-customers.md) Экспорт структуры заказов
+- [ ] [Story 3.2.1.0:](stories/epic-3/3.2.1.0.import-existing-customers.md) Импорт существующих клиентов
 - [ ] [Story 3.2.2:](stories/epic-3/3.2.2.conflict-resolution.md) Экспорт статусов заказов
 - [ ] [Story 3.2.1.5:](stories/epic-3/3.2.1.5.customer-identity-algorithms.md) Алгоритмы идентификации клиентов
 - [ ] Story 3.3.2: Синхронизация цен (документ в разработке)

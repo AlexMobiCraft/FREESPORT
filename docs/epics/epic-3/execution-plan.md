@@ -123,7 +123,7 @@ python manage.py import_catalog_from_1c --data-dir="backend/tests/fixtures/1c-da
 
 ##### **Task 3.2.1-A: Дополнить User модель и создать CustomerSyncLog (Фаза 1 от Story 3.2.1)**
 
-**📋 Story:** [3.2.1 import-existing-customers](../../stories/epic-3/3.2.1.import-existing-customers.md) - AC: 3
+**📋 Story:** [3.2.1.0 import-existing-customers](../../stories/epic-3/3.2.1.0.import-existing-customers.md) - AC: 3
 **Assigned:** *agent dev | **Estimate:** 6ч | **Status:** ⏳ Pending
 **Due Date:** 10.09.2025
 
@@ -157,7 +157,7 @@ python manage.py import_catalog_from_1c --data-dir="backend/tests/fixtures/1c-da
 
 ##### **Task 3.1.2-A: Создать команды-заглушки (Mock реализация для Stories 3.1.1, 3.1.2, 3.2.1)**
 
-**📋 Stories:** [3.1.1](../../stories/epic-3/3.1.1.import-products-structure.md) AC:1 + [3.1.2](../../stories/epic-3/3.1.2.loading-scripts.md) AC:1,2 + [3.2.1](../../stories/epic-3/3.2.1.import-existing-customers.md) AC:1
+**📋 Stories:** [3.1.1](../../stories/epic-3/3.1.1.import-products-structure.md) AC:1 + [3.1.2](../../stories/epic-3/3.1.2.loading-scripts.md) AC:1,2 + [3.2.1.0](../../stories/epic-3/3.2.1.0.import-existing-customers.md) AC:1
 **Assigned:** *agent dev | **Estimate:** 8ч | **Status:** ⏳ Pending
 **Due Date:** 16.09.2025
 
@@ -311,7 +311,7 @@ python manage.py import_catalog_from_1c --data-dir="backend/tests/fixtures/1c-da
 
 ##### **Task 3.2.1-B: Реальная синхронизация клиентов (Завершение Story 3.2.1 v1.4)**
 
-**📋 Story:** [3.2.1 import-existing-customers](../../stories/epic-3/3.2.1.import-existing-customers.md) - AC: 1,2,4,5,6,7
+**📋 Story:** [3.2.1.0 import-existing-customers](../../stories/epic-3/3.2.1.0.import-existing-customers.md) - AC: 1,2,4,5,6,7
 **Assigned:** *agent dev | **Estimate:** 20ч | **Status:** ⏳ Pending
 **Due Date:** _22.09.2025_
 
@@ -548,6 +548,7 @@ python manage.py import_catalog_from_1c --data-dir="backend/tests/fixtures/1c-da
 **v1.1 (11.10.2025):** Сброшены ошибочные отметки о выполнении, актуализированы статусы задач
 **v1.2 (11.10.2025):** Обновлены Tasks 3.2.1-A и 3.2.1-B с детальными подзадачами после исправлений Story 3.2.1 v1.4 (Фазы 1-3). Добавлены метрики производительности и критерии успеха.
 **v1.3 (14.10.2025):** Story 3.3.1 переименована в 3.2.1.5 (customer-identity-algorithms) - это подстория импорта клиентов для логической последовательности. Обновлены все ссылки в execution-plan и stories.
+**v1.4 (14.10.2025):** Story 3.2.1 переименована в 3.2.1.0 (import-existing-customers) - базовая история с подсториями 3.2.1.5. Обновлены все ссылки.
 
 ---
 
@@ -569,4 +570,4 @@ python manage.py import_catalog_from_1c --data-dir="backend/tests/fixtures/1c-da
 
 **🚀 ПЛАН АКТИВЕН И ГОТОВ К ИСПОЛНЕНИЮ!**
 
-*Последнее обновление: 14.10.2025 by PO Agent (переименование Story 3.3.1 → 3.2.1.5)
+*Последнее обновление: 14.10.2025 by PO Agent (реструктуризация: 3.3.1 → 3.2.1.5, 3.2.1 → 3.2.1.0)
