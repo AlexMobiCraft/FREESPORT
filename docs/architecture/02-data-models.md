@@ -26,7 +26,9 @@ erDiagram
     SyncConflict }|--|| CustomerSyncLog : resolves
 ```
 
-### Модели управления пользователями
+### user-model
+
+- *Модели управления пользователями*
 
 ```python
 class User(AbstractUser):
