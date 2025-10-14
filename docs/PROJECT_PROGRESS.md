@@ -72,7 +72,7 @@
 - [ ] [Story 3.1.2:](stories/epic-3/3.1.2.loading-scripts.md) Импорт цен товаров
 - [ ] [Story 3.2.1:](stories/epic-3/3.2.1.import-existing-customers.md) Экспорт структуры заказов
 - [ ] [Story 3.2.2:](stories/epic-3/3.2.2.conflict-resolution.md) Экспорт статусов заказов
-- [ ] [Story 3.3.1:](stories/epic-3/3.3.1.customer-identity-algorithms.md) Синхронизация остатков
+- [ ] [Story 3.2.1.5:](stories/epic-3/3.2.1.5.customer-identity-algorithms.md) Алгоритмы идентификации клиентов
 - [ ] Story 3.3.2: Синхронизация цен (документ в разработке)
 - [ ] [Story 3.4.1:](stories/epic-3/3.4.1.test-data-scenarios.md) Обработка ошибок
 - [ ] [Story 3.4.2:](stories/epic-3/3.4.2.conflict-scenarios-testing.md) Логика повторных попыток

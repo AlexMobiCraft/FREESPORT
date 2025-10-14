@@ -387,15 +387,15 @@ python manage.py import_catalog_from_1c --data-dir="backend/tests/fixtures/1c-da
 
 ---
 
-##### **Task 3.2.2 + 3.3.1: Conflict Resolution (Реализация Stories 3.2.2, 3.3.1)**
+##### **Task 3.2.2 + 3.2.1.5: Conflict Resolution (Реализация Stories 3.2.2, 3.2.1.5)**
 
-**📋 Stories:** [3.2.2 conflict-resolution](../../stories/epic-3/3.2.2.conflict-resolution.md) (SP: 8) + [3.3.1 customer-identity-algorithms](../../stories/epic-3/3.3.1.customer-identity-algorithms.md) (SP: 5)
+**📋 Stories:** [3.2.2 conflict-resolution](../../stories/epic-3/3.2.2.conflict-resolution.md) (SP: 8) + [3.2.1.5 customer-identity-algorithms](../../stories/epic-3/3.2.1.5.customer-identity-algorithms.md) (SP: 5)
 **Assigned:** *agent dev | **Estimate:** 16ч | **Status:** ⏳ Pending
 **Due Date:** _04.10.2025_
 
 **Subtasks:**
 
-**CustomerIdentityResolver (Story 3.3.1 - детерминированная идентификация):**
+**CustomerIdentityResolver (Story 3.2.1.5 - детерминированная идентификация):**
 - [ ] Создать `CustomerIdentityResolver` в `apps/users/services/identity_resolution.py`
 - [ ] Реализовать метод `identify_customer(onec_customer_data)` с приоритетами:
   - [ ] Приоритет 1: поиск по `onec_id` (100% точность)
@@ -404,7 +404,7 @@ python manage.py import_catalog_from_1c --data-dir="backend/tests/fixtures/1c-da
   - [ ] Приоритет 4: поиск по `email` (для B2C)
 - [ ] Реализовать методы нормализации: `normalize_inn()`, `normalize_email()`
 - [ ] Логирование всех попыток идентификации в CustomerSyncLog
-- [ ] Unit тесты для всех сценариев идентификации (Story 3.3.1 AC: 7)
+- [ ] Unit тесты для всех сценариев идентификации (Story 3.2.1.5 AC: 7)
 
 **CustomerConflictResolver (Story 3.2.2 - стратегия onec_wins):**
 - [ ] Создать `CustomerConflictResolver` в `apps/users/services/conflict_resolution.py`
@@ -547,6 +547,7 @@ python manage.py import_catalog_from_1c --data-dir="backend/tests/fixtures/1c-da
 **v1.0 (07.09.2025):** Первоначальный план создан
 **v1.1 (11.10.2025):** Сброшены ошибочные отметки о выполнении, актуализированы статусы задач
 **v1.2 (11.10.2025):** Обновлены Tasks 3.2.1-A и 3.2.1-B с детальными подзадачами после исправлений Story 3.2.1 v1.4 (Фазы 1-3). Добавлены метрики производительности и критерии успеха.
+**v1.3 (14.10.2025):** Story 3.3.1 переименована в 3.2.1.5 (customer-identity-algorithms) - это подстория импорта клиентов для логической последовательности. Обновлены все ссылки в execution-plan и stories.
 
 ---
 
@@ -568,4 +569,4 @@ python manage.py import_catalog_from_1c --data-dir="backend/tests/fixtures/1c-da
 
 **🚀 ПЛАН АКТИВЕН И ГОТОВ К ИСПОЛНЕНИЮ!**
 
-*Последнее обновление: 11.10.2025 by Product Owner (актуализация статусов)
+*Последнее обновление: 14.10.2025 by PO Agent (переименование Story 3.3.1 → 3.2.1.5)
