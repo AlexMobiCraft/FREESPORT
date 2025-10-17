@@ -16,7 +16,7 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 
 # Установка зависимостей
-RUN npm ci --only=production --ignore-scripts --prefer-offline
+RUN npm ci --prefer-offline
 
 # Стадия 2: Сборка приложения
 FROM node:22-alpine AS builder

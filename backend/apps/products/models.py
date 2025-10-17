@@ -576,3 +576,73 @@ class ImportSession(models.Model):
             f"{self.get_import_type_display()} - "
             f"{self.get_status_display()} ({self.started_at})"
         )
+
+
+class PriceType(models.Model):
+    """
+    Справочник типов цен из 1С для маппинга на поля Product
+    """
+
+    onec_id = cast(
+        str,
+        models.CharField(
+            "UUID типа цены в 1С",
+            max_length=100,
+            unique=True,
+            help_text="UUID из priceLists.xml",
+        ),
+    )
+    onec_name = cast(
+        str,
+        models.CharField(
+            "Название в 1С",
+            max_length=200,
+            help_text='Например: "Опт 1 (300-600 тыс.руб в квартал)"',
+        ),
+    )
+    product_field = cast(
+        str,
+        models.CharField(
+            "Поле в модели Product",
+            max_length=50,
+            choices=[
+                ("retail_price", "Розничная цена"),
+                ("opt1_price", "Оптовая цена уровень 1"),
+                ("opt2_price", "Оптовая цена уровень 2"),
+                ("opt3_price", "Оптовая цена уровень 3"),
+                ("trainer_price", "Цена для тренера"),
+                ("federation_price", "Цена для представителя федерации"),
+                (
+                    "recommended_retail_price",
+                    "Рекомендованная розничная цена",
+                ),
+                (
+                    "max_suggested_retail_price",
+                    "Максимальная рекомендованная цена",
+                ),
+            ],
+            help_text="Поле Product, в которое мапится эта цена",
+        ),
+    )
+    user_role = cast(
+        str,
+        models.CharField(
+            "Роль пользователя",
+            max_length=50,
+            blank=True,
+            help_text="Роль пользователя, для которой применяется эта цена",
+        ),
+    )
+    is_active = cast(bool, models.BooleanField("Активный", default=True))
+    created_at = cast(
+        datetime, models.DateTimeField("Дата создания", auto_now_add=True)
+    )
+
+    class Meta:
+        verbose_name = "Тип цены"
+        verbose_name_plural = "Типы цен"
+        db_table = "price_types"
+        ordering = ["onec_name"]
+
+    def __str__(self) -> str:
+        return f"{self.onec_name} → {self.product_field}"

@@ -7,6 +7,13 @@ import sys
 from datetime import timedelta
 from pathlib import Path
 
+# Временно отключаем патч для исправления проблем с кодировкой psycopg2 на Windows
+# try:
+#     import monkey_patch_psycopg2
+#     monkey_patch_psycopg2.apply_monkey_patch()
+# except ImportError:
+#     pass  # Патч не применен, но продолжаем работу
+
 from decouple import config
 
 # Настройка кодировки для Windows консоли
@@ -104,9 +111,13 @@ DATABASES = {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": config("DB_NAME", default="freesport"),
         "USER": config("DB_USER", default="postgres"),
-        "PASSWORD": config("DB_PASSWORD", default="password"),
+        "PASSWORD": config("DB_PASSWORD", default="password123"),
         "HOST": config("DB_HOST", default="localhost"),
         "PORT": config("DB_PORT", default="5432", cast=int),
+        "OPTIONS": {
+            "connect_timeout": 10,
+            "client_encoding": "UTF8",
+        },
     }
 }
 

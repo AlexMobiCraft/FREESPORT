@@ -1,0 +1,27 @@
+# Временный Docker Compose для создания чистой PostgreSQL
+version: '3.8'
+
+services:
+  # PostgreSQL база данных без монтирования тома
+  db:
+    image: postgres:15-alpine
+    container_name: freesport-db-temp
+    environment:
+      POSTGRES_DB: freesport
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password123
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --lc-collate=C --lc-ctype=C"
+    ports:
+      - "5432:5432"
+    networks:
+      - freesport-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d freesport"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+networks:
+  freesport-network:
+    driver: bridge
+    name: freesport-network

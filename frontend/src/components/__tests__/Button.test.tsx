@@ -11,18 +11,6 @@ import '@testing-library/jest-dom'
 type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger'
 type ButtonSize = 'sm' | 'md' | 'lg'
 
-// Расширяем типы Jest для включения матчеров из @testing-library/jest-dom
-declare global {
-  namespace jest {
-    interface Matchers<R> {
-      toBeInTheDocument(): R
-      toHaveClass(className: string | string[]): R
-      toBeDisabled(): R
-      toHaveAttribute(attr: string, value?: string): R
-    }
-  }
-}
-
 describe('Button', () => {
   // Тест базовой функциональности
   it('отображается с правильным текстом', () => {
