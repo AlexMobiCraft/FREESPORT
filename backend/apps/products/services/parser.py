@@ -223,9 +223,12 @@ class XMLDataParser:
                 warehouse_element = self._find_child(rest_element, "Склад")
                 if warehouse_element is not None:
                     warehouse_id = self._find_text(warehouse_element, "Ид")
-                    quantity_value = self._find_text(
-                        warehouse_element, "Количество", "0"
-                    )
+                    if not warehouse_id:
+                        warehouse_id = (warehouse_element.text or "").strip()
+
+                    quantity_value = self._find_text(warehouse_element, "Количество")
+                    if not quantity_value:
+                        quantity_value = self._find_text(rest_element, "Количество", "0")
                 else:
                     warehouse_id = self._find_text(rest_element, "Склад")
                     quantity_value = self._find_text(rest_element, "Количество", "0")

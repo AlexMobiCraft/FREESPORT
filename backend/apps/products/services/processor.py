@@ -40,6 +40,7 @@ class ProductDataProcessor:
             "skipped": 0,
             "errors": 0,
         }
+        self._stock_buffer: dict[str, int] = {}
 
     def _get_product_by_onec_or_parent(self, onec_id: str) -> Product | None:
         """Найти товар по полному onec_id или его parent части."""
@@ -183,7 +184,9 @@ class ProductDataProcessor:
                 return False
 
             # Обновляем финальными данными
-            if not product.onec_id or product.onec_id != parent_id:
+            if "#" in onec_id:
+                product.onec_id = onec_id
+            elif not product.onec_id:
                 product.onec_id = parent_id
             product.name = offer_data.get("name", product.name)
             product.sku = offer_data.get("article", f"SKU-{onec_id[:8]}")
@@ -277,8 +280,9 @@ class ProductDataProcessor:
                 return False
 
             # Обновляем остаток (суммируем если товар на разных складах)
-            base_quantity = product.stock_quantity or 0
-            product.stock_quantity = base_quantity + quantity
+            total_quantity = self._stock_buffer.get(onec_id, 0) + quantity
+            self._stock_buffer[onec_id] = total_quantity
+            product.stock_quantity = total_quantity
             product.sync_status = Product.SyncStatus.COMPLETED
             product.last_sync_at = timezone.now()
             product.save()
