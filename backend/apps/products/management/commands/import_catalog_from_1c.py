@@ -53,9 +53,7 @@ class Command(BaseCommand):
         for subdir in required_subdirs:
             subdir_path = os.path.join(data_dir, subdir)
             if not os.path.exists(subdir_path):
-                raise CommandError(
-                    f"Отсутствует обязательная поддиректория: {subdir}"
-                )
+                raise CommandError(f"Отсутствует обязательная поддиректория: {subdir}")
 
         if dry_run:
             self.stdout.write(
@@ -99,18 +97,14 @@ class Command(BaseCommand):
                 )
             else:
                 self.stdout.write(
-                    self.style.WARNING(
-                        "   ⚠️ Файлы priceLists*.xml не найдены"
-                    )
+                    self.style.WARNING("   ⚠️ Файлы priceLists*.xml не найдены")
                 )
 
             # ШАГ 2: Парсинг goods*.xml - создание заготовок товаров
             self.stdout.write("\n📦 Шаг 2: Создание заготовок товаров из goods.xml...")
             goods_files = self._collect_xml_files(data_dir, "goods", "goods.xml")
             if not goods_files:
-                raise CommandError(
-                    "Файлы goods.xml или goods_*.xml не найдены"
-                )
+                raise CommandError("Файлы goods.xml или goods_*.xml не найдены")
 
             for file_path in goods_files:
                 goods_data = parser.parse_goods_xml(file_path)
@@ -130,9 +124,7 @@ class Command(BaseCommand):
             self.stdout.write("\n🎁 Шаг 3: Обогащение товаров из offers.xml...")
             offers_files = self._collect_xml_files(data_dir, "offers", "offers.xml")
             if not offers_files:
-                raise CommandError(
-                    "Файлы offers.xml или offers_*.xml не найдены"
-                )
+                raise CommandError("Файлы offers.xml или offers_*.xml не найдены")
 
             for file_path in offers_files:
                 offers_data = parser.parse_offers_xml(file_path)
@@ -251,7 +243,9 @@ class Command(BaseCommand):
         parser = XMLDataParser()
 
         self.stdout.write("\n📋 Проверка priceLists.xml...")
-        price_list_files = self._collect_xml_files(data_dir, "priceLists", "priceLists.xml")
+        price_list_files = self._collect_xml_files(
+            data_dir, "priceLists", "priceLists.xml"
+        )
         if price_list_files:
             total_price_types = 0
             for file_path in price_list_files:
@@ -260,9 +254,7 @@ class Command(BaseCommand):
                 self.stdout.write(
                     f"   • {Path(file_path).name}: записей {len(price_types)}"
                 )
-            self.stdout.write(
-                f"   ✅ Найдено типов цен (всего): {total_price_types}"
-            )
+            self.stdout.write(f"   ✅ Найдено типов цен (всего): {total_price_types}")
         else:
             self.stdout.write("   ⚠️ Файлы не найдены")
 
@@ -276,9 +268,7 @@ class Command(BaseCommand):
                 self.stdout.write(
                     f"   • {Path(file_path).name}: товаров {len(goods_data)}"
                 )
-            self.stdout.write(
-                f"   ✅ Найдено товаров (всего): {total_goods}"
-            )
+            self.stdout.write(f"   ✅ Найдено товаров (всего): {total_goods}")
         else:
             self.stdout.write("   ❌ Файлы не найдены")
 
@@ -292,9 +282,7 @@ class Command(BaseCommand):
                 self.stdout.write(
                     f"   • {Path(file_path).name}: предложений {len(offers_data)}"
                 )
-            self.stdout.write(
-                f"   ✅ Найдено предложений (всего): {total_offers}"
-            )
+            self.stdout.write(f"   ✅ Найдено предложений (всего): {total_offers}")
         else:
             self.stdout.write("   ❌ Файлы не найдены")
 
@@ -308,9 +296,7 @@ class Command(BaseCommand):
                 self.stdout.write(
                     f"   • {Path(file_path).name}: записей цен {len(prices_data)}"
                 )
-            self.stdout.write(
-                f"   ✅ Найдено записей цен (всего): {total_prices}"
-            )
+            self.stdout.write(f"   ✅ Найдено записей цен (всего): {total_prices}")
         else:
             self.stdout.write("   ⚠️ Файлы не найдены")
 
@@ -324,9 +310,7 @@ class Command(BaseCommand):
                 self.stdout.write(
                     f"   • {Path(file_path).name}: записей остатков {len(rests_data)}"
                 )
-            self.stdout.write(
-                f"   ✅ Найдено записей остатков (всего): {total_rests}"
-            )
+            self.stdout.write(f"   ✅ Найдено записей остатков (всего): {total_rests}")
         else:
             self.stdout.write("   ⚠️ Файлы не найдены")
 

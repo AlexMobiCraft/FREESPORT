@@ -201,12 +201,17 @@ class TestXMLDataParser:
     def test_file_size_limit(self, tmp_path):
         """Проверка ограничения размера файла"""
         # Создаем большой файл (больше лимита)
-        large_xml = """<?xml version="1.0" encoding="UTF-8"?>
+        large_xml = (
+            """<?xml version="1.0" encoding="UTF-8"?>
 <Каталог>
   <Товары>
-""" + "    <Товар><Ид>id</Ид><Наименование>Товар</Наименование></Товар>\n" * 100000 + """
+"""
+            + "    <Товар><Ид>id</Ид><Наименование>Товар</Наименование></Товар>\n"
+            * 100000
+            + """
   </Товары>
 </Каталог>"""
+        )
 
         test_file = tmp_path / "large.xml"
         test_file.write_text(large_xml, encoding="utf-8")
@@ -227,7 +232,12 @@ class TestXMLDataParser:
         assert parser._map_price_type_to_field("Опт 2") == "opt2_price"
         assert parser._map_price_type_to_field("Опт 3") == "opt3_price"
         assert parser._map_price_type_to_field("Тренерская") == "trainer_price"
-        assert parser._map_price_type_to_field("РРЦ Рекомендованная") == "recommended_retail_price"
+        assert (
+            parser._map_price_type_to_field("РРЦ Рекомендованная")
+            == "recommended_retail_price"
+        )
         assert parser._map_price_type_to_field("РРЦ") == "retail_price"
         assert parser._map_price_type_to_field("МРЦ") == "max_suggested_retail_price"
-        assert parser._map_price_type_to_field("Неизвестный тип") == "retail_price"  # fallback
+        assert (
+            parser._map_price_type_to_field("Неизвестный тип") == "retail_price"
+        )  # fallback

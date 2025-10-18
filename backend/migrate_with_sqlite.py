@@ -23,30 +23,30 @@ from django.db.backends.sqlite3.base import DatabaseWrapper as SQLiteDatabaseWra
 
 # Создаем временную конфигурацию базы данных SQLite
 temp_db_config = {
-    'ENGINE': 'django.db.backends.sqlite3',
-    'NAME': Path(__file__).parent / 'temp_migration.db',
-    'OPTIONS': {
-        'timeout': 20,
-    }
+    "ENGINE": "django.db.backends.sqlite3",
+    "NAME": Path(__file__).parent / "temp_migration.db",
+    "OPTIONS": {
+        "timeout": 20,
+    },
 }
 
 # Временно заменяем конфигурацию базы данных
-original_db_config = settings.DATABASES['default']
-settings.DATABASES['default'] = temp_db_config
+original_db_config = settings.DATABASES["default"]
+settings.DATABASES["default"] = temp_db_config
 
 print("Using temporary SQLite database for migration...")
 print(f"Database file: {temp_db_config['NAME']}")
 
 try:
     # Выполняем миграции
-    execute_from_command_line(['manage.py', 'migrate'])
+    execute_from_command_line(["manage.py", "migrate"])
     print("Migration completed successfully with SQLite!")
-    
+
 except Exception as e:
     print(f"Migration failed: {e}")
     sys.exit(1)
-    
+
 finally:
     # Восстанавливаем оригинальную конфигурацию
-    settings.DATABASES['default'] = original_db_config
+    settings.DATABASES["default"] = original_db_config
     print("Restored original database configuration")

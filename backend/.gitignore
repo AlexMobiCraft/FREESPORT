@@ -23,6 +23,9 @@ backup_db/
 # Celery
 celerybeat-schedule
 celerybeat.pid
+backend\celerybeat-schedule.dir
+backend\celerybeat-schedule.dat
+backend\celerybeat-schedule.bak
 
 # Django collected static files
 /collected_static/

@@ -26,6 +26,8 @@ class ProductDataProcessor:
     - update_product_stock() - обновление остатков из rests.xml
     """
 
+    DEFAULT_PLACEHOLDER_IMAGE = "products/placeholder.png"
+
     def __init__(
         self, session_id: int, skip_validation: bool = False, chunk_size: int = 1000
     ):
@@ -38,6 +40,30 @@ class ProductDataProcessor:
             "skipped": 0,
             "errors": 0,
         }
+
+    def _get_product_by_onec_or_parent(self, onec_id: str) -> Product | None:
+        """Найти товар по полному onec_id или его parent части."""
+        if not onec_id:
+            return None
+
+        product = Product.objects.filter(onec_id=onec_id).first()
+        if product:
+            return product
+
+        if "#" in onec_id:
+            parent_id = onec_id.split("#")[0]
+
+            product = Product.objects.filter(onec_id=parent_id).first()
+            if product:
+                return product
+
+            product = Product.objects.filter(parent_onec_id=parent_id).first()
+            if product and (not product.onec_id or product.onec_id != parent_id):
+                product.onec_id = parent_id
+                product.save(update_fields=["onec_id"])
+                return product
+
+        return None
 
     def create_product_placeholder(self, goods_data: dict[str, Any]) -> Product | None:
         """Создание заготовки товара из goods.xml (parent_onec_id, is_active=False)"""
@@ -60,8 +86,12 @@ class ProductDataProcessor:
             if category_id:
                 category = Category.objects.filter(onec_id=category_id).first()
                 if category is None:
-                    placeholder_name = goods_data.get("category_name") or f"Категория {category_id}"
-                    placeholder_slug = slugify(placeholder_name) or slugify(str(category_id))
+                    placeholder_name = (
+                        goods_data.get("category_name") or f"Категория {category_id}"
+                    )
+                    placeholder_slug = slugify(placeholder_name) or slugify(
+                        str(category_id)
+                    )
                     if not placeholder_slug:
                         placeholder_slug = f"category-{uuid.uuid4().hex[:8]}"
                     elif Category.objects.filter(slug=placeholder_slug).exists():
@@ -90,16 +120,36 @@ class ProductDataProcessor:
                 name="No Brand", defaults={"slug": "no-brand", "is_active": True}
             )
 
+            # Генерируем уникальный slug для товара
+            product_name = goods_data.get("name", "Product Placeholder")
+            try:
+                from transliterate import translit
+
+                transliterated = translit(product_name, "ru", reversed=True)
+                base_slug = slugify(transliterated)
+            except (RuntimeError, ImportError):
+                base_slug = slugify(product_name)
+
+            if not base_slug:
+                base_slug = f"product-{parent_id[:8]}"
+
+            # Обеспечиваем уникальность slug
+            unique_slug = base_slug
+            while Product.objects.filter(slug=unique_slug).exists():
+                unique_slug = f"{base_slug}-{uuid.uuid4().hex[:8]}"
+
             # Создание заготовки
             product = Product(
                 parent_onec_id=parent_id,
-                name=goods_data.get("name", "Product Placeholder"),
+                name=product_name,
+                slug=unique_slug,
                 description=goods_data.get("description", ""),
                 brand=brand,
                 category=category,
                 retail_price=Decimal("0.00"),  # Будет обновлено из prices.xml
                 is_active=False,  # Неактивен до обогащения данными
                 sync_status=Product.SyncStatus.PENDING,
+                main_image=self.DEFAULT_PLACEHOLDER_IMAGE,
             )
             product.save()
 
@@ -133,7 +183,8 @@ class ProductDataProcessor:
                 return False
 
             # Обновляем финальными данными
-            product.onec_id = onec_id
+            if not product.onec_id or product.onec_id != parent_id:
+                product.onec_id = parent_id
             product.name = offer_data.get("name", product.name)
             product.sku = offer_data.get("article", f"SKU-{onec_id[:8]}")
             product.is_active = True
@@ -165,9 +216,8 @@ class ProductDataProcessor:
                 return False
 
             # Находим товар
-            try:
-                product = Product.objects.get(onec_id=onec_id)
-            except Product.DoesNotExist:
+            product = self._get_product_by_onec_or_parent(onec_id)
+            if product is None:
                 self._log_error(f"Product not found: {onec_id}", price_data)
                 return False
 
@@ -221,14 +271,14 @@ class ProductDataProcessor:
                 return False
 
             # Находим товар
-            try:
-                product = Product.objects.get(onec_id=onec_id)
-            except Product.DoesNotExist:
+            product = self._get_product_by_onec_or_parent(onec_id)
+            if product is None:
                 self._log_error(f"Product not found: {onec_id}", rest_data)
                 return False
 
             # Обновляем остаток (суммируем если товар на разных складах)
-            product.stock_quantity = quantity
+            base_quantity = product.stock_quantity or 0
+            product.stock_quantity = base_quantity + quantity
             product.sync_status = Product.SyncStatus.COMPLETED
             product.last_sync_at = timezone.now()
             product.save()
@@ -273,7 +323,9 @@ class ProductDataProcessor:
                 session.error_message = error_message
             session.save()
 
-            logger.info(f"Import session {self.session_id} finalized with status: {status}")
+            logger.info(
+                f"Import session {self.session_id} finalized with status: {status}"
+            )
         except ImportSession.DoesNotExist:
             logger.error(f"ImportSession {self.session_id} not found")
 

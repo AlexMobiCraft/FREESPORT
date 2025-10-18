@@ -157,6 +157,7 @@ class Category(models.Model):
             return f"{parent.full_name} > {self.name}"
         return self.name
 
+
 class Product(models.Model):
     """
     Модель товара с роле-ориентированным ценообразованием
@@ -393,14 +394,26 @@ class Product(models.Model):
             try:
                 # Транслитерация кириллицы в латиницу, затем slugify
                 transliterated = translit(self.name, "ru", reversed=True)
-                self.slug = slugify(transliterated)
+                base_slug = slugify(transliterated)
             except RuntimeError:
                 # Fallback на обычный slugify
-                self.slug = slugify(self.name)
+                base_slug = slugify(self.name)
 
             # Если slug все еще пустой, создаем fallback
-            if not self.slug:
-                self.slug = f"product-{self.pk or 0}"
+            if not base_slug:
+                base_slug = f"product-{self.pk or 0}"
+
+            # Обеспечиваем уникальность slug
+            self.slug = base_slug
+            counter = 1
+            while Product.objects.filter(slug=self.slug).exclude(pk=self.pk).exists():
+                # Добавляем UUID-суффикс для уникальности
+                self.slug = f"{base_slug}-{uuid.uuid4().hex[:8]}"
+                counter += 1
+                # Защита от бесконечного цикла (маловероятно с UUID)
+                if counter > 10:
+                    self.slug = f"{base_slug}-{uuid.uuid4().hex}"
+                    break
 
         if not self.sku:
             self.sku = f"AUTO-{int(time.time())}-{uuid.uuid4().hex[:8].upper()}"
@@ -563,6 +576,7 @@ class ImportSession(models.Model):
         ]
 
     if TYPE_CHECKING:
+
         def get_import_type_display(self) -> str:
             """Заглушка для метода Django, возвращающего название типа импорта."""
             return ""

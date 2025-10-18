@@ -62,7 +62,11 @@ class TestImportCatalogCommand:
         # Запускаем в dry-run режиме
         out = StringIO()
         call_command(
-            "import_catalog_from_1c", "--data-dir", str(test_dir), "--dry-run", stdout=out
+            "import_catalog_from_1c",
+            "--data-dir",
+            str(test_dir),
+            "--dry-run",
+            stdout=out,
         )
 
         output = out.getvalue()
@@ -344,9 +348,12 @@ class TestImportCatalogCommand:
 
         call_command("import_catalog_from_1c", "--data-dir", str(test_dir))
 
-        assert Product.objects.filter(
-            parent_onec_id__in=["parent-uuid-001", "parent-uuid-002"]
-        ).count() == 2
+        assert (
+            Product.objects.filter(
+                parent_onec_id__in=["parent-uuid-001", "parent-uuid-002"]
+            ).count()
+            == 2
+        )
 
         prod1 = Product.objects.get(parent_onec_id="parent-uuid-001")
         prod2 = Product.objects.get(parent_onec_id="parent-uuid-002")
