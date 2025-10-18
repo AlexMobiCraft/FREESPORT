@@ -9,6 +9,7 @@ from xml.etree.ElementTree import Element, ElementTree
 import defusedxml.ElementTree as ET
 from django.conf import settings
 
+
 class GoodsData(TypedDict, total=False):
     id: str
     name: str
@@ -98,7 +99,6 @@ class XMLDataParser:
 
     def _strip_namespace(self, root: Element) -> None:
         """Удаляет namespace из тегов для упрощения XPath-поиска."""
-
 
         for elem in root.iter():
             local_tag = self._get_local_tag(elem.tag)
@@ -274,7 +274,9 @@ class XMLDataParser:
 
                     quantity_value = self._find_text(warehouse_element, "Количество")
                     if not quantity_value:
-                        quantity_value = self._find_text(rest_element, "Количество", "0")
+                        quantity_value = self._find_text(
+                            rest_element, "Количество", "0"
+                        )
                 else:
                     warehouse_id = self._find_text(rest_element, "Склад")
                     quantity_value = self._find_text(rest_element, "Количество", "0")

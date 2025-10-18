@@ -3,6 +3,7 @@ Management команда для импорта каталога товаров 
 """
 import os
 from pathlib import Path
+from typing import cast
 
 from django.core.management.base import BaseCommand, CommandError
 
@@ -66,15 +67,20 @@ class Command(BaseCommand):
             import_type=ImportSession.ImportType.CATALOG,
             status=ImportSession.ImportStatus.STARTED,
         )
+        session_id = cast(int, session.pk)
 
         self.stdout.write(
-            self.style.SUCCESS(f"✅ Создана сессия импорта ID: {session.id}")
+            self.style.SUCCESS(
+                "✅ Создана сессия импорта ID: {session_id}".format(
+                    session_id=session_id
+                )
+            )
         )
 
         try:
             # Инициализация парсера и процессора
             parser = XMLDataParser()
-            processor = ProductDataProcessor(session_id=session.id)
+            processor = ProductDataProcessor(session_id=session_id)
 
             # ШАГ 1: Загрузка типов цен из priceLists*.xml
             self.stdout.write("\n📋 Шаг 1: Загрузка типов цен...")
@@ -155,7 +161,9 @@ class Command(BaseCommand):
                     for price_item in prices_data:
                         processor.update_product_prices(price_item)
                     self.stdout.write(
-                        f"   • {Path(file_path).name}: записей цен {len(prices_data)}"
+                        "   • {name}: записей цен {count}".format(
+                            name=Path(file_path).name, count=len(prices_data)
+                        )
                     )
 
                 self.stdout.write(
@@ -179,7 +187,9 @@ class Command(BaseCommand):
                     for rest_item in rests_data:
                         processor.update_product_stock(rest_item)
                     self.stdout.write(
-                        f"   • {Path(file_path).name}: записей остатков {len(rests_data)}"
+                        "   • {name}: записей остатков {count}".format(
+                            name=Path(file_path).name, count=len(rests_data)
+                        )
                     )
 
                 self.stdout.write(
@@ -215,7 +225,10 @@ class Command(BaseCommand):
     def _collect_xml_files(
         self, base_dir: str, subdir: str, filename: str
     ) -> list[str]:
-        """Возвращает упорядоченный список XML файлов, включая сегментированные выгрузки."""
+        """
+        Возвращает упорядоченный список XML файлов,
+        включая сегментированные выгрузки.
+        """
 
         base_path = Path(base_dir) / subdir
         if not base_path.exists():

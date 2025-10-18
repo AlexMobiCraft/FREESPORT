@@ -98,11 +98,14 @@ class TestImportCatalogCommand:
         try:
             call_command("import_catalog_from_1c", "--data-dir", str(test_dir))
         except Exception:
-            pass  # Команда может упасть из-за отсутствия данных, но сессия должна создаться
+            # Команда может упасть из-за отсутствия данных, но
+            # сессия должна создаться
+            pass
 
         # Проверяем что сессия создана
         assert ImportSession.objects.count() >= 1
         session = ImportSession.objects.first()
+        assert session is not None
         assert session.import_type == ImportSession.ImportType.CATALOG
 
     @pytest.mark.slow
