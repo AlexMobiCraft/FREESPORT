@@ -66,8 +66,8 @@ services:
       - PYTEST_CURRENT_TEST=1
       - TEST_RUNNER=pytest
     volumes:
-      - "C:/Users/38670/DEV_WEB/FREESPORT/backend:/app"
-      - "C:/Users/38670/DEV_WEB/FREESPORT/data/import_1c:/app/data/import_1c"
+      - "${FREESPORT_PROJECT_ROOT:-C:/Users/38670/DEV_WEB/FREESPORT}/backend:/app"
+      - "${FREESPORT_PROJECT_ROOT:-C:/Users/38670/DEV_WEB/FREESPORT}/data/import_1c:/app/data/import_1c"
       - test_coverage:/app/htmlcov
     depends_on:
       db:

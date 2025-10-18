@@ -64,6 +64,39 @@ make docs-check-api         # Проверка покрытия API
 
 ---
 
+## 🚀 Обновление серверного кода
+
+### update_server_code.ps1
+
+PowerShell скрипт для актуализации удалённого окружения разработки (`ssh`, `git pull`, синхронизация `.env`, перезапуск `docker compose`).
+
+**Использование:**
+
+```powershell
+# Базовый запуск (используется текущая git-ветка)
+pwsh .\\scripts\\update_server_code.ps1
+
+# Явный выбор ветки и локального .env
+pwsh .\\scripts\\update_server_code.ps1 -Branch develop -EnvFileLocal "backend/.env.test"
+
+# Настройка другого сервера
+pwsh .\\scripts\\update_server_code.ps1 -User alex -IP 192.168.1.140 -ProjectPathRemote "~/projects/FREESPORT"
+```
+
+**Переменная `FREESPORT_PROJECT_ROOT`:**
+
+- **Локально** переменная не требуется — используется дефолтный путь `C:/Users/38670/DEV_WEB/FREESPORT` из `docker-compose.test.yml`.
+- **При удалённом запуске** скрипт автоматически устанавливает `FREESPORT_PROJECT_ROOT` по значению `-ProjectPathRemote` (например, `/home/alex/FREESPORT`) на время перезапуска `docker compose`.
+- **При ручном использовании Docker context** можно задать переменную самостоятельно:
+
+```powershell
+$env:FREESPORT_PROJECT_ROOT="/home/alex/FREESPORT"
+docker --context freesport-remote compose -f docker-compose.test.yml up -d
+Remove-Item Env:FREESPORT_PROJECT_ROOT
+```
+
+---
+
 ### docs_link_checker.py
 
 Детальная проверка всех ссылок в markdown документах.

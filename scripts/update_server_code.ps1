@@ -108,7 +108,24 @@ try {
     Copy-EnvFileToServer -ConnectionUser $User -ConnectionHost $IP -LocalPath $absoluteEnvPath -RemotePath $EnvFileRemote
 
     Write-Host "Перезапуск docker compose в контексте '$DockerContext'..." -ForegroundColor Yellow
-    Restart-RemoteCompose -Context $DockerContext -ComposeFilePath $ComposeFile
+    $composeProjectRoot = $ProjectPathRemote
+    if ($ProjectPathRemote.StartsWith("~/")) {
+        $composeProjectRoot = "/home/$User/" + $ProjectPathRemote.Substring(2)
+    }
+
+    $previousProjectRoot = $env:FREESPORT_PROJECT_ROOT
+    try {
+        $env:FREESPORT_PROJECT_ROOT = $composeProjectRoot
+        Restart-RemoteCompose -Context $DockerContext -ComposeFilePath $ComposeFile
+    }
+    finally {
+        if ($null -eq $previousProjectRoot) {
+            Remove-Item Env:FREESPORT_PROJECT_ROOT -ErrorAction SilentlyContinue
+        }
+        else {
+            $env:FREESPORT_PROJECT_ROOT = $previousProjectRoot
+        }
+    }
 
     Write-Host "✓ Актуализация завершена" -ForegroundColor Green
 }
