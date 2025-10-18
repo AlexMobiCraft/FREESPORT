@@ -108,8 +108,8 @@ class Command(BaseCommand):
 
             for file_path in goods_files:
                 goods_data = parser.parse_goods_xml(file_path)
-                for item in goods_data:
-                    processor.create_product_placeholder(item)
+                for goods_item in goods_data:
+                    processor.create_product_placeholder(goods_item)
                 self.stdout.write(
                     f"   • {Path(file_path).name}: товаров {len(goods_data)}"
                 )
@@ -128,8 +128,8 @@ class Command(BaseCommand):
 
             for file_path in offers_files:
                 offers_data = parser.parse_offers_xml(file_path)
-                for item in offers_data:
-                    processor.enrich_product_from_offer(item)
+                for offer_item in offers_data:
+                    processor.enrich_product_from_offer(offer_item)
                 self.stdout.write(
                     f"   • {Path(file_path).name}: предложений {len(offers_data)}"
                 )
@@ -152,8 +152,8 @@ class Command(BaseCommand):
             else:
                 for file_path in prices_files:
                     prices_data = parser.parse_prices_xml(file_path)
-                    for item in prices_data:
-                        processor.update_product_prices(item)
+                    for price_item in prices_data:
+                        processor.update_product_prices(price_item)
                     self.stdout.write(
                         f"   • {Path(file_path).name}: записей цен {len(prices_data)}"
                     )
@@ -176,8 +176,8 @@ class Command(BaseCommand):
             else:
                 for file_path in rests_files:
                     rests_data = parser.parse_rests_xml(file_path)
-                    for item in rests_data:
-                        processor.update_product_stock(item)
+                    for rest_item in rests_data:
+                        processor.update_product_stock(rest_item)
                     self.stdout.write(
                         f"   • {Path(file_path).name}: записей остатков {len(rests_data)}"
                     )
@@ -238,7 +238,7 @@ class Command(BaseCommand):
 
         return [str(path) for path in collected]
 
-    def _dry_run_import(self, data_dir: str):
+    def _dry_run_import(self, data_dir: str) -> None:
         """Тестовый запуск импорта без записи в БД"""
         parser = XMLDataParser()
 

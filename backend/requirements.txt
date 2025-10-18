@@ -75,6 +75,7 @@ six==1.17.0
 sqlparse==0.5.3
 tqdm==4.67.1
 transliterate==1.10.2
+types-defusedxml==0.7.0
 types-pytz==2025.2.0.20250809
 types-PyYAML==6.0.12.20250809
 types-requests==2.32.4.20250913

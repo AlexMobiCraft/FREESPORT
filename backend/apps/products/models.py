@@ -152,7 +152,7 @@ class Category(models.Model):
     @property
     def full_name(self) -> str:
         """Полное название категории с учетом иерархии"""
-        parent = cast("Category | None", self.parent)
+        parent = self.parent
         if parent:
             return f"{parent.full_name} > {self.name}"
         return self.name

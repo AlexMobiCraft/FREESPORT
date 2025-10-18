@@ -3,11 +3,55 @@ XMLDataParser - парсер для XML файлов из 1С (CommerceML 3.1)
 """
 import os
 from decimal import Decimal
-from typing import Any
-from xml.etree.ElementTree import ElementTree
+from typing import Any, Iterator, TypedDict, cast
+from xml.etree.ElementTree import Element, ElementTree
 
 import defusedxml.ElementTree as ET
 from django.conf import settings
+
+class GoodsData(TypedDict, total=False):
+    id: str
+    name: str
+    description: str
+    article: str
+    category_id: str
+    category_name: str
+    images: list[str]
+
+
+class OfferCharacteristic(TypedDict):
+    name: str
+    value: str
+
+
+class OfferData(TypedDict, total=False):
+    id: str
+    name: str
+    article: str
+    characteristics: list[OfferCharacteristic]
+
+
+class PriceItem(TypedDict):
+    price_type_id: str
+    value: Decimal
+
+
+class PriceData(TypedDict):
+    id: str
+    prices: list[PriceItem]
+
+
+class RestData(TypedDict):
+    id: str
+    warehouse_id: str
+    quantity: int
+
+
+class PriceTypeData(TypedDict):
+    onec_id: str
+    onec_name: str
+    currency: str
+    product_field: str
 
 
 class XMLDataParser:
@@ -45,14 +89,14 @@ class XMLDataParser:
         self._validate_file(file_path)
 
         try:
-            tree = ET.parse(file_path)
-            root = tree.getroot()
+            tree: ElementTree = cast(ElementTree, ET.parse(file_path))
+            root = cast(Element, tree.getroot())
             self._strip_namespace(root)
             return tree
         except ET.ParseError as e:
             raise ValueError(f"Invalid XML structure in {file_path}: {e}")
 
-    def _strip_namespace(self, root: Any) -> None:
+    def _strip_namespace(self, root: Element) -> None:
         """Удаляет namespace из тегов для упрощения XPath-поиска."""
 
 
@@ -70,14 +114,14 @@ class XMLDataParser:
             return tag.split("}", 1)[1]
         return tag
 
-    def _iter_elements(self, root: Any, tag: str):
+    def _iter_elements(self, root: Element, tag: str) -> Iterator[Element]:
         """Итератор по элементам с указанным именем тега (без namespace)."""
 
         for elem in root.iter():
             if self._get_local_tag(elem.tag) == tag:
                 yield elem
 
-    def _find_child(self, element: Any, tag: str) -> Any:
+    def _find_child(self, element: Element, tag: str) -> Element | None:
         """Возвращает первого потомка с нужным именем тега."""
 
         for child in list(element):
@@ -85,14 +129,14 @@ class XMLDataParser:
                 return child
         return None
 
-    def _find_children(self, element: Any, tag: str) -> list[Any]:
+    def _find_children(self, element: Element, tag: str) -> list[Element]:
         """Возвращает всех прямых потомков с нужным именем тега."""
 
         return [
             child for child in list(element) if self._get_local_tag(child.tag) == tag
         ]
 
-    def _find_text(self, element: Any, tag: str, default: str = "") -> str:
+    def _find_text(self, element: Element, tag: str, default: str = "") -> str:
         """Возвращает текст первого потомка с указанным именем тега."""
 
         child = self._find_child(element, tag)
@@ -100,15 +144,15 @@ class XMLDataParser:
             return child.text.strip()
         return default
 
-    def parse_goods_xml(self, file_path: str) -> list[dict[str, Any]]:
+    def parse_goods_xml(self, file_path: str) -> list[GoodsData]:
         """Парсинг goods.xml - базовые товары"""
         tree = self._safe_parse_xml(file_path)
-        root = tree.getroot()
+        root = cast(Element, tree.getroot())
 
-        goods_list = []
+        goods_list: list[GoodsData] = []
         # CommerceML структура: <Каталог><Товары><Товар>
         for product_element in root.findall(".//Товар"):
-            goods_data = {
+            goods_data: GoodsData = {
                 "id": self._find_text(product_element, "Ид"),
                 "name": self._find_text(product_element, "Наименование"),
                 "description": self._find_text(product_element, "Описание"),
@@ -118,6 +162,9 @@ class XMLDataParser:
             groups_element = self._find_child(product_element, "Группы")
             if groups_element is not None:
                 goods_data["category_id"] = self._find_text(groups_element, "Ид")
+                category_name = self._find_text(groups_element, "Наименование")
+                if category_name:
+                    goods_data["category_name"] = category_name
 
             image_elements = self._find_children(product_element, "Картинка")
             if image_elements:
@@ -125,20 +172,20 @@ class XMLDataParser:
                     image.text.strip() for image in image_elements if image.text
                 ]
 
-            if goods_data["id"]:  # Только если есть ID
+            if goods_data.get("id"):  # Только если есть ID
                 goods_list.append(goods_data)
 
         return goods_list
 
-    def parse_offers_xml(self, file_path: str) -> list[dict[str, Any]]:
+    def parse_offers_xml(self, file_path: str) -> list[OfferData]:
         """Парсинг offers.xml - торговые предложения (SKU)"""
         tree = self._safe_parse_xml(file_path)
-        root = tree.getroot()
+        root = cast(Element, tree.getroot())
 
-        offers_list = []
+        offers_list: list[OfferData] = []
         # CommerceML структура: <ПакетПредложений><Предложения><Предложение>
         for offer_element in root.findall(".//Предложение"):
-            offer_data = {
+            offer_data: OfferData = {
                 "id": self._find_text(offer_element, "Ид"),
                 "name": self._find_text(offer_element, "Наименование"),
                 "article": self._find_text(offer_element, "Артикул"),
@@ -148,7 +195,7 @@ class XMLDataParser:
                 offer_element, "ХарактеристикиТовара"
             )
             if characteristics_element is not None:
-                char_list = []
+                char_list: list[OfferCharacteristic] = []
                 for characteristics_item in self._find_children(
                     characteristics_element, "ХарактеристикаТовара"
                 ):
@@ -159,24 +206,24 @@ class XMLDataParser:
                 if char_list:
                     offer_data["characteristics"] = char_list
 
-            if offer_data["id"]:  # Только если есть ID
+            if offer_data.get("id"):  # Только если есть ID
                 offers_list.append(offer_data)
 
         return offers_list
 
-    def parse_prices_xml(self, file_path: str) -> list[dict[str, Any]]:
+    def parse_prices_xml(self, file_path: str) -> list[PriceData]:
         """Парсинг prices.xml - цены"""
         tree = self._safe_parse_xml(file_path)
-        root = tree.getroot()
+        root = cast(Element, tree.getroot())
 
-        prices_list = []
+        prices_list: list[PriceData] = []
         # CommerceML структура: <ПакетПредложений><Предложения><Предложение>
         for price_offer_element in root.findall(".//Предложение"):
             offer_id = self._find_text(price_offer_element, "Ид")
             if not offer_id:
                 continue
 
-            prices_data = {"id": offer_id, "prices": []}
+            prices_data: PriceData = {"id": offer_id, "prices": []}
 
             prices_element = self._find_child(price_offer_element, "Цены")
             if prices_element is not None:
@@ -189,12 +236,11 @@ class XMLDataParser:
 
                     try:
                         price_decimal = Decimal(price_value)
-                        prices_data["prices"].append(
-                            {
-                                "price_type_id": price_type_id,
-                                "value": price_decimal,
-                            }
-                        )
+                        price_item: PriceItem = {
+                            "price_type_id": price_type_id,
+                            "value": price_decimal,
+                        }
+                        prices_data["prices"].append(price_item)
                     except (ValueError, TypeError):
                         continue
 
@@ -203,12 +249,12 @@ class XMLDataParser:
 
         return prices_list
 
-    def parse_rests_xml(self, file_path: str) -> list[dict[str, Any]]:
+    def parse_rests_xml(self, file_path: str) -> list[RestData]:
         """Парсинг rests.xml - остатки"""
         tree = self._safe_parse_xml(file_path)
-        root = tree.getroot()
+        root = cast(Element, tree.getroot())
 
-        rests_list = []
+        rests_list: list[RestData] = []
         # CommerceML структура: <ПакетПредложений><Предложения><Предложение>
         for rest_offer_element in root.findall(".//Предложение"):
             offer_id = self._find_text(rest_offer_element, "Ид")
@@ -238,32 +284,34 @@ class XMLDataParser:
                 except (ValueError, TypeError):
                     continue
 
-                rests_list.append(
-                    {
-                        "id": offer_id,
-                        "warehouse_id": warehouse_id,
-                        "quantity": qty_int,
-                    }
-                )
+                rest_item: RestData = {
+                    "id": offer_id,
+                    "warehouse_id": warehouse_id,
+                    "quantity": qty_int,
+                }
+                rests_list.append(rest_item)
 
         return rests_list
 
-    def parse_price_lists_xml(self, file_path: str) -> list[dict[str, Any]]:
+    def parse_price_lists_xml(self, file_path: str) -> list[PriceTypeData]:
         """Парсинг priceLists.xml - типы цен"""
         tree = self._safe_parse_xml(file_path)
-        root = tree.getroot()
+        root = cast(Element, tree.getroot())
 
-        price_types = []
+        price_types: list[PriceTypeData] = []
         # CommerceML структура: <ПакетПредложений><ТипыЦен><ТипЦены>
         for price_type_element in root.findall(".//ТипЦены"):
-            price_type_data = {
-                "onec_id": self._find_text(price_type_element, "Ид"),
-                "onec_name": self._find_text(price_type_element, "Наименование"),
-                "currency": self._find_text(price_type_element, "Валюта", "RUB"),
-            }
+            onec_id = self._find_text(price_type_element, "Ид")
+            onec_name = self._find_text(price_type_element, "Наименование")
+            currency = self._find_text(price_type_element, "Валюта", "RUB")
+            product_field = self._map_price_type_to_field(onec_name)
 
-            product_field = self._map_price_type_to_field(price_type_data["onec_name"])
-            price_type_data["product_field"] = product_field
+            price_type_data: PriceTypeData = {
+                "onec_id": onec_id,
+                "onec_name": onec_name,
+                "currency": currency,
+                "product_field": product_field,
+            }
 
             if price_type_data["onec_id"] and price_type_data["onec_name"]:
                 price_types.append(price_type_data)

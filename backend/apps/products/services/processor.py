@@ -4,13 +4,19 @@ ProductDataProcessor - процессор для обработки данных
 import logging
 import uuid
 from decimal import Decimal
-from typing import Any
+from typing import Any, Sequence
 
-from django.db import transaction
 from django.utils import timezone
 from django.utils.text import slugify
 
 from apps.products.models import Brand, Category, ImportSession, PriceType, Product
+from apps.products.services.parser import (
+    GoodsData,
+    OfferData,
+    PriceData,
+    PriceTypeData,
+    RestData,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +47,7 @@ class ProductDataProcessor:
             "errors": 0,
         }
         self._stock_buffer: dict[str, int] = {}
+        self._missing_products_logged: set[str] = set()
 
     def _get_product_by_onec_or_parent(self, onec_id: str) -> Product | None:
         """Найти товар по полному onec_id или его parent части."""
@@ -66,7 +73,7 @@ class ProductDataProcessor:
 
         return None
 
-    def create_product_placeholder(self, goods_data: dict[str, Any]) -> Product | None:
+    def create_product_placeholder(self, goods_data: GoodsData) -> Product | None:
         """Создание заготовки товара из goods.xml (parent_onec_id, is_active=False)"""
         try:
             parent_id = goods_data.get("id")
@@ -87,9 +94,12 @@ class ProductDataProcessor:
             if category_id:
                 category = Category.objects.filter(onec_id=category_id).first()
                 if category is None:
-                    placeholder_name = (
-                        goods_data.get("category_name") or f"Категория {category_id}"
-                    )
+                    category_name_value = goods_data.get("category_name")
+                    if isinstance(category_name_value, str) and category_name_value:
+                        placeholder_name = category_name_value
+                    else:
+                        placeholder_name = f"Категория {category_id}"
+
                     placeholder_slug = slugify(placeholder_name) or slugify(
                         str(category_id)
                     )
@@ -122,7 +132,11 @@ class ProductDataProcessor:
             )
 
             # Генерируем уникальный slug для товара
-            product_name = goods_data.get("name", "Product Placeholder")
+            name_value = goods_data.get("name")
+            if isinstance(name_value, str) and name_value:
+                product_name = name_value
+            else:
+                product_name = "Product Placeholder"
             try:
                 from transliterate import translit
 
@@ -140,11 +154,16 @@ class ProductDataProcessor:
                 unique_slug = f"{base_slug}-{uuid.uuid4().hex[:8]}"
 
             # Создание заготовки
+            description_value = goods_data.get("description")
+            description_text = (
+                description_value if isinstance(description_value, str) else ""
+            )
+
             product = Product(
                 parent_onec_id=parent_id,
                 name=product_name,
                 slug=unique_slug,
-                description=goods_data.get("description", ""),
+                description=description_text,
                 brand=brand,
                 category=category,
                 retail_price=Decimal("0.00"),  # Будет обновлено из prices.xml
@@ -162,7 +181,7 @@ class ProductDataProcessor:
             self._log_error(f"Error creating product placeholder: {e}", goods_data)
             return None
 
-    def enrich_product_from_offer(self, offer_data: dict[str, Any]) -> bool:
+    def enrich_product_from_offer(self, offer_data: OfferData) -> bool:
         """Обогащение товара данными из offers.xml (onec_id, SKU, is_active=True)"""
         try:
             onec_id = offer_data.get("id")
@@ -210,7 +229,7 @@ class ProductDataProcessor:
             self._log_error(f"Error enriching product: {e}", offer_data)
             return False
 
-    def update_product_prices(self, price_data: dict[str, Any]) -> bool:
+    def update_product_prices(self, price_data: PriceData) -> bool:
         """Обновление цен товара из prices.xml"""
         try:
             onec_id = price_data.get("id")
@@ -221,7 +240,7 @@ class ProductDataProcessor:
             # Находим товар
             product = self._get_product_by_onec_or_parent(onec_id)
             if product is None:
-                self._log_error(f"Product not found: {onec_id}", price_data)
+                self._log_missing_product(onec_id, price_data)
                 return False
 
             # Маппинг цен через PriceType
@@ -263,7 +282,7 @@ class ProductDataProcessor:
             self._log_error(f"Error updating prices: {e}", price_data)
             return False
 
-    def update_product_stock(self, rest_data: dict[str, Any]) -> bool:
+    def update_product_stock(self, rest_data: RestData) -> bool:
         """Обновление остатков товара из rests.xml"""
         try:
             onec_id = rest_data.get("id")
@@ -276,7 +295,7 @@ class ProductDataProcessor:
             # Находим товар
             product = self._get_product_by_onec_or_parent(onec_id)
             if product is None:
-                self._log_error(f"Product not found: {onec_id}", rest_data)
+                self._log_missing_product(onec_id, rest_data)
                 return False
 
             # Обновляем остаток (суммируем если товар на разных складах)
@@ -295,7 +314,7 @@ class ProductDataProcessor:
             self._log_error(f"Error updating stock: {e}", rest_data)
             return False
 
-    def process_price_types(self, price_types_data: list[dict[str, Any]]) -> int:
+    def process_price_types(self, price_types_data: Sequence[PriceTypeData]) -> int:
         """Создание/обновление справочника PriceType"""
         count = 0
         for price_type_data in price_types_data:
@@ -333,7 +352,15 @@ class ProductDataProcessor:
         except ImportSession.DoesNotExist:
             logger.error(f"ImportSession {self.session_id} not found")
 
-    def _log_error(self, message: str, data: dict[str, Any]) -> None:
+    def _log_error(self, message: str, data: Any) -> None:
         """Логирование ошибки"""
         logger.error(f"{message}: {data}")
         self.stats["errors"] += 1
+
+    def _log_missing_product(self, onec_id: str, data: Any) -> None:
+        if onec_id in self._missing_products_logged:
+            logger.debug(f"Product not found (already logged): {onec_id}")
+            return
+
+        self._missing_products_logged.add(onec_id)
+        logger.warning(f"Product not found: {onec_id}; data={data}")
