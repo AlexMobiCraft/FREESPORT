@@ -55,6 +55,15 @@ class PriceTypeData(TypedDict):
     product_field: str
 
 
+class CategoryData(TypedDict, total=False):
+    """Данные категории из groups.xml"""
+
+    id: str
+    name: str
+    parent_id: str
+    description: str
+
+
 class XMLDataParser:
     """
     Парсер для обработки XML файлов из 1С в формате CommerceML 3.1
@@ -319,6 +328,56 @@ class XMLDataParser:
                 price_types.append(price_type_data)
 
         return price_types
+
+    def parse_groups_xml(self, file_path: str) -> list[CategoryData]:
+        """
+        Парсинг groups.xml - иерархия категорий (Story 3.1.2)
+
+        Поддерживает многоуровневую вложенность категорий.
+        Структура: <Классификатор><Группы><Группа>
+        """
+        tree = self._safe_parse_xml(file_path)
+        root = cast(Element, tree.getroot())
+
+        categories_list: list[CategoryData] = []
+
+        # Рекурсивная функция для обхода иерархии
+        def parse_group(group_element: Element, parent_id: str = "") -> None:
+            category_id = self._find_text(group_element, "Ид")
+            category_name = self._find_text(group_element, "Наименование")
+
+            if not category_id or not category_name:
+                return
+
+            category_data: CategoryData = {
+                "id": category_id,
+                "name": category_name,
+                "description": self._find_text(group_element, "Описание"),
+            }
+
+            if parent_id:
+                category_data["parent_id"] = parent_id
+
+            categories_list.append(category_data)
+
+            # Рекурсивно обрабатываем вложенные группы
+            child_groups_element = self._find_child(group_element, "Группы")
+            if child_groups_element is not None:
+                for child_group in self._find_children(child_groups_element, "Группа"):
+                    parse_group(child_group, parent_id=category_id)
+
+        # Ищем корневой элемент Группы в Классификаторе или Каталоге
+        groups_container = (
+            root.find(".//Классификатор/Группы")
+            or root.find(".//Каталог/Группы")
+            or root.find(".//Группы")
+        )
+
+        if groups_container is not None:
+            for group_element in self._find_children(groups_container, "Группа"):
+                parse_group(group_element)
+
+        return categories_list
 
     def _map_price_type_to_field(self, onec_name: str) -> str:
         """Маппинг названия типа цены из 1С на поле Product"""

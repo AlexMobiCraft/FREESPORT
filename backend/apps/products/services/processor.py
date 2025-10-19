@@ -11,6 +11,7 @@ from django.utils.text import slugify
 
 from apps.products.models import Brand, Category, ImportSession, PriceType, Product
 from apps.products.services.parser import (
+    CategoryData,
     GoodsData,
     OfferData,
     PriceData,
@@ -363,4 +364,132 @@ class ProductDataProcessor:
             return
 
         self._missing_products_logged.add(onec_id)
-        logger.warning(f"Product not found: {onec_id}; data={data}")
+
+    def process_categories(
+        self, categories_data: list[CategoryData]
+    ) -> dict[str, int]:
+        """
+        Обработка категорий с иерархией (Story 3.1.2)
+
+        Двухпроходный алгоритм:
+        1. Создаём все категории без родительских связей
+        2. Устанавливаем родительские связи с валидацией циклов
+
+        Returns:
+            dict с количеством created, updated, errors
+        """
+        result = {"created": 0, "updated": 0, "errors": 0, "cycles_detected": 0}
+        category_map: dict[str, Category] = {}
+
+        # ШАГ 1: Создаём/обновляем все категории без parent
+        for category_data in categories_data:
+            try:
+                onec_id = category_data.get("id")
+                name = category_data.get("name")
+                description = category_data.get("description", "")
+
+                if not onec_id or not name:
+                    logger.warning(f"Skipping category with missing id or name: {category_data}")
+                    result["errors"] += 1
+                    continue
+
+                category, created = Category.objects.update_or_create(
+                    onec_id=onec_id,
+                    defaults={
+                        "name": name,
+                        "description": description,
+                        "is_active": True,
+                    },
+                )
+
+                category_map[onec_id] = category
+
+                if created:
+                    result["created"] += 1
+                    logger.info(f"Created category: {name} ({onec_id})")
+                else:
+                    result["updated"] += 1
+                    logger.info(f"Updated category: {name} ({onec_id})")
+
+            except Exception as e:
+                logger.error(f"Error processing category {category_data}: {e}")
+                result["errors"] += 1
+
+        # ШАГ 2: Устанавливаем родительские связи с валидацией циклов
+        for category_data in categories_data:
+            try:
+                onec_id = category_data.get("id")
+                parent_id = category_data.get("parent_id")
+
+                if not parent_id or not onec_id:
+                    continue  # Корневая категория или ошибка
+
+                category = category_map.get(onec_id)
+                parent = category_map.get(parent_id)
+
+                if not category:
+                    logger.warning(
+                        f"Category not found in map: {onec_id}"
+                    )
+                    continue
+
+                if not parent:
+                    logger.warning(
+                        f"Parent category not found: {parent_id} for {onec_id}"
+                    )
+                    continue
+
+                # Валидация циклических ссылок
+                if self._has_circular_reference(category, parent, category_map):
+                    logger.error(
+                        f"Circular reference detected: {onec_id} -> {parent_id}"
+                    )
+                    result["cycles_detected"] += 1
+                    continue
+
+                # Устанавливаем parent
+                category.parent = parent
+                category.save(update_fields=["parent"])
+                logger.debug(f"Set parent {parent.name} for {category.name}")
+
+            except Exception as e:
+                logger.error(
+                    f"Error setting parent for category {onec_id}: {e}"
+                )
+                result["errors"] += 1
+
+        logger.info(
+            f"Categories processed: {result['created']} created, "
+            f"{result['updated']} updated, {result['errors']} errors, "
+            f"{result['cycles_detected']} cycles detected"
+        )
+        return result
+
+    def _has_circular_reference(
+        self, category: Category, proposed_parent: Category, category_map: dict[str, Category]
+    ) -> bool:
+        """
+        Проверка циклических ссылок в иерархии категорий
+
+        Обходим родителей proposed_parent и проверяем что category
+        не встречается в цепочке (Story 3.1.2)
+        """
+        visited = set()
+        current = proposed_parent
+
+        while current:
+            # Если мы вернулись к исходной категории - цикл обнаружен
+            if current.id == category.id:
+                return True
+
+            # Защита от бесконечного цикла
+            if current.id in visited:
+                logger.warning(f"Existing circular reference detected at {current.name}")
+                return True
+
+            visited.add(current.id)
+
+            # Переходим к parent
+            current = current.parent
+
+        return False

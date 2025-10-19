@@ -5,9 +5,11 @@ import os
 from pathlib import Path
 from typing import cast
 
+from django.core.management import call_command
 from django.core.management.base import BaseCommand, CommandError
+from tqdm import tqdm
 
-from apps.products.models import ImportSession
+from apps.products.models import Brand, Category, ImportSession, Product
 from apps.products.services.parser import XMLDataParser
 from apps.products.services.processor import ProductDataProcessor
 
@@ -19,6 +21,9 @@ class Command(BaseCommand):
     Использование:
         python manage.py import_catalog_from_1c --data-dir /path/to/1c/data
         python manage.py import_catalog_from_1c --data-dir /path --dry-run
+        python manage.py import_catalog_from_1c --data-dir /path --chunk-size=500
+        python manage.py import_catalog_from_1c --data-dir /path --file-type=goods
+        python manage.py import_catalog_from_1c --data-dir /path --clear-existing
     """
 
     help = "Импорт каталога товаров из файлов 1С (CommerceML 3.1)"
@@ -36,11 +41,45 @@ class Command(BaseCommand):
             action="store_true",
             help="Тестовый запуск без записи в БД",
         )
+        # Story 3.1.2: Расширенные параметры
+        parser.add_argument(
+            "--chunk-size",
+            type=int,
+            default=1000,
+            help="Размер пакета для bulk операций (default: 1000)",
+        )
+        parser.add_argument(
+            "--skip-validation",
+            action="store_true",
+            help="Пропустить валидацию данных для ускорения импорта",
+        )
+        parser.add_argument(
+            "--file-type",
+            type=str,
+            choices=["goods", "offers", "prices", "rests", "all"],
+            default="all",
+            help="Выборочный импорт конкретного типа файлов (default: all)",
+        )
+        parser.add_argument(
+            "--clear-existing",
+            action="store_true",
+            help="Очистить существующие данные перед импортом (ВНИМАНИЕ: удалит все товары)",
+        )
+        parser.add_argument(
+            "--skip-backup",
+            action="store_true",
+            help="Пропустить создание backup перед импортом",
+        )
 
     def handle(self, *args, **options):
         """Основная логика команды"""
         data_dir = options["data_dir"]
         dry_run = options.get("dry_run", False)
+        chunk_size = options.get("chunk_size", 1000)
+        skip_validation = options.get("skip_validation", False)
+        file_type = options.get("file_type", "all")
+        clear_existing = options.get("clear_existing", False)
+        skip_backup = options.get("skip_backup", False)
 
         # Валидация директории
         if not os.path.exists(data_dir):
@@ -49,18 +88,62 @@ class Command(BaseCommand):
         if not os.path.isdir(data_dir):
             raise CommandError(f"Путь не является директорией: {data_dir}")
 
-        # Валидация структуры директории
-        required_subdirs = ["goods", "offers", "prices", "rests", "priceLists"]
-        for subdir in required_subdirs:
-            subdir_path = os.path.join(data_dir, subdir)
-            if not os.path.exists(subdir_path):
-                raise CommandError(f"Отсутствует обязательная поддиректория: {subdir}")
+        # Валидация структуры директории (только если нужны все файлы)
+        if file_type == "all":
+            required_subdirs = ["goods", "offers", "prices", "rests", "priceLists"]
+            for subdir in required_subdirs:
+                subdir_path = os.path.join(data_dir, subdir)
+                if not os.path.exists(subdir_path):
+                    raise CommandError(
+                        f"Отсутствует обязательная поддиректория: {subdir}"
+                    )
 
         if dry_run:
             self.stdout.write(
                 self.style.WARNING("🔍 DRY RUN MODE: Изменения не будут сохранены в БД")
             )
             return self._dry_run_import(data_dir)
+
+        # Story 3.1.2: Автоматический backup перед полным импортом
+        if not dry_run and file_type == "all" and not skip_backup:
+            self.stdout.write(self.style.WARNING("\n💾 Создание backup перед импортом..."))
+            try:
+                call_command("backup_db")
+                self.stdout.write(self.style.SUCCESS("✅ Backup создан успешно"))
+            except Exception as e:
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"⚠️ Не удалось создать backup: {e}. Продолжаем импорт..."
+                    )
+                )
+
+        # Story 3.1.2: Очистка существующих данных
+        if clear_existing:
+            self.stdout.write(
+                self.style.WARNING(
+                    "\n⚠️ ВНИМАНИЕ: Удаление всех существующих товаров, категорий и брендов..."
+                )
+            )
+            confirm = input("Вы уверены? Введите 'yes' для подтверждения: ")
+            if confirm.lower() == "yes":
+                Product.objects.all().delete()
+                Category.objects.all().delete()
+                Brand.objects.all().delete()
+                self.stdout.write(self.style.SUCCESS("✅ Данные очищены"))
+            else:
+                self.stdout.write(self.style.ERROR("❌ Очистка отменена"))
+                return
+
+        # Вывод параметров импорта
+        self.stdout.write("\n" + "=" * 50)
+        self.stdout.write("📊 ПАРАМЕТРЫ ИМПОРТА:")
+        self.stdout.write(f"   Директория: {data_dir}")
+        self.stdout.write(f"   Тип файлов: {file_type}")
+        self.stdout.write(f"   Chunk size: {chunk_size}")
+        self.stdout.write(f"   Skip validation: {skip_validation}")
+        self.stdout.write(f"   Skip backup: {skip_backup}")
+        self.stdout.write(f"   Clear existing: {clear_existing}")
+        self.stdout.write("=" * 50)
 
         # Создание сессии импорта
         session = ImportSession.objects.create(
@@ -71,132 +154,191 @@ class Command(BaseCommand):
 
         self.stdout.write(
             self.style.SUCCESS(
-                "✅ Создана сессия импорта ID: {session_id}".format(
+                "\n✅ Создана сессия импорта ID: {session_id}".format(
                     session_id=session_id
                 )
             )
         )
 
         try:
-            # Инициализация парсера и процессора
+            # Инициализация парсера и процессора с параметрами
             parser = XMLDataParser()
-            processor = ProductDataProcessor(session_id=session_id)
+            processor = ProductDataProcessor(
+                session_id=session_id,
+                skip_validation=skip_validation,
+                chunk_size=chunk_size,
+            )
+
+            # ШАГ 0.5: Загрузка категорий из groups.xml (Story 3.1.2)
+            if file_type in ["all", "goods"]:
+                self.stdout.write("\n📁 Шаг 0.5: Загрузка категорий...")
+                groups_files = self._collect_xml_files(data_dir, "groups", "groups.xml")
+                if groups_files:
+                    total_categories = 0
+                    for file_path in groups_files:
+                        categories_data = parser.parse_groups_xml(file_path)
+                        # Story 3.1.2: Добавлен прогресс-бар
+                        result = processor.process_categories(categories_data)
+                        total_categories += result["created"] + result["updated"]
+                        self.stdout.write(
+                            f"   • {Path(file_path).name}: категорий {len(categories_data)}"
+                        )
+                        if result["cycles_detected"] > 0:
+                            self.stdout.write(
+                                self.style.WARNING(
+                                    f"   ⚠️ Обнаружено циклических ссылок: {result['cycles_detected']}"
+                                )
+                            )
+                    self.stdout.write(
+                        self.style.SUCCESS(
+                            f"   ✅ Загружено категорий (всего): {total_categories}"
+                        )
+                    )
+                else:
+                    self.stdout.write(
+                        self.style.WARNING("   ⚠️ Файлы groups.xml не найдены")
+                    )
 
             # ШАГ 1: Загрузка типов цен из priceLists*.xml
-            self.stdout.write("\n📋 Шаг 1: Загрузка типов цен...")
-            price_list_files = self._collect_xml_files(
-                data_dir, "priceLists", "priceLists.xml"
-            )
-            if price_list_files:
-                total_price_types = 0
-                for file_path in price_list_files:
-                    price_types_data = parser.parse_price_lists_xml(file_path)
-                    processed = processor.process_price_types(price_types_data)
-                    total_price_types += processed
+            if file_type in ["all", "prices"]:
+                self.stdout.write("\n📋 Шаг 1: Загрузка типов цен...")
+                price_list_files = self._collect_xml_files(
+                    data_dir, "priceLists", "priceLists.xml"
+                )
+                if price_list_files:
+                    total_price_types = 0
+                    for file_path in price_list_files:
+                        price_types_data = parser.parse_price_lists_xml(file_path)
+                        # Story 3.1.2: Добавлен прогресс-бар
+                        for price_type in tqdm(
+                            price_types_data,
+                            desc=f"   Обработка {Path(file_path).name}",
+                            disable=len(price_types_data) < 10,
+                        ):
+                            processor.process_price_types([price_type])
+                        total_price_types += len(price_types_data)
+                        self.stdout.write(
+                            f"   • {Path(file_path).name}: типов цен {len(price_types_data)}"
+                        )
                     self.stdout.write(
-                        f"   • {Path(file_path).name}: типов цен {processed}"
+                        self.style.SUCCESS(
+                            f"   ✅ Загружено типов цен (всего): {total_price_types}"
+                        )
                     )
-                self.stdout.write(
-                    self.style.SUCCESS(
-                        f"   ✅ Загружено типов цен (всего): {total_price_types}"
+                else:
+                    self.stdout.write(
+                        self.style.WARNING("   ⚠️ Файлы priceLists*.xml не найдены")
                     )
-                )
-            else:
-                self.stdout.write(
-                    self.style.WARNING("   ⚠️ Файлы priceLists*.xml не найдены")
-                )
 
             # ШАГ 2: Парсинг goods*.xml - создание заготовок товаров
-            self.stdout.write("\n📦 Шаг 2: Создание заготовок товаров из goods.xml...")
-            goods_files = self._collect_xml_files(data_dir, "goods", "goods.xml")
-            if not goods_files:
-                raise CommandError("Файлы goods.xml или goods_*.xml не найдены")
-
-            for file_path in goods_files:
-                goods_data = parser.parse_goods_xml(file_path)
-                for goods_item in goods_data:
-                    processor.create_product_placeholder(goods_item)
+            if file_type in ["all", "goods"]:
                 self.stdout.write(
-                    f"   • {Path(file_path).name}: товаров {len(goods_data)}"
+                    "\n📦 Шаг 2: Создание заготовок товаров из goods.xml..."
                 )
+                goods_files = self._collect_xml_files(data_dir, "goods", "goods.xml")
+                if not goods_files and file_type == "all":
+                    raise CommandError("Файлы goods.xml или goods_*.xml не найдены")
 
-            self.stdout.write(
-                self.style.SUCCESS(
-                    f"   ✅ Создано заготовок: {processor.stats['created']}"
+                for file_path in goods_files:
+                    goods_data = parser.parse_goods_xml(file_path)
+                    # Story 3.1.2: Добавлен прогресс-бар
+                    for goods_item in tqdm(
+                        goods_data, desc=f"   Обработка {Path(file_path).name}"
+                    ):
+                        processor.create_product_placeholder(goods_item)
+                    self.stdout.write(
+                        f"   • {Path(file_path).name}: товаров {len(goods_data)}"
+                    )
+
+                self.stdout.write(
+                    self.style.SUCCESS(
+                        f"   ✅ Создано заготовок: {processor.stats['created']}"
+                    )
                 )
-            )
 
             # ШАГ 3: Парсинг offers*.xml - обогащение товаров
-            self.stdout.write("\n🎁 Шаг 3: Обогащение товаров из offers.xml...")
-            offers_files = self._collect_xml_files(data_dir, "offers", "offers.xml")
-            if not offers_files:
-                raise CommandError("Файлы offers.xml или offers_*.xml не найдены")
+            if file_type in ["all", "offers"]:
+                self.stdout.write("\n🎁 Шаг 3: Обогащение товаров из offers.xml...")
+                offers_files = self._collect_xml_files(data_dir, "offers", "offers.xml")
+                if not offers_files and file_type == "all":
+                    raise CommandError("Файлы offers.xml или offers_*.xml не найдены")
 
-            for file_path in offers_files:
-                offers_data = parser.parse_offers_xml(file_path)
-                for offer_item in offers_data:
-                    processor.enrich_product_from_offer(offer_item)
+                for file_path in offers_files:
+                    offers_data = parser.parse_offers_xml(file_path)
+                    # Story 3.1.2: Добавлен прогресс-бар
+                    for offer_item in tqdm(
+                        offers_data, desc=f"   Обработка {Path(file_path).name}"
+                    ):
+                        processor.enrich_product_from_offer(offer_item)
+                    self.stdout.write(
+                        f"   • {Path(file_path).name}: предложений {len(offers_data)}"
+                    )
+
                 self.stdout.write(
-                    f"   • {Path(file_path).name}: предложений {len(offers_data)}"
+                    self.style.SUCCESS(
+                        f"   ✅ Обогащено товаров: {processor.stats['updated']}"
+                    )
                 )
-
-            self.stdout.write(
-                self.style.SUCCESS(
-                    f"   ✅ Обогащено товаров: {processor.stats['updated']}"
-                )
-            )
 
             # ШАГ 4: Парсинг prices*.xml - обновление цен
-            self.stdout.write("\n💰 Шаг 4: Обновление цен из prices.xml...")
-            prices_files = self._collect_xml_files(data_dir, "prices", "prices.xml")
-            if not prices_files:
-                self.stdout.write(
-                    self.style.WARNING(
-                        "   ⚠️ Файлы prices.xml или prices_*.xml не найдены"
-                    )
-                )
-            else:
-                for file_path in prices_files:
-                    prices_data = parser.parse_prices_xml(file_path)
-                    for price_item in prices_data:
-                        processor.update_product_prices(price_item)
+            if file_type in ["all", "prices"]:
+                self.stdout.write("\n💰 Шаг 4: Обновление цен из prices.xml...")
+                prices_files = self._collect_xml_files(data_dir, "prices", "prices.xml")
+                if not prices_files:
                     self.stdout.write(
-                        "   • {name}: записей цен {count}".format(
-                            name=Path(file_path).name, count=len(prices_data)
+                        self.style.WARNING(
+                            "   ⚠️ Файлы prices.xml или prices_*.xml не найдены"
                         )
                     )
+                else:
+                    for file_path in prices_files:
+                        prices_data = parser.parse_prices_xml(file_path)
+                        # Story 3.1.2: Добавлен прогресс-бар
+                        for price_item in tqdm(
+                            prices_data, desc=f"   Обработка {Path(file_path).name}"
+                        ):
+                            processor.update_product_prices(price_item)
+                        self.stdout.write(
+                            "   • {name}: записей цен {count}".format(
+                                name=Path(file_path).name, count=len(prices_data)
+                            )
+                        )
 
-                self.stdout.write(
-                    self.style.SUCCESS(
-                        f"   ✅ Обновлено цен: {processor.stats['updated']}"
+                    self.stdout.write(
+                        self.style.SUCCESS(
+                            f"   ✅ Обновлено цен: {processor.stats['updated']}"
+                        )
                     )
-                )
 
             # ШАГ 5: Парсинг rests*.xml - обновление остатков
-            self.stdout.write("\n📊 Шаг 5: Обновление остатков из rests.xml...")
-            rests_files = self._collect_xml_files(data_dir, "rests", "rests.xml")
-            if not rests_files:
-                self.stdout.write(
-                    self.style.WARNING(
-                        "   ⚠️ Файлы rests.xml или rests_*.xml не найдены"
-                    )
-                )
-            else:
-                for file_path in rests_files:
-                    rests_data = parser.parse_rests_xml(file_path)
-                    for rest_item in rests_data:
-                        processor.update_product_stock(rest_item)
+            if file_type in ["all", "rests"]:
+                self.stdout.write("\n📊 Шаг 5: Обновление остатков из rests.xml...")
+                rests_files = self._collect_xml_files(data_dir, "rests", "rests.xml")
+                if not rests_files:
                     self.stdout.write(
-                        "   • {name}: записей остатков {count}".format(
-                            name=Path(file_path).name, count=len(rests_data)
+                        self.style.WARNING(
+                            "   ⚠️ Файлы rests.xml или rests_*.xml не найдены"
                         )
                     )
+                else:
+                    for file_path in rests_files:
+                        rests_data = parser.parse_rests_xml(file_path)
+                        # Story 3.1.2: Добавлен прогресс-бар
+                        for rest_item in tqdm(
+                            rests_data, desc=f"   Обработка {Path(file_path).name}"
+                        ):
+                            processor.update_product_stock(rest_item)
+                        self.stdout.write(
+                            "   • {name}: записей остатков {count}".format(
+                                name=Path(file_path).name, count=len(rests_data)
+                            )
+                        )
 
-                self.stdout.write(
-                    self.style.SUCCESS(
-                        f"   ✅ Обновлено остатков: {processor.stats['updated']}"
+                    self.stdout.write(
+                        self.style.SUCCESS(
+                            f"   ✅ Обновлено остатков: {processor.stats['updated']}"
+                        )
                     )
-                )
 
             # Финализация сессии
             processor.finalize_session(status=ImportSession.ImportStatus.COMPLETED)
