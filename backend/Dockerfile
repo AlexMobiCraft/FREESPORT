@@ -60,6 +60,11 @@ COPY --chown=freesport:freesport . .
 RUN mkdir -p /app/staticfiles /app/media \
     && chown -R freesport:freesport /app
 
+# Установка pg_dump для резервного копирования
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends postgresql-client && \
+    rm -rf /var/lib/apt/lists/*
+
 # Переключение на пользователя приложения
 USER freesport
 

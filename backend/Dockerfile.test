@@ -51,6 +51,11 @@ COPY . .
 RUN mkdir -p /app/test-reports /app/htmlcov /app/test-logs \
     && chmod -R 755 /app/test-reports /app/htmlcov /app/test-logs
 
+# Установка pg_dump для резервного копирования в тестовом образе
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends postgresql-client && \
+    rm -rf /var/lib/apt/lists/*
+
 # Настройка прав доступа (для тестовой среды можем оставить root)
 # В продакшене используется отдельный пользователь freesport
 
