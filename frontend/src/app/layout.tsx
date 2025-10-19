@@ -11,7 +11,8 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: "FREESPORT Platform | B2B/B2C спортивные товары",
-  description: "Ведущая платформа продаж спортивных товаров. B2B/B2C решения для тренеров, федераций и дистрибьюторов.",
+  description:
+    "Ведущая платформа продаж спортивных товаров. B2B/B2C решения для тренеров, федераций и дистрибьюторов.",
   keywords: "спорт, товары, оптом, B2B, B2C, тренажеры, спортивный инвентарь",
 };
 
@@ -25,9 +26,7 @@ export default function RootLayout({
       <body className={`${inter.variable} font-sans antialiased`}>
         <div className="min-h-screen flex flex-col">
           <Header />
-          <main className="flex-grow">
-            {children}
-          </main>
+          <main className="flex-grow">{children}</main>
           <Footer />
         </div>
       </body>

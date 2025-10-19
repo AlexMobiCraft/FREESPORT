@@ -3,7 +3,7 @@
  * Упрощает импорты в других частях приложения
  */
 
-export { default as Button } from './Button';
+export { default as Button } from "./Button";
 
 // TODO: Добавить экспорты других UI компонентов по мере их создания
 // export { default as Input } from './Input';
