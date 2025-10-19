@@ -16,7 +16,7 @@ class Command(BaseCommand):
         python manage.py rotate_backups
         python manage.py rotate_backups --keep=5
         python manage.py rotate_backups --dry-run
-    
+
     По умолчанию сохраняются последние 3 backup файла
     """
 
@@ -42,9 +42,7 @@ class Command(BaseCommand):
         dry_run = options.get("dry_run", False)
 
         if keep < 1:
-            self.stdout.write(
-                self.style.ERROR("❌ Параметр --keep должен быть >= 1")
-            )
+            self.stdout.write(self.style.ERROR("❌ Параметр --keep должен быть >= 1"))
             return
 
         # Определяем директорию с бэкапами
@@ -81,7 +79,7 @@ class Command(BaseCommand):
 
         # Вывод информации
         self.stdout.write("\n" + "=" * 50)
-        self.stdout.write(f"📊 СТАТИСТИКА BACKUP ФАЙЛОВ:")
+        self.stdout.write("📊 СТАТИСТИКА BACKUP ФАЙЛОВ:")
         self.stdout.write(f"   Всего файлов: {total_count}")
         self.stdout.write(f"   Сохранить: {len(to_keep)}")
         self.stdout.write(f"   Удалить: {len(to_delete)}")
@@ -112,25 +110,27 @@ class Command(BaseCommand):
             for backup in to_delete:
                 file_time = datetime.fromtimestamp(backup.stat().st_mtime)
                 file_size = backup.stat().st_size / (1024 * 1024)  # MB
-                
+
                 if dry_run:
-                    self.stdout.write(
-                        f"   • {backup.name} ({file_time.strftime('%Y-%m-%d %H:%M:%S')}, "
+                    log_msg = (
+                        f"   • {backup.name} "
+                        f"({file_time.strftime('%Y-%m-%d %H:%M:%S')}, "
                         f"{file_size:.2f} MB)"
                     )
+                    self.stdout.write(log_msg)
                 else:
                     try:
                         backup.unlink()
                         deleted_count += 1
-                        self.stdout.write(
-                            f"   ✓ {backup.name} ({file_time.strftime('%Y-%m-%d %H:%M:%S')}, "
+                        log_msg = (
+                            f"   ✓ {backup.name} "
+                            f"({file_time.strftime('%Y-%m-%d %H:%M:%S')}, "
                             f"{file_size:.2f} MB)"
                         )
+                        self.stdout.write(log_msg)
                     except Exception as e:
                         errors += 1
-                        self.stdout.write(
-                            self.style.ERROR(f"   ✗ {backup.name}: {e}")
-                        )
+                        self.stdout.write(self.style.ERROR(f"   ✗ {backup.name}: {e}"))
 
             # Итоговое сообщение
             self.stdout.write("\n" + "=" * 50)

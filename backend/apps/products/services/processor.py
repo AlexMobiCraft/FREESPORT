@@ -365,9 +365,7 @@ class ProductDataProcessor:
 
         self._missing_products_logged.add(onec_id)
 
-    def process_categories(
-        self, categories_data: list[CategoryData]
-    ) -> dict[str, int]:
+    def process_categories(self, categories_data: list[CategoryData]) -> dict[str, int]:
         """
         Обработка категорий с иерархией (Story 3.1.2)
 
@@ -389,7 +387,9 @@ class ProductDataProcessor:
                 description = category_data.get("description", "")
 
                 if not onec_id or not name:
-                    logger.warning(f"Skipping category with missing id or name: {category_data}")
+                    logger.warning(
+                        f"Skipping category with missing id or name: {category_data}"
+                    )
                     result["errors"] += 1
                     continue
 
@@ -428,9 +428,7 @@ class ProductDataProcessor:
                 parent = category_map.get(parent_id)
 
                 if not category:
-                    logger.warning(
-                        f"Category not found in map: {onec_id}"
-                    )
+                    logger.warning(f"Category not found in map: {onec_id}")
                     continue
 
                 if not parent:
@@ -453,9 +451,7 @@ class ProductDataProcessor:
                 logger.debug(f"Set parent {parent.name} for {category.name}")
 
             except Exception as e:
-                logger.error(
-                    f"Error setting parent for category {onec_id}: {e}"
-                )
+                logger.error(f"Error setting parent for category {onec_id}: {e}")
                 result["errors"] += 1
 
         logger.info(
@@ -466,7 +462,10 @@ class ProductDataProcessor:
         return result
 
     def _has_circular_reference(
-        self, category: Category, proposed_parent: Category, category_map: dict[str, Category]
+        self,
+        category: Category,
+        proposed_parent: Category,
+        category_map: dict[str, Category],
     ) -> bool:
         """
         Проверка циклических ссылок в иерархии категорий
@@ -484,7 +483,9 @@ class ProductDataProcessor:
 
             # Защита от бесконечного цикла
             if current.id in visited:
-                logger.warning(f"Existing circular reference detected at {current.name}")
+                logger.warning(
+                    f"Existing circular reference detected at {current.name}"
+                )
                 return True
 
             visited.add(current.id)

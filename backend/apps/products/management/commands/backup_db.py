@@ -18,7 +18,7 @@ class Command(BaseCommand):
     Использование:
         python manage.py backup_db
         python manage.py backup_db --encrypt
-    
+
     Backup файлы сохраняются в BACKUP_DIR (default: backend/backup_db/)
     Автоматически сохраняются последние 3 копии (ротация)
     """
@@ -124,7 +124,7 @@ class Command(BaseCommand):
     def _encrypt_backup(self, backup_file: Path) -> None:
         """
         Шифрование backup файла с использованием GPG (опционально)
-        
+
         Story 3.1.2: Добавлено опциональное шифрование backup-файлов
         """
         try:
@@ -136,7 +136,11 @@ class Command(BaseCommand):
             with open(backup_file, "rb") as f:
                 encrypted = gpg.encrypt_file(
                     f,
-                    recipients=[getattr(settings, "BACKUP_GPG_RECIPIENT", "backup@freesport.com")],
+                    recipients=[
+                        getattr(
+                            settings, "BACKUP_GPG_RECIPIENT", "backup@freesport.com"
+                        )
+                    ],
                     output=str(encrypted_file),
                     armor=False,
                 )
@@ -169,12 +173,14 @@ class Command(BaseCommand):
     def _rotate_backups(self, backup_dir: Path, keep: int = 3) -> None:
         """
         Ротация backup файлов - сохранение последних N копий
-        
+
         Story 3.1.2: Хранение последних 3 backup копий
         """
         # Находим все backup файлы
         backup_files = sorted(
-            backup_dir.glob("backup_*.sql*"), key=lambda p: p.stat().st_mtime, reverse=True
+            backup_dir.glob("backup_*.sql*"),
+            key=lambda p: p.stat().st_mtime,
+            reverse=True,
         )
 
         # Удаляем старые бэкапы, оставляя только keep последних

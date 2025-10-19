@@ -1,7 +1,6 @@
 """
 Интеграционные тесты для команды import_catalog_from_1c
 """
-import os
 from decimal import Decimal
 from io import StringIO
 

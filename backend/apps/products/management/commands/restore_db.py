@@ -16,7 +16,7 @@ class Command(BaseCommand):
     Использование:
         python manage.py restore_db --backup-file=/path/to/backup.sql
         python manage.py restore_db --backup-file=/path/to/backup.sql --confirm
-    
+
     ВНИМАНИЕ: Эта операция ПЕРЕЗАПИШЕТ текущую базу данных!
     """
 

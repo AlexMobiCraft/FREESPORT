@@ -63,7 +63,10 @@ class Command(BaseCommand):
         parser.add_argument(
             "--clear-existing",
             action="store_true",
-            help="Очистить существующие данные перед импортом (ВНИМАНИЕ: удалит все товары)",
+            help=(
+                "Очистить существующие данные перед импортом "
+                "(ВНИМАНИЕ: удалит все товары)"
+            ),
         )
         parser.add_argument(
             "--skip-backup",
@@ -106,7 +109,9 @@ class Command(BaseCommand):
 
         # Story 3.1.2: Автоматический backup перед полным импортом
         if not dry_run and file_type == "all" and not skip_backup:
-            self.stdout.write(self.style.WARNING("\n💾 Создание backup перед импортом..."))
+            self.stdout.write(
+                self.style.WARNING("\n💾 Создание backup перед импортом...")
+            )
             try:
                 call_command("backup_db")
                 self.stdout.write(self.style.SUCCESS("✅ Backup создан успешно"))
@@ -121,7 +126,8 @@ class Command(BaseCommand):
         if clear_existing:
             self.stdout.write(
                 self.style.WARNING(
-                    "\n⚠️ ВНИМАНИЕ: Удаление всех существующих товаров, категорий и брендов..."
+                    ("\n⚠️ ВНИМАНИЕ: Удаление всех существующих товаров, "
+                     "категорий и брендов...")
                 )
             )
             confirm = input("Вы уверены? Введите 'yes' для подтверждения: ")
@@ -181,12 +187,14 @@ class Command(BaseCommand):
                         result = processor.process_categories(categories_data)
                         total_categories += result["created"] + result["updated"]
                         self.stdout.write(
-                            f"   • {Path(file_path).name}: категорий {len(categories_data)}"
+                            (f"   • {Path(file_path).name}: "
+                             f"категорий {len(categories_data)}")
                         )
                         if result["cycles_detected"] > 0:
                             self.stdout.write(
                                 self.style.WARNING(
-                                    f"   ⚠️ Обнаружено циклических ссылок: {result['cycles_detected']}"
+                                    ("   ⚠️ Обнаружено циклических ссылок: "
+                                     f"{result['cycles_detected']}")
                                 )
                             )
                     self.stdout.write(
@@ -218,7 +226,8 @@ class Command(BaseCommand):
                             processor.process_price_types([price_type])
                         total_price_types += len(price_types_data)
                         self.stdout.write(
-                            f"   • {Path(file_path).name}: типов цен {len(price_types_data)}"
+                            (f"   • {Path(file_path).name}: "
+                             f"типов цен {len(price_types_data)}")
                         )
                     self.stdout.write(
                         self.style.SUCCESS(
