@@ -126,8 +126,10 @@ class Command(BaseCommand):
         if clear_existing:
             self.stdout.write(
                 self.style.WARNING(
-                    ("\n⚠️ ВНИМАНИЕ: Удаление всех существующих товаров, "
-                     "категорий и брендов...")
+                    (
+                        "\n⚠️ ВНИМАНИЕ: Удаление всех существующих товаров, "
+                        "категорий и брендов..."
+                    )
                 )
             )
             confirm = input("Вы уверены? Введите 'yes' для подтверждения: ")
@@ -187,14 +189,18 @@ class Command(BaseCommand):
                         result = processor.process_categories(categories_data)
                         total_categories += result["created"] + result["updated"]
                         self.stdout.write(
-                            (f"   • {Path(file_path).name}: "
-                             f"категорий {len(categories_data)}")
+                            (
+                                f"   • {Path(file_path).name}: "
+                                f"категорий {len(categories_data)}"
+                            )
                         )
                         if result["cycles_detected"] > 0:
                             self.stdout.write(
                                 self.style.WARNING(
-                                    ("   ⚠️ Обнаружено циклических ссылок: "
-                                     f"{result['cycles_detected']}")
+                                    (
+                                        "   ⚠️ Обнаружено циклических ссылок: "
+                                        f"{result['cycles_detected']}"
+                                    )
                                 )
                             )
                     self.stdout.write(
@@ -226,8 +232,10 @@ class Command(BaseCommand):
                             processor.process_price_types([price_type])
                         total_price_types += len(price_types_data)
                         self.stdout.write(
-                            (f"   • {Path(file_path).name}: "
-                             f"типов цен {len(price_types_data)}")
+                            (
+                                f"   • {Path(file_path).name}: "
+                                f"типов цен {len(price_types_data)}"
+                            )
                         )
                     self.stdout.write(
                         self.style.SUCCESS(
