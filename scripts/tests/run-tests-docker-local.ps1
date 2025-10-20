@@ -152,7 +152,7 @@ Write-Host "=== FREESPORT Local Docker Test Runner ===" -ForegroundColor Cyan
 Write-Host
 
 $scriptDirectory = Split-Path -Path $MyInvocation.MyCommand.Path -Parent
-$projectRoot = Split-Path -Path $scriptDirectory -Parent
+$projectRoot = (Split-Path -Path $scriptDirectory -Parent) | Split-Path -Parent
 Push-Location -Path $projectRoot
 
 $composePath = $null

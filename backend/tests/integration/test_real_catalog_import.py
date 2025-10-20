@@ -68,8 +68,7 @@ def is_database_available():
 # Важно: эти тесты требуют миграций для создания таблицы ImportSession
 pytestmark = [
     pytest.mark.skipif(
-        not DATA_DIR.exists(),
-        reason=f"Data directory not found: {DATA_DIR}"
+        not DATA_DIR.exists(), reason=f"Data directory not found: {DATA_DIR}"
     ),
     pytest.mark.django_db(transaction=True),
     pytest.mark.integration,
@@ -105,9 +104,9 @@ class TestRealCatalogImport:
         assert goods_dir.exists(), f"Директория goods не найдена: {goods_dir}"
 
         goods_files = list(goods_dir.glob("goods_1_*.xml"))
-        assert len(goods_files) >= 4, (
-            f"Ожидается минимум 4 файла goods, найдено: {len(goods_files)}"
-        )
+        assert (
+            len(goods_files) >= 4
+        ), f"Ожидается минимум 4 файла goods, найдено: {len(goods_files)}"
 
         # Запуск импорта
         call_command(
@@ -121,17 +120,15 @@ class TestRealCatalogImport:
 
         # Валидация результатов
         products_count = Product.objects.count()
-        assert products_count >= 1900, (
-            f"Ожидается ≥1900 товаров, импортировано: {products_count}"
-        )
+        assert (
+            products_count >= 1900
+        ), f"Ожидается ≥1900 товаров, импортировано: {products_count}"
 
         # Проверка что все товары имеют onec_id
-        products_without_onec_id = Product.objects.filter(
-            onec_id__isnull=True
-        ).count()
-        assert products_without_onec_id == 0, (
-            f"Найдены товары без onec_id: {products_without_onec_id}"
-        )
+        products_without_onec_id = Product.objects.filter(onec_id__isnull=True).count()
+        assert (
+            products_without_onec_id == 0
+        ), f"Найдены товары без onec_id: {products_without_onec_id}"
 
         # Проверка что товары имеют базовые поля
         sample_product = Product.objects.first()
@@ -149,9 +146,9 @@ class TestRealCatalogImport:
         assert groups_dir.exists(), f"Директория groups не найдена: {groups_dir}"
 
         groups_files = list(groups_dir.glob("groups_1_*.xml"))
-        assert len(groups_files) >= 1, (
-            f"Ожидается минимум 1 файл groups, найдено: {len(groups_files)}"
-        )
+        assert (
+            len(groups_files) >= 1
+        ), f"Ожидается минимум 1 файл groups, найдено: {len(groups_files)}"
 
         # Запуск импорта
         call_command(
@@ -184,9 +181,9 @@ class TestRealCatalogImport:
         categories_without_onec_id = Category.objects.filter(
             onec_id__isnull=True
         ).count()
-        assert categories_without_onec_id == 0, (
-            f"Найдены категории без onec_id: {categories_without_onec_id}"
-        )
+        assert (
+            categories_without_onec_id == 0
+        ), f"Найдены категории без onec_id: {categories_without_onec_id}"
 
     def test_import_real_prices(self):
         """
@@ -198,9 +195,9 @@ class TestRealCatalogImport:
         assert prices_dir.exists(), f"Директория prices не найдена: {prices_dir}"
 
         prices_files = list(prices_dir.glob("prices_1_*.xml"))
-        assert len(prices_files) >= 5, (
-            f"Ожидается минимум 5 файлов prices, найдено: {len(prices_files)}"
-        )
+        assert (
+            len(prices_files) >= 5
+        ), f"Ожидается минимум 5 файлов prices, найдено: {len(prices_files)}"
 
         # Запуск импорта
         call_command(
@@ -212,16 +209,16 @@ class TestRealCatalogImport:
 
         # Валидация цен для всех ролей
         products_with_prices = Product.objects.filter(retail_price__gt=0)
-        assert products_with_prices.exists(), (
-            "Должны быть товары с установленными ценами"
-        )
+        assert (
+            products_with_prices.exists()
+        ), "Должны быть товары с установленными ценами"
 
         # Проверка всех 7 типов цен
         for product in products_with_prices[:100]:  # Проверяем первые 100
             # retail_price обязательна
-            assert product.retail_price > 0, (
-                f"Product {product.id} должен иметь retail_price"
-            )
+            assert (
+                product.retail_price > 0
+            ), f"Product {product.id} должен иметь retail_price"
 
             # Проверяем что цены неотрицательные
             if product.opt1_price:
@@ -264,9 +261,9 @@ class TestRealCatalogImport:
         # Проверка уникальности onec_id
         products = Product.objects.values_list("onec_id", flat=True)
         unique_onec_ids = set(products)
-        assert len(products) == len(unique_onec_ids), (
-            "onec_id товаров должны быть уникальными"
-        )
+        assert len(products) == len(
+            unique_onec_ids
+        ), "onec_id товаров должны быть уникальными"
 
         # Проверка отсутствия orphan records
         # Все категории с parent должны иметь существующий parent
@@ -286,9 +283,7 @@ class TestRealCatalogImport:
         """
         # Проверка наличия данных
         props_dir = DATA_DIR / "propertiesGoods"
-        assert props_dir.exists(), (
-            f"Директория propertiesGoods не найдена: {props_dir}"
-        )
+        assert props_dir.exists(), f"Директория propertiesGoods не найдена: {props_dir}"
 
         props_files = list(props_dir.glob("propertiesGoods_1_*.xml"))
         assert len(props_files) >= 9, (
@@ -313,19 +308,19 @@ class TestRealCatalogImport:
             # Проверка структуры JSON
             for product in products_with_specs[:50]:
                 specs = product.specifications
-                assert isinstance(specs, dict), (
-                    f"Product {product.id} specifications должен быть dict"
-                )
+                assert isinstance(
+                    specs, dict
+                ), f"Product {product.id} specifications должен быть dict"
 
                 # Проверка типов данных в характеристиках
                 for key, value in specs.items():
-                    assert isinstance(key, str), (
-                        f"Ключ спецификации должен быть строкой: {key}"
-                    )
+                    assert isinstance(
+                        key, str
+                    ), f"Ключ спецификации должен быть строкой: {key}"
                     # Значения могут быть строками, списками, числами
-                    assert isinstance(value, (str, list, int, float, bool)), (
-                        f"Неверный тип значения спецификации: {type(value)}"
-                    )
+                    assert isinstance(
+                        value, (str, list, int, float, bool)
+                    ), f"Неверный тип значения спецификации: {type(value)}"
 
     def test_api_returns_real_products(self):
         """
@@ -394,7 +389,9 @@ class TestRealCatalogImport:
         for product in queryset[:10]:
             # str() не должен падать
             product_str = str(product)
-            assert product_str, f"Product {product.id} должен иметь строковое представление"
+            assert (
+                product_str
+            ), f"Product {product.id} должен иметь строковое представление"
 
     def test_price_fallback_with_real_data(self):
         """

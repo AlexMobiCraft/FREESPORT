@@ -1,6 +1,5 @@
-# Мультистадийная сборка для Next.js frontend
-# Стадия 1: Установка зависимостей
-FROM node:22-alpine AS deps
+# Простой Dockerfile для Next.js frontend
+FROM node:22-alpine
 
 # Метаданные образа
 LABEL maintainer="FREESPORT Dev Team"
@@ -18,13 +17,8 @@ COPY package.json package-lock.json* ./
 # Установка зависимостей
 RUN npm ci --prefer-offline
 
-# Стадия 2: Сборка приложения
-FROM node:22-alpine AS builder
-
-WORKDIR /app
-
-# Копирование зависимостей из предыдущей стадии
-COPY --from=deps /app/node_modules ./node_modules
+# Установка Next.js глобально
+RUN npm install -g next
 
 # Копирование исходного кода
 COPY . .
@@ -40,29 +34,6 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # Сборка Next.js приложения
 RUN npm run build
 
-# Стадия 3: Production образ
-FROM node:22-alpine AS runner
-
-WORKDIR /app
-
-# Создание пользователя приложения (не root)
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
-
-# Копирование публичных файлов
-COPY --from=builder /app/public ./public
-
-# Создание директории .next с правильными разрешениями
-RUN mkdir .next
-RUN chown nextjs:nodejs .next
-
-# Копирование собранного приложения
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-
-# Переключение на пользователя приложения
-USER nextjs
-
 # Открытие порта для Next.js
 EXPOSE 3000
 
@@ -77,4 +48,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=45s --retries=5 \
     CMD node -e "require('http').get('http://127.0.0.1:3000/api/health', (res) => { if (res.statusCode === 200) { process.exit(0); } process.exit(1); }).on('error', () => process.exit(1));"
 
 # Запуск приложения
-CMD ["node", "server.js"]
+CMD ["npx", "next", "start"]
