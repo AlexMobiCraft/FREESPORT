@@ -1,9 +1,9 @@
-# Скрипт для актуализации кода проекта FREESPORT на сервере 192.168.1.130
-# Использование (по умолчанию работает с текущей веткой):
+# Script to update the FREESPORT project code on server 192.168.1.130
+# Usage (works with the current branch by default):
 #   pwsh .\scripts\update_server_code.ps1
 #   pwsh .\scripts\update_server_code.ps1 -Branch feature/x -EnvFileLocal "backend/.env.test"
 #   pwsh .\scripts\update_server_code.ps1 -User alex -IP 192.168.1.130
-# Перед запуском убедитесь, что локальные изменения закоммичены и при необходимости запушены в origin.
+# Before running, make sure local changes are committed and pushed to origin if necessary.
 
 param(
     [string]$User = "alex",
@@ -13,25 +13,28 @@ param(
     [string]$ComposeFile = "docker-compose.test.yml",
     [string]$EnvFileLocal = "backend/.env",
     [string]$EnvFileRemote = "~/FREESPORT/backend/.env",
-    [string]$SshKeyPath = "C:\\Users\\38670\\.ssh\\id_ed25519",
+    [string]$SshKeyPath = "backend\\.ssh\\id_ed25519",
     [string]$Branch
 )
 
-# Функция запускает ssh-agent и добавляет указанный приватный ключ
+$ErrorActionPreference = "Stop"
+$OutputEncoding = [System.Text.Encoding]::UTF8
+
+# Function to start ssh-agent and add the specified private key
 function Start-SshAgentIfNeeded {
     param(
         [string]$KeyPath
     )
 
     if (-not (Test-Path -Path $KeyPath)) {
-        throw "SSH-ключ не найден: $KeyPath"
+        throw "SSH key not found: $KeyPath"
     }
 
     Start-Service ssh-agent -ErrorAction SilentlyContinue | Out-Null
     ssh-add $KeyPath | Out-Null
 }
 
-# Функция определяет текущую ветку git в указанной директории
+# Function to determine the current git branch in the specified directory
 function Get-CurrentGitBranch {
     param(
         [string]$WorkingDirectory
@@ -39,13 +42,13 @@ function Get-CurrentGitBranch {
 
     $branch = (git -C $WorkingDirectory rev-parse --abbrev-ref HEAD).Trim()
     if ([string]::IsNullOrWhiteSpace($branch)) {
-        throw "Не удалось определить текущую ветку git"
+        throw 'Could not determine the current git branch'
     }
 
     return $branch
 }
 
-# Функция выполняет git fetch/pull на сервере по SSH
+# Function to perform git fetch/pull on the server via SSH
 function Invoke-RemoteGitUpdate {
     param(
         [string]$ConnectionUser,
@@ -54,11 +57,11 @@ function Invoke-RemoteGitUpdate {
         [string]$BranchName
     )
 
-    $remoteCommand = "cd $RemotePath && git fetch origin && git checkout $BranchName && git pull --ff-only origin $BranchName && git status"
-    ssh "$ConnectionUser@$ConnectionHost" "bash -lc \"$remoteCommand\""
+    $remoteCommand = "cd $RemotePath; git fetch origin; git checkout $BranchName; git pull --ff-only origin $BranchName; git status"
+    ssh "$ConnectionUser@$ConnectionHost" $remoteCommand
 }
 
-# Функция копирует локальный .env файл на сервер через SCP
+# Function to copy a local .env file to the server via SCP
 function Copy-EnvFileToServer {
     param(
         [string]$ConnectionUser,
@@ -68,13 +71,13 @@ function Copy-EnvFileToServer {
     )
 
     if (-not (Test-Path -Path $LocalPath)) {
-        throw "Локальный файл не найден: $LocalPath"
+        throw "Local file not found: $LocalPath"
     }
 
-    scp $LocalPath ([string]::Format("{0}@{1}:{2}", $ConnectionUser, $ConnectionHost, $RemotePath))
+    scp $LocalPath ([string]::Format('{0}@{1}:{2}', $ConnectionUser, $ConnectionHost, $RemotePath));
 }
 
-# Функция перезапускает тестовые контейнеры через docker compose в удалённом контексте
+# Function to restart test containers via docker compose in a remote context
 function Restart-RemoteCompose {
     param(
         [string]$Context,
@@ -86,30 +89,31 @@ function Restart-RemoteCompose {
 }
 
 $scriptDirectory = Split-Path -Path $MyInvocation.MyCommand.Path -Parent
-$projectRoot = Split-Path -Path $scriptDirectory -Parent
+$projectRoot = (Resolve-Path (Join-Path $scriptDirectory '..\..')).Path
 
 Push-Location $projectRoot
 
 try {
-    Write-Host "=== Актуализация кода на сервере ===" -ForegroundColor Cyan
+    Write-Host '=== Updating code on the server ===' -ForegroundColor Cyan
 
-    Start-SshAgentIfNeeded -KeyPath $SshKeyPath
+    $absoluteSshKeyPath = if ([System.IO.Path]::IsPathRooted($SshKeyPath)) { $SshKeyPath } else { Join-Path -Path $projectRoot -ChildPath $SshKeyPath }
+    Start-SshAgentIfNeeded -KeyPath $absoluteSshKeyPath
 
     if (-not $Branch) {
         $Branch = Get-CurrentGitBranch -WorkingDirectory $projectRoot
     }
-    Write-Host "Используемая ветка: $Branch" -ForegroundColor Yellow
+    Write-Host "Using branch: $Branch" -ForegroundColor Yellow
 
-    Write-Host "Обновление кода на сервере..." -ForegroundColor Yellow
+    Write-Host 'Updating code on the server...' -ForegroundColor Yellow
     Invoke-RemoteGitUpdate -ConnectionUser $User -ConnectionHost $IP -RemotePath $ProjectPathRemote -BranchName $Branch
 
     $absoluteEnvPath = if ([System.IO.Path]::IsPathRooted($EnvFileLocal)) { $EnvFileLocal } else { Join-Path -Path $projectRoot -ChildPath $EnvFileLocal }
-    Write-Host "Синхронизация .env файла..." -ForegroundColor Yellow
+    Write-Host 'Syncing .env file...' -ForegroundColor Yellow
     Copy-EnvFileToServer -ConnectionUser $User -ConnectionHost $IP -LocalPath $absoluteEnvPath -RemotePath $EnvFileRemote
 
-    Write-Host "Перезапуск docker compose в контексте '$DockerContext'..." -ForegroundColor Yellow
+    Write-Host "Restarting docker compose in context '$DockerContext'..." -ForegroundColor Yellow
     $composeProjectRoot = $ProjectPathRemote
-    if ($ProjectPathRemote.StartsWith("~/")) {
+    if ($ProjectPathRemote.StartsWith("~/", [System.StringComparison]::Ordinal)) {
         $composeProjectRoot = "/home/$User/" + $ProjectPathRemote.Substring(2)
     }
 
@@ -127,10 +131,10 @@ try {
         }
     }
 
-    Write-Host "✓ Актуализация завершена" -ForegroundColor Green
+    Write-Host '✓ Update complete' -ForegroundColor Green
 }
 catch {
-    Write-Host "✗ Ошибка: $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host "✗ Error: $($_.Exception.Message)" -ForegroundColor Red
     throw
 }
 finally {
