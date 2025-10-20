@@ -61,6 +61,7 @@ services:
       - DEBUG=1
     volumes:
       - ./backend:/app
+      - ./data:/app/data
       - backend_media:/app/media
       - backend_static:/app/staticfiles
     ports:

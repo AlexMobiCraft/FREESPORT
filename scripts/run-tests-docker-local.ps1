@@ -5,11 +5,15 @@ param(
     [switch]$SkipBuild,
     [string]$DockerContext = "default",
     [switch]$KeepContainers,
-    [string]$LogsDirectory = "logs/test-runs"
+    [string]$LogsDirectory = "logs/test-runs",
+    [string]$ServiceName = "backend",
+    [Parameter(ValueFromRemainingArguments = $true)]
+    [string[]]$PytestArgs = @()
 )
 
 $script:TestExitCode = 1
 $script:LogsSavedPath = $null
+$script:UsingRunMode = $false
 
 # Функция проверяет доступность Docker Engine на локальной машине.
 function Test-DockerAvailability {
@@ -67,8 +71,14 @@ function Resolve-ComposePath {
 function Clear-TestEnvironment {
     param(
         [string]$ComposePath,
-        [string]$Context
+        [string]$Context,
+        [string]$ServiceName
     )
+
+    if ($ServiceName -ne "backend") {
+        & docker --context $Context compose -f $ComposePath stop $ServiceName > $null 2>&1
+        & docker --context $Context compose -f $ComposePath rm -f $ServiceName > $null 2>&1
+    }
 
     & docker --context $Context compose -f $ComposePath down -v --remove-orphans > $null 2>&1
 }
@@ -78,23 +88,48 @@ function Invoke-DockerComposeTests {
     param(
         [string]$ComposePath,
         [switch]$SkipBuild,
-        [string]$Context
+        [string]$Context,
+        [string]$ServiceName,
+        [string[]]$PytestArgs
     )
 
-    $arguments = @(
-        "compose",
-        "-f", $ComposePath,
-        "up",
-        "--abort-on-container-exit",
-        "--exit-code-from", "backend"
-    )
+    if ($PytestArgs -and $PytestArgs.Count -gt 0) {
+        $script:UsingRunMode = $true
 
-    if (-not $SkipBuild) {
-        $arguments += "--build"
+        if (-not $SkipBuild) {
+            & docker --context $Context compose -f $ComposePath build $ServiceName > $null 2>&1
+        }
+
+        & docker --context $Context compose -f $ComposePath up -d db redis > $null 2>&1
+
+        $runArguments = @(
+            "compose",
+            "-f", $ComposePath,
+            "run",
+            "--rm",
+            $ServiceName,
+            "pytest"
+        ) + $PytestArgs
+
+        & docker --context $Context @runArguments
+        $script:TestExitCode = [int]$LASTEXITCODE
     }
+    else {
+        $arguments = @(
+            "compose",
+            "-f", $ComposePath,
+            "up",
+            "--abort-on-container-exit",
+            "--exit-code-from", $ServiceName
+        )
 
-    & docker --context $Context @arguments
-    $script:TestExitCode = [int]$LASTEXITCODE
+        if (-not $SkipBuild) {
+            $arguments += "--build"
+        }
+
+        & docker --context $Context @arguments
+        $script:TestExitCode = [int]$LASTEXITCODE
+    }
 }
 
 # Функция выгружает логи backend контейнера в указанный файл.
@@ -126,10 +161,10 @@ try {
     Test-DockerAvailability -Context $DockerContext
     $composePath = Resolve-ComposePath -PathValue $ComposeFile -ProjectRoot $projectRoot
 
-    Clear-TestEnvironment -ComposePath $composePath -Context $DockerContext
+    Clear-TestEnvironment -ComposePath $composePath -Context $DockerContext -ServiceName $ServiceName
 
     Write-Host "Запуск тестов. Это может занять несколько минут." -ForegroundColor Yellow
-    Invoke-DockerComposeTests -ComposePath $composePath -SkipBuild:$SkipBuild -Context $DockerContext
+    Invoke-DockerComposeTests -ComposePath $composePath -SkipBuild:$SkipBuild -Context $DockerContext -ServiceName $ServiceName -PytestArgs $PytestArgs
 }
 catch {
     Write-Host "✗ Ошибка при выполнении: $($_.Exception.Message)" -ForegroundColor Red
