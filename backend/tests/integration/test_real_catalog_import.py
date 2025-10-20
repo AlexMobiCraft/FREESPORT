@@ -5,6 +5,7 @@ Story 3.1.3: test-catalog-loading
 Валидация корректности импорта реального каталога из data/import_1c/
 """
 from pathlib import Path
+from typing import Any, Optional, cast
 
 import pytest
 from django.conf import settings
@@ -12,7 +13,25 @@ from django.core.management import call_command
 from django.db import connection
 from django.db.utils import OperationalError
 
-from apps.products.models import Brand, Category, ImportSession, Product
+from django.apps import apps
+
+brand_model = apps.get_model("products", "Brand")
+category_model = apps.get_model("products", "Category")
+import_session_model = apps.get_model("products", "ImportSession")
+product_model = apps.get_model("products", "Product")
+
+if None in {
+    brand_model,
+    category_model,
+    import_session_model,
+    product_model,
+}:
+    raise RuntimeError("Не удалось загрузить модели products приложения")
+
+Brand = cast(Any, brand_model)
+Category = cast(Any, category_model)
+ImportSession = cast(Any, import_session_model)
+Product = cast(Any, product_model)
 
 
 # Путь к реальным данным 1С
@@ -24,15 +43,16 @@ possible_paths = [
     Path(settings.BASE_DIR).parent / "data" / "import_1c",  # Локально
 ]
 
-DATA_DIR = None
+data_dir_candidate: Optional[Path] = None
 for path in possible_paths:
     if path.exists():
-        DATA_DIR = path
+        data_dir_candidate = path
         break
 
-if DATA_DIR is None:
-    # Fallback на первый путь для корректного сообщения об ошибке
-    DATA_DIR = possible_paths[0]
+if data_dir_candidate is None:
+    data_dir_candidate = possible_paths[0]
+
+DATA_DIR = cast(Path, data_dir_candidate)
 
 
 def is_database_available():
@@ -115,6 +135,7 @@ class TestRealCatalogImport:
 
         # Проверка что товары имеют базовые поля
         sample_product = Product.objects.first()
+        assert sample_product is not None, "Должен существовать хотя бы один товар"
         assert sample_product.name, "Товар должен иметь название"
         assert sample_product.onec_id, "Товар должен иметь onec_id"
 
@@ -155,8 +176,9 @@ class TestRealCatalogImport:
         if categories_with_parent.exists():
             # Проверяем что parent существуют
             for cat in categories_with_parent:
-                assert cat.parent is not None
-                assert Category.objects.filter(id=cat.parent.id).exists()
+                parent_id = getattr(cat, "parent_id", None)
+                assert parent_id is not None
+                assert Category.objects.filter(id=parent_id).exists()
 
         # Проверка что категории имеют onec_id
         categories_without_onec_id = Category.objects.filter(
