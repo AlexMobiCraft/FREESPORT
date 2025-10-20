@@ -158,8 +158,12 @@ dmypy.json
 .pytype/
 
 # Архивы
-docs\arhiv
+.\docs\arhiv
 
 # Мои рабочие документы
 .\docs\Отчет_для_заказчика.md
 Проверить-.txt
+
+# Обменные файлы
+.\data\import_1c
+data/import_1c/

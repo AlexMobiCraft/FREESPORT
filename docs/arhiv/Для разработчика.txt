@@ -12,7 +12,7 @@ backend/tests/fixtures/1c-data/
 
 /po *refine
 
-/po *validate
+/po *
 
  Доступные команды Product Owner
 📋 Управление бэклогом

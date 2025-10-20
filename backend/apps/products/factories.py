@@ -3,6 +3,8 @@ Factory классы для создания тестовых данных
 """
 import factory
 from factory import fuzzy
+from django.utils.text import slugify
+
 from apps.products.models import Product, Category, Brand
 
 
@@ -12,8 +14,8 @@ class BrandFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = Brand
 
-    name = factory.Faker("company")
-    slug = factory.LazyAttribute(lambda obj: obj.name.lower().replace(" ", "-"))
+    name = factory.Sequence(lambda n: f"Brand {n}")
+    slug = factory.LazyAttribute(lambda obj: slugify(obj.name))
     description = factory.Faker("text", max_nb_chars=200)
     is_active = True
 
@@ -24,8 +26,8 @@ class CategoryFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = Category
 
-    name = factory.Faker("word")
-    slug = factory.LazyAttribute(lambda obj: obj.name.lower().replace(" ", "-"))
+    name = factory.Sequence(lambda n: f"Category {n}")
+    slug = factory.LazyAttribute(lambda obj: slugify(obj.name))
     description = factory.Faker("text", max_nb_chars=200)
     is_active = True
 

@@ -49,8 +49,19 @@ DATABASES = {
             ("POSTGRES_PASSWORD", "PGPASSWORD"),
             "postgres",
         ),
-        "HOST": _get_env_value("DB_HOST", ("POSTGRES_HOST", "PGHOST"), "localhost"),
+        "HOST": _get_env_value("DB_HOST", ("POSTGRES_HOST", "PGHOST"), "127.0.0.1"),
         "PORT": int(_get_env_value("DB_PORT", ("POSTGRES_PORT", "PGPORT"), "5432")),
+        "OPTIONS": {
+            "client_encoding": "UTF8",
+            "connect_timeout": 10,
+        },
+        "TEST": {
+            "NAME": _get_env_value(
+                "TEST_DB_NAME",
+                ("TEST_POSTGRES_DB", "DJANGO_TEST_DATABASE_NAME"),
+                "pytest_freesport",
+            )
+        },
     }
 }
 

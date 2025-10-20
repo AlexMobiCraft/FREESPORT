@@ -6,10 +6,25 @@ param(
     [string]$ComposeFile = "docker-compose.test.yml",
     [string]$User = "alex",
     [string]$IP = "192.168.8.182", #192.168.1.130
-    [string]$SshKeyPath = "C:\\Users\\38670\\.ssh\\id_ed25519"
+    [string]$SshKeyPath = "C:\\Users\\38670\\.ssh\\id_ed25519",
+    [string]$ProjectPathRemote = "~/FREESPORT"
 )
 
 $script:TestRunExitCode = 1
+
+# Функция преобразует путь проекта на сервере в абсолютный вид
+function Resolve-RemoteProjectRoot {
+    param(
+        [string]$ProjectPath,
+        [string]$RemoteUser
+    )
+
+    if ($ProjectPath.StartsWith("~/")) {
+        return "/home/$RemoteUser/" + $ProjectPath.Substring(2)
+    }
+
+    return $ProjectPath
+}
 
 # Функция запускает ssh-agent и добавляет указанный ключ
 function Start-SshAgentIfNeeded {
@@ -113,6 +128,9 @@ try {
     Start-SshAgentIfNeeded -KeyPath $SshKeyPath
     Ensure-DockerContext -ContextName $DockerContext -ContextUser $User -ContextHost $IP
     Test-DockerConnection -Context $DockerContext
+    $remoteProjectRoot = Resolve-RemoteProjectRoot -ProjectPath $ProjectPathRemote -RemoteUser $User
+    $previousProjectRoot = $env:FREESPORT_PROJECT_ROOT
+    $env:FREESPORT_PROJECT_ROOT = $remoteProjectRoot
     Cleanup-PreviousRun -Context $DockerContext -ComposeFile $ComposeFile
     Run-Tests -Context $DockerContext -ComposeFile $ComposeFile
     $exitCode = [int]$script:TestRunExitCode
@@ -122,7 +140,17 @@ catch {
     $exitCode = 1
 }
 finally {
-    Finalize-Cleanup -Context $DockerContext -ComposeFile $ComposeFile
+    try {
+        Finalize-Cleanup -Context $DockerContext -ComposeFile $ComposeFile
+    }
+    finally {
+        if ($null -eq $previousProjectRoot) {
+            Remove-Item Env:FREESPORT_PROJECT_ROOT -ErrorAction SilentlyContinue
+        }
+        else {
+            $env:FREESPORT_PROJECT_ROOT = $previousProjectRoot
+        }
+    }
     Pop-Location
 }
 
