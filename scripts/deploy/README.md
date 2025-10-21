@@ -1,8 +1,6 @@
 # Скрипты для развертывания и управления FREESPORT Platform
 
-## Описание
-
-В этой директории находятся скрипты для автоматизации установки Docker и развертывания платформы FREESORT.
+Эта директория содержит скрипты для автоматизации установки Docker и развертывания платформы FREESORT на сервере 5.35.124.149 с доменом freesport.ru.
 
 ## Скрипты
 
@@ -13,11 +11,11 @@
 **Использование:**
 ```bash
 # Скачивание и запуск скрипта настройки сервера
-curl -fsSL https://raw.githubusercontent.com/AlexMobiCraft/FREESPORT/main/scripts/server-setup.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/AlexMobiCraft/FREESPORT/main/scripts/deploy/server-setup.sh | sudo bash
 
 # Или локально:
-sudo chmod +x scripts/server-setup.sh
-sudo ./scripts/server-setup.sh
+sudo chmod +x scripts/deploy/server-setup.sh
+sudo ./scripts/deploy/server-setup.sh
 ```
 
 **Что делает скрипт:**
@@ -52,11 +50,11 @@ sudo ./scripts/server-setup.sh
 **Использование:**
 ```bash
 # Скачивание и запуск скрипта
-curl -fsSL https://raw.githubusercontent.com/your-repo/freesport/main/scripts/install-docker.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/AlexMobiCraft/FREESPORT/main/scripts/deploy/install-docker.sh | sudo bash
 
 # Или локально:
-sudo chmod +x scripts/install-docker.sh
-sudo ./scripts/install-docker.sh
+sudo chmod +x scripts/deploy/install-docker.sh
+sudo ./scripts/deploy/install-docker.sh
 ```
 
 **Что делает скрипт:**
@@ -74,28 +72,28 @@ sudo ./scripts/install-docker.sh
 
 **Использование:**
 ```bash
-chmod +x scripts/deploy.sh
+chmod +x scripts/deploy/deploy.sh
 
 # Инициализация проекта
-./scripts/deploy.sh init
+./scripts/deploy/deploy.sh init
 
 # Обновление проекта
-./scripts/deploy.sh update
+./scripts/deploy/deploy.sh update
 
 # Создание резервной копии
-./scripts/deploy.sh backup
+./scripts/deploy/deploy.sh backup
 
 # Восстановление из резервной копии
-./scripts/deploy.sh restore backups/20231201_120000
+./scripts/deploy/deploy.sh restore backups/20231201_120000
 
 # Проверка статуса
-./scripts/deploy.sh status
+./scripts/deploy/deploy.sh status
 
 # Очистка системы
-./scripts/deploy.sh cleanup
+./scripts/deploy/deploy.sh cleanup
 
 # Показать справку
-./scripts/deploy.sh help
+./scripts/deploy/deploy.sh help
 ```
 
 **Команды:**
@@ -107,13 +105,38 @@ chmod +x scripts/deploy.sh
 - `cleanup` - Очистка системы Docker
 - `help` - Показать справку
 
+### health-check.sh
+
+Скрипт для комплексной проверки работоспособности всех компонентов платформы.
+
+**Использование:**
+```bash
+chmod +x scripts/deploy/health-check.sh
+
+# Запуск полной проверки
+./scripts/deploy/health-check.sh
+
+# Проверка с записью в лог
+./scripts/deploy/health-check.sh > logs/health-check.log 2>&1
+```
+
+**Что проверяет:**
+- Статус контейнеров Docker
+- Работоспособность PostgreSQL
+- Работоспособность Redis
+- Работоспособность Django Backend
+- Доступность API endpoints
+- Работоспособность Frontend
+- Конигурацию Nginx
+- Работоспособность Celery Worker и Beat
+
 ## Подготовка к использованию
 
 1. Убедитесь, что у вас установлен Docker и Docker Compose
 2. Клонируйте репозиторий проекта
 3. Сделайте скрипты исполняемыми:
    ```bash
-   chmod +x scripts/*.sh
+   chmod +x scripts/deploy/*.sh
    ```
 
 ## Пример развертывания
@@ -122,14 +145,14 @@ chmod +x scripts/deploy.sh
 
 ```bash
 # Выполнение полной настройки сервера
-curl -fsSL https://raw.githubusercontent.com/AlexMobiCraft/FREESPORT/main/scripts/server-setup.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/AlexMobiCraft/FREESPORT/main/scripts/deploy/server-setup.sh | sudo bash
 ```
 
 ### Вариант 2: Пошаговая настройка
 
 ```bash
 # 1. Установка Docker (если еще не установлен)
-sudo ./scripts/install-docker.sh
+sudo ./scripts/deploy/install-docker.sh
 
 # 2. Перезаходим в систему для применения изменений группы docker
 exit  # и снова login
@@ -143,12 +166,12 @@ cp .env.prod.example .env.prod
 nano .env.prod  # редактирование
 
 # 5. Развертывание проекта
-./scripts/deploy.sh init
+./scripts/deploy/deploy.sh init
 ```
 
 ## Безопасность
 
-- Скрипты запускаются с правами root (для install-docker.sh)
+- Скрипты запускаются с правами root (для server-setup.sh и install-docker.sh)
 - Все пароли и секретные ключи должны быть изменены перед использованием
 - Рекомендуется использовать SSH ключи для доступа к серверу
 - Настройте файрвол для ограничения доступа
@@ -158,7 +181,7 @@ nano .env.prod  # редактирование
 ### Проблема: Permission denied
 **Решение:** Убедитесь, что скрипты имеют права на выполнение:
 ```bash
-chmod +x scripts/*.sh
+chmod +x scripts/deploy/*.sh
 ```
 
 ### Проблема: Docker не работает после установки
@@ -170,7 +193,7 @@ newgrp docker
 ### Проблема: Контейнеры не запускаются
 **Решение:** Проверьте логи и статус:
 ```bash
-./scripts/deploy.sh status
+./scripts/deploy/deploy.sh status
 docker compose -f docker-compose.prod.yml logs
 ```
 
@@ -179,10 +202,13 @@ docker compose -f docker-compose.prod.yml logs
 Для автоматического обновления можно добавить в cron:
 ```bash
 # Ежедневное обновление в 3:00
-0 3 * * * /path/to/freesport/scripts/deploy.sh update
+0 3 * * * /path/to/freesport/scripts/deploy/deploy.sh update
 
 # Ежедневное резервное копирование в 2:00
-0 2 * * * /path/to/freesport/scripts/deploy.sh backup
+0 2 * * * /path/to/freesport/scripts/deploy/deploy.sh backup
+
+# Проверка работоспособности каждые 5 минут
+*/5 * * * * /path/to/freesport/scripts/deploy/health-check.sh
 ```
 
 ## Поддержка
