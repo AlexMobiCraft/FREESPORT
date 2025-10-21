@@ -278,7 +278,7 @@ show_next_steps() {
     echo ""
     echo "Полезные команды:"
     echo "- Статус сервисов: cd $PROJECT_DIR && ./scripts/deploy/deploy.sh status"
-    echo "- Просмотр логов: cd $PROJECT_DIR && docker compose -f docker-compose.prod.yml logs -f"
+    echo "- Просмотр логов: cd $PROJECT_DIR && docker compose -f docker/docker-compose.prod.yml logs -f"
     echo "- Обновление: cd $PROJECT_DIR && ./scripts/deploy/deploy.sh update"
     echo ""
     echo "Важные файлы:"

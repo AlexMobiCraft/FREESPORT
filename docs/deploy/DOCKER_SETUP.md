@@ -8,7 +8,7 @@
 
 ```bash
 # Скачивание и запуск скрипта полной настройки сервера
-curl -fsSL https://raw.githubusercontent.com/AlexMobiCraft/FREESPORT/main/scripts/server-setup.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/AlexMobiCraft/FREESPORT/main/scripts/deploy/server-setup.sh | sudo bash
 ```
 
 ### Вариант 2: Пошаговая установка
@@ -102,10 +102,10 @@ nano .env.prod
 
 ```bash
 # Инициализация проекта
-./scripts/deploy.sh init
+./scripts/deploy/deploy.sh init
 
 # Проверка статуса
-./scripts/deploy.sh status
+./scripts/deploy/deploy.sh status
 ```
 
 ### Шаг 5: Настройка SSL (опционально)
@@ -139,10 +139,10 @@ sudo certbot --nginx -d freesport.ru
 ./scripts/deploy/health-check.sh
 
 # Просмотр логов
-docker compose -f docker-compose.prod.yml logs -f
+docker compose -f docker/docker-compose.prod.yml logs -f
 
 # Перезапуск сервисов
-docker compose -f docker-compose.prod.yml restart
+docker compose -f docker/docker-compose.prod.yml restart
 ```
 
 ### Полезные команды Docker
@@ -152,10 +152,10 @@ docker compose -f docker-compose.prod.yml restart
 docker ps
 
 # Вход в контейнер backend
-docker compose -f docker-compose.prod.yml exec backend bash
+docker compose -f docker/docker-compose.prod.yml exec backend bash
 
 # Подключение к базе данных
-docker compose -f docker-compose.prod.yml exec db psql -U postgres -d freesport
+docker compose -f docker/docker-compose.prod.yml exec db psql -U postgres -d freesport
 
 # Очистка системы
 docker system prune -a
@@ -170,23 +170,23 @@ docker system prune -a
 curl https://freesport.ru/api/v1/health/
 
 # Комплексная проверка
-./scripts/health-check.sh
+./scripts/deploy/health-check.sh
 ```
 
 ## 📚 Документация
 
-- [Полная инструкция по установке](docs/docker-server-setup.md)
-- [Быстрое развертывание](docs/quick-deployment.md)
-- [Проверка работоспособности](docs/health-check.md)
-- [Документация скриптов](scripts/README.md)
-- [Основная документация проекта](README.md)
+- [Полная инструкция по установке](docker-server-setup.md)
+- [Быстрое развертывание](quick-deployment.md)
+- [Проверка работоспособности](health-check.md)
+- [Документация скриптов](../../scripts/deploy/README.md)
+- [Основная документация проекта](../../README.md)
 
 ## 🆘 Решение проблем
 
 ### Проблема: Permission denied
 ```bash
 # Установка прав на выполнение
-chmod +x scripts/*.sh
+chmod +x scripts/deploy/*.sh
 ```
 
 ### Проблема: Docker не работает
@@ -201,10 +201,10 @@ newgrp docker
 ### Проблема: Контейнеры не запускаются
 ```bash
 # Проверка логов
-docker compose -f docker-compose.prod.yml logs
+docker compose -f docker/docker-compose.prod.yml logs
 
 # Пересборка образов
-docker compose -f docker-compose.prod.yml build --no-cache
+docker compose -f docker/docker-compose.prod.yml build --no-cache
 ```
 
 ### Проблема: Нет доступа к сайту
@@ -213,7 +213,7 @@ docker compose -f docker-compose.prod.yml build --no-cache
 sudo ufw status
 
 # Проверка Nginx
-docker compose -f docker-compose.prod.yml exec nginx nginx -t
+docker compose -f docker/docker-compose.prod.yml exec nginx nginx -t
 ```
 
 ## 🔄 Автоматизация
@@ -221,16 +221,16 @@ docker compose -f docker-compose.prod.yml exec nginx nginx -t
 ### Настройка автоматического обновления
 ```bash
 # Добавление в cron для ежедневного обновления в 3:00
-echo "0 3 * * * /path/to/freesport/scripts/deploy.sh update" | crontab -
+echo "0 3 * * * /path/to/freesport/scripts/deploy/deploy.sh update" | crontab -
 
 # Добавление в cron для ежедневного резервного копирования в 2:00
-echo "0 2 * * * /path/to/freesport/scripts/deploy.sh backup" | crontab -
+echo "0 2 * * * /path/to/freesport/scripts/deploy/deploy.sh backup" | crontab -
 ```
 
 ### Настройка мониторинга
 ```bash
 # Добавление в cron для проверки каждые 5 минут
-echo "*/5 * * * * /path/to/freesport/scripts/health-check.sh" | crontab -
+echo "*/5 * * * * /path/to/freesport/scripts/deploy/health-check.sh" | crontab -
 ```
 
 ## 🔒 Безопасность

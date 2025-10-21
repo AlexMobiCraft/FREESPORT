@@ -45,8 +45,8 @@ check_containers() {
     log_info "Проверка статуса контейнеров..."
     
     # Проверка, что все контейнеры запущены
-    local running_containers=$(docker compose -f docker-compose.prod.yml ps -q | wc -l)
-    local total_containers=$(docker compose -f docker-compose.prod.yml config | grep -c "^[[:space:]]*[a-zA-Z0-9_-]*:")
+    local running_containers=$(docker compose -f docker/docker-compose.prod.yml ps -q | wc -l)
+    local total_containers=$(docker compose -f docker/docker-compose.prod.yml config | grep -c "^[[:space:]]*[a-zA-Z0-9_-]*:")
     
     if [ "$running_containers" -eq "$total_containers" ]; then
         log_info "Все контейнеры запущены ($running_containers/$total_containers)"
@@ -61,11 +61,11 @@ check_database() {
     log_info "Проверка базы данных PostgreSQL..."
     
     # Проверка подключения к PostgreSQL
-    if docker compose -f docker-compose.prod.yml exec -T db pg_isready -U postgres > /dev/null 2>&1; then
+    if docker compose -f docker/docker-compose.prod.yml exec -T db pg_isready -U postgres > /dev/null 2>&1; then
         log_info "PostgreSQL доступен"
         
         # Проверка наличия таблиц
-        local tables_count=$(docker compose -f docker-compose.prod.yml exec -T db psql -U postgres -d freesport -t -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null | tr -d ' ')
+        local tables_count=$(docker compose -f docker/docker-compose.prod.yml exec -T db psql -U postgres -d freesport -t -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null | tr -d ' ')
         if [ "$tables_count" -gt 0 ]; then
             log_info "База данных содержит таблицы: $tables_count"
         else
@@ -82,11 +82,11 @@ check_redis() {
     log_info "Проверка Redis..."
     
     # Проверка подключения к Redis
-    if docker compose -f docker-compose.prod.yml exec -T redis redis-cli ping > /dev/null 2>&1; then
+    if docker compose -f docker/docker-compose.prod.yml exec -T redis redis-cli ping > /dev/null 2>&1; then
         log_info "Redis доступен"
         
         # Проверка использования памяти
-        local redis_info=$(docker compose -f docker-compose.prod.yml exec -T redis redis-cli info memory 2>/dev/null | grep used_memory_human | cut -d: -f2 | tr -d '\r')
+        local redis_info=$(docker compose -f docker/docker-compose.prod.yml exec -T redis redis-cli info memory 2>/dev/null | grep used_memory_human | cut -d: -f2 | tr -d '\r')
         log_info "Использование памяти Redis: $redis_info"
     else
         log_error "Redis недоступен"
@@ -99,7 +99,7 @@ check_django() {
     log_info "Проверка Django Backend..."
     
     # Проверка здоровья Django
-    if docker compose -f docker-compose.prod.yml exec -T backend python manage.py check --deploy > /dev/null 2>&1; then
+    if docker compose -f docker/docker-compose.prod.yml exec -T backend python manage.py check --deploy > /dev/null 2>&1; then
         log_info "Django backend корректно настроен"
     else
         log_error "Проблемы с конфигурацией Django"
@@ -128,7 +128,7 @@ check_nginx() {
     log_info "Проверка Nginx..."
     
     # Проверка конфигурации Nginx
-    if docker compose -f docker-compose.prod.yml exec -T nginx nginx -t > /dev/null 2>&1; then
+    if docker compose -f docker/docker-compose.prod.yml exec -T nginx nginx -t > /dev/null 2>&1; then
         log_info "Конфигурация Nginx корректна"
     else
         log_error "Проблемы с конфигурацией Nginx"
@@ -149,7 +149,7 @@ check_celery() {
     log_info "Проверка Celery..."
     
     # Проверка статуса Celery worker
-    if docker compose -f docker-compose.prod.yml exec -T celery celery -A freesport inspect active > /dev/null 2>&1; then
+    if docker compose -f docker/docker-compose.prod.yml exec -T celery celery -A freesport inspect active > /dev/null 2>&1; then
         log_info "Celery worker работает"
     else
         log_error "Celery worker недоступен"
@@ -157,7 +157,7 @@ check_celery() {
     fi
     
     # Проверка статуса Celery beat
-    local beat_logs=$(docker compose -f docker-compose.prod.yml logs celery-beat 2>/dev/null | tail -10)
+    local beat_logs=$(docker compose -f docker/docker-compose.prod.yml logs celery-beat 2>/dev/null | tail -10)
     if echo "$beat_logs" | grep -q "Scheduler"; then
         log_info "Celery beat работает"
     else
@@ -247,8 +247,8 @@ main() {
     fi
     
     # Проверка наличия docker-compose.prod.yml
-    if [ ! -f "docker-compose.prod.yml" ]; then
-        log_error "Файл docker-compose.prod.yml не найден"
+    if [ ! -f "docker/docker-compose.prod.yml" ]; then
+        log_error "Файл docker/docker-compose.prod.yml не найден"
         exit 1
     fi
     

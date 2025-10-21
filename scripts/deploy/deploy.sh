@@ -67,10 +67,10 @@ init_project() {
     
     # Сборка и запуск контейнеров
     log_info "Сборка Docker образов..."
-    docker compose -f docker-compose.prod.yml build
+    docker compose -f docker/docker-compose.prod.yml build
     
     log_info "Запуск контейнеров..."
-    docker compose -f docker-compose.prod.yml up -d
+    docker compose -f docker/docker-compose.prod.yml up -d
     
     # Ожидание запуска базы данных
     log_info "Ожидание запуска базы данных..."
@@ -78,15 +78,15 @@ init_project() {
     
     # Выполнение миграций
     log_info "Выполнение миграций базы данных..."
-    docker compose -f docker-compose.prod.yml exec -T backend python manage.py migrate
+    docker compose -f docker/docker-compose.prod.yml exec -T backend python manage.py migrate
     
     # Создание суперпользователя
     log_info "Создание суперпользователя..."
-    docker compose -f docker-compose.prod.yml exec -T backend python manage.py createsuperuser || log_warn "Не удалось создать суперпользователя. Вы можете сделать это позже с помощью команды: docker compose -f docker-compose.prod.yml exec backend python manage.py createsuperuser"
+    docker compose -f docker/docker-compose.prod.yml exec -T backend python manage.py createsuperuser || log_warn "Не удалось создать суперпользователя. Вы можете сделать это позже с помощью команды: docker compose -f docker/docker-compose.prod.yml exec backend python manage.py createsuperuser"
     
     # Сбор статических файлов
     log_info "Сбор статических файлов..."
-    docker compose -f docker-compose.prod.yml exec -T backend python manage.py collectstatic --noinput
+    docker compose -f docker/docker-compose.prod.yml exec -T backend python manage.py collectstatic --noinput
     
     log_info "Инициализация завершена!"
     log_info "Проверьте работу сайта по адресу: https://freesport.ru"
@@ -106,10 +106,10 @@ update_project() {
     
     # Пересборка и перезапуск контейнеров
     log_info "Пересборка Docker образов..."
-    docker compose -f docker-compose.prod.yml build
+    docker compose -f docker/docker-compose.prod.yml build
     
     log_info "Перезапуск контейнеров..."
-    docker compose -f docker-compose.prod.yml up -d
+    docker compose -f docker/docker-compose.prod.yml up -d
     
     # Ожидание запуска сервисов
     log_info "Ожидание запуска сервисов..."
@@ -117,11 +117,11 @@ update_project() {
     
     # Выполнение миграций
     log_info "Выполнение миграций базы данных..."
-    docker compose -f docker-compose.prod.yml exec -T backend python manage.py migrate
+    docker compose -f docker/docker-compose.prod.yml exec -T backend python manage.py migrate
     
     # Сбор статических файлов
     log_info "Сбор статических файлов..."
-    docker compose -f docker-compose.prod.yml exec -T backend python manage.py collectstatic --noinput
+    docker compose -f docker/docker-compose.prod.yml exec -T backend python manage.py collectstatic --noinput
     
     log_info "Обновление завершено!"
 }
@@ -135,7 +135,7 @@ backup_project() {
     
     # Резервное копирование базы данных
     log_info "Резервное копирование базы данных..."
-    docker compose -f docker-compose.prod.yml exec -T db pg_dump -U postgres freesport > "$BACKUP_DIR/database.sql"
+    docker compose -f docker/docker-compose.prod.yml exec -T db pg_dump -U postgres freesport > "$BACKUP_DIR/database.sql"
     
     # Резервное копирование медиа файлов
     log_info "Резервное копирование медиа файлов..."
@@ -166,7 +166,7 @@ restore_project() {
     
     # Остановка контейнеров
     log_info "Остановка контейнеров..."
-    docker compose -f docker-compose.prod.yml down
+    docker compose -f docker/docker-compose.prod.yml down
     
     # Восстановление конфигурации
     if [ -f "$BACKUP_DIR/.env.prod" ]; then
@@ -176,7 +176,7 @@ restore_project() {
     
     # Запуск контейнеров
     log_info "Запуск контейнеров..."
-    docker compose -f docker-compose.prod.yml up -d
+    docker compose -f docker/docker-compose.prod.yml up -d
     
     # Ожидание запуска базы данных
     log_info "Ожидание запуска базы данных..."
@@ -185,9 +185,9 @@ restore_project() {
     # Восстановление базы данных
     if [ -f "$BACKUP_DIR/database.sql" ]; then
         log_info "Восстановление базы данных..."
-        docker compose -f docker-compose.prod.yml exec -T db psql -U postgres -c "DROP DATABASE IF EXISTS freesport;"
-        docker compose -f docker-compose.prod.yml exec -T db psql -U postgres -c "CREATE DATABASE freesport;"
-        docker compose -f docker-compose.prod.yml exec -T db psql -U postgres freesport < "$BACKUP_DIR/database.sql"
+        docker compose -f docker/docker-compose.prod.yml exec -T db psql -U postgres -c "DROP DATABASE IF EXISTS freesport;"
+        docker compose -f docker/docker-compose.prod.yml exec -T db psql -U postgres -c "CREATE DATABASE freesport;"
+        docker compose -f docker/docker-compose.prod.yml exec -T db psql -U postgres freesport < "$BACKUP_DIR/database.sql"
     fi
     
     # Восстановление медиа файлов
@@ -204,7 +204,7 @@ check_status() {
     log_info "Проверка статуса сервисов..."
     
     # Проверка статуса контейнеров
-    docker compose -f docker-compose.prod.yml ps
+    docker compose -f docker/docker-compose.prod.yml ps
     
     # Проверка доступности сайта
     if command -v curl &> /dev/null; then
@@ -230,7 +230,7 @@ cleanup() {
     log_info "Очистка системы..."
     
     # Остановка контейнеров
-    docker compose -f docker-compose.prod.yml down
+    docker compose -f docker/docker-compose.prod.yml down
     
     # Удаление неиспользуемых образов
     docker image prune -f

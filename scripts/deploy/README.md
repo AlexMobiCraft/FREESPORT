@@ -1,6 +1,8 @@
 # Скрипты для развертывания и управления FREESPORT Platform
 
-Эта директория содержит скрипты для автоматизации установки Docker и развертывания платформы FREESORT на сервере 5.35.124.149 с доменом freesport.ru.
+## Описание
+
+В этой директории находятся скрипты для автоматизации установки Docker и развертывания платформы FREESORT.
 
 ## Скрипты
 
@@ -50,7 +52,7 @@ sudo ./scripts/deploy/server-setup.sh
 **Использование:**
 ```bash
 # Скачивание и запуск скрипта
-curl -fsSL https://raw.githubusercontent.com/AlexMobiCraft/FREESPORT/main/scripts/deploy/install-docker.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/your-repo/freesport/main/scripts/deploy/install-docker.sh | sudo bash
 
 # Или локально:
 sudo chmod +x scripts/deploy/install-docker.sh
@@ -107,28 +109,23 @@ chmod +x scripts/deploy/deploy.sh
 
 ### health-check.sh
 
-Скрипт для комплексной проверки работоспособности всех компонентов платформы.
+Скрипт для комплексной проверки работоспособности платформы.
 
 **Использование:**
 ```bash
 chmod +x scripts/deploy/health-check.sh
 
-# Запуск полной проверки
+# Запуск проверки
 ./scripts/deploy/health-check.sh
-
-# Проверка с записью в лог
-./scripts/deploy/health-check.sh > logs/health-check.log 2>&1
 ```
 
 **Что проверяет:**
-- Статус контейнеров Docker
-- Работоспособность PostgreSQL
+- Статус контейнеров
+- Работоспособность базы данных
 - Работоспособность Redis
-- Работоспособность Django Backend
-- Доступность API endpoints
-- Работоспособность Frontend
-- Конигурацию Nginx
-- Работоспособность Celery Worker и Beat
+- Доступность API
+- Работоспособность frontend
+- Конфигурацию Nginx
 
 ## Подготовка к использованию
 
@@ -171,7 +168,7 @@ nano .env.prod  # редактирование
 
 ## Безопасность
 
-- Скрипты запускаются с правами root (для server-setup.sh и install-docker.sh)
+- Скрипты запускаются с правами root (для install-docker.sh)
 - Все пароли и секретные ключи должны быть изменены перед использованием
 - Рекомендуется использовать SSH ключи для доступа к серверу
 - Настройте файрвол для ограничения доступа
@@ -206,9 +203,6 @@ docker compose -f docker-compose.prod.yml logs
 
 # Ежедневное резервное копирование в 2:00
 0 2 * * * /path/to/freesport/scripts/deploy/deploy.sh backup
-
-# Проверка работоспособности каждые 5 минут
-*/5 * * * * /path/to/freesport/scripts/deploy/health-check.sh
 ```
 
 ## Поддержка

@@ -1,4 +1,3 @@
-
 # Docker Compose для тестирования FREESPORT Platform
 
 services:
@@ -45,7 +44,7 @@ services:
   # Django Backend для тестирования
   backend:
     build:
-      context: ./backend
+      context: ../backend
       dockerfile: Dockerfile.test
       args:
         DJANGO_SETTINGS_MODULE: freesport.settings.test
