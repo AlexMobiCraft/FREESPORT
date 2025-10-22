@@ -48,15 +48,35 @@ check_root() {
 setup_hostname() {
     log_step "Настройка имени хоста..."
     
-    # Установка имени хоста
-    hostnamectl set-hostname freesport-server
+    # Получаем текущее имя хоста
+    CURRENT_HOSTNAME=$(hostname)
     
-    # Добавление в /etc/hosts
-    if ! grep -q "$DOMAIN" /etc/hosts; then
-        echo "$SERVER_IP $DOMAIN www.$DOMAIN" >> /etc/hosts
+    # Установка имени хоста с проверкой
+    if hostnamectl set-hostname freesport-server; then
+        log_info "Имя хоста установлено: freesport-server"
+        
+        # Добавление в /etc/hosts для разрешения имени
+        if ! grep -q "freesport-server" /etc/hosts; then
+            echo "127.0.1.1 freesport-server" >> /etc/hosts
+        fi
+        
+        # Добавление домена в /etc/hosts
+        if ! grep -q "$DOMAIN" /etc/hosts; then
+            echo "$SERVER_IP $DOMAIN www.$DOMAIN" >> /etc/hosts
+        fi
+    else
+        log_warn "Не удалось изменить имя хоста, используем текущее: $CURRENT_HOSTNAME"
+        
+        # Добавляем текущее имя хоста в /etc/hosts
+        if ! grep -q "$CURRENT_HOSTNAME" /etc/hosts; then
+            echo "127.0.1.1 $CURRENT_HOSTNAME" >> /etc/hosts
+        fi
+        
+        # Добавление домена в /etc/hosts
+        if ! grep -q "$DOMAIN" /etc/hosts; then
+            echo "$SERVER_IP $DOMAIN www.$DOMAIN" >> /etc/hosts
+        fi
     fi
-    
-    log_info "Имя хоста настроено: freesport-server"
 }
 
 # Обновление системы
@@ -102,9 +122,11 @@ create_deploy_user() {
     log_step "Создание пользователя для развертывания..."
     
     if ! id "freesport" &>/dev/null; then
-        useradd -m -s /bin/bash freesport
-        usermod -aG sudo freesport
-        usermod -aG docker freesport
+        # Создаем системного пользователя с домашней директорией
+        adduser --system --group --home /opt/freesport --shell /bin/bash freesport
+        
+        # Добавляем в группы
+        usermod -aG sudo,docker freesport
         
         # Настройка sudo без пароля для пользователя freesport
         echo "freesport ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/freesport
@@ -113,6 +135,19 @@ create_deploy_user() {
     else
         log_warn "Пользователь freesport уже существует"
     fi
+    
+    # Убеждаемся, что домашняя директория существует и имеет правильные права
+    if [ ! -d "/opt/freesport" ]; then
+        mkdir -p /opt/freesport
+    fi
+    
+    chown freesport:freesport /opt/freesport
+    
+    # Создаем необходимые директории
+    mkdir -p /opt/freesport/{data,logs,backups}
+    chown -R freesport:freesport /opt/freesport
+    
+    log_info "Директория проекта настроена: /opt/freesport"
 }
 
 # Настройка файрвола

@@ -11,6 +11,7 @@
 Скрипт для полной первоначальной настройки сервера для FREESPORT Platform.
 
 **Использование:**
+
 ```bash
 # Скачивание и запуск скрипта настройки сервера
 curl -fsSL https://raw.githubusercontent.com/AlexMobiCraft/FREESPORT/main/scripts/deploy/server-setup.sh | sudo bash
@@ -21,6 +22,7 @@ sudo ./scripts/deploy/server-setup.sh
 ```
 
 **Что делает скрипт:**
+
 1. Настраивает имя хоста
 2. Обновляет системные пакеты
 3. Устанавливает Docker и Docker Compose
@@ -33,9 +35,10 @@ sudo ./scripts/deploy/server-setup.sh
 10. Выполняет первоначальное развертывание
 
 **Конфигурация:**
+
 - Домен: freesport.ru
 - IP: 5.35.124.149
-- Репозиторий: https://github.com/AlexMobiCraft/FREESPORT.git
+- Репозиторий: <https://github.com/AlexMobiCraft/FREESPORT.git>
 - Директория проекта: /opt/freesport
 
 ### install-docker.sh
@@ -43,6 +46,7 @@ sudo ./scripts/deploy/server-setup.sh
 Скрипт для автоматической установки Docker и Docker Compose на сервер.
 
 **Поддерживаемые ОС:**
+
 - Ubuntu 20.04+
 - Debian 11+
 - CentOS 8+
@@ -50,6 +54,7 @@ sudo ./scripts/deploy/server-setup.sh
 - Rocky Linux 8+
 
 **Использование:**
+
 ```bash
 # Скачивание и запуск скрипта
 curl -fsSL https://raw.githubusercontent.com/your-repo/freesport/main/scripts/deploy/install-docker.sh | sudo bash
@@ -60,6 +65,7 @@ sudo ./scripts/deploy/install-docker.sh
 ```
 
 **Что делает скрипт:**
+
 1. Определяет операционную систему
 2. Обновляет системные пакеты
 3. Устанавливает Docker Engine
@@ -73,6 +79,7 @@ sudo ./scripts/deploy/install-docker.sh
 Скрипт для развертывания и управления платформой.
 
 **Использование:**
+
 ```bash
 chmod +x scripts/deploy/deploy.sh
 
@@ -99,6 +106,7 @@ chmod +x scripts/deploy/deploy.sh
 ```
 
 **Команды:**
+
 - `init` - Первоначальная настройка и развертывание проекта
 - `update` - Обновление проекта до последней версии
 - `backup` - Создание резервной копии
@@ -112,6 +120,7 @@ chmod +x scripts/deploy/deploy.sh
 Скрипт для комплексной проверки работоспособности платформы.
 
 **Использование:**
+
 ```bash
 chmod +x scripts/deploy/health-check.sh
 
@@ -120,6 +129,7 @@ chmod +x scripts/deploy/health-check.sh
 ```
 
 **Что проверяет:**
+
 - Статус контейнеров
 - Работоспособность базы данных
 - Работоспособность Redis
@@ -132,6 +142,7 @@ chmod +x scripts/deploy/health-check.sh
 1. Убедитесь, что у вас установлен Docker и Docker Compose
 2. Клонируйте репозиторий проекта
 3. Сделайте скрипты исполняемыми:
+
    ```bash
    chmod +x scripts/deploy/*.sh
    ```
@@ -176,19 +187,26 @@ nano .env.prod  # редактирование
 ## Troubleshooting
 
 ### Проблема: Permission denied
-**Решение:** Убедитесь, что скрипты имеют права на выполнение:
+
+**Решение:**
+ Убедитесь, что скрипты имеют права на выполнение:
+
 ```bash
 chmod +x scripts/deploy/*.sh
 ```
 
 ### Проблема: Docker не работает после установки
+
 **Решение:** Перезайдите в систему для применения изменений группы docker или выполните:
+
 ```bash
 newgrp docker
 ```
 
 ### Проблема: Контейнеры не запускаются
+
 **Решение:** Проверьте логи и статус:
+
 ```bash
 ./scripts/deploy/deploy.sh status
 docker compose -f docker-compose.prod.yml logs
@@ -197,6 +215,7 @@ docker compose -f docker-compose.prod.yml logs
 ## Автоматизация
 
 Для автоматического обновления можно добавить в cron:
+
 ```bash
 # Ежедневное обновление в 3:00
 0 3 * * * /path/to/freesport/scripts/deploy/deploy.sh update
@@ -208,6 +227,7 @@ docker compose -f docker-compose.prod.yml logs
 ## Поддержка
 
 При возникновении проблем:
+
 1. Проверьте логи скриптов
 2. Обратитесь к документации проекта
 3. Создайте issue в репозитории

@@ -186,11 +186,13 @@ echo "0 3 * * * /path/to/freesport/scripts/deploy/deploy.sh update" | crontab -
 При возникновении проблем:
 
 1. Проверьте логи контейнеров:
+
    ```bash
    docker compose -f docker-compose.prod.yml logs -f
    ```
 
 2. Запустите проверку работоспособности:
+
    ```bash
    ./scripts/deploy/health-check.sh
    ```
@@ -200,6 +202,74 @@ echo "0 3 * * * /path/to/freesport/scripts/deploy/deploy.sh update" | crontab -
    - [Проверка работоспособности](health-check.md)
 
 4. Создайте issue в репозитории проекта
+
+## Часто задаваемые вопросы
+
+Ответы на самые частые вопросы по развертыванию и управлению платформой:
+
+- [FAQ](FAQ.md) - Проверка выполнения настройки, изменение паролей, решение проблем
+
+## Проверка выполнения автоматической настройки
+
+Если вы использовали вариант 1 (полная автоматическая настройка), проверьте выполнение:
+
+```bash
+# Переключитесь на пользователя freesport
+sudo su - freesport
+
+# Перейдите в директорию проекта
+cd /opt/freesport
+
+# Проверка статуса всех сервисов
+./scripts/deploy/deploy.sh status
+
+# Комплексная проверка работоспособности
+./scripts/deploy/health-check.sh
+
+# Проверка логов на наличие ошибок
+docker compose -f docker/docker-compose.prod.yml logs
+
+# Проверка доступности сайта
+curl -I https://freesport.ru
+```
+
+**Ожидаемые результаты:**
+
+- Все контейнеры в статусе "Up" или "running"
+- Проверка health-check завершается без ошибок
+- Сайт отвечает по HTTPS
+
+## Изменение паролей после автоматической настройки
+
+При автоматической настройке пароли генерируются автоматически. Для их изменения:
+
+```bash
+# Переключитесь на пользователя freesport
+sudo su - freesport
+
+# Перейдите в директорию проекта
+cd /opt/freesport
+
+# Отредактируйте файл окружения
+nano .env.prod
+```
+
+**Обязательно измените в `.env.prod`:**
+
+- `SECRET_KEY` - сгенерируйте новый ключ (подробности в [FAQ](FAQ.md))
+- `DB_PASSWORD` - установите надежный пароль для PostgreSQL
+- `REDIS_PASSWORD` - установите надежный пароль для Redis
+
+**После изменения паролей:**
+
+```bash
+# Перезапустите сервисы
+docker compose -f docker/docker-compose.prod.yml down
+docker compose -f docker/docker-compose.prod.yml up -d
+
+# Проверьте работоспособность
+./scripts/deploy/health-check.sh
+```
 
 ## Дополнительные ресурсы
 
