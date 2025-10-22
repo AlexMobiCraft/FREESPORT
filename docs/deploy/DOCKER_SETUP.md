@@ -79,7 +79,7 @@ curl -I https://freesport.ru
 sudo su - freesport
 
 # Перейдите в директорию проекта
-cd /opt/freesport
+cd /freesport
 
 # Отредактируйте файл окружения
 nano .env.prod
@@ -139,7 +139,7 @@ NEW_KEY=$(openssl rand -base64 50)
 echo "Новый ключ: $NEW_KEY"
 
 # Затем замените в файле
-sed -i "s/SECRET_KEY=.*/SECRET_KEY=$NEW_KEY/" /opt/freesport/.env.prod
+sed -i "s/SECRET_KEY=.*/SECRET_KEY=$NEW_KEY/" /freesport/.env.prod
 ```
 
 4. **Или вручную замените в редакторе nano:**

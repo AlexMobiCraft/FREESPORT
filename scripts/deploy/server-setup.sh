@@ -16,7 +16,7 @@ NC='\033[0m' # No Color
 REPO_URL="https://github.com/AlexMobiCraft/FREESPORT.git"
 DOMAIN="freesport.ru"
 SERVER_IP="5.35.124.149"
-PROJECT_DIR="/opt/freesport"
+PROJECT_DIR="/freesport"
 
 # Функция вывода сообщений
 log_info() {
@@ -123,7 +123,7 @@ create_deploy_user() {
     
     if ! id "freesport" &>/dev/null; then
         # Создаем системного пользователя с домашней директорией
-        adduser --system --group --home /opt/freesport --shell /bin/bash freesport
+        adduser --system --group --home /freesport --shell /bin/bash freesport
         
         # Добавляем в группы
         usermod -aG sudo,docker freesport
@@ -137,17 +137,17 @@ create_deploy_user() {
     fi
     
     # Убеждаемся, что домашняя директория существует и имеет правильные права
-    if [ ! -d "/opt/freesport" ]; then
-        mkdir -p /opt/freesport
+    if [ ! -d "/freesport" ]; then
+        mkdir -p /freesport
     fi
     
-    chown freesport:freesport /opt/freesport
+    chown freesport:freesport /freesport
     
     # Создаем необходимые директории
-    mkdir -p /opt/freesport/{data,logs,backups}
-    chown -R freesport:freesport /opt/freesport
+    mkdir -p /freesport/{data,logs,backups}
+    chown -R freesport:freesport /freesport
     
-    log_info "Директория проекта настроена: /opt/freesport"
+    log_info "Директория проекта настроена: /freesport"
 }
 
 # Настройка файрвола

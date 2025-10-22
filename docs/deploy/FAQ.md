@@ -11,7 +11,7 @@
 sudo su - freesport
 
 # Перейдите в директорию проекта
-cd /opt/freesport
+cd /freesport
 
 # Проверка статуса всех сервисов
 ./scripts/deploy/deploy.sh status
@@ -35,6 +35,7 @@ curl -I https://freesport.ru
 **Если возникают ошибки при переключении на пользователя freesport:**
 
 1. **Ошибка `sudo: unable to resolve host freesport-server`:**
+
 ```bash
 # Исправление проблемы с хостом
 sudo hostnamectl set-hostname $(hostname)
@@ -45,6 +46,7 @@ hostname
 ```
 
 2. **Ошибка `su: user freesport does not exist`:**
+
 ```bash
 # Проверка существования пользователя
 id freesport || echo "Пользователь freesport не существует"
@@ -59,6 +61,7 @@ sudo chown freesport:freesport /opt/freesport
 ```
 
 3. **Альтернативный вариант - работа под текущим пользователем:**
+
 ```bash
 # Клонирование проекта в домашнюю директорию
 git clone https://github.com/AlexMobiCraft/FREESPORT.git ~/freesport
@@ -104,6 +107,7 @@ nano .env.prod
 **Как сгенерировать новый SECRET_KEY:**
 
 1. **Способ 1: Использование OpenSSL (рекомендуется)**
+
 ```bash
 # Генерация случайного ключа длиной 50 символов
 openssl rand -base64 50
@@ -113,48 +117,56 @@ openssl rand -base64 32
 ```
 
 2. **Способ 2: Использование Python**
+
 ```bash
 # Генерация с помощью Python
 python3 -c 'import secrets; print(secrets.token_urlsafe(50))'
 ```
 
-3. **Способ 3: Онлайн-генератор (для разработки)**
+1. **Способ 3: Онлайн-генератор (для разработки)**
+
 - Перейдите на https://djecrety.ir/
 - Сгенерируйте новый ключ
 
 **Процесс замены SECRET_KEY в .env.prod:**
 
 1. **Откройте файл .env.prod:**
+
 ```bash
 nano /opt/freesport/.env.prod
 ```
 
-2. **Найдите строку с SECRET_KEY:**
-```
+1. **Найдите строку с SECRET_KEY:**
+
+```text
 SECRET_KEY=your-super-secret-key-change-this-in-production
 ```
 
-3. **Замените значение на сгенерированный ключ:**
+1. **Замените значение на сгенерированный ключ:**
+
 ```bash
 # Сначала сгенерируйте ключ
 NEW_KEY=$(openssl rand -base64 50)
 echo "Новый ключ: $NEW_KEY"
 
 # Затем замените в файле
-sed -i "s/SECRET_KEY=.*/SECRET_KEY=$NEW_KEY/" /opt/freesport/.env.prod
+sed -i "s/SECRET_KEY=.*/SECRET_KEY=$NEW_KEY/" /freesport/.env.prod
 ```
 
 4. **Или вручную замените в редакторе nano:**
+
 - Нажмите Ctrl+X для выхода
 - Нажмите Y для сохранения изменений
 - Нажмите Enter для подтверждения имени файла
 
-5. **Проверьте изменения:**
+1. **Проверьте изменения:**
+
 ```bash
 grep SECRET_KEY /opt/freesport/.env.prod
 ```
 
 **Важные замечания о SECRET_KEY:**
+
 - Длина ключа должна быть не менее 32 случайных символов
 - Используйте только уникальный ключ для каждого проекта
 - Никогда не используйте ключ из примеров или документации
@@ -162,6 +174,7 @@ grep SECRET_KEY /opt/freesport/.env.prod
 - Регенерируйте ключ при подозрении на компрометацию
 
 **После изменения SECRET_KEY:**
+
 ```bash
 # Перезапустите сервисы для применения изменений
 docker compose -f docker/docker-compose.prod.yml down
@@ -198,6 +211,7 @@ sudo journalctl -u docker -f
 ```
 
 **Распространенные проблемы:**
+
 1. **Недостаточно прав** - выполняйте скрипт с `sudo`
 2. **Проблемы с сетью** - проверьте доступ к репозиторию Docker и GitHub
 3. **Недостаточно места на диске** - очистите временные файлы
@@ -408,6 +422,7 @@ sudo reboot
 ### Q: Где найти дополнительную документацию?
 
 **A:** Обратитесь к следующим ресурсам:
+
 - [Основная документация по развертыванию](README.md)
 - [Подробная инструкция по установке](docker-server-setup.md)
 - [Проверка работоспособности](health-check.md)

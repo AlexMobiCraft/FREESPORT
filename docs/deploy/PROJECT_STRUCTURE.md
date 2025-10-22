@@ -6,7 +6,7 @@
 
 ## Новая структура проекта
 
-```
+```text
 FREESPORT/
 ├── docker/                          # Docker конфигурации
 │   ├── docker-compose.yml           # Локальная разработка
@@ -44,33 +44,36 @@ FREESPORT/
 ## Изменения в структуре
 
 ### 1. Скрипты развертывания
-- **Раньше**: `scripts/`, `scripts/install-docker.sh`, `scripts/deploy.sh`, `scripts/server-setup.sh`
-- **Теперь**: `scripts/deploy/`, `scripts/deploy/install-docker.sh`, `scripts/deploy/deploy.sh`, `scripts/deploy/server-setup.sh`
+
+- `scripts/deploy/`, `scripts/deploy/install-docker.sh`, `scripts/deploy/deploy.sh`, `scripts/deploy/server-setup.sh`
 
 ### 2. Docker конфигурации
-- **Раньше**: `docker-compose.yml`, `docker-compose.prod.yml`, `docker-compose.test.yml` в корне
-- **Теперь**: `docker/docker-compose.yml`, `docker/docker-compose.prod.yml`, `docker/docker-compose.test.yml`
+
+- `docker/docker-compose.yml`, `docker/docker-compose.prod.yml`, `docker/docker-compose.test.yml`
 
 ### 3. Документация по развертыванию
-- **Раньше**: `docs/docker-server-setup.md`, `docs/quick-deployment.md`, `docs/health-check.md` в корне docs
-- **Теперь**: `docs/deploy/docker-server-setup.md`, `docs/deploy/quick-deployment.md`, `docs/deploy/health-check.md`
+
+- `docs/deploy/docker-server-setup.md`, `docs/deploy/quick-deployment.md`, `docs/deploy/health-check.md`
 
 ### 4. Краткая инструкция по Docker
-- **Раньше**: `DOCKER_SETUP.md` в корне
-- **Теперь**: `docs/deploy/DOCKER_SETUP.md`
+
+- `docs/deploy/DOCKER_SETUP.md`
 
 ## Обновленные пути в скриптах
 
 Все скрипты были обновлены для использования новых путей:
 
 ### deploy.sh
+
 - `docker compose -f docker-compose.prod.yml` → `docker compose -f docker/docker-compose.prod.yml`
 
 ### health-check.sh
+
 - `docker compose -f docker-compose.prod.yml` → `docker compose -f docker/docker-compose.prod.yml`
 - Проверка наличия файла: `docker-compose.prod.yml` → `docker/docker-compose.prod.yml`
 
 ### server-setup.sh
+
 - `./scripts/deploy.sh` → `./scripts/deploy/deploy.sh`
 - `docker compose -f docker-compose.prod.yml` → `docker compose -f docker/docker-compose.prod.yml`
 
@@ -85,6 +88,7 @@ FREESPORT/
 ## Использование скриптов
 
 ### Быстрое развертывание
+
 ```bash
 # Полная автоматическая настройка сервера
 curl -fsSL https://raw.githubusercontent.com/AlexMobiCraft/FREESPORT/main/scripts/deploy/server-setup.sh | sudo bash
@@ -103,6 +107,11 @@ cp .env.prod.example .env.prod
 nano .env.prod  # Изменить пароли!
 ./scripts/deploy/deploy.sh init
 ```
+
+### Директория проекта
+- **Расположение**: `/freesport` (в корне файловой системы)
+- **Пользователь**: `freesport`
+- **Права доступа**: `freesport:freesport`
 
 ### Управление платформой
 ```bash

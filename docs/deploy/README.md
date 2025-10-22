@@ -218,7 +218,7 @@ echo "0 3 * * * /path/to/freesport/scripts/deploy/deploy.sh update" | crontab -
 sudo su - freesport
 
 # Перейдите в директорию проекта
-cd /opt/freesport
+cd /freesport
 
 # Проверка статуса всех сервисов
 ./scripts/deploy/deploy.sh status
@@ -248,7 +248,7 @@ curl -I https://freesport.ru
 sudo su - freesport
 
 # Перейдите в директорию проекта
-cd /opt/freesport
+cd /freesport
 
 # Отредактируйте файл окружения
 nano .env.prod
