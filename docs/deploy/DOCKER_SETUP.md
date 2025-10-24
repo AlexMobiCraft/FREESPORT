@@ -117,22 +117,25 @@ python3 -c 'import secrets; print(secrets.token_urlsafe(50))'
 
 3. **Способ 3: Онлайн-генератор (для разработки)**
 
-- Перейдите на https://djecrety.ir/
+- Перейдите на <https://djecrety.ir/>
 - Сгенерируйте новый ключ
 
 **Процесс замены SECRET_KEY в .env.prod:**
 
 1. **Откройте файл .env.prod:**
+
 ```bash
-nano /opt/freesport/.env.prod
+nano /freesport/.env.prod
 ```
 
 1. **Найдите строку с SECRET_KEY:**
-```
+
+```text
 SECRET_KEY=your-super-secret-key-change-this-in-production
 ```
 
 1. **Замените значение на сгенерированный ключ:**
+
 ```bash
 # Сначала сгенерируйте ключ
 NEW_KEY=$(openssl rand -base64 50)
@@ -143,13 +146,15 @@ sed -i "s/SECRET_KEY=.*/SECRET_KEY=$NEW_KEY/" /freesport/.env.prod
 ```
 
 4. **Или вручную замените в редакторе nano:**
+
 - Нажмите Ctrl+X для выхода
 - Нажмите Y для сохранения изменений
 - Нажмите Enter для подтверждения имени файла
 
-5. **Проверьте изменения:**
+1. **Проверьте изменения:**
+2. 
 ```bash
-grep SECRET_KEY /opt/freesport/.env.prod
+grep SECRET_KEY .env.prod
 ```
 
 **Важные замечания о SECRET_KEY:**
