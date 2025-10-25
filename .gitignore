@@ -15,12 +15,12 @@
 .idea/
 *.swp
 *.swo
-.gemini
-.windsurf
-.bmad-core
-.bmad-infrastructure-devops
-.kilocodemodes
-.roomodes
+#.gemini
+#.windsurf
+#.bmad-core
+#.bmad-infrastructure-devops
+#.kilocodemodes
+#.roomodes
 .web-bundles/
 *~
 
