@@ -8,7 +8,7 @@
 
 ```bash
 # Проверка статуса всех контейнеров
-docker compose -f docker-compose.prod.yml ps
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml ps
 
 # Ожидаемый результат: все контейнеры в статусе "Up" или "running"
 ```
@@ -17,12 +17,12 @@ docker compose -f docker-compose.prod.yml ps
 
 ```bash
 # Просмотр логов всех сервисов
-docker compose -f docker-compose.prod.yml logs
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml logs
 
 # Проверка логов конкретного сервиса
-docker compose -f docker-compose.prod.yml logs backend
-docker compose -f docker-compose.prod.yml logs db
-docker compose -f docker-compose.prod.yml logs nginx
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml logs backend
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml logs db
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml logs nginx
 ```
 
 ## Проверка компонентов
@@ -31,42 +31,42 @@ docker compose -f docker-compose.prod.yml logs nginx
 
 ```bash
 # Проверка подключения к базе данных
-docker compose -f docker-compose.prod.yml exec db pg_isready -U postgres
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec db pg_isready -U postgres
 
 # Проверка списка таблиц
-docker compose -f docker-compose.prod.yml exec db psql -U postgres -d freesport -c "\dt"
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec db psql -U postgres -d freesport -c "\dt"
 
 # Проверка соединения из backend
-docker compose -f docker-compose.prod.yml exec backend python manage.py dbshell --command "SELECT version();"
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec backend python manage.py dbshell --command "SELECT version();"
 ```
 
 ### 2. Redis
 
 ```bash
 # Проверка подключения к Redis
-docker compose -f docker-compose.prod.yml exec redis redis-cli ping
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec redis redis-cli ping
 
 # Проверка аутентификации
-docker compose -f docker-compose.prod.yml exec redis redis-cli -a $REDIS_PASSWORD ping
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec redis redis-cli -a $REDIS_PASSWORD ping
 
 # Проверка информации о сервере
-docker compose -f docker-compose.prod.yml exec redis redis-cli info server
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec redis redis-cli info server
 ```
 
 ### 3. Django Backend
 
 ```bash
 # Проверка здоровья Django
-docker compose -f docker-compose.prod.yml exec backend python manage.py check --deploy
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec backend python manage.py check --deploy
 
 # Проверка доступности API
 curl -f -s http://localhost:8001/api/v1/health/ || echo "API недоступен"
 
 # Проверка миграций
-docker compose -f docker-compose.prod.yml exec backend python manage.py showmigrations
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec backend python manage.py showmigrations
 
 # Проверка сбора статических файлов
-docker compose -f docker-compose.prod.yml exec backend python manage.py findstatic --verbosity 2 admin/css/base.css
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec backend python manage.py findstatic --verbosity 2 admin/css/base.css
 ```
 
 ### 4. Next.js Frontend
@@ -76,14 +76,14 @@ docker compose -f docker-compose.prod.yml exec backend python manage.py findstat
 curl -f -s http://localhost:3000/api/health || echo "Frontend недоступен"
 
 # Проверка логов сборки
-docker compose -f docker-compose.prod.yml logs frontend
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml logs frontend
 ```
 
 ### 5. Nginx
 
 ```bash
 # Проверка конфигурации Nginx
-docker compose -f docker-compose.prod.yml exec nginx nginx -t
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec nginx nginx -t
 
 # Проверка доступности сайта через Nginx
 curl -I http://localhost/
@@ -96,20 +96,20 @@ curl -I https://freesport.ru/
 
 ```bash
 # Проверка статуса Celery worker
-docker compose -f docker-compose.prod.yml exec celery celery -A freesport inspect active
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec celery celery -A freesport inspect active
 
 # Проверка доступности очередей
-docker compose -f docker-compose.prod.yml exec celery celery -A freesport inspect reserved
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec celery celery -A freesport inspect reserved
 ```
 
 ### 7. Celery Beat
 
 ```bash
 # Проверка статуса Celery beat
-docker compose -f docker-compose.prod.yml logs celery-beat
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml logs celery-beat
 
 # Проверка расписания задач
-docker compose -f docker-compose.prod.yml exec celery celery -A freesport beat schedule
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec celery celery -A freesport beat schedule
 ```
 
 ## Функциональное тестирование
@@ -133,14 +133,14 @@ curl -X POST http://localhost:8001/api/v1/auth/login/ \
 
 ```bash
 # Создание тестовой записи
-docker compose -f docker-compose.prod.yml exec backend python manage.py shell << EOF
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec backend python manage.py shell << EOF
 from apps.users.models import User
 User.objects.create_user('testuser', 'test@example.com', 'testpass')
 print("Test user created")
 EOF
 
 # Проверка записи
-docker compose -f docker-compose.prod.yml exec backend python manage.py shell << EOF
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec backend python manage.py shell << EOF
 from apps.users.models import User
 print(f"Users count: {User.objects.count()}")
 EOF
@@ -150,7 +150,7 @@ EOF
 
 ```bash
 # Проверка загрузки медиа файлов
-docker compose -f docker-compose.prod.yml exec backend python manage.py shell << EOF
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec backend python manage.py shell << EOF
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.files.storage import default_storage
 
@@ -248,39 +248,39 @@ fi
 
 ```bash
 # Проверка логов контейнера
-docker compose -f docker-compose.prod.yml logs [service_name]
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml logs [service_name]
 
 # Проверка конфигурации
-docker compose -f docker-compose.prod.yml config
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml config
 
 # Пересборка образа
-docker compose -f docker-compose.prod.yml build --no-cache [service_name]
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml build --no-cache [service_name]
 ```
 
 ### Проблема: Нет подключения к базе данных
 
 ```bash
 # Проверка статуса контейнера БД
-docker compose -f docker-compose.prod.yml ps db
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml ps db
 
 # Проверка настроек подключения
-docker compose -f docker-compose.prod.yml exec backend python manage.py dbshell --command "SELECT version();"
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec backend python manage.py dbshell --command "SELECT version();"
 
 # Перезапуск контейнера БД
-docker compose -f docker-compose.prod.yml restart db
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml restart db
 ```
 
 ### Проблема: Недоступен API
 
 ```bash
 # Проверка работы Django
-docker compose -f docker-compose.prod.yml exec backend python manage.py check --deploy
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec backend python manage.py check --deploy
 
 # Проверка портов
-docker compose -f docker-compose.prod.yml port backend 8000
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml port backend 8000
 
 # Проверка Nginx конфигурации
-docker compose -f docker-compose.prod.yml exec nginx nginx -t
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec nginx nginx -t
 ```
 
 ### Проблема: Недостаточно ресурсов

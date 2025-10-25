@@ -37,6 +37,8 @@ cp .env.prod.example .env.prod
 nano .env.prod
 ```
 
+> **Важно:** храните `.env.prod` в корне репозитория и запускайте `docker compose` с флагом `--env-file .env.prod` (при выполнении команд из корня). Если переходите в каталог `docker/`, используйте `--env-file ../.env.prod`.
+
 **Обязательно измените в файле `.env.prod`:**
 - `SECRET_KEY` - сгенерируйте новый ключ
 - `DB_PASSWORD` - установите надежный пароль
@@ -62,19 +64,19 @@ mkdir -p docker/nginx/conf.d
 chmod +x scripts/deploy/*.sh
 
 # Сборка и запуск контейнеров
-docker compose -f docker-compose.prod.yml up -d --build
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml up -d --build
 
 # Выполнение миграций
-docker compose -f docker-compose.prod.yml exec backend python manage.py migrate
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec backend python manage.py migrate
 
 # Создание суперпользователя
-docker compose -f docker-compose.prod.yml exec backend python manage.py createsuperuser
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec backend python manage.py createsuperuser
 
 # Сбор статических файлов
-docker compose -f docker-compose.prod.yml exec backend python manage.py collectstatic --noinput
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec backend python manage.py collectstatic --noinput
 
 # Проверка статуса
-docker compose -f docker-compose.prod.yml ps
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml ps
 ```
 
 ## Шаг 5: Настройка SSL с Let's Encrypt
@@ -100,7 +102,7 @@ curl -I https://freesport.ru
 curl https://freesport.ru/api/v1/health/
 
 # Просмотр логов
-docker compose -f docker-compose.prod.yml logs -f
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml logs -f
 ```
 
 ## Управление развертыванием
@@ -111,20 +113,20 @@ docker compose -f docker-compose.prod.yml logs -f
 git pull origin main
 
 # Пересборка и перезапуск
-docker compose -f docker-compose.prod.yml down
-docker compose -f docker-compose.prod.yml up -d --build
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml down
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml up -d --build
 
 # Выполнение миграций
-docker compose -f docker-compose.prod.yml exec backend python manage.py migrate
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec backend python manage.py migrate
 
 # Сбор статических файлов
-docker compose -f docker-compose.prod.yml exec backend python manage.py collectstatic --noinput
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec backend python manage.py collectstatic --noinput
 ```
 
 ### Резервное копирование
 ```bash
 # Создание бэкапа базы данных
-docker compose -f docker-compose.prod.yml exec -T db pg_dump -U postgres freesport > backup_$(date +%Y%m%d).sql
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec -T db pg_dump -U postgres freesport > backup_$(date +%Y%m%d).sql
 
 # Создание бэкапа медиа файлов
 tar -czf media_backup_$(date +%Y%m%d).tar.gz data/
@@ -133,9 +135,9 @@ tar -czf media_backup_$(date +%Y%m%d).tar.gz data/
 ### Восстановление из бэкапа
 ```bash
 # Восстановление базы данных
-docker compose -f docker-compose.prod.yml exec -T db psql -U postgres -c "DROP DATABASE IF EXISTS freesport;"
-docker compose -f docker-compose.prod.yml exec -T db psql -U postgres -c "CREATE DATABASE freesport;"
-docker compose -f docker-compose.prod.yml exec -T db psql -U postgres freesport < backup_20231201.sql
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec -T db psql -U postgres -c "DROP DATABASE IF EXISTS freesport;"
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec -T db psql -U postgres -c "CREATE DATABASE freesport;"
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec -T db psql -U postgres freesport < backup_20231201.sql
 
 # Восстановление медиа файлов
 tar -xzf media_backup_20231201.tar.gz
@@ -145,25 +147,25 @@ tar -xzf media_backup_20231201.tar.gz
 
 ```bash
 # Просмотр статуса контейнеров
-docker compose -f docker-compose.prod.yml ps
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml ps
 
 # Просмотр логов
-docker compose -f docker-compose.prod.yml logs -f [service_name]
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml logs -f [service_name]
 
 # Перезапуск сервиса
-docker compose -f docker-compose.prod.yml restart [service_name]
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml restart [service_name]
 
 # Вход в контейнер
-docker compose -f docker-compose.prod.yml exec backend bash
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec backend bash
 
 # Подключение к базе данных
-docker compose -f docker-compose.prod.yml exec db psql -U postgres -d freesport
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec db psql -U postgres -d freesport
 
 # Остановка всех сервисов
-docker compose -f docker-compose.prod.yml down
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml down
 
 # Полная очистка
-docker compose -f docker-compose.prod.yml down -v --remove-orphans
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml down -v --remove-orphans
 docker system prune -a
 ```
 
@@ -172,28 +174,28 @@ docker system prune -a
 ### Проблема: Контейнеры не запускаются
 ```bash
 # Проверка логов
-docker compose -f docker-compose.prod.yml logs
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml logs
 
 # Проверка конфигурации
-docker compose -f docker-compose.prod.yml config
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml config
 ```
 
 ### Проблема: Нет доступа к сайту
 ```bash
 # Проверка работы Nginx
-docker compose -f docker-compose.prod.yml exec nginx nginx -t
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec nginx nginx -t
 
 # Перезапуск Nginx
-docker compose -f docker-compose.prod.yml restart nginx
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml restart nginx
 ```
 
 ### Проблема: Ошибки базы данных
 ```bash
 # Проверка подключения к БД
-docker compose -f docker-compose.prod.yml exec backend python manage.py dbshell
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec backend python manage.py dbshell
 
 # Повторное выполнение миграций
-docker compose -f docker-compose.prod.yml exec backend python manage.py migrate
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec backend python manage.py migrate
 ```
 
 ## Мониторинг

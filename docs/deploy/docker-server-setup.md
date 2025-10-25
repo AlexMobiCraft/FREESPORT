@@ -184,9 +184,14 @@ ls -la
 # Копирование примера файла окружения
 cp .env.prod.example .env.prod
 
-# Редактирование файлов окружения
+# Редактирование и заполнение переменных окружения
 nano .env.prod
+
+# Проверка заполнения критичных переменных (например, REDIS_PASSWORD)
+grep -E "^(SECRET_KEY|DB_PASSWORD|REDIS_PASSWORD)=" .env.prod
 ```
+
+> **Важно:** не переименовывайте `.env.prod` в `.env`. Храните этот файл в корне репозитория (рядом с `.env.prod.example`) и запускайте `docker compose` с флагом `--env-file ../.env.prod`, если команда выполняется из каталога `docker/`, либо используйте относительный путь `docker/docker-compose.prod.yml`, если команды выполняются из корня проекта.
 
 ### 5.3 Создание директорий для данных
 
@@ -194,6 +199,7 @@ nano .env.prod
 # Создание необходимых директорий
 mkdir -p data/import_1c
 mkdir -p logs
+mkdir -p backend/static
 ```
 
 ## Шаг 6: Развертывание платформы
@@ -202,49 +208,141 @@ mkdir -p logs
 
 ```bash
 # Сборка Docker образов
-docker compose -f docker-compose.prod.yml build
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml build
+
+# Предварительная проверка итоговой конфигурации (опционально, но рекомендуется)
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml config
 
 # Запуск всех сервисов
-docker compose -f docker-compose.prod.yml up -d
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml up -d
 
 # Проверка статуса контейнеров
-docker compose -f docker-compose.prod.yml ps
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml ps
 ```
 
 ### 6.2 Выполнение миграций базы данных
 
 ```bash
 # Выполнение миграций
-docker compose -f docker-compose.prod.yml exec backend python manage.py migrate
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec backend python manage.py migrate
 
 # Создание суперпользователя
-docker compose -f docker-compose.prod.yml exec backend python manage.py createsuperuser
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec backend python manage.py createsuperuser
 
 # Сбор статических файлов
-docker compose -f docker-compose.prod.yml exec backend python manage.py collectstatic --noinput
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec backend python manage.py collectstatic --noinput
 ```
 
 ### 6.3 Проверка работоспособности
 
 ```bash
 # Проверка логов
-docker compose -f docker-compose.prod.yml logs -f
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml logs -f
 
-# Проверка доступности сервисов
-curl http://localhost:8001/api/v1/health/
+# Проверка доступности сервисов через Nginx
+curl -I http://localhost/api/v1/health/
 curl http://localhost:3000/
+
+# Проверка API напрямую из контейнера backend
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec backend \
+  curl http://127.0.0.1:8000/api/v1/health/
+
+# Проверка состояния Celery worker
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml logs celery
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec celery celery -A freesport inspect active
+
+# Проверка состояния Celery beat
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml logs celery-beat
 ```
 
 ## Шаг 7: Настройка Production окружения
 
 ### 7.1 Настройка SSL сертификатов (Let's Encrypt)
 
-```bash
-# Установка Certbot
-sudo apt install -y certbot python3-certbot-nginx
+#### Подготовка окружения
 
-# Получение SSL сертификата
-sudo certbot --nginx -d freesport.ru -d www.freesport.ru
+```bash
+# Установка необходимых пакетов
+sudo apt update
+sudo apt install -y certbot
+
+# Разрешаем внешние подключения к 80/443 (если включён ufw)
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+
+# Каталог, куда будут копироваться сертификаты для контейнера nginx
+mkdir -p docker/ssl
+```
+
+#### Получение сертификата (standalone режим)
+
+> контейнер nginx должен быть остановлен, чтобы certbot занял порт 80
+
+```bash
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml stop nginx
+
+sudo certbot certonly --standalone \
+  -d freesport.ru -d www.freesport.ru \
+  --agree-tos --no-eff-email \
+  -m admin@freesport.ru
+```
+
+Сертификаты появятся в каталоге `/etc/letsencrypt/live/freesport.ru/`.
+
+#### Копирование сертификатов в проект
+
+```bash
+sudo cp /etc/letsencrypt/live/freesport.ru/fullchain.pem docker/ssl/fullchain.pem
+sudo cp /etc/letsencrypt/live/freesport.ru/privkey.pem docker/ssl/privkey.pem
+sudo chmod 600 docker/ssl/privkey.pem
+```
+
+#### Обновление конфигурации nginx
+
+Убедитесь, что в `docker/nginx/conf.d/default.conf` прописаны HTTPS и HTTP-блоки:
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name freesport.ru www.freesport.ru;
+
+    ssl_certificate /etc/nginx/ssl/fullchain.pem;
+    ssl_certificate_key /etc/nginx/ssl/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers EECDH+AESGCM:EECDH+CHACHA20;
+
+    # далее дублируем location из HTTP-блока
+}
+
+server {
+    listen 80;
+    server_name freesport.ru www.freesport.ru;
+    return 301 https://$host$request_uri;
+}
+```
+
+#### Перезапуск nginx и проверка
+
+```bash
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml up -d nginx
+
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec nginx nginx -t
+
+curl -I https://freesport.ru/
+curl -k -I https://localhost/api/v1/health/
+```
+
+#### Продление сертификата
+
+Certbot создаёт systemd timer, но после продления нужно заново скопировать файлы и перезапустить nginx:
+
+```bash
+sudo certbot renew --dry-run
+
+sudo cp /etc/letsencrypt/live/freesport.ru/fullchain.pem docker/ssl/fullchain.pem
+sudo cp /etc/letsencrypt/live/freesport.ru/privkey.pem docker/ssl/privkey.pem
+
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml restart nginx
 ```
 
 ### 7.2 Настройка автоматического обновления

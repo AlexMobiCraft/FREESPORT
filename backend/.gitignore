@@ -9,7 +9,8 @@
 # !migrations/__init__.py
 
 # Django static files
-/static/
+/static/*
+!/static/.gitkeep
 /staticfiles/
 /media/
 
