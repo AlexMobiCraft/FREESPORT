@@ -143,47 +143,40 @@ class ImportSessionAdmin(admin.ModelAdmin):
     """Admin для модели ImportSession"""
 
     list_display = (
-        "session_id",
-        "file_type",
+        "id",
+        "import_type",
         "status",
-        "total_records",
-        "successful_records",
-        "failed_records",
         "started_at",
-        "completed_at",
+        "finished_at",
     )
-    list_filter = ("status", "file_type", "started_at")
-    search_fields = ("session_id", "file_path")
+    list_filter = ("status", "import_type", "started_at")
+    search_fields = ("id", "error_message")
     readonly_fields = (
-        "session_id",
+        "id",
         "started_at",
-        "completed_at",
-        "total_records",
-        "successful_records",
-        "failed_records",
+        "finished_at",
+        "report_details",
     )
     fieldsets = (
         (
             "Основная информация",
             {
-                "fields": ("session_id", "file_type", "file_path", "status"),
+                "fields": ("id", "import_type", "status"),
             },
         ),
         (
-            "Статистика",
+            "Детали",
             {
                 "fields": (
-                    "total_records",
-                    "successful_records",
-                    "failed_records",
-                    "error_log",
+                    "report_details",
+                    "error_message",
                 ),
             },
         ),
         (
             "Временные метки",
             {
-                "fields": ("started_at", "completed_at"),
+                "fields": ("started_at", "finished_at"),
             },
         ),
     )

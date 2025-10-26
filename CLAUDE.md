@@ -94,11 +94,23 @@ FREESPORT \- API-First E-commerce платформа для B2B/B2C продаж
 
 Рекомендуемый способ запуска проекта \- через Docker Compose.
 
-\# Сборка и запуск всех сервисов в фоновом режиме  
-docker-compose up \-d \--build
+**ВАЖНО:** Все файлы docker-compose*.yml находятся в директории `docker/`:
+- `docker/docker-compose.yml` - основная конфигурация для разработки
+- `docker/docker-compose.test.yml` - конфигурация для тестирования
+- `docker/docker-compose.prod.yml` - конфигурация для production
+- `docker/docker-compose-temp.yml` - временная конфигурация
 
-\# Остановка и удаление всех сервисов  
-docker-compose down
+\# Сборка и запуск всех сервисов в фоновом режиме
+cd docker && docker-compose up \-d \--build
+
+\# ИЛИ из корневой директории:
+docker-compose -f docker/docker-compose.yml up -d --build
+
+\# Остановка и удаление всех сервисов
+cd docker && docker-compose down
+
+\# ИЛИ из корневой директории:
+docker-compose -f docker/docker-compose.yml down
 
 Будут запущены следующие сервисы:
 
@@ -191,7 +203,7 @@ npm run dev
 
 \# Тестирование в Docker (ЕДИНСТВЕННЫЙ поддерживаемый способ)
 make test                    \# Все тесты с PostgreSQL + Redis
-make test-unit               \# Только unit-тесты  
+make test-unit               \# Только unit-тесты
 make test-integration        \# Только интеграционные тесты
 make test-fast               \# Без пересборки образов
 
@@ -199,6 +211,47 @@ make test-fast               \# Без пересборки образов
 \# Локальное тестирование через pytest требует настроенного PostgreSQL
 
 **Требования к покрытию:** Общее \>= 70%, критические модули \>= 90%.
+
+### **Реальные данные из 1С для тестирования**
+
+**КРИТИЧНО:** Для тестирования интеграции с 1С используются ТОЛЬКО реальные данные из production системы 1С.
+
+**Расположение реальных данных:**
+```
+data/import_1c/
+├── contragents/           # XML файлы с реальными контрагентами из 1С (7 файлов)
+│   ├── contragents_1_564750cd-8a00-4926-a2a4-7a1c995605c0.xml
+│   ├── contragents_2_94039c4f-dd9d-48a4-abfa-9ae47b8c2cd1.xml
+│   └── ...
+├── goods/                 # XML файлы с реальными товарами из 1С
+│   ├── goods_1_1_27c08306-a0aa-453b-b436-f9b494ceb889.xml
+│   └── import_files/      # Изображения товаров
+├── offers/                # Предложения
+├── prices/                # Цены
+├── rests/                 # Остатки
+└── [другие типы]          # units, storages, priceLists и т.д.
+```
+
+**Правила использования реальных данных:**
+
+- ❌ **НЕ создавайте** синтетические/тестовые XML данные для тестов импорта из 1С
+- ✅ **ВСЕГДА используйте** файлы из `data/import_1c/` для интеграционных тестов
+- ✅ **Эти данные содержат** реальную структуру CommerceML 3.1 из production
+- ✅ **Включены edge cases:** клиенты без email, разные типы организаций (ООО, ИП, физ.лица), различные форматы данных
+- ✅ **Полнота данных:** контрагенты с полными реквизитами, банковскими счетами, адресами
+
+**Примеры команд для тестирования с реальными данными:**
+
+```bash
+# Импорт контрагентов из реального файла 1С
+cd docker && docker-compose exec backend python manage.py import_customers_from_1c \
+  --file=/app/data/import_1c/contragents/contragents_1_564750cd-8a00-4926-a2a4-7a1c995605c0.xml
+
+# Dry-run для проверки без сохранения
+cd docker && docker-compose exec backend python manage.py import_customers_from_1c \
+  --file=/app/data/import_1c/contragents/contragents_1_564750cd-8a00-4926-a2a4-7a1c995605c0.xml \
+  --dry-run
+```
 
 ### **Исправления Docker конфигурации (обновлено 23.08.2025)**
 
