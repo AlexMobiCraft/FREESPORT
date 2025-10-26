@@ -12,7 +12,8 @@
       "mcp__firecrawl__firecrawl_search",
       "Bash(curl:*)",
       "Bash(cat:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(python -m pytest:*)"
     ],
     "deny": [],
     "ask": [],
