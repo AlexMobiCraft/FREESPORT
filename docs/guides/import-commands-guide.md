@@ -7,6 +7,7 @@
 ## Содержание
 
 - [Команда import_catalog_from_1c](#команда-import_catalog_from_1c)
+- [Команда load_product_stocks](#команда-load_product_stocks)
 - [Команда backup_db](#команда-backup_db)
 - [Команда restore_db](#команда-restore_db)
 - [Команда rotate_backups](#команда-rotate_backups)
@@ -133,6 +134,51 @@ python manage.py import_catalog_from_1c \
 - ✅ Защита от XML injection (defusedxml)
 - ✅ Валидация путей (path traversal prevention)
 - ✅ Audit logging всех операций
+
+---
+
+## Команда load_product_stocks
+
+### Описание
+
+Обновляет только остатки товаров из файла `rests.xml`. Эта команда является легковесной альтернативой `import_catalog_from_1c --file-type=rests` и рекомендуется для частых запусков (например, через cron).
+
+### Синтаксис
+
+```bash
+python manage.py load_product_stocks --file=<path> [OPTIONS]
+```
+
+### Обязательные параметры
+
+- `--file` - Путь к файлу `rests.xml` с данными об остатках.
+
+### Опциональные параметры
+
+| Параметр | Тип | По умолчанию | Описание |
+|----------|-----|--------------|----------|
+| `--batch-size` | integer | 1000 | Размер пакета для `bulk_update` операций |
+| `--dry-run` | flag | false | Тестовый запуск без записи в БД |
+
+### Примеры использования
+
+#### Базовое обновление остатков
+
+```bash
+python manage.py load_product_stocks --file=/var/data/1c/export/rests.xml
+```
+
+#### Тестовый запуск (dry-run)
+
+```bash
+python manage.py load_product_stocks --file=/var/data/1c/export/rests.xml --dry-run
+```
+
+#### Регулярное обновление через cron (каждые 15 минут)
+
+```bash
+*/15 * * * * cd /app && python manage.py load_product_stocks --file=/var/data/1c/export/rests.xml >> /var/log/stocks_import.log 2>&1
+```
 
 ---
 
