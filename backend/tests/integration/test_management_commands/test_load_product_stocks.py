@@ -61,7 +61,7 @@ class TestImportStocksIntegration:
     @pytest.fixture
     def test_products(self) -> list[Product]:
         """Создание тестовых товаров"""
-        from apps.products.tests.factories import ProductFactory
+        from apps.products.factories import ProductFactory
 
         products = [
             ProductFactory.create(
@@ -206,12 +206,13 @@ class TestImportStocksIntegration:
         call_command("load_product_stocks", file=str(xml_file))
 
         session = ImportSession.objects.latest("started_at")
-        # Первая запись без ID, вторая с отрицательным количеством
-        assert session.report_details["skipped_count"] == 2
+        # Первая запись без ID пропускается парсером (не попадает в данные)
+        # Вторая запись с отрицательным количеством пропускается командой
+        assert session.report_details["skipped_count"] == 1
 
     def test_batch_processing_integration(self, tmp_path: Path) -> None:
         """Тест batch processing с реальными данными"""
-        from apps.products.tests.factories import ProductFactory
+        from apps.products.factories import ProductFactory
 
         # Создаем 50 товаров для теста
         products = ProductFactory.create_batch(50, stock_quantity=0)

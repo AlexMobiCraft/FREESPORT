@@ -213,14 +213,14 @@ class TestRealCatalogImport:
             products_with_prices.exists()
         ), "Должны быть товары с установленными ценами"
 
-        # Проверка всех 7 типов цен
+        # Проверка всех типов цен
         for product in products_with_prices[:100]:  # Проверяем первые 100
             # retail_price обязательна
             assert (
                 product.retail_price > 0
             ), f"Product {product.id} должен иметь retail_price"
 
-            # Проверяем что цены неотрицательные
+            # Проверяем что опциональные цены неотрицательные (если установлены)
             if product.opt1_price:
                 assert product.opt1_price >= 0
             if product.opt2_price:
@@ -231,8 +231,12 @@ class TestRealCatalogImport:
                 assert product.trainer_price >= 0
             if product.federation_price:
                 assert product.federation_price >= 0
-            if product.admin_price:
-                assert product.admin_price >= 0
+
+            # Проверяем информационные цены (РРЦ, МРЦ)
+            if product.recommended_retail_price:
+                assert product.recommended_retail_price >= 0
+            if product.max_suggested_retail_price:
+                assert product.max_suggested_retail_price >= 0
 
     def test_real_data_integrity(self):
         """

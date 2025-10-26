@@ -38,8 +38,9 @@ class ProductFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = Product
 
-    name = factory.Faker("sentence", nb_words=3)
-    slug = factory.LazyAttribute(lambda obj: obj.name.lower().replace(" ", "-"))
+    name = factory.Sequence(lambda n: f"Product {n}")
+    slug = factory.LazyAttribute(lambda obj: slugify(obj.name))
+    onec_id = factory.Sequence(lambda n: f"product-{n}-uuid#sku-{n}-uuid")
     description = factory.Faker("text", max_nb_chars=500)
     retail_price = fuzzy.FuzzyDecimal(100.0, 10000.0, 2)
     opt1_price = fuzzy.FuzzyDecimal(80.0, 8000.0, 2)

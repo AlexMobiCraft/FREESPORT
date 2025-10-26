@@ -25,7 +25,7 @@ class TestLoadProductStocksCommand:
 
     def test_command_requires_file_argument(self) -> None:
         """Проверка что команда требует аргумент --file"""
-        with pytest.raises(SystemExit):
+        with pytest.raises(CommandError, match="the following arguments are required"):
             call_command("load_product_stocks")
 
     def test_command_validates_file_exists(self) -> None:
@@ -65,7 +65,7 @@ class TestLoadProductStocksCommand:
         self, mock_exists: MagicMock, mock_parser: MagicMock
     ) -> None:
         """Проверка обновления существующих товаров"""
-        from apps.products.tests.factories import ProductFactory
+        from apps.products.factories import ProductFactory
 
         # Создаем тестовый товар
         product = ProductFactory.create(
@@ -143,7 +143,7 @@ class TestLoadProductStocksCommand:
         self, mock_exists: MagicMock, mock_parser: MagicMock
     ) -> None:
         """Проверка режима dry-run"""
-        from apps.products.tests.factories import ProductFactory
+        from apps.products.factories import ProductFactory
 
         product = ProductFactory.create(
             name="Test Product",
@@ -170,7 +170,7 @@ class TestLoadProductStocksCommand:
         self, mock_exists: MagicMock, mock_parser: MagicMock
     ) -> None:
         """Проверка batch processing"""
-        from apps.products.tests.factories import ProductFactory
+        from apps.products.factories import ProductFactory
 
         # Создаем 2500 товаров
         products = ProductFactory.create_batch(
@@ -213,7 +213,7 @@ class TestLoadProductStocksCommand:
         self, mock_exists: MagicMock, mock_parser: MagicMock
     ) -> None:
         """Проверка обновления last_sync_at"""
-        from apps.products.tests.factories import ProductFactory
+        from apps.products.factories import ProductFactory
 
         product = ProductFactory.create(
             onec_id="test-uuid",
@@ -236,7 +236,11 @@ class TestLoadProductStocksCommand:
         self, mock_exists: MagicMock, mock_parser: MagicMock
     ) -> None:
         """Проверка отслеживания длительности сессии"""
-        mock_parser.return_value = []
+        from apps.products.factories import ProductFactory
+
+        # Создаем товар чтобы был не пустой результат
+        product = ProductFactory.create(onec_id="test-uuid", stock_quantity=0)
+        mock_parser.return_value = [{"id": "test-uuid", "quantity": 50}]
 
         call_command("load_product_stocks", file="test.xml")
 
