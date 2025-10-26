@@ -344,7 +344,7 @@ class TestRealCatalogImport:
         client = APIClient()
 
         # Проверка списка товаров
-        response = client.get("/api/products/")
+        response = client.get("/api/v1/products/")
         assert response.status_code == 200
 
         data = response.json()
@@ -424,6 +424,7 @@ class TestRealCatalogImport:
                 class MockUser:
                     def __init__(self, role):
                         self.role = role
+                        self.is_authenticated = True
 
                 for role in [
                     "retail",

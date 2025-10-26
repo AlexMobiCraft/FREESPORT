@@ -55,7 +55,7 @@ class TestProductDataProcessor:
         assert product.parent_onec_id == "parent-uuid-123"
         assert product.name == "Base Product"
         assert product.is_active is False
-        assert product.onec_id is None
+        assert product.onec_id == "parent-uuid-123"  # onec_id устанавливается сразу
         assert product.sync_status == Product.SyncStatus.PENDING
 
     def test_enrich_product_from_offer(self, processor, category):
