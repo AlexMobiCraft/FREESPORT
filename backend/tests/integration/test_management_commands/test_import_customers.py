@@ -31,7 +31,8 @@ class TestImportCustomersCommand:
         if os.path.exists("/app/data"):
             # Docker environment
             xml_path = Path(
-                "/app/data/import_1c/contragents/contragents_1_564750cd-8a00-4926-a2a4-7a1c995605c0.xml"
+                "/app/data/import_1c/contragents/"
+                "contragents_1_564750cd-8a00-4926-a2a4-7a1c995605c0.xml"
             )
         else:
             # Local environment
