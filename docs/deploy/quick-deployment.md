@@ -108,6 +108,7 @@ docker compose --env-file .env.prod -f docker/docker-compose.prod.yml logs -f
 ## Управление развертыванием
 
 ### Обновление платформы
+
 ```bash
 # Скачивание обновлений
 git pull origin main
@@ -124,6 +125,7 @@ docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec backe
 ```
 
 ### Резервное копирование
+
 ```bash
 # Создание бэкапа базы данных
 docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec -T db pg_dump -U postgres freesport > backup_$(date +%Y%m%d).sql
@@ -133,6 +135,7 @@ tar -czf media_backup_$(date +%Y%m%d).tar.gz data/
 ```
 
 ### Восстановление из бэкапа
+
 ```bash
 # Восстановление базы данных
 docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec -T db psql -U postgres -c "DROP DATABASE IF EXISTS freesport;"
@@ -172,6 +175,7 @@ docker system prune -a
 ## Решение проблем
 
 ### Проблема: Контейнеры не запускаются
+
 ```bash
 # Проверка логов
 docker compose --env-file .env.prod -f docker/docker-compose.prod.yml logs
@@ -181,6 +185,7 @@ docker compose --env-file .env.prod -f docker/docker-compose.prod.yml config
 ```
 
 ### Проблема: Нет доступа к сайту
+
 ```bash
 # Проверка работы Nginx
 docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec nginx nginx -t
@@ -190,6 +195,7 @@ docker compose --env-file .env.prod -f docker/docker-compose.prod.yml restart ng
 ```
 
 ### Проблема: Ошибки базы данных
+
 ```bash
 # Проверка подключения к БД
 docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec backend python manage.py dbshell
@@ -201,6 +207,7 @@ docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec backe
 ## Мониторинг
 
 ### Проверка потребления ресурсов
+
 ```bash
 # Статистика Docker
 docker stats
@@ -212,6 +219,7 @@ top
 ```
 
 ### Настройка оповещений
+
 ```bash
 # Создание скрипта проверки работоспособности
 nano scripts/health-check.sh
@@ -250,6 +258,7 @@ echo "*/5 * * * * /path/to/freesport/scripts/health-check.sh" | crontab -
 ## Поддержка
 
 При возникновении проблем:
+
 1. Проверьте логи контейнеров
 2. Обратитесь к документации проекта
 3. Создайте issue в репозитории

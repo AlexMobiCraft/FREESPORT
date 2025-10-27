@@ -6,13 +6,13 @@
 # Before running, make sure local changes are committed and pushed to origin if necessary.
 
 param(
-    [string]$User = "alex",
-    [string]$IP = "192.168.1.130",
-    [string]$ProjectPathRemote = "~/FREESPORT",
+    [string]$User = "root",
+    [string]$IP = "5.35.124.149",
+    [string]$ProjectPathRemote = "/home/freesport/freesport",
     [string]$DockerContext = "freesport-remote",
     [string]$ComposeFile = "docker-compose.test.yml",
     [string]$EnvFileLocal = "backend/.env",
-    [string]$EnvFileRemote = "~/FREESPORT/backend/.env",
+    [string]$EnvFileRemote = "/home/freesport/freesport/backend/.env",
     [string]$SshKeyPath = "backend\\.ssh\\id_ed25519",
     [string]$Branch
 )
@@ -88,6 +88,19 @@ function Restart-RemoteCompose {
     & docker --context $Context compose -f $ComposeFilePath up -d
 }
 
+# Function to run Django migrations on the remote server
+function Invoke-RemoteMigrations {
+    param(
+        [string]$Context,
+        [string]$ComposeFilePath,
+        [string]$ServiceName = "backend"
+    )
+
+    Write-Host "Running database migrations on service '$ServiceName'..." -ForegroundColor Yellow
+    # The -T flag disables pseudo-tty allocation, which is necessary for non-interactive exec.
+    & docker --context $Context compose -f $ComposeFilePath exec -T $ServiceName python manage.py migrate --no-input
+}
+
 $scriptDirectory = Split-Path -Path $MyInvocation.MyCommand.Path -Parent
 $projectRoot = (Resolve-Path (Join-Path $scriptDirectory '..\..')).Path
 
@@ -121,6 +134,7 @@ try {
     try {
         $env:FREESPORT_PROJECT_ROOT = $composeProjectRoot
         Restart-RemoteCompose -Context $DockerContext -ComposeFilePath $ComposeFile
+        Invoke-RemoteMigrations -Context $DockerContext -ComposeFilePath $ComposeFile
     }
     finally {
         if ($null -eq $previousProjectRoot) {
