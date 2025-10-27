@@ -165,10 +165,14 @@ class CustomerDataParser:
                 contact_value = self._get_text(contact_node, "Значение")
 
                 if contact_type and contact_value:
-                    if "email" in contact_type.lower() or "почта" in contact_type.lower():
+                    if (
+                        "email" in contact_type.lower()
+                        or "почта" in contact_type.lower()
+                    ):
                         contact_info["email"] = contact_value
                     elif (
-                        "телефон" in contact_type.lower() or "phone" in contact_type.lower()
+                        "телефон" in contact_type.lower()
+                        or "phone" in contact_type.lower()
                     ):
                         contact_info["phone"] = contact_value
 
@@ -224,9 +228,7 @@ class CustomerDataParser:
 
         return True
 
-    def _get_text(
-        self, node: ET.Element, tag_name: str, default: str = ""
-    ) -> str:
+    def _get_text(self, node: ET.Element, tag_name: str, default: str = "") -> str:
         """
         Безопасно извлекает текстовое содержимое из XML узла.
 

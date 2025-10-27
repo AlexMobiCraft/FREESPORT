@@ -262,9 +262,7 @@ class CustomerDataProcessor:
         except ValidationError:
             return False
 
-    def _create_customer(
-        self, customer_data: dict[str, Any], role: str
-    ) -> User:
+    def _create_customer(self, customer_data: dict[str, Any], role: str) -> User:
         """
         Создает нового пользователя из данных клиента.
 
@@ -339,7 +337,9 @@ class CustomerDataProcessor:
 
         user.save()
 
-        logger.info(f"Обновлен пользователь: {user.email or user.onec_id} (role={role})")
+        logger.info(
+            f"Обновлен пользователь: {user.email or user.onec_id} (role={role})"
+        )
         return user
 
     def _log_operation(

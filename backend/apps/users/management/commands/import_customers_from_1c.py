@@ -91,9 +91,7 @@ class Command(BaseCommand):
                 customer_data = parser.parse(file_path)
 
                 self.stdout.write(
-                    self.style.SUCCESS(
-                        f"Распознано {len(customer_data)} клиентов"
-                    )
+                    self.style.SUCCESS(f"Распознано {len(customer_data)} клиентов")
                 )
 
                 # Обработка данных
@@ -151,9 +149,7 @@ class Command(BaseCommand):
                     )
                 )
             else:
-                self.stdout.write(
-                    self.style.ERROR(f"\n❌ Ошибка импорта: {str(e)}")
-                )
+                self.stdout.write(self.style.ERROR(f"\n❌ Ошибка импорта: {str(e)}"))
 
             logger.error(f"Ошибка импорта клиентов: {e}", exc_info=True)
             raise CommandError(f"Импорт завершен с ошибкой: {e}") from e
