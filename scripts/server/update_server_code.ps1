@@ -10,7 +10,7 @@ param(
     [string]$IP = "5.35.124.149",
     [string]$ProjectPathRemote = "/home/freesport/freesport",
     [string]$DockerContext = "freesport-remote",
-    [string]$ComposeFile = "docker-compose.test.yml",
+    [string]$ComposeFile = "docker/docker-compose.test.yml",
     [string]$EnvFileLocal = "backend/.env",
     [string]$EnvFileRemote = "/home/freesport/freesport/backend/.env",
     [string]$SshKeyPath = "backend\\.ssh\\id_ed25519",
