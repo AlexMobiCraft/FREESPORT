@@ -193,8 +193,7 @@ jobs:
         flags: backend
         name: backend-coverage
         fail_ci_if_error: false
-      env:
-        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}  # Optional: configure in repository secrets
+        token: ${{ secrets.CODECOV_TOKEN }}  # Optional: configure in repository secrets
         
     - name: Upload test results
       uses: actions/upload-artifact@v4
