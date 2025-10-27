@@ -91,13 +91,13 @@ function Ensure-RemoteDirectory {
         if ($LASTEXITCODE -ne 0) {
             Write-Host "    Ошибка выполнения mkdir: $result" -ForegroundColor Red
             Write-Host "    Код выхода: $LASTEXITCODE" -ForegroundColor Red
-            
+             
             # Если простой подход не сработал, пробуем альтернативный
             Write-Host "    Пробуем альтернативный подход..." -ForegroundColor Yellow
             $altCommand = "mkdir -p '$RemotePath'"
             Write-Host "    Альтернативная команда: $altCommand" -ForegroundColor Gray
             $result2 = ssh "$ConnectionUser@$ConnectionHost" $altCommand 2>&1
-            
+             
             if ($LASTEXITCODE -ne 0) {
                 throw "Не удалось создать директорию на сервере: $result2"
             } else {

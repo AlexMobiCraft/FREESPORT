@@ -4,10 +4,10 @@
 param(
     [string]$DockerContext = "freesport-remote",
     [string]$ComposeFile = "docker-compose.test.yml",
-    [string]$User = "alex",
-    [string]$IP = "192.168.8.182", #192.168.1.130
+    [string]$User = "root",
+    [string]$IP = "5.35.124.149", #5.35.124.149
     [string]$SshKeyPath = "C:\\Users\\38670\\.ssh\\id_ed25519",
-    [string]$ProjectPathRemote = "~/FREESPORT"
+    [string]$ProjectPathRemote = "/home/freesport/freesport/"
 )
 
 $script:TestRunExitCode = 1

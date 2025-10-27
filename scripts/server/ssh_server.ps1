@@ -1,11 +1,11 @@
 # Скрипт для быстрого SSH-подключения к серверу разработки FREESPORT
 # Использование:
 #   pwsh .\scripts\ssh_server.ps1
-#   pwsh .\scripts\ssh_server.ps1 -User другой_пользователь -IP 192.168.1.130
+#   pwsh .\scripts\ssh_server.ps1 -User другой_пользователь -IP 5.35.124.149
 
 #param(
 #    [string]$User = "alex",
-#    [string]$IP = "192.168.1.130"
+#    [string]$IP = "5.35.124.149"
 #)
 param(
     [string]$User = "root",

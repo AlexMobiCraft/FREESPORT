@@ -1,8 +1,8 @@
-# Script to update the FREESPORT project code on server 192.168.1.130
-# Usage (works with the current branch by default):
+# Script to update FREESPORT project code on server 5.35.124.149
+# Usage (works with current branch by default):
 #   pwsh .\scripts\update_server_code.ps1
 #   pwsh .\scripts\update_server_code.ps1 -Branch feature/x -EnvFileLocal "backend/.env.test"
-#   pwsh .\scripts\update_server_code.ps1 -User alex -IP 192.168.1.130
+#   pwsh .\scripts\update_server_code.ps1 -User alex -IP 5.35.124.149
 # Before running, make sure local changes are committed and pushed to origin if necessary.
 
 param(
