@@ -12,7 +12,10 @@
       "mcp__firecrawl__firecrawl_search",
       "Bash(curl:*)",
       "Bash(cat:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(python -m pytest:*)",
+      "Bash(python manage.py shell -c \"from apps.common.models import ImportSession; print(''ImportSession ImportType.CUSTOMERS:'', ''CUSTOMERS'' in [x[0] for x in ImportSession.ImportType.choices])\")",
+      "Bash(python manage.py shell:*)"
     ],
     "deny": [],
     "ask": [],

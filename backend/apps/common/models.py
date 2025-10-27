@@ -2,11 +2,17 @@
 Общие модели для платформы FREESPORT
 Включает аудиторский журнал и логи синхронизации с 1С
 """
+from __future__ import annotations
+
 import logging
+from typing import TYPE_CHECKING
 
 from django.contrib.auth import get_user_model
 from django.db import models
 from django.utils import timezone
+
+if TYPE_CHECKING:
+    from apps.products.models import ImportSession
 
 User = get_user_model()
 
@@ -240,3 +246,62 @@ class SyncLog(models.Model):
         return (
             (self.records_processed - self.errors_count) / self.records_processed
         ) * 100
+
+
+class CustomerSyncLog(models.Model):
+    """
+    Детальное логирование операций импорта клиентов из 1С
+    Связан с ImportSession для двухуровневого логирования
+    """
+
+    class OperationType(models.TextChoices):
+        CREATED = "created", "Создан"
+        UPDATED = "updated", "Обновлен"
+        SKIPPED = "skipped", "Пропущен"
+        ERROR = "error", "Ошибка"
+
+    class StatusType(models.TextChoices):
+        SUCCESS = "success", "Успешно"
+        FAILED = "failed", "Ошибка"
+        WARNING = "warning", "Предупреждение"
+
+    session = models.ForeignKey(
+        "products.ImportSession",
+        on_delete=models.CASCADE,
+        related_name="customer_logs",
+        verbose_name="Сессия импорта",
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        verbose_name="Пользователь",
+    )
+    onec_id = models.CharField("ID в 1С", max_length=100)
+    operation_type = models.CharField(
+        "Тип операции", max_length=20, choices=OperationType.choices
+    )
+    status = models.CharField("Статус", max_length=20, choices=StatusType.choices)
+    error_message = models.TextField("Сообщение об ошибке", blank=True)
+    details = models.JSONField(
+        "Детали операции",
+        default=dict,
+        blank=True,
+        help_text="Дополнительная информация: старые/новые значения, причина пропуска",
+    )
+    created_at = models.DateTimeField("Дата создания", auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Лог синхронизации клиента"
+        verbose_name_plural = "Логи синхронизации клиентов"
+        db_table = "customer_sync_logs"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["session", "operation_type"]),
+            models.Index(fields=["onec_id"]),
+            models.Index(fields=["status"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.operation_type} - {self.onec_id} ({self.status})"

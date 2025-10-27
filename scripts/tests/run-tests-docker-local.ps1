@@ -1,7 +1,7 @@
 # Скрипт запускает тесты в локальном Docker окружении FREESPORT Platform
 
 param(
-    [string]$ComposeFile = "docker-compose.test.yml",
+    [string]$ComposeFile = "docker/docker-compose.test.yml",
     [switch]$SkipBuild,
     [string]$DockerContext = "default",
     [switch]$KeepContainers,

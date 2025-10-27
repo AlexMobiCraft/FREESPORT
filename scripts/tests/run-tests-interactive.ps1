@@ -152,7 +152,7 @@ function Invoke-TestScenario {
         [string[]]$PytestArgs
     )
 
-    & $runnerPath -ComposeFile "docker-compose.test.yml" -SkipBuild:$false -DockerContext "default" -KeepContainers:$false -ServiceName "backend" -PytestArgs $PytestArgs
+    & $runnerPath -ComposeFile "docker/docker-compose.test.yml" -SkipBuild:$false -DockerContext "default" -KeepContainers:$false -ServiceName "backend" -PytestArgs $PytestArgs
 }
 
 while ($true) {

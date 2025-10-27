@@ -19,4 +19,4 @@ $defaultPytestArgs = @(
 
 $pytestArgs = @($defaultPytestArgs + $AdditionalPytestArgs)
 
-& $runnerPath -ComposeFile "docker-compose.test.yml" -SkipBuild:$false -DockerContext "default" -KeepContainers:$false -ServiceName "backend" -PytestArgs $pytestArgs
+& $runnerPath -ComposeFile "docker/docker-compose.test.yml" -SkipBuild:$false -DockerContext "default" -KeepContainers:$false -ServiceName "backend" -PytestArgs $pytestArgs

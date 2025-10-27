@@ -71,7 +71,7 @@ class User(AbstractUser):
 
     # Убираем username, используем email для авторизации
     username = None  # type: ignore[assignment]
-    email = models.EmailField("Email адрес", unique=True)
+    email = models.EmailField("Email адрес", unique=True, blank=True, null=True)
 
     # Дополнительные поля
     role = models.CharField(

@@ -6,6 +6,7 @@ import uuid
 from decimal import Decimal
 from typing import Any, Sequence
 
+from django.db import models
 from django.utils import timezone
 from django.utils.text import slugify
 
@@ -82,9 +83,15 @@ class ProductDataProcessor:
                 self._log_error("Missing parent_id in goods_data", goods_data)
                 return None
 
-            # Проверка существующего товара
-            existing = Product.objects.filter(parent_onec_id=parent_id).first()
+            # Проверка существующего товара (по onec_id или parent_onec_id)
+            existing = Product.objects.filter(
+                models.Q(onec_id=parent_id) | models.Q(parent_onec_id=parent_id)
+            ).first()
             if existing:
+                # Убедимся что onec_id установлен
+                if not existing.onec_id:
+                    existing.onec_id = parent_id
+                    existing.save(update_fields=["onec_id"])
                 logger.info(f"Product placeholder already exists: {parent_id}")
                 self.stats["skipped"] += 1
                 return existing
@@ -161,6 +168,7 @@ class ProductDataProcessor:
             )
 
             product = Product(
+                onec_id=parent_id,  # Устанавливаем onec_id сразу
                 parent_onec_id=parent_id,
                 name=product_name,
                 slug=unique_slug,

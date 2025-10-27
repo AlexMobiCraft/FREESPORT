@@ -9,6 +9,7 @@
 *.key
 *.pem
 *.p12
+nul
 
 # IDE and Editor files
 .vscode/
