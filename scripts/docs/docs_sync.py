@@ -33,6 +33,7 @@ from exclude_utils import load_exclude_patterns
 
 class Colors:
     """ANSI цвета для вывода."""
+
     RED = "\033[91m"
     GREEN = "\033[92m"
     YELLOW = "\033[93m"
@@ -64,14 +65,16 @@ def _is_excluded(project_root: Path, path: Path, patterns: List[str]) -> bool:
             prefix = pat[:-2]
             if not p.startswith(prefix):
                 return False
-            remainder = p[len(prefix):]
+            remainder = p[len(prefix) :]
             return remainder.startswith("/") and remainder.count("/") <= 1
         return p == pat
 
     return any(match(rel, pat) for pat in patterns)
 
 
-def _collect_api_endpoints(backend_dir: Path, project_root: Path, exclude_patterns: List[str]) -> Set[str]:
+def _collect_api_endpoints(
+    backend_dir: Path, project_root: Path, exclude_patterns: List[str]
+) -> Set[str]:
     """Сканирует backend и возвращает множество имен классов ViewSet/APIView.
 
     Ищет в модулях `views.py`, директориях `views/`, а также в `urls.py` регистрации DRF router и as_view.
@@ -112,14 +115,18 @@ def _collect_api_endpoints(backend_dir: Path, project_root: Path, exclude_patter
                     endpoints.add(class_name)
 
         if py.name == "urls.py":
-            router_pattern = r"router\.register\(\s*r?['\"]([^'\"]+)['\"]\s*,\s*([\w\.]+)"
+            router_pattern = (
+                r"router\.register\(\s*r?['\"]([^'\"]+)['\"]\s*,\s*([\w\.]+)"
+            )
             for m in re.finditer(router_pattern, content):
                 view_ref = m.group(2)
                 class_name = view_ref.split(".")[-1]
                 if class_name:
                     endpoints.add(class_name)
 
-            path_pattern = r"(?:path|re_path)\(\s*['\"][^'\"]+['\"]\s*,\s*([\w\.]+)\.as_view"
+            path_pattern = (
+                r"(?:path|re_path)\(\s*['\"][^'\"]+['\"]\s*,\s*([\w\.]+)\.as_view"
+            )
             for m in re.finditer(path_pattern, content):
                 view_ref = m.group(1)
                 class_name = view_ref.split(".")[-1]
@@ -145,7 +152,9 @@ def _collect_doc_endpoints(docs_dir: Path) -> Set[str]:
     return documented
 
 
-def sync_api_spec_with_views(project_root: Path, apply: bool, exclude_patterns: List[str]) -> Tuple[Set[str], Set[str]]:
+def sync_api_spec_with_views(
+    project_root: Path, apply: bool, exclude_patterns: List[str]
+) -> Tuple[Set[str], Set[str]]:
     """Синхронизирует API спецификацию с кодом представлений.
 
     - Собирает список эндпоинтов из кода (`backend/`).
@@ -165,7 +174,9 @@ def sync_api_spec_with_views(project_root: Path, apply: bool, exclude_patterns: 
 
     print(f"Найдено в коде: {len(code_eps)}; в документации: {len(doc_eps)}")
     if undocumented:
-        print(f"{Colors.YELLOW}Недокументированные классы ({len(undocumented)}):{Colors.RESET}")
+        print(
+            f"{Colors.YELLOW}Недокументированные классы ({len(undocumented)}):{Colors.RESET}"
+        )
         for name in undocumented[:25]:
             print(f"  - {name}")
         if len(undocumented) > 25:
@@ -174,7 +185,9 @@ def sync_api_spec_with_views(project_root: Path, apply: bool, exclude_patterns: 
         print(f"{Colors.GREEN}Все классы покрыты документацией{Colors.RESET}")
 
     if stale:
-        print(f"{Colors.YELLOW}Есть классы в документации, не найденные в коде ({len(stale)}):{Colors.RESET}")
+        print(
+            f"{Colors.YELLOW}Есть классы в документации, не найденные в коде ({len(stale)}):{Colors.RESET}"
+        )
         for name in stale[:25]:
             print(f"  - {name}")
         if len(stale) > 25:
@@ -190,11 +203,17 @@ def sync_api_spec_with_views(project_root: Path, apply: bool, exclude_patterns: 
                     f.write("## Список эндпоинтов, требующих документирования\n\n")
                     for name in undocumented:
                         f.write(f"- [ ] {name}\n")
-                print(f"{Colors.GREEN}Добавлены пункты для документирования в {target.relative_to(project_root)}{Colors.RESET}")
+                print(
+                    f"{Colors.GREEN}Добавлены пункты для документирования в {target.relative_to(project_root)}{Colors.RESET}"
+                )
             except Exception as e:
-                print(f"{Colors.RED}Ошибка при обновлении {target.name}: {e}{Colors.RESET}")
+                print(
+                    f"{Colors.RED}Ошибка при обновлении {target.name}: {e}{Colors.RESET}"
+                )
         else:
-            print(f"{Colors.YELLOW}Файл {target.relative_to(project_root)} не найден, пропуск автодобавления{Colors.RESET}")
+            print(
+                f"{Colors.YELLOW}Файл {target.relative_to(project_root)} не найден, пропуск автодобавления{Colors.RESET}"
+            )
 
     return set(undocumented), set(stale)
 
@@ -213,7 +232,9 @@ def _extract_decision_ids(decisions_dir: Path) -> Set[str]:
     return ids
 
 
-def _scan_code_for_decision_refs(project_root: Path, exclude_patterns: List[str]) -> Set[str]:
+def _scan_code_for_decision_refs(
+    project_root: Path, exclude_patterns: List[str]
+) -> Set[str]:
     """Грубый поиск упоминаний идентификаторов решений в коде (по строковым вхождениям)."""
     refs: Set[str] = set()
     for py in (project_root / "backend").rglob("*.py"):
@@ -223,12 +244,16 @@ def _scan_code_for_decision_refs(project_root: Path, exclude_patterns: List[str]
             content = py.read_text(encoding="utf-8")
         except Exception:
             continue
-        for m in re.finditer(r"(story-\d+\.\d+|decision-\d{4}-\d{2}-[\w-]+)", content, re.IGNORECASE):
+        for m in re.finditer(
+            r"(story-\d+\.\d+|decision-\d{4}-\d{2}-[\w-]+)", content, re.IGNORECASE
+        ):
             refs.add(m.group(1))
     return refs
 
 
-def sync_decisions_with_code(project_root: Path, apply: bool, exclude_patterns: List[str]) -> Tuple[Set[str], Set[str]]:
+def sync_decisions_with_code(
+    project_root: Path, apply: bool, exclude_patterns: List[str]
+) -> Tuple[Set[str], Set[str]]:
     """Сверяет документы из `docs/decisions/` с упоминаниями в коде.
 
     Возвращает кортеж (unreferenced, missing_in_docs):
@@ -249,16 +274,22 @@ def sync_decisions_with_code(project_root: Path, apply: bool, exclude_patterns: 
 
     print(f"В документах решений: {len(doc_ids)}; упоминаний в коде: {len(code_refs)}")
     if unreferenced:
-        print(f"{Colors.YELLOW}Решения без упоминаний в коде ({len(unreferenced)}):{Colors.RESET}")
+        print(
+            f"{Colors.YELLOW}Решения без упоминаний в коде ({len(unreferenced)}):{Colors.RESET}"
+        )
         for i in unreferenced[:20]:
             print(f"  - {i}")
         if len(unreferenced) > 20:
             print(f"  ... и еще {len(unreferenced) - 20}")
     else:
-        print(f"{Colors.GREEN}Все решения имеют упоминания в коде или не требуют их{Colors.RESET}")
+        print(
+            f"{Colors.GREEN}Все решения имеют упоминания в коде или не требуют их{Colors.RESET}"
+        )
 
     if missing_in_docs:
-        print(f"{Colors.YELLOW}Идентификаторы, упомянутые в коде, но отсутствующие в docs ({len(missing_in_docs)}):{Colors.RESET}")
+        print(
+            f"{Colors.YELLOW}Идентификаторы, упомянутые в коде, но отсутствующие в docs ({len(missing_in_docs)}):{Colors.RESET}"
+        )
         for i in missing_in_docs[:20]:
             print(f"  - {i}")
         if len(missing_in_docs) > 20:
@@ -273,11 +304,15 @@ def sync_decisions_with_code(project_root: Path, apply: bool, exclude_patterns: 
                     f.write("## Требуют оформления документов\n\n")
                     for i in missing_in_docs:
                         f.write(f"- [ ] {i}\n")
-                print(f"{Colors.GREEN}Добавлены чек-листы в {readme.relative_to(project_root)}{Colors.RESET}")
+                print(
+                    f"{Colors.GREEN}Добавлены чек-листы в {readme.relative_to(project_root)}{Colors.RESET}"
+                )
             except Exception as e:
                 print(f"{Colors.RED}Ошибка при обновлении README: {e}{Colors.RESET}")
         else:
-            print(f"{Colors.YELLOW}Каталог или README для решений не найден — пропуск автодобавления{Colors.RESET}")
+            print(
+                f"{Colors.YELLOW}Каталог или README для решений не найден — пропуск автодобавления{Colors.RESET}"
+            )
 
     return set(unreferenced), set(missing_in_docs)
 
@@ -298,7 +333,9 @@ def _load_docs_index_generator(project_root: Path):
     return module.DocsIndexGenerator
 
 
-def update_index(project_root: Path, dry_run: bool, exclude_patterns: List[str]) -> None:
+def update_index(
+    project_root: Path, dry_run: bool, exclude_patterns: List[str]
+) -> None:
     """Обновляет индексы документации, используя `DocsIndexGenerator` из существующего скрипта.
 
     Выполняет обновление главного индекса, README по категориям и печатает статистику.
@@ -310,16 +347,29 @@ def update_index(project_root: Path, dry_run: bool, exclude_patterns: List[str])
         sys.exit(1)
 
     DocsIndexGenerator = _load_docs_index_generator(project_root)
-    generator = DocsIndexGenerator(docs_dir, dry_run=dry_run, exclude_patterns=exclude_patterns)
+    generator = DocsIndexGenerator(
+        docs_dir, dry_run=dry_run, exclude_patterns=exclude_patterns
+    )
     generator.run(stats_only=False)
 
 
 def main() -> None:
     """Точка входа CLI для синхронизации документации."""
     parser = argparse.ArgumentParser(description="Синхронизация документации FREESPORT")
-    parser.add_argument("command", choices=["api-sync", "decisions-sync", "update-index", "all"], help="Команда для выполнения")
-    parser.add_argument("--apply", action="store_true", help="Применять изменения (где поддерживается)")
-    parser.add_argument("--exclude", nargs="*", default=[], help="Дополнительные исключения (относительно корня проекта)")
+    parser.add_argument(
+        "command",
+        choices=["api-sync", "decisions-sync", "update-index", "all"],
+        help="Команда для выполнения",
+    )
+    parser.add_argument(
+        "--apply", action="store_true", help="Применять изменения (где поддерживается)"
+    )
+    parser.add_argument(
+        "--exclude",
+        nargs="*",
+        default=[],
+        help="Дополнительные исключения (относительно корня проекта)",
+    )
 
     args = parser.parse_args()
 
@@ -329,12 +379,18 @@ def main() -> None:
     exclude_patterns = load_exclude_patterns(project_root, args.exclude)
 
     if args.command in ("api-sync", "all"):
-        sync_api_spec_with_views(project_root, apply=args.apply, exclude_patterns=exclude_patterns)
+        sync_api_spec_with_views(
+            project_root, apply=args.apply, exclude_patterns=exclude_patterns
+        )
     if args.command in ("decisions-sync", "all"):
-        sync_decisions_with_code(project_root, apply=args.apply, exclude_patterns=exclude_patterns)
+        sync_decisions_with_code(
+            project_root, apply=args.apply, exclude_patterns=exclude_patterns
+        )
     if args.command in ("update-index", "all"):
         # Для update-index используем apply как обратный dry_run
-        update_index(project_root, dry_run=not args.apply, exclude_patterns=exclude_patterns)
+        update_index(
+            project_root, dry_run=not args.apply, exclude_patterns=exclude_patterns
+        )
 
 
 if __name__ == "__main__":

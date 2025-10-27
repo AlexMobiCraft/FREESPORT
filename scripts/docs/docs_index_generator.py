@@ -25,26 +25,32 @@ from exclude_utils import load_exclude_patterns
 
 class Colors:
     """ANSI цвета для вывода."""
-    RED = '\033[91m'
-    GREEN = '\033[92m'
-    YELLOW = '\033[93m'
-    BLUE = '\033[94m'
-    CYAN = '\033[96m'
-    RESET = '\033[0m'
-    BOLD = '\033[1m'
+
+    RED = "\033[91m"
+    GREEN = "\033[92m"
+    YELLOW = "\033[93m"
+    BLUE = "\033[94m"
+    CYAN = "\033[96m"
+    RESET = "\033[0m"
+    BOLD = "\033[1m"
 
 
 class DocsIndexGenerator:
     """Генератор индекса документации."""
 
-    def __init__(self, docs_dir: Path, dry_run: bool = False, exclude_patterns: List[str] | None = None):
+    def __init__(
+        self,
+        docs_dir: Path,
+        dry_run: bool = False,
+        exclude_patterns: List[str] | None = None,
+    ):
         self.docs_dir = docs_dir
         self.project_root = docs_dir.parent
         self.dry_run = dry_run
         self.total_files = 0
         self.total_size = 0
         self.stats_by_category: Dict[str, int] = {}
-        self.last_updated = datetime.now().strftime('%d.%m.%Y')
+        self.last_updated = datetime.now().strftime("%d.%m.%Y")
         self.exclude_patterns = list(exclude_patterns or [])
 
     def print_header(self, text: str):
@@ -56,15 +62,15 @@ class DocsIndexGenerator:
     def extract_title(self, md_file: Path) -> str:
         """Извлечь заголовок из markdown файла."""
         try:
-            content = md_file.read_text(encoding='utf-8')
+            content = md_file.read_text(encoding="utf-8")
 
             # Ищем первый заголовок H1
-            match = re.search(r'^#\s+(.+)$', content, re.MULTILINE)
+            match = re.search(r"^#\s+(.+)$", content, re.MULTILINE)
             if match:
                 return match.group(1).strip()
 
             # Если нет H1, используем имя файла
-            return md_file.stem.replace('-', ' ').replace('_', ' ').title()
+            return md_file.stem.replace("-", " ").replace("_", " ").title()
 
         except Exception:
             return md_file.stem
@@ -72,10 +78,10 @@ class DocsIndexGenerator:
     def extract_description(self, md_file: Path, max_length: int = 200) -> str:
         """Извлечь краткое описание из файла."""
         try:
-            content = md_file.read_text(encoding='utf-8')
+            content = md_file.read_text(encoding="utf-8")
 
             # Пропускаем заголовок и метаданные
-            lines = content.split('\n')
+            lines = content.split("\n")
             description_lines = []
 
             skip_metadata = False
@@ -83,7 +89,7 @@ class DocsIndexGenerator:
 
             for line in lines:
                 # Пропускаем frontmatter
-                if line.strip() == '---':
+                if line.strip() == "---":
                     skip_metadata = not skip_metadata
                     continue
 
@@ -91,7 +97,7 @@ class DocsIndexGenerator:
                     continue
 
                 # Пропускаем заголовки
-                if line.startswith('#'):
+                if line.startswith("#"):
                     found_content = True
                     continue
 
@@ -99,14 +105,14 @@ class DocsIndexGenerator:
                 if found_content and line.strip():
                     description_lines.append(line.strip())
 
-                    if len(' '.join(description_lines)) > max_length:
+                    if len(" ".join(description_lines)) > max_length:
                         break
 
-            description = ' '.join(description_lines)
+            description = " ".join(description_lines)
 
             # Обрезаем до max_length
             if len(description) > max_length:
-                description = description[:max_length].rsplit(' ', 1)[0] + '...'
+                description = description[:max_length].rsplit(" ", 1)[0] + "..."
 
             return description
 
@@ -121,21 +127,23 @@ class DocsIndexGenerator:
 
         for md_file in md_files:
             # Пропускаем служебные файлы
-            if md_file.name in ['README.md', 'index.md', 'SUMMARY.md']:
+            if md_file.name in ["README.md", "index.md", "SUMMARY.md"]:
                 continue
 
             title = self.extract_title(md_file)
             description = self.extract_description(md_file)
             size = md_file.stat().st_size
 
-            files_info.append({
-                'file': md_file,
-                'name': md_file.name,
-                'title': title,
-                'description': description,
-                'size': size,
-                'relative_path': md_file.relative_to(self.docs_dir)
-            })
+            files_info.append(
+                {
+                    "file": md_file,
+                    "name": md_file.name,
+                    "title": title,
+                    "description": description,
+                    "size": size,
+                    "relative_path": md_file.relative_to(self.docs_dir),
+                }
+            )
 
             self.total_files += 1
             self.total_size += size
@@ -148,19 +156,21 @@ class DocsIndexGenerator:
             rel_path = path.relative_to(self.project_root).as_posix()
         except ValueError:
             return False
-        return any(self._match_pattern(rel_path, pattern) for pattern in self.exclude_patterns)
+        return any(
+            self._match_pattern(rel_path, pattern) for pattern in self.exclude_patterns
+        )
 
     def _match_pattern(self, path: str, pattern: str) -> bool:
         """Проверить совпадение пути с шаблоном исключения."""
-        if pattern.endswith('/**'):
+        if pattern.endswith("/**"):
             prefix = pattern[:-3]
             return path.startswith(prefix)
-        if pattern.endswith('/*'):
+        if pattern.endswith("/*"):
             prefix = pattern[:-2]
             if not path.startswith(prefix):
                 return False
-            remainder = path[len(prefix):]
-            return remainder.startswith('/') and remainder.count('/') <= 1
+            remainder = path[len(prefix) :]
+            return remainder.startswith("/") and remainder.count("/") <= 1
         return path == pattern
 
     def _iter_markdown_files(self, directory: Path) -> Iterator[Path]:
@@ -172,7 +182,7 @@ class DocsIndexGenerator:
 
     def generate_category_index(self, category_dir: Path, files: List[Dict]) -> str:
         """Сгенерировать индекс для категории."""
-        category_name = category_dir.name.replace('-', ' ').replace('_', ' ').title()
+        category_name = category_dir.name.replace("-", " ").replace("_", " ").title()
 
         lines = [
             f"# {category_name}",
@@ -182,11 +192,11 @@ class DocsIndexGenerator:
             f"**Всего документов:** {len(files)}",
             "",
             "---",
-            ""
+            "",
         ]
 
         # Группируем файлы по префиксам (для stories)
-        if category_dir.name.startswith('epic-'):
+        if category_dir.name.startswith("epic-"):
             grouped = self._group_by_prefix(files)
 
             for prefix, group_files in grouped.items():
@@ -197,8 +207,8 @@ class DocsIndexGenerator:
                 for file_info in group_files:
                     lines.append(f"### [{file_info['title']}](./{file_info['name']})")
                     lines.append("")
-                    if file_info['description']:
-                        lines.append(file_info['description'])
+                    if file_info["description"]:
+                        lines.append(file_info["description"])
                         lines.append("")
 
         else:
@@ -206,15 +216,15 @@ class DocsIndexGenerator:
             for file_info in files:
                 lines.append(f"## [{file_info['title']}](./{file_info['name']})")
                 lines.append("")
-                if file_info['description']:
-                    lines.append(file_info['description'])
+                if file_info["description"]:
+                    lines.append(file_info["description"])
                     lines.append("")
 
         lines.append("---")
         lines.append("")
         lines.append(f"**Последнее обновление:** {self.last_updated}")
 
-        return '\n'.join(lines)
+        return "\n".join(lines)
 
     def _group_by_prefix(self, files: List[Dict]) -> Dict[str, List[Dict]]:
         """Группировать файлы по префиксам (например, 3.1, 3.2)."""
@@ -222,7 +232,7 @@ class DocsIndexGenerator:
 
         for file_info in files:
             # Ищем паттерн типа "3.1.1" или "2.3"
-            match = re.match(r'^(\d+\.\d+)', file_info['name'])
+            match = re.match(r"^(\d+\.\d+)", file_info["name"])
 
             if match:
                 prefix = match.group(1)
@@ -230,9 +240,9 @@ class DocsIndexGenerator:
                     groups[prefix] = []
                 groups[prefix].append(file_info)
             else:
-                if '' not in groups:
-                    groups[''] = []
-                groups[''].append(file_info)
+                if "" not in groups:
+                    groups[""] = []
+                groups[""].append(file_info)
 
         return dict(sorted(groups.items()))
 
@@ -241,15 +251,15 @@ class DocsIndexGenerator:
         self.print_header("📝 ОБНОВЛЕНИЕ ГЛАВНОГО ИНДЕКСА")
 
         categories = {
-            'architecture': 'Архитектура',
-            'decisions': 'Решения',
-            'stories': 'Истории',
-            'prd': 'PRD',
-            'database': 'База данных',
-            'qa': 'QA',
-            'epics': 'Эпики',
-            'implementation': 'Имплементация',
-            'releases': 'Релизы'
+            "architecture": "Архитектура",
+            "decisions": "Решения",
+            "stories": "Истории",
+            "prd": "PRD",
+            "database": "База данных",
+            "qa": "QA",
+            "epics": "Эпики",
+            "implementation": "Имплементация",
+            "releases": "Релизы",
         }
 
         category_stats: Dict[str, Dict[str, object]] = {}
@@ -270,9 +280,9 @@ class DocsIndexGenerator:
             )
 
             category_stats[category_dir_name] = {
-                'title': category_title,
-                'count': subdirs_count,
-                'files': files
+                "title": category_title,
+                "count": subdirs_count,
+                "files": files,
             }
 
             self.stats_by_category[category_dir_name] = subdirs_count
@@ -283,10 +293,10 @@ class DocsIndexGenerator:
             print(f"{Colors.YELLOW}⚠️  Файл index.md не найден{Colors.RESET}")
             return
 
-        content = index_file.read_text(encoding='utf-8')
+        content = index_file.read_text(encoding="utf-8")
         stats_section = self._generate_stats_section(category_stats)
 
-        stats_pattern = r'## Статистика документации.*?(?=##|\Z)'
+        stats_pattern = r"## Статистика документации.*?(?=##|\Z)"
         if re.search(stats_pattern, content, re.DOTALL):
             content = re.sub(stats_pattern, stats_section, content, flags=re.DOTALL)
         else:
@@ -294,25 +304,26 @@ class DocsIndexGenerator:
                 content += "\n"
             content += f"\n{stats_section}"
 
-        date_pattern = r'\*\*Последнее обновление:\*\* \d{2}\.\d{2}\.\d{4}'
+        date_pattern = r"\*\*Последнее обновление:\*\* \d{2}\.\d{2}\.\d{4}"
         content = re.sub(
-            date_pattern,
-            f"**Последнее обновление:** {self.last_updated}",
-            content
+            date_pattern, f"**Последнее обновление:** {self.last_updated}", content
         )
 
         if not self.dry_run:
-            index_file.write_text(content, encoding='utf-8')
-            print(f"{Colors.GREEN}✅ Обновлен: {index_file.relative_to(self.project_root)}{Colors.RESET}")
+            index_file.write_text(content, encoding="utf-8")
+            print(
+                f"{Colors.GREEN}✅ Обновлен: {index_file.relative_to(self.project_root)}{Colors.RESET}"
+            )
         else:
-            print(f"{Colors.YELLOW}[DRY RUN] Будет обновлен: {index_file.relative_to(self.project_root)}{Colors.RESET}")
+            print(
+                f"{Colors.YELLOW}[DRY RUN] Будет обновлен: {index_file.relative_to(self.project_root)}{Colors.RESET}"
+            )
 
-    def _generate_stats_section(self, category_stats: Dict[str, Dict[str, object]]) -> str:
+    def _generate_stats_section(
+        self, category_stats: Dict[str, Dict[str, object]]
+    ) -> str:
         """Сгенерировать секцию статистики."""
-        lines = [
-            "## Статистика документации",
-            ""
-        ]
+        lines = ["## Статистика документации", ""]
 
         for category, info in sorted(category_stats.items()):
             lines.append(f"- **{info['title']}:** {info['count']} документов")
@@ -320,13 +331,13 @@ class DocsIndexGenerator:
         lines.append("")
         lines.append("## Навигация по проекту")
 
-        return '\n'.join(lines)
+        return "\n".join(lines)
 
     def update_category_readmes(self):
         """Обновить README.md в каждой категории."""
         self.print_header("📚 ОБНОВЛЕНИЕ README В КАТЕГОРИЯХ")
 
-        categories = ['architecture', 'decisions', 'stories', 'prd', 'epics']
+        categories = ["architecture", "decisions", "stories", "prd", "epics"]
 
         for category_name in categories:
             category_dir = self.docs_dir / category_name
@@ -346,10 +357,14 @@ class DocsIndexGenerator:
                         readme_file = subdir / "README.md"
 
                         if not self.dry_run:
-                            readme_file.write_text(readme_content, encoding='utf-8')
-                            print(f"{Colors.GREEN}✅ Создан/обновлен: {readme_file.relative_to(self.docs_dir)}{Colors.RESET}")
+                            readme_file.write_text(readme_content, encoding="utf-8")
+                            print(
+                                f"{Colors.GREEN}✅ Создан/обновлен: {readme_file.relative_to(self.docs_dir)}{Colors.RESET}"
+                            )
                         else:
-                            print(f"{Colors.YELLOW}[DRY RUN] Будет обновлен: {readme_file.relative_to(self.docs_dir)}{Colors.RESET}")
+                            print(
+                                f"{Colors.YELLOW}[DRY RUN] Будет обновлен: {readme_file.relative_to(self.docs_dir)}{Colors.RESET}"
+                            )
 
     def print_statistics(self):
         """Вывести статистику документации."""
@@ -382,31 +397,31 @@ class DocsIndexGenerator:
             self.print_statistics()
 
             if not self.dry_run:
-                print(f"\n{Colors.GREEN}{Colors.BOLD}✅ ИНДЕКСЫ УСПЕШНО ОБНОВЛЕНЫ{Colors.RESET}\n")
+                print(
+                    f"\n{Colors.GREEN}{Colors.BOLD}✅ ИНДЕКСЫ УСПЕШНО ОБНОВЛЕНЫ{Colors.RESET}\n"
+                )
             else:
-                print(f"\n{Colors.YELLOW}{Colors.BOLD}[DRY RUN] Изменения не применены{Colors.RESET}\n")
+                print(
+                    f"\n{Colors.YELLOW}{Colors.BOLD}[DRY RUN] Изменения не применены{Colors.RESET}\n"
+                )
 
 
 def main():
     """Главная функция."""
     parser = argparse.ArgumentParser(
-        description='Генератор индекса документации FREESPORT'
+        description="Генератор индекса документации FREESPORT"
     )
     parser.add_argument(
-        '--dry-run',
-        action='store_true',
-        help='Показать изменения без записи в файлы'
+        "--dry-run", action="store_true", help="Показать изменения без записи в файлы"
     )
     parser.add_argument(
-        '--stats',
-        action='store_true',
-        help='Показать только статистику'
+        "--stats", action="store_true", help="Показать только статистику"
     )
     parser.add_argument(
-        '--exclude',
-        nargs='*',
+        "--exclude",
+        nargs="*",
         default=[],
-        help='Дополнительные исключения (относительно корня проекта)'
+        help="Дополнительные исключения (относительно корня проекта)",
     )
 
     args = parser.parse_args()
@@ -423,11 +438,13 @@ def main():
     # Создаем генератор и запускаем
     exclude_patterns = load_exclude_patterns(project_root, args.exclude)
 
-    generator = DocsIndexGenerator(docs_dir, dry_run=args.dry_run, exclude_patterns=exclude_patterns)
+    generator = DocsIndexGenerator(
+        docs_dir, dry_run=args.dry_run, exclude_patterns=exclude_patterns
+    )
     generator.run(stats_only=args.stats)
 
     sys.exit(0)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

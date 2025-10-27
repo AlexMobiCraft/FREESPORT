@@ -25,19 +25,25 @@ from exclude_utils import load_exclude_patterns
 
 class Colors:
     """ANSI цвета для вывода."""
-    RED = '\033[91m'
-    GREEN = '\033[92m'
-    YELLOW = '\033[93m'
-    BLUE = '\033[94m'
-    CYAN = '\033[96m'
-    RESET = '\033[0m'
-    BOLD = '\033[1m'
+
+    RED = "\033[91m"
+    GREEN = "\033[92m"
+    YELLOW = "\033[93m"
+    BLUE = "\033[94m"
+    CYAN = "\033[96m"
+    RESET = "\033[0m"
+    BOLD = "\033[1m"
 
 
 class LinkChecker:
     """Проверка ссылок в markdown документах."""
 
-    def __init__(self, docs_dir: Path, check_external: bool = False, exclude_patterns: List[str] | None = None):
+    def __init__(
+        self,
+        docs_dir: Path,
+        check_external: bool = False,
+        exclude_patterns: List[str] | None = None,
+    ):
         self.docs_dir = docs_dir
         self.project_root = docs_dir.parent
         self.check_external = check_external
@@ -60,11 +66,11 @@ class LinkChecker:
         # Паттерны для различных типов ссылок
         patterns = [
             # [text](url)
-            (r'\[([^\]]+)\]\(([^)]+)\)', 'inline'),
+            (r"\[([^\]]+)\]\(([^)]+)\)", "inline"),
             # [text][ref] и [ref]: url
-            (r'\[([^\]]+)\]\[([^\]]+)\]', 'reference'),
+            (r"\[([^\]]+)\]\[([^\]]+)\]", "reference"),
             # ![alt](image)
-            (r'!\[([^\]]*)\]\(([^)]+)\)', 'image'),
+            (r"!\[([^\]]*)\]\(([^)]+)\)", "image"),
         ]
 
         for pattern, link_type in patterns:
@@ -73,21 +79,23 @@ class LinkChecker:
                 url = match.group(2)
 
                 # Находим номер строки
-                line_num = content[:match.start()].count('\n') + 1
+                line_num = content[: match.start()].count("\n") + 1
 
-                links.append({
-                    'text': text,
-                    'url': url,
-                    'type': link_type,
-                    'line': line_num,
-                    'file': file_path
-                })
+                links.append(
+                    {
+                        "text": text,
+                        "url": url,
+                        "type": link_type,
+                        "line": line_num,
+                        "file": file_path,
+                    }
+                )
 
         return links
 
     def is_external_url(self, url: str) -> bool:
         """Проверка, является ли URL внешним."""
-        return url.startswith(('http://', 'https://', 'mailto:', 'ftp://'))
+        return url.startswith(("http://", "https://", "mailto:", "ftp://"))
 
     def _is_excluded(self, path: Path) -> bool:
         """Проверить, входит ли путь в список исключений."""
@@ -95,35 +103,37 @@ class LinkChecker:
             rel_path = path.relative_to(self.project_root).as_posix()
         except ValueError:
             return False
-        return any(self._match_pattern(rel_path, pattern) for pattern in self.exclude_patterns)
+        return any(
+            self._match_pattern(rel_path, pattern) for pattern in self.exclude_patterns
+        )
 
     def _match_pattern(self, path: str, pattern: str) -> bool:
         """Проверить совпадение пути с шаблоном исключения."""
-        if pattern.endswith('/**'):
+        if pattern.endswith("/**"):
             prefix = pattern[:-3]
             return path.startswith(prefix)
-        if pattern.endswith('/*'):
+        if pattern.endswith("/*"):
             prefix = pattern[:-2]
             if not path.startswith(prefix):
                 return False
-            remainder = path[len(prefix):]
-            return remainder.startswith('/') and remainder.count('/') <= 1
+            remainder = path[len(prefix) :]
+            return remainder.startswith("/") and remainder.count("/") <= 1
         return path == pattern
 
     def resolve_link_path(self, link_url: str, source_file: Path) -> Optional[Path]:
         """Разрешить путь ссылки относительно исходного файла."""
         # Убираем якорь
-        clean_url = link_url.split('#')[0]
+        clean_url = link_url.split("#")[0]
 
         if not clean_url:  # Только якорь
             return source_file
 
         # Относительный путь
-        if clean_url.startswith('./') or clean_url.startswith('../'):
+        if clean_url.startswith("./") or clean_url.startswith("../"):
             target = (source_file.parent / clean_url).resolve()
         # Абсолютный путь от docs/
-        elif clean_url.startswith('/'):
-            target = (self.docs_dir / clean_url.lstrip('/')).resolve()
+        elif clean_url.startswith("/"):
+            target = (self.docs_dir / clean_url.lstrip("/")).resolve()
         # Путь относительно docs/
         else:
             target = (self.docs_dir / clean_url).resolve()
@@ -135,15 +145,15 @@ class LinkChecker:
         anchors = set()
 
         # Заголовки markdown
-        header_pattern = r'^#+\s+(.+)$'
+        header_pattern = r"^#+\s+(.+)$"
         for match in re.finditer(header_pattern, content, re.MULTILINE):
             header_text = match.group(1).strip()
 
             # Преобразуем заголовок в якорь (как это делает GitHub/GitLab)
             anchor = header_text.lower()
-            anchor = re.sub(r'[^\w\s-]', '', anchor)  # Убираем спецсимволы
-            anchor = re.sub(r'[\s]+', '-', anchor)  # Пробелы в дефисы
-            anchor = anchor.strip('-')
+            anchor = re.sub(r"[^\w\s-]", "", anchor)  # Убираем спецсимволы
+            anchor = re.sub(r"[\s]+", "-", anchor)  # Пробелы в дефисы
+            anchor = anchor.strip("-")
 
             anchors.add(anchor)
 
@@ -151,7 +161,7 @@ class LinkChecker:
 
     def check_link(self, link: Dict) -> Optional[Dict]:
         """Проверить одну ссылку."""
-        url = link['url']
+        url = link["url"]
 
         # Пропускаем внешние URL если не включена проверка
         if self.is_external_url(url):
@@ -161,46 +171,46 @@ class LinkChecker:
             return None
 
         # Разрешаем путь
-        target_path = self.resolve_link_path(url, link['file'])
+        target_path = self.resolve_link_path(url, link["file"])
 
         if not target_path:
             return {
-                'type': 'error',
-                'message': f"Не удалось разрешить путь: {url}",
-                'link': link
+                "type": "error",
+                "message": f"Не удалось разрешить путь: {url}",
+                "link": link,
             }
 
         # Проверяем существование файла
         if not target_path.exists():
             return {
-                'type': 'error',
-                'message': f"Файл не найден: {target_path.relative_to(self.project_root)}",
-                'link': link
+                "type": "error",
+                "message": f"Файл не найден: {target_path.relative_to(self.project_root)}",
+                "link": link,
             }
 
         if self._is_excluded(target_path):
             return None
 
         # Проверяем якорь, если есть
-        if '#' in url:
-            anchor = url.split('#')[1]
+        if "#" in url:
+            anchor = url.split("#")[1]
 
             try:
-                target_content = target_path.read_text(encoding='utf-8')
+                target_content = target_path.read_text(encoding="utf-8")
                 available_anchors = self.extract_anchors(target_content)
 
                 if anchor not in available_anchors:
                     return {
-                        'type': 'warning',
-                        'message': f"Якорь '#{anchor}' не найден в {target_path.name}",
-                        'link': link,
-                        'available_anchors': list(available_anchors)[:5]
+                        "type": "warning",
+                        "message": f"Якорь '#{anchor}' не найден в {target_path.name}",
+                        "link": link,
+                        "available_anchors": list(available_anchors)[:5],
                     }
             except Exception as e:
                 return {
-                    'type': 'warning',
-                    'message': f"Ошибка при проверке якоря: {e}",
-                    'link': link
+                    "type": "warning",
+                    "message": f"Ошибка при проверке якоря: {e}",
+                    "link": link,
                 }
 
         return None  # Ссылка валидна
@@ -216,28 +226,30 @@ class LinkChecker:
 
         for md_file in md_files:
             try:
-                content = md_file.read_text(encoding='utf-8')
+                content = md_file.read_text(encoding="utf-8")
                 links = self.extract_links(content, md_file)
                 self.total_links += len(links)
 
                 for link in links:
-                    if self._is_excluded(link['file']):
+                    if self._is_excluded(link["file"]):
                         continue
 
                     issue = self.check_link(link)
 
                     if issue:
-                        if issue['type'] == 'error':
+                        if issue["type"] == "error":
                             self.errors.append(issue)
                         else:
                             self.warnings.append(issue)
 
             except Exception as e:
-                self.warnings.append({
-                    'type': 'warning',
-                    'message': f"Ошибка при обработке файла: {e}",
-                    'link': {'file': md_file, 'line': 0}
-                })
+                self.warnings.append(
+                    {
+                        "type": "warning",
+                        "message": f"Ошибка при обработке файла: {e}",
+                        "link": {"file": md_file, "line": 0},
+                    }
+                )
 
         return len(self.errors), len(self.warnings)
 
@@ -255,8 +267,8 @@ class LinkChecker:
             print(f"\n{Colors.RED}{Colors.BOLD}❌ ОШИБКИ:{Colors.RESET}\n")
 
             for i, error in enumerate(self.errors[:20], 1):
-                link = error['link']
-                relative_path = link['file'].relative_to(self.docs_dir)
+                link = error["link"]
+                relative_path = link["file"].relative_to(self.docs_dir)
 
                 print(f"{i}. {Colors.BOLD}{relative_path}:{link['line']}{Colors.RESET}")
                 print(f"   Ссылка: [{link['text']}]({link['url']})")
@@ -270,15 +282,17 @@ class LinkChecker:
             print(f"\n{Colors.YELLOW}{Colors.BOLD}⚠️  ПРЕДУПРЕЖДЕНИЯ:{Colors.RESET}\n")
 
             for i, warning in enumerate(self.warnings[:10], 1):
-                link = warning['link']
-                relative_path = link['file'].relative_to(self.docs_dir)
+                link = warning["link"]
+                relative_path = link["file"].relative_to(self.docs_dir)
 
                 print(f"{i}. {Colors.BOLD}{relative_path}:{link['line']}{Colors.RESET}")
                 print(f"   Ссылка: [{link['text']}]({link['url']})")
                 print(f"   {Colors.YELLOW}{warning['message']}{Colors.RESET}")
 
-                if 'available_anchors' in warning:
-                    print(f"   Доступные якоря: {', '.join(warning['available_anchors'])}")
+                if "available_anchors" in warning:
+                    print(
+                        f"   Доступные якоря: {', '.join(warning['available_anchors'])}"
+                    )
 
                 print()
 
@@ -290,10 +304,14 @@ class LinkChecker:
             print(f"\n{Colors.GREEN}{Colors.BOLD}✅ ВСЕ ССЫЛКИ ВАЛИДНЫ!{Colors.RESET}\n")
             return True
         elif self.errors:
-            print(f"\n{Colors.RED}{Colors.BOLD}❌ НАЙДЕНЫ КРИТИЧНЫЕ ОШИБКИ{Colors.RESET}\n")
+            print(
+                f"\n{Colors.RED}{Colors.BOLD}❌ НАЙДЕНЫ КРИТИЧНЫЕ ОШИБКИ{Colors.RESET}\n"
+            )
             return False
         else:
-            print(f"\n{Colors.YELLOW}{Colors.BOLD}⚠️  ПРОВЕРКА ПРОЙДЕНА С ПРЕДУПРЕЖДЕНИЯМИ{Colors.RESET}\n")
+            print(
+                f"\n{Colors.YELLOW}{Colors.BOLD}⚠️  ПРОВЕРКА ПРОЙДЕНА С ПРЕДУПРЕЖДЕНИЯМИ{Colors.RESET}\n"
+            )
             return True
 
     def generate_report(self, output_file: Path):
@@ -314,8 +332,8 @@ class LinkChecker:
             report_lines.append("")
 
             for error in self.errors:
-                link = error['link']
-                relative_path = link['file'].relative_to(self.docs_dir)
+                link = error["link"]
+                relative_path = link["file"].relative_to(self.docs_dir)
                 report_lines.append(f"### {relative_path}:{link['line']}")
                 report_lines.append(f"- **Ссылка:** `[{link['text']}]({link['url']})`")
                 report_lines.append(f"- **Ошибка:** {error['message']}")
@@ -326,38 +344,32 @@ class LinkChecker:
             report_lines.append("")
 
             for warning in self.warnings:
-                link = warning['link']
-                relative_path = link['file'].relative_to(self.docs_dir)
+                link = warning["link"]
+                relative_path = link["file"].relative_to(self.docs_dir)
                 report_lines.append(f"### {relative_path}:{link['line']}")
                 report_lines.append(f"- **Ссылка:** `[{link['text']}]({link['url']})`")
                 report_lines.append(f"- **Предупреждение:** {warning['message']}")
                 report_lines.append("")
 
-        output_file.write_text('\n'.join(report_lines), encoding='utf-8')
+        output_file.write_text("\n".join(report_lines), encoding="utf-8")
         print(f"\n{Colors.GREEN}Отчет сохранен: {output_file}{Colors.RESET}")
 
 
 def main():
     """Главная функция."""
     parser = argparse.ArgumentParser(
-        description='Проверка кросс-ссылок в документации FREESPORT'
+        description="Проверка кросс-ссылок в документации FREESPORT"
     )
     parser.add_argument(
-        '--external',
-        action='store_true',
-        help='Проверять внешние URL (медленно)'
+        "--external", action="store_true", help="Проверять внешние URL (медленно)"
     )
-    parser.add_argument(
-        '--report',
-        type=str,
-        help='Сохранить отчет в файл'
-    )
+    parser.add_argument("--report", type=str, help="Сохранить отчет в файл")
 
     parser.add_argument(
-        '--exclude',
-        nargs='*',
+        "--exclude",
+        nargs="*",
         default=[],
-        help='Дополнительные исключения (относительно корня проекта)'
+        help="Дополнительные исключения (относительно корня проекта)",
     )
 
     args = parser.parse_args()
@@ -374,7 +386,9 @@ def main():
     # Создаем checker и запускаем проверку
     exclude_patterns = load_exclude_patterns(project_root, args.exclude)
 
-    checker = LinkChecker(docs_dir, check_external=args.external, exclude_patterns=exclude_patterns)
+    checker = LinkChecker(
+        docs_dir, check_external=args.external, exclude_patterns=exclude_patterns
+    )
     checker.check_all_links()
 
     # Выводим результаты
@@ -389,5 +403,5 @@ def main():
     sys.exit(0 if success else 1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

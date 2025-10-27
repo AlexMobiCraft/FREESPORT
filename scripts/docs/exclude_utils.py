@@ -10,7 +10,9 @@ def _normalize(pattern: str) -> str:
     return pattern.replace("\\", "/").strip()
 
 
-def load_exclude_patterns(project_root: Path, extra_patterns: Iterable[str] | None = None) -> List[str]:
+def load_exclude_patterns(
+    project_root: Path, extra_patterns: Iterable[str] | None = None
+) -> List[str]:
     """Прочитать базовый список исключений и объединить его с дополнительными шаблонами."""
     patterns: List[str] = []
     config_path = project_root / "scripts" / EXCLUDES_FILENAME
@@ -23,6 +25,8 @@ def load_exclude_patterns(project_root: Path, extra_patterns: Iterable[str] | No
             patterns.append(_normalize(line))
 
     if extra_patterns:
-        patterns.extend(_normalize(pattern) for pattern in extra_patterns if pattern.strip())
+        patterns.extend(
+            _normalize(pattern) for pattern in extra_patterns if pattern.strip()
+        )
 
     return patterns
