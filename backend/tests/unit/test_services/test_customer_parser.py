@@ -11,6 +11,7 @@ from apps.users.services.parser import CustomerDataParser
 
 
 @pytest.mark.unit
+@pytest.mark.data_dependent
 class TestCustomerDataParser:
     """Unit-тесты для парсера клиентов с реальными данными из 1С"""
 

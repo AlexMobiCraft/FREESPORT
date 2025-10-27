@@ -184,7 +184,7 @@ jobs:
       run: |
         cd backend
         source venv/bin/activate
-        pytest -m "not integration" --cov=. --cov-report=xml --cov-report=html --cov-report=term-missing --cov-fail-under=70
+        pytest -m "not integration and not data_dependent" --cov=. --cov-report=xml --cov-report=html --cov-report=term-missing --cov-fail-under=70
         
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@v4
