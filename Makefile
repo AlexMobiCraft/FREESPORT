@@ -2,7 +2,8 @@
 
 .PHONY: help build up down test test-unit test-integration clean logs shell \
          format lint migrate createsuperuser collectstatic \
-         docs-validate docs-search-obsolete docs-check-links docs-check-api docs-update-index
+         docs-validate docs-search-obsolete docs-check-links docs-check-api docs-update-index \
+         check-env-consistency fix-black-quick fix-existing-venv remove-venv
 
 # По умолчанию показываем help
 help:
@@ -15,11 +16,21 @@ help:
 	@echo "  logs           - Показать логи всех сервисов"
 	@echo "  clean          - Очистить Docker volumes и образы"
 	@echo ""
+	@echo "Форматирование и линтинг:"
+	@echo "  format         - Форматирование через Docker (полный контекст)"
+	@echo "  format-fast    - Быстрое форматирование через lightweight Docker"
+	@echo "  format-local   - Локальное форматирование (требует venv)"
+	@echo "  lint           - Линтинг через Docker (полный контекст)"
+	@echo "  lint-fast      - Быстрый линтинг через lightweight Docker"
+	@echo "  lint-local     - Локальный линтинг (требует venv)"
+	@echo ""
 	@echo "Тестирование (PostgreSQL + Redis через Docker):"
 	@echo "  test           - Запустить все тесты в Docker с PostgreSQL"
 	@echo "  test-unit      - Запустить только unit-тесты"
 	@echo "  test-integration - Запустить интеграционные тесты"
 	@echo "  test-fast      - Быстрые тесты (без пересборки образов)"
+	@echo "  test-fast-tools - Быстрые тесты через lightweight Docker"
+	@echo "  test-local     - Локальное тестирование (требует venv)"
 	@echo ""
 	@echo "Документация:"
 	@echo "  docs-validate      - Полная валидация документации"
@@ -31,6 +42,12 @@ help:
 	@echo "  docs-sync-decisions - Сверка решений (docs ↔ код)"
 	@echo "  docs-sync-all      - Выполнить все синхронизации"
 	@echo "  docs-update-index-apply - Обновить индексы с записью"
+	@echo ""
+	@echo "Мониторинг:"
+	@echo "  check-env-consistency - Проверка согласованности окружений"
+	@echo "  fix-black-quick   - Быстрое исправление проблемы с black"
+	@echo "  fix-existing-venv - Исправление существующего venv"
+	@echo "  remove-venv      - Удаление виртуального окружения"
 	@echo ""
 	@echo "Отладка:"
 	@echo "  shell          - Открыть shell в backend контейнере"
@@ -99,10 +116,41 @@ format:
 	docker-compose exec backend black .
 	docker-compose exec backend isort .
 
+# Быстрое форматирование через lightweight Docker
+format-fast:
+	docker build -f docker/Dockerfile.dev-tools -t freesport-dev-tools ../backend
+	docker run --rm -v $(PWD)/backend:/app freesport-dev-tools black .
+	docker run --rm -v $(PWD)/backend:/app freesport-dev-tools isort .
+
+# Локальное форматирование (если venv доступно)
+format-local:
+	cd backend && venv/Scripts/black.exe .
+	cd backend && venv/Scripts/isort.exe .
+
 # Линтинг кода
 lint:
 	docker-compose exec backend flake8 .
 	docker-compose exec backend mypy .
+
+# Быстрый линтинг через lightweight Docker
+lint-fast:
+	docker build -f docker/Dockerfile.dev-tools -t freesport-dev-tools ../backend
+	docker run --rm -v $(PWD)/backend:/app freesport-dev-tools flake8 .
+	docker run --rm -v $(PWD)/backend:/app freesport-dev-tools mypy .
+
+# Локальный линтинг (если venv доступно)
+lint-local:
+	cd backend && venv/Scripts/flake8.exe .
+	cd backend && venv/Scripts/mypy.exe .
+
+# Быстрое тестирование через lightweight Docker
+test-fast-tools:
+	docker build -f docker/Dockerfile.dev-tools -t freesport-dev-tools ../backend
+	docker run --rm -v $(PWD)/backend:/app freesport-dev-tools pytest -v --tb=short
+
+# Локальное тестирование (если venv доступно)
+test-local:
+	cd backend && venv/Scripts/pytest.exe -v --tb=short
 
 # Миграции БД
 migrate:
@@ -158,3 +206,19 @@ docs-sync-all:
 docs-update-index-apply:
 	@echo "Обновление индексов документации (apply)..."
 	python scripts/docs_sync.py update-index --apply
+# Проверка согласованности виртуальных окружений
+check-env-consistency:
+	@echo "Проверка согласованности виртуальных окружений..."
+	powershell -ExecutionPolicy Bypass -File scripts/migration/check-env-consistency.ps1
+# Быстрое исправление проблемы с black
+fix-black-quick:
+	@echo "Быстрое исправление проблемы с black..."
+	powershell -ExecutionPolicy Bypass -File scripts/migration/fix-black-quick.ps1
+# Исправление существующего виртуального окружения
+fix-existing-venv:
+	@echo "Исправление существующего виртуального окружения..."
+	powershell -ExecutionPolicy Bypass -File scripts/migration/fix-existing-venv.ps1
+# Удаление виртуального окружения
+remove-venv:
+	@echo "Удаление виртуального окружения с резервным копированием..."
+	powershell -ExecutionPolicy Bypass -File scripts/migration/remove-venv.ps1

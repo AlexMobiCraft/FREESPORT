@@ -1,8 +1,7 @@
 -- Инициализация базы данных FREESPORT
 -- Этот скрипт выполняется автоматически при первом запуске PostgreSQL
 
--- Установка пароля для пользователя postgres (на случай если не установлен)
-ALTER USER postgres WITH PASSWORD 'password123';
+-- Пароль пользователя postgres задаётся переменной POSTGRES_PASSWORD в docker-compose
 
 -- Создание базы данных (если не создана через POSTGRES_DB)
 SELECT 'CREATE DATABASE freesport'

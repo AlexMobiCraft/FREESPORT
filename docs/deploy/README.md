@@ -46,19 +46,20 @@ chmod +x scripts/deploy/*.sh
 cp .env.prod.example .env.prod
 nano .env.prod  # изменить только пароли!
 ./scripts/deploy/deploy.sh init
+```
 
 # 4. Настройка SSL
 sudo certbot --nginx -d freesport.ru -d www.freesport.ru
-```
 
 ## Управление платформой
 
 ```bash
 # Статус сервисов
-./scripts/deploy/deploy.sh status
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml ps
 
 # Обновление
-./scripts/deploy/deploy.sh update
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml pull
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml up -d
 
 # Резервное копирование
 ./scripts/deploy/deploy.sh backup
@@ -71,8 +72,8 @@ sudo certbot --nginx -d freesport.ru -d www.freesport.ru
 
 ### Основные файлы конфигурации
 
-- [`.env.prod`](../../.env.prod.example) - Переменные окружения для production
-- [`docker-compose.prod.yml`](../../docker-compose.prod.yml) - Production конфигурация Docker Compose
+- [`.env.prod`](../../.env.prod.example) - Переменные окружения для production (файл хранится в корне проекта)
+- [`docker/docker-compose.prod.yml`](../../docker/docker-compose.prod.yml) - Production конфигурация Docker Compose
 - [`docker/nginx/`](../../docker/nginx/) - Конфигурация Nginx
 
 ### Переменные окружения
@@ -127,7 +128,7 @@ systemctl restart ssh
 
 ```bash
 # Проверка статуса контейнеров
-docker compose -f docker-compose.prod.yml ps
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml ps
 
 # Проверка использования ресурсов
 docker stats
@@ -175,10 +176,11 @@ echo "0 3 * * * /path/to/freesport/scripts/deploy/deploy.sh update" | crontab -
 
 ```bash
 # Обновление проекта
-./scripts/deploy/deploy.sh update
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml pull
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml up -d
 
 # Проверка статуса после обновления
-./scripts/deploy/deploy.sh status
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml ps
 ```
 
 ## Поддержка
@@ -188,7 +190,7 @@ echo "0 3 * * * /path/to/freesport/scripts/deploy/deploy.sh update" | crontab -
 1. Проверьте логи контейнеров:
 
    ```bash
-   docker compose -f docker-compose.prod.yml logs -f
+   docker compose --env-file .env.prod -f docker/docker-compose.prod.yml logs -f
    ```
 
 2. Запустите проверку работоспособности:
@@ -221,13 +223,13 @@ sudo su - freesport
 cd /freesport
 
 # Проверка статуса всех сервисов
-./scripts/deploy/deploy.sh status
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml ps
 
 # Комплексная проверка работоспособности
 ./scripts/deploy/health-check.sh
 
 # Проверка логов на наличие ошибок
-docker compose -f docker/docker-compose.prod.yml logs
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml logs
 
 # Проверка доступности сайта
 curl -I https://freesport.ru
@@ -264,8 +266,8 @@ nano .env.prod
 
 ```bash
 # Перезапустите сервисы
-docker compose -f docker/docker-compose.prod.yml down
-docker compose -f docker/docker-compose.prod.yml up -d
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml down
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml up -d
 
 # Проверьте работоспособность
 ./scripts/deploy/health-check.sh
