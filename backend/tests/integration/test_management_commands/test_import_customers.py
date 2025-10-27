@@ -9,11 +9,14 @@ from pathlib import Path
 from django.core.management import call_command
 from django.contrib.auth import get_user_model
 from io import StringIO
+from typing import Type, cast
 
 from apps.common.models import CustomerSyncLog
 from apps.products.models import ImportSession
+from apps.users.models import User as CustomUserModel
 
-User = get_user_model()
+
+User = cast(Type[CustomUserModel], get_user_model())
 
 
 @pytest.mark.django_db
