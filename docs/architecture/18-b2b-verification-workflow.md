@@ -102,6 +102,7 @@ if user.is_b2b_user:
 ### Этап 1: Регистрация B2B пользователя
 
 1. **Frontend форма регистрации** отправляет данные:
+
    ```json
    {
      "email": "company@example.com",
