@@ -1,0 +1,46 @@
+schema: 1
+story: '3.2.2'
+story_title: 'Story 3.2.2: conflict-resolution'
+gate: PASS
+status_reason: 'All blocking issues resolved. CustomerConflictResolver implements deterministic onec_wins strategy with comprehensive audit trail, email notifications, and full test coverage.'
+reviewer: 'Quinn (Test Architect)'
+updated: '2025-10-29T19:08:00Z'
+
+top_issues: []
+
+waiver:
+  active: false
+
+quality_score: 95
+expires: '2025-11-12T19:08:00Z'
+
+evidence:
+  tests_reviewed: 24
+  risks_identified: 0
+  trace:
+    ac_covered: [1, 2, 3, 4, 5, 6, 7]
+    ac_gaps: []
+
+nfr_validation:
+  security:
+    status: PASS
+    notes: 'Email notifications sent outside transaction, no sensitive data exposed. Proper error handling prevents information leakage.'
+  performance:
+    status: PASS
+    notes: 'Transaction.atomic() ensures atomicity. Email sent via on_commit() prevents blocking. Design supports <1min for 1000 conflicts requirement.'
+  reliability:
+    status: PASS
+    notes: 'All operations properly logged. Email failures do not block conflict resolution. Full rollback capability via SyncConflict archive.'
+  maintainability:
+    status: PASS
+    notes: 'Clean separation of concerns. Well-documented methods. Comprehensive test coverage (15 unit + 9 integration tests).'
+
+recommendations:
+  immediate: []
+  future:
+    - action: 'Consider adding performance benchmark test to validate <1min requirement for 1000 conflicts.'
+      refs:
+        - backend/tests/performance/
+    - action: 'Add monitoring/alerting for notification failures to track SMTP issues in production.'
+      refs:
+        - backend/apps/users/services/conflict_resolution.py

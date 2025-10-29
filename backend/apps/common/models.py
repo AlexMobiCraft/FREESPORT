@@ -250,58 +250,228 @@ class SyncLog(models.Model):
 
 class CustomerSyncLog(models.Model):
     """
-    Детальное логирование операций импорта клиентов из 1С
-    Связан с ImportSession для двухуровневого логирования
+    Детальное логирование всех операций синхронизации клиентов.
+    Используется для аудита, мониторинга и отчетности интеграции с 1С.
     """
 
     class OperationType(models.TextChoices):
+        # Основные операции
+        IMPORT_FROM_1C = "import_from_1c", "Импорт из 1С"
+        EXPORT_TO_1C = "export_to_1c", "Экспорт в 1С"
+        SYNC_CHANGES = "sync_changes", "Синхронизация изменений"
+        
+        # Служебные операции
+        CUSTOMER_IDENTIFICATION = "customer_identification", "Идентификация клиента"
+        CONFLICT_RESOLUTION = "conflict_resolution", "Разрешение конфликтов"
+        DATA_VALIDATION = "data_validation", "Валидация данных"
+        BATCH_OPERATION = "batch_operation", "Пакетная операция"
+        
+        # Legacy операции (для обратной совместимости)
         CREATED = "created", "Создан"
         UPDATED = "updated", "Обновлен"
         SKIPPED = "skipped", "Пропущен"
         ERROR = "error", "Ошибка"
+        IDENTIFY_CUSTOMER = "identify_customer", "Идентификация клиента"
+        NOTIFICATION_FAILED = "notification_failed", "Ошибка отправки уведомления"
 
     class StatusType(models.TextChoices):
         SUCCESS = "success", "Успешно"
-        FAILED = "failed", "Ошибка"
+        ERROR = "error", "Ошибка"
         WARNING = "warning", "Предупреждение"
+        SKIPPED = "skipped", "Пропущено"
+        PENDING = "pending", "В процессе"
+        
+        # Legacy статусы (для обратной совместимости)
+        FAILED = "failed", "Ошибка"
+        NOT_FOUND = "not_found", "Не найден"
 
+    # Основные поля
+    operation_type = models.CharField(
+        "Тип операции", 
+        max_length=30, 
+        choices=OperationType.choices,
+        db_index=True
+    )
+    status = models.CharField(
+        "Статус", 
+        max_length=20, 
+        choices=StatusType.choices,
+        db_index=True
+    )
+
+    # Связь с клиентом (может быть null если клиент не найден)
+    customer = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="sync_logs",
+        verbose_name="Клиент",
+    )
+    customer_email = models.EmailField("Email клиента", blank=True, db_index=True)
+    onec_id = models.CharField(
+        "ID в 1С", 
+        max_length=100, 
+        blank=True,
+        db_index=True
+    )
+
+    # Детальная информация
+    details = models.JSONField(
+        "Детали операции",
+        default=dict,
+        help_text="Структурированные данные операции",
+    )
+    error_message = models.TextField("Сообщение об ошибке", blank=True)
+
+    # Метаданные
+    duration_ms = models.PositiveIntegerField(
+        "Длительность (мс)", 
+        null=True, 
+        blank=True,
+        help_text="Длительность операции в миллисекундах"
+    )
+    correlation_id = models.CharField(
+        "Correlation ID",
+        max_length=50,
+        blank=True,
+        db_index=True,
+        help_text="ID для отслеживания связанных операций"
+    )
+
+    # Legacy поля (для обратной совместимости)
     session = models.ForeignKey(
         "products.ImportSession",
         on_delete=models.CASCADE,
         related_name="customer_logs",
         verbose_name="Сессия импорта",
+        null=True,
+        blank=True,
+        help_text="Сессия импорта (опционально)",
     )
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
         null=True,
         blank=True,
-        verbose_name="Пользователь",
+        verbose_name="Пользователь (legacy)",
+        related_name="legacy_sync_logs",
+        help_text="Legacy поле, используйте customer вместо этого"
     )
-    onec_id = models.CharField("ID в 1С", max_length=100)
-    operation_type = models.CharField(
-        "Тип операции", max_length=20, choices=OperationType.choices
-    )
-    status = models.CharField("Статус", max_length=20, choices=StatusType.choices)
-    error_message = models.TextField("Сообщение об ошибке", blank=True)
-    details = models.JSONField(
-        "Детали операции",
-        default=dict,
-        blank=True,
-        help_text="Дополнительная информация: старые/новые значения, причина пропуска",
-    )
-    created_at = models.DateTimeField("Дата создания", auto_now_add=True)
+
+    # Временные метки
+    created_at = models.DateTimeField("Дата операции", auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField("Обновлено", auto_now=True)
 
     class Meta:
-        verbose_name = "Лог синхронизации клиента"
+        verbose_name = "Лог синхронизации клиентов"
         verbose_name_plural = "Логи синхронизации клиентов"
         db_table = "customer_sync_logs"
         ordering = ["-created_at"]
         indexes = [
-            models.Index(fields=["session", "operation_type"]),
-            models.Index(fields=["onec_id"]),
-            models.Index(fields=["status"]),
+            models.Index(fields=["operation_type", "status", "created_at"]),
+            models.Index(fields=["customer_email"]),
+            models.Index(fields=["correlation_id"]),
+            models.Index(fields=["created_at"]),
         ]
 
     def __str__(self) -> str:
-        return f"{self.operation_type} - {self.onec_id} ({self.status})"
+        return f"{self.get_operation_type_display()} - {self.onec_id or self.customer_email} ({self.get_status_display()})"
+
+
+class SyncConflict(models.Model):
+    """
+    Модель для хранения конфликтов синхронизации между порталом и 1С.
+    Архивирует старые и новые данные для возможности отката изменений.
+    """
+
+    CONFLICT_TYPE_CHOICES = [
+        ("portal_registration_blocked", "Регистрация на портале заблокирована"),
+        ("customer_data", "Конфликт данных клиента"),
+        ("order_data", "Конфликт данных заказа"),
+        ("product_data", "Конфликт данных товара"),
+    ]
+
+    RESOLUTION_STRATEGY_CHOICES = [
+        ("onec_wins", "1С имеет приоритет"),
+        ("portal_wins", "Портал имеет приоритет"),
+        ("manual", "Ручное разрешение"),
+    ]
+
+    conflict_type = models.CharField(
+        "Тип конфликта",
+        max_length=50,
+        choices=CONFLICT_TYPE_CHOICES,
+        help_text="Тип конфликта синхронизации",
+    )
+    customer = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="sync_conflicts",
+        verbose_name="Клиент",
+        help_text="Клиент, для которого возник конфликт",
+    )
+    platform_data = models.JSONField(
+        "Данные портала",
+        default=dict,
+        help_text="Архив данных из портала до разрешения конфликта",
+    )
+    onec_data = models.JSONField(
+        "Данные 1С",
+        default=dict,
+        help_text="Данные из 1С, вызвавшие конфликт",
+    )
+    conflicting_fields = models.JSONField(
+        "Конфликтующие поля",
+        default=list,
+        help_text="Список полей с различиями",
+    )
+    resolution_strategy = models.CharField(
+        "Стратегия разрешения",
+        max_length=20,
+        choices=RESOLUTION_STRATEGY_CHOICES,
+        default="onec_wins",
+        help_text="Стратегия разрешения конфликта",
+    )
+    is_resolved = models.BooleanField(
+        "Разрешен",
+        default=False,
+        help_text="Флаг разрешения конфликта",
+    )
+    resolution_details = models.JSONField(
+        "Детали разрешения",
+        default=dict,
+        blank=True,
+        help_text="Детали примененных изменений и источник конфликта",
+    )
+    resolved_at = models.DateTimeField(
+        "Дата разрешения",
+        null=True,
+        blank=True,
+        help_text="Дата и время разрешения конфликта",
+    )
+    resolved_by = models.CharField(
+        "Разрешено",
+        max_length=100,
+        blank=True,
+        help_text="Кем разрешен конфликт (система или пользователь)",
+    )
+    created_at = models.DateTimeField("Дата создания", auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Конфликт синхронизации"
+        verbose_name_plural = "Конфликты синхронизации"
+        db_table = "sync_conflicts"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["customer", "conflict_type"]),
+            models.Index(fields=["is_resolved", "created_at"]),
+            models.Index(fields=["conflict_type", "created_at"]),
+        ]
+
+    def __str__(self) -> str:
+        status = "Разрешен" if self.is_resolved else "Не разрешен"
+        return (
+            f"{self.get_conflict_type_display()} - "
+            f"{self.customer.email} ({status})"
+        )

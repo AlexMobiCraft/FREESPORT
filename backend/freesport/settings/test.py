@@ -51,6 +51,8 @@ DATABASES = {
         ),
         "HOST": _get_env_value("DB_HOST", ("POSTGRES_HOST", "PGHOST"), "127.0.0.1"),
         "PORT": int(_get_env_value("DB_PORT", ("POSTGRES_PORT", "PGPORT"), "5432")),
+        "ATOMIC_REQUESTS": True,  # Оборачиваем каждый запрос в транзакцию
+        "CONN_MAX_AGE": 0,  # Закрываем соединения после каждого запроса в тестах
         "OPTIONS": {
             "client_encoding": "UTF8",
             "connect_timeout": 10,
@@ -79,6 +81,16 @@ PASSWORD_HASHERS = [
 # Отключаем email-отправку, заменяя её на "заглушку",
 # которая хранит письма в памяти.
 EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
+
+# Значения по умолчанию для email уведомлений в тестовой среде
+CONFLICT_NOTIFICATION_EMAIL = os.environ.get(
+    "CONFLICT_NOTIFICATION_EMAIL",
+    "alex.mobicraft@gmail.com",
+)
+DEFAULT_FROM_EMAIL = os.environ.get(
+    "DEFAULT_FROM_EMAIL",
+    "admin@freesport.ru",
+)
 
 # Отключаем логирование в консоль, чтобы вывод тестов был чистым.
 LOGGING: dict[str, Any] = {}

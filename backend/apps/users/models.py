@@ -119,6 +119,12 @@ class User(AbstractUser):
         ("conflict", "Конфликт данных"),
     ]
 
+    VERIFICATION_STATUS_CHOICES = [
+        ("unverified", "Не верифицирован"),
+        ("verified", "Верифицирован"),
+        ("pending", "Ожидает верификации"),
+    ]
+
     onec_id = models.CharField(
         "ID в 1С",
         max_length=100,
@@ -126,6 +132,13 @@ class User(AbstractUser):
         null=True,
         unique=True,
         help_text="Уникальный идентификатор клиента в 1С",
+    )
+    onec_guid = models.UUIDField(
+        "GUID в 1С",
+        blank=True,
+        null=True,
+        unique=True,
+        help_text="Уникальный GUID клиента в 1С",
     )
     sync_status = models.CharField(
         "Статус синхронизации",
@@ -150,10 +163,23 @@ class User(AbstractUser):
         blank=True,
         help_text="Дата и время последней синхронизации с 1С",
     )
+    last_sync_from_1c = models.DateTimeField(
+        "Последняя синхронизация из 1С",
+        null=True,
+        blank=True,
+        help_text="Дата и время последнего импорта данных из 1С",
+    )
     sync_error_message = models.TextField(
         "Ошибка синхронизации",
         blank=True,
         help_text="Сообщение об ошибке при синхронизации с 1С",
+    )
+    verification_status = models.CharField(
+        "Статус верификации",
+        max_length=20,
+        choices=VERIFICATION_STATUS_CHOICES,
+        default="unverified",
+        help_text="Статус верификации клиента из 1С",
     )
 
     USERNAME_FIELD = "email"
