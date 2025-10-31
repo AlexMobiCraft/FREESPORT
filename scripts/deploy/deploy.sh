@@ -28,7 +28,11 @@ log() {
 set -e # Прерывать выполнение при любой ошибке
 
 # 1. Определение ветки
-BRANCH=${1:-$DEFAULT_BRANCH}
+if [ -z "$1" ]; then
+    BRANCH=$DEFAULT_BRANCH
+else
+    BRANCH=$1
+fi
 log "Используется ветка: $BRANCH"
 
 # 2. Проверка файла .env
