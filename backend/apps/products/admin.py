@@ -8,10 +8,19 @@ from typing import Any
 from django.contrib import admin
 from django.db.models import QuerySet
 from django.http import HttpRequest
-
-from .models import Brand, Category, ImportSession, Product
-
-
+ 
+from .models import Brand, Category, ImportSession, Product, ProductImage
+ 
+ 
+class ProductImageInline(admin.TabularInline):
+    """Инлайн для изображений продукта"""
+ 
+    model = ProductImage
+    extra = 1  # Количество пустых форм для добавления
+    fields = ("image", "alt_text", "is_main", "sort_order")
+    readonly_fields = ("created_at", "updated_at")
+ 
+ 
 @admin.register(Brand)
 class BrandAdmin(admin.ModelAdmin):
     """Admin для модели Brand"""
@@ -60,6 +69,7 @@ class ProductAdmin(admin.ModelAdmin):
         "error_message",
     )
     raw_id_fields = ("brand", "category")
+    inlines = [ProductImageInline]  # Добавляем инлайн для изображений
     fieldsets = (
         (
             "Основная информация",
@@ -96,15 +106,13 @@ class ProductAdmin(admin.ModelAdmin):
                     "sku",
                     "stock_quantity",
                     "reserved_quantity",
-                    "weight",
-                    "dimensions",
                 )
             },
         ),
         (
             "Медиа и изображения",
             {
-                "fields": ("main_image", "images"),
+                "fields": ("main_image",),
             },
         ),
         (
