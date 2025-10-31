@@ -11,8 +11,11 @@ from drf_spectacular.views import (
     SpectacularSwaggerView,
 )
 
+from apps.common.admin import monitoring_dashboard_view
+
 urlpatterns = [
     # Админ панель Django
+    path("admin/monitoring/", monitoring_dashboard_view, name="admin:monitoring_dashboard"),
     path("admin/", admin.site.urls),
     # API документация
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),

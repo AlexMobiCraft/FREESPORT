@@ -1,14 +1,20 @@
 """
 Django Admin конфигурация для моделей приложения common
 """
+from __future__ import annotations
+
 import csv
+from datetime import timedelta
 
 from django.contrib import admin
 from django.db.models import QuerySet
 from django.http import HttpRequest, HttpResponse
+from django.shortcuts import render
+from django.urls import path
 from django.utils import timezone
 
 from .models import AuditLog, CustomerSyncLog, SyncConflict, SyncLog
+from .services import CustomerSyncMonitor
 
 
 @admin.register(AuditLog)
@@ -210,3 +216,30 @@ class SyncConflictAdmin(admin.ModelAdmin):
     search_fields = ["customer__email", "customer__first_name", "customer__last_name"]
     readonly_fields = ["created_at", "resolved_at"]
     date_hierarchy = "created_at"
+
+
+# ==================================================================
+# Custom Admin Views
+# ==================================================================
+
+
+def monitoring_dashboard_view(request: HttpRequest) -> HttpResponse:
+    """
+    Дашборд мониторинга синхронизации для Django Admin.
+    Доступен по URL: /admin/monitoring/
+    """
+    monitor = CustomerSyncMonitor()
+    now = timezone.now()
+    start_date = now - timedelta(hours=24)
+
+    # Собираем все метрики
+    context = {
+        "title": "Дашборд мониторинга синхронизации",
+        "health": monitor.get_system_health(),
+        "realtime": monitor.get_real_time_metrics(),
+        "operations": monitor.get_operation_metrics(start_date, now),
+        "business": monitor.get_business_metrics(start_date, now),
+        "now": now,
+    }
+
+    return render(request, "admin/monitoring_dashboard.html", context)
