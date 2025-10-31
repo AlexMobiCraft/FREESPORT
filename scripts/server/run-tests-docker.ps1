@@ -81,25 +81,27 @@ function Test-DockerConnection {
 function Cleanup-PreviousRun {
     param(
         [string]$Context,
-        [string]$ComposeFile
+        [string]$ComposeFile,
+        [string]$WorkDir
     )
     Write-Host ""
     Write-Host "Очистка предыдущих тестовых контейнеров..." -ForegroundColor Yellow
-    & docker --context $Context compose -f $ComposeFile down -v --remove-orphans 2>$null
+    & docker --context $Context compose -f $ComposeFile --workdir $WorkDir down -v --remove-orphans 2>$null
 }
 
 # Функция запускает docker compose и возвращает код возврата тестов
 function Run-Tests {
     param(
         [string]$Context,
-        [string]$ComposeFile
+        [string]$ComposeFile,
+        [string]$WorkDir
     )
 
     Write-Host "Запуск тестов..." -ForegroundColor Yellow
     Write-Host "Это может занять несколько минут при первом запуске (сборка образа)" -ForegroundColor Gray
     Write-Host ""
 
-    & docker --context $Context compose -f $ComposeFile up --build --abort-on-container-exit
+    & docker --context $Context compose -f $ComposeFile --workdir $WorkDir up --build --abort-on-container-exit
     $script:TestRunExitCode = [int]$LASTEXITCODE
 }
 
@@ -107,12 +109,13 @@ function Run-Tests {
 function Finalize-Cleanup {
     param(
         [string]$Context,
-        [string]$ComposeFile
+        [string]$ComposeFile,
+        [string]$WorkDir
     )
 
     Write-Host ""
     Write-Host "Очистка тестовых контейнеров..." -ForegroundColor Yellow
-    & docker --context $Context compose -f $ComposeFile down -v --remove-orphans | Out-Null
+    & docker --context $Context compose -f $ComposeFile --workdir $WorkDir down -v --remove-orphans | Out-Null
 }
 
 Write-Host "=== FREESPORT Test Runner ===" -ForegroundColor Cyan
@@ -128,11 +131,8 @@ try {
     Start-SshAgentIfNeeded -KeyPath $SshKeyPath
     Ensure-DockerContext -ContextName $DockerContext -ContextUser $User -ContextHost $IP
     Test-DockerConnection -Context $DockerContext
-    $remoteProjectRoot = Resolve-RemoteProjectRoot -ProjectPath $ProjectPathRemote -RemoteUser $User
-    $previousProjectRoot = $env:FREESPORT_PROJECT_ROOT
-    $env:FREESPORT_PROJECT_ROOT = $remoteProjectRoot
-    Cleanup-PreviousRun -Context $DockerContext -ComposeFile $ComposeFile
-    Run-Tests -Context $DockerContext -ComposeFile $ComposeFile
+    Cleanup-PreviousRun -Context $DockerContext -ComposeFile $ComposeFile -WorkDir $ProjectPathRemote
+    Run-Tests -Context $DockerContext -ComposeFile $ComposeFile -WorkDir $ProjectPathRemote
     $exitCode = [int]$script:TestRunExitCode
 }
 catch {
@@ -141,15 +141,10 @@ catch {
 }
 finally {
     try {
-        Finalize-Cleanup -Context $DockerContext -ComposeFile $ComposeFile
+        Finalize-Cleanup -Context $DockerContext -ComposeFile $ComposeFile -WorkDir $ProjectPathRemote
     }
     finally {
-        if ($null -eq $previousProjectRoot) {
-            Remove-Item Env:FREESPORT_PROJECT_ROOT -ErrorAction SilentlyContinue
-        }
-        else {
-            $env:FREESPORT_PROJECT_ROOT = $previousProjectRoot
-        }
+        # Код очистки больше не нужен
     }
     Pop-Location
 }

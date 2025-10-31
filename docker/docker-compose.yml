@@ -13,7 +13,7 @@ services:
       POSTGRES_INITDB_ARGS: "--encoding=UTF8 --lc-collate=C --lc-ctype=C"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./init-db.sql:/docker-entrypoint-initdb.d
+      - ./init-db.sql:/docker-entrypoint-initdb.d/
     ports:
       - "5432:5432"
     networks:
@@ -114,8 +114,8 @@ services:
     image: nginx:alpine
     container_name: freesport-nginx
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
-      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
       - backend_static:/var/www/static
       - backend_media:/var/www/media
     ports:

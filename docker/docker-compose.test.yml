@@ -65,8 +65,9 @@ services:
       - PYTEST_CURRENT_TEST=1
       - TEST_RUNNER=pytest
     volumes:
-      - "${FREESPORT_PROJECT_ROOT:-C:/Users/38670/DEV_WEB/FREESPORT}/backend:/app"
-      - "${FREESPORT_PROJECT_ROOT:-C:/Users/38670/DEV_WEB/FREESPORT}/data/import_1c:/app/data/import_1c"
+      # Используем относительные пути, которые будут работать на любой машине
+      - ../backend:/app
+      - ../data/import_1c:/app/data/import_1c
       - test_coverage:/app/htmlcov
     depends_on:
       db:
