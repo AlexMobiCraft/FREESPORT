@@ -84,11 +84,11 @@ LOGGING = {
     },
     "loggers": {
         "django": {
-            "handlers": ["console", "file"],
+            "handlers": ["console"],
             "level": "INFO",
         },
         "freesport": {
-            "handlers": ["console", "file"],
+            "handlers": ["console"],
             "level": "WARNING",
         },
     },
