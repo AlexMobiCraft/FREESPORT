@@ -10,6 +10,7 @@
 *.pem
 *.p12
 nul
+backend/celerybeat-schedule.dat
 
 # IDE and Editor files
 .vscode/
