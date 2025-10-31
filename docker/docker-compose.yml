@@ -13,7 +13,7 @@ services:
       POSTGRES_INITDB_ARGS: "--encoding=UTF8 --lc-collate=C --lc-ctype=C"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./init-db.sql:/docker-entrypoint-initdb.d
+      - ./init-db.sql:/docker-entrypoint-initdb.d/
     ports:
       - "5432:5432"
     networks:
@@ -62,6 +62,7 @@ services:
     volumes:
       - ../backend:/app
       - ../data:/app/data
+      - ../backend/logs:/app/logs
       - backend_media:/app/media
       - backend_static:/app/staticfiles
     ports:
@@ -114,8 +115,8 @@ services:
     image: nginx:alpine
     container_name: freesport-nginx
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
-      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
       - backend_static:/var/www/static
       - backend_media:/var/www/media
     ports:
@@ -137,6 +138,7 @@ services:
     command: celery -A freesport worker -l info
     volumes:
       - ../backend:/app
+      - ../backend/logs:/app/logs
     environment:
       - DJANGO_SETTINGS_MODULE=freesport.settings.development
       - SECRET_KEY=development-secret-key-change-in-production
@@ -165,6 +167,7 @@ services:
     command: celery -A freesport beat -l info
     volumes:
       - ../backend:/app
+      - ../backend/logs:/app/logs
     environment:
       - DJANGO_SETTINGS_MODULE=freesport.settings.development
       - SECRET_KEY=development-secret-key-change-in-production
