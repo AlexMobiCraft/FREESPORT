@@ -170,3 +170,4 @@ dmypy.json
 # Обменные файлы
 .\data\import_1c
 data/import_1c/
+backend/celerybeat-schedule.dat
