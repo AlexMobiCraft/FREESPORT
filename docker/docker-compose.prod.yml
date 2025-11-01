@@ -38,6 +38,7 @@ services:
       - DB_PORT=5432
       - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
       - DEBUG=0
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS}
     volumes:
       - ../backend/logs:/app/logs
     depends_on:
@@ -91,6 +92,7 @@ services:
       - DB_PORT=5432
       - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
       - DEBUG=0
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS}
     volumes:
       - ../backend/logs:/app/logs
     depends_on:
@@ -114,6 +116,7 @@ services:
       - DB_PORT=5432
       - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
       - DEBUG=0
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS}
     volumes:
       - ../backend/logs:/app/logs
     depends_on:
