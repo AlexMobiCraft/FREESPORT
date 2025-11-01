@@ -1,6 +1,6 @@
 # Мультистадийная сборка для Django backend
 # Стадия 1: Сборка зависимостей
-FROM python:3.12-slim as builder
+FROM python:3.12-slim AS builder
 
 # Установка системных зависимостей для сборки
 RUN apt-get update && apt-get install -y \
@@ -21,7 +21,7 @@ RUN pip install --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt
 
 # Стадия 2: Production образ
-FROM python:3.12-slim as production
+FROM python:3.12-slim AS production
 
 # Метаданные образа
 LABEL maintainer="FREESPORT Dev Team"
