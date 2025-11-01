@@ -20,7 +20,7 @@ function Connect-FreesportServer {
 
     Start-Service ssh-agent -ErrorAction SilentlyContinue | Out-Null
     ssh-add "$HOME\.ssh\id_ed25519" | Out-Null
-    ssh "$ConnectionUser@$ConnectionHost"
+    ssh -t "$ConnectionUser@$ConnectionHost" "cd /home/freesport/freesport/; bash"
 }
 
 Connect-FreesportServer -ConnectionUser $User -ConnectionHost $IP
