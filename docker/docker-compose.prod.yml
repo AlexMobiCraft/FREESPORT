@@ -41,6 +41,7 @@ services:
       - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS}
     volumes:
       - ../backend/logs:/app/logs
+      - backend_static:/app/staticfiles
     depends_on:
       - db
       - redis
