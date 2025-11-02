@@ -26,7 +26,7 @@ services:
     restart: unless-stopped
 
   backend:
-    image: freesport-backend:latest
+    image: ${BACKEND_IMAGE:-ghcr.io/alexmobicraft/freesport/backend:latest}
     container_name: freesport-backend
     environment:
       - DJANGO_SETTINGS_MODULE=freesport.settings.production
@@ -53,7 +53,7 @@ services:
     restart: unless-stopped
 
   frontend:
-    image: freesport-frontend:latest
+    image: ${FRONTEND_IMAGE:-ghcr.io/alexmobicraft/freesport/frontend:latest}
     container_name: freesport-frontend
     environment:
       - NODE_ENV=production
@@ -84,7 +84,7 @@ services:
     restart: unless-stopped
 
   celery:
-    image: freesport-backend:latest # Используем тот же образ, что и backend
+    image: ${BACKEND_IMAGE:-ghcr.io/alexmobicraft/freesport/backend:latest}  # Используем тот же образ, что и backend
     container_name: freesport-celery-worker
     command: celery -A freesport worker -l info
     environment:
@@ -108,7 +108,7 @@ services:
     restart: unless-stopped
 
   celery-beat:
-    image: freesport-backend:latest # Используем тот же образ, что и backend
+    image: ${BACKEND_IMAGE:-ghcr.io/alexmobicraft/freesport/backend:latest} # Используем тот же образ, что и backend
     container_name: freesport-celery-beat
     command: celery -A freesport beat -l info
     environment:
