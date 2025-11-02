@@ -34,7 +34,11 @@ function Set-EnvVariable {
         New-Item -ItemType File -Path $FilePath -Force | Out-Null
     }
 
-    $lines = Get-Content -Path $FilePath
+    $lines = @()
+    if (Test-Path $FilePath -PathType Leaf) {
+        $lines = Get-Content -Path $FilePath
+    }
+
     $pattern = "^{0}=" -f [regex]::Escape($Key)
     $replaced = $false
 
@@ -51,6 +55,14 @@ function Set-EnvVariable {
     }
 
     Set-Content -Path $FilePath -Value $lines -Encoding UTF8
+
+    # Гарантируем завершающую пустую строку для POSIX-совместимых инструментов
+    if ($lines.Count -gt 0) {
+        $lastLine = (Get-Content -Path $FilePath -Tail 1)
+        if ($lastLine -ne "") {
+            Add-Content -Path $FilePath -Value "" -Encoding UTF8
+        }
+    }
 }
 
 # Добавление записи в markdown-журнал изменений CI/CD
@@ -108,7 +120,7 @@ $data = [ordered]@{
     frontend_image = $frontendTag
 }
 
-if (Test-Path $OutputFile -PathType Leaf -and -not $Overwrite) {
+if ((Test-Path $OutputFile -PathType Leaf) -and -not $Overwrite) {
     Write-Log "Файл $OutputFile уже существует. Для перезаписи используйте -Overwrite"
 } else {
     $directory = Split-Path $OutputFile -Parent

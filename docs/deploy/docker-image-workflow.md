@@ -40,7 +40,7 @@ pwsh scripts/dev/generate-image-tags.ps1 -Overwrite
 ### 2.0 Скрипт автоматизации
 
 Для типовой сборки и публикации используйте [`scripts/dev/build-and-push-images.ps1`](../../scripts/dev/build-and-push-images.ps1)
-(скрипт сам вызовет генерацию тегов):
+(скрипт вызывает генерацию тегов, обновляет `.env.prod` и change-log автоматически):
 
 ```powershell
 # Сборка обоих сервисов (по умолчанию)

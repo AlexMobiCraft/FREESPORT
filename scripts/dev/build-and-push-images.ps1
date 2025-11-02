@@ -27,10 +27,18 @@ function Invoke-TagScript {
     }
 
     Write-Log "Запуск $ScriptPath для генерации тегов..."
-    pwsh $ScriptPath | Write-Host
+    & $ScriptPath
+}
+
+function Ensure-Tag {
+    param([string]$TagValue, [string]$Name)
+    if ([string]::IsNullOrWhiteSpace($TagValue)) {
+        throw "Переменная окружения $Name не установлена. Запустите генерацию тегов."
+    }
 }
 
 function Build-And-PushBackend {
+    Ensure-Tag -TagValue $env:BACKEND_TAG -Name "BACKEND_TAG"
     $image = "${Registry}/${RepositoryPrefix}/backend:${env:BACKEND_TAG}"
     Write-Log "Сборка backend из backend/Dockerfile"
     docker build --platform linux/amd64 -t $image -f backend/Dockerfile backend
@@ -39,6 +47,7 @@ function Build-And-PushBackend {
 }
 
 function Build-And-PushFrontend {
+    Ensure-Tag -TagValue $env:FRONTEND_TAG -Name "FRONTEND_TAG"
     $image = "${Registry}/${RepositoryPrefix}/frontend:${env:FRONTEND_TAG}"
     Write-Log "Сборка frontend из frontend/Dockerfile"
     docker build --platform linux/amd64 -t $image -f frontend/Dockerfile frontend
