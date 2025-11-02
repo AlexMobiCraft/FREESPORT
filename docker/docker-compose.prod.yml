@@ -43,6 +43,8 @@ services:
       - CSRF_TRUSTED_ORIGINS=http://5.35.124.149,http://freesport.ru
     volumes:
       - ../backend/logs:/app/logs
+      - backend_static:/app/staticfiles
+      - backend_media:/app/media
     depends_on:
       - db
       - redis
