@@ -1,0 +1,6 @@
+{
+  "generated_at": "2025-11-02T14:24:41",
+  "tag": "v20251102-1424",
+  "backend_image": "ghcr.io/alexmobicraft/freesport/backend:v20251102-1424",
+  "frontend_image": "ghcr.io/alexmobicraft/freesport/frontend:v20251102-1424"
+}
