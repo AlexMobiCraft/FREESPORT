@@ -7,7 +7,7 @@ from .base import *
 # ВНИМАНИЕ: не используйте debug=True в продакшене!
 DEBUG = True
 
-ALLOWED_HOSTS = ["localhost", "127.0.0.1", "0.0.0.0"]
+ALLOWED_HOSTS = ["localhost", "127.0.0.1", "0.0.0.0", "5.35.124.149"]
 
 # Дополнительные приложения для разработки
 INSTALLED_APPS += [
@@ -39,8 +39,9 @@ DATABASES = {
 
 # Настройки CORS для фронтенда
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",  # Next.js dev server
+    "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "https://5.35.124.149",
 ]
 
 CORS_ALLOW_CREDENTIALS = True
