@@ -36,7 +36,7 @@ class TestSyncReportGenerator:
     def create_test_logs(self, test_user):
         """Создает тестовые логи для отчетов"""
         today = timezone.now().date()
-        
+
         # Успешные операции
         for i in range(10):
             CustomerSyncLog.objects.create(
@@ -50,7 +50,7 @@ class TestSyncReportGenerator:
                     timezone.datetime.combine(today, timezone.datetime.min.time())
                 ),
             )
-        
+
         # Ошибки
         for i in range(3):
             CustomerSyncLog.objects.create(
@@ -112,9 +112,7 @@ class TestSyncReportGenerator:
         assert "common_errors" in report
         assert "affected_customers" in report
 
-    def test_generate_weekly_error_analysis_counts(
-        self, generator, create_test_logs
-    ):
+    def test_generate_weekly_error_analysis_counts(self, generator, create_test_logs):
         """Тест подсчетов в еженедельном анализе"""
         today = timezone.now().date()
         report = generator.generate_weekly_error_analysis(today)
@@ -134,7 +132,7 @@ class TestSyncReportGenerator:
                 onec_id=f"1C_{i}",
                 error_message="Duplicate email detected",
             )
-        
+
         for i in range(3):
             CustomerSyncLog.objects.create(
                 operation_type=CustomerSyncLog.OperationType.EXPORT_TO_1C,
@@ -173,7 +171,7 @@ class TestSyncReportGenerator:
         """Тест обработки ошибки при отправке отчета"""
         mock_send_mail.side_effect = Exception("SMTP error")
         recipients = ["admin@example.com"]
-        
+
         result = generator.send_daily_report(recipients)
 
         assert result is False

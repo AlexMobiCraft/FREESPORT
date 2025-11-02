@@ -33,19 +33,15 @@ class SyncReportGenerator:
 
         # Основная статистика
         total_operations = logs.count()
-        
+
         # Статистика по типам операций
         by_type = list(
-            logs.values("operation_type")
-            .annotate(count=Count("id"))
-            .order_by("-count")
+            logs.values("operation_type").annotate(count=Count("id")).order_by("-count")
         )
 
         # Статистика по статусам
         by_status = list(
-            logs.values("status")
-            .annotate(count=Count("id"))
-            .order_by("-count")
+            logs.values("status").annotate(count=Count("id")).order_by("-count")
         )
 
         # Средняя длительность операций
@@ -54,8 +50,8 @@ class SyncReportGenerator:
         # Топ-10 ошибок
         top_errors = list(
             logs.filter(
-                Q(status=CustomerSyncLog.StatusType.ERROR) |
-                Q(status=CustomerSyncLog.StatusType.FAILED)
+                Q(status=CustomerSyncLog.StatusType.ERROR)
+                | Q(status=CustomerSyncLog.StatusType.FAILED)
             )
             .values("error_message")
             .annotate(count=Count("id"))
@@ -63,9 +59,7 @@ class SyncReportGenerator:
         )
 
         # Успешность операций
-        success_count = logs.filter(
-            status=CustomerSyncLog.StatusType.SUCCESS
-        ).count()
+        success_count = logs.filter(status=CustomerSyncLog.StatusType.SUCCESS).count()
         success_rate = (
             (success_count / total_operations * 100) if total_operations > 0 else 0
         )
@@ -95,7 +89,7 @@ class SyncReportGenerator:
         """
         if start_date is None:
             start_date = (timezone.now() - timedelta(days=7)).date()
-        
+
         end_date = start_date + timedelta(days=7)
 
         # Фильтруем только ошибки
@@ -103,12 +97,12 @@ class SyncReportGenerator:
             created_at__date__gte=start_date,
             created_at__date__lt=end_date,
         ).filter(
-            Q(status=CustomerSyncLog.StatusType.ERROR) |
-            Q(status=CustomerSyncLog.StatusType.FAILED)
+            Q(status=CustomerSyncLog.StatusType.ERROR)
+            | Q(status=CustomerSyncLog.StatusType.FAILED)
         )
 
         total_errors = error_logs.count()
-        
+
         # Общее количество операций за период
         all_logs = CustomerSyncLog.objects.filter(
             created_at__date__gte=start_date,
@@ -132,9 +126,12 @@ class SyncReportGenerator:
         common_errors = self._analyze_common_errors(error_logs)
 
         # Затронутые клиенты
-        affected_customers = error_logs.filter(customer__isnull=False).values(
-            "customer"
-        ).distinct().count()
+        affected_customers = (
+            error_logs.filter(customer__isnull=False)
+            .values("customer")
+            .distinct()
+            .count()
+        )
 
         return {
             "period": f"{start_date} - {end_date}",
@@ -162,14 +159,14 @@ class SyncReportGenerator:
         error_groups: dict[str, dict[str, Any]] = {}
         for log in error_logs:
             error_text = log.error_message[:100] if log.error_message else "Unknown"
-            
+
             if error_text not in error_groups:
                 error_groups[error_text] = {
                     "message": error_text,
                     "count": 0,
                     "operation_types": set(),
                 }
-            
+
             error_groups[error_text]["count"] += 1
             error_groups[error_text]["operation_types"].add(
                 log.get_operation_type_display()
@@ -178,11 +175,13 @@ class SyncReportGenerator:
         # Конвертируем sets в lists для JSON
         result = []
         for error_data in error_groups.values():
-            result.append({
-                "message": error_data["message"],
-                "count": error_data["count"],
-                "operation_types": list(error_data["operation_types"]),
-            })
+            result.append(
+                {
+                    "message": error_data["message"],
+                    "count": error_data["count"],
+                    "operation_types": list(error_data["operation_types"]),
+                }
+            )
 
         # Сортируем по частоте
         result.sort(key=lambda x: x["count"], reverse=True)
@@ -207,12 +206,11 @@ class SyncReportGenerator:
 
             # Формируем текст email
             subject = f"Ежедневный отчет синхронизации клиентов - {target_date}"
-            
+
             # Формируем HTML версию (если есть шаблон)
             try:
                 html_message = render_to_string(
-                    "common/emails/daily_sync_report.html",
-                    {"report": report_data}
+                    "common/emails/daily_sync_report.html", {"report": report_data}
                 )
             except Exception:
                 html_message = None
@@ -233,15 +231,13 @@ class SyncReportGenerator:
             logger.info(
                 "Ежедневный отчет отправлен %s получателям за %s",
                 len(recipients),
-                target_date
+                target_date,
             )
             return True
 
         except Exception as e:
             logger.error(
-                "Ошибка при отправке ежедневного отчета: %s",
-                str(e),
-                exc_info=True
+                "Ошибка при отправке ежедневного отчета: %s", str(e), exc_info=True
             )
             return False
 
@@ -262,13 +258,14 @@ class SyncReportGenerator:
             report_data = self.generate_weekly_error_analysis(start_date)
 
             # Формируем текст email
-            subject = f"Еженедельный анализ ошибок синхронизации - {report_data['period']}"
-            
+            subject = (
+                f"Еженедельный анализ ошибок синхронизации - {report_data['period']}"
+            )
+
             # Формируем HTML версию (если есть шаблон)
             try:
                 html_message = render_to_string(
-                    "common/emails/weekly_error_report.html",
-                    {"report": report_data}
+                    "common/emails/weekly_error_report.html", {"report": report_data}
                 )
             except Exception:
                 html_message = None
@@ -289,22 +286,20 @@ class SyncReportGenerator:
             logger.info(
                 "Еженедельный отчет отправлен %s получателям за период %s",
                 len(recipients),
-                report_data["period"]
+                report_data["period"],
             )
             return True
 
         except Exception as e:
             logger.error(
-                "Ошибка при отправке еженедельного отчета: %s",
-                str(e),
-                exc_info=True
+                "Ошибка при отправке еженедельного отчета: %s", str(e), exc_info=True
             )
             return False
 
     def _format_daily_report_text(self, report: dict[str, Any]) -> str:
         """Форматирует ежедневный отчет в текстовом виде"""
         lines = [
-            f"Ежедневный отчет синхронизации клиентов",
+            "Ежедневный отчет синхронизации клиентов",
             f"Дата: {report['date']}",
             "=" * 50,
             "",
@@ -318,30 +313,32 @@ class SyncReportGenerator:
         for item in report["by_type"]:
             lines.append(f"  - {item['operation_type']}: {item['count']}")
 
-        lines.extend([
-            "",
-            "Операции по статусам:",
-        ])
+        lines.extend(
+            [
+                "",
+                "Операции по статусам:",
+            ]
+        )
 
         for item in report["by_status"]:
             lines.append(f"  - {item['status']}: {item['count']}")
 
         if report["top_errors"]:
-            lines.extend([
-                "",
-                "Топ-10 ошибок:",
-            ])
+            lines.extend(
+                [
+                    "",
+                    "Топ-10 ошибок:",
+                ]
+            )
             for error in report["top_errors"]:
-                lines.append(
-                    f"  - {error['error_message'][:80]}... ({error['count']})"
-                )
+                lines.append(f"  - {error['error_message'][:80]}... ({error['count']})")
 
         return "\n".join(lines)
 
     def _format_weekly_report_text(self, report: dict[str, Any]) -> str:
         """Форматирует еженедельный отчет в текстовом виде"""
         lines = [
-            f"Еженедельный анализ ошибок синхронизации",
+            "Еженедельный анализ ошибок синхронизации",
             f"Период: {report['period']}",
             "=" * 50,
             "",
@@ -357,14 +354,14 @@ class SyncReportGenerator:
             lines.append(f"  - {item['operation_type']}: {item['count']}")
 
         if report["common_errors"]:
-            lines.extend([
-                "",
-                "Частые ошибки:",
-            ])
+            lines.extend(
+                [
+                    "",
+                    "Частые ошибки:",
+                ]
+            )
             for error in report["common_errors"]:
-                lines.append(
-                    f"  - {error['message'][:80]}... ({error['count']} раз)"
-                )
+                lines.append(f"  - {error['message'][:80]}... ({error['count']} раз)")
                 lines.append(
                     f"    Типы операций: {', '.join(error['operation_types'])}"
                 )

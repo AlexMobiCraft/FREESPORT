@@ -77,9 +77,7 @@ class TestPortalRegistrationScenario:
         assert mock_send_mail.called
 
     @patch("apps.users.services.conflict_resolution.send_mail")
-    def test_b2c_client_registration_with_email(
-        self, mock_send_mail, resolver
-    ):
+    def test_b2c_client_registration_with_email(self, mock_send_mail, resolver):
         """
         Сценарий: B2C клиент пытается зарегистрироваться с email из 1С
         """
@@ -206,9 +204,7 @@ class TestDataImportScenario:
             "django.conf.settings.CONFLICT_NOTIFICATION_EMAIL",
             "admin@test.com",
         ):
-            result = resolver.resolve_conflict(
-                customer, onec_data, "data_import"
-            )
+            result = resolver.resolve_conflict(customer, onec_data, "data_import")
 
         # Проверяем результат
         customer.refresh_from_db()
@@ -233,9 +229,7 @@ class TestEdgeCases:
         return CustomerConflictResolver()
 
     @patch("apps.users.services.conflict_resolution.send_mail")
-    def test_smtp_error_does_not_block_resolution(
-        self, mock_send_mail, resolver
-    ):
+    def test_smtp_error_does_not_block_resolution(self, mock_send_mail, resolver):
         """
         Сценарий: Ошибка SMTP не блокирует разрешение конфликта
         """
@@ -296,9 +290,7 @@ class TestEdgeCases:
             "django.conf.settings.CONFLICT_NOTIFICATION_EMAIL",
             "admin@test.com",
         ):
-            result = resolver.resolve_conflict(
-                customer, onec_data, "data_import"
-            )
+            result = resolver.resolve_conflict(customer, onec_data, "data_import")
 
         # Проверяем обновление
         customer.refresh_from_db()
@@ -311,9 +303,7 @@ class TestEdgeCases:
         """
         Сценарий: CONFLICT_NOTIFICATION_EMAIL не настроен
         """
-        customer = User.objects.create(
-            email="noconfig@example.com", created_in_1c=True
-        )
+        customer = User.objects.create(email="noconfig@example.com", created_in_1c=True)
 
         onec_data = {"email": "noconfig@example.com", "password": "pass"}
 

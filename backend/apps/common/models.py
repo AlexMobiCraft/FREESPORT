@@ -259,13 +259,13 @@ class CustomerSyncLog(models.Model):
         IMPORT_FROM_1C = "import_from_1c", "Импорт из 1С"
         EXPORT_TO_1C = "export_to_1c", "Экспорт в 1С"
         SYNC_CHANGES = "sync_changes", "Синхронизация изменений"
-        
+
         # Служебные операции
         CUSTOMER_IDENTIFICATION = "customer_identification", "Идентификация клиента"
         CONFLICT_RESOLUTION = "conflict_resolution", "Разрешение конфликтов"
         DATA_VALIDATION = "data_validation", "Валидация данных"
         BATCH_OPERATION = "batch_operation", "Пакетная операция"
-        
+
         # Legacy операции (для обратной совместимости)
         CREATED = "created", "Создан"
         UPDATED = "updated", "Обновлен"
@@ -280,23 +280,17 @@ class CustomerSyncLog(models.Model):
         WARNING = "warning", "Предупреждение"
         SKIPPED = "skipped", "Пропущено"
         PENDING = "pending", "В процессе"
-        
+
         # Legacy статусы (для обратной совместимости)
         FAILED = "failed", "Ошибка"
         NOT_FOUND = "not_found", "Не найден"
 
     # Основные поля
     operation_type = models.CharField(
-        "Тип операции", 
-        max_length=30, 
-        choices=OperationType.choices,
-        db_index=True
+        "Тип операции", max_length=30, choices=OperationType.choices, db_index=True
     )
     status = models.CharField(
-        "Статус", 
-        max_length=20, 
-        choices=StatusType.choices,
-        db_index=True
+        "Статус", max_length=20, choices=StatusType.choices, db_index=True
     )
 
     # Связь с клиентом (может быть null если клиент не найден)
@@ -309,12 +303,7 @@ class CustomerSyncLog(models.Model):
         verbose_name="Клиент",
     )
     customer_email = models.EmailField("Email клиента", blank=True, db_index=True)
-    onec_id = models.CharField(
-        "ID в 1С", 
-        max_length=100, 
-        blank=True,
-        db_index=True
-    )
+    onec_id = models.CharField("ID в 1С", max_length=100, blank=True, db_index=True)
 
     # Детальная информация
     details = models.JSONField(
@@ -326,17 +315,17 @@ class CustomerSyncLog(models.Model):
 
     # Метаданные
     duration_ms = models.PositiveIntegerField(
-        "Длительность (мс)", 
-        null=True, 
+        "Длительность (мс)",
+        null=True,
         blank=True,
-        help_text="Длительность операции в миллисекундах"
+        help_text="Длительность операции в миллисекундах",
     )
     correlation_id = models.CharField(
         "Correlation ID",
         max_length=50,
         blank=True,
         db_index=True,
-        help_text="ID для отслеживания связанных операций"
+        help_text="ID для отслеживания связанных операций",
     )
 
     # Legacy поля (для обратной совместимости)
@@ -356,7 +345,7 @@ class CustomerSyncLog(models.Model):
         blank=True,
         verbose_name="Пользователь (legacy)",
         related_name="legacy_sync_logs",
-        help_text="Legacy поле, используйте customer вместо этого"
+        help_text="Legacy поле, используйте customer вместо этого",
     )
 
     # Временные метки
@@ -376,7 +365,10 @@ class CustomerSyncLog(models.Model):
         ]
 
     def __str__(self) -> str:
-        return f"{self.get_operation_type_display()} - {self.onec_id or self.customer_email} ({self.get_status_display()})"
+        operation = self.get_operation_type_display()
+        identifier = self.onec_id or self.customer_email
+        status = self.get_status_display()
+        return f"{operation} - {identifier} ({status})"
 
 
 class SyncConflict(models.Model):
@@ -472,6 +464,5 @@ class SyncConflict(models.Model):
     def __str__(self) -> str:
         status = "Разрешен" if self.is_resolved else "Не разрешен"
         return (
-            f"{self.get_conflict_type_display()} - "
-            f"{self.customer.email} ({status})"
+            f"{self.get_conflict_type_display()} - " f"{self.customer.email} ({status})"
         )

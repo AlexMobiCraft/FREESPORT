@@ -123,13 +123,18 @@ class AlertManager:
         error_rate = metrics.get("error_rate", 0.0)
 
         if error_rate > self.ERROR_RATE_THRESHOLD:
+            message_parts = [
+                "Error rate превысил пороговое значение",
+                f"{self.ERROR_RATE_THRESHOLD}%.",
+                f"Текущее значение: {error_rate:.1f}%.",
+                "Детали:",
+                f"{metrics['error_count']} ошибок из",
+                f"{metrics['total_operations']} операций.",
+            ]
+
             return {
                 "title": f"Высокий Error Rate: {error_rate:.1f}%",
-                "message": (
-                    f"Error rate превысил пороговое значение {self.ERROR_RATE_THRESHOLD}%. "
-                    f"Текущее значение: {error_rate:.1f}% "
-                    f"({metrics['error_count']} ошибок из {metrics['total_operations']} операций)"
-                ),
+                "message": " ".join(message_parts),
                 "details": {
                     "error_rate": error_rate,
                     "threshold": self.ERROR_RATE_THRESHOLD,
@@ -163,7 +168,7 @@ class AlertManager:
             return {
                 "title": f"Медленный Response Time: P95 = {p95_duration:.0f}мс",
                 "message": (
-                    f"P95 времени выполнения операций превысило "
+                    "P95 времени выполнения операций превысило "
                     f"{self.RESPONSE_TIME_P95_THRESHOLD}мс. "
                     f"Текущее значение: {p95_duration:.0f}мс"
                 ),
@@ -193,9 +198,7 @@ class AlertManager:
 
             issue_descriptions = []
             for issue in critical_issues:
-                issue_descriptions.append(
-                    f"- {issue['component']}: {issue['message']}"
-                )
+                issue_descriptions.append(f"- {issue['component']}: {issue['message']}")
 
             return {
                 "title": "Проблемы со здоровьем системы",
@@ -263,14 +266,14 @@ class AlertManager:
 
         if last_sent is not None:
             # Алерт уже отправлялся недавно
-            logger.debug(
-                "Alert %s suppressed (cooldown period)", alert_key
-            )
+            logger.debug("Alert %s suppressed (cooldown period)", alert_key)
             return False
 
         # Устанавливаем флаг отправки на период cooldown
         cache.set(
-            cache_key, timezone.now().isoformat(), timeout=self.ALERT_COOLDOWN_MINUTES * 60
+            cache_key,
+            timezone.now().isoformat(),
+            timeout=self.ALERT_COOLDOWN_MINUTES * 60,
         )
 
         return True

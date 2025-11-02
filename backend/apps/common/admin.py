@@ -181,7 +181,7 @@ class CustomerSyncLogAdmin(admin.ModelAdmin):
         """Пометка логов как просмотренных (добавляет метку в details)"""
         count = 0
         user_email = getattr(request.user, "email", "unknown")
-        
+
         for log in queryset:
             if not log.details:
                 log.details = {}

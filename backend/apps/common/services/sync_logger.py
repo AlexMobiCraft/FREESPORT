@@ -60,11 +60,13 @@ class CustomerSyncLogger:
         }
 
         if success and customer:
-            details.update({
-                "platform_customer_id": customer.id,
-                "assigned_role": customer.role,
-                "created_new": result.get("created", False),
-            })
+            details.update(
+                {
+                    "platform_customer_id": customer.id,
+                    "assigned_role": customer.role,
+                    "created_new": result.get("created", False),
+                }
+            )
 
         return CustomerSyncLog.objects.create(
             operation_type=CustomerSyncLog.OperationType.IMPORT_FROM_1C,
@@ -111,10 +113,12 @@ class CustomerSyncLogger:
         }
 
         if success:
-            details.update({
-                "assigned_1c_id": result.get("onec_id"),
-                "response_data": result.get("response_data", {}),
-            })
+            details.update(
+                {
+                    "assigned_1c_id": result.get("onec_id"),
+                    "response_data": result.get("response_data", {}),
+                }
+            )
 
         return CustomerSyncLog.objects.create(
             operation_type=CustomerSyncLog.OperationType.EXPORT_TO_1C,
@@ -313,7 +317,9 @@ class CustomerSyncLogger:
             onec_id="",
             status=status,
             details=details,
-            error_message=f"{error_count} ошибок из {total_count}" if error_count > 0 else "",
+            error_message=f"{error_count} ошибок из {total_count}"
+            if error_count > 0
+            else "",
             duration_ms=duration_ms,
             correlation_id=self.correlation_id,
         )

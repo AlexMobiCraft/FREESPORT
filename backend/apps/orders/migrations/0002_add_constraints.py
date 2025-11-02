@@ -20,7 +20,8 @@ class Migration(migrations.Migration):
         migrations.AddConstraint(
             model_name="order",
             constraint=CheckConstraint(
-                condition=Q(discount_amount__gte=0), name="orders_discount_amount_positive"
+                condition=Q(discount_amount__gte=0),
+                name="orders_discount_amount_positive",
             ),
         ),
         migrations.AddConstraint(

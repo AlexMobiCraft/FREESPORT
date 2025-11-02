@@ -43,7 +43,7 @@ class TestSyncLoggingSystem:
     def create_sync_logs(self, test_user):
         """Создает набор тестовых логов"""
         logger = CustomerSyncLogger()
-        
+
         # Успешные импорты
         for i in range(5):
             CustomerSyncLog.objects.create(
@@ -55,7 +55,7 @@ class TestSyncLoggingSystem:
                 duration_ms=100,
                 correlation_id=logger.correlation_id,
             )
-        
+
         # Ошибки экспорта
         for i in range(2):
             CustomerSyncLog.objects.create(
@@ -68,7 +68,7 @@ class TestSyncLoggingSystem:
                 duration_ms=200,
                 correlation_id=logger.correlation_id,
             )
-        
+
         return logger.correlation_id
 
     def test_full_sync_logging_workflow(self, test_user):
@@ -119,9 +119,7 @@ class TestSyncLoggingSystem:
         assert export_log.correlation_id == correlation_id
 
         # Проверяем что можем найти все логи по correlation ID
-        related_logs = CustomerSyncLog.objects.filter(
-            correlation_id=correlation_id
-        )
+        related_logs = CustomerSyncLog.objects.filter(correlation_id=correlation_id)
         assert related_logs.count() == 3
 
     def test_django_admin_filters(self, create_sync_logs, admin_user):
@@ -135,7 +133,7 @@ class TestSyncLoggingSystem:
 
         # Получаем queryset с фильтрами
         queryset = log_admin.get_queryset(request)
-        
+
         assert queryset.count() == 7  # 5 успешных + 2 ошибки
 
         # Проверяем что можем фильтровать по operation_type
@@ -148,9 +146,7 @@ class TestSyncLoggingSystem:
         error_logs = queryset.filter(status=CustomerSyncLog.StatusType.ERROR)
         assert error_logs.count() == 2
 
-    def test_django_admin_export_csv(
-        self, create_sync_logs, admin_user
-    ):
+    def test_django_admin_export_csv(self, create_sync_logs, admin_user):
         """Тест экспорта в CSV через админку"""
         request_factory = RequestFactory()
         request = request_factory.get("/admin/common/customersynclog/")
@@ -169,14 +165,14 @@ class TestSyncLoggingSystem:
     def test_generate_sync_report_command(self, create_sync_logs):
         """Тест management команды generate_sync_report"""
         out = StringIO()
-        
+
         call_command(
             "generate_sync_report",
             "--type=daily",
             "--no-send",
             stdout=out,
         )
-        
+
         output = out.getvalue()
         assert "Всего операций: 7" in output
         assert "Успешных: 5" in output
@@ -219,9 +215,10 @@ class TestSyncLoggingSystem:
 
         # Старые логи должны быть удалены
         assert CustomerSyncLog.objects.count() == 2
-        assert CustomerSyncLog.objects.filter(
-            customer_email__startswith="new"
-        ).count() == 2
+        assert (
+            CustomerSyncLog.objects.filter(customer_email__startswith="new").count()
+            == 2
+        )
 
     def test_report_generation_with_real_data(self, create_sync_logs):
         """Тест генерации отчета с реальными данными"""
@@ -230,14 +227,14 @@ class TestSyncLoggingSystem:
 
         # Генерируем ежедневный отчет
         daily_report = generator.generate_daily_summary(today)
-        
+
         assert daily_report["total_operations"] == 7
         assert daily_report["success_count"] == 5
         assert daily_report["success_rate"] > 70
 
         # Генерируем еженедельный анализ ошибок
         weekly_report = generator.generate_weekly_error_analysis(today)
-        
+
         assert weekly_report["total_errors"] == 2
         assert len(weekly_report["common_errors"]) > 0
 
@@ -267,9 +264,16 @@ class TestSyncLoggingSystem:
 
         # Проверяем хронологию
         logs_list = list(chain_logs.order_by("created_at"))
-        assert logs_list[0].operation_type == CustomerSyncLog.OperationType.IMPORT_FROM_1C  # noqa
-        assert logs_list[1].operation_type == CustomerSyncLog.OperationType.CUSTOMER_IDENTIFICATION  # noqa
-        assert logs_list[2].operation_type == CustomerSyncLog.OperationType.EXPORT_TO_1C  # noqa
+        assert (
+            logs_list[0].operation_type == CustomerSyncLog.OperationType.IMPORT_FROM_1C
+        )  # noqa
+        assert (
+            logs_list[1].operation_type
+            == CustomerSyncLog.OperationType.CUSTOMER_IDENTIFICATION
+        )  # noqa
+        assert (
+            logs_list[2].operation_type == CustomerSyncLog.OperationType.EXPORT_TO_1C
+        )  # noqa
 
     def test_error_aggregation_and_reporting(self, test_user):
         """Тест агрегации ошибок и генерации отчета"""
@@ -286,12 +290,12 @@ class TestSyncLoggingSystem:
 
         generator = SyncReportGenerator()
         today = timezone.now().date()
-        
+
         # Генерируем отчет по ошибкам
         weekly_report = generator.generate_weekly_error_analysis(today)
-        
+
         assert weekly_report["total_errors"] >= 10
-        
+
         # Проверяем что частые ошибки правильно идентифицированы
         common_errors = weekly_report["common_errors"]
         assert len(common_errors) > 0

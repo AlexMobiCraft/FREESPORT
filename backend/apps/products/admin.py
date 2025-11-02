@@ -8,19 +8,19 @@ from typing import Any
 from django.contrib import admin
 from django.db.models import QuerySet
 from django.http import HttpRequest
- 
+
 from .models import Brand, Category, ImportSession, Product, ProductImage
- 
- 
+
+
 class ProductImageInline(admin.TabularInline):
     """Инлайн для изображений продукта"""
- 
+
     model = ProductImage
     extra = 1  # Количество пустых форм для добавления
     fields = ("image", "alt_text", "is_main", "sort_order")
     readonly_fields = ("created_at", "updated_at")
- 
- 
+
+
 @admin.register(Brand)
 class BrandAdmin(admin.ModelAdmin):
     """Admin для модели Brand"""

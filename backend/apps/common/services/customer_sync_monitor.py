@@ -48,7 +48,9 @@ class CustomerSyncMonitor:
         Returns:
             Словарь с метриками операций
         """
-        cache_key = f"metrics:operations:{start_date.isoformat()}:{end_date.isoformat()}"
+        cache_key = (
+            f"metrics:operations:{start_date.isoformat()}:{end_date.isoformat()}"
+        )
         cached = cache.get(cache_key)
 
         if cached is not None:
@@ -127,9 +129,7 @@ class CustomerSyncMonitor:
 
         return metrics
 
-    def _calculate_percentile(
-        self, queryset: QuerySet, percentile: int
-    ) -> float:
+    def _calculate_percentile(self, queryset: QuerySet, percentile: int) -> float:
         """
         Рассчитывает percentile для duration_ms используя PostgreSQL.
 
@@ -188,9 +188,12 @@ class CustomerSyncMonitor:
         )
 
         # Количество синхронизированных клиентов
-        synced_customers = logs.filter(
-            status=CustomerSyncLog.StatusType.SUCCESS
-        ).values("customer").distinct().count()
+        synced_customers = (
+            logs.filter(status=CustomerSyncLog.StatusType.SUCCESS)
+            .values("customer")
+            .distinct()
+            .count()
+        )
 
         # Автоматически разрешенные конфликты по типам
         conflicts_resolved = {}
@@ -201,7 +204,9 @@ class CustomerSyncMonitor:
 
         for log in conflict_logs:
             conflict_type = log.details.get("conflict_type", "unknown")
-            conflicts_resolved[conflict_type] = conflicts_resolved.get(conflict_type, 0) + 1
+            conflicts_resolved[conflict_type] = (
+                conflicts_resolved.get(conflict_type, 0) + 1
+            )
 
         # Успешная идентификация клиентов по методам
         identification_methods = {}
@@ -334,7 +339,8 @@ class CustomerSyncMonitor:
 
         if not is_healthy:
             logger.warning(
-                "System health check FAILED: %d критических проблем", len(critical_issues)
+                "System health check FAILED: %d критических проблем",
+                len(critical_issues),
             )
         else:
             logger.debug("System health check OK")
@@ -420,7 +426,9 @@ class CustomerSyncMonitor:
             .values("hour")
             .annotate(
                 total=Count("id"),
-                success=Count("id", filter=Q(status=CustomerSyncLog.StatusType.SUCCESS)),
+                success=Count(
+                    "id", filter=Q(status=CustomerSyncLog.StatusType.SUCCESS)
+                ),
                 errors=Count(
                     "id",
                     filter=Q(
@@ -595,7 +603,9 @@ class IntegrationHealthCheck:
                 "used_percent": round(used_percent, 2),
                 "threshold_percent": threshold,
                 "message": (
-                    "OK" if is_available else f"Disk usage {used_percent:.1f}% exceeds threshold {threshold}%"
+                    "OK"
+                    if is_available
+                    else f"Disk usage {used_percent:.1f}% exceeds threshold {threshold}%"
                 ),
             }
 

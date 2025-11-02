@@ -121,9 +121,7 @@ class PrometheusMetrics:
 
         # Добавляем метрики по типам операций
         for op_type, count in metrics["sync_operations_by_type"].items():
-            lines.append(
-                f'sync_operations_by_type{{type="{op_type}"}} {count}'
-            )
+            lines.append(f'sync_operations_by_type{{type="{op_type}"}} {count}')
 
         return "\n".join(lines) + "\n"
 
@@ -160,7 +158,7 @@ class WebhookAlerts:
             True если алерт успешно отправлен
         """
         webhook_url = cls.get_webhook_url()
-        
+
         if not webhook_url:
             logger.warning("Webhook URL не настроен, алерт не отправлен")
             return False
@@ -183,18 +181,13 @@ class WebhookAlerts:
             )
 
             response.raise_for_status()
-            
-            logger.info(
-                "Критический алерт отправлен: %s",
-                title
-            )
+
+            logger.info("Критический алерт отправлен: %s", title)
             return True
 
         except requests.exceptions.RequestException as e:
             logger.error(
-                "Ошибка при отправке webhook алерта: %s",
-                str(e),
-                exc_info=True
+                "Ошибка при отправке webhook алерта: %s", str(e), exc_info=True
             )
             return False
 
@@ -218,7 +211,7 @@ class WebhookAlerts:
         """
         title = f"Критическая ошибка синхронизации: {operation_type}"
         message = f"Ошибка при синхронизации клиента {customer_email}"
-        
+
         details = {
             "operation_type": operation_type,
             "customer_email": customer_email,
@@ -245,10 +238,9 @@ class WebhookAlerts:
         """
         title = "Высокий процент ошибок синхронизации"
         message = (
-            f"Обнаружено {total_errors} ошибок "
-            f"({error_rate:.1f}% от всех операций)"
+            f"Обнаружено {total_errors} ошибок " f"({error_rate:.1f}% от всех операций)"
         )
-        
+
         details = {
             "total_errors": total_errors,
             "error_rate": error_rate,

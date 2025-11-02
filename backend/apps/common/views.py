@@ -5,7 +5,12 @@ from datetime import datetime, timedelta
 
 from django.conf import settings
 from django.utils import timezone
-from drf_spectacular.utils import OpenApiExample, OpenApiResponse, extend_schema
+from drf_spectacular.utils import (
+    OpenApiExample,
+    OpenApiParameter,
+    OpenApiResponse,
+    extend_schema,
+)
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
@@ -60,22 +65,25 @@ def health_check(_request):
 
 @extend_schema(
     summary="Получить метрики операций синхронизации",
-    description="Возвращает метрики операций за указанный период (по умолчанию последние 24 часа)",
+    description=(
+        "Возвращает метрики операций за указанный период "
+        "(по умолчанию последние 24 часа)"
+    ),
     parameters=[
-        {
-            "name": "start_date",
-            "in": "query",
-            "description": "Начало периода (ISO 8601 формат)",
-            "required": False,
-            "schema": {"type": "string", "format": "date-time"},
-        },
-        {
-            "name": "end_date",
-            "in": "query",
-            "description": "Конец периода (ISO 8601 формат)",
-            "required": False,
-            "schema": {"type": "string", "format": "date-time"},
-        },
+        OpenApiParameter(
+            name="start_date",
+            type=str,
+            location=OpenApiParameter.QUERY,
+            description="Начало периода (ISO 8601 формат)",
+            required=False,
+        ),
+        OpenApiParameter(
+            name="end_date",
+            type=str,
+            location=OpenApiParameter.QUERY,
+            description="Конец периода (ISO 8601 формат)",
+            required=False,
+        ),
     ],
     responses={
         200: OpenApiResponse(
@@ -121,13 +129,13 @@ def operation_metrics(request: Request) -> Response:
 
         if start_date >= end_date:
             return Response(
-                {"error": "start_date должна быть меньше end_date"},
+                {"error": "start_date должна быть меньше " "end_date"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
     except ValueError as e:
         return Response(
-            {"error": f"Некорректный формат даты: {str(e)}"},
+            {"error": f"Некорректный формат даты: " f"{str(e)}"},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -141,20 +149,20 @@ def operation_metrics(request: Request) -> Response:
     summary="Получить бизнес-метрики синхронизации",
     description="Возвращает бизнес-метрики за указанный период",
     parameters=[
-        {
-            "name": "start_date",
-            "in": "query",
-            "description": "Начало периода (ISO 8601 формат)",
-            "required": False,
-            "schema": {"type": "string", "format": "date-time"},
-        },
-        {
-            "name": "end_date",
-            "in": "query",
-            "description": "Конец периода (ISO 8601 формат)",
-            "required": False,
-            "schema": {"type": "string", "format": "date-time"},
-        },
+        OpenApiParameter(
+            name="start_date",
+            type=str,
+            location=OpenApiParameter.QUERY,
+            description="Начало периода (ISO 8601 формат)",
+            required=False,
+        ),
+        OpenApiParameter(
+            name="end_date",
+            type=str,
+            location=OpenApiParameter.QUERY,
+            description="Конец периода (ISO 8601 формат)",
+            required=False,
+        ),
     ],
     responses={
         200: OpenApiResponse(

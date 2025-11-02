@@ -44,16 +44,14 @@ class TestCustomerSyncLogger:
             "email": "customer@example.com",
             "customer_type": "Опт 1",
         }
-        
+
         result = {
             "success": True,
             "customer": test_user,
             "created": True,
         }
 
-        log = sync_logger.log_customer_import(
-            customer_data, result, duration_ms=150
-        )
+        log = sync_logger.log_customer_import(customer_data, result, duration_ms=150)
 
         assert log.operation_type == CustomerSyncLog.OperationType.IMPORT_FROM_1C
         assert log.status == CustomerSyncLog.StatusType.SUCCESS
@@ -69,7 +67,7 @@ class TestCustomerSyncLogger:
             "id": "1C_ERROR",
             "email": "error@example.com",
         }
-        
+
         result = {
             "success": False,
             "error_message": "Invalid email format",
@@ -91,9 +89,7 @@ class TestCustomerSyncLogger:
             "exported_fields": ["email", "first_name", "last_name"],
         }
 
-        log = sync_logger.log_customer_export(
-            test_user, result, duration_ms=200
-        )
+        log = sync_logger.log_customer_export(test_user, result, duration_ms=200)
 
         assert log.operation_type == CustomerSyncLog.OperationType.EXPORT_TO_1C
         assert log.status == CustomerSyncLog.StatusType.SUCCESS
@@ -106,7 +102,7 @@ class TestCustomerSyncLogger:
             "email": "test@example.com",
             "onec_id": "1C_123",
         }
-        
+
         identification_result = {
             "found": True,
             "customer": test_user,
@@ -119,7 +115,9 @@ class TestCustomerSyncLogger:
             onec_data, identification_result, duration_ms=50
         )
 
-        assert log.operation_type == CustomerSyncLog.OperationType.CUSTOMER_IDENTIFICATION  # noqa
+        assert (
+            log.operation_type == CustomerSyncLog.OperationType.CUSTOMER_IDENTIFICATION
+        )  # noqa
         assert log.status == CustomerSyncLog.StatusType.SUCCESS
         assert log.customer == test_user
         assert log.details["search_method"] == "email"
@@ -130,7 +128,7 @@ class TestCustomerSyncLogger:
             "email": "notfound@example.com",
             "onec_id": "1C_NOTFOUND",
         }
-        
+
         identification_result = {
             "found": False,
             "customer": None,
@@ -138,9 +136,7 @@ class TestCustomerSyncLogger:
             "search_value": "notfound@example.com",
         }
 
-        log = sync_logger.log_customer_identification(
-            onec_data, identification_result
-        )
+        log = sync_logger.log_customer_identification(onec_data, identification_result)
 
         assert log.status == CustomerSyncLog.StatusType.SKIPPED
         assert log.customer is None
@@ -149,7 +145,7 @@ class TestCustomerSyncLogger:
     def test_log_conflict_resolution(self, sync_logger, test_user):
         """Тест логирования разрешения конфликта"""
         onec_data = {"onec_id": "1C_CONFLICT"}
-        
+
         resolution_result = {
             "success": True,
             "conflicting_fields": ["email", "phone"],
@@ -167,7 +163,9 @@ class TestCustomerSyncLogger:
             duration_ms=300,
         )
 
-        assert log.operation_type == CustomerSyncLog.OperationType.CONFLICT_RESOLUTION  # noqa
+        assert (
+            log.operation_type == CustomerSyncLog.OperationType.CONFLICT_RESOLUTION
+        )  # noqa
         assert log.status == CustomerSyncLog.StatusType.SUCCESS
         assert log.details["conflict_source"] == "portal_registration"
         assert log.details["resolution_strategy"] == "onec_wins"

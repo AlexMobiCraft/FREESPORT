@@ -67,9 +67,7 @@ class CustomerConflictResolver:
 
             # 3. Применяем стратегию в зависимости от источника конфликта
             if conflict_source == "portal_registration":
-                result = self._handle_portal_registration(
-                    existing_customer, onec_data
-                )
+                result = self._handle_portal_registration(existing_customer, onec_data)
             elif conflict_source == "data_import":
                 result = self._handle_data_import(
                     existing_customer, onec_data, conflicting_fields
@@ -97,8 +95,8 @@ class CustomerConflictResolver:
             # 6. Регистрируем отправку email уведомления ВНЕ транзакции
             # Используем transaction.on_commit для отправки после успешного
             # коммита. В тестах отправляем сразу для корректной работы моков.
-            is_testing = os.environ.get('PYTEST_CURRENT_TEST') is not None
-            
+            is_testing = os.environ.get("PYTEST_CURRENT_TEST") is not None
+
             if is_testing:
                 # В тестах отправляем сразу для корректной работы моков
                 self._send_notification_safe(
@@ -146,8 +144,7 @@ class CustomerConflictResolver:
         return {
             "action": "verified_client",
             "message": (
-                "Client from 1C verified, password set, "
-                "no other data modified"
+                "Client from 1C verified, password set, " "no other data modified"
             ),
         }
 
@@ -179,7 +176,10 @@ class CustomerConflictResolver:
         if onec_guid := onec_data.get("onec_guid"):
             old_value = existing_customer.onec_guid
             existing_customer.onec_guid = onec_guid
-            changes_made["onec_guid"] = {"old": str(old_value) if old_value else None, "new": str(onec_guid)}
+            changes_made["onec_guid"] = {
+                "old": str(old_value) if old_value else None,
+                "new": str(onec_guid),
+            }
 
         # Перезаписываем все конфликтующие поля данными из 1С
         for field in conflicting_fields:
@@ -370,12 +370,12 @@ class CustomerConflictResolver:
             source: Источник конфликта
         """
         # Проверяем наличие настройки email
-        if not hasattr(
-            settings, "CONFLICT_NOTIFICATION_EMAIL"
-        ) or not settings.CONFLICT_NOTIFICATION_EMAIL:
+        if (
+            not hasattr(settings, "CONFLICT_NOTIFICATION_EMAIL")
+            or not settings.CONFLICT_NOTIFICATION_EMAIL
+        ):
             logger.warning(
-                "CONFLICT_NOTIFICATION_EMAIL not configured, "
-                "skipping notification"
+                "CONFLICT_NOTIFICATION_EMAIL not configured, " "skipping notification"
             )
             return
 
@@ -390,9 +390,7 @@ class CustomerConflictResolver:
         }
 
         # Рендерим HTML template
-        html_content = render_to_string(
-            "emails/conflict_notification.html", context
-        )
+        html_content = render_to_string("emails/conflict_notification.html", context)
 
         # Определяем subject в зависимости от типа конфликта
         if source == "portal_registration":
@@ -401,10 +399,7 @@ class CustomerConflictResolver:
                 f"{customer.email}"
             )
         else:
-            subject = (
-                f"[1C Sync] Обновление данных клиента из 1C: "
-                f"{customer.email}"
-            )
+            subject = f"[1C Sync] Обновление данных клиента из 1C: " f"{customer.email}"
 
         # Отправляем email
         send_mail(
@@ -416,9 +411,7 @@ class CustomerConflictResolver:
             fail_silently=False,
         )
 
-    def _log_notification_error(
-        self, customer: User, error_message: str
-    ) -> None:
+    def _log_notification_error(self, customer: User, error_message: str) -> None:
         """
         Логирование ошибки отправки уведомления.
 

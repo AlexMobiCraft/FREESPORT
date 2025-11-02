@@ -102,9 +102,7 @@ class TestCustomerConflictResolver:
             "phone": "+79001234567",
         }
 
-        conflicting = resolver._detect_conflicting_fields(
-            existing_customer, onec_data
-        )
+        conflicting = resolver._detect_conflicting_fields(existing_customer, onec_data)
 
         assert len(conflicting) == 0
 
@@ -129,9 +127,7 @@ class TestCustomerConflictResolver:
         assert existing_customer.first_name == "Иван"
         assert existing_customer.last_name == "Иванов"
 
-    def test_handle_data_import(
-        self, resolver, existing_customer, onec_data_import
-    ):
+    def test_handle_data_import(self, resolver, existing_customer, onec_data_import):
         """Тест обработки импорта данных из 1С"""
         conflicting_fields = ["email", "first_name", "last_name", "phone"]
 
@@ -171,9 +167,7 @@ class TestCustomerConflictResolver:
         assert result["action"] == "verified_client"
 
         # Проверяем создание записи в SyncConflict
-        conflict = SyncConflict.objects.filter(
-            customer=existing_customer
-        ).first()
+        conflict = SyncConflict.objects.filter(customer=existing_customer).first()
         assert conflict is not None
         assert conflict.conflict_type == "portal_registration_blocked"
         assert conflict.is_resolved is True
@@ -200,9 +194,7 @@ class TestCustomerConflictResolver:
         assert len(result["changes_made"]) > 0
 
         # Проверяем создание записи в SyncConflict
-        conflict = SyncConflict.objects.filter(
-            customer=existing_customer
-        ).first()
+        conflict = SyncConflict.objects.filter(customer=existing_customer).first()
         assert conflict is not None
         assert conflict.conflict_type == "customer_data"
         assert conflict.is_resolved is True
@@ -238,9 +230,7 @@ class TestCustomerConflictResolver:
         self, mock_send_mail, resolver, existing_customer, onec_data_import
     ):
         """Тест когда email не настроен"""
-        with patch(
-            "django.conf.settings.CONFLICT_NOTIFICATION_EMAIL", None
-        ):
+        with patch("django.conf.settings.CONFLICT_NOTIFICATION_EMAIL", None):
             resolver.resolve_conflict(
                 existing_customer, onec_data_import, "data_import"
             )
@@ -293,18 +283,14 @@ class TestCustomerConflictResolver:
             "phone": None,
         }
 
-        conflicting = resolver._detect_conflicting_fields(
-            existing_customer, onec_data
-        )
+        conflicting = resolver._detect_conflicting_fields(existing_customer, onec_data)
 
         # Только first_name должен быть в конфликтах (None игнорируются)
         assert "first_name" in conflicting
         assert "email" not in conflicting
         assert "phone" not in conflicting
 
-    def test_handle_data_import_partial_data(
-        self, resolver, existing_customer
-    ):
+    def test_handle_data_import_partial_data(self, resolver, existing_customer):
         """Тест импорта с частичными данными"""
         onec_data = {
             "onec_id": "1C-123",
