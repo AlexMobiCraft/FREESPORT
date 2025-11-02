@@ -117,6 +117,7 @@ class UserAdmin(BaseUserAdmin):
         "last_sync_from_1c",
         "created_at",
         "updated_at",
+        "company_legal_address",
     ]
 
     # Fieldsets для детального просмотра/редактирования
@@ -138,6 +139,7 @@ class UserAdmin(BaseUserAdmin):
                 "fields": (
                     "company_name",
                     "tax_id",
+                    "company_legal_address",
                     "is_verified",
                     "verification_status",
                 ),
@@ -214,6 +216,13 @@ class UserAdmin(BaseUserAdmin):
 
     # Custom display methods
 
+    @admin.display(description="Юридический адрес компании")
+    def company_legal_address(self, obj: User) -> str:
+        """Отображение юридического адреса из связанной компании"""
+        if hasattr(obj, 'company') and obj.company:
+            return obj.company.legal_address or "-"
+        return "-"
+
     @admin.display(description="ФИО")
     def full_name(self, obj: User) -> str:
         """Отображение полного имени пользователя"""
@@ -260,12 +269,12 @@ class UserAdmin(BaseUserAdmin):
     # Admin actions с permissions и AuditLog
 
     @admin.action(
-        permissions=["change"],
+        permissions=["users.change_user"],
         description="✓ Верифицировать выбранных B2B пользователей",
     )
     def approve_b2b_users(self, request: HttpRequest, queryset: QuerySet[User]) -> None:
         """Массовая верификация B2B пользователей"""
-        # Фильтруем только B2B пользователей
+        # Input validation: проверка наличия B2B пользователей
         b2b_users = queryset.filter(
             role__in=[
                 "wholesale_level1",
@@ -275,6 +284,23 @@ class UserAdmin(BaseUserAdmin):
                 "federation_rep",
             ]
         )
+
+        if not b2b_users.exists():
+            self.message_user(
+                request,
+                "Не выбрано ни одного B2B пользователя для верификации",
+                level="warning",
+            )
+            return
+
+        # Проверка на суперпользователей
+        if b2b_users.filter(is_superuser=True).exists():
+            self.message_user(
+                request,
+                "Нельзя изменять статус верификации суперпользователей",
+                level="error",
+            )
+            return
 
         count = 0
         for user in b2b_users:
@@ -307,12 +333,12 @@ class UserAdmin(BaseUserAdmin):
         )
 
     @admin.action(
-        permissions=["change"],
+        permissions=["users.change_user"],
         description="✗ Отклонить верификацию выбранных B2B пользователей",
     )
     def reject_b2b_users(self, request: HttpRequest, queryset: QuerySet[User]) -> None:
         """Массовый отказ в верификации B2B пользователей"""
-        # Фильтруем только B2B пользователей
+        # Input validation: проверка наличия B2B пользователей
         b2b_users = queryset.filter(
             role__in=[
                 "wholesale_level1",
@@ -322,6 +348,23 @@ class UserAdmin(BaseUserAdmin):
                 "federation_rep",
             ]
         )
+
+        if not b2b_users.exists():
+            self.message_user(
+                request,
+                "Не выбрано ни одного B2B пользователя для отклонения",
+                level="warning",
+            )
+            return
+
+        # Проверка на суперпользователей
+        if b2b_users.filter(is_superuser=True).exists():
+            self.message_user(
+                request,
+                "Нельзя изменять статус верификации суперпользователей",
+                level="error",
+            )
+            return
 
         count = 0
         for user in b2b_users:
@@ -352,14 +395,34 @@ class UserAdmin(BaseUserAdmin):
         )
 
     @admin.action(
-        permissions=["change"], description="🚫 Заблокировать выбранных пользователей"
+        permissions=["users.change_user"], description="🚫 Заблокировать выбранных пользователей"
     )
     def block_users(self, request: HttpRequest, queryset: QuerySet[User]) -> None:
         """Массовая блокировка пользователей"""
+        # Input validation: проверка наличия пользователей для блокировки
+        if not queryset.exists():
+            self.message_user(
+                request,
+                "Не выбрано ни одного пользователя для блокировки",
+                level="warning",
+            )
+            return
+
+        # Фильтруем суперпользователей
+        users_to_block = queryset.exclude(is_superuser=True)
+        
+        if not users_to_block.exists():
+            self.message_user(
+                request,
+                "Нельзя блокировать суперпользователей",
+                level="error",
+            )
+            return
+
         count = 0
-        for user in queryset:
+        for user in users_to_block:
             if user.is_superuser:
-                continue  # Не блокируем суперпользователей
+                continue  # Дополнительная защита
 
             user.is_active = False
             user.save(update_fields=["is_active", "updated_at"])

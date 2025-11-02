@@ -108,6 +108,7 @@ class TestUserAdmin(TestCase):
             "last_sync_from_1c",
             "created_at",
             "updated_at",
+            "company_legal_address",
         ]
         self.assertEqual(self.admin.readonly_fields, expected_readonly)
 
@@ -166,6 +167,15 @@ class TestUserAdmin(TestCase):
         self.assertIn("○", result)
         self.assertIn("Не верифицирован", result)
         self.assertIn("gray", result)
+
+    def test_company_legal_address_display(self):
+        """Тест отображения юридического адреса компании"""
+        result = self.admin.company_legal_address(self.b2b_user)
+        self.assertEqual(result, "Test Address")
+
+        # Тест для пользователя без компании
+        result = self.admin.company_legal_address(self.retail_user)
+        self.assertEqual(result, "-")
 
     def test_approve_b2b_users_action(self):
         """Тест массовой верификации B2B пользователей"""
@@ -226,6 +236,57 @@ class TestUserAdmin(TestCase):
         # Проверяем что B2B изменился
         self.b2b_user.refresh_from_db()
         self.assertTrue(self.b2b_user.is_verified)
+
+    def test_approve_b2b_users_empty_queryset_validation(self):
+        """Тест input validation при пустом queryset для approve"""
+        request = self.factory.post("/admin/users/user/")
+        request.user = self.superuser
+        request.META["REMOTE_ADDR"] = "127.0.0.1"
+        request.META["HTTP_USER_AGENT"] = "Test Browser"
+        from django.contrib.messages.storage.cookie import CookieStorage
+
+        setattr(request, "session", "session")
+        setattr(request, "_messages", CookieStorage(request))
+
+        # Только retail пользователи (не B2B)
+        queryset = User.objects.filter(id=self.retail_user.id)
+
+        # Выполняем action
+        self.admin.approve_b2b_users(request, queryset)
+
+        # Проверяем что AuditLog не создан
+        audit_count = AuditLog.objects.filter(action="approve_b2b").count()
+        self.assertEqual(audit_count, 0)
+
+    def test_approve_b2b_users_superuser_validation(self):
+        """Тест что approve_b2b_users не верифицирует суперпользователей"""
+        # Создаем B2B суперпользователя
+        b2b_super = User.objects.create_superuser(
+            email="b2bsuper@test.com",
+            password="testpass123",
+        )
+        b2b_super.role = "wholesale_level1"
+        b2b_super.save()
+
+        request = self.factory.post("/admin/users/user/")
+        request.user = self.superuser
+        request.META["REMOTE_ADDR"] = "127.0.0.1"
+        request.META["HTTP_USER_AGENT"] = "Test Browser"
+        from django.contrib.messages.storage.cookie import CookieStorage
+
+        setattr(request, "session", "session")
+        setattr(request, "_messages", CookieStorage(request))
+
+        queryset = User.objects.filter(id=b2b_super.id)
+
+        # Выполняем action
+        self.admin.approve_b2b_users(request, queryset)
+
+        # Проверяем что AuditLog не создан
+        audit_count = AuditLog.objects.filter(
+            action="approve_b2b", resource_id=str(b2b_super.id)
+        ).count()
+        self.assertEqual(audit_count, 0)
 
     def test_reject_b2b_users_action(self):
         """Тест массового отказа в верификации B2B пользователей"""
@@ -319,6 +380,48 @@ class TestUserAdmin(TestCase):
             action="block_user", resource_id=str(self.superuser.id)
         ).first()
         self.assertIsNone(audit_log)
+
+    def test_block_users_empty_queryset_validation(self):
+        """Тест input validation при пустом queryset для block"""
+        request = self.factory.post("/admin/users/user/")
+        request.user = self.superuser
+        request.META["REMOTE_ADDR"] = "127.0.0.1"
+        request.META["HTTP_USER_AGENT"] = "Test Browser"
+        from django.contrib.messages.storage.cookie import CookieStorage
+
+        setattr(request, "session", "session")
+        setattr(request, "_messages", CookieStorage(request))
+
+        # Пустой queryset
+        queryset = User.objects.none()
+
+        # Выполняем action
+        self.admin.block_users(request, queryset)
+
+        # Проверяем что AuditLog не создан
+        audit_count = AuditLog.objects.filter(action="block_user").count()
+        self.assertEqual(audit_count, 0)
+
+    def test_reject_b2b_users_empty_queryset_validation(self):
+        """Тест input validation при пустом queryset для reject"""
+        request = self.factory.post("/admin/users/user/")
+        request.user = self.superuser
+        request.META["REMOTE_ADDR"] = "127.0.0.1"
+        request.META["HTTP_USER_AGENT"] = "Test Browser"
+        from django.contrib.messages.storage.cookie import CookieStorage
+
+        setattr(request, "session", "session")
+        setattr(request, "_messages", CookieStorage(request))
+
+        # Только retail пользователи (не B2B)
+        queryset = User.objects.filter(id=self.retail_user.id)
+
+        # Выполняем action
+        self.admin.reject_b2b_users(request, queryset)
+
+        # Проверяем что AuditLog не создан
+        audit_count = AuditLog.objects.filter(action="reject_b2b").count()
+        self.assertEqual(audit_count, 0)
 
     def test_get_client_ip_with_x_forwarded_for(self):
         """Тест получения IP из X-Forwarded-For заголовка"""
