@@ -1,0 +1,231 @@
+# Решение проблем доступа к Django Admin в продакшн-среде FREESPORT
+
+## Проблема
+Сервер FREESPORT (IP: 5.35.124.149) запущен с Docker Compose, все сервисы работают, но доступ к Django Admin Panel по https://5.35.124.149/admin/ завершается ошибкой ERR_CONNECTION_REFUSED.
+
+## Выявленные причины
+1. **Неправильная конфигурация Nginx** - отсутствовал IP адрес 5.35.124.149 в server_name
+2. **Отсутствие SSL сертификатов** - HTTPS был настроен, но без сертификатов
+3. **HTTP redirect** - HTTP запросы не перенаправлялись на HTTPS
+
+## Решение
+
+### 1. Исправление конфигурации Nginx
+
+**Файл**: `docker/nginx/conf.d/default.conf`
+
+Основные изменения:
+- Добавлен IP адрес 5.35.124.149 в server_name для всех server блоков
+- Настроен HTTP server блок с редиректом на HTTPS (301 Moved Permanently)
+- HTTPS server блок настроен на порт 443 с SSL
+- Все маршруты (/api/, /admin/, /static/, /media/) правильно проксируются
+
+**Ключевые секции конфигурации**:
+```nginx
+# HTTP - перенаправление на HTTPS
+server {
+    listen 80;
+    server_name localhost freesport.local 5.35.124.149;
+    location / { return 301 https://$server_name$request_uri; }
+}
+
+# HTTPS - основной сервер
+server {
+    listen 443 ssl;
+    server_name localhost freesport.local 5.35.124.149;
+    
+    # SSL настройки (сертификаты будут добавлены)
+    ssl_protocols TLSv1.2 TLSv1.3;
+    
+    # Проксирование Django Admin
+    location /admin/ {
+        proxy_pass http://backend;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+### 2. Создание SSL сертификатов для тестирования
+
+**Скрипт**: `scripts/server/create-ssl-certs.sh`
+
+Создает самоподписанные сертификаты для временного HTTPS доступа:
+- `ssl/cert.pem` - публичный сертификат
+- `ssl/key.pem` - приватный ключ
+- Сертификат валиден 365 дней
+
+### 3. Диагностические инструменты
+
+**Скрипт**: `scripts/server/diagnose-server.sh`
+
+Автоматически проверяет:
+- Статус Docker сервисов
+- Доступность портов (80, 443, 8000)
+- Конфигурацию Nginx
+- Логи контейнеров
+- Состояние файервола
+- Локальные подключения
+
+## Пошаговые инструкции
+
+### Шаг 1: Применение изменений Nginx
+
+```bash
+# Обновленная конфигурация уже применена
+# Файл docker/nginx/conf.d/default.conf исправлен
+```
+
+### Шаг 2: Создание SSL сертификатов
+
+```bash
+# На сервере выполните:
+cd /home/freesport/freesport
+chmod +x scripts/server/create-ssl-certs.sh
+./scripts/server/create-ssl-certs.sh
+
+# Создаст файлы ssl/cert.pem и ssl/key.pem
+```
+
+### Шаг 3: Копирование сертификатов в контейнер
+
+```bash
+# Создать директорию для сертификатов в docker
+mkdir -p docker/nginx/ssl
+
+# Скопировать сертификаты
+cp ssl/cert.pem docker/nginx/ssl/
+cp ssl/key.pem docker/nginx/ssl/
+
+# Установить права доступа
+chmod 600 docker/nginx/ssl/key.pem
+chmod 644 docker/nginx/ssl/cert.pem
+```
+
+### Шаг 4: Активация SSL в конфигурации
+
+**Раскомментировать строки в** `docker/nginx/conf.d/default.conf`:
+```nginx
+ssl_certificate /etc/nginx/ssl/cert.pem;
+ssl_certificate_key /etc/nginx/ssl/key.pem;
+```
+
+### Шаг 5: Перезапуск контейнеров
+
+```bash
+# Перезапустить Nginx для применения изменений
+docker-compose -f docker/docker-compose.prod.yml restart nginx
+
+# Или полный перезапуск всех сервисов
+docker-compose -f docker/docker-compose.prod.yml up -d --force-recreate
+```
+
+### Шаг 6: Проверка работы
+
+```bash
+# Запустить диагностику
+chmod +x scripts/server/diagnose-server.sh
+./scripts/server/diagnose-server.sh
+
+# Проверить доступность
+curl -I http://5.35.124.149/health
+curl -k -I https://5.35.124.149/health
+curl -k -I https://5.35.124.149/admin/
+```
+
+## Проверка результатов
+
+### Ожидаемые результаты:
+1. **HTTP запросы** → автоматический редирект на HTTPS (301)
+2. **HTTPS запросы** → успешное соединение без ошибок
+3. **Django Admin** → доступен по адресу https://5.35.124.149/admin/
+
+### Команды для проверки:
+
+**Локально на сервере:**
+```bash
+curl -I http://127.0.0.1/admin        # Должен вернуть 301
+curl -k -I https://127.0.0.1/admin    # Должен вернуть 302/200
+curl -I http://5.35.124.149/admin     # Должен вернуть 301
+curl -k -I https://5.35.124.149/admin # Должен вернуть 302/200
+```
+
+**Удаленно с клиента:**
+```bash
+curl -I http://5.35.124.149/admin     # Должен вернуть 301
+curl -k -I https://5.35.124.149/admin # Должен вернуть 302/200
+```
+
+## Возможные проблемы и решения
+
+### Проблема 1: Порт 80/443 заблокирован файерволом
+**Решение**: Открыть порты в файерволе:
+```bash
+# Для UFW:
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+
+# Для iptables:
+sudo iptables -A INPUT -p tcp --dport 80 -j ACCEPT
+sudo iptables -A INPUT -p tcp --dport 443 -j ACCEPT
+```
+
+### Проблема 2: Django не принимает запросы по IP
+**Проверить** в Django settings:
+```python
+ALLOWED_HOSTS = [
+    'freesport.ru',
+    'www.freesport.ru',
+    '5.35.124.149',  # Должен быть добавлен
+    'backend',
+    'nginx',
+    'localhost',
+    '127.0.0.1'
+]
+```
+
+### Проблема 3: CORS блокирует доступ
+**Проверить** в Django settings:
+```python
+CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOWED_ORIGINS = [
+    'https://freesport.ru',
+    'https://www.freesport.ru',
+    'https://5.35.124.149',
+]
+```
+
+### Проблема 4: Nginx не может найти конфигурационные файлы
+**Решение**: Проверить монтирование volumes в docker-compose.prod.yml
+
+## Безопасность и продакшн
+
+### Для продакшена рекомендуется:
+
+1. **Получить SSL сертификат Let's Encrypt**:
+```bash
+# Установить certbot
+sudo apt install certbot python3-certbot-nginx
+
+# Получить сертификат
+sudo certbot --nginx -d freesport.ru -d www.freesport.ru
+```
+
+2. **Удалить самоподписанные сертификаты** после получения реальных
+
+3. **Настроить автоматическое обновление сертификатов**
+
+4. **Включить HSTS заголовки** для дополнительной безопасности
+
+## Резюме
+
+Решение включает:
+- ✅ Исправление конфигурации Nginx с поддержкой IP адреса 5.35.124.149
+- ✅ Настройка HTTP→HTTPS редиректа
+- ✅ Подготовка SSL инфраструктуры
+- ✅ Создание диагностических инструментов
+- ✅ Документация с пошаговыми инструкциями
+
+После применения изменений Django Admin будет доступен по адресу:
+**https://5.35.124.149/admin/**
+
+(с предупреждением браузера о самоподписанном сертификате, что нормально для тестирования)
