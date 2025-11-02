@@ -268,10 +268,7 @@ class UserAdmin(BaseUserAdmin):
 
     # Admin actions с permissions и AuditLog
 
-    @admin.action(
-        permissions=["users.change_user"],
-        description="✓ Верифицировать выбранных B2B пользователей",
-    )
+    @admin.action(description="✓ Верифицировать выбранных B2B пользователей")
     def approve_b2b_users(self, request: HttpRequest, queryset: QuerySet[User]) -> None:
         """Массовая верификация B2B пользователей"""
         # Input validation: проверка наличия B2B пользователей
@@ -332,10 +329,7 @@ class UserAdmin(BaseUserAdmin):
             level="success",
         )
 
-    @admin.action(
-        permissions=["users.change_user"],
-        description="✗ Отклонить верификацию выбранных B2B пользователей",
-    )
+    @admin.action(description="✗ Отклонить верификацию выбранных B2B пользователей")
     def reject_b2b_users(self, request: HttpRequest, queryset: QuerySet[User]) -> None:
         """Массовый отказ в верификации B2B пользователей"""
         # Input validation: проверка наличия B2B пользователей
@@ -394,9 +388,7 @@ class UserAdmin(BaseUserAdmin):
             request, f"Отклонена верификация {count} B2B пользователей", level="warning"
         )
 
-    @admin.action(
-        permissions=["users.change_user"], description="🚫 Заблокировать выбранных пользователей"
-    )
+    @admin.action(description="🚫 Заблокировать выбранных пользователей")
     def block_users(self, request: HttpRequest, queryset: QuerySet[User]) -> None:
         """Массовая блокировка пользователей"""
         # Input validation: проверка наличия пользователей для блокировки
