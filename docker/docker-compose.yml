@@ -45,7 +45,7 @@ services:
   backend:
     build:
       context: ../backend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
       args:
         DJANGO_SETTINGS_MODULE: freesport.settings.development
     container_name: freesport-backend
@@ -79,6 +79,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
+    command: python manage.py runserver 0.0.0.0:8000
     restart: unless-stopped
 
   # Next.js Frontend
