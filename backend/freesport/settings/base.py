@@ -226,6 +226,10 @@ STATICFILES_DIRS = [BASE_DIR / "static"]
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
+# Интеграция с 1С
+# Путь к директории с данными импорта из 1С
+ONEC_DATA_DIR = BASE_DIR.parent / "data" / "import_1c"
+
 # Тип первичного ключа по умолчанию
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
