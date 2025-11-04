@@ -76,4 +76,6 @@ HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
     CMD python manage.py check --deploy || exit 1
 
 # Запуск приложения через Gunicorn
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "4", "--worker-class", "sync", "--max-requests", "1000", "--max-requests-jitter", "100", "--preload", "--access-logfile", "-", "--error-logfile", "-", "freesport.wsgi:application"]
+# timeout=300 (5 минут) для длительных операций импорта
+# graceful-timeout=300 для корректного завершения worker'ов
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "4", "--worker-class", "sync", "--timeout", "300", "--graceful-timeout", "300", "--max-requests", "1000", "--max-requests-jitter", "100", "--preload", "--access-logfile", "-", "--error-logfile", "-", "freesport.wsgi:application"]

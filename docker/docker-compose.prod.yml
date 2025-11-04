@@ -98,8 +98,10 @@ services:
       - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
       - DEBUG=0
       - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS}
+      - ONEC_DATA_DIR=${ONEC_DATA_DIR:-/app/data/import_1c}
     volumes:
       - ../backend/logs:/app/logs
+      - ${ONEC_DATA_DIR:-../data/import_1c}:/app/data/import_1c
     depends_on:
       - db
       - redis

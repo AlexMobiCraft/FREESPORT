@@ -564,6 +564,17 @@ class ImportSession(models.Model):
         ),
     )
     error_message = cast(str, models.TextField("Сообщение об ошибке", blank=True))
+    celery_task_id = cast(
+        str | None,
+        models.CharField(
+            "ID задачи Celery",
+            max_length=255,
+            null=True,
+            blank=True,
+            db_index=True,
+            help_text="UUID задачи Celery для отслеживания прогресса",
+        ),
+    )
 
     class Meta:
         verbose_name = "Сессия импорта"
