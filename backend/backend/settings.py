@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     "apps.orders",
     "apps.pages",
     "apps.common",
+    "apps.integrations.apps.IntegrationsConfig",
 ]
 
 
@@ -176,3 +177,15 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 # НАСТРОЙКА ПЕРВИЧНОГО КЛЮЧА (DEFAULT PRIMARY KEY)
 # ==============================================================================
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+
+# ==============================================================================
+# ИНТЕГРАЦИЯ С 1С (1C INTEGRATION)
+# ==============================================================================
+# Путь к директории с данными для импорта из 1С
+# В Docker контейнере это будет /app/data/import_1c
+# В локальной разработке это BASE_DIR.parent / "data" / "import_1c"
+ONEC_DATA_DIR = os.environ.get(
+    "ONEC_DATA_DIR",
+    str(BASE_DIR.parent / "data" / "import_1c")
+)

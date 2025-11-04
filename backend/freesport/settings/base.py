@@ -66,6 +66,7 @@ LOCAL_APPS = [
     "apps.cart",
     "apps.pages",
     "apps.common",
+    "apps.integrations.apps.IntegrationsConfig",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -228,7 +229,13 @@ MEDIA_ROOT = BASE_DIR / "media"
 
 # Интеграция с 1С
 # Путь к директории с данными импорта из 1С
-ONEC_DATA_DIR = BASE_DIR.parent / "data" / "import_1c"
+# Поддерживает переменную окружения ONEC_DATA_DIR
+# В Docker контейнере это будет /app/data/import_1c
+# BASE_DIR = /app, поэтому используем BASE_DIR / "data" / "import_1c"
+ONEC_DATA_DIR = os.environ.get(
+    "ONEC_DATA_DIR",
+    str(BASE_DIR / "data" / "import_1c")
+)
 
 # Тип первичного ключа по умолчанию
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
