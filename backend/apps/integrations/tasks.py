@@ -37,9 +37,7 @@ def run_selective_import_task(
         Exception: При критических ошибках импорта
     """
     task_id = self.request.id
-    logger.info(
-        f"[Task {task_id}] Запуск выборочного импорта: {selected_types}"
-    )
+    logger.info(f"[Task {task_id}] Запуск выборочного импорта: {selected_types}")
 
     # Получаем директорию с данными
     if data_dir is None:
@@ -148,7 +146,9 @@ def _execute_import_type(
         if not data_path.exists():
             raise FileNotFoundError(f"Директория данных не найдена: {data_dir}")
 
-        logger.info(f"[Task {task_id}] Запуск import_catalog_from_1c --file-type=prices")
+        logger.info(
+            f"[Task {task_id}] Запуск import_catalog_from_1c --file-type=prices"
+        )
         call_command(
             "import_catalog_from_1c",
             "--data-dir",

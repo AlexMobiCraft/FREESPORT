@@ -37,10 +37,12 @@ class ImportSessionAdmin(admin.ModelAdmin):
         "celery_task_id",
     )
     actions = ["trigger_selective_import"]
-    
+
     class Media:
         """Добавляем JavaScript для автообновления страницы"""
+
         js = ("admin/js/import_session_auto_refresh.js",)
+
     fieldsets = (
         (
             "Основная информация",
@@ -149,20 +151,24 @@ class ImportSessionAdmin(admin.ModelAdmin):
             selected_types: Список выбранных типов импорта
         """
         import logging
+
         logger = logging.getLogger(__name__)
-        
+
         # Генерируем уникальный ID запроса для отслеживания
         import uuid
+
         request_id = str(uuid.uuid4())[:8]
         logger.info(f"[Request {request_id}] Попытка запуска импорта: {selected_types}")
-        
+
         redis_conn = get_redis_connection("default")
         lock_key = "import_catalog_lock"
         lock = redis_conn.lock(lock_key, timeout=3600)  # 1 час TTL
 
         # Пытаемся захватить блокировку (non-blocking)
         if not lock.acquire(blocking=False):
-            logger.warning(f"[Request {request_id}] Импорт уже запущен, блокировка активна")
+            logger.warning(
+                f"[Request {request_id}] Импорт уже запущен, блокировка активна"
+            )
             self.message_user(
                 request,
                 "⚠️ Импорт уже запущен! Дождитесь завершения текущего импорта.",
@@ -181,7 +187,7 @@ class ImportSessionAdmin(admin.ModelAdmin):
 
             # Создаем новую сессию импорта для отслеживания
             from apps.products.models import ImportSession
-            
+
             # Определяем тип сессии на основе выбранных типов
             # Если выбрано несколько типов, используем первый
             session_type_map = {
@@ -190,12 +196,12 @@ class ImportSessionAdmin(admin.ModelAdmin):
                 "prices": ImportSession.ImportType.PRICES,
                 "customers": ImportSession.ImportType.CUSTOMERS,
             }
-            
+
             primary_type = selected_types[0] if selected_types else "catalog"
             session_import_type = session_type_map.get(
                 primary_type, ImportSession.ImportType.CATALOG
             )
-            
+
             session = ImportSession.objects.create(
                 import_type=session_import_type,
                 status=ImportSession.ImportStatus.STARTED,
@@ -203,11 +209,11 @@ class ImportSessionAdmin(admin.ModelAdmin):
 
             # Запускаем асинхронную задачу Celery
             task = run_selective_import_task.delay(selected_types, str(data_dir))
-            
+
             # Сохраняем task_id в сессию
             session.celery_task_id = task.id
             session.save(update_fields=["celery_task_id"])
-            
+
             logger.info(
                 f"[Request {request_id}] Импорт запущен успешно. "
                 f"Session ID: {session.pk}, Task ID: {task.id}, Types: {selected_types}"
@@ -230,7 +236,6 @@ class ImportSessionAdmin(admin.ModelAdmin):
             # Освобождаем lock сразу после запуска задачи
             # Задача сама будет управлять процессом импорта
             lock.release()
-
 
     @admin.display(description="Статус")
     def colored_status(self, obj: IntegrationImportSession) -> str:
@@ -267,7 +272,7 @@ class ImportSessionAdmin(admin.ModelAdmin):
     def celery_task_status(self, obj: IntegrationImportSession) -> str:
         """
         Отображение статуса Celery задачи в реальном времени.
-        
+
         Проверяет статус задачи через Celery API и показывает:
         - PENDING: задача в очереди
         - STARTED: задача выполняется
@@ -277,13 +282,13 @@ class ImportSessionAdmin(admin.ModelAdmin):
         """
         if not obj.celery_task_id:
             return format_html('<span style="color: gray;">-</span>')
-        
+
         try:
             from celery.result import AsyncResult
-            
+
             task_result = AsyncResult(obj.celery_task_id)
             state = task_result.state
-            
+
             # Маппинг статусов на иконки и цвета
             status_map = {
                 "PENDING": ("⏳", "gray", "В очереди"),
@@ -292,9 +297,9 @@ class ImportSessionAdmin(admin.ModelAdmin):
                 "FAILURE": ("❌", "red", "Ошибка"),
                 "RETRY": ("🔄", "orange", "Повтор"),
             }
-            
+
             icon, color, label = status_map.get(state, ("❓", "black", state))
-            
+
             return format_html(
                 '<span style="color: {}; font-weight: bold;" title="Task ID: {}">{} {}</span>',
                 color,
