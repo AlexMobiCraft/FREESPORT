@@ -119,7 +119,42 @@
         display: block;
         margin-bottom: 8px;
     }
+
+    .btn-primary:disabled {
+        background-color: #9ca3af;
+        cursor: not-allowed;
+        opacity: 0.6;
+    }
 </style>
+<script>
+    // Предотвращение двойного клика на кнопке импорта
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.querySelector('form');
+        const submitButton = document.querySelector('button[name="apply"]');
+        
+        if (form && submitButton) {
+            form.addEventListener('submit', function(e) {
+                // Проверяем, что хотя бы один чекбокс выбран
+                const checkedBoxes = document.querySelectorAll('input[name="import_types"]:checked');
+                if (checkedBoxes.length === 0) {
+                    e.preventDefault();
+                    alert('⚠️ Выберите хотя бы один тип данных для импорта');
+                    return false;
+                }
+                
+                // Блокируем кнопку после первого клика
+                submitButton.disabled = true;
+                submitButton.textContent = '⏳ Запуск импорта...';
+                
+                // На случай если форма не отправится, разблокируем через 5 секунд
+                setTimeout(function() {
+                    submitButton.disabled = false;
+                    submitButton.textContent = '▶️ Запустить импорт';
+                }, 5000);
+            });
+        }
+    });
+</script>
 {% endblock %}
 
 {% block content %}
@@ -179,9 +214,7 @@
 
         <div class="form-actions">
             <input type="hidden" name="action" value="trigger_selective_import">
-            {% for obj in queryset %}
-                <input type="hidden" name="_selected_action" value="{{ obj.pk }}">
-            {% endfor %}
+            <input type="hidden" name="_selected_action" value="0">
             <button type="submit" name="apply" class="btn-primary">
                 ▶️ Запустить импорт
             </button>
