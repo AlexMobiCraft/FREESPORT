@@ -98,17 +98,17 @@ cd docker
 
 ```bash
 # Запуск всех сервисов в фоновом режиме
-docker compose up -d
+docker compose -f docker/docker-compose.yml up -d
 
 # Или для просмотра логов в реальном времени
-docker compose up
+docker compose -f docker/docker-compose.yml up
 ```
 
 3. **Дождитесь запуска всех сервисов (может занять несколько минут при первом запуске):**
 
 ```bash
 # Проверка статуса всех контейнеров
-docker compose ps
+docker compose -f docker/docker-compose.yml ps
 ```
 
 Ожидаемый результат:
@@ -129,19 +129,19 @@ freesport-celery-beat backend                "celery -A freesport…"   celery-b
 1. **Выполните миграции базы данных:**
 
 ```bash
-docker compose exec backend python manage.py migrate
+docker compose -f docker/docker-compose.yml exec backend python manage.py migrate
 ```
 
 2. **Создайте суперпользователя (опционально):**
 
 ```bash
-docker compose exec backend python manage.py createsuperuser
+docker compose -f docker/docker-compose.yml exec backend python manage.py createsuperuser
 ```
 
 3. **Соберите статические файлы:**
 
 ```bash
-docker compose exec backend python manage.py collectstatic --no-input
+docker compose -f docker/docker-compose.yml exec backend python manage.py collectstatic --no-input
 ```
 
 ### Шаг 4: Проверка работоспособности
@@ -177,19 +177,19 @@ docker compose logs db
 
 ```bash
 # Запуск всех сервисов
-docker compose up -d
+docker compose -f docker/docker-compose.yml up -d
 
 # Остановка всех сервисов
-docker compose down
+docker compose -f docker/docker-compose.yml down
 
 # Перезапуск всех сервисов
-docker compose restart
+docker compose -f docker/docker-compose.yml restart
 
 # Перезапуск конкретного сервиса
-docker compose restart backend
+docker compose -f docker/docker-compose.yml restart backend
 
 # Просмотр статуса
-docker compose ps
+docker compose -f docker/docker-compose.yml ps
 
 # Просмотр логов
 docker compose logs -f  # с отслеживанием в реальном времени
@@ -200,52 +200,52 @@ docker compose logs backend  # конкретного сервиса
 
 ```bash
 # Подключение к PostgreSQL
-docker compose exec db psql -U postgres -d freesport
+docker compose -f docker/docker-compose.yml exec db psql -U postgres -d freesport
 
 # Создание резервной копии БД
-docker compose exec db pg_dump -U postgres freesport > backup.sql
+docker compose -f docker/docker-compose.yml exec db pg_dump -U postgres freesport > backup.sql
 
 # Восстановление из резервной копии
-docker compose exec -T db psql -U postgres freesport < backup.sql
+docker compose -f docker/docker-compose.yml exec -T db psql -U postgres freesport < backup.sql
 ```
 
 ### Работа с Redis
 
 ```bash
 # Подключение к Redis CLI
-docker compose exec redis redis-cli -a redis123
+docker compose -f docker/docker-compose.yml exec redis redis-cli -a redis123
 
 # Проверка состояния Redis
-docker compose exec redis redis-cli -a redis123 ping
+docker compose -f docker/docker-compose.yml exec redis redis-cli -a redis123 ping
 ```
 
 ### Работа с Django
 
 ```bash
 # Выполнение миграций
-docker compose exec backend python manage.py migrate
+docker compose -f docker/docker-compose.yml exec backend python manage.py migrate
 
 # Создание суперпользователя
-docker compose exec backend python manage.py createsuperuser
+docker compose -f docker/docker-compose.yml exec backend python manage.py createsuperuser
 
 # Сбор статических файлов
-docker compose exec backend python manage.py collectstatic --no-input
+docker compose -f docker/docker-compose.yml exec backend python manage.py collectstatic --no-input
 
 # Запуск shell Django
-docker compose exec backend python manage.py shell
+docker compose -f docker/docker-compose.yml exec backend python manage.py shell
 
 # Проверка состояния Django
-docker compose exec backend python manage.py check
+docker compose -f docker/docker-compose.yml exec backend python manage.py check
 ```
 
 ### Работа с Celery
 
 ```bash
 # Просмотр активных задач Celery
-docker compose exec celery celery -A freesport inspect active
+docker compose -f docker/docker-compose.yml exec celery celery -A freesport inspect active
 
 # Просмотр статистики Celery
-docker compose exec celery celery -A freesport inspect stats
+docker compose -f docker/docker-compose.yml exec celery celery -A freesport inspect stats
 ```
 
 ## 🔧 Разработка с Docker
@@ -263,23 +263,23 @@ docker compose exec celery celery -A freesport inspect stats
 
 ```bash
 # Пересборка всех образов
-docker compose build --no-cache
+docker compose -f docker/docker-compose.yml build --no-cache
 
 # Пересборка конкретного образа
-docker compose build backend
+docker compose -f docker/docker-compose.yml build backend
 ```
 
 ### Отладка
 
 ```bash
 # Вход в контейнер backend
-docker compose exec backend bash
+docker compose -f docker/docker-compose.yml exec backend bash
 
 # Вход в контейнер frontend
-docker compose exec frontend sh
+docker compose -f docker/docker-compose.yml exec frontend sh
 
 # Вход в контейнер базы данных
-docker compose exec db bash
+docker compose -f docker/docker-compose.yml exec db bash
 ```
 
 ## 📊 Мониторинг
@@ -288,17 +288,17 @@ docker compose exec db bash
 
 ```bash
 # Проверка здоровья всех контейнеров
-docker compose ps
+docker compose -f docker/docker-compose.yml ps
 
 # Детальная информация о контейнере
-docker compose inspect backend
+docker compose -f docker/docker-compose.yml inspect backend
 ```
 
 ### Просмотр использования ресурсов
 
 ```bash
 # Просмотр использования ресурсов контейнерами
-docker stats
+docker compose -f docker/docker-compose.yml stats
 
 # Просмотр использования дискового пространства
 docker system df
@@ -311,26 +311,26 @@ docker system df
 git pull origin main
 
 # 2. Пересборка образов
-docker compose build --no-cache
+docker compose -f docker/docker-compose.yml build --no-cache
 
 # 3. Перезапуск сервисов
-docker compose up -d
+docker compose -f docker/docker-compose.yml up -d
 
 # 4. Выполнение миграций
-docker compose exec backend python manage.py migrate
+docker compose -f docker/docker-compose.yml exec backend python manage.py migrate
 
 # 5. Сбор статических файлов
-docker compose exec backend python manage.py collectstatic --no-input
+docker compose -f docker/docker-compose.yml exec backend python manage.py collectstatic --no-input
 ```
 
 ## 🧹 Очистка
 
 ```bash
 # Остановка и удаление контейнеров, сетей и томов
-docker compose down -v
+docker compose -f docker/docker-compose.yml down -v
 
 # Удаление всех образов проекта
-docker compose down --rmi all
+docker compose -f docker/docker-compose.yml down --rmi all
 
 # Полная очистка Docker (осторожно!)
 docker system prune -a --volumes
