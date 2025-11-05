@@ -1,22 +1,23 @@
 from __future__ import annotations
 
-from django.conf import settings
 from django.contrib import admin
-from django.db.models import QuerySet
 from django.http import HttpRequest
-from django.template.response import TemplateResponse
 from django.utils.html import format_html
-from django_redis import get_redis_connection
-
-from apps.products.models import Product
 
 from .models import IntegrationImportSession
-from .tasks import run_selective_import_task
 
 
 @admin.register(IntegrationImportSession)
 class ImportSessionAdmin(admin.ModelAdmin):
-    """Admin для модели ImportSession с мониторингом и запуском импорта"""
+    """
+    Read-only Admin для журнала сессий импорта.
+
+    Предоставляет доступ только для просмотра истории импортов
+    с мониторингом Celery задач и автообновлением статусов.
+
+    Запуск новых импортов осуществляется через отдельную страницу
+    /admin/integrations/import_1c/
+    """
 
     list_display = (
         "id",
@@ -36,7 +37,7 @@ class ImportSessionAdmin(admin.ModelAdmin):
         "report_details",
         "celery_task_id",
     )
-    actions = ["trigger_selective_import"]
+    actions = []  # Удалены все admin actions - только просмотр
 
     class Media:
         """Добавляем JavaScript для автообновления страницы"""
@@ -67,175 +68,43 @@ class ImportSessionAdmin(admin.ModelAdmin):
         ),
     )
 
-    @admin.action(description="🚀 Запустить импорт из 1С")
-    def trigger_selective_import(
-        self, request: HttpRequest, queryset: QuerySet
-    ) -> TemplateResponse | None:
+    # ========================================================================
+    # Permission methods - Read-only режим
+    # ========================================================================
+
+    def has_add_permission(self, request: HttpRequest) -> bool:
         """
-        Запуск выборочного импорта данных из 1С с intermediate page.
+        Запрещаем создание новых сессий через admin.
 
-        Показывает форму выбора типов данных для импорта:
-        - Каталог товаров
-        - Остатки товаров
-        - Цены товаров
-        - Клиенты
-
-        Использует distributed lock через Redis для предотвращения
-        одновременного запуска нескольких импортов.
+        Сессии импорта создаются автоматически при запуске импорта
+        через отдельную страницу /admin/integrations/import_1c/
         """
-        # Если форма отправлена - обрабатываем импорт
-        if "apply" in request.POST:
-            selected_types = request.POST.getlist("import_types")
+        return False
 
-            if not selected_types:
-                self.message_user(
-                    request,
-                    "⚠️ Не выбрано ни одного типа данных для импорта.",
-                    level="WARNING",
-                )
-                return None
-
-            # Валидация зависимостей
-            is_valid, error_message = self._validate_dependencies(selected_types)
-            if not is_valid:
-                self.message_user(request, error_message, level="ERROR")
-                return None
-
-            # Запуск последовательного импорта
-            self._run_sequential_import(request, selected_types)
-            return None
-
-        # Показываем intermediate page с формой выбора
-        context = {
-            **self.admin_site.each_context(request),
-            "title": "Выбор типов данных для импорта",
-            "queryset": queryset,
-            "opts": self.model._meta,
-            "action": "trigger_selective_import",
-        }
-        return TemplateResponse(
-            request, "admin/integrations/import_selection.html", context
-        )
-
-    def _validate_dependencies(self, selected_types: list[str]) -> tuple[bool, str]:
+    def has_change_permission(
+        self, request: HttpRequest, obj: IntegrationImportSession | None = None
+    ) -> bool:
         """
-        Проверка зависимостей между типами импорта.
+        Запрещаем редактирование существующих сессий.
 
-        Args:
-            selected_types: Список выбранных типов импорта
-
-        Returns:
-            Tuple[bool, str]: (is_valid, error_message)
+        Это журнал истории импортов, изменение записей не допускается
+        для сохранения целостности данных аудита.
         """
-        # Проверяем зависимости остатков и цен от каталога
-        if "stocks" in selected_types or "prices" in selected_types:
-            if "catalog" not in selected_types:
-                # Проверяем наличие товаров в БД
-                if not Product.objects.exists():
-                    return (
-                        False,
-                        "⚠️ Невозможно загрузить остатки/цены: "
-                        "каталог товаров пуст. Сначала импортируйте каталог "
-                        "или выберите 'Каталог товаров' для импорта.",
-                    )
-        return True, ""
+        return False
 
-    def _run_sequential_import(
-        self, request: HttpRequest, selected_types: list[str]
-    ) -> None:
+    def has_delete_permission(
+        self, request: HttpRequest, obj: IntegrationImportSession | None = None
+    ) -> bool:
         """
-        Запуск асинхронного импорта через Celery с Redis lock.
+        Разрешаем удаление сессий для периодического cleanup.
 
-        Args:
-            request: HTTP запрос
-            selected_types: Список выбранных типов импорта
+        Причины:
+        - Удаление тестовых/ошибочных сессий при разработке
+        - Периодический cleanup старых данных (>6 месяцев)
+        - Предотвращение бесконечного роста БД
+        - Django Admin требует подтверждения перед удалением
         """
-        import logging
-
-        logger = logging.getLogger(__name__)
-
-        # Генерируем уникальный ID запроса для отслеживания
-        import uuid
-
-        request_id = str(uuid.uuid4())[:8]
-        logger.info(f"[Request {request_id}] Попытка запуска импорта: {selected_types}")
-
-        redis_conn = get_redis_connection("default")
-        lock_key = "import_catalog_lock"
-        lock = redis_conn.lock(lock_key, timeout=3600)  # 1 час TTL
-
-        # Пытаемся захватить блокировку (non-blocking)
-        if not lock.acquire(blocking=False):
-            logger.warning(
-                f"[Request {request_id}] Импорт уже запущен, блокировка активна"
-            )
-            self.message_user(
-                request,
-                "⚠️ Импорт уже запущен! Дождитесь завершения текущего импорта.",
-                level="WARNING",
-            )
-            return
-
-        try:
-            # Проверяем наличие настройки ONEC_DATA_DIR
-            data_dir = getattr(settings, "ONEC_DATA_DIR", None)
-            if not data_dir:
-                raise ValueError(
-                    "Настройка ONEC_DATA_DIR не найдена в settings. "
-                    "Убедитесь, что путь к данным 1С настроен."
-                )
-
-            # Создаем новую сессию импорта для отслеживания
-            from apps.products.models import ImportSession
-
-            # Определяем тип сессии на основе выбранных типов
-            # Если выбрано несколько типов, используем первый
-            session_type_map = {
-                "catalog": ImportSession.ImportType.CATALOG,
-                "stocks": ImportSession.ImportType.STOCKS,
-                "prices": ImportSession.ImportType.PRICES,
-                "customers": ImportSession.ImportType.CUSTOMERS,
-            }
-
-            primary_type = selected_types[0] if selected_types else "catalog"
-            session_import_type = session_type_map.get(
-                primary_type, ImportSession.ImportType.CATALOG
-            )
-
-            session = ImportSession.objects.create(
-                import_type=session_import_type,
-                status=ImportSession.ImportStatus.STARTED,
-            )
-
-            # Запускаем асинхронную задачу Celery
-            task = run_selective_import_task.delay(selected_types, str(data_dir))
-
-            # Сохраняем task_id в сессию
-            session.celery_task_id = task.id
-            session.save(update_fields=["celery_task_id"])
-
-            logger.info(
-                f"[Request {request_id}] Импорт запущен успешно. "
-                f"Session ID: {session.pk}, Task ID: {task.id}, Types: {selected_types}"
-            )
-
-            self.message_user(
-                request,
-                f"✅ Импорт запущен в фоновом режиме (Task ID: {task.id}). "
-                f"Отслеживайте прогресс в разделе 'Сессии импорта' (ID: {session.pk}).",
-                level="SUCCESS",
-            )
-
-        except Exception as e:
-            self.message_user(
-                request,
-                f"❌ Ошибка запуска импорта: {e}",
-                level="ERROR",
-            )
-        finally:
-            # Освобождаем lock сразу после запуска задачи
-            # Задача сама будет управлять процессом импорта
-            lock.release()
+        return True
 
     @admin.display(description="Статус")
     def colored_status(self, obj: IntegrationImportSession) -> str:

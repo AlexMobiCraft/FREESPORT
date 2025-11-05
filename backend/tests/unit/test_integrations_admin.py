@@ -268,9 +268,143 @@ class TestImportSessionAdmin:
             import_type="catalog",
             status="completed"
         )
-        
+
         # Act
         result = import_session_admin.progress_display(session)
-        
+
         # Assert
         assert result == "-"
+
+    # ========================================================================
+    # Тесты для read-only режима (Story 9.7)
+    # ========================================================================
+
+    def test_has_add_permission_returns_false(
+        self, import_session_admin, mock_request
+    ):
+        """
+        Тест: has_add_permission возвращает False
+
+        Story 9.7: Страница сессий импорта должна быть read-only.
+        Создание новых сессий через admin запрещено.
+        """
+        # Act
+        result = import_session_admin.has_add_permission(mock_request)
+
+        # Assert
+        assert result is False, (
+            "Создание новых сессий импорта через admin должно быть запрещено. "
+            "Сессии создаются автоматически через /admin/integrations/import_1c/"
+        )
+
+    def test_has_change_permission_returns_false(
+        self, import_session_admin, mock_request, import_session
+    ):
+        """
+        Тест: has_change_permission возвращает False
+
+        Story 9.7: Редактирование сессий импорта запрещено для
+        сохранения целостности данных аудита.
+        """
+        # Act - без объекта
+        result_without_obj = import_session_admin.has_change_permission(mock_request)
+
+        # Act - с объектом
+        result_with_obj = import_session_admin.has_change_permission(
+            mock_request, import_session
+        )
+
+        # Assert
+        assert result_without_obj is False, (
+            "Редактирование сессий импорта должно быть запрещено (без объекта)"
+        )
+        assert result_with_obj is False, (
+            "Редактирование сессий импорта должно быть запрещено (с объектом)"
+        )
+
+    def test_has_delete_permission_returns_true(
+        self, import_session_admin, mock_request, import_session
+    ):
+        """
+        Тест: has_delete_permission возвращает True
+
+        Story 9.7: Удаление разрешено для периодического cleanup:
+        - Удаление тестовых/ошибочных сессий
+        - Периодический cleanup старых данных (>6 месяцев)
+        - Предотвращение бесконечного роста БД
+        """
+        # Act - без объекта
+        result_without_obj = import_session_admin.has_delete_permission(mock_request)
+
+        # Act - с объектом
+        result_with_obj = import_session_admin.has_delete_permission(
+            mock_request, import_session
+        )
+
+        # Assert
+        assert result_without_obj is True, (
+            "Удаление сессий должно быть разрешено для cleanup (без объекта)"
+        )
+        assert result_with_obj is True, (
+            "Удаление сессий должно быть разрешено для cleanup (с объектом)"
+        )
+
+    def test_actions_list_is_empty(self, import_session_admin):
+        """
+        Тест: actions список пустой
+
+        Story 9.7: Admin action "trigger_selective_import" удален.
+        Страница только для просмотра, без возможности запуска импорта.
+        """
+        # Act
+        actions = import_session_admin.actions
+
+        # Assert
+        assert actions == [], (
+            "Admin actions должны быть пустыми. "
+            "Запуск импорта выполняется через /admin/integrations/import_1c/"
+        )
+
+    def test_celery_task_status_method_exists(self, import_session_admin):
+        """
+        Тест: метод celery_task_status существует и работает
+
+        Story 9.7: Функционал мониторинга Celery задач должен быть сохранен.
+        """
+        # Arrange
+        session = IntegrationImportSession.objects.create(
+            import_type="catalog",
+            status="in_progress",
+            celery_task_id="test-task-id-123"
+        )
+
+        # Act - AsyncResult импортируется внутри метода
+        with patch("celery.result.AsyncResult") as mock_async_result:
+            mock_result = Mock()
+            mock_result.state = "STARTED"
+            mock_async_result.return_value = mock_result
+
+            result = import_session_admin.celery_task_status(session)
+
+        # Assert
+        assert result is not None
+        assert "▶️" in result  # Иконка для STARTED
+        assert "blue" in result  # Цвет для STARTED
+        assert "Выполняется" in result
+
+    def test_celery_task_status_without_task_id(
+        self, import_session_admin, import_session
+    ):
+        """
+        Тест: celery_task_status без task_id возвращает "-"
+        """
+        # Arrange
+        import_session.celery_task_id = ""
+        import_session.save()
+
+        # Act
+        result = import_session_admin.celery_task_status(import_session)
+
+        # Assert
+        assert "-" in result
+        assert "gray" in result
