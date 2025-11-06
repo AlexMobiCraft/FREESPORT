@@ -129,8 +129,8 @@ def _handle_import_request(request: HttpRequest) -> HttpResponse:
             f"Вы будете перенаправлены на страницу сессий для отслеживания прогресса.",
         )
 
-        # Редирект на страницу сессий
-        return redirect("admin:integrations_integrationimportsession_changelist")
+        # Редирект на страницу сессий (обновлен после переименования модели)
+        return redirect("admin:integrations_session_changelist")
 
     except Exception as e:
         logger.error(f"Ошибка запуска импорта: {e}", exc_info=True)
@@ -237,18 +237,17 @@ def _create_and_run_import(import_type: str) -> ImportSession:
         import_type, ImportSession.ImportType.CATALOG
     )
 
-    # Создаем сессию импорта
-    session = ImportSession.objects.create(
-        import_type=session_import_type,
-        status=ImportSession.ImportStatus.STARTED,
-    )
-
     # Запускаем Celery задачу
     task = run_selective_import_task.delay([import_type], str(data_dir))
 
-    # Сохраняем task_id в сессию
-    session.celery_task_id = task.id
-    session.save(update_fields=["celery_task_id"])
+    # Создаем сессию импорта для отслеживания
+    # Команда import_customers_from_1c создаст свою внутреннюю сессию
+    # но мы создаем сессию здесь для единообразия и отображения в UI
+    session = ImportSession.objects.create(
+        import_type=session_import_type,
+        status=ImportSession.ImportStatus.STARTED,
+        celery_task_id=task.id,
+    )
 
     logger.info(
         f"[Request {request_id}] Импорт запущен. "

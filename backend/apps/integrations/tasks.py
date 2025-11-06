@@ -21,7 +21,9 @@ logger = logging.getLogger(__name__)
     default_retry_delay=60,
 )
 def run_selective_import_task(
-    self, selected_types: list[str], data_dir: str | None = None
+    self,
+    selected_types: list[str],
+    data_dir: str | None = None,
 ) -> dict[str, Any]:
     """
     Асинхронная задача для выборочного импорта данных из 1С.
@@ -159,25 +161,10 @@ def _execute_import_type(
         return {"type": "prices", "message": "Цены обновлены"}
 
     elif import_type == "customers":
-        # Ищем любой файл contragents в директории
-        contragents_dir = data_path / "contragents"
-        if not contragents_dir.exists():
-            raise FileNotFoundError(
-                f"Директория контрагентов не найдена: {contragents_dir}"
-            )
-
-        # Ищем первый XML файл с контрагентами
-        contragents_files = list(contragents_dir.glob("contragents*.xml"))
-        if not contragents_files:
-            raise FileNotFoundError(
-                f"Файлы контрагентов не найдены в {contragents_dir}. "
-                f"Убедитесь, что данные из 1С выгружены."
-            )
-
-        # Используем первый найденный файл
-        file_path = contragents_files[0]
-        logger.info(f"[Task {task_id}] Запуск import_customers_from_1c")
-        call_command("import_customers_from_1c", "--file", str(file_path))
+        # Команда import_customers_from_1c сама обрабатывает все файлы в директории
+        # Аналогично import_catalog_from_1c
+        logger.info(f"[Task {task_id}] Запуск import_customers_from_1c --data-dir")
+        call_command("import_customers_from_1c", "--data-dir", str(data_dir))
         return {"type": "customers", "message": "Клиенты импортированы"}
 
     else:

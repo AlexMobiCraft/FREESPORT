@@ -86,7 +86,10 @@ class User(AbstractUser):
         message="Номер телефона должен быть в формате: '+79001234567'",
     )
     phone = models.CharField(
-        "Номер телефона", validators=[phone_regex], max_length=12, blank=True
+        "Номер телефона",
+        validators=[phone_regex],
+        max_length=255,  # Увеличено для поддержки нескольких телефонов из 1С
+        blank=True,
     )
 
     # B2B поля

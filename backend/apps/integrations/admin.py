@@ -4,10 +4,10 @@ from django.contrib import admin
 from django.http import HttpRequest
 from django.utils.html import format_html
 
-from .models import IntegrationImportSession
+from .models import Session
 
 
-@admin.register(IntegrationImportSession)
+@admin.register(Session)
 class ImportSessionAdmin(admin.ModelAdmin):
     """
     Read-only Admin для журнала сессий импорта.
@@ -82,7 +82,7 @@ class ImportSessionAdmin(admin.ModelAdmin):
         return False
 
     def has_change_permission(
-        self, request: HttpRequest, obj: IntegrationImportSession | None = None
+        self, request: HttpRequest, obj: Session | None = None
     ) -> bool:
         """
         Запрещаем редактирование существующих сессий.
@@ -93,7 +93,7 @@ class ImportSessionAdmin(admin.ModelAdmin):
         return False
 
     def has_delete_permission(
-        self, request: HttpRequest, obj: IntegrationImportSession | None = None
+        self, request: HttpRequest, obj: Session | None = None
     ) -> bool:
         """
         Разрешаем удаление сессий для периодического cleanup.
@@ -107,7 +107,7 @@ class ImportSessionAdmin(admin.ModelAdmin):
         return True
 
     @admin.display(description="Статус")
-    def colored_status(self, obj: IntegrationImportSession) -> str:
+    def colored_status(self, obj: Session) -> str:
         """
         Отображение статуса с цветовой индикацией и иконками.
 
@@ -138,7 +138,7 @@ class ImportSessionAdmin(admin.ModelAdmin):
         )
 
     @admin.display(description="Celery Task")
-    def celery_task_status(self, obj: IntegrationImportSession) -> str:
+    def celery_task_status(self, obj: Session) -> str:
         """
         Отображение статуса Celery задачи в реальном времени.
 
@@ -155,7 +155,7 @@ class ImportSessionAdmin(admin.ModelAdmin):
         try:
             from celery.result import AsyncResult
 
-            task_result = AsyncResult(obj.celery_task_id)
+            task_result: AsyncResult = AsyncResult(obj.celery_task_id)
             state = task_result.state
 
             # Маппинг статусов на иконки и цвета
@@ -183,7 +183,7 @@ class ImportSessionAdmin(admin.ModelAdmin):
             )
 
     @admin.display(description="Длительность")
-    def duration(self, obj: IntegrationImportSession) -> str:
+    def duration(self, obj: Session) -> str:
         """
         Расчет длительности импорта.
 
@@ -202,7 +202,7 @@ class ImportSessionAdmin(admin.ModelAdmin):
         return "-"
 
     @admin.display(description="Прогресс")
-    def progress_display(self, obj: IntegrationImportSession) -> str:
+    def progress_display(self, obj: Session) -> str:
         """
         Отображение прогресс-бара для импортов в процессе выполнения.
 

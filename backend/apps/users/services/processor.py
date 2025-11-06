@@ -262,6 +262,45 @@ class CustomerDataProcessor:
         except ValidationError:
             return False
 
+    def _normalize_phone(self, phone: str) -> str:
+        """
+        Нормализует телефон из формата 1С в формат приложения.
+
+        Извлекает только цифры и берет первый телефон если их несколько.
+        Конвертирует в формат +7XXXXXXXXXX.
+
+        Args:
+            phone: Телефон в любом формате (например, "8-982-911-00-98, 8-961-205-46-21")
+
+        Returns:
+            str: Нормализованный телефон в формате +7XXXXXXXXXX или пустая строка
+        """
+        if not phone:
+            return ""
+
+        # Берем первый телефон если их несколько (разделены запятой)
+        first_phone = phone.split(",")[0].strip()
+
+        # Извлекаем только цифры
+        digits = "".join(c for c in first_phone if c.isdigit())
+
+        # Если номер начинается с 8 и имеет 11 цифр, конвертируем в +7
+        if digits.startswith("8") and len(digits) == 11:
+            return f"+7{digits[1:]}"
+
+        # Если номер начинается с 7 и имеет 11 цифр, добавляем +
+        if digits.startswith("7") and len(digits) == 11:
+            return f"+{digits}"
+
+        # Если 10 цифр, добавляем +7
+        if len(digits) == 10:
+            return f"+7{digits}"
+
+        # Если не удалось нормализовать, возвращаем пустую строку
+        # Это предотвратит ошибку валидации
+        logger.warning(f"Не удалось нормализовать телефон: {phone}")
+        return ""
+
     def _create_customer(self, customer_data: dict[str, Any], role: str) -> User:
         """
         Создает нового пользователя из данных клиента.
@@ -276,7 +315,7 @@ class CustomerDataProcessor:
         email = customer_data.get("email", "").strip()
         first_name = customer_data.get("first_name", "").strip()
         last_name = customer_data.get("last_name", "").strip()
-        phone = customer_data.get("phone", "").strip()
+        phone = self._normalize_phone(customer_data.get("phone", ""))  # Нормализация телефона
         company_name = customer_data.get("company_name", "").strip()
         tax_id = customer_data.get("tax_id", "").strip()
         onec_id = customer_data.get("onec_id")
@@ -326,7 +365,10 @@ class CustomerDataProcessor:
         user.first_name = customer_data.get("first_name", user.first_name)
         user.last_name = customer_data.get("last_name", user.last_name)
         user.role = role
-        user.phone = customer_data.get("phone", user.phone)
+        # Нормализуем телефон перед обновлением
+        phone = customer_data.get("phone", "")
+        if phone:
+            user.phone = self._normalize_phone(phone)
         user.company_name = customer_data.get("company_name", user.company_name)
         user.tax_id = customer_data.get("tax_id", user.tax_id)
         # Обновляем onec_id если его не было (дубликат найден по email)
