@@ -349,6 +349,9 @@ docker compose -f docker/docker-compose.yml exec backend python manage.py migrat
 
 # 5. Сбор статических файлов
 docker compose -f docker/docker-compose.yml exec backend python manage.py collectstatic --no-input
+
+# 6. Создание суперпользователя (опционально)
+docker compose -f docker/docker-compose.yml exec backend python manage.py createsuperuser
 ```
 
 ## 🧹 Очистка
