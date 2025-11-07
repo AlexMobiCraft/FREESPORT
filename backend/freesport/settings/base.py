@@ -196,7 +196,7 @@ SIMPLE_JWT = {
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": config("REDIS_URL", default="redis://localhost:6379/0"),
+        "LOCATION": config("REDIS_URL", default="redis://:redis123@redis:6379/0"),
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         },
@@ -205,7 +205,7 @@ CACHES = {
 
 CELERY_BROKER_URL = config(
     "CELERY_BROKER_URL",
-    default=config("REDIS_URL", default="redis://localhost:6379/0"),
+    default=config("REDIS_URL", default="redis://:redis123@redis:6379/0"),
 )
 CELERY_RESULT_BACKEND = config(
     "CELERY_RESULT_BACKEND",
