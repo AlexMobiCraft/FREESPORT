@@ -420,3 +420,58 @@ class TestImportSessionAdminActions:
                 '1 of' in content), (
             "Пагинация должна работать для больших списков"
         )
+
+    def test_auto_refresh_javascript_file_loaded(self, client):
+        """
+        Тест: JavaScript файл автообновления подключен к странице
+
+        Story 9.7 AC#5: Страница автоматически обновляется каждые 5 секунд
+        QA Gate JS-001: Проверка существования и подключения JS файла
+        """
+        # Arrange
+        url = reverse("admin:integrations_integrationimportsession_changelist")
+
+        # Act
+        response = client.get(url)
+
+        # Assert
+        assert response.status_code == 200
+        content = response.content.decode('utf-8')
+
+        # Проверяем что JavaScript файл подключен в HTML
+        assert 'import_session_auto_refresh.js' in content, (
+            "JavaScript файл для автообновления должен быть подключен через Media класс"
+        )
+
+    def test_auto_refresh_javascript_file_exists(self):
+        """
+        Тест: JavaScript файл автообновления существует в файловой системе
+
+        Story 9.7 AC#5: Автообновление каждые 5 секунд
+        QA Gate JS-001: Проверка физического существования файла
+        """
+        # Arrange
+        import os
+        from django.conf import settings
+
+        # Путь к JavaScript файлу
+        js_file_path = os.path.join(
+            settings.BASE_DIR,
+            'static',
+            'admin',
+            'js',
+            'import_session_auto_refresh.js'
+        )
+
+        # Act & Assert
+        assert os.path.exists(js_file_path), (
+            f"JavaScript файл должен существовать по пути: {js_file_path}"
+        )
+        assert os.path.isfile(js_file_path), (
+            f"Путь должен указывать на файл, а не директорию: {js_file_path}"
+        )
+
+        # Дополнительно: проверяем что файл не пустой
+        assert os.path.getsize(js_file_path) > 0, (
+            "JavaScript файл не должен быть пустым"
+        )

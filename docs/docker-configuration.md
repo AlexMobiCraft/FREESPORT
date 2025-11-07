@@ -8,7 +8,7 @@
 
 ### Основные сервисы (docker-compose.yml)
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────┐
 │                      FREESPORT Platform                        │
 ├─────────────────────────────────────────────────────────────────┤
@@ -21,6 +21,7 @@
 ```
 
 **Сервисы:**
+
 - **nginx** - Reverse proxy, статические файлы, load balancing
 - **backend** - Django REST API (порт 8001 → 8000)
 - **frontend** - Next.js SSR/SSG приложение (порт 3000)
@@ -29,7 +30,7 @@
 
 ### Тестовые сервисы (docker-compose.test.yml)
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────┐
 │                    Тестовая среда                               │
 ├─────────────────────────────────────────────────────────────────┤
@@ -42,6 +43,7 @@
 ```
 
 **Ключевые особенности:**
+
 - Изолированная тестовая среда
 - Отдельные порты для предотвращения конфликтов
 - Оптимизированные настройки для быстрых тестов
@@ -49,7 +51,7 @@
 
 ## Файловая структура Docker
 
-```
+```text
 freesport/
 ├── docker-compose.yml          # Основная среда разработки
 ├── docker-compose.test.yml     # Тестовая среда
@@ -73,30 +75,37 @@ freesport/
 ### 🔴 Решенные критические проблемы
 
 #### 1. Унификация настроек БД
+
 **Проблема:** Тестовая среда не соответствовала production-конфигурации
 
 **Решение:** Во всех окружениях используется PostgreSQL с параметрами из `.env`
 
 #### 2. Отсутствующие сервисы в тестовой среде
+
 **Проблема:** docker-compose.test.yml не содержал db и redis сервисы
 
 **Решение:** Добавлена полная тестовая среда с:
+
 - PostgreSQL с оптимизацией для тестов (tmpfs, shm_size)
 - Redis без персистентности (tmpfs)  
 - Изолированная сеть freesport-test-network
 - Отдельные порты (5433, 6380)
 
-#### 3. Отсутствующая nginx конфигурация  
+#### 3. Отсутствующая nginx конфигурация
+
 **Проблема:** Ссылки на несуществующие файлы nginx
 
 **Решение:** Созданы полные конфигурации:
+
 - `docker/nginx/nginx.conf` - основная конфигурация
 - `docker/nginx/conf.d/default.conf` - виртуальный хост
 
 #### 4. Конфликт портов 8000
+
 **Проблема:** Конфликт с другими службами на порту 8000
 
 **Решение:** Django сервер теперь доступен на порту 8001:
+
 - Обновлены все docker-compose файлы
 - Исправлены frontend конфигурации  
 - Обновлена документация и CI/CD
@@ -104,6 +113,7 @@ freesport/
 ## Конфигурация портов
 
 ### Основная среда
+
 | Сервис   | Внутренний | Внешний | Описание |
 |----------|------------|---------|----------|
 | nginx    | 80, 443    | 80, 443 | HTTP/HTTPS proxy |
@@ -113,6 +123,7 @@ freesport/
 | redis    | 6379       | 6379    | Redis cache |
 
 ### Тестовая среда
+
 | Сервис     | Внутренний | Внешний | Описание |
 |------------|------------|---------|----------|
 | test-db    | 5432       | 5433    | PostgreSQL тесты |
@@ -149,6 +160,7 @@ make migrate        # Миграции БД
 ### Скрипты автоматизации
 
 **Windows:**
+
 ```cmd
 scripts\test.bat
 scripts\test-unit.bat  
@@ -156,6 +168,7 @@ scripts\test-integration.bat
 ```
 
 **Linux/macOS:**
+
 ```bash
 ./scripts/test.sh
 ```
@@ -208,6 +221,7 @@ redis:
 ## Переменные окружения
 
 ### Основная среда
+
 ```env
 # Backend
 DJANGO_SETTINGS_MODULE=freesport.settings.development
@@ -222,6 +236,7 @@ NODE_ENV=development
 ```
 
 ### Тестовая среда
+
 ```env
 # Backend
 DJANGO_SETTINGS_MODULE=freesport.settings.test
@@ -237,6 +252,7 @@ PYTEST_CURRENT_TEST=1
 ### Health Checks
 
 Все сервисы имеют health check'и:
+
 - **PostgreSQL:** `pg_isready`
 - **Redis:** `redis-cli ping`
 - **Django:** `python manage.py check`
@@ -334,6 +350,7 @@ add_header X-Content-Type-Options "nosniff" always;
 ### Частые проблемы и решения
 
 **1. Порты заняты**
+
 ```bash
 # Найти процессы на портах
 netstat -tulpn | grep :8001
@@ -345,6 +362,7 @@ docker stop $(docker ps -aq)
 ```
 
 **2. Ошибки разрешений**  
+
 ```bash  
 # Исправить права на папки
 sudo chown -R $USER:$USER .
@@ -352,6 +370,7 @@ chmod -R 755 scripts/
 ```
 
 **3. Проблемы с БД подключением**
+
 ```bash
 # Проверить health check БД
 docker-compose ps
@@ -359,6 +378,7 @@ docker-compose exec db pg_isready -U postgres
 ```
 
 **4. Проблемы с Redis**
+
 ```bash
 # Проверить Redis подключение  
 docker-compose exec redis redis-cli -a redis123 ping
