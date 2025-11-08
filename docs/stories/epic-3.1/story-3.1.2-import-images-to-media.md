@@ -1,0 +1,492 @@
+# Story 3.1.2: Импорт изображений в Django media storage - Brownfield Enhancement
+
+## Story Title
+
+Копирование изображений товаров из 1С в Django media storage и установка связей с Product
+
+## User Story
+
+**Как** система импорта товаров из 1С,
+**Я хочу** копировать физические файлы изображений из директории выгрузки 1С в Django media storage,
+**Чтобы** изображения были доступны через Django ImageField и отображались на frontend.
+
+## Story Context
+
+### Existing System Integration
+
+**Интегрируется с:**
+- `ProductDataProcessor` ([backend/apps/products/services/processor.py](backend/apps/products/services/processor.py:27-592)) - процессор обработки данных товаров
+- `Product` модель ([backend/apps/products/models.py:161-349](backend/apps/products/models.py#L161-L349)) - модель товара с полями изображений
+- Django `default_storage` - file storage backend для media файлов
+- `import_catalog_from_1c` команда ([backend/apps/products/management/commands/import_catalog_from_1c.py](backend/apps/products/management/commands/import_catalog_from_1c.py)) - оркестрация импорта
+
+**Технологии:**
+- Django 4.2 ImageField для хранения изображений
+- Django default_storage (FileSystemStorage или S3)
+- PostgreSQL JSONField для галереи изображений
+- Python Pillow для валидации изображений
+- Batch операции для производительности
+
+**Существующий паттерн:**
+```python
+# ProductDataProcessor использует bulk операции (processor.py:40-42)
+def __init__(self, session_id: int, skip_validation: bool = False, chunk_size: int = 1000):
+    self.session_id = session_id
+    self.chunk_size = chunk_size  # Батчинг для производительности
+```
+
+**Точки интеграции:**
+1. Модель `Product` - поля `main_image` (ImageField) и `gallery_images` (JSONField) (models.py:309-315)
+2. `ProductDataProcessor.create_product_placeholder()` - установка main_image при создании товара
+3. Django settings.MEDIA_ROOT и MEDIA_URL для путей к файлам
+4. ImportSession для логирования процесса импорта
+
+### Текущее состояние
+
+✅ **Уже реализовано:**
+- Product модель имеет поля `main_image` и `gallery_images` (models.py:309-315)
+- ProductDataProcessor устанавливает placeholder изображение (processor.py:196)
+- ProductDataProcessor поддерживает bulk операции через chunk_size
+- ImportSession логирует статистику импорта
+
+❌ **Что требуется добавить:**
+1. **Метод копирования изображений** из директории 1С в Django media
+2. **Установка связей** main_image (первое изображение) и gallery_images (остальные)
+3. **Обработка дубликатов** и отсутствующих файлов
+4. **Опциональный параметр `--skip-images`** в команде импорта
+5. **Батчинг копирования** для производительности
+6. **Unit-тесты** с моками файловых операций
+
+## Acceptance Criteria
+
+### Функциональные требования
+
+1. **Копирование изображений из директории 1С**
+   - ⚠️ Новый метод `ProductDataProcessor.import_product_images(goods_data: GoodsData, base_dir: str) -> bool`
+   - ⚠️ Копирует физические файлы из `{base_dir}/{image_path}` в Django media storage
+   - ⚠️ Использует Django `default_storage.save()` для совместимости с S3/FileSystem
+   - ⚠️ Генерирует уникальные имена файлов для предотвращения конфликтов
+
+2. **Установка связей с моделью Product**
+   - ⚠️ Первое изображение устанавливается как `Product.main_image`
+   - ⚠️ Остальные изображения добавляются в `Product.gallery_images` как JSON список путей
+   - ⚠️ Пути хранятся относительно MEDIA_ROOT (например, `products/image.jpg`)
+   - ⚠️ Существующие изображения товара НЕ удаляются при повторном импорте (append, не replace)
+
+3. **Обработка дубликатов и ошибок**
+   - ⚠️ Проверка существования файла перед копированием (skip если файл уже есть)
+   - ⚠️ Отсутствующие физические файлы логируются как WARNING и пропускаются
+   - ⚠️ Товары без изображений обрабатываются корректно (пропускаются без ошибок)
+   - ⚠️ Невалидные изображения (не Pillow-совместимые) логируются и пропускаются
+
+4. **Интеграция с командой импорта**
+   - ⚠️ Добавлен параметр `--skip-images` в `import_catalog_from_1c` команду
+   - ⚠️ Копирование изображений вызывается после `create_product_placeholder()`
+   - ⚠️ Статистика импорта изображений добавлена в ImportSession.report_details
+   - ⚠️ Progress bar для копирования изображений (если > 10 изображений)
+
+### Требования производительности
+
+5. **Batch операции для минимизации I/O**
+   - ⚠️ Группировка копирования файлов по директориям
+   - ⚠️ Использование `default_storage.exists()` для проверки дубликатов
+   - ⚠️ Ленивая валидация изображений (только если включен флаг)
+   - ⚠️ Максимум 1000 изображений за один batch
+
+6. **Логирование и мониторинг**
+   - ⚠️ INFO: успешное копирование каждого изображения
+   - ⚠️ WARNING: отсутствующие или невалидные файлы
+   - ⚠️ Статистика в конце импорта: `images_copied`, `images_skipped`, `images_errors`
+   - ⚠️ Сохранение статистики в ImportSession.report_details
+
+### Требования интеграции
+
+7. **Существующая функциональность остается нетронутой**
+   - ✅ Все существующие тесты для ProductDataProcessor проходят
+   - ✅ API Product модели не изменяется
+   - ✅ Команда `import_catalog_from_1c` без флага `--skip-images` работает как раньше
+   - ✅ Импорт товаров без изображений работает корректно
+
+8. **Обратная совместимость**
+   - ✅ Товары созданные до этой истории не затрагиваются
+   - ✅ Placeholder изображение остается для товаров без изображений
+   - ✅ Повторный импорт обновляет изображения без потери данных
+
+## Technical Notes
+
+### Структура физических файлов 1С
+
+**Пример директории:**
+```
+data/import_1c/goods/import_files/
+├── 00/
+│   ├── 001a16a4-b810-11ed-860f-fa163edba792_24062354-2f7b-11ee-998f-fa163e775e1f.jpg
+│   └── ...
+├── 01/
+├── ...
+└── 73/
+    ├── 73f9d61e-5673-11f0-8041-fa163ea88911_a62d33ce-5673-11f0-8041-fa163ea88911.png
+    └── 73f9d61e-5673-11f0-8041-fa163ea88911_a62d33ce-5673-11f0-8041-fa163ea88912.jpg
+```
+
+**Маппинг в Django media:**
+```
+MEDIA_ROOT/products/
+├── 001a16a4-b810-11ed-860f-fa163edba792_24062354-2f7b-11ee-998f-fa163e775e1f.jpg
+├── 73f9d61e-5673-11f0-8041-fa163ea88911_a62d33ce-5673-11f0-8041-fa163ea88911.png
+└── 73f9d61e-5673-11f0-8041-fa163ea88911_a62d33ce-5673-11f0-8041-fa163ea88912.jpg
+```
+
+### Реализация метода import_product_images()
+
+**Новый метод в ProductDataProcessor:**
+
+```python
+def import_product_images(
+    self,
+    product: Product,
+    image_paths: list[str],
+    base_dir: str,
+    validate_images: bool = False
+) -> dict[str, int]:
+    """
+    Копирование изображений товара из директории 1С в Django media storage
+
+    Args:
+        product: Product instance для установки изображений
+        image_paths: Список относительных путей из goods_data["images"]
+        base_dir: Базовая директория импорта (например, data/import_1c/goods/)
+        validate_images: Валидировать изображения через Pillow (медленнее)
+
+    Returns:
+        dict с количеством copied, skipped, errors
+    """
+    from pathlib import Path
+    from django.core.files.storage import default_storage
+    from django.core.files.base import ContentFile
+
+    result = {"copied": 0, "skipped": 0, "errors": 0}
+
+    if not image_paths:
+        logger.debug(f"No images for product {product.onec_id}")
+        return result
+
+    main_image_set = False
+    gallery_images = list(product.gallery_images or [])
+
+    for image_path in image_paths:
+        try:
+            # Построение полного пути к исходному файлу
+            source_path = Path(base_dir) / image_path
+            if not source_path.exists():
+                logger.warning(
+                    f"Image file not found: {source_path} for product {product.onec_id}"
+                )
+                result["errors"] += 1
+                continue
+
+            # Генерация имени файла для media storage
+            filename = source_path.name
+            destination_path = f"products/{filename}"
+
+            # Проверка существования файла в media
+            if default_storage.exists(destination_path):
+                logger.debug(f"Image already exists: {destination_path}")
+                result["skipped"] += 1
+
+                # Устанавливаем связь даже если файл уже существует
+                if not main_image_set:
+                    product.main_image = destination_path
+                    main_image_set = True
+                else:
+                    if destination_path not in gallery_images:
+                        gallery_images.append(destination_path)
+                continue
+
+            # Валидация изображения (опционально)
+            if validate_images:
+                try:
+                    from PIL import Image
+                    with Image.open(source_path) as img:
+                        img.verify()
+                except Exception as e:
+                    logger.warning(
+                        f"Invalid image file {source_path}: {e}"
+                    )
+                    result["errors"] += 1
+                    continue
+
+            # Копирование файла в media storage
+            with open(source_path, "rb") as f:
+                file_content = f.read()
+                saved_path = default_storage.save(
+                    destination_path,
+                    ContentFile(file_content)
+                )
+
+            logger.info(f"Copied image: {source_path} -> {saved_path}")
+            result["copied"] += 1
+
+            # Установка связи с Product
+            if not main_image_set:
+                product.main_image = saved_path
+                main_image_set = True
+            else:
+                if saved_path not in gallery_images:
+                    gallery_images.append(saved_path)
+
+        except Exception as e:
+            logger.error(f"Error copying image {image_path}: {e}")
+            result["errors"] += 1
+
+    # Сохранение изменений в Product
+    if main_image_set or gallery_images:
+        product.gallery_images = gallery_images
+        product.save(update_fields=["main_image", "gallery_images"])
+        logger.info(
+            f"Updated product {product.onec_id} images: "
+            f"main_image={product.main_image}, gallery={len(gallery_images)}"
+        )
+
+    return result
+```
+
+### Интеграция с create_product_placeholder()
+
+**Обновление метода в ProductDataProcessor:**
+
+```python
+def create_product_placeholder(
+    self,
+    goods_data: GoodsData,
+    base_dir: str | None = None,
+    skip_images: bool = False
+) -> Product | None:
+    """Создание заготовки товара из goods.xml (с опциональным импортом изображений)"""
+    try:
+        # ... существующий код создания товара ...
+
+        product.save()
+        logger.info(f"Created product placeholder: {parent_id}")
+        self.stats["created"] += 1
+
+        # НОВАЯ ФУНКЦИОНАЛЬНОСТЬ: Импорт изображений
+        if not skip_images and base_dir and "images" in goods_data:
+            image_result = self.import_product_images(
+                product=product,
+                image_paths=goods_data["images"],
+                base_dir=base_dir,
+                validate_images=self.skip_validation == False
+            )
+
+            # Обновление статистики
+            self.stats.setdefault("images_copied", 0)
+            self.stats.setdefault("images_skipped", 0)
+            self.stats.setdefault("images_errors", 0)
+
+            self.stats["images_copied"] += image_result["copied"]
+            self.stats["images_skipped"] += image_result["skipped"]
+            self.stats["images_errors"] += image_result["errors"]
+
+        return product
+
+    except Exception as e:
+        self._log_error(f"Error creating product placeholder: {e}", goods_data)
+        return None
+```
+
+### Обновление команды import_catalog_from_1c
+
+**Добавление параметра --skip-images:**
+
+```python
+# В методе add_arguments() (import_catalog_from_1c.py)
+parser.add_argument(
+    "--skip-images",
+    action="store_true",
+    help="Пропустить импорт изображений товаров (только метаданные)",
+)
+```
+
+**Использование в handle():**
+
+```python
+# В методе handle() после валидации
+skip_images = options.get("skip_images", False)
+
+# Передача параметра в процессор (около строки 292)
+for goods_item in tqdm(goods_data, desc=f"   Обработка {Path(file_path).name}"):
+    processor.create_product_placeholder(
+        goods_item,
+        base_dir=data_dir,  # Передаем базовую директорию
+        skip_images=skip_images
+    )
+```
+
+**Вывод статистики изображений:**
+
+```python
+# В конце метода handle() (около строки 394)
+self.stdout.write("=" * 50)
+self.stdout.write(self.style.SUCCESS("✅ ИМПОРТ ЗАВЕРШЕН УСПЕШНО"))
+self.stdout.write("=" * 50)
+self.stdout.write(f"Создано товаров:   {processor.stats['created']}")
+self.stdout.write(f"Обновлено товаров: {processor.stats['updated']}")
+self.stdout.write(f"Пропущено:         {processor.stats['skipped']}")
+self.stdout.write(f"Ошибок:            {processor.stats['errors']}")
+
+# НОВАЯ СТАТИСТИКА
+if not skip_images:
+    self.stdout.write("\n📸 Статистика изображений:")
+    self.stdout.write(f"Скопировано:       {processor.stats.get('images_copied', 0)}")
+    self.stdout.write(f"Пропущено:         {processor.stats.get('images_skipped', 0)}")
+    self.stdout.write(f"Ошибок:            {processor.stats.get('images_errors', 0)}")
+
+self.stdout.write("=" * 50)
+```
+
+## Definition of Done
+
+- [ ] **Метод `import_product_images()` реализован** в ProductDataProcessor
+- [ ] **Интеграция с `create_product_placeholder()`** - копирование изображений при создании товара
+- [ ] **Параметр `--skip-images` добавлен** в команду `import_catalog_from_1c`
+- [ ] **Установка `main_image` и `gallery_images`** работает корректно
+- [ ] **Обработка дубликатов** - skip если файл уже существует в media
+- [ ] **Обработка ошибок** - отсутствующие/невалидные файлы не ломают импорт
+- [ ] **Логирование и статистика** - images_copied, images_skipped, images_errors
+- [ ] **Unit-тесты написаны** с моками файловых операций
+- [ ] **Все существующие тесты проходят** без регрессий
+- [ ] **Документация обновлена** - docstrings методов и README команды
+- [ ] **Code review пройден** - соответствие стандартам кода
+
+## Testing Strategy
+
+### Unit-тесты (backend/apps/products/tests/test_processor.py)
+
+**Тестовые сценарии:**
+
+1. **test_import_product_images_single_image** - товар с одним изображением
+2. **test_import_product_images_multiple_images** - товар с несколькими изображениями
+3. **test_import_product_images_no_images** - товар без изображений
+4. **test_import_product_images_missing_file** - отсутствующий физический файл
+5. **test_import_product_images_duplicate_file** - файл уже существует в media
+6. **test_import_product_images_invalid_file** - невалидное изображение (валидация включена)
+7. **test_create_product_placeholder_with_images** - интеграция с create_product_placeholder
+8. **test_import_catalog_with_skip_images_flag** - проверка флага --skip-images
+
+**Пример теста с моками:**
+
+```python
+from unittest.mock import patch, MagicMock, mock_open
+from django.core.files.storage import default_storage
+import tempfile
+import os
+
+def test_import_product_images_single_image(self):
+    """Импорт одного изображения товара"""
+    # Подготовка
+    product = ProductFactory(onec_id="test-id", main_image="")
+    session = ImportSessionFactory()
+    processor = ProductDataProcessor(session_id=session.id)
+
+    # Создаем временный файл-изображение
+    with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
+        tmp.write(b"fake image content")
+        tmp_path = tmp.name
+
+    try:
+        # Мокируем структуру директории
+        base_dir = os.path.dirname(tmp_path)
+        image_filename = os.path.basename(tmp_path)
+        image_paths = [image_filename]
+
+        # Мокируем default_storage
+        with patch.object(default_storage, 'exists', return_value=False), \
+             patch.object(default_storage, 'save', return_value=f"products/{image_filename}"):
+
+            # Выполнение
+            result = processor.import_product_images(
+                product=product,
+                image_paths=image_paths,
+                base_dir=base_dir,
+                validate_images=False
+            )
+
+            # Проверки
+            assert result["copied"] == 1
+            assert result["skipped"] == 0
+            assert result["errors"] == 0
+
+            product.refresh_from_db()
+            assert product.main_image == f"products/{image_filename}"
+            assert len(product.gallery_images) == 0  # Только одно изображение - идет в main
+
+    finally:
+        os.unlink(tmp_path)
+```
+
+### Интеграционные тесты (Story 3.1.3)
+
+- End-to-end импорт с реальными изображениями из `data/import_1c/goods/import_files/`
+- Проверка физического наличия файлов в MEDIA_ROOT
+- Верификация путей в БД соответствуют реальным файлам
+
+## Dependencies
+
+**Зависит от:**
+- ✅ Story 3.1.1 - Парсинг путей изображений из XML (валидированные пути)
+- ✅ Product модель с полями main_image и gallery_images
+- ✅ ProductDataProcessor базовый функционал
+
+**Блокирует:**
+- ⏳ Story 3.1.3 - Интеграционное тестирование импорта изображений
+
+## Risk Mitigation
+
+**Риск 1:** Большой объем изображений может заполнить дисковое пространство
+
+**Митигация:**
+- Проверка доступного места перед импортом (опционально)
+- Флаг `--skip-images` для импорта только метаданных
+- Возможность использовать S3 через Django storage backend
+
+**Риск 2:** Импорт изображений значительно замедляет процесс
+
+**Митигация:**
+- Батчинг операций копирования
+- Опциональная валидация через `--skip-validation`
+- Progress bar для визуализации прогресса
+- Параллельное копирование файлов (future enhancement)
+
+**Риск 3:** Повторный импорт создает дубликаты файлов
+
+**Митигация:**
+- Проверка `default_storage.exists()` перед копированием
+- Использование детерминированных имен файлов (из 1С ID)
+- Галерея обновляется append, не replace
+
+**Rollback план:**
+- Очистка MEDIA_ROOT/products/ от импортированных файлов
+- Обнуление полей main_image и gallery_images через SQL
+- Восстановление из ImportSession backup
+
+## Story Complexity
+
+**Оценка:** 5 Story Points (средняя задача)
+
+**Обоснование:**
+- Требуется новый метод с файловыми операциями
+- Интеграция с существующим процессором и командой
+- Обработка edge cases (дубликаты, ошибки)
+- Написание unit-тестов с моками сложнее обычного
+- Требуется тщательное тестирование производительности
+
+**Ожидаемое время:** 4-6 часов разработки + 2-3 часа тестирования
+
+---
+
+**Дата создания:** 2025-01-08
+**Приоритет:** High
+**Epic:** Epic 3.1 - Импорт и связь изображений товаров из 1С
+**Assigned to:** Developer Team
+**Depends on:** Story 3.1.1
