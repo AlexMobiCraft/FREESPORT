@@ -17,6 +17,7 @@ class GoodsData(TypedDict, total=False):
     article: str
     category_id: str
     category_name: str
+    brand_id: str
     images: list[str]
 
 
@@ -62,6 +63,13 @@ class CategoryData(TypedDict, total=False):
     name: str
     parent_id: str
     description: str
+
+
+class BrandData(TypedDict):
+    """Данные бренда из propertiesGoods.xml"""
+
+    id: str
+    name: str
 
 
 class XMLDataParser:
@@ -174,6 +182,18 @@ class XMLDataParser:
                 category_name = self._find_text(groups_element, "Наименование")
                 if category_name:
                     goods_data["category_name"] = category_name
+
+            # Извлечение ID бренда из ЗначенияСвойств
+            properties_values_element = self._find_child(product_element, "ЗначенияСвойств")
+            if properties_values_element is not None:
+                for property_value in self._find_children(properties_values_element, "ЗначенияСвойства"):
+                    property_id = self._find_text(property_value, "Ид")
+                    # Свойство "Бренд" имеет Ид="Бренд"
+                    if property_id == "Бренд":
+                        brand_id = self._find_text(property_value, "Значение")
+                        if brand_id and brand_id != "00000000-0000-0000-0000-000000000000":
+                            goods_data["brand_id"] = brand_id
+                        break
 
             image_elements = self._find_children(product_element, "Картинка")
             if image_elements:
@@ -400,3 +420,41 @@ class XMLDataParser:
         else:
             # По умолчанию - розничная цена
             return "retail_price"
+
+    def parse_properties_goods_xml(self, file_path: str) -> list[BrandData]:
+        """
+        Парсинг propertiesGoods.xml - свойства товаров (бренды)
+
+        Извлекает список брендов из свойства "Бренд" в файлах propertiesGoods.
+        Структура: <Классификатор><Свойства><Свойство><ВариантыЗначений><Справочник>
+        """
+        tree = self._safe_parse_xml(file_path)
+        root = cast(Element, tree.getroot())
+
+        brands_list: list[BrandData] = []
+        brands_seen: set[str] = set()  # Для дедупликации
+
+        # Ищем свойство с названием "Бренд"
+        for property_element in root.findall(".//Свойство"):
+            property_name = self._find_text(property_element, "Наименование")
+
+            if property_name == "Бренд":
+                # Извлекаем варианты значений (бренды)
+                variants_element = self._find_child(property_element, "ВариантыЗначений")
+                if variants_element is not None:
+                    for variant_element in self._find_children(variants_element, "Справочник"):
+                        brand_id = self._find_text(variant_element, "ИдЗначения")
+                        brand_name = self._find_text(variant_element, "Значение")
+
+                        # Пропускаем "Без Бренда" и дубликаты
+                        if (brand_id and brand_name
+                            and brand_name != "Без Бренда"
+                            and brand_id not in brands_seen):
+                            brands_seen.add(brand_id)
+                            brand_data: BrandData = {
+                                "id": brand_id,
+                                "name": brand_name.strip(),
+                            }
+                            brands_list.append(brand_data)
+
+        return brands_list

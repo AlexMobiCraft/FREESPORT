@@ -213,6 +213,34 @@ class Command(BaseCommand):
                         self.style.WARNING("   ⚠️ Файлы groups.xml не найдены")
                     )
 
+            # ШАГ 0.6: Загрузка брендов из propertiesGoods.xml
+            if file_type in ["all", "goods"]:
+                self.stdout.write("\n🏷️  Шаг 0.6: Загрузка брендов...")
+                properties_goods_files = self._collect_xml_files(
+                    data_dir, "propertiesGoods", "propertiesGoods.xml"
+                )
+                if properties_goods_files:
+                    total_brands = 0
+                    for file_path in properties_goods_files:
+                        brands_data = parser.parse_properties_goods_xml(file_path)
+                        result = processor.process_brands(brands_data)
+                        total_brands += result["created"] + result["updated"]
+                        self.stdout.write(
+                            (
+                                f"   • {Path(file_path).name}: "
+                                f"брендов {len(brands_data)}"
+                            )
+                        )
+                    self.stdout.write(
+                        self.style.SUCCESS(
+                            f"   ✅ Загружено брендов (всего): {total_brands}"
+                        )
+                    )
+                else:
+                    self.stdout.write(
+                        self.style.WARNING("   ⚠️ Файлы propertiesGoods*.xml не найдены")
+                    )
+
             # ШАГ 1: Загрузка типов цен из priceLists*.xml
             if file_type in ["all", "prices"]:
                 self.stdout.write("\n📋 Шаг 1: Загрузка типов цен...")

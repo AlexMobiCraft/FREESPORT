@@ -12,6 +12,7 @@ from django.utils.text import slugify
 
 from apps.products.models import Brand, Category, ImportSession, PriceType, Product
 from apps.products.services.parser import (
+    BrandData,
     CategoryData,
     GoodsData,
     OfferData,
@@ -134,10 +135,24 @@ class ProductDataProcessor:
                     },
                 )
 
-            # Получаем или создаем бренд по умолчанию
-            brand, _ = Brand.objects.get_or_create(
-                name="No Brand", defaults={"slug": "no-brand", "is_active": True}
-            )
+            # Получаем бренд из данных товара или используем "No Brand"
+            brand = None
+            brand_id = goods_data.get("brand_id")
+            if brand_id:
+                brand = Brand.objects.filter(onec_id=brand_id).first()
+                if brand:
+                    logger.debug(f"Found brand {brand.name} for product {parent_id}")
+
+            # Если бренд не найден, используем "No Brand"
+            if brand is None:
+                brand, _ = Brand.objects.get_or_create(
+                    name="No Brand", defaults={"slug": "no-brand", "is_active": True}
+                )
+                if brand_id:
+                    logger.warning(
+                        f"Brand with onec_id={brand_id} not found for product {parent_id}, "
+                        f"using 'No Brand'"
+                    )
 
             # Генерируем уникальный slug для товара
             name_value = goods_data.get("name")
@@ -502,3 +517,75 @@ class ProductDataProcessor:
             current = current.parent
 
         return False
+
+    def process_brands(self, brands_data: list[dict[str, str]]) -> dict[str, int]:
+        """
+        Обработка брендов из propertiesGoods.xml
+
+        Args:
+            brands_data: Список брендов с полями id и name
+
+        Returns:
+            dict с количеством created, updated, skipped
+        """
+        result = {"created": 0, "updated": 0, "skipped": 0}
+
+        for brand_data in brands_data:
+            try:
+                brand_id = brand_data.get("id")
+                brand_name = brand_data.get("name")
+
+                if not brand_id or not brand_name:
+                    logger.warning(
+                        f"Skipping brand with missing id or name: {brand_data}"
+                    )
+                    result["skipped"] += 1
+                    continue
+
+                # Генерируем slug для бренда
+                try:
+                    from transliterate import translit
+
+                    transliterated = translit(brand_name, "ru", reversed=True)
+                    base_slug = slugify(transliterated)
+                except (RuntimeError, ImportError):
+                    base_slug = slugify(brand_name)
+
+                if not base_slug:
+                    base_slug = f"brand-{brand_id[:8]}"
+
+                # Обеспечиваем уникальность slug
+                unique_slug = base_slug
+                counter = 1
+                while Brand.objects.filter(slug=unique_slug).exclude(
+                    onec_id=brand_id
+                ).exists():
+                    unique_slug = f"{base_slug}-{counter}"
+                    counter += 1
+
+                # Создаём или обновляем бренд
+                brand, created = Brand.objects.update_or_create(
+                    onec_id=brand_id,
+                    defaults={
+                        "name": brand_name,
+                        "slug": unique_slug,
+                        "is_active": True,
+                    },
+                )
+
+                if created:
+                    result["created"] += 1
+                    logger.info(f"Created brand: {brand_name} ({brand_id})")
+                else:
+                    result["updated"] += 1
+                    logger.debug(f"Updated brand: {brand_name} ({brand_id})")
+
+            except Exception as e:
+                logger.error(f"Error processing brand {brand_data}: {e}")
+                result["skipped"] += 1
+
+        logger.info(
+            f"Brands processed: {result['created']} created, "
+            f"{result['updated']} updated, {result['skipped']} skipped"
+        )
+        return result

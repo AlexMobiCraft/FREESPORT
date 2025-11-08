@@ -24,8 +24,8 @@ class Brand(models.Model):
     Модель бренда товаров
     """
 
-    name = cast(str, models.CharField("Название бренда", max_length=100, unique=True))
-    slug = cast(str, models.SlugField("Slug", max_length=255, unique=True))
+    name = cast(str, models.CharField("Название бренда", max_length=100, unique=False))
+    slug = cast(str, models.SlugField("Slug", max_length=255, unique=False))
     logo = cast(
         models.ImageField, models.ImageField("Логотип", upload_to="brands/", blank=True)
     )
