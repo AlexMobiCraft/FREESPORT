@@ -1,0 +1,56 @@
+# Planning Advisory Review - Story 3.1.1
+schema: 1
+story: "3.1.1"
+story_title: "Парсинг путей изображений из XML - Brownfield Enhancement"
+gate: PASS
+status_reason: "Отличная спецификация с четким scope - базовый парсинг уже реализован, требуется только валидация и дедупликация. Малая задача (2 SP) с ясными критериями."
+reviewer: "Quinn (Test Architect)"
+updated: "2025-11-09T00:00:00Z"
+
+top_issues: []
+waiver: { active: false }
+quality_score: 92
+expires: "2025-12-09T00:00:00Z"
+
+evidence:
+  specification_sections_reviewed: 8
+  acceptance_criteria_count: 7
+  edge_cases_identified: 3
+  test_scenarios_defined: 6
+
+planning_validation:
+  requirements_clarity:
+    status: PASS
+    notes: "Четкое разделение: ✅ УЖЕ РЕАЛИЗОВАНО vs ⚠️ НОВОЕ. Scope boundaries явно определены."
+  technical_feasibility:
+    status: PASS
+    notes: "Реалистичная оценка 2 SP. Изменения локализованы."
+  scope_boundaries:
+    status: PASS
+    notes: "ОТЛИЧНОЕ разделение: валидация формата в 3.1.1, проверка файлов в 3.1.2."
+
+planning_strengths:
+  - strength: "Четкое разделение реализованного и нового"
+    evidence: "Маркеры ✅/⚠️ в каждом AC. Существующий код процитирован."
+  - strength: "Правильная scope boundaries"
+    evidence: "Валидация расширения ✅, существование файла ❌ (Story 3.1.2)."
+  - strength: "Реалистичная оценка"
+    evidence: "2 SP, 2-3 часа - правильно для задачи с базовым кодом."
+
+recommendations:
+  clarifications:
+    - question: "Поведение при невалидном расширении - один WARNING на товар или на каждый путь?"
+      priority: "P2 - не блокирует"
+  future: []
+
+implementation_readiness:
+  estimated_complexity: "2 Story Points"
+  estimated_time: "2-3 часа разработки + 1-2 часа тестирования"
+  readiness_score: "9/10"
+  readiness_blockers: []
+
+history:
+  - at: "2025-11-09T00:00:00Z"
+    gate: PASS
+    note: "Planning review - готова к реализации"
+    reviewer: "Quinn (Test Architect)"

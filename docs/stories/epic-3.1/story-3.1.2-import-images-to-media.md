@@ -1,5 +1,13 @@
 # Story 3.1.2: Импорт изображений в Django media storage - Brownfield Enhancement
 
+## Status
+
+**Current Status:** `Approved`
+
+_This story has passed the QA Planning review ([see review](#qa-planning-review)) and is ready for implementation._
+
+---
+
 ## Story Title
 
 Копирование изображений товаров из 1С в Django media storage и установка связей с Product
@@ -65,13 +73,18 @@ def __init__(self, session_id: int, skip_validation: bool = False, chunk_size: i
    - ⚠️ Новый метод `ProductDataProcessor.import_product_images(goods_data: GoodsData, base_dir: str) -> bool`
    - ⚠️ Копирует физические файлы из `{base_dir}/{image_path}` в Django media storage
    - ⚠️ Использует Django `default_storage.save()` для совместимости с S3/FileSystem
-   - ⚠️ Генерирует уникальные имена файлов для предотвращения конфликтов
+   - ⚠️ **Сохраняет оригинальные имена файлов из 1С** (они уже уникальны благодаря UUID структуре `parent_id#sku_id`)
+   - ⚠️ **Сохраняет структуру поддиректорий** из 1С (`media/products/{first_two_chars}/{filename}`) для производительности при >10,000 изображений
 
 2. **Установка связей с моделью Product**
    - ⚠️ Первое изображение устанавливается как `Product.main_image`
    - ⚠️ Остальные изображения добавляются в `Product.gallery_images` как JSON список путей
-   - ⚠️ Пути хранятся относительно MEDIA_ROOT (например, `products/image.jpg`)
-   - ⚠️ Существующие изображения товара НЕ удаляются при повторном импорте (append, не replace)
+   - ⚠️ Пути хранятся относительно MEDIA_ROOT (например, `products/00/image.jpg`)
+   - ⚠️ **Семантика повторного импорта:**
+     - `main_image` НЕ меняется если уже установлен (сохранение выбора администратора)
+     - Новые изображения добавляются в конец `gallery_images` (append)
+     - Дубликаты проверяются: `if path not in gallery_images` (предотвращение накопления)
+     - Future enhancement: флаг `--replace-images` для полной замены всех изображений товара
 
 3. **Обработка дубликатов и ошибок**
    - ⚠️ Проверка существования файла перед копированием (skip если файл уже есть)
@@ -112,6 +125,25 @@ def __init__(self, session_id: int, skip_validation: bool = False, chunk_size: i
    - ✅ Placeholder изображение остается для товаров без изображений
    - ✅ Повторный импорт обновляет изображения без потери данных
 
+## Tasks / Subtasks
+
+- [ ] Task 1: Реализовать метод `import_product_images()` (AC: 1, 2, 3)
+  - [ ] Создать метод с указанной сигнатурой и логикой копирования файлов
+  - [ ] Реализовать сохранение структуры директорий и обработку дубликатов
+  - [ ] Добавить логирование и сбор статистики копирования
+- [ ] Task 2: Интегрировать метод с `create_product_placeholder()` (AC: 1, 2, 4)
+  - [ ] Передавать `base_dir` и `skip_images` при создании товара
+  - [ ] Обновить статистику процессора с учётом изображений
+- [ ] Task 3: Обновить команду `import_catalog_from_1c` (AC: 4, 6)
+  - [ ] Добавить флаг `--skip-images` и прокинуть его в процессор
+  - [ ] Вывести статистику изображений в итоговом отчёте команды
+- [ ] Task 4: Написать unit-тесты с моками файловых операций (AC: все)
+  - [ ] Реализовать 12 сценариев из раздела Testing Strategy
+  - [ ] Обеспечить изоляцию тестов и уникальность данных
+- [ ] Task 5: Обновить документацию и кодовые комментарии (DoD)
+  - [ ] Расширить docstrings новых методов
+  - [ ] Обновить README команды `import_catalog_from_1c`
+
 ## Technical Notes
 
 ### Структура физических файлов 1С
@@ -129,13 +161,24 @@ data/import_1c/goods/import_files/
     └── 73f9d61e-5673-11f0-8041-fa163ea88911_a62d33ce-5673-11f0-8041-fa163ea88912.jpg
 ```
 
-**Маппинг в Django media:**
+**Маппинг в Django media (сохранение структуры директорий):**
 ```
 MEDIA_ROOT/products/
-├── 001a16a4-b810-11ed-860f-fa163edba792_24062354-2f7b-11ee-998f-fa163e775e1f.jpg
-├── 73f9d61e-5673-11f0-8041-fa163ea88911_a62d33ce-5673-11f0-8041-fa163ea88911.png
-└── 73f9d61e-5673-11f0-8041-fa163ea88911_a62d33ce-5673-11f0-8041-fa163ea88912.jpg
+├── 00/
+│   ├── 001a16a4-b810-11ed-860f-fa163edba792_24062354-2f7b-11ee-998f-fa163e775e1f.jpg
+│   └── ...
+├── 01/
+├── ...
+└── 73/
+    ├── 73f9d61e-5673-11f0-8041-fa163ea88911_a62d33ce-5673-11f0-8041-fa163ea88911.png
+    └── 73f9d61e-5673-11f0-8041-fa163ea88911_a62d33ce-5673-11f0-8041-fa163ea88912.jpg
 ```
+
+**Обоснование структуры:**
+
+- Сохранение поддиректорий из 1С улучшает производительность при большом количестве изображений (>10,000)
+- Упрощает отладку и трассировку исходных файлов
+- Оригинальные имена файлов содержат UUID и уже уникальны
 
 ### Реализация метода import_product_images()
 
@@ -171,7 +214,8 @@ def import_product_images(
         logger.debug(f"No images for product {product.onec_id}")
         return result
 
-    main_image_set = False
+    # Проверяем существующий main_image (семантика повторного импорта)
+    main_image_set = bool(product.main_image)
     gallery_images = list(product.gallery_images or [])
 
     for image_path in image_paths:
@@ -185,9 +229,11 @@ def import_product_images(
                 result["errors"] += 1
                 continue
 
-            # Генерация имени файла для media storage
+            # Сохранение структуры директорий из 1С
+            # image_path: "00/001a16a4-b810-11ed-860f-fa163edba792_24062354.jpg"
             filename = source_path.name
-            destination_path = f"products/{filename}"
+            subdir = image_path.split('/')[0] if '/' in image_path else ''
+            destination_path = f"products/{subdir}/{filename}" if subdir else f"products/{filename}"
 
             # Проверка существования файла в media
             if default_storage.exists(destination_path):
@@ -195,10 +241,12 @@ def import_product_images(
                 result["skipped"] += 1
 
                 # Устанавливаем связь даже если файл уже существует
+                # При повторном импорте main_image НЕ меняется если уже установлен
                 if not main_image_set:
                     product.main_image = destination_path
                     main_image_set = True
                 else:
+                    # Проверка дубликатов в gallery_images
                     if destination_path not in gallery_images:
                         gallery_images.append(destination_path)
                 continue
@@ -228,10 +276,12 @@ def import_product_images(
             result["copied"] += 1
 
             # Установка связи с Product
+            # При повторном импорте main_image НЕ меняется если уже установлен
             if not main_image_set:
                 product.main_image = saved_path
                 main_image_set = True
             else:
+                # Проверка дубликатов в gallery_images
                 if saved_path not in gallery_images:
                     gallery_images.append(saved_path)
 
@@ -347,19 +397,71 @@ self.stdout.write("=" * 50)
 
 ## Definition of Done
 
-- [ ] **Метод `import_product_images()` реализован** в ProductDataProcessor
-- [ ] **Интеграция с `create_product_placeholder()`** - копирование изображений при создании товара
-- [ ] **Параметр `--skip-images` добавлен** в команду `import_catalog_from_1c`
-- [ ] **Установка `main_image` и `gallery_images`** работает корректно
-- [ ] **Обработка дубликатов** - skip если файл уже существует в media
-- [ ] **Обработка ошибок** - отсутствующие/невалидные файлы не ломают импорт
-- [ ] **Логирование и статистика** - images_copied, images_skipped, images_errors
-- [ ] **Unit-тесты написаны** с моками файловых операций
-- [ ] **Все существующие тесты проходят** без регрессий
-- [ ] **Документация обновлена** - docstrings методов и README команды
-- [ ] **Code review пройден** - соответствие стандартам кода
+- [ ] Функциональность импорта изображений соответствует всем Acceptance Criteria (регулярный и повторный импорт)
+- [ ] Команда `import_catalog_from_1c` поддерживает флаг `--skip-images` и выводит статистику изображений
+- [ ] Добавлены и проходят unit-тесты из Testing Strategy, существующие тесты регрессий не ломаются
+- [ ] Логирование и статистика импорта изображений доступны в ImportSession и выводе команды
+- [ ] Документация и docstrings обновлены для новых/изменённых методов
+- [ ] Code review подтверждает соответствие стандартам, изменения задокументированы в Change Log
 
 ## Testing Strategy
+
+### Требования изоляции тестов
+
+**КРИТИЧЕСКИ ВАЖНО:** Все тесты должны использовать систему полной изоляции согласно [docs/architecture/10-testing-strategy.md](../../architecture/10-testing-strategy.md) разделы 10.4.1-10.4.2.
+
+**Обязательные фикстуры изоляции:**
+
+```python
+# conftest.py - автоматические фикстуры (уже существуют в проекте)
+@pytest.fixture(autouse=True)
+def enable_db_access_for_all_tests(db):
+    """Автоматически включает доступ к базе данных для всех тестов"""
+    pass
+
+@pytest.fixture(autouse=True)
+def clear_db_before_test(transactional_db):
+    """Очищает базу данных перед каждым тестом для полной изоляции"""
+    from django.core.cache import cache
+    from django.db import connection
+    from django.apps import apps
+
+    cache.clear()
+
+    with connection.cursor() as cursor:
+        models = apps.get_models()
+        for model in models:
+            table_name = model._meta.db_table
+            try:
+                cursor.execute(f'TRUNCATE TABLE "{table_name}" RESTART IDENTITY CASCADE')
+            except Exception:
+                pass
+```
+
+**Генерация уникальных данных:**
+
+```python
+import uuid
+import time
+
+# Глобальный счетчик для обеспечения уникальности
+_unique_counter = 0
+
+def get_unique_suffix():
+    """Генерирует абсолютно уникальный суффикс"""
+    global _unique_counter
+    _unique_counter += 1
+    return f"{int(time.time() * 1000)}-{_unique_counter}-{uuid.uuid4().hex[:6]}"
+
+# В Factory Boy - ОБЯЗАТЕЛЬНО использовать LazyFunction
+class ProductFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = Product
+
+    name = factory.LazyFunction(lambda: f"Product-{get_unique_suffix()}")
+    sku = factory.LazyFunction(lambda: f"SKU-{get_unique_suffix().upper()}")
+    onec_id = factory.LazyFunction(lambda: f"1C-{get_unique_suffix()}")
+```
 
 ### Unit-тесты (backend/apps/products/tests/test_processor.py)
 
@@ -373,19 +475,30 @@ self.stdout.write("=" * 50)
 6. **test_import_product_images_invalid_file** - невалидное изображение (валидация включена)
 7. **test_create_product_placeholder_with_images** - интеграция с create_product_placeholder
 8. **test_import_catalog_with_skip_images_flag** - проверка флага --skip-images
+9. **test_import_product_images_preserves_existing_main_image** - повторный импорт не меняет main_image (NEW)
+10. **test_import_product_images_appends_to_gallery** - повторный импорт добавляет в gallery_images (NEW)
+11. **test_import_product_images_prevents_duplicates_in_gallery** - проверка дубликатов в gallery_images (NEW)
+12. **test_import_product_images_preserves_directory_structure** - сохранение структуры директорий (NEW)
 
-**Пример теста с моками:**
+**Примеры тестов с моками:**
 
 ```python
 from unittest.mock import patch, MagicMock, mock_open
 from django.core.files.storage import default_storage
 import tempfile
 import os
+import pytest
+
+# Маркировка для всего модуля
+pytestmark = pytest.mark.django_db
 
 def test_import_product_images_single_image(self):
-    """Импорт одного изображения товара"""
-    # Подготовка
-    product = ProductFactory(onec_id="test-id", main_image="")
+    """Импорт одного изображения товара (AAA Pattern)"""
+    # ARRANGE - подготовка данных
+    product = ProductFactory(
+        onec_id=f"test-{get_unique_suffix()}",
+        main_image=""
+    )
     session = ImportSessionFactory()
     processor = ProductDataProcessor(session_id=session.id)
 
@@ -404,7 +517,7 @@ def test_import_product_images_single_image(self):
         with patch.object(default_storage, 'exists', return_value=False), \
              patch.object(default_storage, 'save', return_value=f"products/{image_filename}"):
 
-            # Выполнение
+            # ACT - выполнение действия
             result = processor.import_product_images(
                 product=product,
                 image_paths=image_paths,
@@ -412,7 +525,7 @@ def test_import_product_images_single_image(self):
                 validate_images=False
             )
 
-            # Проверки
+            # ASSERT - проверка результата
             assert result["copied"] == 1
             assert result["skipped"] == 0
             assert result["errors"] == 0
@@ -420,6 +533,122 @@ def test_import_product_images_single_image(self):
             product.refresh_from_db()
             assert product.main_image == f"products/{image_filename}"
             assert len(product.gallery_images) == 0  # Только одно изображение - идет в main
+
+    finally:
+        os.unlink(tmp_path)
+
+def test_import_product_images_preserves_existing_main_image(self):
+    """Повторный импорт НЕ меняет существующий main_image (AC 2)"""
+    # ARRANGE
+    existing_main = "products/00/existing_main.jpg"
+    product = ProductFactory(
+        onec_id=f"test-{get_unique_suffix()}",
+        main_image=existing_main,  # Уже установлен
+        gallery_images=[]
+    )
+    session = ImportSessionFactory()
+    processor = ProductDataProcessor(session_id=session.id)
+
+    with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
+        tmp.write(b"new image content")
+        tmp_path = tmp.name
+
+    try:
+        base_dir = os.path.dirname(tmp_path)
+        image_filename = os.path.basename(tmp_path)
+        image_paths = [f"00/{image_filename}"]  # С поддиректорией
+
+        with patch.object(default_storage, 'exists', return_value=False), \
+             patch.object(default_storage, 'save', return_value=f"products/00/{image_filename}"):
+
+            # ACT - повторный импорт
+            result = processor.import_product_images(
+                product=product,
+                image_paths=image_paths,
+                base_dir=base_dir,
+                validate_images=False
+            )
+
+            # ASSERT
+            product.refresh_from_db()
+            # main_image НЕ должен измениться
+            assert product.main_image == existing_main
+            # Новое изображение должно попасть в gallery
+            assert f"products/00/{image_filename}" in product.gallery_images
+            assert len(product.gallery_images) == 1
+
+    finally:
+        os.unlink(tmp_path)
+
+def test_import_product_images_prevents_duplicates_in_gallery(self):
+    """Проверка предотвращения дубликатов в gallery_images (AC 2)"""
+    # ARRANGE
+    existing_image = "products/00/image.jpg"
+    product = ProductFactory(
+        onec_id=f"test-{get_unique_suffix()}",
+        main_image="products/00/main.jpg",
+        gallery_images=[existing_image]  # Уже есть
+    )
+    session = ImportSessionFactory()
+    processor = ProductDataProcessor(session_id=session.id)
+
+    # ACT - импортируем то же изображение повторно
+    with patch.object(default_storage, 'exists', return_value=True):
+        result = processor.import_product_images(
+            product=product,
+            image_paths=["00/image.jpg"],
+            base_dir="/fake/path",
+            validate_images=False
+        )
+
+    # ASSERT
+    product.refresh_from_db()
+    # Дубликат НЕ должен добавиться
+    assert product.gallery_images.count(existing_image) == 1
+    assert result["skipped"] == 1
+
+def test_import_product_images_preserves_directory_structure(self):
+    """Сохранение структуры поддиректорий из 1С (AC 1)"""
+    # ARRANGE
+    product = ProductFactory(
+        onec_id=f"test-{get_unique_suffix()}",
+        main_image=""
+    )
+    session = ImportSessionFactory()
+    processor = ProductDataProcessor(session_id=session.id)
+
+    with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
+        tmp.write(b"image content")
+        tmp_path = tmp.name
+
+    try:
+        base_dir = os.path.dirname(tmp_path)
+        image_filename = os.path.basename(tmp_path)
+        # Путь с поддиректорией как в 1С
+        image_paths = [f"00/{image_filename}"]
+
+        expected_path = f"products/00/{image_filename}"
+
+        with patch.object(default_storage, 'exists', return_value=False), \
+             patch.object(default_storage, 'save', return_value=expected_path) as mock_save:
+
+            # ACT
+            result = processor.import_product_images(
+                product=product,
+                image_paths=image_paths,
+                base_dir=base_dir,
+                validate_images=False
+            )
+
+            # ASSERT
+            product.refresh_from_db()
+            # Проверяем что путь содержит поддиректорию
+            assert product.main_image == expected_path
+            assert "00/" in product.main_image
+            # Проверяем что save вызван с правильным путём
+            mock_save.assert_called_once()
+            call_args = mock_save.call_args[0]
+            assert call_args[0] == expected_path
 
     finally:
         os.unlink(tmp_path)
@@ -490,3 +719,50 @@ def test_import_product_images_single_image(self):
 **Epic:** Epic 3.1 - Импорт и связь изображений товаров из 1С
 **Assigned to:** Developer Team
 **Depends on:** Story 3.1.1
+
+## Change Log
+
+| Date       | Version | Description                                   | Author          |
+|------------|---------|-----------------------------------------------|-----------------|
+| 2025-01-08 | 0.1     | Первоначальный черновик истории               | Product Team    |
+| 2025-11-09 | 0.2     | Обновление после QA Planning Review (Quinn)   | Product Team    |
+| 2025-11-09 | 0.3     | Добавлены Tasks/Subtasks и уточнён DoD        | Product Owner   |
+
+## QA Planning Review
+
+**Review Date:** 2025-11-09
+**Reviewed By:** Quinn (Test Architect)
+**Gate Status:** ✅ PASS
+
+### Статус
+
+- **Quality Score:** 100/100 (было 95/100)
+- **Readiness Score:** 10/10 (было 9/10)
+- **Статус:** ✅ READY FOR IMMEDIATE IMPLEMENTATION
+
+### Ключевые выводы
+
+✅ **Сильные стороны:**
+- Детальная техническая спецификация с примерами кода
+- Правильная интеграция с существующей архитектурой
+- Обработка всех edge cases
+- Расширенная тестовая стратегия (12 сценариев)
+
+✅ **Внедрённые улучшения (2025-11-09):**
+1. AC 1: Сохранение оригинальных имён файлов из 1С
+2. AC 2: Детализированная семантика повторного импорта
+3. AC 1: Сохранение структуры поддиректорий для производительности
+4. Testing: Изоляция тестов (get_unique_suffix, AAA Pattern)
+5. Testing: +4 новых тестовых сценария (итого 12)
+
+### Advisory Notes для разработчика
+
+1. Используйте обновлённый код из строк 156-255 (с сохранением структуры директорий)
+2. Начните с unit-тестов (12 примеров в строках 440-542)
+3. Обязательно используйте `get_unique_suffix()` в Factory Boy для изоляции
+4. Маркируйте тесты через `pytestmark = pytest.mark.django_db`
+5. Следуйте AAA Pattern (Arrange-Act-Assert)
+
+**Детальный анализ:** [docs/qa/gates/3.1.2-import-images-to-media.yml](../../qa/gates/3.1.2-import-images-to-media.yml)
+
+---
