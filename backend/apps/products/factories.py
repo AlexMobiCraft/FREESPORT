@@ -1,11 +1,27 @@
 """
 Factory классы для создания тестовых данных
-"""
-import factory
-from factory import fuzzy
-from django.utils.text import slugify
 
-from apps.products.models import Product, Category, Brand
+КРИТИЧНО: Использует LazyFunction с get_unique_suffix() для полной изоляции тестов
+"""
+
+import time
+import uuid
+
+import factory
+from django.utils.text import slugify
+from factory import fuzzy
+
+from apps.products.models import Brand, Category, Product
+
+# Глобальный счетчик для обеспечения уникальности
+_unique_counter = 0
+
+
+def get_unique_suffix() -> str:
+    """Генерирует абсолютно уникальный суффикс"""
+    global _unique_counter
+    _unique_counter += 1
+    return f"{int(time.time() * 1000)}-{_unique_counter}-{uuid.uuid4().hex[:6]}"
 
 
 class BrandFactory(factory.django.DjangoModelFactory):
@@ -14,8 +30,9 @@ class BrandFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = Brand
 
-    name = factory.Sequence(lambda n: f"Brand {n}")
+    name = factory.LazyFunction(lambda: f"Brand-{get_unique_suffix()}")
     slug = factory.LazyAttribute(lambda obj: slugify(obj.name))
+    onec_id = factory.LazyFunction(lambda: f"brand-1c-{get_unique_suffix()}")
     description = factory.Faker("text", max_nb_chars=200)
     is_active = True
 
@@ -26,8 +43,9 @@ class CategoryFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = Category
 
-    name = factory.Sequence(lambda n: f"Category {n}")
+    name = factory.LazyFunction(lambda: f"Category-{get_unique_suffix()}")
     slug = factory.LazyAttribute(lambda obj: slugify(obj.name))
+    onec_id = factory.LazyFunction(lambda: f"cat-1c-{get_unique_suffix()}")
     description = factory.Faker("text", max_nb_chars=200)
     is_active = True
 
@@ -38,9 +56,10 @@ class ProductFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = Product
 
-    name = factory.Sequence(lambda n: f"Product {n}")
+    name = factory.LazyFunction(lambda: f"Product-{get_unique_suffix()}")
     slug = factory.LazyAttribute(lambda obj: slugify(obj.name))
-    onec_id = factory.Sequence(lambda n: f"product-{n}-uuid#sku-{n}-uuid")
+    sku = factory.LazyFunction(lambda: f"SKU-{get_unique_suffix().upper()}")
+    onec_id = factory.LazyFunction(lambda: f"1c-{get_unique_suffix()}")
     description = factory.Faker("text", max_nb_chars=500)
     retail_price = fuzzy.FuzzyDecimal(100.0, 10000.0, 2)
     opt1_price = fuzzy.FuzzyDecimal(80.0, 8000.0, 2)

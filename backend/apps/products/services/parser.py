@@ -8,6 +8,9 @@ from xml.etree.ElementTree import Element, ElementTree
 
 import defusedxml.ElementTree as ET
 from django.conf import settings
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class GoodsData(TypedDict, total=False):
@@ -161,8 +164,57 @@ class XMLDataParser:
             return child.text.strip()
         return default
 
+    def _validate_image_path(self, path: str) -> str | None:
+        """
+        Валидация и нормализация пути к изображению.
+
+        Args:
+            path: Относительный путь к изображению из XML
+
+        Returns:
+            Нормализованный путь или None если путь невалиден
+
+        Supported extensions: .jpg, .jpeg, .png, .webp (case-insensitive)
+        """
+        if not path or not isinstance(path, str):
+            return None
+
+        # Нормализация: убираем пробелы, заменяем backslash на forward slash
+        normalized = path.strip().replace("\\", "/")
+
+        if not normalized:
+            return None
+
+        # Валидация расширения
+        valid_extensions = {".jpg", ".jpeg", ".png", ".webp"}
+        _, ext = os.path.splitext(normalized.lower())
+
+        if ext not in valid_extensions:
+            logger.warning(f"Invalid image extension: {path}")
+            return None
+
+        return normalized
+
     def parse_goods_xml(self, file_path: str) -> list[GoodsData]:
-        """Парсинг goods.xml - базовые товары"""
+        """
+        Парсинг goods.xml - базовые товары.
+
+        Извлекает информацию о товарах из XML файла в формате CommerceML 3.1,
+        включая валидацию и нормализацию путей к изображениям.
+
+        Args:
+            file_path: Путь к goods.xml файлу
+
+        Returns:
+            Список словарей GoodsData с данными товаров
+
+        Обработка изображений:
+            - Извлекаются все теги <Картинка> для каждого товара
+            - Пути валидируются на корректность расширения (.jpg, .jpeg, .png, .webp)
+            - Пути нормализуются (замена \\ на /, удаление пробелов)
+            - Дублирующиеся пути автоматически дедуплицируются
+            - Невалидные пути логируются как WARNING и пропускаются
+        """
         tree = self._safe_parse_xml(file_path)
         root = cast(Element, tree.getroot())
 
@@ -184,22 +236,39 @@ class XMLDataParser:
                     goods_data["category_name"] = category_name
 
             # Извлечение ID бренда из ЗначенияСвойств
-            properties_values_element = self._find_child(product_element, "ЗначенияСвойств")
+            properties_values_element = self._find_child(
+                product_element, "ЗначенияСвойств"
+            )
             if properties_values_element is not None:
-                for property_value in self._find_children(properties_values_element, "ЗначенияСвойства"):
+                for property_value in self._find_children(
+                    properties_values_element, "ЗначенияСвойства"
+                ):
                     property_id = self._find_text(property_value, "Ид")
                     # Свойство "Бренд" имеет Ид="Бренд"
                     if property_id == "Бренд":
                         brand_id = self._find_text(property_value, "Значение")
-                        if brand_id and brand_id != "00000000-0000-0000-0000-000000000000":
+                        if (
+                            brand_id
+                            and brand_id != "00000000-0000-0000-0000-000000000000"
+                        ):
                             goods_data["brand_id"] = brand_id
                         break
 
+            # Извлечение и валидация путей изображений с дедупликацией
             image_elements = self._find_children(product_element, "Картинка")
             if image_elements:
-                goods_data["images"] = [
-                    image.text.strip() for image in image_elements if image.text
-                ]
+                validated_images = []
+                seen_paths: set[str] = set()  # Для дедупликации
+
+                for image in image_elements:
+                    if image.text:
+                        validated_path = self._validate_image_path(image.text.strip())
+                        if validated_path and validated_path not in seen_paths:
+                            validated_images.append(validated_path)
+                            seen_paths.add(validated_path)
+
+                if validated_images:
+                    goods_data["images"] = validated_images
 
             if goods_data.get("id"):  # Только если есть ID
                 goods_list.append(goods_data)
@@ -440,16 +509,23 @@ class XMLDataParser:
 
             if property_name == "Бренд":
                 # Извлекаем варианты значений (бренды)
-                variants_element = self._find_child(property_element, "ВариантыЗначений")
+                variants_element = self._find_child(
+                    property_element, "ВариантыЗначений"
+                )
                 if variants_element is not None:
-                    for variant_element in self._find_children(variants_element, "Справочник"):
+                    for variant_element in self._find_children(
+                        variants_element, "Справочник"
+                    ):
                         brand_id = self._find_text(variant_element, "ИдЗначения")
                         brand_name = self._find_text(variant_element, "Значение")
 
                         # Пропускаем "Без Бренда" и дубликаты
-                        if (brand_id and brand_name
+                        if (
+                            brand_id
+                            and brand_name
                             and brand_name != "Без Бренда"
-                            and brand_id not in brands_seen):
+                            and brand_id not in brands_seen
+                        ):
                             brands_seen.add(brand_id)
                             brand_data: BrandData = {
                                 "id": brand_id,

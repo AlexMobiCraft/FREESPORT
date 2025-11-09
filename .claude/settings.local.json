@@ -19,7 +19,8 @@
       "Bash(python -m py_compile:*)",
       "Bash(python -m black:*)",
       "Bash(python -m mypy:*)",
-      "Bash(git log:*)"
+      "Bash(git log:*)",
+      "Bash(docker compose:*)"
     ],
     "deny": [],
     "ask": [],

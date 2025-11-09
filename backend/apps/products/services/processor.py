@@ -29,7 +29,8 @@ class ProductDataProcessor:
     Процессор для создания и обновления товаров на основе данных из XMLDataParser
 
     Методы:
-    - create_product_placeholder() - создание заготовки товара из goods.xml
+    - create_product_placeholder() - создание заготовки товара из goods.xml с импортом изображений
+    - import_product_images() - копирование изображений товара из 1С в Django media (Story 3.1.2)
     - enrich_product_from_offer() - обогащение товара данными из offers.xml
     - update_product_prices() - обновление цен из prices.xml
     - update_product_stock() - обновление остатков из rests.xml
@@ -76,8 +77,23 @@ class ProductDataProcessor:
 
         return None
 
-    def create_product_placeholder(self, goods_data: GoodsData) -> Product | None:
-        """Создание заготовки товара из goods.xml (parent_onec_id, is_active=False)"""
+    def create_product_placeholder(
+        self,
+        goods_data: GoodsData,
+        base_dir: str | None = None,
+        skip_images: bool = False,
+    ) -> Product | None:
+        """
+        Создание заготовки товара из goods.xml с опциональным импортом изображений
+
+        Args:
+            goods_data: Данные товара из XMLDataParser
+            base_dir: Базовая директория импорта (для копирования изображений)
+            skip_images: Пропустить импорт изображений товара
+
+        Returns:
+            Product instance или None при ошибке
+        """
         try:
             parent_id = goods_data.get("id")
             if not parent_id:
@@ -199,6 +215,25 @@ class ProductDataProcessor:
 
             logger.info(f"Created product placeholder: {parent_id}")
             self.stats["created"] += 1
+
+            # НОВАЯ ФУНКЦИОНАЛЬНОСТЬ: Импорт изображений
+            if not skip_images and base_dir and "images" in goods_data:
+                image_result = self.import_product_images(
+                    product=product,
+                    image_paths=goods_data["images"],
+                    base_dir=base_dir,
+                    validate_images=not self.skip_validation,
+                )
+
+                # Обновление статистики
+                self.stats.setdefault("images_copied", 0)
+                self.stats.setdefault("images_skipped", 0)
+                self.stats.setdefault("images_errors", 0)
+
+                self.stats["images_copied"] += image_result["copied"]
+                self.stats["images_skipped"] += image_result["skipped"]
+                self.stats["images_errors"] += image_result["errors"]
+
             return product
 
         except Exception as e:
@@ -588,4 +623,130 @@ class ProductDataProcessor:
             f"Brands processed: {result['created']} created, "
             f"{result['updated']} updated, {result['skipped']} skipped"
         )
+        return result
+
+    def import_product_images(
+        self,
+        product: Product,
+        image_paths: list[str],
+        base_dir: str,
+        validate_images: bool = False,
+    ) -> dict[str, int]:
+        """
+        Копирование изображений товара из директории 1С в Django media storage
+
+        Args:
+            product: Product instance для установки изображений
+            image_paths: Список относительных путей из goods_data["images"]
+            base_dir: Базовая директория импорта (например, data/import_1c/goods/)
+            validate_images: Валидировать изображения через Pillow (медленнее)
+
+        Returns:
+            dict с количеством copied, skipped, errors
+
+        Поведение:
+            - Первое изображение устанавливается как main_image
+            - Остальные добавляются в gallery_images
+            - При повторном импорте main_image НЕ меняется если уже установлен
+            - Новые изображения добавляются в конец gallery_images (append)
+            - Дубликаты в gallery_images предотвращаются
+            - Сохраняется структура поддиректорий из 1С для производительности
+        """
+        from pathlib import Path
+
+        from django.core.files.base import ContentFile
+        from django.core.files.storage import default_storage
+
+        result = {"copied": 0, "skipped": 0, "errors": 0}
+
+        if not image_paths:
+            logger.debug(f"No images for product {product.onec_id}")
+            return result
+
+        # Проверяем существующий main_image (семантика повторного импорта)
+        main_image_set = bool(product.main_image and product.main_image != self.DEFAULT_PLACEHOLDER_IMAGE)
+        gallery_images = list(product.gallery_images or [])
+
+        for image_path in image_paths:
+            try:
+                # Построение полного пути к исходному файлу
+                source_path = Path(base_dir) / image_path
+                if not source_path.exists():
+                    logger.warning(
+                        f"Image file not found: {source_path} for product {product.onec_id}"
+                    )
+                    result["errors"] += 1
+                    continue
+
+                # Сохранение структуры директорий из 1С
+                # image_path: "00/001a16a4-b810-11ed-860f-fa163edba792_24062354.jpg"
+                filename = source_path.name
+                subdir = image_path.split("/")[0] if "/" in image_path else ""
+                destination_path = (
+                    f"products/{subdir}/{filename}"
+                    if subdir
+                    else f"products/{filename}"
+                )
+
+                # Проверка существования файла в media
+                if default_storage.exists(destination_path):
+                    logger.debug(f"Image already exists: {destination_path}")
+                    result["skipped"] += 1
+
+                    # Устанавливаем связь даже если файл уже существует
+                    # При повторном импорте main_image НЕ меняется если уже установлен
+                    if not main_image_set:
+                        product.main_image = destination_path
+                        main_image_set = True
+                    else:
+                        # Проверка дубликатов в gallery_images
+                        if destination_path not in gallery_images:
+                            gallery_images.append(destination_path)
+                    continue
+
+                # Валидация изображения (опционально)
+                if validate_images:
+                    try:
+                        from PIL import Image
+
+                        with Image.open(source_path) as img:
+                            img.verify()
+                    except Exception as e:
+                        logger.warning(f"Invalid image file {source_path}: {e}")
+                        result["errors"] += 1
+                        continue
+
+                # Копирование файла в media storage
+                with open(source_path, "rb") as f:
+                    file_content = f.read()
+                    saved_path = default_storage.save(
+                        destination_path, ContentFile(file_content)
+                    )
+
+                logger.info(f"Copied image: {source_path} -> {saved_path}")
+                result["copied"] += 1
+
+                # Установка связи с Product
+                # При повторном импорте main_image НЕ меняется если уже установлен
+                if not main_image_set:
+                    product.main_image = saved_path
+                    main_image_set = True
+                else:
+                    # Проверка дубликатов в gallery_images
+                    if saved_path not in gallery_images:
+                        gallery_images.append(saved_path)
+
+            except Exception as e:
+                logger.error(f"Error copying image {image_path}: {e}")
+                result["errors"] += 1
+
+        # Сохранение изменений в Product
+        if main_image_set or gallery_images:
+            product.gallery_images = gallery_images
+            product.save(update_fields=["main_image", "gallery_images"])
+            logger.info(
+                f"Updated product {product.onec_id} images: "
+                f"main_image={product.main_image}, gallery={len(gallery_images)}"
+            )
+
         return result

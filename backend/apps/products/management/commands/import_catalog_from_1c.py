@@ -73,6 +73,11 @@ class Command(BaseCommand):
             action="store_true",
             help="Пропустить создание backup перед импортом",
         )
+        parser.add_argument(
+            "--skip-images",
+            action="store_true",
+            help="Пропустить импорт изображений товаров (только метаданные)",
+        )
 
     def handle(self, *args, **options):
         """Основная логика команды"""
@@ -83,6 +88,7 @@ class Command(BaseCommand):
         file_type = options.get("file_type", "all")
         clear_existing = options.get("clear_existing", False)
         skip_backup = options.get("skip_backup", False)
+        skip_images = options.get("skip_images", False)
 
         # Валидация директории
         if not os.path.exists(data_dir):
@@ -290,7 +296,11 @@ class Command(BaseCommand):
                     for goods_item in tqdm(
                         goods_data, desc=f"   Обработка {Path(file_path).name}"
                     ):
-                        processor.create_product_placeholder(goods_item)
+                        processor.create_product_placeholder(
+                            goods_item,
+                            base_dir=os.path.join(data_dir, "goods"),
+                            skip_images=skip_images,
+                        )
                     self.stdout.write(
                         f"   • {Path(file_path).name}: товаров {len(goods_data)}"
                     )
@@ -396,6 +406,20 @@ class Command(BaseCommand):
             self.stdout.write(f"Обновлено товаров: {processor.stats['updated']}")
             self.stdout.write(f"Пропущено:         {processor.stats['skipped']}")
             self.stdout.write(f"Ошибок:            {processor.stats['errors']}")
+
+            # НОВАЯ СТАТИСТИКА: Изображения (Story 3.1.2)
+            if not skip_images:
+                self.stdout.write("\n📸 Статистика изображений:")
+                self.stdout.write(
+                    f"Скопировано:       {processor.stats.get('images_copied', 0)}"
+                )
+                self.stdout.write(
+                    f"Пропущено:         {processor.stats.get('images_skipped', 0)}"
+                )
+                self.stdout.write(
+                    f"Ошибок:            {processor.stats.get('images_errors', 0)}"
+                )
+
             self.stdout.write("=" * 50)
 
         except Exception as e:
