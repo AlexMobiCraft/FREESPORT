@@ -238,7 +238,7 @@ def _create_and_run_import(import_type: str) -> ImportSession:
     )
 
     # Запускаем Celery задачу
-    task = run_selective_import_task.delay([import_type], str(data_dir))
+    task = run_selective_import_task.delay([import_type])
 
     # Создаем сессию импорта для отслеживания
     # Команда import_customers_from_1c создаст свою внутреннюю сессию

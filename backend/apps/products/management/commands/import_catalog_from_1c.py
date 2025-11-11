@@ -33,8 +33,11 @@ class Command(BaseCommand):
         parser.add_argument(
             "--data-dir",
             type=str,
-            required=True,
-            help="Путь к директории с XML файлами из 1С",
+            default=None,
+            help=(
+                "Путь к директории с XML файлами из 1С. "
+                "Если не указан, используется ONEC_DATA_DIR из settings."
+            ),
         )
         parser.add_argument(
             "--dry-run",
@@ -81,7 +84,12 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         """Основная логика команды"""
+        from django.conf import settings
+
         data_dir = options["data_dir"]
+        if not data_dir:
+            data_dir = settings.ONEC_DATA_DIR
+
         dry_run = options.get("dry_run", False)
         chunk_size = options.get("chunk_size", 1000)
         skip_validation = options.get("skip_validation", False)

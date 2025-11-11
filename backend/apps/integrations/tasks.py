@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 def run_selective_import_task(
     self,
     selected_types: list[str],
-    data_dir: str | None = None,
+    data_dir: str | None = None, # Этот аргумент больше не используется, но оставлен для обратной совместимости
 ) -> dict[str, Any]:
     """
     Асинхронная задача для выборочного импорта данных из 1С.
@@ -60,7 +60,7 @@ def run_selective_import_task(
             logger.info(f"[Task {task_id}] Начало импорта: {import_type}")
 
             try:
-                result = _execute_import_type(import_type, data_dir, task_id)
+                result = _execute_import_type(import_type, task_id)
                 results.append(result)
                 logger.info(
                     f"[Task {task_id}] Импорт {import_type} завершен: {result['message']}"
@@ -90,9 +90,7 @@ def run_selective_import_task(
         raise self.retry(exc=e)
 
 
-def _execute_import_type(
-    import_type: str, data_dir: str, task_id: str
-) -> dict[str, str]:
+def _execute_import_type(import_type: str, task_id: str) -> dict[str, str]:
     """
     Выполнение импорта конкретного типа данных.
 
@@ -108,63 +106,26 @@ def _execute_import_type(
         FileNotFoundError: Если файл не найден
         Exception: При ошибках выполнения команды
     """
-    data_path = Path(data_dir)
-
     if import_type == "catalog":
-        # Для каталога проверяем директорию
-        if not data_path.exists():
-            raise FileNotFoundError(f"Директория данных не найдена: {data_dir}")
-
         logger.info(f"[Task {task_id}] Запуск import_catalog_from_1c --file-type=all")
-        call_command(
-            "import_catalog_from_1c",
-            "--data-dir",
-            str(data_dir),
-            "--file-type",
-            "all",
-        )
+        call_command("import_catalog_from_1c", "--file-type", "all")
         return {"type": "catalog", "message": "Каталог импортирован"}
 
     elif import_type == "stocks":
-        # Проверяем наличие директории с остатками
-        rests_dir = data_path / "rests"
-        if not rests_dir.exists():
-            raise FileNotFoundError(
-                f"Директория остатков не найдена: {rests_dir}. "
-                f"Убедитесь, что данные из 1С выгружены в {data_dir}"
-            )
-
         logger.info(f"[Task {task_id}] Запуск import_catalog_from_1c --file-type=rests")
-        call_command(
-            "import_catalog_from_1c",
-            "--data-dir",
-            str(data_dir),
-            "--file-type",
-            "rests",
-        )
+        call_command("import_catalog_from_1c", "--file-type", "rests")
         return {"type": "stocks", "message": "Остатки обновлены"}
 
     elif import_type == "prices":
-        if not data_path.exists():
-            raise FileNotFoundError(f"Директория данных не найдена: {data_dir}")
-
         logger.info(
             f"[Task {task_id}] Запуск import_catalog_from_1c --file-type=prices"
         )
-        call_command(
-            "import_catalog_from_1c",
-            "--data-dir",
-            str(data_dir),
-            "--file-type",
-            "prices",
-        )
+        call_command("import_catalog_from_1c", "--file-type", "prices")
         return {"type": "prices", "message": "Цены обновлены"}
 
     elif import_type == "customers":
-        # Команда import_customers_from_1c сама обрабатывает все файлы в директории
-        # Аналогично import_catalog_from_1c
-        logger.info(f"[Task {task_id}] Запуск import_customers_from_1c --data-dir")
-        call_command("import_customers_from_1c", "--data-dir", str(data_dir))
+        logger.info(f"[Task {task_id}] Запуск import_customers_from_1c")
+        call_command("import_customers_from_1c")
         return {"type": "customers", "message": "Клиенты импортированы"}
 
     else:
