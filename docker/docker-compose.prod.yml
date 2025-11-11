@@ -41,7 +41,7 @@ services:
       - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS}
       - ALLOWED_HOSTS=freesport.ru,www.freesport.ru,5.35.124.149,backend,nginx,localhost,127.0.0.1
       - CSRF_TRUSTED_ORIGINS=http://5.35.124.149,http://freesport.ru,https://5.35.124.149,https://freesport.ru,https://www.freesport.ru,http://www.freesport.ru
-      - ONEC_DATA_DIR=${ONEC_DATA_DIR:-/app/data/import_1c}
+      - ONEC_DATA_DIR=/app/data/import_1c
     volumes:
       - ../backend/logs:/app/logs
       - backend_static:/app/staticfiles
@@ -100,7 +100,7 @@ services:
       - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
       - DEBUG=0
       - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS}
-      - ONEC_DATA_DIR=${ONEC_DATA_DIR:-/app/data/import_1c}
+      - ONEC_DATA_DIR=/app/data/import_1c
     volumes:
       - ../backend/logs:/app/logs
       - ${ONEC_DATA_DIR}:/app/data/import_1c
