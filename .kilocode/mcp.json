@@ -2,7 +2,9 @@
   "mcpServers": {
     "context7": {
       "type": "streamable-http",
-      "url": "https://mcp.context7.com/mcp"
+      "url": "https://mcp.context7.com/mcp",
+      "disabled": false,
+      "alwaysAllow": []
     },
     "playwright": {
       "command": "npx",
@@ -12,7 +14,9 @@
         "--browser=",
         "--headless=",
         "--viewport-size="
-      ]
+      ],
+      "disabled": true,
+      "alwaysAllow": []
     }
   }
 }

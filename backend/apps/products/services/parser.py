@@ -190,7 +190,6 @@ class XMLDataParser:
         _, ext = os.path.splitext(normalized.lower())
 
         if ext not in valid_extensions:
-            logger.warning(f"Invalid image extension: {path}")
             return None
 
         return normalized
@@ -255,7 +254,9 @@ class XMLDataParser:
                         break
 
             # Извлечение и валидация путей изображений с дедупликацией
-            image_elements = self._find_children(product_element, "Картинка")
+            image_elements = product_element.findall(".//Картинка")
+            
+
             if image_elements:
                 validated_images = []
                 seen_paths: set[str] = set()  # Для дедупликации

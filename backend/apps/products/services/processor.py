@@ -109,8 +109,24 @@ class ProductDataProcessor:
                 if not existing.onec_id:
                     existing.onec_id = parent_id
                     existing.save(update_fields=["onec_id"])
-                logger.info(f"Product placeholder already exists: {parent_id}")
-                self.stats["skipped"] += 1
+
+                # НОВАЯ ФУНКЦИОНАЛЬНОСТЬ: Импорт изображений для существующих товаров
+                if not skip_images and base_dir and "images" in goods_data:
+                    image_result = self.import_product_images(
+                        product=existing,
+                        image_paths=goods_data["images"],
+                        base_dir=base_dir,
+                        validate_images=not self.skip_validation,
+                    )
+                    # Обновление статистики
+                    self.stats.setdefault("images_copied", 0)
+                    self.stats.setdefault("images_skipped", 0)
+                    self.stats.setdefault("images_errors", 0)
+                    self.stats["images_copied"] += image_result["copied"]
+                    self.stats["images_skipped"] += image_result["skipped"]
+                    self.stats["images_errors"] += image_result["errors"]
+
+                self.stats["updated"] += 1
                 return existing
 
             # Получаем категорию (если есть)
@@ -156,19 +172,13 @@ class ProductDataProcessor:
             brand_id = goods_data.get("brand_id")
             if brand_id:
                 brand = Brand.objects.filter(onec_id=brand_id).first()
-                if brand:
-                    logger.debug(f"Found brand {brand.name} for product {parent_id}")
-
             # Если бренд не найден, используем "No Brand"
             if brand is None:
                 brand, _ = Brand.objects.get_or_create(
                     name="No Brand", defaults={"slug": "no-brand", "is_active": True}
                 )
-                if brand_id:
-                    logger.warning(
-                        f"Brand with onec_id={brand_id} not found for product {parent_id}, "
-                        f"using 'No Brand'"
-                    )
+                # if brand_id:
+                    # Brand with onec_id={brand_id} not found for product {parent_id}, using 'No Brand'
 
             # Генерируем уникальный slug для товара
             name_value = goods_data.get("name")
@@ -213,7 +223,6 @@ class ProductDataProcessor:
             )
             product.save()
 
-            logger.info(f"Created product placeholder: {parent_id}")
             self.stats["created"] += 1
 
             # НОВАЯ ФУНКЦИОНАЛЬНОСТЬ: Импорт изображений
@@ -224,12 +233,10 @@ class ProductDataProcessor:
                     base_dir=base_dir,
                     validate_images=not self.skip_validation,
                 )
-
                 # Обновление статистики
                 self.stats.setdefault("images_copied", 0)
                 self.stats.setdefault("images_skipped", 0)
                 self.stats.setdefault("images_errors", 0)
-
                 self.stats["images_copied"] += image_result["copied"]
                 self.stats["images_skipped"] += image_result["skipped"]
                 self.stats["images_errors"] += image_result["errors"]
@@ -280,7 +287,6 @@ class ProductDataProcessor:
 
             product.save()
 
-            logger.info(f"Enriched product from offer: {onec_id}")
             self.stats["updated"] += 1
             return True
 
@@ -333,7 +339,6 @@ class ProductDataProcessor:
             product.last_sync_at = timezone.now()
             product.save()
 
-            logger.info(f"Updated prices for product: {onec_id}")
             self.stats["updated"] += 1
             return True
 
@@ -365,7 +370,6 @@ class ProductDataProcessor:
             product.last_sync_at = timezone.now()
             product.save()
 
-            logger.info(f"Updated stock for product: {onec_id}")
             self.stats["updated"] += 1
             return True
 
@@ -391,7 +395,6 @@ class ProductDataProcessor:
                 logger.error(f"Error processing price type: {e}")
                 self.stats["errors"] += 1
 
-        logger.info(f"Processed {count} price types")
         return count
 
     def finalize_session(self, status: str, error_message: str = "") -> None:
@@ -405,9 +408,6 @@ class ProductDataProcessor:
                 session.error_message = error_message
             session.save()
 
-            logger.info(
-                f"Import session {self.session_id} finalized with status: {status}"
-            )
         except ImportSession.DoesNotExist:
             logger.error(f"ImportSession {self.session_id} not found")
 
@@ -418,7 +418,6 @@ class ProductDataProcessor:
 
     def _log_missing_product(self, onec_id: str, data: Any) -> None:
         if onec_id in self._missing_products_logged:
-            logger.debug(f"Product not found (already logged): {onec_id}")
             return
 
         self._missing_products_logged.add(onec_id)
@@ -445,9 +444,7 @@ class ProductDataProcessor:
                 description = category_data.get("description", "")
 
                 if not onec_id or not name:
-                    logger.warning(
-                        f"Skipping category with missing id or name: {category_data}"
-                    )
+                    # Skipping category with missing id or name: {category_data}
                     result["errors"] += 1
                     continue
 
@@ -464,10 +461,8 @@ class ProductDataProcessor:
 
                 if created:
                     result["created"] += 1
-                    logger.info(f"Created category: {name} ({onec_id})")
                 else:
                     result["updated"] += 1
-                    logger.info(f"Updated category: {name} ({onec_id})")
 
             except Exception as e:
                 logger.error(f"Error processing category {category_data}: {e}")
@@ -486,37 +481,28 @@ class ProductDataProcessor:
                 parent = category_map.get(parent_id)
 
                 if not category:
-                    logger.warning(f"Category not found in map: {onec_id}")
+                    # Category not found in map: {onec_id}
                     continue
 
                 if not parent:
-                    logger.warning(
-                        f"Parent category not found: {parent_id} for {onec_id}"
-                    )
+                    # Parent category not found: {parent_id} for {onec_id}
                     continue
 
                 # Валидация циклических ссылок
                 if self._has_circular_reference(category, parent, category_map):
-                    logger.error(
-                        f"Circular reference detected: {onec_id} -> {parent_id}"
-                    )
+                    # Circular reference detected: {onec_id} -> {parent_id}
                     result["cycles_detected"] += 1
                     continue
 
                 # Устанавливаем parent
                 category.parent = parent
                 category.save(update_fields=["parent"])
-                logger.debug(f"Set parent {parent.name} for {category.name}")
 
             except Exception as e:
-                logger.error(f"Error setting parent for category {onec_id}: {e}")
+                # Error setting parent for category {onec_id}: {e}
                 result["errors"] += 1
 
-        logger.info(
-            f"Categories processed: {result['created']} created, "
-            f"{result['updated']} updated, {result['errors']} errors, "
-            f"{result['cycles_detected']} cycles detected"
-        )
+        # Categories processed: {result['created']} created, {result['updated']} updated, {result['errors']} errors, {result['cycles_detected']} cycles detected
         return result
 
     def _has_circular_reference(
@@ -536,24 +522,22 @@ class ProductDataProcessor:
 
         while current:
             # Если мы вернулись к исходной категории - цикл обнаружен
-            if current.id == category.id:
+            if current.pk == category.pk:
                 return True
 
             # Защита от бесконечного цикла
-            if current.id in visited:
-                logger.warning(
-                    f"Existing circular reference detected at {current.name}"
-                )
+            if current.pk in visited:
+                # Existing circular reference detected at {current.name}
                 return True
 
-            visited.add(current.id)
+            visited.add(current.pk)
 
             # Переходим к parent
             current = current.parent
 
         return False
 
-    def process_brands(self, brands_data: list[dict[str, str]]) -> dict[str, int]:
+    def process_brands(self, brands_data: Sequence[BrandData]) -> dict[str, int]:
         """
         Обработка брендов из propertiesGoods.xml
 
@@ -571,9 +555,7 @@ class ProductDataProcessor:
                 brand_name = brand_data.get("name")
 
                 if not brand_id or not brand_name:
-                    logger.warning(
-                        f"Skipping brand with missing id or name: {brand_data}"
-                    )
+                    # Skipping brand with missing id or name: {brand_data}
                     result["skipped"] += 1
                     continue
 
@@ -610,19 +592,14 @@ class ProductDataProcessor:
 
                 if created:
                     result["created"] += 1
-                    logger.info(f"Created brand: {brand_name} ({brand_id})")
                 else:
                     result["updated"] += 1
-                    logger.debug(f"Updated brand: {brand_name} ({brand_id})")
 
             except Exception as e:
-                logger.error(f"Error processing brand {brand_data}: {e}")
+                # Error processing brand {brand_data}: {e}
                 result["skipped"] += 1
 
-        logger.info(
-            f"Brands processed: {result['created']} created, "
-            f"{result['updated']} updated, {result['skipped']} skipped"
-        )
+        # Brands processed: {result['created']} created, {result['updated']} updated, {result['skipped']} skipped
         return result
 
     def import_product_images(
@@ -660,7 +637,6 @@ class ProductDataProcessor:
         result = {"copied": 0, "skipped": 0, "errors": 0}
 
         if not image_paths:
-            logger.debug(f"No images for product {product.onec_id}")
             return result
 
         # Проверяем существующий main_image (семантика повторного импорта)
@@ -671,10 +647,10 @@ class ProductDataProcessor:
             try:
                 # Построение полного пути к исходному файлу
                 source_path = Path(base_dir) / image_path
+
+
                 if not source_path.exists():
-                    logger.warning(
-                        f"Image file not found: {source_path} for product {product.onec_id}"
-                    )
+                    # Image file not found: {source_path} for product {product.onec_id}
                     result["errors"] += 1
                     continue
 
@@ -690,13 +666,12 @@ class ProductDataProcessor:
 
                 # Проверка существования файла в media
                 if default_storage.exists(destination_path):
-                    logger.debug(f"Image already exists: {destination_path}")
                     result["skipped"] += 1
 
                     # Устанавливаем связь даже если файл уже существует
                     # При повторном импорте main_image НЕ меняется если уже установлен
                     if not main_image_set:
-                        product.main_image = destination_path
+                        product.main_image = destination_path  # type: ignore
                         main_image_set = True
                     else:
                         # Проверка дубликатов в gallery_images
@@ -712,7 +687,7 @@ class ProductDataProcessor:
                         with Image.open(source_path) as img:
                             img.verify()
                     except Exception as e:
-                        logger.warning(f"Invalid image file {source_path}: {e}")
+                        # Invalid image file {source_path}: {e}
                         result["errors"] += 1
                         continue
 
@@ -723,13 +698,12 @@ class ProductDataProcessor:
                         destination_path, ContentFile(file_content)
                     )
 
-                logger.info(f"Copied image: {source_path} -> {saved_path}")
                 result["copied"] += 1
 
                 # Установка связи с Product
                 # При повторном импорте main_image НЕ меняется если уже установлен
                 if not main_image_set:
-                    product.main_image = saved_path
+                    product.main_image = saved_path  # type: ignore
                     main_image_set = True
                 else:
                     # Проверка дубликатов в gallery_images
@@ -737,16 +711,12 @@ class ProductDataProcessor:
                         gallery_images.append(saved_path)
 
             except Exception as e:
-                logger.error(f"Error copying image {image_path}: {e}")
+                # Error copying image {image_path}: {e}
                 result["errors"] += 1
 
         # Сохранение изменений в Product
         if main_image_set or gallery_images:
             product.gallery_images = gallery_images
             product.save(update_fields=["main_image", "gallery_images"])
-            logger.info(
-                f"Updated product {product.onec_id} images: "
-                f"main_image={product.main_image}, gallery={len(gallery_images)}"
-            )
 
         return result

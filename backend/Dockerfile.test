@@ -32,6 +32,10 @@ ENV DJANGO_SETTINGS_MODULE=${DJANGO_SETTINGS_MODULE}
 # Создание рабочей директории
 WORKDIR /app
 
+# Создание директорий для тестовых артефактов и данных (ПЕРЕД копированием)
+RUN mkdir -p /app/test-reports /app/htmlcov /app/test-logs /app/data/import_1c \
+    && chmod -R 755 /app/test-reports /app/htmlcov /app/test-logs /app/data
+
 # Копирование и установка зависимостей
 COPY requirements.txt .
 RUN pip install --upgrade pip \
@@ -46,10 +50,6 @@ RUN pip install --upgrade pip \
 
 # Копирование исходного кода
 COPY . .
-
-# Создание директорий для тестовых артефактов
-RUN mkdir -p /app/test-reports /app/htmlcov /app/test-logs \
-    && chmod -R 755 /app/test-reports /app/htmlcov /app/test-logs
 
 # Установка pg_dump для резервного копирования в тестовом образе
 RUN apt-get update && \
