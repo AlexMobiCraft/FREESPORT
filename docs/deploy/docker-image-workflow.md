@@ -92,7 +92,7 @@ docker push $frontendTag
 
 1. Подключиться к серверу `5.35.124.149`  c:\Users\38670\DEV_WEB\FREESPORT\scripts\server\ssh_server.ps1 (см. [docs/deploy/README.md](README.md)).
 
-2. nano ./docker/.env.prod  указать новые теги образов:
+2. nano .env.prod  указать новые теги образов:
 
    ```dotenv
    BACKEND_IMAGE=ghcr.io/alexmobicraft/freesport/backend:v1.0.0

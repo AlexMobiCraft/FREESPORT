@@ -41,3 +41,9 @@
 - BACKEND_IMAGE=ghcr.io/alexmobicraft/freesport/backend:v1.0.0
 - FRONTEND_IMAGE=ghcr.io/alexmobicraft/freesport/frontend:v1.0.0
 
+
+## 2025-11-11 11:50:18
+- TAG=v1.0.1
+- BACKEND_IMAGE=ghcr.io/alexmobicraft/freesport/backend:v1.0.1
+- FRONTEND_IMAGE=ghcr.io/alexmobicraft/freesport/frontend:v1.0.1
+
