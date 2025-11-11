@@ -46,7 +46,7 @@ services:
       - ../backend/logs:/app/logs
       - backend_static:/app/staticfiles
       - backend_media:/app/media
-      - ../data/import_1c:/app/data/import_1c
+      - ${ONEC_DATA_DIR}:/app/data/import_1c
     depends_on:
       - db
       - redis
@@ -103,7 +103,7 @@ services:
       - ONEC_DATA_DIR=${ONEC_DATA_DIR:-/app/data/import_1c}
     volumes:
       - ../backend/logs:/app/logs
-      - ../data/import_1c:/app/data/import_1c
+      - ${ONEC_DATA_DIR}:/app/data/import_1c
     depends_on:
       - db
       - redis
