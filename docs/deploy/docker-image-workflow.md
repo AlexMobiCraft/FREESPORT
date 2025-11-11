@@ -90,15 +90,24 @@ docker push $frontendTag
 
 ## 4. Применение на сервере
 
-1. Подключиться к серверу `5.35.124.149` (см. [docs/deploy/README.md](README.md)).
-2. В каталоге `/home/freesport/freesport` выполнить перезапуск сервисов:
+1. Подключиться к серверу `5.35.124.149`  c:\Users\38670\DEV_WEB\FREESPORT\scripts\server\ssh_server.ps1 (см. [docs/deploy/README.md](README.md)).
 
-   ```bash
-   docker compose --env-file .env.prod -f docker/docker-compose.prod.yml pull backend frontend celery celery-beat
-   docker compose --env-file .env.prod -f docker/docker-compose.prod.yml up -d --force-recreate backend frontend celery celery-beat
+2. nano ./docker/.env.prod  указать новые теги образов:
+
+   ```dotenv
+   BACKEND_IMAGE=ghcr.io/alexmobicraft/freesport/backend:v1.0.0
+   FRONTEND_IMAGE=ghcr.io/alexmobicraft/freesport/frontend:v1.0.0
    ```
 
-3. Проверить логи `docker compose -f docker/docker-compose.prod.yml logs -f backend`.
+3. В каталоге `/home/freesport/freesport` выполнить перезапуск сервисов:
+
+   ```bash
+   docker compose --env-file docker/.env.prod -f docker/docker-compose.prod.yml pull backend frotend celery celery-beat
+
+   docker compose --env-file docker/.env.prod -f docker/docker-compose.prod.yml up -d --force-recreate backend frontend celery celery-beat
+   ```
+
+4. Проверить логи `docker compose -f docker/docker-compose.prod.yml logs -f backend`.
 
 ## 5. Восстановление из резервной копии
 
