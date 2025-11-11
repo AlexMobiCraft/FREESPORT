@@ -4,7 +4,7 @@
 # Environment variables and secrets
 .env
 .env.local
-.env.prod
+#.env.prod
 .env.staging
 *.key
 *.pem
