@@ -12,6 +12,7 @@ param(
     [string]$Registry = "ghcr.io",
     [string]$RepositoryPrefix = "alexmobicraft/freesport",
     [string]$TagsScript = "scripts/dev/generate-image-tags.ps1",
+    [string]$TagsJsonFile = "scripts/dev/last-release-tags.json",
     [switch]$SkipTagGeneration
 )
 
@@ -37,6 +38,24 @@ function Ensure-Tag {
     }
 }
 
+function Load-TagsFromFile {
+    param([string]$FilePath)
+    if (-not (Test-Path $FilePath -PathType Leaf)) {
+        throw "Файл с тегами '$FilePath' не найден. Невозможно продолжить."
+    }
+    Write-Log "Загрузка тегов из $FilePath..."
+    $data = Get-Content -Raw -Path $FilePath | ConvertFrom-Json
+    
+    if ($null -ne $data.tag) {
+        $env:BACKEND_TAG = $data.tag
+        $env:FRONTEND_TAG = $data.tag
+        Write-Log "Тег $($data.tag) загружен в переменные окружения."
+    }
+    else {
+        throw "Не удалось найти 'tag' в файле $FilePath."
+    }
+}
+
 function Build-And-PushBackend {
     Ensure-Tag -TagValue $env:BACKEND_TAG -Name "BACKEND_TAG"
     $image = "${Registry}/${RepositoryPrefix}/backend:${env:BACKEND_TAG}"
@@ -57,8 +76,16 @@ function Build-And-PushFrontend {
 
 if (-not $SkipTagGeneration) {
     Invoke-TagScript -ScriptPath $TagsScript
-} else {
-    Write-Log "Пропуск генерации тегов (используем текущие переменные)."
+}
+else {
+    Write-Log "Пропуск генерации тегов. Проверка переменных..."
+    if ([string]::IsNullOrWhiteSpace($env:BACKEND_TAG) -or [string]::IsNullOrWhiteSpace($env:FRONTEND_TAG)) {
+        Write-Log "Одна или несколько переменных тегов не установлены. Загрузка из файла..."
+        Load-TagsFromFile -FilePath $TagsJsonFile
+    }
+    else {
+        Write-Log "Используются переменные из текущей сессии."
+    }
 }
 
 switch ($Target) {

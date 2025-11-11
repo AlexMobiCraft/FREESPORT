@@ -67,8 +67,8 @@ services:
     volumes:
       # Используем относительные пути, которые будут работать на любой машине
       - ../backend:/app
-      # Комментируем монтирование данных - тесты будут skip если данные недоступны
-      # - ../data/import_1c:/app/data/import_1c
+      # Раскомментировали монтирование данных для тестов импорта изображений
+      - ../data/import_1c:/app/data/import_1c
       - test_coverage:/app/htmlcov
     depends_on:
       db:
