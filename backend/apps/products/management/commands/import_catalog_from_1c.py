@@ -306,7 +306,7 @@ class Command(BaseCommand):
                     ):
                         processor.create_product_placeholder(
                             goods_item,
-                            base_dir=os.path.join(data_dir, "goods"),
+                            base_dir=os.path.join(data_dir, "goods", "import_files"),
                             skip_images=skip_images,
                         )
                     self.stdout.write(
