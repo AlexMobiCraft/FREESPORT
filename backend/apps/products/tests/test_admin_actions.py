@@ -15,8 +15,8 @@ import pytest
 from django.contrib.admin.sites import AdminSite
 from django.utils import timezone
 
-from apps.products.admin import ImportSessionAdmin
-from apps.products.models import ImportSession
+from apps.integrations.admin import ImportSessionAdmin
+from apps.integrations.models import Session as ImportSession
 
 if TYPE_CHECKING:
     pass

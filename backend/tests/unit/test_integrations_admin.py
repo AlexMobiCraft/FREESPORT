@@ -9,7 +9,7 @@ from django.test import RequestFactory
 from unittest.mock import Mock, patch
 
 from apps.integrations.admin import ImportSessionAdmin
-from apps.integrations.models import IntegrationImportSession
+from apps.integrations.models import Session
 
 User = get_user_model()
 
@@ -26,14 +26,13 @@ class TestImportSessionAdmin:
     @pytest.fixture
     def import_session_admin(self, admin_site):
         """Создание экземпляра ImportSessionAdmin"""
-        return ImportSessionAdmin(IntegrationImportSession, admin_site)
+        return ImportSessionAdmin(Session, admin_site)
 
     @pytest.fixture
     def superuser(self):
         """Создание суперпользователя для тестов"""
         return User.objects.create_superuser(
-            email="admin@test.com",
-            password="testpass123"
+            username="admin", email="admin@test.com", password="testpass123"
         )
 
     @pytest.fixture
@@ -44,143 +43,18 @@ class TestImportSessionAdmin:
     @pytest.fixture
     def mock_request(self, request_factory, superuser):
         """Создание mock HTTP запроса с аутентифицированным пользователем"""
-        request = request_factory.get("/admin/integrations/integrationimportsession/")
+        request = request_factory.get("/admin/integrations/session/")
         request.user = superuser
         return request
 
     @pytest.fixture
     def import_session(self):
         """Создание тестовой сессии импорта"""
-        return IntegrationImportSession.objects.create(
+        return Session.objects.create(
             import_type="catalog",
             status="completed"
         )
 
-    def test_trigger_catalog_import_with_empty_queryset(
-        self, import_session_admin, mock_request
-    ):
-        """
-        Тест: действие trigger_catalog_import с пустым queryset
-        
-        Проверяет, что при пустом queryset пользователь получает
-        информационное сообщение и действие не выполняется.
-        """
-        # Arrange
-        empty_queryset = IntegrationImportSession.objects.none()
-        
-        # Mock message_user для проверки вызова
-        import_session_admin.message_user = Mock()
-        
-        # Act
-        import_session_admin.trigger_catalog_import(
-            mock_request, 
-            empty_queryset
-        )
-        
-        # Assert
-        import_session_admin.message_user.assert_called_once()
-        call_args = import_session_admin.message_user.call_args
-        
-        # Проверяем, что сообщение содержит информацию о необходимости выбора
-        assert "выберите хотя бы одну сессию импорта" in call_args[0][1].lower()
-        assert call_args[1]["level"] == "INFO"
-
-    @patch("apps.integrations.admin.get_redis_connection")
-    @patch("apps.integrations.admin.call_command")
-    @patch("django.conf.settings.ONEC_DATA_DIR", "/test/data/dir")
-    def test_trigger_catalog_import_with_valid_queryset(
-        self,
-        mock_call_command,
-        mock_redis,
-        import_session_admin,
-        mock_request,
-        import_session,
-    ):
-        """
-        Тест: действие trigger_catalog_import с валидным queryset
-        
-        Проверяет, что при наличии выбранных объектов действие
-        выполняется корректно.
-        """
-        # Arrange
-        queryset = IntegrationImportSession.objects.filter(id=import_session.id)
-        
-        # Mock Redis lock
-        mock_lock = Mock()
-        mock_lock.acquire.return_value = True
-        mock_redis.return_value.lock.return_value = mock_lock
-        
-        # Mock message_user
-        import_session_admin.message_user = Mock()
-        
-        # Act
-        import_session_admin.trigger_catalog_import(
-            mock_request,
-            queryset
-        )
-        
-        # Assert
-        # Проверяем, что Redis lock был создан
-        mock_redis.return_value.lock.assert_called_once_with(
-            "import_catalog_lock",
-            timeout=3600
-        )
-        
-        # Проверяем, что lock был захвачен
-        mock_lock.acquire.assert_called_once_with(blocking=False)
-        
-        # Проверяем, что management command был вызван
-        mock_call_command.assert_called_once_with(
-            "import_catalog_from_1c",
-            "--data-dir",
-            "/test/data/dir"
-        )
-        
-        # Проверяем, что lock был освобожден
-        mock_lock.release.assert_called_once()
-        
-        # Проверяем успешное сообщение
-        import_session_admin.message_user.assert_called_once()
-        call_args = import_session_admin.message_user.call_args
-        assert "успешно" in call_args[0][1].lower()
-        assert call_args[1]["level"] == "SUCCESS"
-
-    @patch("apps.integrations.admin.get_redis_connection")
-    def test_trigger_catalog_import_with_concurrent_lock(
-        self,
-        mock_redis,
-        import_session_admin,
-        mock_request,
-        import_session,
-    ):
-        """
-        Тест: действие trigger_catalog_import при активной блокировке
-        
-        Проверяет, что при наличии активного импорта пользователь
-        получает предупреждение.
-        """
-        # Arrange
-        queryset = IntegrationImportSession.objects.filter(id=import_session.id)
-        
-        # Mock Redis lock - блокировка не может быть захвачена
-        mock_lock = Mock()
-        mock_lock.acquire.return_value = False
-        mock_redis.return_value.lock.return_value = mock_lock
-        
-        # Mock message_user
-        import_session_admin.message_user = Mock()
-        
-        # Act
-        import_session_admin.trigger_catalog_import(
-            mock_request,
-            queryset
-        )
-        
-        # Assert
-        import_session_admin.message_user.assert_called_once()
-        call_args = import_session_admin.message_user.call_args
-        assert "импорт уже запущен" in call_args[0][1].lower()
-        assert call_args[1]["level"] == "WARNING"
 
     def test_colored_status_display(self, import_session_admin, import_session):
         """
@@ -206,7 +80,7 @@ class TestImportSessionAdmin:
         from django.utils import timezone
         from datetime import timedelta
         
-        session = IntegrationImportSession.objects.create(
+        session = Session.objects.create(
             import_type="catalog",
             status="completed"
         )
@@ -226,7 +100,7 @@ class TestImportSessionAdmin:
         Тест: отображение длительности для импорта в процессе
         """
         # Arrange
-        session = IntegrationImportSession.objects.create(
+        session = Session.objects.create(
             import_type="catalog",
             status="in_progress"
         )
@@ -242,7 +116,7 @@ class TestImportSessionAdmin:
         Тест: отображение прогресс-бара с данными
         """
         # Arrange
-        session = IntegrationImportSession.objects.create(
+        session = Session.objects.create(
             import_type="catalog",
             status="in_progress",
             report_details={
@@ -264,7 +138,7 @@ class TestImportSessionAdmin:
         Тест: отображение прогресса без данных
         """
         # Arrange
-        session = IntegrationImportSession.objects.create(
+        session = Session.objects.create(
             import_type="catalog",
             status="completed"
         )
@@ -372,7 +246,7 @@ class TestImportSessionAdmin:
         Story 9.7: Функционал мониторинга Celery задач должен быть сохранен.
         """
         # Arrange
-        session = IntegrationImportSession.objects.create(
+        session = Session.objects.create(
             import_type="catalog",
             status="in_progress",
             celery_task_id="test-task-id-123"

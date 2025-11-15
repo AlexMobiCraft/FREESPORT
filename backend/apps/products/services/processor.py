@@ -118,13 +118,7 @@ class ProductDataProcessor:
                         base_dir=base_dir,
                         validate_images=not self.skip_validation,
                     )
-                    # Обновление статистики
-                    self.stats.setdefault("images_copied", 0)
-                    self.stats.setdefault("images_skipped", 0)
-                    self.stats.setdefault("images_errors", 0)
-                    self.stats["images_copied"] += image_result["copied"]
-                    self.stats["images_skipped"] += image_result["skipped"]
-                    self.stats["images_errors"] += image_result["errors"]
+                    self._update_image_stats(image_result)
 
                 self.stats["updated"] += 1
                 return existing
@@ -233,13 +227,7 @@ class ProductDataProcessor:
                     base_dir=base_dir,
                     validate_images=not self.skip_validation,
                 )
-                # Обновление статистики
-                self.stats.setdefault("images_copied", 0)
-                self.stats.setdefault("images_skipped", 0)
-                self.stats.setdefault("images_errors", 0)
-                self.stats["images_copied"] += image_result["copied"]
-                self.stats["images_skipped"] += image_result["skipped"]
-                self.stats["images_errors"] += image_result["errors"]
+                self._update_image_stats(image_result)
 
             return product
 
@@ -421,6 +409,12 @@ class ProductDataProcessor:
             return
 
         self._missing_products_logged.add(onec_id)
+
+    def _update_image_stats(self, image_result: dict[str, int]) -> None:
+        """Helper to update image-related stats."""
+        for key in ["images_copied", "images_skipped", "images_errors"]:
+            self.stats.setdefault(key, 0)
+            self.stats[key] += image_result.get(key, 0)
 
     def process_categories(self, categories_data: list[CategoryData]) -> dict[str, int]:
         """
@@ -629,6 +623,11 @@ class ProductDataProcessor:
             - Дубликаты в gallery_images предотвращаются
             - Сохраняется структура поддиректорий из 1С для производительности
         """
+        logger.info(
+            f"Starting image import for product {product.onec_id}. "
+            f"Initial main_image: {product.main_image}, "
+            f"Initial gallery: {product.gallery_images}"
+        )
         from pathlib import Path
 
         from django.core.files.base import ContentFile
@@ -642,6 +641,7 @@ class ProductDataProcessor:
         # Проверяем существующий main_image (семантика повторного импорта)
         main_image_set = bool(product.main_image and product.main_image != self.DEFAULT_PLACEHOLDER_IMAGE)
         gallery_images = list(product.gallery_images or [])
+        logger.info(f"main_image_set flag initial value: {main_image_set}")
 
         for image_path in image_paths:
             try:
@@ -671,9 +671,11 @@ class ProductDataProcessor:
                     # Устанавливаем связь даже если файл уже существует
                     # При повторном импорте main_image НЕ меняется если уже установлен
                     if not main_image_set:
+                        logger.info(f"Setting existing file as main_image: {destination_path}")
                         product.main_image = destination_path  # type: ignore
                         main_image_set = True
                     else:
+                        logger.info(f"Adding existing file to gallery: {destination_path}")
                         # Проверка дубликатов в gallery_images
                         if destination_path not in gallery_images:
                             gallery_images.append(destination_path)
@@ -703,9 +705,11 @@ class ProductDataProcessor:
                 # Установка связи с Product
                 # При повторном импорте main_image НЕ меняется если уже установлен
                 if not main_image_set:
+                    logger.info(f"Setting new file as main_image: {saved_path}")
                     product.main_image = saved_path  # type: ignore
                     main_image_set = True
                 else:
+                    logger.info(f"Adding new file to gallery: {saved_path}")
                     # Проверка дубликатов в gallery_images
                     if saved_path not in gallery_images:
                         gallery_images.append(saved_path)

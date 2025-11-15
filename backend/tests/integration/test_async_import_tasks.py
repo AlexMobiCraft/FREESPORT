@@ -102,7 +102,7 @@ class TestRunSelectiveImportTask:
 class TestExecuteImportType:
     """Тесты для функции _execute_import_type"""
 
-    @patch("apps.integrations.tasks.call_command")
+    @patch("apps.integrations.admin.call_command")
     def test_catalog_import_calls_correct_command(self, mock_call_command):
         """Тест вызова правильной команды для импорта каталога"""
         # Arrange
@@ -113,7 +113,7 @@ class TestExecuteImportType:
             mock_path.return_value.exists.return_value = True
 
             # Act
-            result = _execute_import_type("catalog", data_dir, task_id)
+            result = _execute_import_type("catalog", task_id)
 
             # Assert
             assert result["type"] == "catalog"
@@ -126,7 +126,7 @@ class TestExecuteImportType:
                 "all",
             )
 
-    @patch("apps.integrations.tasks.call_command")
+    @patch("apps.integrations.admin.call_command")
     def test_stocks_import_validates_file_exists(self, mock_call_command):
         """Тест валидации существования файла остатков"""
         # Arrange
@@ -135,9 +135,9 @@ class TestExecuteImportType:
 
         # Act & Assert
         with pytest.raises(FileNotFoundError, match="Файл остатков не найден"):
-            _execute_import_type("stocks", data_dir, task_id)
+            _execute_import_type("stocks", task_id)
 
-    @patch("apps.integrations.tasks.call_command")
+    @patch("apps.integrations.admin.call_command")
     def test_prices_import_calls_correct_command(self, mock_call_command):
         """Тест вызова правильной команды для импорта цен"""
         # Arrange
@@ -148,7 +148,7 @@ class TestExecuteImportType:
             mock_path.return_value.exists.return_value = True
 
             # Act
-            result = _execute_import_type("prices", data_dir, task_id)
+            result = _execute_import_type("prices", task_id)
 
             # Assert
             assert result["type"] == "prices"
@@ -161,7 +161,7 @@ class TestExecuteImportType:
                 "prices",
             )
 
-    @patch("apps.integrations.tasks.call_command")
+    @patch("apps.integrations.admin.call_command")
     def test_customers_import_finds_contragents_file(self, mock_call_command):
         """Тест поиска файла контрагентов"""
         # Arrange
@@ -177,7 +177,7 @@ class TestExecuteImportType:
             mock_path.return_value.__truediv__.return_value = mock_contragents_dir
 
             # Act
-            result = _execute_import_type("customers", data_dir, task_id)
+            result = _execute_import_type("customers", task_id)
 
             # Assert
             assert result["type"] == "customers"
@@ -192,7 +192,7 @@ class TestExecuteImportType:
 
         # Act & Assert
         with pytest.raises(ValueError, match="Неизвестный тип импорта"):
-            _execute_import_type("unknown_type", data_dir, task_id)
+            _execute_import_type("unknown_type", task_id)
 
 
 @pytest.mark.integration
