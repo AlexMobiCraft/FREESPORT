@@ -20,7 +20,9 @@
       "Bash(python -m black:*)",
       "Bash(python -m mypy:*)",
       "Bash(git log:*)",
-      "Bash(docker compose:*)"
+      "Bash(docker compose:*)",
+      "SlashCommand(/BMad:agents:sm)",
+      "SlashCommand(/BMad:agents:po)"
     ],
     "deny": [],
     "ask": [],
