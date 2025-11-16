@@ -56,6 +56,7 @@ DATABASES = {
         "OPTIONS": {
             "client_encoding": "UTF8",
             "connect_timeout": 10,
+            "charset": "UTF8",  # Явное указание кодировки для PostgreSQL
         },
         "TEST": {
             "NAME": _get_env_value(

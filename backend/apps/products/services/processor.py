@@ -99,6 +99,8 @@ class ProductDataProcessor:
             if not parent_id:
                 self._log_error("Missing parent_id in goods_data", goods_data)
                 return None
+                
+            logger.info(f"Creating product placeholder for parent_id: {parent_id}")
 
             # Проверка существующего товара (по onec_id или parent_onec_id)
             existing = Product.objects.filter(
@@ -112,13 +114,19 @@ class ProductDataProcessor:
 
                 # НОВАЯ ФУНКЦИОНАЛЬНОСТЬ: Импорт изображений для существующих товаров
                 if not skip_images and base_dir and "images" in goods_data:
-                    image_result = self.import_product_images(
-                        product=existing,
-                        image_paths=goods_data["images"],
-                        base_dir=base_dir,
-                        validate_images=not self.skip_validation,
-                    )
-                    self._update_image_stats(image_result)
+                    try:
+                        logger.info(f"Importing images for existing product {existing.onec_id}")
+                        image_result = self.import_product_images(
+                            product=existing,
+                            image_paths=goods_data["images"],
+                            base_dir=base_dir,
+                            validate_images=not self.skip_validation,
+                        )
+                        self._update_image_stats(image_result)
+                    except Exception as img_error:
+                        logger.error(f"Error importing images for existing product {existing.onec_id}: {img_error}")
+                        # Не прерываем процесс, а продолжаем с ошибкой в статистике
+                        self.stats["errors"] += 1
 
                 self.stats["updated"] += 1
                 return existing
@@ -215,21 +223,32 @@ class ProductDataProcessor:
                 sync_status=Product.SyncStatus.PENDING,
                 main_image=self.DEFAULT_PLACEHOLDER_IMAGE,
             )
-            product.save()
+            try:
+                product.save()
+                logger.info(f"Product placeholder created successfully: {product.onec_id}")
+                self.stats["created"] += 1
 
-            self.stats["created"] += 1
+                # НОВАЯ ФУНКЦИОНАЛЬНОСТЬ: Импорт изображений
+                if not skip_images and base_dir and "images" in goods_data:
+                    try:
+                        logger.info(f"Importing images for new product {product.onec_id}")
+                        image_result = self.import_product_images(
+                            product=product,
+                            image_paths=goods_data["images"],
+                            base_dir=base_dir,
+                            validate_images=not self.skip_validation,
+                        )
+                        self._update_image_stats(image_result)
+                    except Exception as img_error:
+                        logger.error(f"Error importing images for new product {product.onec_id}: {img_error}")
+                        # Не прерываем процесс, а продолжаем с ошибкой в статистике
+                        self.stats["errors"] += 1
 
-            # НОВАЯ ФУНКЦИОНАЛЬНОСТЬ: Импорт изображений
-            if not skip_images and base_dir and "images" in goods_data:
-                image_result = self.import_product_images(
-                    product=product,
-                    image_paths=goods_data["images"],
-                    base_dir=base_dir,
-                    validate_images=not self.skip_validation,
-                )
-                self._update_image_stats(image_result)
-
-            return product
+                return product
+            except Exception as save_error:
+                logger.error(f"Error saving product placeholder: {save_error}")
+                self._log_error(f"Error saving product placeholder: {save_error}", goods_data)
+                return None
 
         except Exception as e:
             self._log_error(f"Error creating product placeholder: {e}", goods_data)
@@ -412,9 +431,19 @@ class ProductDataProcessor:
 
     def _update_image_stats(self, image_result: dict[str, int]) -> None:
         """Helper to update image-related stats."""
-        for key in ["images_copied", "images_skipped", "images_errors"]:
-            self.stats.setdefault(key, 0)
-            self.stats[key] += image_result.get(key, 0)
+        # Исправляем несоответствие ключей: метод возвращает "copied", "skipped", "errors"
+        # а статистика ожидает "images_copied", "images_skipped", "images_errors"
+        key_mapping = {
+            "copied": "images_copied",
+            "skipped": "images_skipped",
+            "errors": "images_errors"
+        }
+        
+        for result_key, stats_key in key_mapping.items():
+            self.stats.setdefault(stats_key, 0)
+            self.stats[stats_key] += image_result.get(result_key, 0)
+            
+        logger.info(f"Updated image stats: {self.stats}")
 
     def process_categories(self, categories_data: list[CategoryData]) -> dict[str, int]:
         """
@@ -634,6 +663,9 @@ class ProductDataProcessor:
         from django.core.files.storage import default_storage
 
         result = {"copied": 0, "skipped": 0, "errors": 0}
+        
+        # Логирование для отладки
+        logger.info(f"Starting image import for product {product.onec_id} with {len(image_paths)} images")
 
         if not image_paths:
             return result
@@ -688,8 +720,9 @@ class ProductDataProcessor:
 
                         with Image.open(source_path) as img:
                             img.verify()
+                        logger.info(f"Image validation passed for: {source_path}")
                     except Exception as e:
-                        # Invalid image file {source_path}: {e}
+                        logger.error(f"Invalid image file {source_path}: {e}")
                         result["errors"] += 1
                         continue
 
@@ -715,12 +748,15 @@ class ProductDataProcessor:
                         gallery_images.append(saved_path)
 
             except Exception as e:
-                # Error copying image {image_path}: {e}
+                logger.error(f"Error copying image {image_path}: {e}")
                 result["errors"] += 1
 
         # Сохранение изменений в Product
         if main_image_set or gallery_images:
             product.gallery_images = gallery_images
             product.save(update_fields=["main_image", "gallery_images"])
+            logger.info(f"Product {product.onec_id} updated with main_image: {product.main_image}, gallery count: {len(gallery_images)}")
 
+        # Логирование итоговых результатов для отладки
+        logger.info(f"Image import completed for product {product.onec_id}: {result}")
         return result
