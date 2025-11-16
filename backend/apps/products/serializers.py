@@ -159,7 +159,22 @@ class ProductListSerializer(serializers.ModelSerializer):
             "min_order_quantity",
             "can_be_ordered",
             "is_featured",
+            # Story 11.0: Маркетинговые флаги для бейджей
+            "is_hit",
+            "is_new",
+            "is_sale",
+            "is_promo",
+            "is_premium",
+            "discount_percent",
             "created_at",
+        ]
+        read_only_fields = [
+            "is_hit",
+            "is_new",
+            "is_sale",
+            "is_promo",
+            "is_premium",
+            "discount_percent",
         ]
 
     def get_current_price(self, obj):
@@ -225,7 +240,6 @@ class ProductDetailSerializer(ProductListSerializer):
     images = serializers.SerializerMethodField()
     related_products = serializers.SerializerMethodField()
     category_breadcrumbs = serializers.SerializerMethodField()
-    discount_percent = serializers.SerializerMethodField()
     specifications = serializers.JSONField(read_only=True)
 
     class Meta(ProductListSerializer.Meta):
@@ -235,7 +249,6 @@ class ProductDetailSerializer(ProductListSerializer):
             "images",
             "related_products",
             "category_breadcrumbs",
-            "discount_percent",
             "seo_title",
             "seo_description",
         ]
@@ -313,23 +326,6 @@ class ProductDetailSerializer(ProductListSerializer):
             current = current.parent
 
         return breadcrumbs
-
-    def get_discount_percent(self, obj):
-        """Рассчитать процент скидки относительно розничной цены"""
-        request = self.context.get("request")
-        user = request.user if request else None
-
-        if not user or not user.is_authenticated:
-            return None
-
-        current_price = obj.get_price_for_user(user)
-
-        # Всегда рассчитываем скидку относительно розничной цены
-        if current_price < obj.retail_price:
-            discount = ((obj.retail_price - current_price) / obj.retail_price) * 100
-            return round(discount, 1)
-
-        return None
 
 
 class CategoryTreeSerializer(serializers.ModelSerializer):

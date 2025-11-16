@@ -28,6 +28,14 @@ const eslintConfig = [
       'jsx-a11y/no-static-element-interactions': 'warn',
     },
   },
+  {
+    ignores: [
+      '.next/**',
+      'coverage/**',
+      '**/*.config.js',
+      '**/*.config.mjs',
+    ],
+  },
 ];
 
 export default eslintConfig;

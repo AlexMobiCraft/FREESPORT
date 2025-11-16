@@ -1,9 +1,9 @@
 /**
  * Конфигурация Jest для тестирования Next.js приложения
  */
-import nextJest from 'next/jest';
+import createJestConfig from 'next/jest.js';
 
-const createJestConfig = nextJest({
+const nextJestConfig = createJestConfig({
   // Путь к Next.js приложению для загрузки next.config.js и файлов .env
   dir: './',
 });
@@ -23,10 +23,13 @@ const customJestConfig = {
     '<rootDir>/src/**/*.(test|spec).(ts|tsx|js|jsx)',
   ],
 
-  // Псевдонимы модулей (ИСПРАВЛЕНО)
+  // Псевдонимы модулей
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
   },
+
+  // Трансформация модулей (включая MSW)
+  transformIgnorePatterns: ['node_modules/(?!(msw)/)'],
 
   // Файлы для игнорирования при покрытии кода
   coveragePathIgnorePatterns: [
@@ -63,4 +66,4 @@ const customJestConfig = {
   ],
 };
 
-export default createJestConfig(customJestConfig);
+export default nextJestConfig(customJestConfig);

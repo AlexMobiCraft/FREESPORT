@@ -22,7 +22,16 @@
       "Bash(git log:*)",
       "Bash(docker compose:*)",
       "SlashCommand(/BMad:agents:sm)",
-      "SlashCommand(/BMad:agents:po)"
+      "SlashCommand(/BMad:agents:po)",
+      "Bash(npm install:*)",
+      "Bash(npm run lint)",
+      "Bash(npm test:*)",
+      "Bash(echo:*)",
+      "Bash(.env.local)",
+      "Bash(.env.example)",
+      "Bash(npm pkg set:*)",
+      "Bash(npm run generate:types:*)",
+      "Bash(npm run test:coverage:*)"
     ],
     "deny": [],
     "ask": [],

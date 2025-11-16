@@ -99,6 +99,27 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
                     "42 и т.д.)"
                 ),
             ),
+            # Story 11.0: Маркетинговые фильтры для бейджей
+            OpenApiParameter(
+                "is_hit", OpenApiTypes.BOOL, description="Хиты продаж"
+            ),
+            OpenApiParameter(
+                "is_new", OpenApiTypes.BOOL, description="Новинки"
+            ),
+            OpenApiParameter(
+                "is_sale", OpenApiTypes.BOOL, description="Распродажа"
+            ),
+            OpenApiParameter(
+                "is_promo", OpenApiTypes.BOOL, description="Акции"
+            ),
+            OpenApiParameter(
+                "is_premium", OpenApiTypes.BOOL, description="Премиум товары"
+            ),
+            OpenApiParameter(
+                "has_discount",
+                OpenApiTypes.BOOL,
+                description="Товары со скидкой (имеют discount_percent)",
+            ),
             OpenApiParameter(
                 "ordering",
                 OpenApiTypes.STR,

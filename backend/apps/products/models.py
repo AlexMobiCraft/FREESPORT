@@ -10,7 +10,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, cast
 
-from django.core.validators import MinValueValidator
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils.text import slugify
 from transliterate import translit
@@ -321,6 +321,63 @@ class Product(models.Model):
     # Флаги
     is_active = cast(bool, models.BooleanField("Активный", default=True))
     is_featured = cast(bool, models.BooleanField("Рекомендуемый", default=False))
+
+    # Маркетинговые флаги для бейджей (Story 11.0)
+    is_hit = cast(
+        bool,
+        models.BooleanField(
+            "Хит продаж",
+            default=False,
+            db_index=True,
+            help_text="Отображать бейдж 'Хит продаж' на карточке товара",
+        ),
+    )
+    is_new = cast(
+        bool,
+        models.BooleanField(
+            "Новинка",
+            default=False,
+            db_index=True,
+            help_text="Отображать бейдж 'Новинка' на карточке товара",
+        ),
+    )
+    is_sale = cast(
+        bool,
+        models.BooleanField(
+            "Распродажа",
+            default=False,
+            db_index=True,
+            help_text="Товар участвует в распродаже",
+        ),
+    )
+    is_promo = cast(
+        bool,
+        models.BooleanField(
+            "Акция",
+            default=False,
+            db_index=True,
+            help_text="Товар участвует в акции/промо",
+        ),
+    )
+    is_premium = cast(
+        bool,
+        models.BooleanField(
+            "Премиум",
+            default=False,
+            db_index=True,
+            help_text="Премиум товар (эксклюзив, лимитированная серия)",
+        ),
+    )
+    discount_percent = cast(
+        int | None,
+        models.PositiveSmallIntegerField(
+            "Процент скидки",
+            null=True,
+            blank=True,
+            validators=[MaxValueValidator(100)],
+            help_text="Процент скидки для отображения на бейдже (0-100)",
+        ),
+    )
 
     # Временные метки и интеграция с 1С
     created_at = cast(

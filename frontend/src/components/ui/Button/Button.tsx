@@ -1,0 +1,73 @@
+/**
+ * Button Component
+ * Базовый компонент кнопки согласно FREESPORT Design System
+ *
+ * @see frontend/docs/design-system.json#components.Button
+ */
+
+import React from 'react';
+import { cn } from '@/utils/cn';
+
+export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  /** Вариант кнопки */
+  variant?: 'primary' | 'secondary' | 'tertiary' | 'subtle';
+  /** Размер кнопки */
+  size?: 'small' | 'medium' | 'large';
+  /** Дочерние элементы */
+  children: React.ReactNode;
+}
+
+export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+  ({ variant = 'primary', size = 'medium', className, children, disabled, ...props }, ref) => {
+    return (
+      <button
+        ref={ref}
+        className={cn(
+          // Базовые стили
+          'inline-flex items-center justify-center',
+          'font-medium transition-all',
+          'focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2',
+          'disabled:opacity-50 disabled:cursor-not-allowed',
+
+          // Варианты
+          variant === 'primary' && [
+            'bg-primary text-[var(--color-text-inverse)]',
+            'shadow-primary',
+            'hover:bg-primary-hover hover:-translate-y-0.5',
+            'active:bg-primary-active active:translate-y-0',
+          ],
+          variant === 'secondary' && [
+            'bg-neutral-100 border border-primary text-[var(--color-primary)]',
+            'shadow-default',
+            'hover:bg-neutral-200 hover:-translate-y-0.5',
+            'active:translate-y-0',
+          ],
+          variant === 'tertiary' && [
+            'bg-transparent text-[var(--color-primary)]',
+            'hover:bg-neutral-200 hover:-translate-y-0.5',
+            'active:translate-y-0',
+          ],
+          variant === 'subtle' && [
+            'bg-[#E7F3FF] text-[var(--color-primary)]',
+            'shadow-default',
+            'hover:bg-[#D6E9FF] hover:-translate-y-0.5',
+            'active:translate-y-0',
+          ],
+
+          // Размеры
+          size === 'small' && 'h-10 px-6 text-body-s rounded-sm',
+          size === 'medium' && 'h-10 px-6 text-body-m rounded-sm',
+          size === 'large' && 'h-12 px-8 text-body-l rounded-sm',
+
+          className
+        )}
+        disabled={disabled}
+        {...props}
+      >
+        {children}
+      </button>
+    );
+  }
+);
+
+Button.displayName = 'Button';

@@ -1,26 +1,182 @@
 @import 'tailwindcss';
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/**
+ * FREESPORT Design System - Tailwind CSS 4.0 Tokens
+ * Based on design-system.json specification
+ */
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* Colors - Primary */
+  --color-primary: #1f1f1f;
+  --color-primary-hover: #3a3a3a;
+  --color-primary-active: #0d0d0d;
+  --color-primary-subtle: #f2f2f2;
+
+  /* Colors - Secondary */
+  --color-secondary: #3d3d3d;
+  --color-secondary-hover: #2e2e2e;
+  --color-secondary-active: #1c1c1c;
+  --color-secondary-subtle: #eaeaea;
+
+  /* Colors - Accent */
+  --color-accent-success: #4d4d4d;
+  --color-accent-warning: #6a6a6a;
+  --color-accent-danger: #2b2b2b;
+  --color-accent-promo: #8a8a8a;
+
+  /* Colors - Neutral Scale */
+  --color-neutral-100: #ffffff;
+  --color-neutral-200: #f5f5f5;
+  --color-neutral-300: #e0e0e0;
+  --color-neutral-400: #c7c7c7;
+  --color-neutral-500: #a3a3a3;
+  --color-neutral-600: #7d7d7d;
+  --color-neutral-700: #5e5e5e;
+  --color-neutral-800: #3f3f3f;
+  --color-neutral-900: #1f1f1f;
+
+  /* Colors - Text */
+  --color-text-primary: #1b1b1b;
+  --color-text-secondary: #4d4d4d;
+  --color-text-muted: #7a7a7a;
+  --color-text-inverse: #ffffff;
+
+  /* Typography - Font Family */
+  --font-sans: 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  /* Typography - Font Sizes */
+  --font-size-display-l: 48px;
+  --font-size-display-m: 40px;
+  --font-size-headline-l: 32px;
+  --font-size-headline-m: 28px;
+  --font-size-title-l: 24px;
+  --font-size-title-m: 20px;
+  --font-size-body-l: 18px;
+  --font-size-body-m: 16px;
+  --font-size-body-s: 14px;
+  --font-size-caption: 12px;
+
+  /* Typography - Line Heights */
+  --line-height-display-l: 56px;
+  --line-height-display-m: 48px;
+  --line-height-headline-l: 40px;
+  --line-height-headline-m: 36px;
+  --line-height-title-l: 32px;
+  --line-height-title-m: 28px;
+  --line-height-body-l: 28px;
+  --line-height-body-m: 24px;
+  --line-height-body-s: 20px;
+  --line-height-caption: 16px;
+
+  /* Spacing Scale */
+  --spacing-1: 4px;
+  --spacing-2: 8px;
+  --spacing-3: 12px;
+  --spacing-4: 16px;
+  --spacing-5: 20px;
+  --spacing-6: 24px;
+  --spacing-8: 32px;
+  --spacing-10: 40px;
+  --spacing-12: 48px;
+  --spacing-14: 56px;
+  --spacing-16: 64px;
+
+  /* Border Radius */
+  --radius-sm: 6px;
+  --radius: 12px;
+  --radius-md: 16px;
+  --radius-lg: 20px;
+  --radius-xl: 24px;
+  --radius-full: 9999px;
+
+  /* Shadows */
+  --shadow-default: 0 8px 24px rgba(15, 23, 42, 0.08);
+  --shadow-hover: 0 10px 32px rgba(15, 23, 42, 0.12);
+  --shadow-primary: 0 10px 24px rgba(0, 96, 255, 0.28);
+  --shadow-secondary: 0 6px 16px rgba(0, 71, 204, 0.12);
+  --shadow-pressed: 0 6px 18px rgba(0, 55, 166, 0.24);
+  --shadow-modal: 0 24px 64px rgba(15, 23, 42, 0.24);
+
+  /* Motion */
+  --duration-short: 120ms;
+  --duration-medium: 180ms;
+  --easing: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+:root {
+  --background: var(--color-neutral-100);
+  --foreground: var(--color-text-primary);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Typography Utility Classes */
+@layer utilities {
+  .text-display-l {
+    font-size: var(--font-size-display-l);
+    line-height: var(--line-height-display-l);
+    font-weight: 700;
+  }
+  .text-display-m {
+    font-size: var(--font-size-display-m);
+    line-height: var(--line-height-display-m);
+    font-weight: 700;
+  }
+  .text-headline-l {
+    font-size: var(--font-size-headline-l);
+    line-height: var(--line-height-headline-l);
+    font-weight: 700;
+  }
+  .text-headline-m {
+    font-size: var(--font-size-headline-m);
+    line-height: var(--line-height-headline-m);
+    font-weight: 600;
+  }
+  .text-title-l {
+    font-size: var(--font-size-title-l);
+    line-height: var(--line-height-title-l);
+    font-weight: 600;
+  }
+  .text-title-m {
+    font-size: var(--font-size-title-m);
+    line-height: var(--line-height-title-m);
+    font-weight: 600;
+  }
+  .text-body-l {
+    font-size: var(--font-size-body-l);
+    line-height: var(--line-height-body-l);
+    font-weight: 500;
+  }
+  .text-body-m {
+    font-size: var(--font-size-body-m);
+    line-height: var(--line-height-body-m);
+    font-weight: 500;
+  }
+  .text-body-s {
+    font-size: var(--font-size-body-s);
+    line-height: var(--line-height-body-s);
+    font-weight: 500;
+  }
+  .text-caption {
+    font-size: var(--font-size-caption);
+    line-height: var(--line-height-caption);
+    font-weight: 500;
+  }
+}
+
+/* Accessibility - Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

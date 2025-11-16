@@ -65,6 +65,27 @@ class ProductFilter(django_filters.FilterSet):
         ),
     )
 
+    # Story 11.0: Маркетинговые фильтры для бейджей
+    is_hit = django_filters.BooleanFilter(
+        field_name="is_hit", help_text="Хиты продаж"
+    )
+    is_new = django_filters.BooleanFilter(
+        field_name="is_new", help_text="Новинки"
+    )
+    is_sale = django_filters.BooleanFilter(
+        field_name="is_sale", help_text="Товары на распродаже"
+    )
+    is_promo = django_filters.BooleanFilter(
+        field_name="is_promo", help_text="Акционные товары"
+    )
+    is_premium = django_filters.BooleanFilter(
+        field_name="is_premium", help_text="Премиум товары"
+    )
+    has_discount = django_filters.BooleanFilter(
+        method="filter_has_discount",
+        help_text="Товары со скидкой (имеют discount_percent)",
+    )
+
     class Meta:
         model = Product
         fields = [
@@ -76,6 +97,13 @@ class ProductFilter(django_filters.FilterSet):
             "is_featured",
             "search",
             "size",
+            # Story 11.0: Маркетинговые фильтры
+            "is_hit",
+            "is_new",
+            "is_sale",
+            "is_promo",
+            "is_premium",
+            "has_discount",
         ]
 
     def filter_brand(self, queryset, name, value):
@@ -303,3 +331,12 @@ class ProductFilter(django_filters.FilterSet):
             size_queries |= Q(specifications__размер__iexact=size_value)
 
         return queryset.filter(size_queries)
+
+    def filter_has_discount(self, queryset, name, value):
+        """Фильтр товаров со скидкой (discount_percent не null)"""
+        if value:
+            # Товары со скидкой
+            return queryset.filter(discount_percent__isnull=False)
+        else:
+            # Товары без скидки
+            return queryset.filter(discount_percent__isnull=True)

@@ -56,9 +56,28 @@ class ProductAdmin(admin.ModelAdmin):
         "retail_price",
         "stock_quantity",
         "is_active",
+        # Story 11.0: Маркетинговые флаги
+        "is_hit",
+        "is_new",
+        "is_sale",
+        "is_promo",
+        "is_premium",
+        "discount_percent",
         "onec_id",
     )
-    list_filter = ("is_active", "brand", "category", "sync_status", "created_at")
+    list_filter = (
+        "is_active",
+        "brand",
+        "category",
+        "sync_status",
+        # Story 11.0: Маркетинговые фильтры
+        "is_hit",
+        "is_new",
+        "is_sale",
+        "is_promo",
+        "is_premium",
+        "created_at",
+    )
     search_fields = ("name", "sku", "onec_id", "parent_onec_id")
     prepopulated_fields = {"slug": ("name",)}
     readonly_fields = (
@@ -134,12 +153,99 @@ class ProductAdmin(admin.ModelAdmin):
             },
         ),
         (
+            "Маркетинговые флаги (Story 11.0)",
+            {
+                "fields": (
+                    "is_hit",
+                    "is_new",
+                    "is_sale",
+                    "is_promo",
+                    "is_premium",
+                    "discount_percent",
+                ),
+            },
+        ),
+        (
             "Статус и даты",
             {
                 "fields": ("is_active", "created_at", "updated_at"),
             },
         ),
     )
+
+    # Story 11.0: Массовые действия для маркетинговых флагов
+    actions = [
+        "mark_as_hit",
+        "unmark_as_hit",
+        "mark_as_new",
+        "unmark_as_new",
+        "mark_as_sale",
+        "unmark_as_sale",
+        "mark_as_promo",
+        "unmark_as_promo",
+        "mark_as_premium",
+        "unmark_as_premium",
+    ]
+
+    @admin.action(description="✓ Отметить как хит продаж")
+    def mark_as_hit(self, request: HttpRequest, queryset: QuerySet[Product]) -> None:
+        """Массовое действие: пометить как хит продаж"""
+        updated = queryset.update(is_hit=True)
+        self.message_user(request, f"Отмечено хитами продаж: {updated} товаров")
+
+    @admin.action(description="✗ Снять отметку хит продаж")
+    def unmark_as_hit(self, request: HttpRequest, queryset: QuerySet[Product]) -> None:
+        """Массовое действие: снять отметку хит продаж"""
+        updated = queryset.update(is_hit=False)
+        self.message_user(request, f"Снята отметка хитов продаж: {updated} товаров")
+
+    @admin.action(description="✓ Отметить как новинку")
+    def mark_as_new(self, request: HttpRequest, queryset: QuerySet[Product]) -> None:
+        """Массовое действие: пометить как новинку"""
+        updated = queryset.update(is_new=True)
+        self.message_user(request, f"Отмечено новинками: {updated} товаров")
+
+    @admin.action(description="✗ Снять отметку новинка")
+    def unmark_as_new(self, request: HttpRequest, queryset: QuerySet[Product]) -> None:
+        """Массовое действие: снять отметку новинка"""
+        updated = queryset.update(is_new=False)
+        self.message_user(request, f"Снята отметка новинок: {updated} товаров")
+
+    @admin.action(description="✓ Отметить как распродажа")
+    def mark_as_sale(self, request: HttpRequest, queryset: QuerySet[Product]) -> None:
+        """Массовое действие: пометить как распродажа"""
+        updated = queryset.update(is_sale=True)
+        self.message_user(request, f"Отмечено распродажей: {updated} товаров")
+
+    @admin.action(description="✗ Снять отметку распродажа")
+    def unmark_as_sale(self, request: HttpRequest, queryset: QuerySet[Product]) -> None:
+        """Массовое действие: снять отметку распродажа"""
+        updated = queryset.update(is_sale=False)
+        self.message_user(request, f"Снята отметка распродажи: {updated} товаров")
+
+    @admin.action(description="✓ Отметить как акция")
+    def mark_as_promo(self, request: HttpRequest, queryset: QuerySet[Product]) -> None:
+        """Массовое действие: пометить как акция"""
+        updated = queryset.update(is_promo=True)
+        self.message_user(request, f"Отмечено акцией: {updated} товаров")
+
+    @admin.action(description="✗ Снять отметку акция")
+    def unmark_as_promo(self, request: HttpRequest, queryset: QuerySet[Product]) -> None:
+        """Массовое действие: снять отметку акция"""
+        updated = queryset.update(is_promo=False)
+        self.message_user(request, f"Снята отметка акции: {updated} товаров")
+
+    @admin.action(description="✓ Отметить как премиум")
+    def mark_as_premium(self, request: HttpRequest, queryset: QuerySet[Product]) -> None:
+        """Массовое действие: пометить как премиум"""
+        updated = queryset.update(is_premium=True)
+        self.message_user(request, f"Отмечено премиум: {updated} товаров")
+
+    @admin.action(description="✗ Снять отметку премиум")
+    def unmark_as_premium(self, request: HttpRequest, queryset: QuerySet[Product]) -> None:
+        """Массовое действие: снять отметку премиум"""
+        updated = queryset.update(is_premium=False)
+        self.message_user(request, f"Снята отметка премиум: {updated} товаров")
 
     def get_queryset(self, request: HttpRequest) -> QuerySet[Product]:
         """Оптимизация запросов"""

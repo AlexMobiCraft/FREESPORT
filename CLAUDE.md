@@ -19,7 +19,7 @@ FREESPORT \- API-First E-commerce платформа для B2B/B2C продаж
 * Celery \+ Celery Beat (асинхронные задачи и планировщик)  
 * **drf-spectacular** для спецификации OpenAPI 3.1.0
 
-**ВАЖНО:** Проект разработан исключительно для работы с PostgreSQL. SQLite, MySQL и другие СУБД НЕ поддерживаются.
+**ВАЖНО:** Проект разработан исключительно для работы с PostgreSQL и другие СУБД НЕ поддерживаются.
 
 **Frontend:**
 
@@ -32,6 +32,7 @@ FREESPORT \- API-First E-commerce платформа для B2B/B2C продаж
 
 **Инфраструктура:**
 
+* Среда разработки Windows 11 + Docker Compose (обязательно для разработки и тестирования)
 * Nginx (reverse proxy, SSL, load balancing)  
 * **Docker \+ Docker Compose (обязательно для разработки и тестирования)**
 * **PostgreSQL 15+ в Docker контейнере** с JSONB поддержкой для спецификаций товаров  
@@ -103,16 +104,16 @@ FREESPORT \- API-First E-commerce платформа для B2B/B2C продаж
 - `docker/docker-compose-temp.yml` - временная конфигурация
 
 \# Сборка и запуск всех сервисов в фоновом режиме
-cd docker && docker-compose up \-d \--build
+cd docker && docker compose up \-d \--build
 
 \# ИЛИ из корневой директории:
-docker-compose -f docker/docker-compose.yml up -d --build
+docker compose -f docker/docker-compose.yml up -d --build
 
 \# Остановка и удаление всех сервисов
-cd docker && docker-compose down
+cd docker && docker compose down
 
 \# ИЛИ из корневой директории:
-docker-compose -f docker/docker-compose.yml down
+docker compose -f docker/docker-compose.yml down
 
 Будут запущены следующие сервисы:
 
@@ -141,7 +142,7 @@ celery \-A freesport worker \--loglevel=info
 celery \-A freesport beat \--loglevel=info
 
 **РЕКОМЕНДУЕМЫЙ способ - Docker:**
-docker-compose up -d --build
+docker compose up -d --build
 
 ### **Важные правила работы с Python и виртуальным окружением**
 
