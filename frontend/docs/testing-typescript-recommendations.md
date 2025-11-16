@@ -27,16 +27,16 @@ render(<Button variant={variant as ButtonVariant}>Кнопка</Button>)
 Для корректной работы TypeScript с матчерами из `@testing-library/jest-dom`, необходимо расширить глобальные типы Jest:
 
 ```typescript
-import '@testing-library/jest-dom'
+import '@testing-library/jest-dom';
 
 // Расширяем типы Jest для включения матчеров из @testing-library/jest-dom
 declare global {
   namespace jest {
     interface Matchers<R> {
-      toBeInTheDocument(): R
-      toHaveClass(className: string | string[]): R
-      toBeDisabled(): R
-      toHaveAttribute(attr: string, value?: string): R
+      toBeInTheDocument(): R;
+      toHaveClass(className: string | string[]): R;
+      toBeDisabled(): R;
+      toHaveAttribute(attr: string, value?: string): R;
     }
   }
 }
@@ -48,14 +48,14 @@ declare global {
 
 ```typescript
 // Плохо
-expect(button).toHaveClass('opacity-50', 'cursor-not-allowed')
+expect(button).toHaveClass('opacity-50', 'cursor-not-allowed');
 
 // Хорошо
-expect(button).toHaveClass('opacity-50')
-expect(button).toHaveClass('cursor-not-allowed')
+expect(button).toHaveClass('opacity-50');
+expect(button).toHaveClass('cursor-not-allowed');
 
 // Или альтернативно
-expect(button).toHaveClass(['opacity-50', 'cursor-not-allowed'])
+expect(button).toHaveClass(['opacity-50', 'cursor-not-allowed']);
 ```
 
 ## Рекомендации для проекта
@@ -65,36 +65,36 @@ expect(button).toHaveClass(['opacity-50', 'cursor-not-allowed'])
 Рекомендуется создать файл `types/jest.d.ts` в корне проекта с определением типов для Jest:
 
 ```typescript
-import '@testing-library/jest-dom'
+import '@testing-library/jest-dom';
 
 declare global {
   namespace jest {
     interface Matchers<R> {
-      toBeInTheDocument(): R
-      toHaveClass(className: string | string[]): R
-      toBeDisabled(): R
-      toHaveAttribute(attr: string, value?: string): R
-      toHaveStyle(style: Record<string, string>): R
-      toBeVisible(): R
-      toContainElement(element: HTMLElement | null): R
-      toBeEmptyDOMElement(): R
-      toHaveFocus(): R
-      toBeChecked(): R
-      toHaveFormValues(values: Record<string, any>): R
-     toHaveTextContent(text: string | RegExp, options?: { normalizeWhitespace: boolean }): R
-      toHaveValue(value: string | string[] | number): R
-      toHaveDisplayValue(value: string | RegExp): R
-      toBeRequired(): R
-      toBeInvalid(): R
-      toBeValid(): R
-      toHaveDescription(text: string | RegExp): R
-      toHaveRole(role: string): R
+      toBeInTheDocument(): R;
+      toHaveClass(className: string | string[]): R;
+      toBeDisabled(): R;
+      toHaveAttribute(attr: string, value?: string): R;
+      toHaveStyle(style: Record<string, string>): R;
+      toBeVisible(): R;
+      toContainElement(element: HTMLElement | null): R;
+      toBeEmptyDOMElement(): R;
+      toHaveFocus(): R;
+      toBeChecked(): R;
+      toHaveFormValues(values: Record<string, any>): R;
+      toHaveTextContent(text: string | RegExp, options?: { normalizeWhitespace: boolean }): R;
+      toHaveValue(value: string | string[] | number): R;
+      toHaveDisplayValue(value: string | RegExp): R;
+      toBeRequired(): R;
+      toBeInvalid(): R;
+      toBeValid(): R;
+      toHaveDescription(text: string | RegExp): R;
+      toHaveRole(role: string): R;
       // Добавьте другие матчеры по мере необходимости
     }
   }
 }
 
-export {}
+export {};
 ```
 
 ### 2. Обновление tsconfig.json

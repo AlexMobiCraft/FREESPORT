@@ -1,33 +1,33 @@
 /**
  * Конфигурация Jest для тестирования Next.js приложения
  */
-const nextJest = require('next/jest')
+import nextJest from 'next/jest';
 
 const createJestConfig = nextJest({
   // Путь к Next.js приложению для загрузки next.config.js и файлов .env
   dir: './',
-})
+});
 
 // Дополнительная конфигурация Jest
 const customJestConfig = {
   // Среда выполнения тестов
   testEnvironment: 'jsdom',
-  
+
   // Файлы настройки тестового окружения
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
-  
+
   // Паттерны для поиска тестовых файлов
   testMatch: [
     '<rootDir>/tests/**/*.(test|spec).(ts|tsx|js|jsx)',
     '<rootDir>/src/**/__tests__/**/*.(ts|tsx|js|jsx)',
-    '<rootDir>/src/**/*.(test|spec).(ts|tsx|js|jsx)'
+    '<rootDir>/src/**/*.(test|spec).(ts|tsx|js|jsx)',
   ],
-  
+
   // Псевдонимы модулей (ИСПРАВЛЕНО)
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
   },
-  
+
   // Файлы для игнорирования при покрытии кода
   coveragePathIgnorePatterns: [
     '/node_modules/',
@@ -37,7 +37,7 @@ const customJestConfig = {
     'tailwind.config.ts',
     'postcss.config.mjs',
   ],
-  
+
   // Пороговые значения покрытия кода
   coverageThreshold: {
     global: {
@@ -47,17 +47,13 @@ const customJestConfig = {
       statements: 70,
     },
   },
-  
+
   // Директория для отчета о покрытии
   coverageDirectory: 'coverage',
-  
+
   // Формат отчета о покрытии
-  coverageReporters: [
-    'text',
-    'lcov',
-    'html'
-  ],
-  
+  coverageReporters: ['text', 'lcov', 'html'],
+
   // Игнорировать файлы при сборе покрытия
   collectCoverageFrom: [
     'src/**/*.{ts,tsx}',
@@ -65,6 +61,6 @@ const customJestConfig = {
     '!src/**/*.stories.{ts,tsx}',
     '!src/**/index.{ts,tsx}',
   ],
-}
+};
 
-module.exports = createJestConfig(customJestConfig)
+export default createJestConfig(customJestConfig);

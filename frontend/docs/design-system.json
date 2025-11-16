@@ -5,11 +5,7 @@
     "version": "1.0.0",
     "lastUpdated": "2025-11-15",
     "author": "Cascade AI",
-    "sourceFiles": [
-      "src/App.jsx",
-      "src/components/*.jsx",
-      "tailwind.config.js"
-    ]
+    "sourceFiles": ["src/App.jsx", "src/components/*.jsx", "tailwind.config.js"]
   },
   "brand": {
     "tone": "Технологичный, дружелюбный e-commerce в стиле OZON",
@@ -64,7 +60,7 @@
         "700": "#5E5E5E",
         "800": "#3F3F3F",
         "900": "#1F1F1F",
-        "usage": "Фоны, бордеры, текстовые оттенки" 
+        "usage": "Фоны, бордеры, текстовые оттенки"
       },
       "text": {
         "primary": "#1B1B1B",
@@ -75,18 +71,45 @@
       }
     },
     "typography": {
-      "fontFamily": ["Inter", "SF Pro Display", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "sans-serif"],
+      "fontFamily": [
+        "Inter",
+        "SF Pro Display",
+        "-apple-system",
+        "BlinkMacSystemFont",
+        "Segoe UI",
+        "sans-serif"
+      ],
       "scales": {
-        "display-l": {"size": 48, "lineHeight": 56, "weight": 700, "usage": "Главные hero заголовки"},
-        "display-m": {"size": 40, "lineHeight": 48, "weight": 700, "usage": "Заголовки страниц"},
-        "headline-l": {"size": 32, "lineHeight": 40, "weight": 700, "usage": "Карточки разделов"},
-        "headline-m": {"size": 28, "lineHeight": 36, "weight": 600, "usage": "Субзаголовки"},
-        "title-l": {"size": 24, "lineHeight": 32, "weight": 600, "usage": "Блоки контента"},
-        "title-m": {"size": 20, "lineHeight": 28, "weight": 600, "usage": "Карточки, модальные окна"},
-        "body-l": {"size": 18, "lineHeight": 28, "weight": 500, "usage": "Важный текст, подводки"},
-        "body-m": {"size": 16, "lineHeight": 24, "weight": 500, "usage": "Основной текст, подписи к полям"},
-        "body-s": {"size": 14, "lineHeight": 20, "weight": 500, "usage": "Вторичный текст"},
-        "caption": {"size": 12, "lineHeight": 16, "weight": 500, "usage": "Метки, бейджи"}
+        "display-l": {
+          "size": 48,
+          "lineHeight": 56,
+          "weight": 700,
+          "usage": "Главные hero заголовки"
+        },
+        "display-m": { "size": 40, "lineHeight": 48, "weight": 700, "usage": "Заголовки страниц" },
+        "headline-l": { "size": 32, "lineHeight": 40, "weight": 700, "usage": "Карточки разделов" },
+        "headline-m": { "size": 28, "lineHeight": 36, "weight": 600, "usage": "Субзаголовки" },
+        "title-l": { "size": 24, "lineHeight": 32, "weight": 600, "usage": "Блоки контента" },
+        "title-m": {
+          "size": 20,
+          "lineHeight": 28,
+          "weight": 600,
+          "usage": "Карточки, модальные окна"
+        },
+        "body-l": {
+          "size": 18,
+          "lineHeight": 28,
+          "weight": 500,
+          "usage": "Важный текст, подводки"
+        },
+        "body-m": {
+          "size": 16,
+          "lineHeight": 24,
+          "weight": 500,
+          "usage": "Основной текст, подписи к полям"
+        },
+        "body-s": { "size": 14, "lineHeight": 20, "weight": 500, "usage": "Вторичный текст" },
+        "caption": { "size": 12, "lineHeight": 16, "weight": 500, "usage": "Метки, бейджи" }
       },
       "colorUsage": {
         "primary": "#1F2A44",
@@ -241,7 +264,11 @@
   "components": {
     "Header": {
       "description": "Sticky шапка с логотипом, промо сообщением, поиском и action-иконками",
-      "structure": ["Левый блок: логотип + мини-акция", "Центр: широкая поисковая строка с радиусом 24px", "Правый блок: CTA входа, избранное, корзина, профиль"],
+      "structure": [
+        "Левый блок: логотип + мини-акция",
+        "Центр: широкая поисковая строка с радиусом 24px",
+        "Правый блок: CTA входа, избранное, корзина, профиль"
+      ],
       "dimensions": {
         "heightDesktop": 60,
         "heightMobile": 60,
@@ -249,7 +276,7 @@
       },
       "navigationTabs": {
         "font": "body-m",
-        "activeIndicator": {"color": "#0060FF", "height": 3, "radius": 999},
+        "activeIndicator": { "color": "#0060FF", "height": 3, "radius": 999 },
         "spacing": 24
       },
       "cartBadge": {
@@ -283,8 +310,12 @@
         "medium": "h-10, text body-m",
         "large": "h-12, text body-l"
       },
-      "interaction": ["hover: смена оттенков + -2px translateY", "focus: ring 2px primary", "disabled: opacity-50"],
-      "dimensions": {"height": 40, "radius": 4, "paddingHorizontal": 24}
+      "interaction": [
+        "hover: смена оттенков + -2px translateY",
+        "focus: ring 2px primary",
+        "disabled: opacity-50"
+      ],
+      "dimensions": { "height": 40, "radius": 4, "paddingHorizontal": 24 }
     },
     "Input": {
       "description": "Текстовое поле с поддержкой icon, helper, error/success",
@@ -294,7 +325,7 @@
         "success": "border-accent-success"
       },
       "tokens": ["text-body-m", "rounded-sm", "bg-neutral-100"],
-      "dimensions": {"height": 40, "radius": 4, "border": "1px solid #D0D7E6"},
+      "dimensions": { "height": 40, "radius": 4, "border": "1px solid #D0D7E6" },
       "usage": "Всегда предоставлять label и helper, иконку размещать слева"
     },
     "Select": {
@@ -305,7 +336,7 @@
     },
     "SearchField": {
       "description": "Компактное поле поиска с иконкой внутри",
-      "dimensions": {"height": 40, "radius": 4, "border": "1px solid #E3E8F2"},
+      "dimensions": { "height": 40, "radius": 4, "border": "1px solid #E3E8F2" },
       "interaction": "При фокусе подсветка primary, placeholder короткий",
       "usage": "В Header и других местах быстрого поиска"
     },
@@ -315,8 +346,12 @@
         "radius": 16,
         "gap": 8,
         "states": {
-          "default": {"background": "#FFFFFF", "border": "1px solid #D0D7E6", "textColor": "#4B5C7A"},
-          "selected": {"background": "#0060FF", "textColor": "#FFFFFF"}
+          "default": {
+            "background": "#FFFFFF",
+            "border": "1px solid #D0D7E6",
+            "textColor": "#4B5C7A"
+          },
+          "selected": { "background": "#0060FF", "textColor": "#FFFFFF" }
         }
       },
       "ctaAllFilters": {
@@ -330,7 +365,11 @@
     },
     "Checkbox": {
       "description": "Square чекбокс с анимацией масштаба и иконкой Check",
-      "states": ["unchecked: border neutral", "checked: bg primary + Check scale 100", "disabled: пониженная прозрачность"],
+      "states": [
+        "unchecked: border neutral",
+        "checked: bg primary + Check scale 100",
+        "disabled: пониженная прозрачность"
+      ],
       "pattern": "Label справа, gap 12px"
     },
     "Toggle": {
@@ -348,8 +387,11 @@
       "description": "Центрированное окно с backdrop blur",
       "structure": ["header с title и кнопкой закрытия", "content area", "необязательный footer"],
       "tokens": ["bg-neutral-100", "rounded-xl", "shadow-modal"],
-      "dimensions": {"radius": 24, "maxWidth": 560},
-      "closeIcon": {"container": {"size": 44, "radius": 12, "hoverBackground": "#E3E8F2"}, "iconSize": 40},
+      "dimensions": { "radius": 24, "maxWidth": 560 },
+      "closeIcon": {
+        "container": { "size": 44, "radius": 12, "hoverBackground": "#E3E8F2" },
+        "iconSize": 40
+      },
       "behavior": "Backdrop закрывает при клике, кнопка X использует hover bg #E3E8F2"
     },
     "Card": {
@@ -383,18 +425,18 @@
         "new",
         "hit"
       ],
-      "shape": "rounded-full", 
+      "shape": "rounded-full",
       "usage": "Статусы заказов, промо и лояльность",
       "tokens": {
-        "delivered": {"background": "#E0F5E0", "textColor": "#1F7A1F", "icon": "check-circle"},
-        "transit": {"background": "#FFF1CC", "textColor": "#B07600", "icon": "truck"},
-        "cancelled": {"background": "#FFE1E1", "textColor": "#C23B3B", "icon": "x"},
-        "promo": {"background": "#F4EBDC", "textColor": "#8C4C00"},
-        "sale": {"background": "#F9E1E1", "textColor": "#A63232"},
-        "discount": {"background": "#F4E9FF", "textColor": "#5E32A1"},
-        "premium": {"background": "#F6F0E4", "textColor": "#6D4C1F", "icon": "sparkles"},
-        "new": {"background": "#E1F0FF", "textColor": "#0F5DA3"},
-        "hit": {"background": "#E3F6EC", "textColor": "#1F7A4A"}
+        "delivered": { "background": "#E0F5E0", "textColor": "#1F7A1F", "icon": "check-circle" },
+        "transit": { "background": "#FFF1CC", "textColor": "#B07600", "icon": "truck" },
+        "cancelled": { "background": "#FFE1E1", "textColor": "#C23B3B", "icon": "x" },
+        "promo": { "background": "#F4EBDC", "textColor": "#8C4C00" },
+        "sale": { "background": "#F9E1E1", "textColor": "#A63232" },
+        "discount": { "background": "#F4E9FF", "textColor": "#5E32A1" },
+        "premium": { "background": "#F6F0E4", "textColor": "#6D4C1F", "icon": "sparkles" },
+        "new": { "background": "#E1F0FF", "textColor": "#0F5DA3" },
+        "hit": { "background": "#E3F6EC", "textColor": "#1F7A4A" }
       }
     },
     "InfoPanel": {
@@ -402,11 +444,11 @@
       "structure": "Grid из иконки и текста, border primary с opacity",
       "usage": "Пояснения, подсказки",
       "iconTreatment": {
-        "container": {"size": 80, "background": "rgba(0, 183, 255, 0.16)", "radius": 24},
-        "icon": {"size": 48, "color": "#00B7FF", "alignment": "center_with_title_first_line"},
+        "container": { "size": 80, "background": "rgba(0, 183, 255, 0.16)", "radius": 24 },
+        "icon": { "size": 48, "color": "#00B7FF", "alignment": "center_with_title_first_line" },
         "renderer": "Все SVG проходят через общий renderer и используют currentColor"
       },
-      "layout": {"type": "grid", "columns": "auto 1fr", "columnGap": 16, "rowGap": 12}
+      "layout": { "type": "grid", "columns": "auto 1fr", "columnGap": 16, "rowGap": 12 }
     },
     "SupportPanel": {
       "description": "Панели доставки/наличия",
@@ -416,7 +458,12 @@
         "radius": 16,
         "border": "1px solid rgba(0, 96, 255, 0.12)",
         "padding": 20,
-        "iconToken": {"size": 96, "background": "rgba(0, 183, 255, 0.12)", "color": "#0060FF", "iconSize": 72}
+        "iconToken": {
+          "size": 96,
+          "background": "rgba(0, 183, 255, 0.12)",
+          "color": "#0060FF",
+          "iconSize": 72
+        }
       },
       "availability": {
         "background": "#F5F7FB",
@@ -450,7 +497,7 @@
     },
     "SidebarFilters": {
       "description": "Панель фильтров шириной 280px",
-      "section": {"spacing": 24, "headerTypography": "title-s"},
+      "section": { "spacing": 24, "headerTypography": "title-s" },
       "controls": {
         "checkbox": {
           "boxSize": 20,
@@ -458,41 +505,109 @@
           "borderDefault": "1.5px solid #B9C3D6",
           "borderChecked": "1.5px solid #0060FF",
           "backgroundChecked": "#0060FF",
-          "icon": {"type": "lucide-check", "size": 18, "stroke": 3},
-          "label": {"typography": "body-m", "spacing": 12},
+          "icon": { "type": "lucide-check", "size": 18, "stroke": 3 },
+          "label": { "typography": "body-m", "spacing": 12 },
           "states": {
-            "hover": {"border": "1.5px solid #0060FF", "background": "#F5F7FB"},
-            "disabled": {"opacity": 0.5}
+            "hover": { "border": "1.5px solid #0060FF", "background": "#F5F7FB" },
+            "disabled": { "opacity": 0.5 }
           }
         },
         "toggle": {
-          "track": {"width": 44, "height": 24, "radius": 999, "off": "#E3E8F2", "on": "#0060FF"},
-          "thumb": {"size": 20, "color": "#FFFFFF", "shadow": "0 2px 8px rgba(0, 0, 0, 0.16)"}
+          "track": { "width": 44, "height": 24, "radius": 999, "off": "#E3E8F2", "on": "#0060FF" },
+          "thumb": { "size": 20, "color": "#FFFFFF", "shadow": "0 2px 8px rgba(0, 0, 0, 0.16)" }
         },
-        "linkMore": {"typography": "body-s", "color": "#0060FF", "icon": "chevron-down"}
+        "linkMore": { "typography": "body-s", "color": "#0060FF", "icon": "chevron-down" }
       }
     },
     "ProductGallery": {
       "description": "Большое изображение товара с вертикальными превью",
-      "primaryImage": {"width": 520, "height": 520, "radius": 16, "shadow": "0 12px 32px rgba(15, 23, 42, 0.08)"},
-      "thumbnails": {"orientation": "vertical", "size": 88, "gap": 12, "radius": 12, "selectedBorder": "2px solid #0060FF"},
-      "viewerControls": {"iconSize": 28, "buttonBackground": "rgba(0, 96, 255, 0.16)", "buttonRadius": 40}
+      "primaryImage": {
+        "width": 520,
+        "height": 520,
+        "radius": 16,
+        "shadow": "0 12px 32px rgba(15, 23, 42, 0.08)"
+      },
+      "thumbnails": {
+        "orientation": "vertical",
+        "size": 88,
+        "gap": 12,
+        "radius": 12,
+        "selectedBorder": "2px solid #0060FF"
+      },
+      "viewerControls": {
+        "iconSize": 28,
+        "buttonBackground": "rgba(0, 96, 255, 0.16)",
+        "buttonRadius": 40
+      }
     },
     "ProductSummary": {
       "description": "Правый столбец карточки товара с ценой и CTA",
-      "priceBlock": {"background": "#FFFFFF", "radius": 20, "shadow": "0 18px 40px rgba(0, 55, 166, 0.12)", "padding": 24, "typography": "headline-m", "promoBadge": {"background": "#FF2E93", "color": "#FFFFFF", "radius": 999, "font": "caption"}},
-      "ctaPrimary": {"background": "#0060FF", "hover": "#0047CC", "textColor": "#FFFFFF", "radius": 16, "height": 56, "font": "body-l"},
-      "ctaSecondary": {"background": "#FFFFFF", "border": "1px solid #0060FF", "textColor": "#0060FF", "radius": 16, "height": 56, "font": "body-l"}
+      "priceBlock": {
+        "background": "#FFFFFF",
+        "radius": 20,
+        "shadow": "0 18px 40px rgba(0, 55, 166, 0.12)",
+        "padding": 24,
+        "typography": "headline-m",
+        "promoBadge": {
+          "background": "#FF2E93",
+          "color": "#FFFFFF",
+          "radius": 999,
+          "font": "caption"
+        }
+      },
+      "ctaPrimary": {
+        "background": "#0060FF",
+        "hover": "#0047CC",
+        "textColor": "#FFFFFF",
+        "radius": 16,
+        "height": 56,
+        "font": "body-l"
+      },
+      "ctaSecondary": {
+        "background": "#FFFFFF",
+        "border": "1px solid #0060FF",
+        "textColor": "#0060FF",
+        "radius": 16,
+        "height": 56,
+        "font": "body-l"
+      }
     },
     "Lists": {
-      "categoryList": {"columns": 6, "columnGap": 32, "itemTypography": "body-m", "headingTypography": "title-m", "bulletStyle": "none"},
-      "detailList": {"labelTypography": "body-s", "valueTypography": "body-m", "dividerColor": "#E3E8F2", "dividerSpacing": 12},
-      "recommendationsRow": {"titleTypography": "body-m", "priceTypography": "body-m", "ratingTypography": "caption", "badge": {"background": "#E5F0FF", "textColor": "#0047CC", "radius": 12}}
+      "categoryList": {
+        "columns": 6,
+        "columnGap": 32,
+        "itemTypography": "body-m",
+        "headingTypography": "title-m",
+        "bulletStyle": "none"
+      },
+      "detailList": {
+        "labelTypography": "body-s",
+        "valueTypography": "body-m",
+        "dividerColor": "#E3E8F2",
+        "dividerSpacing": 12
+      },
+      "recommendationsRow": {
+        "titleTypography": "body-m",
+        "priceTypography": "body-m",
+        "ratingTypography": "caption",
+        "badge": { "background": "#E5F0FF", "textColor": "#0047CC", "radius": 12 }
+      }
     },
     "DashboardStats": {
       "description": "Карточки статистики 4х-колоночной сетки",
-      "layout": {"columns": 4, "gap": 24, "cardRadius": 16, "rowStructure": "caption full-width, затем иконка+значение"},
-      "iconToken": {"size": 96, "radius": 32, "backgroundOpacity": 0.1, "iconSize": 72, "renderer": "shared_icon_renderer"},
+      "layout": {
+        "columns": 4,
+        "gap": 24,
+        "cardRadius": 16,
+        "rowStructure": "caption full-width, затем иконка+значение"
+      },
+      "iconToken": {
+        "size": 96,
+        "radius": 32,
+        "backgroundOpacity": 0.1,
+        "iconSize": 72,
+        "renderer": "shared_icon_renderer"
+      },
       "notes": ["Иконка и значение центрируются по вертикали", "SVG нормализуются до 72px"]
     }
   },
@@ -538,14 +653,8 @@
       "Tabs превращаются в горизонтальный scroll",
       "Карточки рекомендаций заполняют ширину экрана"
     ],
-    "tablet": [
-      "Два столбца карточек",
-      "Header сохраняет поиск, но уменьшает отступы"
-    ],
-    "desktop": [
-      "Полный 12-колоночный layout",
-      "Максимальная ширина 1280px, автоцентрирование"
-    ]
+    "tablet": ["Два столбца карточек", "Header сохраняет поиск, но уменьшает отступы"],
+    "desktop": ["Полный 12-колоночный layout", "Максимальная ширина 1280px, автоцентрирование"]
   },
   "workflow": {
     "contribution": [

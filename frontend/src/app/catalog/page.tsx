@@ -2,20 +2,16 @@
  * Страница каталога товаров FREESPORT Platform
  * Список товаров с фильтрацией и поиском
  */
-import React from "react";
-import Button from "@/components/ui/Button";
+import React from 'react';
+import Button from '@/components/ui/Button';
 
 const CatalogPage: React.FC = () => {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Заголовок страницы */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">
-          Каталог товаров
-        </h1>
-        <p className="text-gray-600">
-          Широкий ассортимент спортивного оборудования и инвентаря
-        </p>
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">Каталог товаров</h1>
+        <p className="text-gray-600">Широкий ассортимент спортивного оборудования и инвентаря</p>
       </div>
 
       {/* Фильтры и поиск */}
@@ -110,11 +106,11 @@ const CatalogPage: React.FC = () => {
               <div className="flex items-center justify-between mb-3">
                 <div>
                   <span className="text-lg font-bold text-gray-900">
-                    {(1000 + index * 500).toLocaleString("ru-RU")} ₽
+                    {(1000 + index * 500).toLocaleString('ru-RU')} ₽
                   </span>
                   {index % 3 === 0 && (
                     <span className="text-sm text-gray-500 line-through ml-2">
-                      {(1200 + index * 500).toLocaleString("ru-RU")} ₽
+                      {(1200 + index * 500).toLocaleString('ru-RU')} ₽
                     </span>
                   )}
                 </div>
@@ -141,10 +137,10 @@ const CatalogPage: React.FC = () => {
             Предыдущая
           </Button>
 
-          {[1, 2, 3, 4, 5].map((page) => (
+          {[1, 2, 3, 4, 5].map(page => (
             <Button
               key={page}
-              variant={page === 1 ? "primary" : "outline"}
+              variant={page === 1 ? 'primary' : 'outline'}
               size="sm"
               className="min-w-[40px]"
             >

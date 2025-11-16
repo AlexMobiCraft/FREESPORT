@@ -2,13 +2,13 @@
  * Компонент Header с навигацией для FREESPORT Platform
  * Поддержка B2B/B2C интерфейсов и аутентификации
  */
-"use client";
+'use client';
 
-import React, { useState } from "react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { authSelectors } from "@/stores/authStore";
-import Button from "@/components/ui/Button";
+import React, { useState } from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { authSelectors } from '@/stores/authStore';
+import Button from '@/components/ui/Button';
 
 const Header: React.FC = () => {
   const pathname = usePathname();
@@ -20,16 +20,16 @@ const Header: React.FC = () => {
 
   // Навигационные элементы
   const navigationItems = [
-    { href: "/", label: "Главная" },
-    { href: "/catalog", label: "Каталог" },
-    { href: "/about", label: "О нас" },
-    { href: "/contacts", label: "Контакты" },
+    { href: '/', label: 'Главная' },
+    { href: '/catalog', label: 'Каталог' },
+    { href: '/about', label: 'О нас' },
+    { href: '/contacts', label: 'Контакты' },
   ];
 
   // B2B навигация (дополнительные элементы для бизнес-пользователей)
   const b2bNavigationItems = [
-    { href: "/wholesale", label: "Оптовые цены" },
-    { href: "/orders", label: "Заказы" },
+    { href: '/wholesale', label: 'Оптовые цены' },
+    { href: '/orders', label: 'Заказы' },
   ];
 
   const isActivePage = (href: string) => {
@@ -43,9 +43,7 @@ const Header: React.FC = () => {
           {/* Логотип */}
           <div className="flex-shrink-0">
             <Link href="/" className="flex items-center">
-              <span className="text-2xl font-bold text-blue-600">
-                FREESPORT
-              </span>
+              <span className="text-2xl font-bold text-blue-600">FREESPORT</span>
               {isB2BUser && (
                 <span className="ml-2 px-2 py-1 text-xs bg-orange-100 text-orange-800 rounded-full font-semibold">
                   B2B
@@ -56,14 +54,14 @@ const Header: React.FC = () => {
 
           {/* Основная навигация (десктоп) */}
           <nav className="hidden md:flex space-x-8">
-            {navigationItems.map((item) => (
+            {navigationItems.map(item => (
               <Link
                 key={item.href}
                 href={item.href}
                 className={`px-3 py-2 text-sm font-medium transition-colors duration-200 ${
                   isActivePage(item.href)
-                    ? "text-blue-600 border-b-2 border-blue-600"
-                    : "text-gray-700 hover:text-blue-600"
+                    ? 'text-blue-600 border-b-2 border-blue-600'
+                    : 'text-gray-700 hover:text-blue-600'
                 }`}
               >
                 {item.label}
@@ -72,14 +70,14 @@ const Header: React.FC = () => {
 
             {/* B2B дополнительная навигация */}
             {isB2BUser &&
-              b2bNavigationItems.map((item) => (
+              b2bNavigationItems.map(item => (
                 <Link
                   key={item.href}
                   href={item.href}
                   className={`px-3 py-2 text-sm font-medium transition-colors duration-200 ${
                     isActivePage(item.href)
-                      ? "text-orange-600 border-b-2 border-orange-600"
-                      : "text-gray-700 hover:text-orange-600"
+                      ? 'text-orange-600 border-b-2 border-orange-600'
+                      : 'text-gray-700 hover:text-orange-600'
                   }`}
                 >
                   {item.label}
@@ -94,12 +92,7 @@ const Header: React.FC = () => {
               href="/cart"
               className="p-2 text-gray-600 hover:text-blue-600 transition-colors duration-200 relative"
             >
-              <svg
-                className="h-6 w-6"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
+              <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -113,9 +106,7 @@ const Header: React.FC = () => {
             {/* Авторизация/Профиль */}
             {isAuthenticated && user ? (
               <div className="flex items-center space-x-3">
-                <span className="text-sm text-gray-700">
-                  Привет, {user.firstName}!
-                </span>
+                <span className="text-sm text-gray-700">Привет, {user.firstName}!</span>
                 <Link href="/profile">
                   <Button variant="outline" size="sm">
                     Профиль
@@ -142,12 +133,7 @@ const Header: React.FC = () => {
               className="md:hidden p-2 text-gray-600 hover:text-blue-600 transition-colors duration-200"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             >
-              <svg
-                className="h-6 w-6"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
+              <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 {isMobileMenuOpen ? (
                   <path
                     strokeLinecap="round"
@@ -172,17 +158,14 @@ const Header: React.FC = () => {
         {isMobileMenuOpen && (
           <div className="md:hidden py-4 border-t border-gray-200">
             <nav className="flex flex-col space-y-2">
-              {[
-                ...navigationItems,
-                ...(isB2BUser ? b2bNavigationItems : []),
-              ].map((item) => (
+              {[...navigationItems, ...(isB2BUser ? b2bNavigationItems : [])].map(item => (
                 <Link
                   key={item.href}
                   href={item.href}
                   className={`block px-3 py-2 text-base font-medium transition-colors duration-200 ${
                     isActivePage(item.href)
-                      ? "text-blue-600 bg-blue-50"
-                      : "text-gray-700 hover:text-blue-600 hover:bg-gray-50"
+                      ? 'text-blue-600 bg-blue-50'
+                      : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
                   }`}
                   onClick={() => setIsMobileMenuOpen(false)}
                 >

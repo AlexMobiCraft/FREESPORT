@@ -2,8 +2,8 @@
  * Компонент Footer для FREESPORT Platform
  * Информационные ссылки и контакты
  */
-import React from "react";
-import Link from "next/link";
+import React from 'react';
+import Link from 'next/link';
 
 const Footer: React.FC = () => {
   const currentYear = new Date().getFullYear();
@@ -15,13 +15,11 @@ const Footer: React.FC = () => {
           {/* Логотип и описание */}
           <div className="col-span-1 md:col-span-1">
             <Link href="/" className="flex items-center mb-4">
-              <span className="text-2xl font-bold text-blue-400">
-                FREESPORT
-              </span>
+              <span className="text-2xl font-bold text-blue-400">FREESPORT</span>
             </Link>
             <p className="text-gray-400 text-sm leading-relaxed">
-              Ведущая платформа B2B/B2C продаж спортивных товаров. Объединяем 5
-              торговых марок в единой экосистеме.
+              Ведущая платформа B2B/B2C продаж спортивных товаров. Объединяем 5 торговых марок в
+              единой экосистеме.
             </p>
           </div>
 
@@ -173,11 +171,7 @@ const Footer: React.FC = () => {
                   className="text-gray-400 hover:text-white transition-colors duration-200"
                   aria-label="ВКонтакте"
                 >
-                  <svg
-                    className="h-5 w-5"
-                    fill="currentColor"
-                    viewBox="0 0 24 24"
-                  >
+                  <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M15.684 0H8.316C1.592 0 0 1.592 0 8.316v7.368C0 22.408 1.592 24 8.316 24h7.368C22.408 24 24 22.408 24 15.684V8.316C24 1.592 22.408 0 15.684 0z" />
                   </svg>
                 </a>
@@ -186,11 +180,7 @@ const Footer: React.FC = () => {
                   className="text-gray-400 hover:text-white transition-colors duration-200"
                   aria-label="Telegram"
                 >
-                  <svg
-                    className="h-5 w-5"
-                    fill="currentColor"
-                    viewBox="0 0 24 24"
-                  >
+                  <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2z" />
                   </svg>
                 </a>

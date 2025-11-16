@@ -2,8 +2,8 @@
  * Главная страница FREESPORT Platform
  * Hero секция и основная информация
  */
-import Link from "next/link";
-import Button from "@/components/ui/Button";
+import Link from 'next/link';
+import Button from '@/components/ui/Button';
 
 export default function Home() {
   return (
@@ -12,12 +12,10 @@ export default function Home() {
       <section className="relative bg-gradient-to-r from-blue-600 to-blue-800 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
           <div className="text-center">
-            <h1 className="text-4xl md:text-6xl font-bold mb-6">
-              FREESPORT Platform
-            </h1>
+            <h1 className="text-4xl md:text-6xl font-bold mb-6">FREESPORT Platform</h1>
             <p className="text-xl md:text-2xl mb-8 max-w-3xl mx-auto text-blue-100">
-              Ведущая платформа B2B/B2C продаж спортивных товаров. Объединяем 5
-              торговых марок в единой экосистеме.
+              Ведущая платформа B2B/B2C продаж спортивных товаров. Объединяем 5 торговых марок в
+              единой экосистеме.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link href="/catalog">
@@ -47,9 +45,7 @@ export default function Home() {
       <section className="py-16 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">
-              Преимущества платформы
-            </h2>
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">Преимущества платформы</h2>
             <p className="text-gray-600 text-lg max-w-2xl mx-auto">
               Современные решения для розничных и оптовых покупателей
             </p>
@@ -73,9 +69,7 @@ export default function Home() {
                 </svg>
               </div>
               <h3 className="text-xl font-semibold mb-2">Быстрое оформление</h3>
-              <p className="text-gray-600">
-                Современный интерфейс и простой процесс заказа
-              </p>
+              <p className="text-gray-600">Современный интерфейс и простой процесс заказа</p>
             </div>
 
             <div className="text-center">
@@ -94,9 +88,7 @@ export default function Home() {
                   />
                 </svg>
               </div>
-              <h3 className="text-xl font-semibold mb-2">
-                Проверенное качество
-              </h3>
+              <h3 className="text-xl font-semibold mb-2">Проверенное качество</h3>
               <p className="text-gray-600">
                 Только сертифицированные товары от надежных поставщиков
               </p>
@@ -135,9 +127,8 @@ export default function Home() {
               <div>
                 <h2 className="text-3xl font-bold mb-4">Решения для бизнеса</h2>
                 <p className="text-gray-300 text-lg mb-6">
-                  Специальные условия для тренеров, спортивных федераций и
-                  дистрибьюторов. Многоуровневая система скидок и персональный
-                  менеджер.
+                  Специальные условия для тренеров, спортивных федераций и дистрибьюторов.
+                  Многоуровневая система скидок и персональный менеджер.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4">
                   <Link href="/wholesale">
@@ -159,29 +150,19 @@ export default function Home() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-white/10 rounded-lg p-4 text-center">
-                  <div className="text-2xl font-bold text-blue-400 mb-1">
-                    1000+
-                  </div>
-                  <div className="text-sm text-gray-300">
-                    Товаров в каталоге
-                  </div>
+                  <div className="text-2xl font-bold text-blue-400 mb-1">1000+</div>
+                  <div className="text-sm text-gray-300">Товаров в каталоге</div>
                 </div>
                 <div className="bg-white/10 rounded-lg p-4 text-center">
-                  <div className="text-2xl font-bold text-green-400 mb-1">
-                    500+
-                  </div>
+                  <div className="text-2xl font-bold text-green-400 mb-1">500+</div>
                   <div className="text-sm text-gray-300">B2B партнеров</div>
                 </div>
                 <div className="bg-white/10 rounded-lg p-4 text-center">
-                  <div className="text-2xl font-bold text-orange-400 mb-1">
-                    24/7
-                  </div>
+                  <div className="text-2xl font-bold text-orange-400 mb-1">24/7</div>
                   <div className="text-sm text-gray-300">Поддержка</div>
                 </div>
                 <div className="bg-white/10 rounded-lg p-4 text-center">
-                  <div className="text-2xl font-bold text-purple-400 mb-1">
-                    5
-                  </div>
+                  <div className="text-2xl font-bold text-purple-400 mb-1">5</div>
                   <div className="text-sm text-gray-300">Торговых марок</div>
                 </div>
               </div>

@@ -19,13 +19,13 @@ export interface User {
 }
 
 export type UserRole =
-  | "retail"
-  | "wholesale_level1"
-  | "wholesale_level2"
-  | "wholesale_level3"
-  | "trainer"
-  | "federation_rep"
-  | "admin";
+  | 'retail'
+  | 'wholesale_level1'
+  | 'wholesale_level2'
+  | 'wholesale_level3'
+  | 'trainer'
+  | 'federation_rep'
+  | 'admin';
 
 export interface AuthTokens {
   access: string;

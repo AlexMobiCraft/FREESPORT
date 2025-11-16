@@ -3,13 +3,13 @@
  */
 
 // Подключение дополнительных матчеров для DOM элементов
-import '@testing-library/jest-dom'
+import '@testing-library/jest-dom';
 
 // Глобальные настройки для всех тестов
 beforeEach(() => {
   // Очистка всех моков перед каждым тестом
-  jest.clearAllMocks()
-})
+  jest.clearAllMocks();
+});
 
 // Мокирование next/router для тестирования
 jest.mock('next/router', () => ({
@@ -20,7 +20,7 @@ jest.mock('next/router', () => ({
     query: {},
     asPath: '/',
   }),
-}))
+}));
 
 // Мокирование next/navigation для тестирования с app router
 jest.mock('next/navigation', () => ({
@@ -33,7 +33,7 @@ jest.mock('next/navigation', () => ({
   }),
   usePathname: () => '/',
   useSearchParams: () => new URLSearchParams(),
-}))
+}));
 
 // Подавление предупреждений console в тестах (опционально)
 global.console = {
@@ -42,4 +42,4 @@ global.console = {
   log: jest.fn(),
   debug: jest.fn(),
   info: jest.fn(),
-}
+};

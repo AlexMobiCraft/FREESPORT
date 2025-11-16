@@ -45,128 +45,134 @@ frontend/
 ## 🧪 Типы тестов Frontend
 
 ### 1. **Unit тесты компонентов** (Jest + React Testing Library)
+
 - **Назначение**: Тестирование отдельных React компонентов в изоляции
 - **Технология**: Jest + React Testing Library + MSW
 - **Запуск**: `npm test` или `npm run test:watch`
 
 **Пример структуры:**
+
 ```tsx
 // src/components/ui/__tests__/Button.test.tsx
-import { render, screen, fireEvent } from '@testing-library/react'
-import { Button } from '../Button'
+import { render, screen, fireEvent } from '@testing-library/react';
+import { Button } from '../Button';
 
 describe('Button Component', () => {
   test('renders button with text', () => {
-    render(<Button>Click me</Button>)
-    expect(screen.getByRole('button', { name: /click me/i })).toBeInTheDocument()
-  })
+    render(<Button>Click me</Button>);
+    expect(screen.getByRole('button', { name: /click me/i })).toBeInTheDocument();
+  });
 
   test('calls onClick handler when clicked', () => {
-    const handleClick = jest.fn()
-    render(<Button onClick={handleClick}>Click me</Button>)
-    
-    fireEvent.click(screen.getByRole('button'))
-    expect(handleClick).toHaveBeenCalledTimes(1)
-  })
-})
+    const handleClick = jest.fn();
+    render(<Button onClick={handleClick}>Click me</Button>);
+
+    fireEvent.click(screen.getByRole('button'));
+    expect(handleClick).toHaveBeenCalledTimes(1);
+  });
+});
 ```
 
 ### 2. **Hook тесты** (React Testing Library)
+
 - **Назначение**: Тестирование custom React hooks
 - **Технология**: `@testing-library/react-hooks`
 
 **Пример структуры:**
+
 ```tsx
 // src/hooks/__tests__/useAuth.test.ts
-import { renderHook, act } from '@testing-library/react'
-import { useAuth } from '../useAuth'
+import { renderHook, act } from '@testing-library/react';
+import { useAuth } from '../useAuth';
 
 describe('useAuth Hook', () => {
   test('should initialize with null user', () => {
-    const { result } = renderHook(() => useAuth())
-    expect(result.current.user).toBeNull()
-  })
+    const { result } = renderHook(() => useAuth());
+    expect(result.current.user).toBeNull();
+  });
 
   test('should login user', async () => {
-    const { result } = renderHook(() => useAuth())
-    
+    const { result } = renderHook(() => useAuth());
+
     await act(async () => {
-      await result.current.login('test@example.com', 'password')
-    })
-    
-    expect(result.current.user).toBeTruthy()
-  })
-})
+      await result.current.login('test@example.com', 'password');
+    });
+
+    expect(result.current.user).toBeTruthy();
+  });
+});
 ```
 
 ### 3. **Integration тесты** (Jest + MSW)
+
 - **Назначение**: Тестирование взаимодействия компонентов с API
 - **Технология**: Mock Service Worker (MSW) для API mocking
 
 **Пример структуры:**
+
 ```tsx
 // src/services/__tests__/api.test.ts
-import { rest } from 'msw'
-import { setupServer } from 'msw/node'
-import { fetchProducts } from '../api'
+import { rest } from 'msw';
+import { setupServer } from 'msw/node';
+import { fetchProducts } from '../api';
 
 const server = setupServer(
   rest.get('/api/products', (req, res, ctx) => {
-    return res(ctx.json([
-      { id: 1, name: 'Test Product', price: 100 }
-    ]))
+    return res(ctx.json([{ id: 1, name: 'Test Product', price: 100 }]));
   })
-)
+);
 
-beforeAll(() => server.listen())
-afterEach(() => server.resetHandlers())
-afterAll(() => server.close())
+beforeAll(() => server.listen());
+afterEach(() => server.resetHandlers());
+afterAll(() => server.close());
 
 describe('API Service', () => {
   test('fetchProducts returns products', async () => {
-    const products = await fetchProducts()
-    expect(products).toHaveLength(1)
-    expect(products[0].name).toBe('Test Product')
-  })
-})
+    const products = await fetchProducts();
+    expect(products).toHaveLength(1);
+    expect(products[0].name).toBe('Test Product');
+  });
+});
 ```
 
 ### 4. **E2E тесты** (Playwright)
+
 - **Назначение**: Тестирование критических пользовательских сценариев
 - **Технология**: Playwright для браузерного тестирования
 - **Запуск**: `npx playwright test`
 
 **Пример структуры:**
+
 ```typescript
 // tests/e2e/auth.spec.ts
-import { test, expect } from '@playwright/test'
+import { test, expect } from '@playwright/test';
 
 test.describe('Authentication Flow', () => {
   test('user can login and logout', async ({ page }) => {
-    await page.goto('/login')
-    
-    await page.fill('[data-testid="email"]', 'test@example.com')
-    await page.fill('[data-testid="password"]', 'password')
-    await page.click('[data-testid="login-button"]')
-    
-    await expect(page).toHaveURL('/dashboard')
-    await expect(page.locator('[data-testid="user-menu"]')).toBeVisible()
-    
-    await page.click('[data-testid="logout-button"]')
-    await expect(page).toHaveURL('/login')
-  })
-})
+    await page.goto('/login');
+
+    await page.fill('[data-testid="email"]', 'test@example.com');
+    await page.fill('[data-testid="password"]', 'password');
+    await page.click('[data-testid="login-button"]');
+
+    await expect(page).toHaveURL('/dashboard');
+    await expect(page.locator('[data-testid="user-menu"]')).toBeVisible();
+
+    await page.click('[data-testid="logout-button"]');
+    await expect(page).toHaveURL('/login');
+  });
+});
 ```
 
 ## 🔧 Конфигурация Jest
 
 ```javascript
 // jest.config.js
-const nextJest = require('next/jest')
+const nextJest = require('next/jest');
 
 const createJestConfig = nextJest({
   dir: './',
-})
+});
 
 const customJestConfig = {
   testEnvironment: 'jsdom',
@@ -188,22 +194,18 @@ const customJestConfig = {
       statements: 80,
     },
   },
-  testPathIgnorePatterns: [
-    '<rootDir>/.next/',
-    '<rootDir>/node_modules/',
-    '<rootDir>/tests/e2e/',
-  ],
-}
+  testPathIgnorePatterns: ['<rootDir>/.next/', '<rootDir>/node_modules/', '<rootDir>/tests/e2e/'],
+};
 
-module.exports = createJestConfig(customJestConfig)
+module.exports = createJestConfig(customJestConfig);
 ```
 
 ## 🎭 Настройка тестового окружения
 
 ```javascript
 // jest.setup.js
-import '@testing-library/jest-dom'
-import { server } from './src/__mocks__/server'
+import '@testing-library/jest-dom';
+import { server } from './src/__mocks__/server';
 
 // Mock Next.js router
 jest.mock('next/router', () => ({
@@ -224,29 +226,30 @@ jest.mock('next/router', () => ({
         off: jest.fn(),
         emit: jest.fn(),
       },
-    }
+    };
   },
-}))
+}));
 
 // Setup MSW
-beforeAll(() => server.listen())
-afterEach(() => server.resetHandlers())
-afterAll(() => server.close())
+beforeAll(() => server.listen());
+afterEach(() => server.resetHandlers());
+afterAll(() => server.close());
 
 // Mock IntersectionObserver
 global.IntersectionObserver = jest.fn().mockImplementation(() => ({
   observe: jest.fn(),
   unobserve: jest.fn(),
   disconnect: jest.fn(),
-}))
+}));
 ```
 
 ## 🏭 Mock стратегия Frontend
 
 ### MSW (Mock Service Worker)
+
 ```typescript
 // src/__mocks__/handlers.ts
-import { rest } from 'msw'
+import { rest } from 'msw';
 
 export const handlers = [
   // Auth endpoints
@@ -255,9 +258,9 @@ export const handlers = [
       ctx.status(200),
       ctx.json({
         user: { id: 1, email: 'test@example.com' },
-        token: 'mock-jwt-token'
+        token: 'mock-jwt-token',
       })
-    )
+    );
   }),
 
   // Products endpoints
@@ -266,36 +269,35 @@ export const handlers = [
       ctx.status(200),
       ctx.json([
         { id: 1, name: 'Test Product', price: 100 },
-        { id: 2, name: 'Another Product', price: 200 }
+        { id: 2, name: 'Another Product', price: 200 },
       ])
-    )
+    );
   }),
 
   // Cart endpoints
   rest.get('/api/cart', (req, res, ctx) => {
-    return res(
-      ctx.status(200),
-      ctx.json({ items: [], total: 0 })
-    )
+    return res(ctx.status(200), ctx.json({ items: [], total: 0 }));
   }),
-]
+];
 ```
 
 ### Component Mocks
+
 ```typescript
 // __mocks__/next/image.js
-import React from 'react'
+import React from 'react';
 
 const MockedImage = ({ src, alt, ...props }) => {
-  return React.createElement('img', { src, alt, ...props })
-}
+  return React.createElement('img', { src, alt, ...props });
+};
 
-export default MockedImage
+export default MockedImage;
 ```
 
 ## 🚀 Команды запуска
 
 ### Unit и Integration тесты
+
 ```bash
 # Запуск всех тестов
 npm test
@@ -314,6 +316,7 @@ npm run test:ci
 ```
 
 ### E2E тесты
+
 ```bash
 # Запуск всех E2E тестов
 npx playwright test
@@ -338,19 +341,22 @@ npx playwright test --debug
 ## 📝 Соглашения по именованию
 
 ### Файлы тестов
+
 - **Unit тесты**: `ComponentName.test.tsx`
 - **Hook тесты**: `useHookName.test.ts`
 - **Service тесты**: `serviceName.test.ts`
 - **E2E тесты**: `feature.spec.ts`
 
 ### Test IDs
+
 - **Формат**: `data-testid="component-action"`
-- **Примеры**: 
+- **Примеры**:
   - `data-testid="login-button"`
   - `data-testid="product-card"`
   - `data-testid="user-menu"`
 
 ### Тестовые данные
+
 - **Email Pattern**: `test.{feature}@example.com`
 - **User Pattern**: `Test {Feature} User`
 - **Product Pattern**: `Test Product {Number}`
@@ -359,7 +365,7 @@ npx playwright test --debug
 
 ```typescript
 // playwright.config.ts
-import { defineConfig, devices } from '@playwright/test'
+import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -396,22 +402,25 @@ export default defineConfig({
     url: 'http://localhost:3000',
     reuseExistingServer: !process.env.CI,
   },
-})
+});
 ```
 
 ## ⚡ Быстрый старт
 
 ### Создание нового unit теста
+
 1. Создать файл: `src/components/__tests__/ComponentName.test.tsx`
 2. Использовать шаблон с `render` и `screen`
 3. Запустить: `npm test ComponentName`
 
 ### Создание нового E2E теста
+
 1. Создать файл: `tests/e2e/feature.spec.ts`
 2. Использовать `test` и `expect` из Playwright
 3. Запустить: `npx playwright test feature.spec.ts`
 
 ### Добавление нового mock
+
 1. Добавить handler в `src/__mocks__/handlers.ts`
 2. Перезапустить тесты для применения изменений
 

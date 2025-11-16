@@ -2,10 +2,10 @@
  * Zustand store для управления аутентификацией
  * Состояние пользователя и JWT токенов
  */
-import { create } from "zustand";
-import { devtools } from "zustand/middleware";
-import type { User, AuthTokens } from "@/types";
-import { tokenStorage } from "@/services/api";
+import { create } from 'zustand';
+import { devtools } from 'zustand/middleware';
+import type { User, AuthTokens } from '@/types';
+import { tokenStorage } from '@/services/api';
 
 interface AuthState {
   user: User | null;
@@ -62,7 +62,7 @@ export const useAuthStore = create<AuthStore>()(
             isLoading: false,
           },
           false,
-          "auth/login",
+          'auth/login'
         );
       },
 
@@ -78,7 +78,7 @@ export const useAuthStore = create<AuthStore>()(
             isLoading: false,
           },
           false,
-          "auth/logout",
+          'auth/logout'
         );
       },
 
@@ -91,7 +91,7 @@ export const useAuthStore = create<AuthStore>()(
               user: { ...user, ...userData },
             },
             false,
-            "auth/updateUser",
+            'auth/updateUser'
           );
         }
       },
@@ -105,7 +105,7 @@ export const useAuthStore = create<AuthStore>()(
             tokens,
           },
           false,
-          "auth/updateTokens",
+          'auth/updateTokens'
         );
       },
 
@@ -121,7 +121,7 @@ export const useAuthStore = create<AuthStore>()(
                 isLoading: false,
               },
               false,
-              "auth/initialize",
+              'auth/initialize'
             );
 
             // TODO: Здесь можно добавить запрос для получения данных пользователя
@@ -132,11 +132,11 @@ export const useAuthStore = create<AuthStore>()(
                 isLoading: false,
               },
               false,
-              "auth/initialize",
+              'auth/initialize'
             );
           }
         } catch (error) {
-          console.error("Ошибка инициализации аутентификации:", error);
+          console.error('Ошибка инициализации аутентификации:', error);
 
           set(
             {
@@ -146,7 +146,7 @@ export const useAuthStore = create<AuthStore>()(
               isLoading: false,
             },
             false,
-            "auth/initializeError",
+            'auth/initializeError'
           );
         }
       },
@@ -157,12 +157,12 @@ export const useAuthStore = create<AuthStore>()(
             isLoading: loading,
           },
           false,
-          "auth/setLoading",
+          'auth/setLoading'
         );
       },
     }),
     {
-      name: "auth-store",
+      name: 'auth-store',
       // Сериализация только публичных полей для devtools
       serialize: {
         options: {
@@ -173,39 +173,39 @@ export const useAuthStore = create<AuthStore>()(
           tokens: false,
         },
       },
-    },
-  ),
+    }
+  )
 );
 
 // Селекторы для удобного доступа к состоянию
 export const authSelectors = {
   // Текущий пользователь
-  useUser: () => useAuthStore((state) => state.user),
+  useUser: () => useAuthStore(state => state.user),
 
   // Статус аутентификации
-  useIsAuthenticated: () => useAuthStore((state) => state.isAuthenticated),
+  useIsAuthenticated: () => useAuthStore(state => state.isAuthenticated),
 
   // Состояние загрузки
-  useIsLoading: () => useAuthStore((state) => state.isLoading),
+  useIsLoading: () => useAuthStore(state => state.isLoading),
 
   // Роль пользователя
-  useUserRole: () => useAuthStore((state) => state.user?.role),
+  useUserRole: () => useAuthStore(state => state.user?.role),
 
   // Проверка роли B2B
   useIsB2BUser: () =>
-    useAuthStore((state) => {
+    useAuthStore(state => {
       const role = state.user?.role;
       return role
         ? [
-            "wholesale_level1",
-            "wholesale_level2",
-            "wholesale_level3",
-            "trainer",
-            "federation_rep",
+            'wholesale_level1',
+            'wholesale_level2',
+            'wholesale_level3',
+            'trainer',
+            'federation_rep',
           ].includes(role)
         : false;
     }),
 
   // Проверка роли админа
-  useIsAdmin: () => useAuthStore((state) => state.user?.role === "admin"),
+  useIsAdmin: () => useAuthStore(state => state.user?.role === 'admin'),
 };

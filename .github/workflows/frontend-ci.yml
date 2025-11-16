@@ -53,7 +53,7 @@ jobs:
     - name: Проверка форматирования с Prettier
       run: |
         cd frontend
-        npx prettier --check "src/**/*.{js,jsx,ts,tsx,json,css,md}"
+        npm run format:check
         
     - name: Проверка типов TypeScript
       run: |
