@@ -32,7 +32,6 @@ const eslintConfig = [
     ignores: [
       '.next/**',
       'coverage/**',
-      '**/*.config.js',
       '**/*.config.mjs',
     ],
   },

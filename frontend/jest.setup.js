@@ -5,11 +5,23 @@
 // Подключение дополнительных матчеров для DOM элементов
 import '@testing-library/jest-dom';
 
+// Настройка MSW для мокирования API запросов
+import { server } from './__mocks__/server';
+
+// Запуск MSW server перед всеми тестами
+beforeAll(() => server.listen({ onUnhandledRequest: 'warn' }));
+
 // Глобальные настройки для всех тестов
 beforeEach(() => {
   // Очистка всех моков перед каждым тестом
   jest.clearAllMocks();
 });
+
+// Сброс handlers после каждого теста
+afterEach(() => server.resetHandlers());
+
+// Остановка MSW server после всех тестов
+afterAll(() => server.close());
 
 // Мокирование next/router для тестирования
 jest.mock('next/router', () => ({

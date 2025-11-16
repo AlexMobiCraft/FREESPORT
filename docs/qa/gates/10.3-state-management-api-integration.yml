@@ -1,0 +1,68 @@
+# Quality Gate Decision для Story 10.3
+schema: 1
+story: "10.3"
+story_title: "State Management and API Integration"
+gate: CONCERNS
+status_reason: "Реализация качественная, но есть проблема с MSW v2 конфигурацией для Jest, требующая решения перед production"
+reviewer: "Quinn (Test Architect)"
+updated: "2025-11-16T19:52:00Z"
+
+waiver: { active: false }
+
+top_issues:
+  - id: "TEST-001"
+    severity: medium
+    finding: "MSW v2 не может быть импортирован в Jest тестах из-за проблемы с module resolution"
+    suggested_action: "Добавить moduleNameMapper для 'msw/node' в jest.config.js или переключиться на Vitest"
+    suggested_owner: dev
+  - id: "ARCH-001"
+    severity: low
+    finding: "Отсутствуют integration тесты для services (только unit тесты для stores)"
+    suggested_action: "Добавить integration тесты для authService, productsService и других сервисов"
+    suggested_owner: dev
+
+risk_summary:
+  totals: { critical: 0, high: 0, medium: 1, low: 1 }
+  recommendations:
+    must_fix:
+      - "Решить проблему с MSW импортом для authService тестов"
+    monitor:
+      - "Добавить integration тесты для полного покрытия"
+
+evidence:
+  tests_reviewed: 9
+  risks_identified: 2
+  trace:
+    ac_covered: [1, 2, 3, 4, 5, 9]  # Stores, API client, types, services, token storage
+    ac_gaps: [6, 7, 8]  # Unit-тесты для services, retry logic, edge cases
+
+nfr_validation:
+  security:
+    status: PASS
+    notes: "Token storage следует best practices - access token в memory, refresh в localStorage"
+  performance:
+    status: PASS
+    notes: "Retry logic с exponential backoff реализован корректно"
+  reliability:
+    status: CONCERNS
+    notes: "Refresh token flow реализован с queue для concurrent requests, но не протестирован из-за MSW проблемы"
+  maintainability:
+    status: PASS
+    notes: "Код хорошо структурирован, комментарии на уровне функций, TypeScript типы"
+
+recommendations:
+  immediate:
+    - action: "Исправить jest.config.js для поддержки MSW v2 или мигрировать на Vitest"
+      refs: ["frontend/jest.config.js", "frontend/__mocks__/server.ts"]
+    - action: "Добавить unit-тесты для authService, productsService и других сервисов"
+      refs: ["frontend/src/services/__tests__/"]
+  future:
+    - action: "Добавить integration тесты для проверки взаимодействия stores + services + API"
+      refs: ["frontend/src/__tests__/integration/"]
+    - action: "Рассмотреть добавление e2e тестов для критических user flows (login, add to cart)"
+      refs: []
+
+quality_score: 80
+# 100 - (10 * 2 CONCERNS) = 80
+
+expires: "2025-11-30T00:00:00Z"
