@@ -114,7 +114,7 @@ class TestImportProductImages:
 
             saved_paths = [f"products/{os.path.basename(f)}" for f in tmp_files]
 
-            with patch("apps.products.services.processor.default_storage") as mock_storage:
+            with patch("django.core.files.storage.default_storage") as mock_storage:
                 mock_storage.exists.return_value = False
                 mock_storage.save.side_effect = saved_paths
 
