@@ -106,60 +106,55 @@ class TestExecuteImportType:
     def test_catalog_import_calls_correct_command(self, mock_call_command):
         """Тест вызова правильной команды для импорта каталога"""
         # Arrange
-        data_dir = "/path/to/data"
         task_id = "test-task-123"
 
-        with patch("apps.integrations.tasks.Path") as mock_path:
-            mock_path.return_value.exists.return_value = True
+        # Act
+        result = _execute_import_type("catalog", task_id)
 
-            # Act
-            result = _execute_import_type("catalog", task_id)
-
-            # Assert
-            assert result["type"] == "catalog"
-            assert result["message"] == "Каталог импортирован"
-            mock_call_command.assert_called_once_with(
-                "import_catalog_from_1c",
-                "--data-dir",
-                data_dir,
-                "--file-type",
-                "all",
-            )
+        # Assert
+        assert result["type"] == "catalog"
+        assert result["message"] == "Каталог импортирован"
+        mock_call_command.assert_called_once_with(
+            "import_catalog_from_1c",
+            "--file-type",
+            "all",
+        )
 
     @patch("apps.integrations.tasks.call_command")
-    def test_stocks_import_validates_file_exists(self, mock_call_command):
-        """Тест валидации существования файла остатков"""
+    def test_stocks_import_calls_rests_command(self, mock_call_command):
+        """Тест запуска команды импорта остатков"""
         # Arrange
-        data_dir = "/path/to/data"
         task_id = "test-task-123"
 
-        # Act & Assert
-        with pytest.raises(FileNotFoundError, match="Файл остатков не найден"):
-            _execute_import_type("stocks", task_id)
+        # Act
+        result = _execute_import_type("stocks", task_id)
+
+        # Assert
+        assert result["type"] == "stocks"
+        assert result["message"] == "Остатки обновлены"
+        mock_call_command.assert_called_once_with(
+            "import_catalog_from_1c",
+            "--file-type",
+            "rests",
+        )
 
     @patch("apps.integrations.tasks.call_command")
     def test_prices_import_calls_correct_command(self, mock_call_command):
         """Тест вызова правильной команды для импорта цен"""
         # Arrange
-        data_dir = "/path/to/data"
         task_id = "test-task-123"
 
-        with patch("apps.integrations.tasks.Path") as mock_path:
-            mock_path.return_value.exists.return_value = True
+        # Act
+        result = _execute_import_type("prices", task_id)
 
-            # Act
-            result = _execute_import_type("prices", task_id)
-
-            # Assert
-            assert result["type"] == "prices"
-            assert result["message"] == "Цены обновлены"
-            mock_call_command.assert_called_once_with(
-                "import_catalog_from_1c",
-                "--data-dir",
-                data_dir,
-                "--file-type",
-                "prices",
-            )
+        # Assert
+        assert result["type"] == "prices"
+        assert result["message"] == "Цены обновлены"
+        mock_call_command.assert_called_once_with(
+            "import_catalog_from_1c",
+            "--file-type",
+            "prices",
+        )
 
     @patch("apps.integrations.tasks.call_command")
     def test_customers_import_finds_contragents_file(self, mock_call_command):

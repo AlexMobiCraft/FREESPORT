@@ -43,6 +43,14 @@ class TestImportPageAccess:
         """Django test client."""
         return Client()
 
+    @pytest.fixture
+    def onec_data_dir(self, tmp_path, settings):
+        """Создает временную директорию для данных 1С и прописывает её в settings."""
+        data_dir = tmp_path / "import_1c"
+        data_dir.mkdir(parents=True, exist_ok=True)
+        settings.ONEC_DATA_DIR = str(data_dir)
+        return data_dir
+
     def test_page_accessible_for_admin(self, client, admin_user):
         """Тест: страница доступна для администратора."""
         client.force_login(admin_user)
@@ -153,13 +161,11 @@ class TestImportPageSubmission:
 
     @patch("apps.integrations.views.get_redis_connection")
     @patch("apps.integrations.views.run_selective_import_task")
-    @patch("apps.integrations.views.settings")
     def test_post_catalog_creates_session_and_redirects(
-        self, mock_settings, mock_task, mock_redis, client, admin_user
+        self, mock_task, mock_redis, client, admin_user, onec_data_dir
     ):
         """Тест: POST с каталогом создает сессию и перенаправляет."""
         # Setup mocks
-        mock_settings.ONEC_DATA_DIR = "/path/to/data"
         mock_task.delay.return_value = MagicMock(id="test-task-123")
 
         mock_lock = MagicMock()
@@ -186,16 +192,14 @@ class TestImportPageSubmission:
         assert session.celery_task_id == "test-task-123"
 
         # Проверяем что Celery задача была запущена
-        mock_task.delay.assert_called_once_with(["catalog"], "/path/to/data")
+        mock_task.delay.assert_called_once_with(["catalog"], str(onec_data_dir))
 
     @patch("apps.integrations.views.get_redis_connection")
     @patch("apps.integrations.views.run_selective_import_task")
-    @patch("apps.integrations.views.settings")
     def test_post_customers_creates_correct_session_type(
-        self, mock_settings, mock_task, mock_redis, client, admin_user
+        self, mock_task, mock_redis, client, admin_user, onec_data_dir
     ):
         """Тест: POST с клиентами создает сессию правильного типа."""
-        mock_settings.ONEC_DATA_DIR = "/path/to/data"
         mock_task.delay.return_value = MagicMock(id="test-task-456")
 
         mock_lock = MagicMock()
@@ -235,15 +239,13 @@ class TestImportPageSubmission:
 
     @patch("apps.integrations.views.get_redis_connection")
     @patch("apps.integrations.views.run_selective_import_task")
-    @patch("apps.integrations.views.settings")
     def test_post_stocks_with_products_succeeds(
-        self, mock_settings, mock_task, mock_redis, client, admin_user, product_factory
+        self, mock_task, mock_redis, client, admin_user, product_factory, onec_data_dir
     ):
         """Тест: POST с остатками при наличии товаров успешен."""
         # Создаем товар
         product_factory()
 
-        mock_settings.ONEC_DATA_DIR = "/path/to/data"
         mock_task.delay.return_value = MagicMock(id="test-task-789")
 
         mock_lock = MagicMock()
@@ -301,12 +303,10 @@ class TestImportPageMessages:
 
     @patch("apps.integrations.views.get_redis_connection")
     @patch("apps.integrations.views.run_selective_import_task")
-    @patch("apps.integrations.views.settings")
     def test_successful_import_shows_success_message(
-        self, mock_settings, mock_task, mock_redis, client, admin_user
+        self, mock_task, mock_redis, client, admin_user, onec_data_dir
     ):
         """Тест: успешный импорт показывает success сообщение."""
-        mock_settings.ONEC_DATA_DIR = "/path/to/data"
         mock_task.delay.return_value = MagicMock(id="test-task-999")
 
         mock_lock = MagicMock()
