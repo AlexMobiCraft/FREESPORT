@@ -173,5 +173,4 @@ data/import_1c/
 backend/celerybeat-schedule.dat
 
 # Debug GitHub logs
-\.github\logs_50016367212
-
+\.github\logs_*\*
