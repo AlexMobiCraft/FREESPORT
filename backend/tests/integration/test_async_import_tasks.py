@@ -102,7 +102,7 @@ class TestRunSelectiveImportTask:
 class TestExecuteImportType:
     """Тесты для функции _execute_import_type"""
 
-    @patch("apps.integrations.admin.call_command")
+    @patch("apps.integrations.tasks.call_command")
     def test_catalog_import_calls_correct_command(self, mock_call_command):
         """Тест вызова правильной команды для импорта каталога"""
         # Arrange
@@ -126,7 +126,7 @@ class TestExecuteImportType:
                 "all",
             )
 
-    @patch("apps.integrations.admin.call_command")
+    @patch("apps.integrations.tasks.call_command")
     def test_stocks_import_validates_file_exists(self, mock_call_command):
         """Тест валидации существования файла остатков"""
         # Arrange
@@ -137,7 +137,7 @@ class TestExecuteImportType:
         with pytest.raises(FileNotFoundError, match="Файл остатков не найден"):
             _execute_import_type("stocks", task_id)
 
-    @patch("apps.integrations.admin.call_command")
+    @patch("apps.integrations.tasks.call_command")
     def test_prices_import_calls_correct_command(self, mock_call_command):
         """Тест вызова правильной команды для импорта цен"""
         # Arrange
@@ -161,7 +161,7 @@ class TestExecuteImportType:
                 "prices",
             )
 
-    @patch("apps.integrations.admin.call_command")
+    @patch("apps.integrations.tasks.call_command")
     def test_customers_import_finds_contragents_file(self, mock_call_command):
         """Тест поиска файла контрагентов"""
         # Arrange

@@ -171,3 +171,6 @@ dmypy.json
 .\data\import_1c
 data/import_1c/
 backend/celerybeat-schedule.dat
+
+# GitHub Actions
+.github/logs_*/
