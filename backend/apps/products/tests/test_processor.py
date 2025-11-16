@@ -65,7 +65,7 @@ class TestImportProductImages:
             image_paths = [image_filename]
 
             # Мокируем default_storage
-            with patch("apps.products.services.processor.default_storage") as mock_storage:
+            with patch("django.core.files.storage.default_storage") as mock_storage:
                 mock_storage.exists.return_value = False
                 mock_storage.save.return_value = f"products/{image_filename}"
 
