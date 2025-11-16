@@ -28,8 +28,10 @@ const customJestConfig = {
     '^@/(.*)$': '<rootDir>/src/$1',
   },
 
-  // Трансформация модулей (включая MSW)
-  transformIgnorePatterns: ['node_modules/(?!(msw)/)'],
+  // Трансформация модулей (включая MSW и его зависимости)
+  transformIgnorePatterns: [
+    'node_modules/(?!(msw|@mswjs|@bundled-es-modules|@open-draft|strict-event-emitter)/)',
+  ],
 
   // Файлы для игнорирования при покрытии кода
   coveragePathIgnorePatterns: [

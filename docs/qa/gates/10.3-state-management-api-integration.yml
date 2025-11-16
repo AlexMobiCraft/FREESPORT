@@ -3,22 +3,22 @@ schema: 1
 story: "10.3"
 story_title: "State Management and API Integration"
 gate: CONCERNS
-status_reason: "Реализация качественная, но есть проблема с MSW v2 конфигурацией для Jest, требующая решения перед production"
+status_reason: "Реализация полная и качественная (stores, services, API client), но MSW v2 блокирует запуск service тестов. Store тесты проходят успешно (9/9)."
 reviewer: "Quinn (Test Architect)"
-updated: "2025-11-16T19:52:00Z"
+updated: "2025-11-16T20:37:00Z"
 
 waiver: { active: false }
 
 top_issues:
   - id: "TEST-001"
     severity: medium
-    finding: "MSW v2 не может быть импортирован в Jest тестах из-за проблемы с module resolution"
-    suggested_action: "Добавить moduleNameMapper для 'msw/node' в jest.config.js или переключиться на Vitest"
+    finding: "MSW v2 не может быть импортирован в Jest тестах (Cannot find module 'msw/node'). Service тесты написаны (34 теста), но не могут запуститься."
+    suggested_action: "Решить MSW v2 ESM import проблему: 1) Добавить moduleNameMapper, 2) Использовать extensionsToTreatAsEsm, или 3) Мигрировать на Vitest"
     suggested_owner: dev
-  - id: "ARCH-001"
+  - id: "TEST-002"
     severity: low
-    finding: "Отсутствуют integration тесты для services (только unit тесты для stores)"
-    suggested_action: "Добавить integration тесты для authService, productsService и других сервисов"
+    finding: "Нет тестов для api-client.ts (retry logic, refresh token flow, concurrent requests)"
+    suggested_action: "Добавить unit-тесты для api-client после решения MSW проблемы"
     suggested_owner: dev
 
 risk_summary:
@@ -30,11 +30,11 @@ risk_summary:
       - "Добавить integration тесты для полного покрытия"
 
 evidence:
-  tests_reviewed: 9
+  tests_reviewed: 43  # 9 store tests passing + 34 service tests written (blocked by MSW)
   risks_identified: 2
   trace:
-    ac_covered: [1, 2, 3, 4, 5, 9]  # Stores, API client, types, services, token storage
-    ac_gaps: [6, 7, 8]  # Unit-тесты для services, retry logic, edge cases
+    ac_covered: [1, 4, 5, 9]  # Stores работают, типы сгенерированы, services реализованы, token storage secure
+    ac_partial: [2, 3, 6, 7, 8]  # Реализовано, но не протестировано из-за MSW проблемы
 
 nfr_validation:
   security:
@@ -52,15 +52,17 @@ nfr_validation:
 
 recommendations:
   immediate:
-    - action: "Исправить jest.config.js для поддержки MSW v2 или мигрировать на Vitest"
+    - action: "Решить MSW v2 import проблему в Jest для запуска service тестов"
       refs: ["frontend/jest.config.js", "frontend/__mocks__/server.ts"]
-    - action: "Добавить unit-тесты для authService, productsService и других сервисов"
+    - action: "Запустить service тесты после решения MSW проблемы и убедиться в 80%+ покрытии"
       refs: ["frontend/src/services/__tests__/"]
+    - action: "Добавить тесты для api-client.ts (retry logic, refresh token flow)"
+      refs: ["frontend/src/services/api-client.ts"]
   future:
+    - action: "Рассмотреть миграцию на Vitest для нативной поддержки ESM"
+      refs: []
     - action: "Добавить integration тесты для проверки взаимодействия stores + services + API"
       refs: ["frontend/src/__tests__/integration/"]
-    - action: "Рассмотреть добавление e2e тестов для критических user flows (login, add to cart)"
-      refs: []
 
 quality_score: 80
 # 100 - (10 * 2 CONCERNS) = 80

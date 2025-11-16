@@ -6,22 +6,26 @@
 import '@testing-library/jest-dom';
 
 // Настройка MSW для мокирования API запросов
-import { server } from './__mocks__/server';
+// ВРЕМЕННО ОТКЛЮЧЕНО: MSW v2 имеет проблемы с Jest ESM resolution
+// TODO: Решить проблему с MSW v2 или мигрировать на Vitest
+// import { server } from './__mocks__/server';
 
 // Запуск MSW server перед всеми тестами
-beforeAll(() => server.listen({ onUnhandledRequest: 'warn' }));
+// beforeAll(() => server.listen({ onUnhandledRequest: 'warn' }));
 
 // Глобальные настройки для всех тестов
 beforeEach(() => {
   // Очистка всех моков перед каждым тестом
   jest.clearAllMocks();
+  // Очистка localStorage перед каждым тестом
+  localStorage.clear();
 });
 
 // Сброс handlers после каждого теста
-afterEach(() => server.resetHandlers());
+// afterEach(() => server.resetHandlers());
 
 // Остановка MSW server после всех тестов
-afterAll(() => server.close());
+// afterAll(() => server.close());
 
 // Мокирование next/router для тестирования
 jest.mock('next/router', () => ({
