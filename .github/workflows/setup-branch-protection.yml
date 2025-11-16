@@ -20,6 +20,7 @@ jobs:
       contents: write
       pull-requests: write
       repository-projects: write
+      issues: write
       
     steps:
     - name: Checkout кода
