@@ -66,12 +66,8 @@ class ProductFilter(django_filters.FilterSet):
     )
 
     # Story 11.0: Маркетинговые фильтры для бейджей
-    is_hit = django_filters.BooleanFilter(
-        field_name="is_hit", help_text="Хиты продаж"
-    )
-    is_new = django_filters.BooleanFilter(
-        field_name="is_new", help_text="Новинки"
-    )
+    is_hit = django_filters.BooleanFilter(field_name="is_hit", help_text="Хиты продаж")
+    is_new = django_filters.BooleanFilter(field_name="is_new", help_text="Новинки")
     is_sale = django_filters.BooleanFilter(
         field_name="is_sale", help_text="Товары на распродаже"
     )

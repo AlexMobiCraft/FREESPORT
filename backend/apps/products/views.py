@@ -100,18 +100,10 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
                 ),
             ),
             # Story 11.0: Маркетинговые фильтры для бейджей
-            OpenApiParameter(
-                "is_hit", OpenApiTypes.BOOL, description="Хиты продаж"
-            ),
-            OpenApiParameter(
-                "is_new", OpenApiTypes.BOOL, description="Новинки"
-            ),
-            OpenApiParameter(
-                "is_sale", OpenApiTypes.BOOL, description="Распродажа"
-            ),
-            OpenApiParameter(
-                "is_promo", OpenApiTypes.BOOL, description="Акции"
-            ),
+            OpenApiParameter("is_hit", OpenApiTypes.BOOL, description="Хиты продаж"),
+            OpenApiParameter("is_new", OpenApiTypes.BOOL, description="Новинки"),
+            OpenApiParameter("is_sale", OpenApiTypes.BOOL, description="Распродажа"),
+            OpenApiParameter("is_promo", OpenApiTypes.BOOL, description="Акции"),
             OpenApiParameter(
                 "is_premium", OpenApiTypes.BOOL, description="Премиум товары"
             ),

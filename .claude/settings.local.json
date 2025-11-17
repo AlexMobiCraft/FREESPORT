@@ -34,7 +34,8 @@
       "Bash(npm run test:coverage:*)",
       "Bash(nul)",
       "Bash(npm uninstall:*)",
-      "Bash(node -e:*)"
+      "Bash(node -e:*)",
+      "Bash(if not exist docsqagates mkdir docsqagates)"
     ],
     "deny": [],
     "ask": [],
