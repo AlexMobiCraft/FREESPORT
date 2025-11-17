@@ -80,10 +80,19 @@ npm run format:check # Проверка форматирования
 ### Тестирование
 
 ```bash
-npm test             # Запуск всех тестов
-npm run test:watch   # Тесты в watch режиме
+npm test              # Запуск всех тестов (Vitest)
+npm run test:watch    # Тесты в watch режиме
 npm run test:coverage # Тесты с покрытием кода
+npm run test:ui       # Vitest UI для визуальной отладки
 ```
+
+**Технологии тестирования:**
+- Vitest 2.1.5 - современный тестовый раннер с ESM support
+- MSW v2 - мокирование API запросов
+- React Testing Library - тестирование компонентов
+- Happy-DOM - быстрая DOM environment
+
+**Подробнее:** См. [docs/testing-standards.md](docs/testing-standards.md) и [docs/vitest-troubleshooting.md](docs/vitest-troubleshooting.md)
 
 ## Переменные окружения
 

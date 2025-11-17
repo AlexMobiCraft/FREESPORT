@@ -1,37 +1,39 @@
 /**
- * Настройка тестового окружения Jest для FREESPORT Frontend
+ * Настройка тестового окружения Vitest для FREESPORT Frontend
  */
 
-// Подключение дополнительных матчеров для DOM элементов
-import '@testing-library/jest-dom';
+// Установка env переменных для тестов
+process.env.NEXT_PUBLIC_API_URL = 'http://localhost:8001/api/v1';
+
+// Подключение дополнительных матчеров для DOM элементов (Vitest версия)
+import '@testing-library/jest-dom/vitest';
+import { vi } from 'vitest';
 
 // Настройка MSW для мокирования API запросов
-// ВРЕМЕННО ОТКЛЮЧЕНО: MSW v2 имеет проблемы с Jest ESM resolution
-// TODO: Решить проблему с MSW v2 или мигрировать на Vitest
-// import { server } from './__mocks__/server';
+import { server } from './__mocks__/server';
 
 // Запуск MSW server перед всеми тестами
-// beforeAll(() => server.listen({ onUnhandledRequest: 'warn' }));
+beforeAll(() => server.listen({ onUnhandledRequest: 'warn' }));
 
 // Глобальные настройки для всех тестов
 beforeEach(() => {
   // Очистка всех моков перед каждым тестом
-  jest.clearAllMocks();
+  vi.clearAllMocks();
   // Очистка localStorage перед каждым тестом
   localStorage.clear();
 });
 
 // Сброс handlers после каждого теста
-// afterEach(() => server.resetHandlers());
+afterEach(() => server.resetHandlers());
 
 // Остановка MSW server после всех тестов
-// afterAll(() => server.close());
+afterAll(() => server.close());
 
 // Мокирование next/router для тестирования
-jest.mock('next/router', () => ({
+vi.mock('next/router', () => ({
   useRouter: () => ({
-    push: jest.fn(),
-    replace: jest.fn(),
+    push: vi.fn(),
+    replace: vi.fn(),
     pathname: '/',
     query: {},
     asPath: '/',
@@ -39,13 +41,13 @@ jest.mock('next/router', () => ({
 }));
 
 // Мокирование next/navigation для тестирования с app router
-jest.mock('next/navigation', () => ({
+vi.mock('next/navigation', () => ({
   useRouter: () => ({
-    push: jest.fn(),
-    replace: jest.fn(),
-    back: jest.fn(),
-    forward: jest.fn(),
-    refresh: jest.fn(),
+    push: vi.fn(),
+    replace: vi.fn(),
+    back: vi.fn(),
+    forward: vi.fn(),
+    refresh: vi.fn(),
   }),
   usePathname: () => '/',
   useSearchParams: () => new URLSearchParams(),
@@ -55,7 +57,7 @@ jest.mock('next/navigation', () => ({
 global.console = {
   ...console,
   // Подавить логи в тестах, но оставить ошибки и предупреждения
-  log: jest.fn(),
-  debug: jest.fn(),
-  info: jest.fn(),
+  log: vi.fn(),
+  debug: vi.fn(),
+  info: vi.fn(),
 };

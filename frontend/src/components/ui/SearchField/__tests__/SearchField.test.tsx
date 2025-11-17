@@ -5,7 +5,6 @@
 
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import '@testing-library/jest-dom';
 import { SearchField } from '../SearchField';
 
 describe('SearchField', () => {
@@ -27,7 +26,7 @@ describe('SearchField', () => {
 
   // onChange callback
   it('calls onChange handler when value changes', () => {
-    const handleChange = jest.fn();
+    const handleChange = vi.fn();
     render(<SearchField onChange={handleChange} />);
 
     const input = screen.getByRole('searchbox');
@@ -81,7 +80,7 @@ describe('SearchField', () => {
   // onSearch callback
   describe('onSearch Callback', () => {
     it('calls onSearch when input meets minLength', () => {
-      const handleSearch = jest.fn();
+      const handleSearch = vi.fn();
       render(<SearchField onSearch={handleSearch} />);
 
       const input = screen.getByRole('searchbox');
@@ -91,7 +90,7 @@ describe('SearchField', () => {
     });
 
     it('does not call onSearch when input is below minLength', () => {
-      const handleSearch = jest.fn();
+      const handleSearch = vi.fn();
       render(<SearchField onSearch={handleSearch} />);
 
       const input = screen.getByRole('searchbox');
@@ -101,7 +100,7 @@ describe('SearchField', () => {
     });
 
     it('does not call onSearch for empty input', () => {
-      const handleSearch = jest.fn();
+      const handleSearch = vi.fn();
       render(<SearchField onSearch={handleSearch} />);
 
       const input = screen.getByRole('searchbox');

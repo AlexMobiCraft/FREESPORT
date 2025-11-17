@@ -69,7 +69,7 @@ jobs:
     - name: Запуск тестов с покрытием
       run: |
         cd frontend
-        npm run test -- --coverage --watchAll=false --passWithNoTests
+        npm run test:coverage
       env:
         CI: true
         

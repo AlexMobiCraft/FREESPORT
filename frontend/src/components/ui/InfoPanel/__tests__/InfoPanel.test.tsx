@@ -5,7 +5,6 @@
 
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import '@testing-library/jest-dom';
 import { InfoPanel } from '../InfoPanel';
 
 describe('InfoPanel', () => {
@@ -50,7 +49,7 @@ describe('InfoPanel', () => {
     });
 
     it('shows close button when onDismiss is provided', () => {
-      const handleDismiss = jest.fn();
+      const handleDismiss = vi.fn();
       render(<InfoPanel onDismiss={handleDismiss}>Message</InfoPanel>);
 
       const closeButton = screen.getByLabelText('Закрыть');
@@ -58,7 +57,7 @@ describe('InfoPanel', () => {
     });
 
     it('calls onDismiss when close button is clicked', () => {
-      const handleDismiss = jest.fn();
+      const handleDismiss = vi.fn();
       render(<InfoPanel onDismiss={handleDismiss}>Message</InfoPanel>);
 
       const closeButton = screen.getByLabelText('Закрыть');
@@ -68,7 +67,7 @@ describe('InfoPanel', () => {
     });
 
     it('hides panel when close button is clicked', () => {
-      const handleDismiss = jest.fn();
+      const handleDismiss = vi.fn();
       render(<InfoPanel onDismiss={handleDismiss}>Message</InfoPanel>);
 
       const closeButton = screen.getByLabelText('Закрыть');
@@ -78,7 +77,7 @@ describe('InfoPanel', () => {
     });
 
     it('close button has hover effect', () => {
-      const handleDismiss = jest.fn();
+      const handleDismiss = vi.fn();
       render(<InfoPanel onDismiss={handleDismiss}>Message</InfoPanel>);
 
       const closeButton = screen.getByLabelText('Закрыть');
@@ -86,7 +85,7 @@ describe('InfoPanel', () => {
     });
 
     it('close button has focus ring', () => {
-      const handleDismiss = jest.fn();
+      const handleDismiss = vi.fn();
       render(<InfoPanel onDismiss={handleDismiss}>Message</InfoPanel>);
 
       const closeButton = screen.getByLabelText('Закрыть');
@@ -164,7 +163,7 @@ describe('InfoPanel', () => {
     });
 
     it('close button has aria-label', () => {
-      const handleDismiss = jest.fn();
+      const handleDismiss = vi.fn();
       render(<InfoPanel onDismiss={handleDismiss}>Message</InfoPanel>);
 
       const closeButton = screen.getByLabelText('Закрыть');

@@ -5,7 +5,6 @@
 
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import '@testing-library/jest-dom';
 import { Button } from '../Button';
 
 describe('Button', () => {
@@ -17,7 +16,7 @@ describe('Button', () => {
 
   // Callback onClick
   it('calls onClick handler when clicked', () => {
-    const handleClick = jest.fn();
+    const handleClick = vi.fn();
     render(<Button onClick={handleClick}>Click me</Button>);
 
     fireEvent.click(screen.getByRole('button'));
@@ -84,7 +83,7 @@ describe('Button', () => {
     });
 
     it('does not call onClick when disabled', () => {
-      const handleClick = jest.fn();
+      const handleClick = vi.fn();
       render(
         <Button disabled onClick={handleClick}>
           Disabled

@@ -32,7 +32,9 @@
       "Bash(npm pkg set:*)",
       "Bash(npm run generate:types:*)",
       "Bash(npm run test:coverage:*)",
-      "Bash(nul)"
+      "Bash(nul)",
+      "Bash(npm uninstall:*)",
+      "Bash(node -e:*)"
     ],
     "deny": [],
     "ask": [],

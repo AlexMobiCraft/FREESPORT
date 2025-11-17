@@ -3,7 +3,6 @@
  * Story: 10.1 Environment Setup
  */
 
-import { describe, it, expect } from '@jest/globals';
 import packageJson from '../../package.json';
 
 describe('Docker Environment', () => {

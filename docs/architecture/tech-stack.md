@@ -121,12 +121,14 @@ FREESPORT - это API-First E-commerce платформа для B2B/B2C про
 - **@tailwindcss/postcss 4** - PostCSS интеграция
 
 ### Тестирование
-- **Jest 29.7.0** - JavaScript testing framework
-- **@testing-library/react 14.1.2** - тестирование React компонентов
-- **@testing-library/jest-dom 6.1.4** - дополнительные Jest матchers
+- **Vitest 2.1.5** - современный тестовый раннер с нативной ESM поддержкой (~15% быстрее Jest)
+- **@vitest/ui 2.1.5** - визуальный интерфейс для отладки тестов
+- **@vitest/coverage-v8 2.1.5** - coverage reporting с встроенным V8 провайдером
+- **happy-dom 15.11.3** - быстрая DOM environment (легковеснее jsdom)
+- **@testing-library/react 16.3.0** - тестирование React компонентов
+- **@testing-library/jest-dom 6.1.4** - дополнительные матchers для DOM
 - **@testing-library/user-event 14.5.1** - симуляция пользовательских событий
-- **jest-environment-jsdom 29.7.0** - DOM среда для тестов
-- **@types/jest 29.5.8** - TypeScript типы для Jest
+- **MSW 2.12.2** - мокирование API запросов (ESM-only, требует Vitest)
 
 ### Линтинг и качество кода
 - **ESLint 9** - статический анализ JavaScript/TypeScript кода

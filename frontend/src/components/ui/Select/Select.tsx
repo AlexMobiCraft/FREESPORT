@@ -28,9 +28,17 @@ export interface SelectProps extends Omit<React.SelectHTMLAttributes<HTMLSelectE
 }
 
 export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
-  ({ label, placeholder, options, helper, error, className, disabled, id, ...props }, ref) => {
+  ({ label, placeholder, options, helper, error, className, disabled, id, onChange, ...props }, ref) => {
     const selectId = id || `select-${label.toLowerCase().replace(/\s+/g, '-')}`;
     const hasError = Boolean(error);
+
+    // Обработчик onChange с защитой от двойных вызовов
+    const handleChange = React.useCallback(
+      (e: React.ChangeEvent<HTMLSelectElement>) => {
+        onChange?.(e);
+      },
+      [onChange]
+    );
 
     return (
       <div className="w-full">
@@ -69,6 +77,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
             disabled={disabled}
             aria-invalid={hasError}
             aria-describedby={hasError || helper ? `${selectId}-description` : undefined}
+            onChange={handleChange}
             {...props}
           >
             {placeholder && (

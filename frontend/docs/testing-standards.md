@@ -37,17 +37,17 @@ frontend/
 │   ├── next/
 │   │   └── router.js
 │   └── api/
-├── jest.config.js               # Jest конфигурация
-├── jest.setup.js               # Настройка тестового окружения
+├── vitest.config.js               # Vitest конфигурация
+├── vitest.setup.js               # Настройка тестового окружения
 └── playwright.config.ts        # E2E тесты конфигурация
 ```
 
 ## 🧪 Типы тестов Frontend
 
-### 1. **Unit тесты компонентов** (Jest + React Testing Library)
+### 1. **Unit тесты компонентов** (Vitest + React Testing Library)
 
 - **Назначение**: Тестирование отдельных React компонентов в изоляции
-- **Технология**: Jest + React Testing Library + MSW
+- **Технология**: Vitest + React Testing Library + MSW
 - **Запуск**: `npm test` или `npm run test:watch`
 
 **Пример структуры:**
@@ -64,7 +64,7 @@ describe('Button Component', () => {
   });
 
   test('calls onClick handler when clicked', () => {
-    const handleClick = jest.fn();
+    const handleClick = vi.fn();
     render(<Button onClick={handleClick}>Click me</Button>);
 
     fireEvent.click(screen.getByRole('button'));
@@ -103,7 +103,7 @@ describe('useAuth Hook', () => {
 });
 ```
 
-### 3. **Integration тесты** (Jest + MSW)
+### 3. **Integration тесты** (Vitest + MSW)
 
 - **Назначение**: Тестирование взаимодействия компонентов с API
 - **Технология**: Mock Service Worker (MSW) для API mocking
@@ -164,19 +164,19 @@ test.describe('Authentication Flow', () => {
 });
 ```
 
-## 🔧 Конфигурация Jest
+## 🔧 Конфигурация Vitest
 
 ```javascript
-// jest.config.js
-const nextJest = require('next/jest');
+// vitest.config.js
+const nextVitest = require('next/jest');
 
-const createJestConfig = nextJest({
+const createVitestConfig = nextVitest({
   dir: './',
 });
 
-const customJestConfig = {
+const customVitestConfig = {
   testEnvironment: 'jsdom',
-  setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
+  setupFilesAfterEnv: ['<rootDir>/vitest.setup.js'],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
   },
@@ -197,13 +197,13 @@ const customJestConfig = {
   testPathIgnorePatterns: ['<rootDir>/.next/', '<rootDir>/node_modules/', '<rootDir>/tests/e2e/'],
 };
 
-module.exports = createJestConfig(customJestConfig);
+module.exports = createVitestConfig(customVitestConfig);
 ```
 
 ## 🎭 Настройка тестового окружения
 
 ```javascript
-// jest.setup.js
+// vitest.setup.js
 import '@testing-library/jest-dom';
 import { server } from './src/__mocks__/server';
 
@@ -215,16 +215,16 @@ jest.mock('next/router', () => ({
       pathname: '/',
       query: {},
       asPath: '/',
-      push: jest.fn(),
-      replace: jest.fn(),
-      reload: jest.fn(),
-      back: jest.fn(),
-      prefetch: jest.fn(),
-      beforePopState: jest.fn(),
+      push: vi.fn(),
+      replace: vi.fn(),
+      reload: vi.fn(),
+      back: vi.fn(),
+      prefetch: vi.fn(),
+      beforePopState: vi.fn(),
       events: {
-        on: jest.fn(),
-        off: jest.fn(),
-        emit: jest.fn(),
+        on: vi.fn(),
+        off: vi.fn(),
+        emit: vi.fn(),
       },
     };
   },
@@ -236,10 +236,10 @@ afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
 // Mock IntersectionObserver
-global.IntersectionObserver = jest.fn().mockImplementation(() => ({
-  observe: jest.fn(),
-  unobserve: jest.fn(),
-  disconnect: jest.fn(),
+global.IntersectionObserver = vi.fn().mockImplementation(() => ({
+  observe: vi.fn(),
+  unobserve: vi.fn(),
+  disconnect: vi.fn(),
 }));
 ```
 

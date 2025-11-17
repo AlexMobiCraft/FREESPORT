@@ -5,11 +5,10 @@
 
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import '@testing-library/jest-dom';
 import { Tabs, Tab } from '../Tabs';
 
 // Mock scrollIntoView (не поддерживается в jsdom)
-Element.prototype.scrollIntoView = jest.fn();
+Element.prototype.scrollIntoView = vi.fn();
 
 describe('Tabs', () => {
   const mockTabs: Tab[] = [
@@ -57,7 +56,7 @@ describe('Tabs', () => {
     });
 
     it('calls onChange callback when tab changes', () => {
-      const handleChange = jest.fn();
+      const handleChange = vi.fn();
       render(<Tabs tabs={mockTabs} onChange={handleChange} />);
 
       const tab2 = screen.getByRole('tab', { name: 'Tab 2' });

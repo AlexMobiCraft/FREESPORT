@@ -5,7 +5,6 @@
 
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import '@testing-library/jest-dom';
 import { Chip } from '../Chip';
 
 describe('Chip', () => {
@@ -62,7 +61,7 @@ describe('Chip', () => {
   // Edge Case: onRemove callback
   describe('Remove Button', () => {
     it('renders remove button when onRemove is provided', () => {
-      const handleRemove = jest.fn();
+      const handleRemove = vi.fn();
       render(<Chip onRemove={handleRemove}>Removable</Chip>);
 
       const removeButton = screen.getByLabelText('Удалить');
@@ -77,7 +76,7 @@ describe('Chip', () => {
     });
 
     it('calls onRemove when remove button is clicked', () => {
-      const handleRemove = jest.fn();
+      const handleRemove = vi.fn();
       render(<Chip onRemove={handleRemove}>Removable</Chip>);
 
       const removeButton = screen.getByLabelText('Удалить');
@@ -87,8 +86,8 @@ describe('Chip', () => {
     });
 
     it('stops event propagation when remove button is clicked', () => {
-      const handleRemove = jest.fn();
-      const handleChipClick = jest.fn();
+      const handleRemove = vi.fn();
+      const handleChipClick = vi.fn();
 
       render(
         <Chip onRemove={handleRemove} onClick={handleChipClick}>
@@ -104,7 +103,7 @@ describe('Chip', () => {
     });
 
     it('remove button has focus ring', () => {
-      const handleRemove = jest.fn();
+      const handleRemove = vi.fn();
       render(<Chip onRemove={handleRemove}>Removable</Chip>);
 
       const removeButton = screen.getByLabelText('Удалить');
@@ -112,7 +111,7 @@ describe('Chip', () => {
     });
 
     it('remove button has hover effect', () => {
-      const handleRemove = jest.fn();
+      const handleRemove = vi.fn();
       render(<Chip onRemove={handleRemove}>Removable</Chip>);
 
       const removeButton = screen.getByLabelText('Удалить');
@@ -204,7 +203,7 @@ describe('Chip', () => {
     });
 
     it('remove button has aria-label', () => {
-      const handleRemove = jest.fn();
+      const handleRemove = vi.fn();
       render(<Chip onRemove={handleRemove}>Chip</Chip>);
 
       const removeButton = screen.getByLabelText('Удалить');
@@ -231,7 +230,7 @@ describe('Chip', () => {
   describe('Combined Features', () => {
     it('renders selected chip with icon and remove button', () => {
       const TestIcon = () => <svg data-testid="test-icon" />;
-      const handleRemove = jest.fn();
+      const handleRemove = vi.fn();
 
       render(
         <Chip selected icon={<TestIcon />} onRemove={handleRemove}>

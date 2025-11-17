@@ -5,7 +5,6 @@
 
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import '@testing-library/jest-dom';
 import { Card } from '../Card';
 
 describe('Card', () => {
@@ -97,7 +96,7 @@ describe('Card', () => {
 
   // onClick handler
   it('can be clickable with onClick handler', () => {
-    const handleClick = jest.fn();
+    const handleClick = vi.fn();
     const { container } = render(
       <Card hover onClick={handleClick}>
         Clickable Card

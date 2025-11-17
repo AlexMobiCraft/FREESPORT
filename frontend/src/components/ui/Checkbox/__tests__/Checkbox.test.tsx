@@ -5,7 +5,6 @@
 
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import '@testing-library/jest-dom';
 import { Checkbox } from '../Checkbox';
 
 describe('Checkbox', () => {

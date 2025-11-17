@@ -5,7 +5,6 @@
 
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import '@testing-library/jest-dom';
 import { Toggle } from '../Toggle';
 
 describe('Toggle', () => {
@@ -43,7 +42,7 @@ describe('Toggle', () => {
     });
 
     it('toggles checked state on click', () => {
-      const handleChange = jest.fn();
+      const handleChange = vi.fn();
       render(<Toggle onChange={handleChange} />);
 
       const toggle = screen.getByRole('switch');
@@ -70,7 +69,7 @@ describe('Toggle', () => {
     });
 
     it('does not toggle when disabled', () => {
-      const handleChange = jest.fn();
+      const handleChange = vi.fn();
       render(<Toggle disabled onChange={handleChange} />);
 
       const toggle = screen.getByRole('switch');

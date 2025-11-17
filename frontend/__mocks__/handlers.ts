@@ -1,5 +1,6 @@
 /**
  * MSW Request Handlers
+ * ⚠️ IMPORTANT: Use only mock tokens/credentials, never production data
  */
 import { http, HttpResponse } from 'msw';
 
@@ -55,5 +56,28 @@ export const handlers = [
 
   http.get(`${API_URL}/cart/`, () => {
     return HttpResponse.json({ id: 1, items: [], total_amount: 0 });
+  }),
+
+  http.get(`${API_URL}/orders/`, ({ request }) => {
+    const url = new URL(request.url);
+    const page = parseInt(url.searchParams.get('page') || '1', 10);
+    const limit = parseInt(url.searchParams.get('limit') || '10', 10);
+
+    return HttpResponse.json({
+      count: 25,
+      next: page * limit < 25 ? `${API_URL}/orders/?page=${page + 1}&limit=${limit}` : null,
+      previous: page > 1 ? `${API_URL}/orders/?page=${page - 1}&limit=${limit}` : null,
+      results: [
+        {
+          id: 1,
+          order_number: 'ORD-001',
+          status: 'delivered',
+          items: [],
+          total_amount: 2500,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+      ],
+    });
   }),
 ];

@@ -5,7 +5,6 @@
 
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import '@testing-library/jest-dom';
 import { SupportPanel } from '../SupportPanel';
 
 describe('SupportPanel', () => {
@@ -134,7 +133,7 @@ describe('SupportPanel', () => {
     });
 
     it('shows close button when onDismiss is provided', () => {
-      const handleDismiss = jest.fn();
+      const handleDismiss = vi.fn();
       render(<SupportPanel variant="delivery" value="Value" onDismiss={handleDismiss} />);
 
       const closeButton = screen.getByLabelText('Закрыть');
@@ -142,7 +141,7 @@ describe('SupportPanel', () => {
     });
 
     it('calls onDismiss when close button is clicked', () => {
-      const handleDismiss = jest.fn();
+      const handleDismiss = vi.fn();
       render(<SupportPanel variant="delivery" value="Value" onDismiss={handleDismiss} />);
 
       const closeButton = screen.getByLabelText('Закрыть');
@@ -152,7 +151,7 @@ describe('SupportPanel', () => {
     });
 
     it('hides panel when close button is clicked', () => {
-      const handleDismiss = jest.fn();
+      const handleDismiss = vi.fn();
       render(<SupportPanel variant="delivery" value="Value" onDismiss={handleDismiss} />);
 
       const closeButton = screen.getByLabelText('Закрыть');
@@ -162,7 +161,7 @@ describe('SupportPanel', () => {
     });
 
     it('close button has hover effect', () => {
-      const handleDismiss = jest.fn();
+      const handleDismiss = vi.fn();
       render(<SupportPanel variant="delivery" value="Value" onDismiss={handleDismiss} />);
 
       const closeButton = screen.getByLabelText('Закрыть');
@@ -170,7 +169,7 @@ describe('SupportPanel', () => {
     });
 
     it('close button has focus ring', () => {
-      const handleDismiss = jest.fn();
+      const handleDismiss = vi.fn();
       render(<SupportPanel variant="delivery" value="Value" onDismiss={handleDismiss} />);
 
       const closeButton = screen.getByLabelText('Закрыть');
@@ -231,7 +230,7 @@ describe('SupportPanel', () => {
     });
 
     it('close button has aria-label', () => {
-      const handleDismiss = jest.fn();
+      const handleDismiss = vi.fn();
       render(<SupportPanel variant="delivery" value="Value" onDismiss={handleDismiss} />);
 
       const closeButton = screen.getByLabelText('Закрыть');

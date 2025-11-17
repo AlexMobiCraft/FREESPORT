@@ -5,11 +5,10 @@
 
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import '@testing-library/jest-dom';
 import { Modal } from '../Modal';
 
 describe('Modal', () => {
-  const mockOnClose = jest.fn();
+  const mockOnClose = vi.fn();
 
   beforeEach(() => {
     mockOnClose.mockClear();
@@ -135,7 +134,7 @@ describe('Modal', () => {
 
   // Edge Case: Nested modals warning
   describe('Edge Case: Nested Modals Warning', () => {
-    const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
+    const consoleSpy = vi.spyOn(console, 'warn').mockImplementation();
 
     afterEach(() => {
       consoleSpy.mockClear();
@@ -162,7 +161,7 @@ describe('Modal', () => {
           <Modal isOpen={true} onClose={mockOnClose} title="First">
             Content 1
           </Modal>
-          <Modal isOpen={true} onClose={jest.fn()} title="Second">
+          <Modal isOpen={true} onClose={vi.fn()} title="Second">
             Content 2
           </Modal>
         </>
