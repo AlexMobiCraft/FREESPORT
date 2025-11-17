@@ -31,7 +31,8 @@
       "Bash(.env.example)",
       "Bash(npm pkg set:*)",
       "Bash(npm run generate:types:*)",
-      "Bash(npm run test:coverage:*)"
+      "Bash(npm run test:coverage:*)",
+      "Bash(nul)"
     ],
     "deny": [],
     "ask": [],
