@@ -10,7 +10,7 @@ import '@testing-library/jest-dom/vitest';
 import { vi } from 'vitest';
 
 // Настройка MSW для мокирования API запросов
-import { server } from './__mocks__/server';
+import { server } from './src/__mocks__/api/server';
 
 // Запуск MSW server перед всеми тестами
 beforeAll(() => server.listen({ onUnhandledRequest: 'warn' }));
