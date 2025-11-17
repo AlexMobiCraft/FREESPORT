@@ -10,6 +10,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import HeroSection from '@/components/home/HeroSection';
+import { HitsSection, NewArrivalsSection, CategoriesSection } from '@/components/home';
 import { Button } from '@/components/ui/Button/Button';
 
 // ISR конфигурация: ревалидация каждый час
@@ -57,6 +58,18 @@ export default function Home() {
     <div className="bg-white">
       {/* Hero секция с ролевыми баннерами */}
       <HeroSection />
+
+      {/* Story 11.2: Динамические блоки контента */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Хиты продаж */}
+        <HitsSection />
+
+        {/* Новинки */}
+        <NewArrivalsSection />
+
+        {/* Популярные категории */}
+        <CategoriesSection />
+      </div>
 
       {/* Преимущества */}
       <section className="py-16 bg-gray-50">

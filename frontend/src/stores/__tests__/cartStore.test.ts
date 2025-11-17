@@ -13,6 +13,13 @@ const mockProduct: Product = {
   is_in_stock: true,
   category: { id: 1, name: 'Test', slug: 'test' },
   images: [],
+  // Story 11.0: Маркетинговые флаги
+  is_hit: false,
+  is_new: false,
+  is_sale: false,
+  is_promo: false,
+  is_premium: false,
+  discount_percent: null,
 };
 
 describe('cartStore', () => {

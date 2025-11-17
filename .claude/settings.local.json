@@ -36,8 +36,7 @@
       "Bash(npm uninstall:*)",
       "Bash(node -e:*)",
       "Bash(frontend/public/og-image-placeholder.txt)",
-      "Bash(npx vitest:*)",
-      "Bash(if not exist docsqagates mkdir docsqagates)"
+      "Bash(npx vitest:*)"
     ],
     "deny": [],
     "ask": [],

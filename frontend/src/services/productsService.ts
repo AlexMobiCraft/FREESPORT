@@ -7,11 +7,19 @@ import type { Product, PaginatedResponse } from '@/types/api';
 
 interface ProductFilters {
   page?: number;
+  page_size?: number;
   limit?: number;
   category?: string;
   brand?: string;
   min_price?: number;
   max_price?: number;
+  ordering?: string;
+  in_stock?: boolean;
+  is_hit?: boolean;
+  is_new?: boolean;
+  is_sale?: boolean;
+  is_promo?: boolean;
+  is_premium?: boolean;
 }
 
 class ProductsService {
@@ -48,6 +56,40 @@ class ProductsService {
    */
   async filter(filters: ProductFilters): Promise<PaginatedResponse<Product>> {
     return this.getAll(filters);
+  }
+
+  /**
+   * Получить хиты продаж (Story 11.2)
+   * GET /products?is_hit=true&ordering=-created_at&page_size=8
+   */
+  async getHits(params?: Partial<ProductFilters>): Promise<Product[]> {
+    const response = await apiClient.get<PaginatedResponse<Product>>('/products/', {
+      params: {
+        is_hit: true,
+        ordering: '-created_at',
+        page_size: 8,
+        in_stock: true,
+        ...params,
+      },
+    });
+    return response.data.results;
+  }
+
+  /**
+   * Получить новинки (Story 11.2)
+   * GET /products?is_new=true&ordering=-created_at&page_size=8
+   */
+  async getNew(params?: Partial<ProductFilters>): Promise<Product[]> {
+    const response = await apiClient.get<PaginatedResponse<Product>>('/products/', {
+      params: {
+        is_new: true,
+        ordering: '-created_at',
+        page_size: 8,
+        in_stock: true,
+        ...params,
+      },
+    });
+    return response.data.results;
   }
 }
 

@@ -49,6 +49,14 @@ export interface Product {
     image: string;
     is_primary: boolean;
   }>;
+
+  // Story 11.0: Маркетинговые флаги для бейджей
+  is_hit: boolean;
+  is_new: boolean;
+  is_sale: boolean;
+  is_promo: boolean;
+  is_premium: boolean;
+  discount_percent: number | null;
 }
 
 export interface CartItem {
@@ -95,7 +103,11 @@ export interface Category {
   id: number;
   name: string;
   slug: string;
-  parent_id?: number;
+  parent_id: number | null;
+  level: number;
+  icon: string | null;
+  products_count: number;
+  description?: string;
 }
 
 export interface CategoryTree extends Category {
