@@ -1,0 +1,159 @@
+# Quality Gate Decision: Story 11.1 - Hero-секция и Layout главной страницы
+schema: 1
+story: "11.1"
+story_title: "Hero-секция и Layout главной страницы"
+gate: "CONCERNS"
+status_reason: "Отличная реализация функционала с высоким качеством кода и тестов (100% покрытие), но требуется создание реального OG-изображения для production deployment"
+reviewer: "Quinn (Test Architect)"
+updated: "2025-11-17T00:00:00Z"
+
+waiver:
+  active: false
+
+# Выявленные проблемы
+top_issues:
+  - id: "MEDIA-001"
+    severity: medium
+    finding: "OG image (og-image.jpg) не создан - существует только placeholder файл"
+    suggested_action: "Создать реальное OG изображение 1200x630px с логотипом FREESPORT перед production deployment"
+    suggested_owner: "dev"
+
+  - id: "STYLE-001"
+    severity: low
+    finding: "Использование styled-jsx вместо стандартного Tailwind для адаптивных стилей"
+    suggested_action: "Рассмотреть рефакторинг на Tailwind responsive utilities (sm:, md:, lg:) для лучшей консистентности"
+    suggested_owner: "dev"
+
+# Качественная оценка
+quality_score: 85
+expires: "2025-12-01T00:00:00Z"
+
+# Доказательства тестирования
+evidence:
+  tests_reviewed: 26
+  risks_identified: 2
+  trace:
+    ac_covered: [1, 2, 3, 4, 5, 6]  # Все AC покрыты тестами
+    ac_gaps: []  # Нет пробелов в покрытии
+
+# Валидация NFR (Non-Functional Requirements)
+nfr_validation:
+  security:
+    status: PASS
+    notes: "Нет проблем безопасности. SSG/ISR правильно настроен, динамические данные обрабатываются на клиенте"
+
+  performance:
+    status: CONCERNS
+    notes: "OG image placeholder может повлиять на SEO. Необходимо создать оптимизированное изображение < 200KB (WebP format рекомендуется)"
+
+  reliability:
+    status: PASS
+    notes: "Отличное покрытие тестами (100% для HeroSection, 85.38% общее). Все тесты проходят стабильно"
+
+  maintainability:
+    status: PASS
+    notes: "Чистая архитектура, хорошая типизация TypeScript, следование design system tokens"
+
+# Рекомендации
+recommendations:
+  immediate:  # Должны быть исправлены перед production
+    - action: "Создать реальное OG изображение 1200x630px с логотипом FREESPORT"
+      refs: ["frontend/public/og-image.jpg"]
+      priority: "high"
+
+  future:  # Могут быть адресованы позже
+    - action: "Рефакторить styled-jsx на Tailwind responsive utilities для консистентности"
+      refs: ["frontend/src/components/home/HeroSection.tsx:129-146"]
+      priority: "low"
+
+    - action: "Рассмотреть добавление E2E тестов для полного user journey с разными ролями"
+      refs: ["frontend/src/app/page.tsx"]
+      priority: "low"
+
+# История изменений gate (audit trail)
+history:
+  - at: "2025-11-17T00:00:00Z"
+    gate: CONCERNS
+    note: "Первоначальный review - отличное качество кода и тестов, но требуется создание OG изображения"
+
+# Детальный анализ
+detailed_analysis:
+  strengths:
+    - "100% покрытие тестами для HeroSection компонента (11 unit тестов)"
+    - "15 интеграционных тестов для главной страницы"
+    - "Правильное применение design system tokens"
+    - "Корректная настройка SSG/ISR (revalidate: 3600)"
+    - "Полные SEO метатеги (title, description, OG tags, Twitter cards)"
+    - "Отличная типизация TypeScript"
+    - "Следование React best practices (forwardRef, displayName)"
+    - "Адаптивная вёрстка для mobile/tablet/desktop"
+
+  weaknesses:
+    - "OG изображение не создано (только placeholder)"
+    - "Использование styled-jsx вместо Tailwind responsive utilities"
+    - "Нет E2E тестов для проверки полного user journey"
+
+  code_quality:
+    score: 90
+    notes: "Высокое качество кода. Чистая архитектура, хорошая читаемость, следование стандартам проекта"
+
+  test_quality:
+    score: 95
+    notes: "Отличное покрытие и качество тестов. Все AC покрыты, edge cases учтены"
+
+  architecture:
+    score: 90
+    notes: "Правильная архитектура. SSG/ISR корректно настроен, client-side state management через Zustand"
+
+# Трассировка требований к тестам (Given-When-Then)
+requirements_trace:
+  - ac_number: 1
+    requirement: "Роут главной страницы реализован и доступен для всех пользователей"
+    tests:
+      - file: "frontend/src/app/__tests__/page.test.tsx"
+        scenario: "Given пользователь открывает /, When страница рендерится, Then страница отображается без ошибок"
+        status: "PASS"
+
+  - ac_number: 2
+    requirement: "Hero-секция адаптируется под роль пользователя (B2B/B2C/Guest)"
+    tests:
+      - file: "frontend/src/components/home/__tests__/HeroSection.test.tsx"
+        scenario: "Given пользователь с ролью wholesale_level1, When HeroSection рендерится, Then отображается B2B баннер"
+        status: "PASS"
+      - file: "frontend/src/components/home/__tests__/HeroSection.test.tsx"
+        scenario: "Given пользователь с ролью retail, When HeroSection рендерится, Then отображается B2C баннер"
+        status: "PASS"
+      - file: "frontend/src/components/home/__tests__/HeroSection.test.tsx"
+        scenario: "Given неавторизованный пользователь, When HeroSection рендерится, Then отображается универсальный баннер"
+        status: "PASS"
+
+  - ac_number: 3
+    requirement: "Применены токены дизайн-системы"
+    tests:
+      - file: "frontend/src/components/home/__tests__/HeroSection.test.tsx"
+        scenario: "Given HeroSection рендерится, When проверяются CSS классы, Then применены правильные design tokens (colors, typography)"
+        status: "PASS"
+
+  - ac_number: 4
+    requirement: "Адаптивная вёрстка для mobile/tablet/desktop"
+    tests:
+      - file: "frontend/src/components/home/__tests__/HeroSection.test.tsx"
+        scenario: "Given HeroSection рендерится, When проверяется responsive контейнер, Then max-width 1280px применен"
+        status: "PASS"
+      - file: "frontend/src/app/__tests__/page.test.tsx"
+        scenario: "Given главная страница, When проверяются responsive классы, Then адаптивные padding классы присутствуют"
+        status: "PASS"
+
+  - ac_number: 5
+    requirement: "SSG/ISR настройка с revalidate: 3600"
+    tests:
+      - file: "frontend/src/app/__tests__/page.test.tsx"
+        scenario: "Given экспорт страницы, When проверяется revalidate, Then значение равно 3600"
+        status: "PASS"
+
+  - ac_number: 6
+    requirement: "SEO метатеги заполнены"
+    tests:
+      - file: "frontend/src/app/__tests__/page.test.tsx"
+        scenario: "Given metadata экспорт, When проверяются метатеги, Then title, description, OG tags, Twitter cards присутствуют"
+        status: "PASS"

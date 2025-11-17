@@ -34,7 +34,9 @@
       "Bash(npm run test:coverage:*)",
       "Bash(nul)",
       "Bash(npm uninstall:*)",
-      "Bash(node -e:*)"
+      "Bash(node -e:*)",
+      "Bash(frontend/public/og-image-placeholder.txt)",
+      "Bash(npx vitest:*)"
     ],
     "deny": [],
     "ask": [],

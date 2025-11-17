@@ -1,45 +1,62 @@
 /**
  * Главная страница FREESPORT Platform
  * Hero секция и основная информация
+ *
+ * Features:
+ * - SSG (Static Site Generation) с ISR revalidation
+ * - SEO оптимизация с метатегами и OG tags
+ * - Динамический Hero баннер на основе роли пользователя
  */
+import type { Metadata } from 'next';
 import Link from 'next/link';
-import Button from '@/components/ui/Button';
+import HeroSection from '@/components/home/HeroSection';
+import { Button } from '@/components/ui/Button/Button';
+
+// ISR конфигурация: ревалидация каждый час
+export const revalidate = 3600;
+
+// SEO Metadata
+export const metadata: Metadata = {
+  title: 'FREESPORT - Оптовые поставки спортивных товаров | B2B и Розница',
+  description:
+    'Оптовые поставки спортивных товаров для B2B и розничных покупателей. 5 брендов, дифференцированное ценообразование, интеграция с 1С. 1000+ товаров в каталоге.',
+  keywords: [
+    'спортивные товары оптом',
+    'B2B спортивная одежда',
+    'оптовые поставки спорттоваров',
+    'FREESPORT',
+    'спортивная экипировка',
+    'товары для спорта',
+  ],
+  openGraph: {
+    title: 'FREESPORT - Оптовые поставки спортивных товаров',
+    description: 'B2B и B2C продажи спортивных товаров. 5 брендов. 1000+ товаров.',
+    url: 'https://freesport.ru',
+    siteName: 'FREESPORT',
+    images: [
+      {
+        url: '/og-image.jpg',
+        width: 1200,
+        height: 630,
+        alt: 'FREESPORT - Платформа спортивных товаров',
+      },
+    ],
+    locale: 'ru_RU',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'FREESPORT - Оптовые поставки спортивных товаров',
+    description: 'B2B и B2C продажи спортивных товаров. 5 брендов. 1000+ товаров.',
+    images: ['/og-image.jpg'],
+  },
+};
 
 export default function Home() {
   return (
     <div className="bg-white">
-      {/* Hero секция */}
-      <section className="relative bg-gradient-to-r from-blue-600 to-blue-800 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
-          <div className="text-center">
-            <h1 className="text-4xl md:text-6xl font-bold mb-6">FREESPORT Platform</h1>
-            <p className="text-xl md:text-2xl mb-8 max-w-3xl mx-auto text-blue-100">
-              Ведущая платформа B2B/B2C продаж спортивных товаров. Объединяем 5 торговых марок в
-              единой экосистеме.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href="/catalog">
-                <Button
-                  variant="primary"
-                  size="lg"
-                  className="bg-white text-blue-600 hover:bg-gray-100"
-                >
-                  Перейти в каталог
-                </Button>
-              </Link>
-              <Link href="/wholesale">
-                <Button
-                  variant="outline"
-                  size="lg"
-                  className="border-white text-white hover:bg-white hover:text-blue-600"
-                >
-                  Оптовые продажи
-                </Button>
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* Hero секция с ролевыми баннерами */}
+      <HeroSection />
 
       {/* Преимущества */}
       <section className="py-16 bg-gray-50">
