@@ -230,19 +230,25 @@ class ProductAdmin(admin.ModelAdmin):
         self.message_user(request, f"Отмечено акцией: {updated} товаров")
 
     @admin.action(description="✗ Снять отметку акция")
-    def unmark_as_promo(self, request: HttpRequest, queryset: QuerySet[Product]) -> None:
+    def unmark_as_promo(
+        self, request: HttpRequest, queryset: QuerySet[Product]
+    ) -> None:
         """Массовое действие: снять отметку акция"""
         updated = queryset.update(is_promo=False)
         self.message_user(request, f"Снята отметка акции: {updated} товаров")
 
     @admin.action(description="✓ Отметить как премиум")
-    def mark_as_premium(self, request: HttpRequest, queryset: QuerySet[Product]) -> None:
+    def mark_as_premium(
+        self, request: HttpRequest, queryset: QuerySet[Product]
+    ) -> None:
         """Массовое действие: пометить как премиум"""
         updated = queryset.update(is_premium=True)
         self.message_user(request, f"Отмечено премиум: {updated} товаров")
 
     @admin.action(description="✗ Снять отметку премиум")
-    def unmark_as_premium(self, request: HttpRequest, queryset: QuerySet[Product]) -> None:
+    def unmark_as_premium(
+        self, request: HttpRequest, queryset: QuerySet[Product]
+    ) -> None:
         """Массовое действие: снять отметку премиум"""
         updated = queryset.update(is_premium=False)
         self.message_user(request, f"Снята отметка премиум: {updated} товаров")
@@ -250,5 +256,3 @@ class ProductAdmin(admin.ModelAdmin):
     def get_queryset(self, request: HttpRequest) -> QuerySet[Product]:
         """Оптимизация запросов"""
         return super().get_queryset(request).select_related("brand", "category")
-
-

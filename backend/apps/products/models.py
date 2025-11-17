@@ -444,6 +444,12 @@ class Product(models.Model):
             models.Index(fields=["onec_id"]),  # 1С integration index
             models.Index(fields=["parent_onec_id"]),  # Parent 1C ID index
             models.Index(fields=["sync_status"]),  # Sync status index
+            # Story 11.0: Composite indexes для маркетинговых флагов (PERF-001)
+            models.Index(fields=["is_hit", "is_active"]),
+            models.Index(fields=["is_new", "is_active"]),
+            models.Index(fields=["is_sale", "is_active"]),
+            models.Index(fields=["is_promo", "is_active"]),
+            models.Index(fields=["is_premium", "is_active"]),
         ]
 
     def save(self, *args: Any, **kwargs: Any) -> None:
