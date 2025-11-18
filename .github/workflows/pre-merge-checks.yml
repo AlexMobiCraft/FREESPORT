@@ -137,7 +137,11 @@ jobs:
             DOCS_UPDATED=true
           fi
         done <<< "$CHANGED_FILES"
-        
+
+        # Экспортируем переменные для использования в других шагах
+        echo "API_CHANGED=$API_CHANGED" >> $GITHUB_ENV
+        echo "DOCS_UPDATED=$DOCS_UPDATED" >> $GITHUB_ENV
+
         if [[ "$API_CHANGED" == "true" && "$DOCS_UPDATED" == "false" ]]; then
           echo "⚠️ Обнаружены изменения в API без обновления документации"
           echo "::warning::API changes detected without documentation updates. Consider updating docs."
