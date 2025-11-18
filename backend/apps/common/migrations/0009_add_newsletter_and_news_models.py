@@ -7,6 +7,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     """Описывает создание News и Newsletter моделей."""
+
     dependencies = [
         ("common", "0008_alter_customersynclog_options_and_more"),
     ]
@@ -45,8 +46,7 @@ class Migration(migrations.Migration):
                     "excerpt",
                     models.TextField(
                         help_text=(
-                            "Краткое описание для главной страницы "
-                            "(до 500 символов)"
+                            "Краткое описание для главной страницы " "(до 500 символов)"
                         ),
                         max_length=500,
                         verbose_name="Краткое описание",
@@ -95,8 +95,7 @@ class Migration(migrations.Migration):
                         db_index=True,
                         default=False,
                         help_text=(
-                            "Флаг публикации (только опубликованные "
-                            "видны на сайте)"
+                            "Флаг публикации (только опубликованные " "видны на сайте)"
                         ),
                         verbose_name="Опубликована",
                     ),
@@ -227,9 +226,7 @@ class Migration(migrations.Migration):
                     models.CheckConstraint(
                         check=(
                             models.Q(is_active=True, unsubscribed_at__isnull=True)
-                            | models.Q(
-                                is_active=False, unsubscribed_at__isnull=False
-                            )
+                            | models.Q(is_active=False, unsubscribed_at__isnull=False)
                         ),
                         name="newsletter_active_consistency",
                     )
