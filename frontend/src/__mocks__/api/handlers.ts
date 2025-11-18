@@ -4,7 +4,7 @@
  */
 
 import { http, HttpResponse } from 'msw';
-import type { Product, Category } from '@/types/api';
+import type { Product, Category, NewsItem } from '@/types/api';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api/v1';
 
@@ -280,6 +280,42 @@ const mockNewProducts: Product[] = [
 ];
 
 /**
+ * Mock данные для новостей (Story 11.3)
+ */
+const mockNews: NewsItem[] = [
+  {
+    id: 1,
+    title: 'Новая коллекция 2025',
+    slug: 'new-collection-2025',
+    excerpt: 'Представляем новую коллекцию спортивной одежды и экипировки на 2025 год.',
+    image: '/images/news/collection-2025.jpg',
+    published_at: new Date().toISOString(),
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 2,
+    title: 'Скидки на зимнюю экипировку',
+    slug: 'winter-sale',
+    excerpt: 'До конца месяца скидки до 30% на зимнюю экипировку для всех видов спорта.',
+    image: '/images/news/winter-sale.jpg',
+    published_at: new Date().toISOString(),
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 3,
+    title: 'Открытие нового склада',
+    slug: 'new-warehouse',
+    excerpt: 'Мы рады сообщить об открытии нового склада в Москве для более быстрой доставки.',
+    image: '/images/news/warehouse.jpg',
+    published_at: new Date().toISOString(),
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+];
+
+/**
  * Mock данные для категорий (AC 3)
  */
 const mockCategories: Category[] = [
@@ -396,6 +432,53 @@ export const handlers = [
 
     // Default: все категории
     return HttpResponse.json(mockCategories);
+  }),
+
+  // Story 11.3: Subscribe endpoint
+  http.post(`${API_BASE_URL}/subscribe`, async ({ request }) => {
+    const body = (await request.json()) as { email?: string };
+    const email = body.email;
+
+    // Simulate already subscribed
+    if (email === 'existing@example.com') {
+      return HttpResponse.json(
+        {
+          error: 'This email is already subscribed',
+          email,
+        },
+        { status: 409 }
+      );
+    }
+
+    // Simulate validation error
+    if (!email || !email.includes('@')) {
+      return HttpResponse.json(
+        {
+          error: 'Invalid email format',
+          field: 'email',
+        },
+        { status: 400 }
+      );
+    }
+
+    // Success
+    return HttpResponse.json(
+      {
+        message: 'Successfully subscribed',
+        email,
+      },
+      { status: 201 }
+    );
+  }),
+
+  // Story 11.3: News endpoint
+  http.get(`${API_BASE_URL}/news`, () => {
+    return HttpResponse.json({
+      count: mockNews.length,
+      next: null,
+      previous: null,
+      results: mockNews,
+    });
   }),
 ];
 

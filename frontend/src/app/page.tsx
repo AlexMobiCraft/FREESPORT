@@ -11,6 +11,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import HeroSection from '@/components/home/HeroSection';
 import { HitsSection, NewArrivalsSection, CategoriesSection } from '@/components/home';
+import { SubscribeNewsSection } from '@/components/home/SubscribeNewsSection';
 import { Button } from '@/components/ui/Button/Button';
 
 // ISR конфигурация: ревалидация каждый час
@@ -70,6 +71,9 @@ export default function Home() {
         {/* Популярные категории */}
         <CategoriesSection />
       </div>
+
+      {/* Story 11.3: Подписка и новости */}
+      <SubscribeNewsSection />
 
       {/* Преимущества */}
       <section className="py-16 bg-gray-50">

@@ -162,3 +162,41 @@ export interface ApiError {
   message?: string;
   errors?: Record<string, string[]>;
 }
+
+// Newsletter Subscription Types
+export interface SubscribeRequest {
+  email: string;
+}
+
+export interface SubscribeResponse {
+  message: string;
+  email: string;
+}
+
+export interface SubscribeError {
+  error: string;
+  field?: string;
+  email?: string;
+}
+
+// News Types
+export interface NewsItem {
+  id: number;
+  title: string;
+  slug: string;
+  excerpt: string;
+  content?: string;
+  image: string | null;
+  published_at: string;
+  created_at: string;
+  updated_at: string;
+  author?: string;
+  category?: string;
+}
+
+export interface NewsList {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: NewsItem[];
+}

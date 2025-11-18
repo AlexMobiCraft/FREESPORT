@@ -619,23 +619,3 @@ def clear_db_before_test(transactional_db):
         pass
 
 
-@pytest.fixture(autouse=True, scope="function")
-def close_db_connections():
-    """
-    Автоматическое закрытие соединений с БД после каждого теста.
-    Предотвращает ошибки "database is being accessed by other users".
-
-    ВАЖНО: Закрывает только неактивные соединения, не трогая транзакции.
-    """
-    yield
-
-    # Закрываем все соединения с БД после теста
-    try:
-        from django.db import connection, connections
-
-        # Проверяем, что нет активных транзакций
-        if not connection.in_atomic_block:
-            connections.close_all()
-    except Exception:
-        # В случае ошибки просто пропускаем закрытие
-        pass
