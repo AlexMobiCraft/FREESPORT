@@ -68,9 +68,7 @@ class TestNewsListEndpoint:
         assert response.data["results"][1]["title"] == "Новость 2"
         assert response.data["results"][2]["title"] == "Новость 3"
 
-    def test_get_news_list_with_pagination(
-        self, api_client: APIClient, published_news
-    ):
+    def test_get_news_list_with_pagination(self, api_client: APIClient, published_news):
         """Тест pagination для списка новостей."""
         url = reverse("common:news-list")
 
