@@ -9,7 +9,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
-import { Card } from '@/components/ui/Card';
+import { Card } from '@/components/ui/Card/Card';
 import { newsService } from '@/services/newsService';
 import { NewsSkeletonLoader } from '@/components/common/NewsSkeletonLoader';
 import { NewsFallback } from '@/components/common/NewsFallback';

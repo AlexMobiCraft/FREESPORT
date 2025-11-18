@@ -39,14 +39,15 @@ describe('SubscribeForm', () => {
     expect(screen.getByRole('button', { name: /подписаться/i })).toBeInTheDocument();
   });
 
-  it('shows validation error for invalid email', async () => {
+  it('shows validation error for invalid email pattern', async () => {
     const user = userEvent.setup();
     render(<SubscribeForm />);
 
     const input = screen.getByLabelText(/email/i);
     const button = screen.getByRole('button', { name: /подписаться/i });
 
-    await user.type(input, 'invalid-email');
+    // Email that passes HTML5 type=email validation but fails our regex pattern
+    await user.type(input, 'test@x');
     await user.click(button);
 
     await waitFor(() => {
