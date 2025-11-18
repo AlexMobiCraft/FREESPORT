@@ -12,13 +12,20 @@ interface GetCategoriesParams {
   limit?: number;
 }
 
+interface PaginatedResponse<T> {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
+}
+
 class CategoriesService {
   /**
    * Получить список всех категорий
    */
   async getAll(): Promise<Category[]> {
-    const response = await apiClient.get<Category[]>('/categories/');
-    return response.data;
+    const response = await apiClient.get<PaginatedResponse<Category>>('/categories/');
+    return response.data.results;
   }
 
   /**
@@ -34,14 +41,14 @@ class CategoriesService {
    * GET /categories?parent_id__isnull=true&limit=6
    */
   async getCategories(params?: GetCategoriesParams): Promise<Category[]> {
-    const response = await apiClient.get<Category[]>('/categories/', {
+    const response = await apiClient.get<PaginatedResponse<Category>>('/categories/', {
       params: {
         parent_id__isnull: true, // Django filter: только корневые категории
         limit: 6, // AC 3: до 6 категорий
         ...params,
       },
     });
-    return response.data;
+    return response.data.results;
   }
 }
 

@@ -68,19 +68,17 @@ const nextConfig: NextConfig = {
   },
 
   // Оптимизация бандла
-  webpack: (config, { dev, isServer }) => {
-    // Оптимизации для клиентской стороны
-    if (!dev && !isServer) {
-      config.resolve.alias = {
-        ...config.resolve.alias,
-        '@/components': path.resolve(__dirname, 'src/components'),
-        '@/hooks': path.resolve(__dirname, 'src/hooks'),
-        '@/services': path.resolve(__dirname, 'src/services'),
-        '@/stores': path.resolve(__dirname, 'src/stores'),
-        '@/types': path.resolve(__dirname, 'src/types'),
-        '@/utils': path.resolve(__dirname, 'src/utils'),
-      };
-    }
+  webpack: config => {
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '@': path.resolve(__dirname, 'src'),
+      '@/components': path.resolve(__dirname, 'src/components'),
+      '@/hooks': path.resolve(__dirname, 'src/hooks'),
+      '@/services': path.resolve(__dirname, 'src/services'),
+      '@/stores': path.resolve(__dirname, 'src/stores'),
+      '@/types': path.resolve(__dirname, 'src/types'),
+      '@/utils': path.resolve(__dirname, 'src/utils'),
+    };
 
     return config;
   },

@@ -64,3 +64,31 @@ export const useAuthStore = create<AuthState>()(
     { name: 'AuthStore' }
   )
 );
+
+const B2B_ROLES: Array<User['role']> = [
+  'wholesale_level1',
+  'wholesale_level2',
+  'wholesale_level3',
+  'trainer',
+  'federation_rep',
+  'admin',
+];
+
+export const authSelectors = {
+  /**
+   * Возвращает актуальный флаг аутентификации пользователя
+   */
+  useIsAuthenticated: () => useAuthStore(state => state.isAuthenticated),
+  /**
+   * Возвращает текущего пользователя из стора
+   */
+  useUser: () => useAuthStore(state => state.user),
+  /**
+   * Определяет, относится ли пользователь к B2B сегменту
+   */
+  useIsB2BUser: () =>
+    useAuthStore(state => {
+      const role = state.user?.role;
+      return role ? B2B_ROLES.includes(role) : false;
+    }),
+};
