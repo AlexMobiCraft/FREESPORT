@@ -222,7 +222,8 @@ class TestImportImagesIntegration(TestCase):
 
     def test_import_with_missing_image_files(self) -> None:
         """
-        AC2: Edge Case - Импорт продолжается при отсутствии физических файлов изображений
+        AC2: Edge Case - Импорт продолжается при отсутствии
+        физических файлов изображений
 
         Проверяет:
         - Импорт НЕ падает с ошибкой

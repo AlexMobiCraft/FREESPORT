@@ -606,7 +606,8 @@ class IntegrationHealthCheck:
                 "message": (
                     "OK"
                     if is_available
-                    else f"Disk usage {used_percent:.1f}% exceeds threshold {threshold}%"
+                    else f"Disk usage {used_percent:.1f}% exceeds "
+                    f"threshold {threshold}%"
                 ),
             }
 

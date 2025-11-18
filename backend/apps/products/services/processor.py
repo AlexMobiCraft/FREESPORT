@@ -30,8 +30,10 @@ class ProductDataProcessor:
     Процессор для создания и обновления товаров на основе данных из XMLDataParser
 
     Методы:
-    - create_product_placeholder() - создание заготовки товара из goods.xml с импортом изображений
-    - import_product_images() - копирование изображений товара из 1С в Django media (Story 3.1.2)
+    - create_product_placeholder() - создание заготовки товара из goods.xml
+      с импортом изображений
+    - import_product_images() - копирование изображений товара из 1С
+      в Django media (Story 3.1.2)
     - enrich_product_from_offer() - обогащение товара данными из offers.xml
     - update_product_prices() - обновление цен из prices.xml
     - update_product_stock() - обновление остатков из rests.xml
@@ -128,9 +130,10 @@ class ProductDataProcessor:
                         self._update_image_stats(image_result)
                     except Exception as img_error:
                         logger.error(
-                            f"Error importing images for existing product {existing.onec_id}: {img_error}"
+                            f"Error importing images for existing product "
+                            f"{existing.onec_id}: {img_error}"
                         )
-                        # Не прерываем процесс, а продолжаем с ошибкой в статистике
+                        # Не прерываем процесс, продолжаем с ошибкой
                         self.stats["errors"] += 1
 
                 self.stats["updated"] += 1
@@ -184,8 +187,7 @@ class ProductDataProcessor:
                 brand, _ = Brand.objects.get_or_create(
                     name="No Brand", defaults={"slug": "no-brand", "is_active": True}
                 )
-                # if brand_id:
-                # Brand with onec_id={brand_id} not found for product {parent_id}, using 'No Brand'
+                # Brand not found for product, using 'No Brand'
 
             # Генерируем уникальный slug для товара
             name_value = goods_data.get("name")
@@ -250,9 +252,10 @@ class ProductDataProcessor:
                         self._update_image_stats(image_result)
                     except Exception as img_error:
                         logger.error(
-                            f"Error importing images for new product {product.onec_id}: {img_error}"
+                            f"Error importing images for new product "
+                            f"{product.onec_id}: {img_error}"
                         )
-                        # Не прерываем процесс, а продолжаем с ошибкой в статистике
+                        # Не прерываем процесс, продолжаем с ошибкой
                         self.stats["errors"] += 1
 
                 return product
@@ -444,8 +447,9 @@ class ProductDataProcessor:
 
     def _update_image_stats(self, image_result: dict[str, int]) -> None:
         """Helper to update image-related stats."""
-        # Исправляем несоответствие ключей: метод возвращает "copied", "skipped", "errors"
-        # а статистика ожидает "images_copied", "images_skipped", "images_errors"
+        # Исправляем несоответствие ключей: метод возвращает
+        # "copied", "skipped", "errors"
+        # а статистика ожидает "images_copied", "images_skipped"
         key_mapping = {
             "copied": "images_copied",
             "skipped": "images_skipped",
@@ -538,7 +542,7 @@ class ProductDataProcessor:
                 # Error setting parent for category {onec_id}: {e}
                 result["errors"] += 1
 
-        # Categories processed: {result['created']} created, {result['updated']} updated, {result['errors']} errors, {result['cycles_detected']} cycles detected
+        # Categories processed: created, updated, errors, cycles_detected
         return result
 
     def _has_circular_reference(
@@ -637,7 +641,7 @@ class ProductDataProcessor:
                 # Error processing brand {brand_data}: {e}
                 result["skipped"] += 1
 
-        # Brands processed: {result['created']} created, {result['updated']} updated, {result['skipped']} skipped
+        # Brands processed: created, updated, skipped
         return result
 
     def import_product_images(
@@ -681,7 +685,8 @@ class ProductDataProcessor:
 
         # Логирование для отладки
         logger.info(
-            f"Starting image import for product {product.onec_id} with {len(image_paths)} images"
+            f"Starting image import for product {product.onec_id} "
+            f"with {len(image_paths)} images"
         )
 
         if not image_paths:
@@ -778,7 +783,9 @@ class ProductDataProcessor:
             product.gallery_images = gallery_images
             product.save(update_fields=["main_image", "gallery_images"])
             logger.info(
-                f"Product {product.onec_id} updated with main_image: {product.main_image}, gallery count: {len(gallery_images)}"
+                f"Product {product.onec_id} updated with "
+                f"main_image: {product.main_image}, "
+                f"gallery count: {len(gallery_images)}"
             )
 
         # Логирование итоговых результатов для отладки

@@ -55,8 +55,14 @@ def import_from_1c_view(request: HttpRequest) -> HttpResponse:
             {
                 "value": "catalog",
                 "label": "Полный каталог",
-                "description": "Импорт всех данных: товары, категории, бренды, цены, остатки, свойства, справочники",
-                "files": "goods_*.xml, offers_*.xml, prices_*.xml, rests_*.xml, groups.xml, units.xml, storages.xml",
+                "description": (
+                    "Импорт всех данных: товары, категории, бренды, "
+                    "цены, остатки, свойства, справочники"
+                ),
+                "files": (
+                    "goods_*.xml, offers_*.xml, prices_*.xml, "
+                    "rests_*.xml, groups.xml, units.xml, storages.xml"
+                ),
                 "requires_catalog": False,
             },
             {
@@ -126,8 +132,10 @@ def _handle_import_request(request: HttpRequest) -> HttpResponse:
 
         messages.success(
             request,
-            f"✅ Импорт запущен (Task ID: {session.celery_task_id}, Session ID: {session.pk}). "
-            f"Вы будете перенаправлены на страницу сессий для отслеживания прогресса.",
+            f"✅ Импорт запущен (Task ID: {session.celery_task_id}, "
+            f"Session ID: {session.pk}). "
+            f"Вы будете перенаправлены на страницу сессий для "
+            f"отслеживания прогресса.",
         )
 
         # Редирект на страницу сессий (обновлен после переименования модели)

@@ -129,7 +129,8 @@ class TestImportProductImages:
 
                 product.refresh_from_db()
                 # Первое изображение - main_image
-                # Учитываем, что main_image мог быть установлен как заглушка при создании товара
+                # Учитываем, что main_image мог быть установлен
+                # как заглушка при создании товара
                 initial_main_image = product.main_image
                 assert (
                     initial_main_image == saved_paths[0]
