@@ -253,7 +253,9 @@ class Command(BaseCommand):
                     )
                 else:
                     self.stdout.write(
-                        self.style.WARNING("   ⚠️ Файлы propertiesGoods*.xml не найдены")
+                        self.style.WARNING(
+                            "   ⚠️ Файлы propertiesGoods*.xml не найдены"
+                        )
                     )
 
             # ШАГ 1: Загрузка типов цен из priceLists*.xml

@@ -55,7 +55,8 @@ class User(AbstractUser):
 
     if TYPE_CHECKING:
         # Type hints для автогенерируемых Django методов
-        def get_role_display(self) -> str: ...
+        def get_role_display(self) -> str:
+            ...
 
     # Роли пользователей согласно архитектурной документации
     ROLE_CHOICES = [

@@ -118,7 +118,6 @@ class Command(BaseCommand):
             )
 
         try:
-
             # Парсер и процессор
             parser = CustomerDataParser()
             processor = CustomerDataProcessor(session_id=session.pk)
