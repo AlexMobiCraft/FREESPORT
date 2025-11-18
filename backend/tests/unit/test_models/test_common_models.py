@@ -1,6 +1,7 @@
 """
 Тесты для общих моделей FREESPORT Platform
 """
+
 import json
 from decimal import Decimal
 

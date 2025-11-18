@@ -2,6 +2,7 @@
 Глобальные фикстуры pytest для проекта FREESPORT
 Настройка базовых объектов и утилит для тестирования
 """
+
 import random
 import time
 import uuid

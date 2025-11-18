@@ -2,6 +2,7 @@
 Unit тесты для Django Admin конфигурации пользователей
 Покрывает UserAdmin, admin actions, custom display methods и AuditLog интеграцию
 """
+
 import pytest
 from django.contrib.admin.sites import AdminSite
 from django.contrib.auth import get_user_model

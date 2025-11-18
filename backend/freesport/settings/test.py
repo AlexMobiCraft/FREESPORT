@@ -1,4 +1,5 @@
 """Настройки окружения для тестов FREESPORT."""
+
 # pylint: disable=wildcard-import, unused-wildcard-import
 import os
 from typing import Any  # pylint: disable=unused-import
@@ -98,7 +99,13 @@ LOGGING: dict[str, Any] = {}
 # Гарантированно отключаем Django Debug Toolbar в тестах,
 # даже если он был добавлен в другом файле настроек.
 INSTALLED_APPS = [app for app in INSTALLED_APPS if app != "debug_toolbar"]
-if "apps.integrations" not in INSTALLED_APPS and "apps.integrations.apps.IntegrationsConfig" not in INSTALLED_APPS:
+if (
+    "apps.integrations" not in INSTALLED_APPS
+    and "apps.integrations.apps.IntegrationsConfig" not in INSTALLED_APPS
+):
     INSTALLED_APPS.append("apps.integrations")
-if "apps.integrations" not in INSTALLED_APPS and "apps.integrations.apps.IntegrationsConfig" not in INSTALLED_APPS:
+if (
+    "apps.integrations" not in INSTALLED_APPS
+    and "apps.integrations.apps.IntegrationsConfig" not in INSTALLED_APPS
+):
     INSTALLED_APPS.append("apps.integrations")

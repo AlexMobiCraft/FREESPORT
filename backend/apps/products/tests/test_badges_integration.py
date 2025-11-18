@@ -1,6 +1,7 @@
 """
 Простые интеграционные тесты для маркетинговых флагов (Story 11.0)
 """
+
 from __future__ import annotations
 
 import pytest
@@ -27,12 +28,21 @@ class TestBadgesIntegration:
         """Тест: фильтр по is_hit работает"""
         # Создаём хит и обычный товар
         hit = Product.objects.create(
-            name="Hit", slug="hit", sku="HIT", brand=brand, category=category,
-            retail_price=Decimal("100"), is_hit=True
+            name="Hit",
+            slug="hit",
+            sku="HIT",
+            brand=brand,
+            category=category,
+            retail_price=Decimal("100"),
+            is_hit=True,
         )
         regular = Product.objects.create(
-            name="Regular", slug="regular", sku="REG", brand=brand, category=category,
-            retail_price=Decimal("100")
+            name="Regular",
+            slug="regular",
+            sku="REG",
+            brand=brand,
+            category=category,
+            retail_price=Decimal("100"),
         )
 
         # Фильтр должен вернуть только хит
@@ -43,8 +53,14 @@ class TestBadgesIntegration:
     def test_serializer_includes_badge_fields(self, brand, category):
         """Тест: сериализатор включает поля бейджей"""
         product = Product.objects.create(
-            name="Product", slug="product", sku="PROD", brand=brand, category=category,
-            retail_price=Decimal("100"), is_hit=True, discount_percent=25
+            name="Product",
+            slug="product",
+            sku="PROD",
+            brand=brand,
+            category=category,
+            retail_price=Decimal("100"),
+            is_hit=True,
+            discount_percent=25,
         )
 
         serializer = ProductListSerializer(product)
@@ -60,19 +76,29 @@ class TestBadgesIntegration:
         """Тест: комбинация фильтров работает"""
         # Товар с двумя флагами
         combo = Product.objects.create(
-            name="Combo", slug="combo", sku="COMBO", brand=brand, category=category,
-            retail_price=Decimal("100"), is_hit=True, is_sale=True
+            name="Combo",
+            slug="combo",
+            sku="COMBO",
+            brand=brand,
+            category=category,
+            retail_price=Decimal("100"),
+            is_hit=True,
+            is_sale=True,
         )
         # Товар с одним флагом
         hit_only = Product.objects.create(
-            name="Hit", slug="hit", sku="HIT", brand=brand, category=category,
-            retail_price=Decimal("100"), is_hit=True
+            name="Hit",
+            slug="hit",
+            sku="HIT",
+            brand=brand,
+            category=category,
+            retail_price=Decimal("100"),
+            is_hit=True,
         )
 
         # Фильтр по двум флагам
         filterset = ProductFilter(
-            {"is_hit": True, "is_sale": True},
-            queryset=Product.objects.all()
+            {"is_hit": True, "is_sale": True}, queryset=Product.objects.all()
         )
         assert filterset.qs.count() == 1
         assert filterset.qs.first() == combo

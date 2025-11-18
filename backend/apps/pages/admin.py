@@ -1,6 +1,7 @@
 """
 Django Admin для статических страниц
 """
+
 from django.contrib import admin
 
 from .models import Page

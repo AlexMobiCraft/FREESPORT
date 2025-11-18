@@ -1,6 +1,7 @@
 """
 Вспомогательные views и утилиты
 """
+
 from drf_spectacular.utils import OpenApiExample, OpenApiResponse, extend_schema
 from rest_framework import permissions, status
 from rest_framework.decorators import api_view, permission_classes

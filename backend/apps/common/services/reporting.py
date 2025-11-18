@@ -1,6 +1,7 @@
 """
 Сервис генерации отчетов по синхронизации клиентов
 """
+
 import logging
 from datetime import date, timedelta
 from typing import Any

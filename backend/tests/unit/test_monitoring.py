@@ -1,6 +1,7 @@
 """
 Unit тесты для системы мониторинга синхронизации.
 """
+
 from __future__ import annotations
 
 from datetime import timedelta

@@ -1,6 +1,7 @@
 """
 Unit-тесты для ProductDataProcessor
 """
+
 from decimal import Decimal
 
 import pytest

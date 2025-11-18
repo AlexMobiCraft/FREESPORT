@@ -1,6 +1,7 @@
 """
 Тесты для Cart Serializers - Story 2.6 Cart API
 """
+
 from decimal import Decimal
 from unittest.mock import Mock
 

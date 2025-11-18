@@ -1,6 +1,7 @@
 """
 Management команда для импорта каталога товаров из 1С
 """
+
 import os
 from pathlib import Path
 from typing import cast

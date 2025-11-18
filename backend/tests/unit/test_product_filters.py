@@ -2,6 +2,7 @@
 Unit-тесты для фильтров товаров (Story 2.9: filtering-api)
 Тестируем фильтрацию по размерам, брендам, ценам, наличию
 """
+
 from unittest.mock import Mock, patch
 
 import pytest

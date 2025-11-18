@@ -2,6 +2,7 @@
 Unit-тесты для CustomerDataProcessor
 Тестирует бизнес-логику обработки клиентов
 """
+
 from __future__ import annotations
 
 import pytest

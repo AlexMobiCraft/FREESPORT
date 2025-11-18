@@ -203,9 +203,11 @@ class CustomerIdentityResolver:
             status="success" if customer else "not_found",
             details={
                 "identification_method": method,
-                "onec_guid": str(onec_data.get("onec_guid"))
-                if onec_data.get("onec_guid")
-                else None,
+                "onec_guid": (
+                    str(onec_data.get("onec_guid"))
+                    if onec_data.get("onec_guid")
+                    else None
+                ),
                 "tax_id": onec_data.get("tax_id"),
                 "email": onec_data.get("email"),
             },

@@ -2,6 +2,7 @@
 Django Admin конфигурация для управления пользователями
 Включает UserAdmin с поддержкой B2B верификации и интеграции с 1С
 """
+
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.utils.html import format_html
@@ -219,7 +220,7 @@ class UserAdmin(BaseUserAdmin):
     @admin.display(description="Юридический адрес компании")
     def company_legal_address(self, obj: User) -> str:
         """Отображение юридического адреса из связанной компании"""
-        if hasattr(obj, 'company') and obj.company:
+        if hasattr(obj, "company") and obj.company:
             return obj.company.legal_address or "-"
         return "-"
 
@@ -402,7 +403,7 @@ class UserAdmin(BaseUserAdmin):
 
         # Фильтруем суперпользователей
         users_to_block = queryset.exclude(is_superuser=True)
-        
+
         if not users_to_block.exists():
             self.message_user(
                 request,

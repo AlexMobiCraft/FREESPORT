@@ -2,6 +2,7 @@
 FREESPORT Django Settings
 Import appropriate settings based on environment
 """
+
 import os
 
 from decouple import config

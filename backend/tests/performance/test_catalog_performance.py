@@ -1,6 +1,7 @@
 """
 Performance тесты каталога товаров
 """
+
 import time
 
 import pytest

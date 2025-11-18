@@ -1,6 +1,7 @@
 """
 Тесты для команды check_api_docs
 """
+
 from io import StringIO
 
 import pytest

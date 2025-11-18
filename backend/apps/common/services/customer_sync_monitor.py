@@ -2,6 +2,7 @@
 Мониторинг системы синхронизации клиентов с 1С.
 Предоставляет метрики операций, бизнес-метрики и health checks.
 """
+
 from __future__ import annotations
 
 import logging

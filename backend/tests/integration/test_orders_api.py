@@ -1,6 +1,7 @@
 """
 Интеграционные тесты для Orders API
 """
+
 from decimal import Decimal
 
 import pytest

@@ -1,6 +1,7 @@
 """
 Интеграционные тесты для admin actions приложения integrations
 """
+
 import pytest
 from django.contrib.auth import get_user_model
 from django.test import Client
@@ -34,10 +35,7 @@ class TestImportSessionAdminActions:
         """Создание тестовых сессий импорта"""
         sessions = []
         for i in range(3):
-            session = Session.objects.create(
-                import_type="catalog",
-                status="completed"
-            )
+            session = Session.objects.create(import_type="catalog", status="completed")
             sessions.append(session)
         return sessions
 
@@ -47,10 +45,10 @@ class TestImportSessionAdminActions:
         """
         # Arrange
         url = reverse("admin:integrations_session_changelist")
-        
+
         # Act
         response = client.get(url)
-        
+
         # Assert
         assert response.status_code == 200
         assert "Сессии импорта" in str(response.content)
@@ -61,10 +59,10 @@ class TestImportSessionAdminActions:
         """
         # Arrange
         url = reverse("admin:integrations_session_changelist")
-        
+
         # Act
         response = client.get(url, {"import_type": "catalog"})
-        
+
         # Assert
         assert response.status_code == 200
         # Проверяем, что все 3 сессии отображаются
@@ -78,14 +76,14 @@ class TestImportSessionAdminActions:
         """
         # Arrange
         url = reverse("admin:integrations_session_changelist")
-        
+
         # Act
         response = client.get(url)
-        
+
         # Assert
         assert response.status_code == 200
         content = str(response.content)
-        
+
         # Проверяем наличие заголовков колонок
         assert "Тип импорта" in content or "import_type" in content
         assert "Статус" in content or "status" in content
@@ -99,13 +97,13 @@ class TestImportSessionAdminActions:
         session_with_error = Session.objects.create(
             import_type="catalog",
             status="failed",
-            error_message="Test error message for search"
+            error_message="Test error message for search",
         )
         url = reverse("admin:integrations_session_changelist")
-        
+
         # Act
         response = client.get(url, {"q": "Test error message"})
-        
+
         # Assert
         assert response.status_code == 200
         content = str(response.content)
@@ -117,10 +115,7 @@ class TestImportSessionAdminActions:
         """
         # Arrange
         session = import_sessions[0]
-        url = reverse(
-            "admin:integrations_session_change",
-            args=[session.id]
-        )
+        url = reverse("admin:integrations_session_change", args=[session.id])
 
         # Act
         response = client.get(url)
@@ -147,15 +142,17 @@ class TestImportSessionAdminActions:
         try:
             url = reverse("admin:integrations_session_changelist")
         except Exception:
-            pytest.fail("URL не найден. Проверьте что модель правильно зарегистрирована")
+            pytest.fail(
+                "URL не найден. Проверьте что модель правильно зарегистрирована"
+            )
 
         # Act
         response = client.get(url)
 
         # Assert
-        assert response.status_code == 200, (
-            "Страница сессий должна быть доступна по новому URL"
-        )
+        assert (
+            response.status_code == 200
+        ), "Страница сессий должна быть доступна по новому URL"
         # Проверяем что сессии отображаются
         content = str(response.content)
         for session in import_sessions:
@@ -190,10 +187,7 @@ class TestImportSessionAdminActions:
         """
         # Arrange
         session = import_sessions[0]
-        url = reverse(
-            "admin:integrations_session_change",
-            args=[session.id]
-        )
+        url = reverse("admin:integrations_session_change", args=[session.id])
 
         # Act
         response = client.get(url)
@@ -201,18 +195,19 @@ class TestImportSessionAdminActions:
         # Assert
         # В Django, если нет прав на изменение, показывается readonly view
         # или редирект на changelist
-        assert response.status_code in [200, 302, 403], (
-            "Редактирование должно быть заблокировано"
-        )
+        assert response.status_code in [
+            200,
+            302,
+            403,
+        ], "Редактирование должно быть заблокировано"
 
         if response.status_code == 200:
-            content = response.content.decode('utf-8')
+            content = response.content.decode("utf-8")
             # Проверяем что форма в readonly режиме
             # или кнопка Save отсутствует
-            assert ('readonly' in content.lower() or
-                    'name="_save"' not in content), (
-                "Форма должна быть в read-only режиме"
-            )
+            assert (
+                "readonly" in content.lower() or 'name="_save"' not in content
+            ), "Форма должна быть в read-only режиме"
 
     def test_action_dropdown_is_empty_or_not_exists(self, client, import_sessions):
         """
@@ -228,15 +223,15 @@ class TestImportSessionAdminActions:
 
         # Assert
         assert response.status_code == 200
-        content = response.content.decode('utf-8')
+        content = response.content.decode("utf-8")
 
         # Проверяем что action "trigger_selective_import" отсутствует
-        assert 'trigger_selective_import' not in content, (
-            "Admin action 'trigger_selective_import' должен быть удален"
-        )
-        assert '🚀 Запустить импорт' not in content, (
-            "Текст действия '🚀 Запустить импорт' не должен отображаться"
-        )
+        assert (
+            "trigger_selective_import" not in content
+        ), "Admin action 'trigger_selective_import' должен быть удален"
+        assert (
+            "🚀 Запустить импорт" not in content
+        ), "Текст действия '🚀 Запустить импорт' не должен отображаться"
 
     def test_filters_work_correctly(self, client):
         """
@@ -245,14 +240,8 @@ class TestImportSessionAdminActions:
         Story 9.7 AC#6: Фильтры по статусу, типу, дате работают
         """
         # Arrange
-        session1 = Session.objects.create(
-            import_type="catalog",
-            status="completed"
-        )
-        session2 = Session.objects.create(
-            import_type="stocks",
-            status="failed"
-        )
+        session1 = Session.objects.create(import_type="catalog", status="completed")
+        session2 = Session.objects.create(import_type="stocks", status="failed")
         url = reverse("admin:integrations_session_changelist")
 
         # Act - фильтр по статусу
@@ -282,7 +271,7 @@ class TestImportSessionAdminActions:
         session = Session.objects.create(
             import_type="catalog",
             status="failed",
-            error_message="Unique error text 12345"
+            error_message="Unique error text 12345",
         )
         url = reverse("admin:integrations_session_changelist")
 
@@ -312,7 +301,7 @@ class TestImportSessionAdminActions:
         session = Session.objects.create(
             import_type="catalog",
             status="in_progress",
-            celery_task_id="test-celery-task-id-123"
+            celery_task_id="test-celery-task-id-123",
         )
         url = reverse("admin:integrations_session_changelist")
 
@@ -321,7 +310,7 @@ class TestImportSessionAdminActions:
 
         # Assert
         assert response.status_code == 200
-        content = response.content.decode('utf-8')
+        content = response.content.decode("utf-8")
 
         # Проверяем что task_id отображается
         assert "test-celery-task-id-123" in content or "Celery Task" in content
@@ -334,10 +323,7 @@ class TestImportSessionAdminActions:
         """
         # Arrange - создаем много сессий для тестирования пагинации
         for i in range(60):  # Больше чем list_per_page (обычно 50)
-            Session.objects.create(
-                import_type="catalog",
-                status="completed"
-            )
+            Session.objects.create(import_type="catalog", status="completed")
         url = reverse("admin:integrations_session_changelist")
 
         # Act
@@ -345,14 +331,14 @@ class TestImportSessionAdminActions:
 
         # Assert
         assert response.status_code == 200
-        content = response.content.decode('utf-8')
+        content = response.content.decode("utf-8")
 
         # Проверяем наличие пагинации
-        assert ('paginator' in content.lower() or
-                'page' in content.lower() or
-                '1 of' in content), (
-            "Пагинация должна работать для больших списков"
-        )
+        assert (
+            "paginator" in content.lower()
+            or "page" in content.lower()
+            or "1 of" in content
+        ), "Пагинация должна работать для больших списков"
 
     def test_auto_refresh_javascript_file_loaded(self, client):
         """
@@ -369,12 +355,12 @@ class TestImportSessionAdminActions:
 
         # Assert
         assert response.status_code == 200
-        content = response.content.decode('utf-8')
+        content = response.content.decode("utf-8")
 
         # Проверяем что JavaScript файл подключен в HTML
-        assert 'import_session_auto_refresh.js' in content, (
-            "JavaScript файл для автообновления должен быть подключен через Media класс"
-        )
+        assert (
+            "import_session_auto_refresh.js" in content
+        ), "JavaScript файл для автообновления должен быть подключен через Media класс"
 
     def test_auto_refresh_javascript_file_exists(self):
         """
@@ -389,22 +375,18 @@ class TestImportSessionAdminActions:
 
         # Путь к JavaScript файлу
         js_file_path = os.path.join(
-            settings.BASE_DIR,
-            'static',
-            'admin',
-            'js',
-            'import_session_auto_refresh.js'
+            settings.BASE_DIR, "static", "admin", "js", "import_session_auto_refresh.js"
         )
 
         # Act & Assert
-        assert os.path.exists(js_file_path), (
-            f"JavaScript файл должен существовать по пути: {js_file_path}"
-        )
-        assert os.path.isfile(js_file_path), (
-            f"Путь должен указывать на файл, а не директорию: {js_file_path}"
-        )
+        assert os.path.exists(
+            js_file_path
+        ), f"JavaScript файл должен существовать по пути: {js_file_path}"
+        assert os.path.isfile(
+            js_file_path
+        ), f"Путь должен указывать на файл, а не директорию: {js_file_path}"
 
         # Дополнительно: проверяем что файл не пустой
-        assert os.path.getsize(js_file_path) > 0, (
-            "JavaScript файл не должен быть пустым"
-        )
+        assert (
+            os.path.getsize(js_file_path) > 0
+        ), "JavaScript файл не должен быть пустым"

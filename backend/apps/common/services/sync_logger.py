@@ -1,6 +1,7 @@
 """
 Специализированный логгер для синхронизации клиентов
 """
+
 import logging
 import uuid
 from typing import Any
@@ -317,9 +318,9 @@ class CustomerSyncLogger:
             onec_id="",
             status=status,
             details=details,
-            error_message=f"{error_count} ошибок из {total_count}"
-            if error_count > 0
-            else "",
+            error_message=(
+                f"{error_count} ошибок из {total_count}" if error_count > 0 else ""
+            ),
             duration_ms=duration_ms,
             correlation_id=self.correlation_id,
         )

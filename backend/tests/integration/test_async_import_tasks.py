@@ -1,6 +1,7 @@
 """
 Интеграционные тесты для асинхронного импорта через Celery
 """
+
 import pytest
 from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
@@ -19,7 +20,10 @@ class TestRunSelectiveImportTask:
     def test_successful_catalog_import(self, mock_execute):
         """Тест успешного импорта каталога"""
         # Arrange
-        mock_execute.return_value = {"type": "catalog", "message": "Каталог импортирован"}
+        mock_execute.return_value = {
+            "type": "catalog",
+            "message": "Каталог импортирован",
+        }
         selected_types = ["catalog"]
         data_dir = "/path/to/data"
 
@@ -86,7 +90,10 @@ class TestRunSelectiveImportTask:
     def test_skips_unselected_types(self, mock_execute):
         """Тест пропуска невыбранных типов импорта"""
         # Arrange
-        mock_execute.return_value = {"type": "catalog", "message": "Каталог импортирован"}
+        mock_execute.return_value = {
+            "type": "catalog",
+            "message": "Каталог импортирован",
+        }
         selected_types = ["catalog"]  # Только каталог
         data_dir = "/path/to/data"
 
@@ -167,8 +174,10 @@ class TestExecuteImportType:
             # Мокаем структуру директорий
             mock_contragents_dir = MagicMock()
             mock_contragents_dir.exists.return_value = True
-            mock_contragents_dir.glob.return_value = [Path("/path/to/data/contragents/contragents.xml")]
-            
+            mock_contragents_dir.glob.return_value = [
+                Path("/path/to/data/contragents/contragents.xml")
+            ]
+
             mock_path.return_value.__truediv__.return_value = mock_contragents_dir
 
             # Act

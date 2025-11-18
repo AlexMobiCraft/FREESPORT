@@ -1,6 +1,7 @@
 """
 Integration тесты для системы логирования синхронизации
 """
+
 from datetime import timedelta
 from io import StringIO
 

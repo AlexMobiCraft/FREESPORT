@@ -1,6 +1,7 @@
 """
 Performance тесты для команды импорта каталога из 1С
 """
+
 import tempfile
 import time
 from io import StringIO

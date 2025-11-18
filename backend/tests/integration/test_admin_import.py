@@ -1,6 +1,7 @@
 """
 Integration тесты для admin display methods импорта.
 """
+
 from __future__ import annotations
 
 import pytest

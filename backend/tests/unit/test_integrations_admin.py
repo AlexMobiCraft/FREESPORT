@@ -1,6 +1,7 @@
 """
 Unit-тесты для admin интерфейса приложения integrations
 """
+
 import pytest
 from django.contrib.admin.sites import AdminSite
 from django.contrib.auth import get_user_model
@@ -50,21 +51,17 @@ class TestImportSessionAdmin:
     @pytest.fixture
     def import_session(self):
         """Создание тестовой сессии импорта"""
-        return Session.objects.create(
-            import_type="catalog",
-            status="completed"
-        )
-
+        return Session.objects.create(import_type="catalog", status="completed")
 
     def test_colored_status_display(self, import_session_admin, import_session):
         """
         Тест: отображение цветного статуса
-        
+
         Проверяет корректность форматирования статуса с иконками.
         """
         # Act
         result = import_session_admin.colored_status(import_session)
-        
+
         # Assert
         assert "✅" in result  # Иконка для completed
         assert "green" in result  # Цвет для completed
@@ -73,24 +70,21 @@ class TestImportSessionAdmin:
     def test_duration_calculation_completed(self, import_session_admin):
         """
         Тест: расчет длительности для завершенного импорта
-        
+
         Проверяет корректность расчета времени выполнения.
         """
         # Arrange
         from django.utils import timezone
         from datetime import timedelta
-        
-        session = Session.objects.create(
-            import_type="catalog",
-            status="completed"
-        )
+
+        session = Session.objects.create(import_type="catalog", status="completed")
         session.started_at = timezone.now() - timedelta(minutes=5)
         session.finished_at = timezone.now()
         session.save()
-        
+
         # Act
         result = import_session_admin.duration(session)
-        
+
         # Assert
         assert "мин" in result
         assert "5" in result
@@ -100,14 +94,11 @@ class TestImportSessionAdmin:
         Тест: отображение длительности для импорта в процессе
         """
         # Arrange
-        session = Session.objects.create(
-            import_type="catalog",
-            status="in_progress"
-        )
-        
+        session = Session.objects.create(import_type="catalog", status="in_progress")
+
         # Act
         result = import_session_admin.duration(session)
-        
+
         # Assert
         assert "В процессе..." in result
 
@@ -119,15 +110,12 @@ class TestImportSessionAdmin:
         session = Session.objects.create(
             import_type="catalog",
             status="in_progress",
-            report_details={
-                "total_items": 100,
-                "processed_items": 50
-            }
+            report_details={"total_items": 100, "processed_items": 50},
         )
-        
+
         # Act
         result = import_session_admin.progress_display(session)
-        
+
         # Assert
         assert "progress" in result.lower()
         assert "50%" in result
@@ -138,10 +126,7 @@ class TestImportSessionAdmin:
         Тест: отображение прогресса без данных
         """
         # Arrange
-        session = Session.objects.create(
-            import_type="catalog",
-            status="completed"
-        )
+        session = Session.objects.create(import_type="catalog", status="completed")
 
         # Act
         result = import_session_admin.progress_display(session)
@@ -153,9 +138,7 @@ class TestImportSessionAdmin:
     # Тесты для read-only режима (Story 9.7)
     # ========================================================================
 
-    def test_has_add_permission_returns_false(
-        self, import_session_admin, mock_request
-    ):
+    def test_has_add_permission_returns_false(self, import_session_admin, mock_request):
         """
         Тест: has_add_permission возвращает False
 
@@ -189,12 +172,12 @@ class TestImportSessionAdmin:
         )
 
         # Assert
-        assert result_without_obj is False, (
-            "Редактирование сессий импорта должно быть запрещено (без объекта)"
-        )
-        assert result_with_obj is False, (
-            "Редактирование сессий импорта должно быть запрещено (с объектом)"
-        )
+        assert (
+            result_without_obj is False
+        ), "Редактирование сессий импорта должно быть запрещено (без объекта)"
+        assert (
+            result_with_obj is False
+        ), "Редактирование сессий импорта должно быть запрещено (с объектом)"
 
     def test_has_delete_permission_returns_true(
         self, import_session_admin, mock_request, import_session
@@ -216,12 +199,12 @@ class TestImportSessionAdmin:
         )
 
         # Assert
-        assert result_without_obj is True, (
-            "Удаление сессий должно быть разрешено для cleanup (без объекта)"
-        )
-        assert result_with_obj is True, (
-            "Удаление сессий должно быть разрешено для cleanup (с объектом)"
-        )
+        assert (
+            result_without_obj is True
+        ), "Удаление сессий должно быть разрешено для cleanup (без объекта)"
+        assert (
+            result_with_obj is True
+        ), "Удаление сессий должно быть разрешено для cleanup (с объектом)"
 
     def test_actions_list_is_empty(self, import_session_admin):
         """
@@ -249,7 +232,7 @@ class TestImportSessionAdmin:
         session = Session.objects.create(
             import_type="catalog",
             status="in_progress",
-            celery_task_id="test-task-id-123"
+            celery_task_id="test-task-id-123",
         )
 
         # Act - AsyncResult импортируется внутри метода

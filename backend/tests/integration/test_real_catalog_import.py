@@ -4,6 +4,7 @@ Integration тесты для валидации импорта реальног
 Story 3.1.3: test-catalog-loading
 Валидация корректности импорта реального каталога из data/import_1c/
 """
+
 from pathlib import Path
 from typing import Any, Optional, cast
 

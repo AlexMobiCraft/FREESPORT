@@ -1,6 +1,7 @@
 """
 Integration тесты для страницы импорта из 1С.
 """
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch

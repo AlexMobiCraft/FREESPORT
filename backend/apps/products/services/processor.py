@@ -1,6 +1,7 @@
 """
 ProductDataProcessor - процессор для обработки данных товаров из 1С
 """
+
 import logging
 import uuid
 from decimal import Decimal
@@ -99,7 +100,7 @@ class ProductDataProcessor:
             if not parent_id:
                 self._log_error("Missing parent_id in goods_data", goods_data)
                 return None
-                
+
             logger.info(f"Creating product placeholder for parent_id: {parent_id}")
 
             # Проверка существующего товара (по onec_id или parent_onec_id)
@@ -115,7 +116,9 @@ class ProductDataProcessor:
                 # НОВАЯ ФУНКЦИОНАЛЬНОСТЬ: Импорт изображений для существующих товаров
                 if not skip_images and base_dir and "images" in goods_data:
                     try:
-                        logger.info(f"Importing images for existing product {existing.onec_id}")
+                        logger.info(
+                            f"Importing images for existing product {existing.onec_id}"
+                        )
                         image_result = self.import_product_images(
                             product=existing,
                             image_paths=goods_data["images"],
@@ -124,7 +127,9 @@ class ProductDataProcessor:
                         )
                         self._update_image_stats(image_result)
                     except Exception as img_error:
-                        logger.error(f"Error importing images for existing product {existing.onec_id}: {img_error}")
+                        logger.error(
+                            f"Error importing images for existing product {existing.onec_id}: {img_error}"
+                        )
                         # Не прерываем процесс, а продолжаем с ошибкой в статистике
                         self.stats["errors"] += 1
 
@@ -180,7 +185,7 @@ class ProductDataProcessor:
                     name="No Brand", defaults={"slug": "no-brand", "is_active": True}
                 )
                 # if brand_id:
-                    # Brand with onec_id={brand_id} not found for product {parent_id}, using 'No Brand'
+                # Brand with onec_id={brand_id} not found for product {parent_id}, using 'No Brand'
 
             # Генерируем уникальный slug для товара
             name_value = goods_data.get("name")
@@ -225,13 +230,17 @@ class ProductDataProcessor:
             )
             try:
                 product.save()
-                logger.info(f"Product placeholder created successfully: {product.onec_id}")
+                logger.info(
+                    f"Product placeholder created successfully: {product.onec_id}"
+                )
                 self.stats["created"] += 1
 
                 # НОВАЯ ФУНКЦИОНАЛЬНОСТЬ: Импорт изображений
                 if not skip_images and base_dir and "images" in goods_data:
                     try:
-                        logger.info(f"Importing images for new product {product.onec_id}")
+                        logger.info(
+                            f"Importing images for new product {product.onec_id}"
+                        )
                         image_result = self.import_product_images(
                             product=product,
                             image_paths=goods_data["images"],
@@ -240,14 +249,18 @@ class ProductDataProcessor:
                         )
                         self._update_image_stats(image_result)
                     except Exception as img_error:
-                        logger.error(f"Error importing images for new product {product.onec_id}: {img_error}")
+                        logger.error(
+                            f"Error importing images for new product {product.onec_id}: {img_error}"
+                        )
                         # Не прерываем процесс, а продолжаем с ошибкой в статистике
                         self.stats["errors"] += 1
 
                 return product
             except Exception as save_error:
                 logger.error(f"Error saving product placeholder: {save_error}")
-                self._log_error(f"Error saving product placeholder: {save_error}", goods_data)
+                self._log_error(
+                    f"Error saving product placeholder: {save_error}", goods_data
+                )
                 return None
 
         except Exception as e:
@@ -436,13 +449,13 @@ class ProductDataProcessor:
         key_mapping = {
             "copied": "images_copied",
             "skipped": "images_skipped",
-            "errors": "images_errors"
+            "errors": "images_errors",
         }
-        
+
         for result_key, stats_key in key_mapping.items():
             self.stats.setdefault(stats_key, 0)
             self.stats[stats_key] += image_result.get(result_key, 0)
-            
+
         logger.info(f"Updated image stats: {self.stats}")
 
     def process_categories(self, categories_data: list[CategoryData]) -> dict[str, int]:
@@ -597,9 +610,11 @@ class ProductDataProcessor:
                 # Обеспечиваем уникальность slug
                 unique_slug = base_slug
                 counter = 1
-                while Brand.objects.filter(slug=unique_slug).exclude(
-                    onec_id=brand_id
-                ).exists():
+                while (
+                    Brand.objects.filter(slug=unique_slug)
+                    .exclude(onec_id=brand_id)
+                    .exists()
+                ):
                     unique_slug = f"{base_slug}-{counter}"
                     counter += 1
 
@@ -663,15 +678,19 @@ class ProductDataProcessor:
         from django.core.files.storage import default_storage
 
         result = {"copied": 0, "skipped": 0, "errors": 0}
-        
+
         # Логирование для отладки
-        logger.info(f"Starting image import for product {product.onec_id} with {len(image_paths)} images")
+        logger.info(
+            f"Starting image import for product {product.onec_id} with {len(image_paths)} images"
+        )
 
         if not image_paths:
             return result
 
         # Проверяем существующий main_image (семантика повторного импорта)
-        main_image_set = bool(product.main_image and product.main_image != self.DEFAULT_PLACEHOLDER_IMAGE)
+        main_image_set = bool(
+            product.main_image and product.main_image != self.DEFAULT_PLACEHOLDER_IMAGE
+        )
         gallery_images = list(product.gallery_images or [])
         logger.info(f"main_image_set flag initial value: {main_image_set}")
 
@@ -679,7 +698,6 @@ class ProductDataProcessor:
             try:
                 # Построение полного пути к исходному файлу
                 source_path = Path(base_dir) / image_path
-
 
                 if not source_path.exists():
                     # Image file not found: {source_path} for product {product.onec_id}
@@ -703,11 +721,15 @@ class ProductDataProcessor:
                     # Устанавливаем связь даже если файл уже существует
                     # При повторном импорте main_image НЕ меняется если уже установлен
                     if not main_image_set:
-                        logger.info(f"Setting existing file as main_image: {destination_path}")
+                        logger.info(
+                            f"Setting existing file as main_image: {destination_path}"
+                        )
                         product.main_image = destination_path  # type: ignore
                         main_image_set = True
                     else:
-                        logger.info(f"Adding existing file to gallery: {destination_path}")
+                        logger.info(
+                            f"Adding existing file to gallery: {destination_path}"
+                        )
                         # Проверка дубликатов в gallery_images
                         if destination_path not in gallery_images:
                             gallery_images.append(destination_path)
@@ -755,7 +777,9 @@ class ProductDataProcessor:
         if main_image_set or gallery_images:
             product.gallery_images = gallery_images
             product.save(update_fields=["main_image", "gallery_images"])
-            logger.info(f"Product {product.onec_id} updated with main_image: {product.main_image}, gallery count: {len(gallery_images)}")
+            logger.info(
+                f"Product {product.onec_id} updated with main_image: {product.main_image}, gallery count: {len(gallery_images)}"
+            )
 
         # Логирование итоговых результатов для отладки
         logger.info(f"Image import completed for product {product.onec_id}: {result}")

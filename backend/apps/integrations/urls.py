@@ -1,6 +1,7 @@
 """
 URLconf для приложения integrations.
 """
+
 from django.urls import path
 
 from .views import import_from_1c_view

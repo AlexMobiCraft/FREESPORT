@@ -4,6 +4,7 @@
 Этот модуль выполняет monkey-patching Django admin site для добавления
 custom URL страницы "Импорт из 1С".
 """
+
 from django.contrib import admin
 from django.urls import path
 

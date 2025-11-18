@@ -1,6 +1,7 @@
 """
 Тесты для моделей корзины FREESPORT Platform
 """
+
 from decimal import Decimal
 
 import pytest

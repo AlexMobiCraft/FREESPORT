@@ -10,6 +10,7 @@ Story 3.1.3: Интеграционное тестирование импорт�
 - Корректную статистику импорта
 - Edge cases: отсутствующие файлы, дубликаты, флаг --skip-images
 """
+
 from __future__ import annotations
 
 import os
@@ -493,6 +494,4 @@ class TestImportImagesIntegration(TestCase):
 
         # Файлы не должны быть скопированы в media
         files_count = self._count_files_in_media("products")
-        self.assertEqual(
-            files_count, 0, "No files should be copied with --skip-images"
-        )
+        self.assertEqual(files_count, 0, "No files should be copied with --skip-images")

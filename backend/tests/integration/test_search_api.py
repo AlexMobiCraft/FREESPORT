@@ -1,6 +1,7 @@
 """
 Integration тесты для Search API (Story 2.8)
 """
+
 import json
 
 import pytest

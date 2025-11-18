@@ -44,9 +44,7 @@ class TestImportProductImages:
     def test_import_product_images_single_image(self):
         """Импорт одного изображения товара (AAA Pattern)"""
         # ARRANGE - подготовка данных
-        product = ProductFactory(
-            onec_id=f"test-{get_unique_suffix()}", main_image=""
-        )
+        product = ProductFactory(onec_id=f"test-{get_unique_suffix()}", main_image="")
         session = ImportSession.objects.create(
             import_type=ImportSession.ImportType.CATALOG,
             status=ImportSession.ImportStatus.IN_PROGRESS,
@@ -92,9 +90,7 @@ class TestImportProductImages:
     def test_import_product_images_multiple_images(self):
         """Импорт нескольких изображений товара (AC 1, 2)"""
         # ARRANGE
-        product = ProductFactory(
-            onec_id=f"test-{get_unique_suffix()}", main_image=""
-        )
+        product = ProductFactory(onec_id=f"test-{get_unique_suffix()}", main_image="")
         session = ImportSession.objects.create(
             import_type=ImportSession.ImportType.CATALOG,
             status=ImportSession.ImportStatus.IN_PROGRESS,
@@ -135,7 +131,11 @@ class TestImportProductImages:
                 # Первое изображение - main_image
                 # Учитываем, что main_image мог быть установлен как заглушка при создании товара
                 initial_main_image = product.main_image
-                assert initial_main_image == saved_paths[0] or initial_main_image == ProductDataProcessor.DEFAULT_PLACEHOLDER_IMAGE
+                assert (
+                    initial_main_image == saved_paths[0]
+                    or initial_main_image
+                    == ProductDataProcessor.DEFAULT_PLACEHOLDER_IMAGE
+                )
                 # Остальные - в gallery
                 assert len(product.gallery_images) == 2
                 assert saved_paths[1] in product.gallery_images
@@ -157,7 +157,10 @@ class TestImportProductImages:
 
         # ACT
         result = processor.import_product_images(
-            product=product, image_paths=[], base_dir="/fake/path", validate_images=False
+            product=product,
+            image_paths=[],
+            base_dir="/fake/path",
+            validate_images=False,
         )
 
         # ASSERT
@@ -191,9 +194,7 @@ class TestImportProductImages:
     def test_import_product_images_duplicate_file(self):
         """Файл уже существует в media - пропускается (AC 3)"""
         # ARRANGE
-        product = ProductFactory(
-            onec_id=f"test-{get_unique_suffix()}", main_image=""
-        )
+        product = ProductFactory(onec_id=f"test-{get_unique_suffix()}", main_image="")
         session = ImportSession.objects.create(
             import_type=ImportSession.ImportType.CATALOG,
             status=ImportSession.ImportStatus.IN_PROGRESS,
@@ -210,7 +211,9 @@ class TestImportProductImages:
             image_paths = [image_filename]
 
             # Мокируем что файл уже существует
-            with patch("apps.products.services.processor.default_storage") as mock_storage:
+            with patch(
+                "apps.products.services.processor.default_storage"
+            ) as mock_storage:
                 mock_storage.exists.return_value = True
 
                 # ACT
@@ -249,9 +252,11 @@ class TestImportProductImages:
             image_filename = os.path.basename(tmp_path)
             image_paths = [image_filename]
 
-            with patch("apps.products.services.processor.default_storage") as mock_storage:
+            with patch(
+                "apps.products.services.processor.default_storage"
+            ) as mock_storage:
                 mock_storage.exists.return_value = False
-                
+
                 # ACT - валидация включена
                 result = processor.import_product_images(
                     product=product,
@@ -301,7 +306,9 @@ class TestImportProductImages:
             test_image_path = os.path.join(test_dir, "test_image.jpg")
             os.rename(tmp_path, test_image_path)
 
-            with patch("apps.products.services.processor.default_storage") as mock_storage:
+            with patch(
+                "apps.products.services.processor.default_storage"
+            ) as mock_storage:
                 mock_storage.exists.return_value = False
                 mock_storage.save.return_value = "products/00/test_image.jpg"
 
@@ -351,7 +358,9 @@ class TestImportProductImages:
             # Симулируем структуру с поддиректорией
             image_paths = [f"00/{image_filename}"]
 
-            with patch("apps.products.services.processor.default_storage") as mock_storage:
+            with patch(
+                "apps.products.services.processor.default_storage"
+            ) as mock_storage:
                 mock_storage.exists.return_value = False
                 mock_storage.save.return_value = f"products/00/{image_filename}"
 
@@ -398,7 +407,9 @@ class TestImportProductImages:
             image_filename = os.path.basename(tmp_path)
             image_paths = [f"00/{image_filename}"]
 
-            with patch("apps.products.services.processor.default_storage") as mock_storage:
+            with patch(
+                "apps.products.services.processor.default_storage"
+            ) as mock_storage:
                 mock_storage.exists.return_value = False
                 mock_storage.save.return_value = f"products/00/{image_filename}"
 
@@ -455,9 +466,7 @@ class TestImportProductImages:
     def test_import_product_images_preserves_directory_structure(self):
         """Сохранение структуры поддиректорий из 1С (AC 1)"""
         # ARRANGE
-        product = ProductFactory(
-            onec_id=f"test-{get_unique_suffix()}", main_image=""
-        )
+        product = ProductFactory(onec_id=f"test-{get_unique_suffix()}", main_image="")
         session = ImportSession.objects.create(
             import_type=ImportSession.ImportType.CATALOG,
             status=ImportSession.ImportStatus.IN_PROGRESS,
@@ -476,7 +485,9 @@ class TestImportProductImages:
 
             expected_path = f"products/00/{image_filename}"
 
-            with patch("apps.products.services.processor.default_storage") as mock_storage:
+            with patch(
+                "apps.products.services.processor.default_storage"
+            ) as mock_storage:
                 mock_storage.exists.return_value = False
                 mock_storage.save.return_value = expected_path
                 mock_save = mock_storage.save

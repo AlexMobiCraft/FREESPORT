@@ -2,6 +2,7 @@
 Unit тесты для Pages app (Story 2.10)
 Включает security тесты для HTML sanitization и XSS protection
 """
+
 import pytest
 from django.core.exceptions import ValidationError
 from django.test import TestCase

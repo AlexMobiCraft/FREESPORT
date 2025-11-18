@@ -1,6 +1,7 @@
 """
 Views для каталога товаров
 """
+
 from rest_framework import filters, permissions, viewsets
 from rest_framework.pagination import PageNumberPagination
 

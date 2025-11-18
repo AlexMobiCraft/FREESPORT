@@ -1,6 +1,7 @@
 """
 Процессор данных клиентов для импорта в систему
 """
+
 from __future__ import annotations
 
 import logging
@@ -315,7 +316,9 @@ class CustomerDataProcessor:
         email = customer_data.get("email", "").strip()
         first_name = customer_data.get("first_name", "").strip()
         last_name = customer_data.get("last_name", "").strip()
-        phone = self._normalize_phone(customer_data.get("phone", ""))  # Нормализация телефона
+        phone = self._normalize_phone(
+            customer_data.get("phone", "")
+        )  # Нормализация телефона
         company_name = customer_data.get("company_name", "").strip()
         tax_id = customer_data.get("tax_id", "").strip()
         onec_id = customer_data.get("onec_id")

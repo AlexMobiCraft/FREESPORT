@@ -286,9 +286,11 @@ class Command(BaseCommand):
                     "email": customer.email,
                     "first_name": customer.first_name + " (обновлено)",
                     "phone_number": customer.phone,
-                    "company_name": customer.company_name + " (обновлено)"
-                    if customer.company_name
-                    else "",
+                    "company_name": (
+                        customer.company_name + " (обновлено)"
+                        if customer.company_name
+                        else ""
+                    ),
                     "is_active": customer.is_active,
                     "last_updated_in_1c": timezone.now().isoformat(),
                 }

@@ -2,6 +2,7 @@
 Performance тесты для Pages API (Story 2.10)
 Fix PERF-001: Тесты производительности кэширования под нагрузкой
 """
+
 import concurrent.futures
 import time
 from threading import Thread
@@ -90,9 +91,11 @@ class PagesCachePerformanceTest(TransactionTestCase):
                     {
                         "status": response.status_code,
                         "time": end - start,
-                        "data_length": len(response.data.get("results", []))
-                        if hasattr(response, "data") and "results" in response.data
-                        else 0,
+                        "data_length": (
+                            len(response.data.get("results", []))
+                            if hasattr(response, "data") and "results" in response.data
+                            else 0
+                        ),
                     }
                 )
             except Exception as e:

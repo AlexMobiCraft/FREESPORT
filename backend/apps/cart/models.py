@@ -2,6 +2,7 @@
 Модели корзины покупок для платформы FREESPORT
 Поддерживает как авторизованных, так и гостевых пользователей
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING

@@ -1,6 +1,7 @@
 """
 Unit-тесты для XMLDataParser
 """
+
 import os
 import tempfile
 from decimal import Decimal
