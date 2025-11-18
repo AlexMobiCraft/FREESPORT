@@ -13,12 +13,12 @@ from typing import TYPE_CHECKING, Any
 from django.core.cache import cache
 from django.utils import timezone
 
-if TYPE_CHECKING:
-    pass
-
 from apps.common.services.monitoring import WebhookAlerts
 
 from .customer_sync_monitor import CustomerSyncMonitor
+
+if TYPE_CHECKING:
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -30,16 +30,16 @@ class AlertManager:
     """
 
     # Пороговые значения для алертов (можно переопределить через ENV)
-    ERROR_RATE_THRESHOLD = float(os.getenv("ALERT_ERROR_RATE_THRESHOLD", 10.0))  # %
+    ERROR_RATE_THRESHOLD = float(os.getenv("ALERT_ERROR_RATE_THRESHOLD", "10.0"))  # %
     RESPONSE_TIME_P95_THRESHOLD = int(
-        os.getenv("ALERT_RESPONSE_TIME_P95_THRESHOLD", 2000)
+        os.getenv("ALERT_RESPONSE_TIME_P95_THRESHOLD", "2000")
     )  # мс
     FAILED_OPERATIONS_THRESHOLD = int(
-        os.getenv("ALERT_FAILED_OPERATIONS_THRESHOLD", 50)
+        os.getenv("ALERT_FAILED_OPERATIONS_THRESHOLD", "50")
     )
 
     # Время между повторными алертами (дедупликация)
-    ALERT_COOLDOWN_MINUTES = int(os.getenv("ALERT_COOLDOWN_MINUTES", 15))
+    ALERT_COOLDOWN_MINUTES = int(os.getenv("ALERT_COOLDOWN_MINUTES", "15"))
 
     def __init__(self) -> None:
         """Инициализация AlertManager."""
@@ -56,55 +56,56 @@ class AlertManager:
         now = timezone.now()
         start_time = now - timedelta(hours=1)  # Проверяем последний час
 
-        results = {
-            "timestamp": now.isoformat(),
-            "alerts_sent": [],
-            "alerts_suppressed": [],
-        }
+        alerts_sent: list[str] = []
+        alerts_suppressed: list[str] = []
 
         # 1. Проверка high error rate
         error_rate_alert = self._check_high_error_rate(start_time, now)
         if error_rate_alert:
             if self._should_send_alert("high_error_rate"):
                 self._send_alert(**error_rate_alert)
-                results["alerts_sent"].append("high_error_rate")
+                alerts_sent.append("high_error_rate")
             else:
-                results["alerts_suppressed"].append("high_error_rate")
+                alerts_suppressed.append("high_error_rate")
 
         # 2. Проверка slow response times
         slow_response_alert = self._check_slow_response_times(start_time, now)
         if slow_response_alert:
             if self._should_send_alert("slow_response"):
                 self._send_alert(**slow_response_alert)
-                results["alerts_sent"].append("slow_response")
+                alerts_sent.append("slow_response")
             else:
-                results["alerts_suppressed"].append("slow_response")
+                alerts_suppressed.append("slow_response")
 
         # 3. Проверка system health
         health_alert = self._check_system_health()
         if health_alert:
             if self._should_send_alert("system_unhealthy"):
                 self._send_alert(**health_alert)
-                results["alerts_sent"].append("system_unhealthy")
+                alerts_sent.append("system_unhealthy")
             else:
-                results["alerts_suppressed"].append("system_unhealthy")
+                alerts_suppressed.append("system_unhealthy")
 
         # 4. Проверка failed operations spike
         failed_ops_alert = self._check_failed_operations_spike(start_time, now)
         if failed_ops_alert:
             if self._should_send_alert("failed_operations_spike"):
                 self._send_alert(**failed_ops_alert)
-                results["alerts_sent"].append("failed_operations_spike")
+                alerts_sent.append("failed_operations_spike")
             else:
-                results["alerts_suppressed"].append("failed_operations_spike")
+                alerts_suppressed.append("failed_operations_spike")
 
         logger.info(
             "Alert check completed: %d sent, %d suppressed",
-            len(results["alerts_sent"]),
-            len(results["alerts_suppressed"]),
+            len(alerts_sent),
+            len(alerts_suppressed),
         )
 
-        return results
+        return {
+            "timestamp": now.isoformat(),
+            "alerts_sent": alerts_sent,
+            "alerts_suppressed": alerts_suppressed,
+        }
 
     def _check_high_error_rate(
         self, start_date: datetime, end_date: datetime
@@ -304,10 +305,10 @@ class RealTimeAlertMonitor:
 
     # Пороги для real-time мониторинга
     REALTIME_ERROR_RATE_THRESHOLD = float(
-        os.getenv("REALTIME_ERROR_RATE_THRESHOLD", 20.0)
+        os.getenv("REALTIME_ERROR_RATE_THRESHOLD", "20.0")
     )  # %
     REALTIME_PENDING_THRESHOLD = int(
-        os.getenv("REALTIME_PENDING_THRESHOLD", 100)
+        os.getenv("REALTIME_PENDING_THRESHOLD", "100")
     )  # операций
 
     def __init__(self) -> None:
@@ -324,10 +325,7 @@ class RealTimeAlertMonitor:
         """
         metrics = self.monitor.get_real_time_metrics()
 
-        results = {
-            "timestamp": timezone.now().isoformat(),
-            "alerts_sent": [],
-        }
+        alerts_sent: list[str] = []
 
         # Проверка текущего error rate
         current_error_rate = metrics.get("current_error_rate", 0.0)
@@ -346,7 +344,7 @@ class RealTimeAlertMonitor:
                     "operations_last_5min": metrics.get("operations_last_5min", 0),
                 },
             )
-            results["alerts_sent"].append("realtime_high_error_rate")
+            alerts_sent.append("realtime_high_error_rate")
 
         # Проверка количества pending операций
         pending_operations = metrics.get("pending_operations", 0)
@@ -364,6 +362,8 @@ class RealTimeAlertMonitor:
                     "throughput_per_minute": metrics.get("throughput_per_minute", 0),
                 },
             )
-            results["alerts_sent"].append("high_pending_operations")
-
-        return results
+            alerts_sent.append("high_pending_operations")
+        return {
+            "timestamp": timezone.now().isoformat(),
+            "alerts_sent": alerts_sent,
+        }

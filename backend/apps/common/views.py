@@ -253,7 +253,7 @@ def business_metrics(request: Request) -> Response:
 )
 @api_view(["GET"])
 @permission_classes([IsAuthenticated, IsAdminUser])
-def system_health(request: Request) -> Response:
+def system_health(_request: Request) -> Response:
     """Получить статус здоровья системы интеграции."""
     monitor = CustomerSyncMonitor()
     health_status = monitor.get_system_health()
@@ -290,7 +290,7 @@ def system_health(request: Request) -> Response:
 )
 @api_view(["GET"])
 @permission_classes([IsAuthenticated, IsAdminUser])
-def realtime_metrics(request: Request) -> Response:
+def realtime_metrics(_request: Request) -> Response:
     """Получить метрики в реальном времени (последние 5 минут)."""
     monitor = CustomerSyncMonitor()
     metrics = monitor.get_real_time_metrics()

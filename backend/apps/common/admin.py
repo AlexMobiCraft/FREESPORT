@@ -11,7 +11,6 @@ from django.contrib import admin
 from django.db.models import QuerySet
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
-from django.urls import path
 from django.utils import timezone
 
 from .models import AuditLog, CustomerSyncLog, News, Newsletter, SyncConflict, SyncLog
@@ -139,7 +138,7 @@ class CustomerSyncLogAdmin(admin.ModelAdmin):
 
     @admin.action(description="Экспортировать выбранные логи в CSV")
     def export_to_csv(
-        self, request: HttpRequest, queryset: QuerySet[CustomerSyncLog]
+        self, _request: HttpRequest, queryset: QuerySet[CustomerSyncLog]
     ) -> HttpResponse:
         """Экспорт выбранных логов в CSV файл"""
         response = HttpResponse(content_type="text/csv; charset=utf-8-sig")
@@ -163,8 +162,8 @@ class CustomerSyncLogAdmin(admin.ModelAdmin):
             writer.writerow(
                 [
                     log.created_at.strftime("%Y-%m-%d %H:%M:%S"),
-                    log.get_operation_type_display(),
-                    log.get_status_display(),
+                    self._resolve_operation_label(log.operation_type),
+                    self._resolve_status_label(log.status),
                     log.customer_email,
                     log.onec_id,
                     log.duration_ms or "",
@@ -195,6 +194,20 @@ class CustomerSyncLogAdmin(admin.ModelAdmin):
         self.message_user(
             request, f"Отмечено как просмотренные: {count} лог(ов)", level="success"
         )
+
+    def _resolve_operation_label(self, operation_value: str) -> str:
+        """Возвращает человеко-понятное название типа операции."""
+        try:
+            return CustomerSyncLog.OperationType(operation_value).label
+        except ValueError:
+            return operation_value
+
+    def _resolve_status_label(self, status_value: str) -> str:
+        """Возвращает понятное название статуса."""
+        try:
+            return CustomerSyncLog.StatusType(status_value).label
+        except ValueError:
+            return status_value
 
 
 @admin.register(SyncConflict)
@@ -278,7 +291,7 @@ class NewsletterAdmin(admin.ModelAdmin):
 
     def has_add_permission(self, request: HttpRequest) -> bool:
         """Только superuser может создавать подписки через admin."""
-        return request.user.is_superuser
+        return bool(getattr(request.user, "is_superuser", False))
 
 
 @admin.register(News)
