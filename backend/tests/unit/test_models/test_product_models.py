@@ -1,4 +1,5 @@
 """Тесты для моделей товаров FREESPORT Platform"""
+
 import time
 import uuid
 from decimal import Decimal

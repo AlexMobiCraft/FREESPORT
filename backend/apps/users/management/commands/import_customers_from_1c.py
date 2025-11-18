@@ -1,6 +1,7 @@
 """
 Django management команда для импорта клиентов из 1С (contragents*.xml)
 """
+
 from __future__ import annotations
 
 import logging
@@ -184,9 +185,7 @@ class Command(BaseCommand):
             # Dry-run сообщение
             if dry_run:
                 self.stdout.write(
-                    self.style.WARNING(
-                        "\n⚠️  DRY-RUN режим: изменения не сохранены"
-                    )
+                    self.style.WARNING("\n⚠️  DRY-RUN режим: изменения не сохранены")
                 )
             else:
                 # Обновление сессии с итоговой статистикой

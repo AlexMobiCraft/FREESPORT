@@ -1,6 +1,7 @@
 """
 Настройки Django для продакшена FREESPORT
 """
+
 from .base import *
 
 

@@ -2,6 +2,7 @@
 Базовые настройки Django для платформы FREESPORT
 Общая конфигурация для всех окружений
 """
+
 import os
 import sys
 from datetime import timedelta
@@ -232,10 +233,7 @@ MEDIA_ROOT = BASE_DIR / "media"
 # Поддерживает переменную окружения ONEC_DATA_DIR
 # В Docker контейнере это будет /app/data/import_1c
 # BASE_DIR = /app, поэтому используем BASE_DIR / "data" / "import_1c"
-ONEC_DATA_DIR = os.environ.get(
-    "ONEC_DATA_DIR",
-    str(BASE_DIR / "data" / "import_1c")
-)
+ONEC_DATA_DIR = os.environ.get("ONEC_DATA_DIR", str(BASE_DIR / "data" / "import_1c"))
 
 # Тип первичного ключа по умолчанию
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"

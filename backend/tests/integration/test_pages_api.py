@@ -2,6 +2,7 @@
 Интеграционные тесты для Pages API (Story 2.10)
 Расширенные тесты для Fix TEST-001: включают кэширование, производительность, edge cases
 """
+
 import time
 
 import pytest

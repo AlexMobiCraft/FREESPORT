@@ -1,6 +1,7 @@
 """
 Unit-тесты для маркетинговых флагов Product model (Story 11.0)
 """
+
 from __future__ import annotations
 
 import pytest

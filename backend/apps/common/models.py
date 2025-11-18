@@ -2,6 +2,7 @@
 Общие модели для платформы FREESPORT
 Включает аудиторский журнал и логи синхронизации с 1С
 """
+
 from __future__ import annotations
 
 import logging

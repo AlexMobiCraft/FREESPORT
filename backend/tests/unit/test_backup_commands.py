@@ -1,6 +1,7 @@
 """
 Unit-тесты для команд backup_db, restore_db, rotate_backups (Story 3.1.2)
 """
+
 import tempfile
 from io import StringIO
 from pathlib import Path

@@ -1,6 +1,7 @@
 """
 Management команда для генерации и отправки отчетов по синхронизации
 """
+
 import os
 from datetime import datetime, timedelta
 

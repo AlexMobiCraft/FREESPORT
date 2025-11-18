@@ -3,6 +3,7 @@
 
 Story 3.1.5: Команда для обновления остатков товаров
 """
+
 from __future__ import annotations
 
 from pathlib import Path

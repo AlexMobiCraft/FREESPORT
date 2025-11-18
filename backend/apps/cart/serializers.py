@@ -1,6 +1,7 @@
 """
 Serializers для корзины покупок
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Dict

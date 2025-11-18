@@ -1,6 +1,7 @@
 """
 XMLDataParser - парсер для XML файлов из 1С (CommerceML 3.1)
 """
+
 import os
 from decimal import Decimal
 from typing import Any, Iterator, TypedDict, cast
@@ -255,7 +256,6 @@ class XMLDataParser:
 
             # Извлечение и валидация путей изображений с дедупликацией
             image_elements = product_element.findall(".//Картинка")
-            
 
             if image_elements:
                 validated_images = []

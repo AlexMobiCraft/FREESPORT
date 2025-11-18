@@ -1,6 +1,7 @@
 """
 URL маршруты для API управления пользователями
 """
+
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenRefreshView

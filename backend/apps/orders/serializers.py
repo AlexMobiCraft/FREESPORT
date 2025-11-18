@@ -2,6 +2,7 @@
 Сериализаторы для заказов FREESPORT
 Поддерживает создание заказов из корзины с транзакционной логикой
 """
+
 from decimal import Decimal
 from typing import cast
 

@@ -2,6 +2,7 @@
 Модели заказов для платформы FREESPORT
 Поддерживает B2B и B2C заказы с различными способами оплаты и доставки
 """
+
 from __future__ import annotations
 
 import uuid

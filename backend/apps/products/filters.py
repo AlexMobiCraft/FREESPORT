@@ -1,6 +1,7 @@
 """
 Фильтры для каталога товаров
 """
+
 import django_filters
 from django.conf import settings
 from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector

@@ -1,6 +1,7 @@
 """
 Celery задачи для асинхронного импорта данных из 1С
 """
+
 import logging
 from pathlib import Path
 from typing import Any
@@ -23,7 +24,9 @@ logger = logging.getLogger(__name__)
 def run_selective_import_task(
     self,
     selected_types: list[str],
-    data_dir: str | None = None, # Этот аргумент больше не используется, но оставлен для обратной совместимости
+    data_dir: (
+        str | None
+    ) = None,  # Этот аргумент больше не используется, но оставлен для обратной совместимости
 ) -> dict[str, Any]:
     """
     Асинхронная задача для выборочного импорта данных из 1С.

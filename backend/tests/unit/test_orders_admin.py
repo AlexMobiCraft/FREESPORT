@@ -2,6 +2,7 @@
 Unit тесты для Django Admin конфигурации Orders.
 Тестирование OrderAdmin и OrderItemInline.
 """
+
 from __future__ import annotations
 
 import csv

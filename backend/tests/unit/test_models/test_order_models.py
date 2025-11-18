@@ -1,6 +1,7 @@
 """
 Тесты для моделей заказов FREESPORT Platform
 """
+
 import uuid
 from decimal import Decimal
 

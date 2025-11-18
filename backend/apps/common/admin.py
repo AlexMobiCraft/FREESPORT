@@ -1,6 +1,7 @@
 """
 Django Admin конфигурация для моделей приложения common
 """
+
 from __future__ import annotations
 
 import csv

@@ -2,6 +2,7 @@
 Тесты для общих сериализаторов
 Тестируем AddressSerializer из приложения users
 """
+
 import pytest
 from django.contrib.auth import get_user_model
 

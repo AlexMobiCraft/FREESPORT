@@ -2,6 +2,7 @@
 Django Admin конфигурация для Orders приложения.
 Настройки для управления заказами через Django Admin с поддержкой B2B/B2C.
 """
+
 from __future__ import annotations
 
 import csv

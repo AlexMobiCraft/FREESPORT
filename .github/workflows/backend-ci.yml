@@ -152,6 +152,8 @@ jobs:
         echo "✅ OpenAPI схема сгенерирована успешно"
         
     - name: Run database migrations
+      env:
+        DJANGO_SETTINGS_MODULE: freesport.settings.test
       run: |
         cd backend
         source venv/bin/activate
@@ -164,11 +166,9 @@ jobs:
         echo "DJANGO_SETTINGS_MODULE=$DJANGO_SETTINGS_MODULE"
         # Проверяем настройки Django
         python -c "import os; os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'freesport.settings.test'); import django; django.setup(); from django.conf import settings; print('🔍 Django DB settings:'); print(f\"USER: {settings.DATABASES['default']['USER']}\"); print(f\"NAME: {settings.DATABASES['default']['NAME']}\"); print(f\"HOST: {settings.DATABASES['default']['HOST']}\")"
-        # Явно устанавливаем DJANGO_SETTINGS_MODULE
-        export DJANGO_SETTINGS_MODULE=freesport.settings.test
         # Сбрасываем соединения с БД перед миграциями для избежания проблем с транзакциями
         python -c "import django; django.setup(); from django.db import connections; connections.close_all()" || true
-        python manage.py migrate --run-syncdb --settings=freesport.settings.test
+        python manage.py migrate --noinput
         
     - name: Run tests with coverage
       env:

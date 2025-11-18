@@ -1,6 +1,7 @@
 """
 Тесты для User Serializers - Story 2.2 User Management API
 """
+
 import pytest
 from django.contrib.auth import get_user_model
 

@@ -3,6 +3,7 @@ Unit-тесты для команды load_product_stocks
 
 Story 3.1.5: Команда для обновления остатков товаров
 """
+
 from __future__ import annotations
 
 from io import StringIO

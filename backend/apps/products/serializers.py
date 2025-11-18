@@ -1,6 +1,7 @@
 """
 Serializers для каталога товаров
 """
+
 from typing import Any
 
 from django.db.models import Count, Q

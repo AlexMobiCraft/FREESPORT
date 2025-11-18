@@ -1,6 +1,7 @@
 """
 Views для личного кабинета пользователя
 """
+
 from dataclasses import dataclass
 
 from django.db.models import Avg, Count, Sum

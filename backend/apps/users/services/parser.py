@@ -1,6 +1,7 @@
 """
 Парсер данных клиентов из файлов 1С (CommerceML 3.1)
 """
+
 from __future__ import annotations
 
 import logging

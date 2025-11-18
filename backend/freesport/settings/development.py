@@ -1,6 +1,7 @@
 """
 Настройки Django для локальной разработки FREESPORT
 """
+
 import os
 from .base import *
 

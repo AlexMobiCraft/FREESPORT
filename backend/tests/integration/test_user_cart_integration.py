@@ -1,6 +1,7 @@
 """
 Integration тесты взаимодействия пользователей и корзины
 """
+
 import pytest
 from django.contrib.auth import get_user_model
 from django.test import TestCase

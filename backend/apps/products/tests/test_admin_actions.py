@@ -6,6 +6,7 @@ Unit тесты для admin actions в products app
 - progress_display rendering
 - colored_status rendering
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta

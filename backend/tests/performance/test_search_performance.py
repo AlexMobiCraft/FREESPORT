@@ -1,6 +1,7 @@
 """
 Performance тесты поисковой системы
 """
+
 import time
 
 import pytest

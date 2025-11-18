@@ -1,6 +1,7 @@
 """
 Management команда для очистки старых логов синхронизации
 """
+
 import os
 from datetime import datetime, timedelta
 

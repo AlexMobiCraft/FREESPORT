@@ -2,6 +2,7 @@
 Integration-тесты для команды import_customers_from_1c
 Используют реальные данные из data/import_1c/contragents/
 """
+
 from __future__ import annotations
 
 import pytest

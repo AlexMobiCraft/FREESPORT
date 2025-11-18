@@ -2,6 +2,7 @@
 Интеграционные тесты для API фильтрации товаров (Story 2.9: filtering-api)
 Тесты с реальными данными согласно стандартам тестирования FREESPORT
 """
+
 from decimal import Decimal
 
 import pytest

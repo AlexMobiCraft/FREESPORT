@@ -1,6 +1,7 @@
 """
 Простой тест AddressSerializer для проверки работоспособности
 """
+
 import pytest
 from django.contrib.auth import get_user_model
 

@@ -2,6 +2,7 @@
 Functional тесты Filtering API (Story 2.9)
 Заглушка для будущей реализации фильтрации API
 """
+
 import pytest
 from django.contrib.auth import get_user_model
 from rest_framework import status
