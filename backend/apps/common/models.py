@@ -467,3 +467,171 @@ class SyncConflict(models.Model):
         return (
             f"{self.get_conflict_type_display()} - " f"{self.customer.email} ({status})"
         )
+
+
+class Newsletter(models.Model):
+    """
+    Модель подписки на email-рассылку.
+    Хранит email адреса подписчиков с временными метками.
+    """
+
+    email: models.EmailField = models.EmailField(
+        "Email адрес",
+        unique=True,
+        max_length=255,
+        db_index=True,
+        help_text="Уникальный email адрес подписчика",
+    )
+    is_active: models.BooleanField = models.BooleanField(
+        "Активна",
+        default=True,
+        db_index=True,
+        help_text="Флаг активности подписки (для отписки)",
+    )
+    subscribed_at: models.DateTimeField = models.DateTimeField(
+        "Дата подписки",
+        auto_now_add=True,
+        db_index=True,
+        help_text="Дата и время подписки",
+    )
+    unsubscribed_at: models.DateTimeField = models.DateTimeField(
+        "Дата отписки",
+        null=True,
+        blank=True,
+        help_text="Дата и время отписки (null если активна)",
+    )
+    ip_address: models.GenericIPAddressField = models.GenericIPAddressField(
+        "IP адрес",
+        null=True,
+        blank=True,
+        help_text="IP адрес при подписке (для антиспам)",
+    )
+    user_agent: models.TextField = models.TextField(
+        "User Agent",
+        blank=True,
+        help_text="Браузер и устройство при подписке",
+    )
+
+    objects = models.Manager()
+
+    class Meta:
+        verbose_name = "Подписка на рассылку"
+        verbose_name_plural = "Подписки на рассылку"
+        db_table = "newsletter_subscriptions"
+        ordering = ["-subscribed_at"]
+        indexes = [
+            models.Index(fields=["email"]),
+            models.Index(fields=["is_active", "subscribed_at"]),
+            models.Index(fields=["subscribed_at"]),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(is_active=True, unsubscribed_at__isnull=True)
+                | models.Q(is_active=False, unsubscribed_at__isnull=False),
+                name="newsletter_active_consistency",
+            )
+        ]
+
+    def __str__(self) -> str:
+        status = "Активна" if self.is_active else "Неактивна"
+        return f"{self.email} ({status})"
+
+    def unsubscribe(self) -> None:
+        """Отписать email от рассылки."""
+        self.is_active = False
+        self.unsubscribed_at = timezone.now()
+        self.save(update_fields=["is_active", "unsubscribed_at"])
+
+
+class News(models.Model):
+    """
+    Модель новостей и акций.
+    Отображаются на главной странице и в блоге компании.
+    """
+
+    title: models.CharField = models.CharField(
+        "Заголовок",
+        max_length=200,
+        help_text="Заголовок новости",
+    )
+    slug: models.SlugField = models.SlugField(
+        "URL slug",
+        max_length=255,
+        unique=True,
+        db_index=True,
+        help_text="Уникальный идентификатор для URL",
+    )
+    excerpt: models.TextField = models.TextField(
+        "Краткое описание",
+        max_length=500,
+        help_text="Краткое описание для главной страницы (до 500 символов)",
+    )
+    content: models.TextField = models.TextField(
+        "Полный текст",
+        blank=True,
+        help_text="Полный текст новости (опционально)",
+    )
+    image: models.ImageField = models.ImageField(
+        "Изображение",
+        upload_to="news/%Y/%m/",
+        null=True,
+        blank=True,
+        help_text="Изображение новости (опционально)",
+    )
+    author: models.CharField = models.CharField(
+        "Автор",
+        max_length=100,
+        blank=True,
+        help_text="Имя автора (опционально)",
+    )
+    category: models.CharField = models.CharField(
+        "Категория",
+        max_length=50,
+        blank=True,
+        db_index=True,
+        help_text="Категория новости (акция, новинка, событие)",
+    )
+    is_published: models.BooleanField = models.BooleanField(
+        "Опубликована",
+        default=False,
+        db_index=True,
+        help_text="Флаг публикации (только опубликованные видны на сайте)",
+    )
+    published_at: models.DateTimeField = models.DateTimeField(
+        "Дата публикации",
+        db_index=True,
+        help_text="Дата и время публикации",
+    )
+    created_at: models.DateTimeField = models.DateTimeField(
+        "Дата создания",
+        auto_now_add=True,
+    )
+    updated_at: models.DateTimeField = models.DateTimeField(
+        "Дата обновления",
+        auto_now=True,
+    )
+
+    objects = models.Manager()
+
+    class Meta:
+        verbose_name = "Новость"
+        verbose_name_plural = "Новости"
+        db_table = "news"
+        ordering = ["-published_at"]
+        indexes = [
+            models.Index(fields=["is_published", "published_at"]),
+            models.Index(fields=["slug"]),
+            models.Index(fields=["category", "published_at"]),
+            models.Index(fields=["published_at"]),
+        ]
+
+    def __str__(self) -> str:
+        return self.title
+
+    def save(self, *args, **kwargs) -> None:
+        """Автоматическая генерация slug из заголовка."""
+        if not self.slug:
+            from django.utils.text import slugify
+
+            self.slug = slugify(self.title, allow_unicode=True)
+        super().save(*args, **kwargs)

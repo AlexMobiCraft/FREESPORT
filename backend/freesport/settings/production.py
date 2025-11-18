@@ -112,4 +112,18 @@ EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD", default="")
 EMAIL_USE_TLS = True
 
 # Домен для email будет настраиваться через переменные
-DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="noreply@example.com")
+DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="noreply@freesport.ru")
+SERVER_EMAIL = config("SERVER_EMAIL", default="admin@freesport.ru")
+
+# Rate limiting для защиты от SPAM (Story 11.3 - SEC-001)
+REST_FRAMEWORK = {
+    **REST_FRAMEWORK,  # Наследуем настройки из base.py
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "10/hour",  # SPAM protection для /subscribe endpoint
+        "user": "100/hour",  # Для авторизованных пользователей
+    },
+}

@@ -18,6 +18,16 @@ from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 
+from rest_framework import generics
+
+from apps.common.models import News
+from apps.common.serializers import (
+    NewsSerializer,
+    SubscribeResponseSerializer,
+    SubscribeSerializer,
+    UnsubscribeResponseSerializer,
+    UnsubscribeSerializer,
+)
 from apps.common.services import CustomerSyncMonitor
 
 
@@ -286,3 +296,285 @@ def realtime_metrics(request: Request) -> Response:
     metrics = monitor.get_real_time_metrics()
 
     return Response(metrics, status=status.HTTP_200_OK)
+
+
+# ============================================================================
+# Newsletter & News Views
+# ============================================================================
+
+
+@extend_schema(
+    summary="Подписка на email-рассылку",
+    description=(
+        "Подписывает пользователя на email-рассылку о новинках и акциях. "
+        "Если email уже подписан - возвращает 409 Conflict."
+    ),
+    request=SubscribeSerializer,
+    responses={
+        201: OpenApiResponse(
+            description="Подписка успешно создана",
+            examples=[
+                OpenApiExample(
+                    name="success_response",
+                    value={
+                        "message": "Вы успешно подписались на рассылку",
+                        "email": "user@example.com",
+                    },
+                    response_only=True,
+                )
+            ],
+        ),
+        400: OpenApiResponse(
+            description="Ошибка валидации email",
+            examples=[
+                OpenApiExample(
+                    name="validation_error",
+                    value={
+                        "email": ["Введите корректный email адрес."],
+                    },
+                    response_only=True,
+                )
+            ],
+        ),
+        409: OpenApiResponse(
+            description="Email уже подписан на рассылку",
+            examples=[
+                OpenApiExample(
+                    name="already_subscribed",
+                    value={
+                        "email": ["Этот email уже подписан на рассылку"],
+                    },
+                    response_only=True,
+                )
+            ],
+        ),
+    },
+    tags=["Newsletter"],
+)
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def subscribe(request: Request) -> Response:
+    """
+    Подписка на email-рассылку.
+
+    Принимает email адрес и создает подписку.
+    Если email ранее отписался - реактивирует подписку.
+    """
+    serializer = SubscribeSerializer(data=request.data, context={"request": request})
+
+    if serializer.is_valid():
+        subscription = serializer.save()
+
+        response_serializer = SubscribeResponseSerializer(
+            {
+                "message": "Вы успешно подписались на рассылку",
+                "email": subscription.email,
+            }
+        )
+
+        return Response(
+            response_serializer.data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    # Обработка ошибки "уже подписан"
+    if "email" in serializer.errors:
+        error_msg = str(serializer.errors["email"][0])
+        if "уже подписан" in error_msg:
+            return Response(
+                serializer.errors,
+                status=status.HTTP_409_CONFLICT,
+            )
+
+    # Другие ошибки валидации
+    return Response(
+        serializer.errors,
+        status=status.HTTP_400_BAD_REQUEST,
+    )
+
+
+@extend_schema(
+    summary="Отписка от email-рассылки",
+    description=(
+        "Отписывает пользователя от email-рассылки. "
+        "Если email не найден или уже отписан - возвращает 404 Not Found."
+    ),
+    request=UnsubscribeSerializer,
+    responses={
+        200: OpenApiResponse(
+            description="Отписка успешно выполнена",
+            examples=[
+                OpenApiExample(
+                    name="success_response",
+                    value={
+                        "message": "Вы успешно отписались от рассылки",
+                        "email": "user@example.com",
+                    },
+                    response_only=True,
+                )
+            ],
+        ),
+        400: OpenApiResponse(
+            description="Ошибка валидации email",
+            examples=[
+                OpenApiExample(
+                    name="validation_error",
+                    value={
+                        "email": ["Введите корректный email адрес."],
+                    },
+                    response_only=True,
+                )
+            ],
+        ),
+        404: OpenApiResponse(
+            description="Email не найден или уже отписан",
+            examples=[
+                OpenApiExample(
+                    name="not_found",
+                    value={
+                        "email": [
+                            "Этот email не найден в списке подписчиков или уже отписан"
+                        ],
+                    },
+                    response_only=True,
+                )
+            ],
+        ),
+    },
+    tags=["Newsletter"],
+)
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def unsubscribe(request: Request) -> Response:
+    """
+    Отписка от email-рассылки.
+
+    Принимает email адрес и деактивирует подписку.
+    """
+    serializer = UnsubscribeSerializer(data=request.data)
+
+    if serializer.is_valid():
+        subscription = serializer.save()
+
+        response_serializer = UnsubscribeResponseSerializer(
+            {
+                "message": "Вы успешно отписались от рассылки",
+                "email": subscription.email,
+            }
+        )
+
+        return Response(
+            response_serializer.data,
+            status=status.HTTP_200_OK,
+        )
+
+    # Обработка ошибки "не найден или уже отписан"
+    if "email" in serializer.errors:
+        error_msg = str(serializer.errors["email"][0])
+        if "не найден" in error_msg or "уже отписан" in error_msg:
+            return Response(
+                serializer.errors,
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+    # Другие ошибки валидации
+    return Response(
+        serializer.errors,
+        status=status.HTTP_400_BAD_REQUEST,
+    )
+
+
+@extend_schema(
+    summary="Получить список новостей",
+    description=(
+        "Возвращает список опубликованных новостей с пагинацией. "
+        "Новости отсортированы по дате публикации (новые первые)."
+    ),
+    parameters=[
+        OpenApiParameter(
+            name="page_size",
+            type=int,
+            location=OpenApiParameter.QUERY,
+            description="Количество новостей на странице (по умолчанию: 10, макс: 100)",
+            required=False,
+        ),
+        OpenApiParameter(
+            name="page",
+            type=int,
+            location=OpenApiParameter.QUERY,
+            description="Номер страницы (по умолчанию: 1)",
+            required=False,
+        ),
+    ],
+    responses={
+        200: OpenApiResponse(
+            description="Список новостей успешно получен",
+            examples=[
+                OpenApiExample(
+                    name="success_response",
+                    value={
+                        "count": 15,
+                        "next": "http://api.example.com/api/v1/news?page=2",
+                        "previous": None,
+                        "results": [
+                            {
+                                "id": 1,
+                                "title": "Новая коллекция 2025",
+                                "slug": "new-collection-2025",
+                                "excerpt": (
+                                    "Представляем новую коллекцию спортивной "
+                                    "одежды..."
+                                ),
+                                "content": "Полный текст новости...",
+                                "image": (
+                                    "http://api.example.com/media/news/2025/11/"
+                                    "collection.jpg"
+                                ),
+                                "published_at": "2025-11-18T10:00:00Z",
+                                "created_at": "2025-11-17T15:30:00Z",
+                                "updated_at": "2025-11-18T09:00:00Z",
+                                "author": "FREESPORT Team",
+                                "category": "новинки",
+                            },
+                            {
+                                "id": 2,
+                                "title": "Скидки на зимнюю экипировку",
+                                "slug": "winter-sale",
+                                "excerpt": "До конца месяца скидки до 30%...",
+                                "content": "",
+                                "image": None,
+                                "published_at": "2025-11-17T12:00:00Z",
+                                "created_at": "2025-11-16T10:00:00Z",
+                                "updated_at": "2025-11-17T11:30:00Z",
+                                "author": "",
+                                "category": "акции",
+                            },
+                        ],
+                    },
+                    response_only=True,
+                )
+            ],
+        ),
+    },
+    tags=["News"],
+)
+class NewsListView(generics.ListAPIView):
+    """
+    API endpoint для получения списка новостей.
+
+    Возвращает только опубликованные новости (is_published=True)
+    с датой публикации <= текущего момента.
+    """
+
+    serializer_class = NewsSerializer
+    permission_classes = [AllowAny]
+
+    def get_queryset(self):
+        """
+        Возвращает только опубликованные новости.
+        Фильтрует по дате публикации (только прошедшие/текущие).
+        """
+        return News.objects.filter(
+            is_published=True,
+            published_at__lte=timezone.now(),
+        ).order_by("-published_at")

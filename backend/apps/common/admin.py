@@ -14,7 +14,7 @@ from django.shortcuts import render
 from django.urls import path
 from django.utils import timezone
 
-from .models import AuditLog, CustomerSyncLog, SyncConflict, SyncLog
+from .models import AuditLog, CustomerSyncLog, News, Newsletter, SyncConflict, SyncLog
 from .services import CustomerSyncMonitor
 
 
@@ -244,3 +244,112 @@ def monitoring_dashboard_view(request: HttpRequest) -> HttpResponse:
     }
 
     return render(request, "admin/monitoring_dashboard.html", context)
+
+
+# ==================================================================
+# Newsletter & News Admin
+# ==================================================================
+
+
+@admin.register(Newsletter)
+class NewsletterAdmin(admin.ModelAdmin):
+    """Admin интерфейс для подписок на рассылку."""
+
+    list_display = [
+        "email",
+        "is_active",
+        "subscribed_at",
+        "unsubscribed_at",
+    ]
+    list_filter = [
+        "is_active",
+        "subscribed_at",
+    ]
+    search_fields = [
+        "email",
+    ]
+    readonly_fields = [
+        "subscribed_at",
+        "unsubscribed_at",
+        "ip_address",
+        "user_agent",
+    ]
+    date_hierarchy = "subscribed_at"
+
+    def has_add_permission(self, request: HttpRequest) -> bool:
+        """Только superuser может создавать подписки через admin."""
+        return request.user.is_superuser
+
+
+@admin.register(News)
+class NewsAdmin(admin.ModelAdmin):
+    """Admin интерфейс для новостей."""
+
+    list_display = [
+        "title",
+        "category",
+        "is_published",
+        "published_at",
+        "created_at",
+    ]
+    list_filter = [
+        "is_published",
+        "category",
+        "published_at",
+    ]
+    search_fields = [
+        "title",
+        "excerpt",
+        "content",
+    ]
+    prepopulated_fields = {
+        "slug": ("title",),
+    }
+    readonly_fields = [
+        "created_at",
+        "updated_at",
+    ]
+    date_hierarchy = "published_at"
+
+    fieldsets = (
+        (
+            "Основная информация",
+            {
+                "fields": (
+                    "title",
+                    "slug",
+                    "category",
+                    "author",
+                )
+            },
+        ),
+        (
+            "Контент",
+            {
+                "fields": (
+                    "excerpt",
+                    "content",
+                    "image",
+                )
+            },
+        ),
+        (
+            "Публикация",
+            {
+                "fields": (
+                    "is_published",
+                    "published_at",
+                )
+            },
+        ),
+        (
+            "Метаданные",
+            {
+                "fields": (
+                    "created_at",
+                    "updated_at",
+                ),
+                "classes": ("collapse",),
+            },
+        ),
+    )

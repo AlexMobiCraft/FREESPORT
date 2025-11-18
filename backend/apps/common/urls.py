@@ -19,4 +19,8 @@ urlpatterns = [
         "monitoring/metrics/realtime/", views.realtime_metrics, name="realtime-metrics"
     ),
     path("monitoring/health/", views.system_health, name="system-health"),
+    # Newsletter & News endpoints
+    path("subscribe/", views.subscribe, name="subscribe"),
+    path("unsubscribe/", views.unsubscribe, name="unsubscribe"),
+    path("news/", views.NewsListView.as_view(), name="news-list"),
 ]

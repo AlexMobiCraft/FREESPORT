@@ -37,7 +37,8 @@
       "Bash(node -e:*)",
       "Bash(frontend/public/og-image-placeholder.txt)",
       "Bash(npx vitest:*)",
-      "Bash(npm run test:*)"
+      "Bash(npm run test:*)",
+      "Bash(docker exec:*)"
     ],
     "deny": [],
     "ask": [],
