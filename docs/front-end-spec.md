@@ -974,7 +974,7 @@ interface ButtonProps {
 primary:   bg-primary (#1F1F1F), text-inverse, тень primary
 secondary: bg-neutral-100, border primary, текст primary
 tertiary:  transparent фон, текст primary
-subtle:    bg #E7F3FF, мягкая тень
+subtle:    bg #e7f3ffff, мягкая тень
 
 // Размеры:
 small:  height: 40px, text: body-s
@@ -1007,7 +1007,7 @@ interface InputProps {
 
 // Размеры:
 height: 40px
-radius: 4px
+radius: 6px
 border: 1px solid #D0D7E6
 
 // Состояния:
@@ -1268,11 +1268,24 @@ interface ModalProps {
   closeOnOverlay?: boolean
 }
 
+// Size variants:
+// sm: maxWidth: 384px, padding: 16px
+// md: maxWidth: 560px, padding: 24px (default)
+// lg: maxWidth: 768px, padding: 32px
+// xl: maxWidth: 1024px, padding: 40px
+// full: maxWidth: 100vw, padding: 48px
+
+// Usage scenarios:
+// sm: Подтверждения удаления, простые формы
+// md: Стандартные формы, размерные сетки
+// lg: Сложные формы, таблицы с данными
+// xl: Широкие таблицы, контент с боковой панелью
+// full: Полноэкранные модалки для фото/видео
+
 // Tokens:
 bg-neutral-100
 rounded-xl (radius: 24px)
 shadow-modal
-maxWidth: 560px
 
 // Close icon:
 container: { size: 44px, radius: 12px, hoverBackground: '#E3E8F2' }
@@ -1283,7 +1296,7 @@ iconSize: 40px
 // - Кнопка X использует hover bg #E3E8F2
 // - ESC закрывает модальное окно
 
-// Модалка размерной сетки:
+// Модалка размерной сетки (md - 560px):
 ┌─────────────────────────────────┐
 │ Таблица размеров            [✕] │
 │ ═══════════════════════════════ │
@@ -1296,6 +1309,32 @@ iconSize: 40px
 │                                 │
 │              [ЗАКРЫТЬ]          │
 └─────────────────────────────────┘
+
+// Модалка подтверждения (sm - 384px):
+┌─────────────────────────┐
+│ Удалить товар? [✕] │
+│ ═══════════════════ │
+│                     │
+│ Вы уверены, что хотите │
+│ удалить этот товар?   │
+│                     │
+│                     │
+│ [ОТМЕНА] [УДАЛИТЬ] │
+└─────────────────────────┘
+
+// Модалка с таблицей (lg - 768px):
+┌─────────────────────────────────────────────────────────────────┐
+│ Список заказов                                    [✕] │
+│ ══════════════════════════════════════════════════ │
+│ │ Дата     │ Заказ    │ Сумма   │ Статус    │ Действие │
+│ ├──────────┼──────────┼─────────┼───────────┼─────────┤
+│ │ 15.11.24 │ #12345   │ 12 490₽ │ Доставлен │ [Детали] │
+│ │ 14.11.24 │ #12344   │ 8 990₽  │ В пути    │ [Детали] │
+│ │ 13.11.24 │ #12343   │ 4 500₽  │ Обработка│ [Детали] │
+│ └──────────┴──────────┴─────────┴───────────┴─────────┘
+│                                                         │
+│                                            [ЗАКРЫТЬ]     │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 #### SidebarFilters (Боковая панель фильтров)
@@ -1316,9 +1355,9 @@ interface SidebarFiltersProps {
 boxSize: 20px
 radius: 6px
 borderDefault: 1.5px solid #B9C3D6
-borderChecked: 1.5px solid #0060FF
-backgroundChecked: #0060FF
-icon: { type: 'lucide-check', size: 18px, stroke: 3 }
+borderChecked: 1.5px solid #1F1F1F
+backgroundChecked: #1F1F1F
+icon: { type: 'lucide-check', size: 18px, stroke: 3, color: '#FFFFFF' }
 label: { typography: 'body-m', spacing: 12px }
 
 // Toggle:
@@ -1465,7 +1504,7 @@ interface ModerationFilters {
 // Статусы заявок:
 const APPLICATION_STATUSES = {
   pending: { label: 'На модерации', color: '#FF9800', icon: '🟡' },
-  urgent: { label: 'Срочная', color: '#F44336', icon: '🔴' },
+  urgent: { label: 'Срочная', color: '#f44336ff', icon: '🔴' },
   approved: { label: 'Одобрена', color: '#4CAF50', icon: '🟢' },
   rejected: { label: 'Отклонена', color: '#757575', icon: '⚫' }
 }
@@ -1576,12 +1615,41 @@ interface ToastProps {
   action?: { label: string; onClick: () => void }
 }
 
-// Успешное добавление в корзину:
+// Структура Toast компонента:
+// ┌─────────────────────────────────────────────────────────────────────────┐
+// ││ ✅ Товар добавлен в корзину                    [✕]           │
+// ││ Nike Air Max добавлен                           [ПЕРЕЙТИ]     │
+// └─────────────────────────────────────────────────────────────────────────┘
+//  ↑ border-l-4 (4px левая граница для индикации статуса)
+
+// Варианты Toast:
+// Success: border-l-4 с цветом #1F7A4A (зеленый)
+// Error: border-l-4 с цветом #C23B3B (красный)
+// Warning: border-l-4 с цветом #B07600 (оранжевый)
+// Info: border-l-4 с цветом #0F5DA3 (синий)
+
+// Пример использования:
 ┌─────────────────────────────────┐
 │ ✅ Товар добавлен в корзину    │
 │ Nike Air Max добавлен           │
 │ [ПЕРЕЙТИ В КОРЗИНУ]   [✕]      │
 └─────────────────────────────────┘
+
+// Border-l-4 в Toast компонентах:
+// Левая граница толщиной 4px (border-l-4) служит основным визуальным
+// индикатором типа уведомления. Цвет границы соответствует статусу:
+// - Success: #1F7A4A (зеленый) - успешные операции
+// - Error: #C23B3B (красный) - ошибки и критические сообщения
+// - Warning: #B07600 (оранжевый) - предупреждения
+// - Info: #0F5DA3 (синий) - информационные сообщения
+
+// Техническая реализация:
+// - borderLeftWidth: 4px
+// - borderLeftStyle: "solid"
+// - borderLeftColor: зависит от типа toast
+// - Радиус скругления: 12px (radius-default)
+// - Тень: shadow-default для создания глубины
+// - Анимация появления: slide-in с продолжительностью 180ms
 ```
 
 #### Верификация B2B клиентов (Verification Flow)

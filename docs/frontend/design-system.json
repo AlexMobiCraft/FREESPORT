@@ -62,6 +62,10 @@
         "900": "#1F1F1F",
         "usage": "Фоны, бордеры, текстовые оттенки"
       },
+      "canvas": {
+        "default": "#F5F7FB",
+        "usage": "Основной фон страницы, светлый серо-голубой для создания воздушного пространства"
+      },
       "text": {
         "primary": "#1B1B1B",
         "secondary": "#4D4D4D",
@@ -367,10 +371,27 @@
       "description": "Square чекбокс с анимацией масштаба и иконкой Check",
       "states": [
         "unchecked: border neutral",
-        "checked: bg primary + Check scale 100",
+        "checked: bg primary (#1F1F1F) + белая галочка (Check)",
         "disabled: пониженная прозрачность"
       ],
-      "pattern": "Label справа, gap 12px"
+      "pattern": "Label справа, gap 12px",
+      "dimensions": {
+        "boxSize": 20,
+        "radius": 6,
+        "borderDefault": "1.5px solid #B9C3D6",
+        "borderChecked": "1.5px solid #1F1F1F",
+        "backgroundChecked": "#1F1F1F",
+        "icon": {
+          "type": "lucide-check",
+          "size": 18,
+          "stroke": 3,
+          "color": "#FFFFFF"
+        },
+        "label": {
+          "typography": "body-m",
+          "spacing": 12
+        }
+      }
     },
     "Toggle": {
       "description": "Switch с плавным движением бегунка",
@@ -387,12 +408,28 @@
       "description": "Центрированное окно с backdrop blur",
       "structure": ["header с title и кнопкой закрытия", "content area", "необязательный footer"],
       "tokens": ["bg-neutral-100", "rounded-xl", "shadow-modal"],
-      "dimensions": { "radius": 24, "maxWidth": 560 },
+      "dimensions": {
+        "radius": 24,
+        "sizes": {
+          "sm": { "maxWidth": 384, "padding": 16 },
+          "md": { "maxWidth": 560, "padding": 24 },
+          "lg": { "maxWidth": 768, "padding": 32 },
+          "xl": { "maxWidth": 1024, "padding": 40 },
+          "full": { "maxWidth": "100vw", "padding": 48 }
+        }
+      },
       "closeIcon": {
         "container": { "size": 44, "radius": 12, "hoverBackground": "#E3E8F2" },
         "iconSize": 40
       },
-      "behavior": "Backdrop закрывает при клике, кнопка X использует hover bg #E3E8F2"
+      "behavior": "Backdrop закрывает при клике, кнопка X использует hover bg #E3E8F2",
+      "usage": {
+        "sm": "Маленькие модальные окна (подтверждения, простые формы)",
+        "md": "Стандартные модальные окна (формы, детали товара)",
+        "lg": "Большие модальные окна (сложные формы, таблицы)",
+        "xl": "Очень большие окна (детальная информация, wizard)",
+        "full": "Полноэкранные модальные окна (галереи, большие таблицы)"
+      }
     },
     "Card": {
       "description": "Базовый контейнер с shadow",
@@ -503,12 +540,12 @@
           "boxSize": 20,
           "radius": 6,
           "borderDefault": "1.5px solid #B9C3D6",
-          "borderChecked": "1.5px solid #0060FF",
-          "backgroundChecked": "#0060FF",
-          "icon": { "type": "lucide-check", "size": 18, "stroke": 3 },
+          "borderChecked": "1.5px solid #1F1F1F",
+          "backgroundChecked": "#1F1F1F",
+          "icon": { "type": "lucide-check", "size": 18, "stroke": 3, "color": "#FFFFFF" },
           "label": { "typography": "body-m", "spacing": 12 },
           "states": {
-            "hover": { "border": "1.5px solid #0060FF", "background": "#F5F7FB" },
+            "hover": { "border": "1.5px solid #1F1F1F", "background": "#F5F7FB" },
             "disabled": { "opacity": 0.5 }
           }
         },
@@ -610,6 +647,78 @@
       },
       "notes": ["Иконка и значение центрируются по вертикали", "SVG нормализуются до 72px"]
     }
+  },
+  "Toast": {
+    "description": "Уведомления с цветовой индикацией статуса через левую границу",
+    "variants": {
+      "success": {
+        "background": "#E0F5E0",
+        "border": "#1F7A1F",
+        "icon": "CheckCircle",
+        "iconColor": "#1F7A1F"
+      },
+      "error": {
+        "background": "#FFE1E1",
+        "border": "#C23B3B",
+        "icon": "XCircle",
+        "iconColor": "#C23B3B"
+      },
+      "warning": {
+        "background": "#FFF1CC",
+        "border": "#B07600",
+        "icon": "AlertTriangle",
+        "iconColor": "#B07600"
+      },
+      "info": {
+        "background": "#E1F0FF",
+        "border": "#0F5DA3",
+        "icon": "Info",
+        "iconColor": "#0F5DA3"
+      }
+    },
+    "layout": {
+      "structure": "flex gap-3",
+      "placement": {
+        "icon": "left (24px)",
+        "content": "center (title + message)",
+        "closeButton": "right"
+      },
+      "typography": {
+        "title": "body-m, font-weight 600",
+        "message": "body-s"
+      },
+      "closeButton": {
+        "icon": "X, size 16px",
+        "interaction": "hover: opacity-70"
+      }
+    },
+    "dimensions": {
+      "borderRadius": 12,
+      "shadow": "0 8px 24px rgba(15, 23, 42, 0.12)",
+      "padding": 16,
+      "minWidth": 320,
+      "maxWidth": 420,
+      "borderLeftWidth": 4,
+      "borderLeftStyle": "solid"
+    },
+    "behavior": {
+      "autoDismiss": {
+        "default": 5000,
+        "configurable": true
+      },
+      "position": "top-right (default), bottom-right, top-center, bottom-center",
+      "animation": {
+        "enter": "slide from right, fade in",
+        "exit": "slide to right, fade out",
+        "duration": 180
+      }
+    },
+    "accessibility": {
+      "role": "alert",
+      "liveRegion": "polite",
+      "keyboard": "ESC закрывает, Tab навигация"
+    },
+    "usage": "Краткие уведомления о статусах операций, ошибках и информационных сообщениях"
   },
   "patterns": {
     "forms": [
