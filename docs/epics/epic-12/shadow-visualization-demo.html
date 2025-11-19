@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Визуализация монохромной терракотовой палитры теней</title>
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%);
+            margin: 0;
+            padding: 40px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            color: #1B1B1B;
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #4D4D4D;
+            font-size: 16px;
+            margin: 0;
+        }
+
+        .showcase {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        .card {
+            background: #FFFFFF;
+            border-radius: 12px;
+            padding: 24px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .card h3 {
+            color: #1B1B1B;
+            font-size: 18px;
+            font-weight: 600;
+            margin-top: 0;
+            margin-bottom: 16px;
+        }
+
+        .card p {
+            color: #4D4D4D;
+            font-size: 14px;
+            line-height: 1.5;
+            margin: 0;
+        }
+
+        .card code {
+            background: #f5f5f5;
+            color: #1B1B1B;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 12px;
+        }
+
+        /* Тени для демонстрации */
+        .default-shadow {
+            box-shadow: 0 8px 24px rgba(27, 27, 27, 0.08);
+        }
+
+        .hover-shadow {
+            box-shadow: 0 10px 32px rgba(27, 27, 27, 0.12);
+        }
+
+        .primary-shadow {
+            box-shadow: 0 10px 24px rgba(77, 77, 77, 0.28);
+        }
+
+        .secondary-shadow {
+            box-shadow: 0 6px 16px rgba(77, 77, 77, 0.12);
+        }
+
+        .pressed-shadow {
+            box-shadow: 0 6px 18px rgba(77, 77, 77, 0.24);
+        }
+
+        .modal-shadow {
+            box-shadow: 0 24px 64px rgba(27, 27, 27, 0.24);
+        }
+
+        /* Интерактивные эффекты */
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 32px rgba(27, 27, 27, 0.12);
+        }
+
+        .button {
+            display: inline-block;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 16px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            margin: 8px;
+        }
+
+        .button-primary {
+            background: #1B1B1B;
+            color: #FFFFFF;
+            box-shadow: 0 10px 24px rgba(77, 77, 77, 0.28);
+        }
+
+        .button-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 32px rgba(77, 77, 77, 0.32);
+        }
+
+        .button-secondary {
+            background: #FFFFFF;
+            color: #1B1B1B;
+            border: 1px solid #4D4D4D;
+            box-shadow: 0 6px 16px rgba(77, 77, 77, 0.12);
+        }
+
+        .button-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(77, 77, 77, 0.16);
+        }
+
+        .modal-demo {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #FFFFFF;
+            border-radius: 24px;
+            padding: 32px;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 24px 64px rgba(27, 27, 27, 0.24);
+            z-index: 1000;
+        }
+
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(27, 27, 27, 0.5);
+            z-index: 999;
+        }
+
+        .comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .comparison-item {
+            text-align: center;
+        }
+
+        .comparison-item h4 {
+            color: #1B1B1B;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+
+        .color-box {
+            height: 60px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #FFFFFF;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .old-shadow {
+            background: linear-gradient(135deg, #0060FF, #0047CC);
+            box-shadow: 0 10px 24px rgba(0, 96, 255, 0.28);
+        }
+
+        .new-shadow {
+            background: linear-gradient(135deg, #4D4D4D, #1B1B1B);
+            box-shadow: 0 10px 24px rgba(77, 77, 77, 0.28);
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .showcase {
+                grid-template-columns: 1fr;
+            }
+            
+            .comparison {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Монохромная терракотовая палитра теней</h1>
+            <p>Визуализация новой цветовой схемы для дизайн-системы FREESPORT в стиле Nike</p>
+        </div>
+
+        <div class="comparison">
+            <div class="comparison-item">
+                <h4>Текущие синие тени</h4>
+                <div class="color-box old-shadow">Синие акценты</div>
+                <p><code>rgba(0, 96, 255, 0.28)</code></p>
+            </div>
+            <div class="comparison-item">
+                <h4>Новые монохромные тени</h4>
+                <div class="color-box new-shadow">Терракотовые</div>
+                <p><code>rgba(77, 77, 77, 0.28)</code></p>
+            </div>
+        </div>
+
+        <div class="showcase">
+            <div class="card default-shadow">
+                <h3>Default Shadow</h3>
+                <p>Базовая тень для карточек и панелей контента</p>
+                <p><code>0 8px 24px rgba(27, 27, 27, 0.08)</code></p>
+            </div>
+
+            <div class="card hover-shadow">
+                <h3>Hover Shadow</h3>
+                <p>Тень для интерактивных элементов при наведении</p>
+                <p><code>0 10px 32px rgba(27, 27, 27, 0.12)</code></p>
+            </div>
+
+            <div class="card primary-shadow">
+                <h3>Primary Shadow</h3>
+                <p>Яркая тень для CTA кнопок и важных элементов</p>
+                <p><code>0 10px 24px rgba(77, 77, 77, 0.28)</code></p>
+            </div>
+
+            <div class="card secondary-shadow">
+                <h3>Secondary Shadow</h3>
+                <p>Умеренная тень для вторичных кнопок</p>
+                <p><code>0 6px 16px rgba(77, 77, 77, 0.12)</code></p>
+            </div>
+
+            <div class="card pressed-shadow">
+                <h3>Pressed Shadow</h3>
+                <p>Глубокая тень для нажатых состояний</p>
+                <p><code>0 6px 18px rgba(77, 77, 77, 0.24)</code></p>
+            </div>
+
+            <div class="card modal-shadow">
+                <h3>Modal Shadow</h3>
+                <p>Очень глубокая тень для модальных окон</p>
+                <p><code>0 24px 64px rgba(27, 27, 27, 0.24)</code></p>
+            </div>
+        </div>
+
+        <div style="text-align: center; margin: 40px 0;">
+            <button class="button button-primary" onclick="showModal()">Показать модальное окно</button>
+            <button class="button button-secondary">Вторичная кнопка</button>
+        </div>
+
+        <div id="overlay" class="overlay hidden" onclick="hideModal()"></div>
+        <div id="modal" class="modal-demo hidden">
+            <h3 style="margin-top: 0; color: #1B1B1B;">Модальное окно с новой тенью</h3>
+            <p style="color: #4D4D4D; margin-bottom: 20px;">Это модальное окно использует глубокую монохромную тень для создания эффекта глубины и отделения от основного контента.</p>
+            <button class="button button-primary" onclick="hideModal()">Закрыть</button>
+        </div>
+    </div>
+
+    <script>
+        function showModal() {
+            document.getElementById('overlay').classList.remove('hidden');
+            document.getElementById('modal').classList.remove('hidden');
+        }
+
+        function hideModal() {
+            document.getElementById('overlay').classList.add('hidden');
+            document.getElementById('modal').classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
