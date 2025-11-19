@@ -150,9 +150,9 @@
     "shadows": {
       "default": "0 8px 24px rgba(15, 23, 42, 0.08)",
       "hover": "0 10px 32px rgba(15, 23, 42, 0.12)",
-      "primary": "0 10px 24px rgba(0, 96, 255, 0.28)",
-      "secondary": "0 6px 16px rgba(0, 71, 204, 0.12)",
-      "pressed": "0 6px 18px rgba(0, 55, 166, 0.24)",
+      "primary": "0 10px 24px rgba(31, 31, 31, 0.28)",
+      "secondary": "0 6px 16px rgba(31, 31, 31, 0.12)",
+      "pressed": "0 6px 18px rgba(13, 13, 13, 0.24)",
       "modal": "0 24px 64px rgba(15, 23, 42, 0.24)",
       "usage": "Использовать плавные тени для создания многоуровневой иерархии"
     },
@@ -248,16 +248,16 @@
     },
     "hover": {
       "lift": "translateY(-2px)",
-      "shadow": "0 12px 32px rgba(0, 96, 255, 0.18)",
+      "shadow": "0 12px 32px rgba(31, 31, 31, 0.18)",
       "colorShift": "primary.hover"
     },
     "focus": {
-      "outlineColor": "rgba(0, 96, 255, 0.6)",
+      "outlineColor": "rgba(31, 31, 31, 0.6)",
       "outlineWidth": 2,
       "radius": 6
     },
     "pressed": {
-      "shadow": "0 6px 18px rgba(0, 55, 166, 0.24)",
+      "shadow": "0 6px 18px rgba(13, 13, 13, 0.24)",
       "offset": "translateY(0)"
     }
   },
@@ -315,7 +315,7 @@
         "focus: ring 2px primary",
         "disabled: opacity-50"
       ],
-      "dimensions": { "height": 40, "radius": 4, "paddingHorizontal": 24 }
+      "dimensions": { "height": 40, "radius": 6, "paddingHorizontal": 24 }
     },
     "Input": {
       "description": "Текстовое поле с поддержкой icon, helper, error/success",
@@ -325,7 +325,7 @@
         "success": "border-accent-success"
       },
       "tokens": ["text-body-m", "rounded-sm", "bg-neutral-100"],
-      "dimensions": { "height": 40, "radius": 4, "border": "1px solid #D0D7E6" },
+      "dimensions": { "height": 40, "radius": 6, "border": "1px solid #C7C7C7" },
       "usage": "Всегда предоставлять label и helper, иконку размещать слева"
     },
     "Select": {
@@ -336,7 +336,7 @@
     },
     "SearchField": {
       "description": "Компактное поле поиска с иконкой внутри",
-      "dimensions": { "height": 40, "radius": 4, "border": "1px solid #E3E8F2" },
+      "dimensions": { "height": 40, "radius": 6, "border": "1px solid #E0E0E0" },
       "interaction": "При фокусе подсветка primary, placeholder короткий",
       "usage": "В Header и других местах быстрого поиска"
     },
