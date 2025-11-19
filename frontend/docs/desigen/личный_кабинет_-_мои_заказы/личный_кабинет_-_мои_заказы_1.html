@@ -1,0 +1,398 @@
+<!doctype html>
+<html class="light" lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>FREESPORT - Мои заказы</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Lexend:wght@100..900&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined"
+      rel="stylesheet"
+    />
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              primary: '#137fec',
+              'background-light': '#f6f7f8',
+              'background-dark': '#101922',
+            },
+            fontFamily: {
+              display: ['Lexend', 'sans-serif'],
+            },
+            borderRadius: {
+              DEFAULT: '0.25rem',
+              lg: '0.5rem',
+              xl: '0.75rem',
+              full: '9999px',
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      .material-symbols-outlined {
+        font-variation-settings:
+          'FILL' 0,
+          'wght' 400,
+          'GRAD' 0,
+          'opsz' 24;
+      }
+    </style>
+  </head>
+  <body class="font-display bg-background-light dark:bg-background-dark">
+    <div class="relative flex min-h-screen w-full flex-col group/design-root overflow-x-hidden">
+      <header
+        class="sticky top-0 z-50 w-full bg-white dark:bg-background-dark/80 dark:backdrop-blur-sm border-b border-gray-200 dark:border-gray-800"
+      >
+        <div class="container mx-auto px-4">
+          <div class="flex items-center justify-between whitespace-nowrap h-16">
+            <div class="flex items-center gap-8">
+              <div class="flex items-center gap-2 text-gray-900 dark:text-white">
+                <span class="material-symbols-outlined text-3xl text-gray-900 dark:text-white"
+                  >directions_run</span
+                >
+                <h2 class="text-xl font-bold tracking-tight">FREESPORT</h2>
+              </div>
+              <nav class="hidden md:flex items-center gap-6">
+                <a
+                  class="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors"
+                  href="#"
+                  >Men</a
+                >
+                <a
+                  class="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors"
+                  href="#"
+                  >Women</a
+                >
+                <a
+                  class="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors"
+                  href="#"
+                  >Kids</a
+                >
+                <a
+                  class="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors"
+                  href="#"
+                  >Equipment</a
+                >
+              </nav>
+            </div>
+            <div class="flex flex-1 justify-end items-center gap-4">
+              <div class="hidden sm:block">
+                <label class="relative">
+                  <span
+                    class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400"
+                    >search</span
+                  >
+                  <input
+                    class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-gray-900 dark:text-gray-200 focus:outline-0 focus:ring-2 focus:ring-gray-900 dark:focus:ring-white border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 h-10 placeholder:text-gray-500 dark:placeholder:text-gray-400 pl-10 pr-4 text-sm font-normal"
+                    placeholder="Search"
+                    value=""
+                  />
+                </label>
+              </div>
+              <div class="flex items-center gap-2">
+                <button
+                  class="flex h-10 w-10 cursor-pointer items-center justify-center overflow-hidden rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                >
+                  <span class="material-symbols-outlined text-xl">favorite</span>
+                </button>
+                <button
+                  class="flex h-10 w-10 cursor-pointer items-center justify-center overflow-hidden rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                >
+                  <span class="material-symbols-outlined text-xl">shopping_cart</span>
+                </button>
+              </div>
+              <div
+                class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10"
+                data-alt="User profile picture"
+                style="
+                  background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCz3tVVHibToZe8RIAYlESHGO_lr1FnoM9QMg7bThH7IbvlG4GUKrkOc1pXvXpCaAleS7MK_2Xjt89O_0OSlYoABRZWV0RX-QBojTwDSNNWcfFBTeyXd9jB0vrqW-r1P2Y4_Ng7uNSvDifC8i4Tu6aYOuDKGryqiQ-si7drSKKkxGVDe0oIe4wjt90uU0ZrAt7GFTDwebGa6Y2vF_2DvF57_P-pFIMjlsrl-82F_c0I9W86jse1ibZA40V71Qo2sOsR2y0xRoZpTIg');
+                "
+              ></div>
+            </div>
+          </div>
+        </div>
+      </header>
+      <main class="container mx-auto px-4 py-8 flex-grow">
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          <aside class="lg:col-span-1">
+            <div class="sticky top-24">
+              <div
+                class="flex flex-col gap-4 bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700"
+              >
+                <div
+                  class="flex items-center gap-3 border-b border-gray-200 dark:border-gray-700 pb-4"
+                >
+                  <div
+                    class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-12"
+                    data-alt="User profile picture"
+                    style="
+                      background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDaSbUcQeSu2OoC7J_SIX83tmGiqiwMLu-bVwaewWEvalZwXyASpQfbohOKX7xq5WLYRNbZbwWKBAyRY2-3anfqdW-BO6NUOg-catirbfxIS6KocbnCnpomal1T97-ZgU2TlXBfwU0QVADLN-6-MaDSIHwOyeUfxdTNQHV_CxIp7lws-zp43S27qGGWtx2VE1iXqwsKbNgfB4UFYHMvBm3mUleMVs54wW-NHFxyvNa5TesCn6SrT3d2bW_kwOwaO11WumQFxiq1hhk');
+                    "
+                  ></div>
+                  <div class="flex flex-col">
+                    <h1
+                      class="text-gray-900 dark:text-white text-base font-semibold leading-normal"
+                    >
+                      Alexey
+                    </h1>
+                    <p class="text-gray-500 dark:text-gray-400 text-sm font-normal leading-normal">
+                      alexey@email.com
+                    </p>
+                  </div>
+                </div>
+                <nav class="flex flex-col gap-1">
+                  <a
+                    class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    href="#"
+                  >
+                    <span class="material-symbols-outlined text-xl">person</span>
+                    <p class="text-sm font-medium">Профиль</p>
+                  </a>
+                  <a
+                    class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-gray-200 text-gray-900 dark:bg-gray-700 dark:text-white"
+                    href="#"
+                  >
+                    <span
+                      class="material-symbols-outlined text-xl"
+                      style="font-variation-settings: 'FILL' 1"
+                      >inventory_2</span
+                    >
+                    <p class="text-sm font-medium">Мои заказы</p>
+                  </a>
+                  <a
+                    class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    href="#"
+                  >
+                    <span class="material-symbols-outlined text-xl">location_on</span>
+                    <p class="text-sm font-medium">Адреса</p>
+                  </a>
+                  <a
+                    class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    href="#"
+                  >
+                    <span class="material-symbols-outlined text-xl">credit_card</span>
+                    <p class="text-sm font-medium">Способы оплаты</p>
+                  </a>
+                  <a
+                    class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    href="#"
+                  >
+                    <span class="material-symbols-outlined text-xl">favorite</span>
+                    <p class="text-sm font-medium">Избранное</p>
+                  </a>
+                </nav>
+                <div class="border-t border-gray-200 dark:border-gray-700 pt-3 mt-2">
+                  <a
+                    class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-red-600 dark:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+                    href="#"
+                  >
+                    <span class="material-symbols-outlined text-xl">logout</span>
+                    <p class="text-sm font-medium">Выйти</p>
+                  </a>
+                </div>
+              </div>
+            </div>
+          </aside>
+          <div class="lg:col-span-3">
+            <div class="flex flex-col gap-6">
+              <div class="flex flex-wrap items-center justify-between gap-4">
+                <h1
+                  class="text-gray-900 dark:text-white text-3xl md:text-4xl font-black tracking-tighter"
+                >
+                  Мои заказы
+                </h1>
+              </div>
+              <div class="flex gap-2 p-1 overflow-x-auto">
+                <button
+                  class="flex h-9 shrink-0 items-center justify-center gap-x-2 rounded-lg bg-gray-900 text-white px-4 dark:bg-white dark:text-gray-900"
+                >
+                  <p class="text-sm font-medium leading-normal">Все</p>
+                </button>
+                <button
+                  class="flex h-9 shrink-0 items-center justify-center gap-x-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-4 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                >
+                  <p class="text-gray-700 dark:text-gray-300 text-sm font-medium leading-normal">
+                    В обработке
+                  </p>
+                </button>
+                <button
+                  class="flex h-9 shrink-0 items-center justify-center gap-x-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-4 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                >
+                  <p class="text-gray-700 dark:text-gray-300 text-sm font-medium leading-normal">
+                    Завершенные
+                  </p>
+                </button>
+                <button
+                  class="flex h-9 shrink-0 items-center justify-center gap-x-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-4 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                >
+                  <p class="text-gray-700 dark:text-gray-300 text-sm font-medium leading-normal">
+                    Отмененные
+                  </p>
+                </button>
+              </div>
+              <div class="flex flex-col gap-4">
+                <div
+                  class="p-4 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700"
+                >
+                  <div
+                    class="flex flex-col items-stretch justify-start gap-4 md:flex-row md:items-start"
+                  >
+                    <div
+                      class="w-full md:w-48 lg:w-56 h-40 shrink-0 bg-center bg-no-repeat bg-cover rounded-lg"
+                      data-alt="Image of a running shoe"
+                      style="
+                        background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuASsrtGb--m7DRKAIxf99LugP6c-piHnUmqjGi8-CEAxe4YJHE8xUuDSwbKAGlSX2OYnApRzhc1iGsaLkrQDdrbKjgvuzL0L2opHCIWVOC62dLzeMBo6QViJFL6yQ5d6bRKLUc6R_ugw9KLXGv5tx7KXcUjnV8KMK343gW4g1d0r8s-7AO1klOTGoxIKUYLr4mGoldugPBxzr4SkSGOWyg9C4AGHq1Mn_aq8wV7XeDpnKqXrmSHv0z28S6UuhP111TCVQ9znuF3U8U');
+                      "
+                    ></div>
+                    <div class="flex w-full grow flex-col items-stretch justify-center gap-2">
+                      <div class="flex justify-between items-start">
+                        <div>
+                          <p class="text-gray-500 dark:text-gray-400 text-sm font-normal">
+                            15 июня 2024
+                          </p>
+                          <p class="text-gray-900 dark:text-white text-lg font-bold">
+                            Заказ №123456
+                          </p>
+                        </div>
+                        <div
+                          class="flex items-center gap-2 text-sm font-medium py-1 px-2.5 rounded-full bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-400"
+                        >
+                          <span class="material-symbols-outlined text-base">task_alt</span>
+                          <span>Доставлен</span>
+                        </div>
+                      </div>
+                      <p class="text-gray-600 dark:text-gray-300 text-base font-normal">
+                        3 items for a total of 5,990 ₽
+                      </p>
+                      <div class="flex items-center justify-end mt-2">
+                        <button
+                          class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-5 bg-white text-gray-900 border border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600 text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                        >
+                          <span class="truncate">Посмотреть детали</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div
+                  class="p-4 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700"
+                >
+                  <div
+                    class="flex flex-col items-stretch justify-start gap-4 md:flex-row md:items-start"
+                  >
+                    <div
+                      class="w-full md:w-48 lg:w-56 h-40 shrink-0 bg-center bg-no-repeat bg-cover rounded-lg"
+                      data-alt="Image of a sports water bottle"
+                      style="
+                        background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuASyP-A3hNb8aefVn-byIJBKJsx1fHR2kHMqWNOA1E_Kz3DgtQhxF9g3eqdMG6tq5nj89gYX9-ViCVYMBZybcJNUlaEH6qrpAImguhBTBAbpYSmbiYz6HpIfq9fwkj66Uu5aflavVs_COBtJmJJOVp8p43tjm8llBip-6RG4NWQSLIPRFsVaC8_huUohPK2UKTxonhirPirYHOw1jwlG25OokaRxaYm-Re36y6yW66G9FJ9qZHNQoBEFiIvez-PMQRjP9bG6gkpVGQ');
+                      "
+                    ></div>
+                    <div class="flex w-full grow flex-col items-stretch justify-center gap-2">
+                      <div class="flex justify-between items-start">
+                        <div>
+                          <p class="text-gray-500 dark:text-gray-400 text-sm font-normal">
+                            10 июня 2024
+                          </p>
+                          <p class="text-gray-900 dark:text-white text-lg font-bold">
+                            Заказ №123411
+                          </p>
+                        </div>
+                        <div
+                          class="flex items-center gap-2 text-sm font-medium py-1 px-2.5 rounded-full bg-yellow-100 dark:bg-yellow-500/20 text-yellow-700 dark:text-yellow-400"
+                        >
+                          <span class="material-symbols-outlined text-base">local_shipping</span>
+                          <span>В пути</span>
+                        </div>
+                      </div>
+                      <p class="text-gray-600 dark:text-gray-300 text-base font-normal">
+                        1 item for a total of 990 ₽
+                      </p>
+                      <div class="flex items-center justify-end mt-2">
+                        <button
+                          class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-5 bg-white text-gray-900 border border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600 text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                        >
+                          <span class="truncate">Посмотреть детали</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div
+                  class="p-4 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700"
+                >
+                  <div
+                    class="flex flex-col items-stretch justify-start gap-4 md:flex-row md:items-start"
+                  >
+                    <div
+                      class="w-full md:w-48 lg:w-56 h-40 shrink-0 bg-center bg-no-repeat bg-cover rounded-lg"
+                      data-alt="Image of sports apparel"
+                      style="
+                        background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuC7TKAEjhzJRnTFuMBc07x9a7sOlGTI7l8QrZkKjeqZLFuAR_lVDCmlah0-3YtBTIphY0VhYJtIvjSS7LuxvscNfXTqWCubUs3GXEMJh4s_LcCZwjSVbxwjC0veHjwvkt-r90URV0vTVK9QydUy5-dt42BU7nizmOtikd1LF-1haqSoBDaPeZchLYNin6bFmGf7_Zew6eY2CWX6J5b964O4twPopFwbu5_CsZsTV2CKM6YvFpHK7braz5XI7fZLpTf1NoEY1ks8mVw');
+                      "
+                    ></div>
+                    <div class="flex w-full grow flex-col items-stretch justify-center gap-2">
+                      <div class="flex justify-between items-start">
+                        <div>
+                          <p class="text-gray-500 dark:text-gray-400 text-sm font-normal">
+                            1 мая 2024
+                          </p>
+                          <p class="text-gray-900 dark:text-white text-lg font-bold">
+                            Заказ №123055
+                          </p>
+                        </div>
+                        <div
+                          class="flex items-center gap-2 text-sm font-medium py-1 px-2.5 rounded-full bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400"
+                        >
+                          <span class="material-symbols-outlined text-base">cancel</span>
+                          <span>Отменен</span>
+                        </div>
+                      </div>
+                      <p class="text-gray-600 dark:text-gray-300 text-base font-normal">
+                        5 items for a total of 12,500 ₽
+                      </p>
+                      <div class="flex items-center justify-end mt-2">
+                        <button
+                          class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-5 bg-white text-gray-900 border border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600 text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                        >
+                          <span class="truncate">Посмотреть детали</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div
+                  class="flex flex-col items-center justify-center text-center p-10 bg-white dark:bg-gray-800 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-700 mt-4"
+                >
+                  <span class="material-symbols-outlined text-6xl text-gray-400 dark:text-gray-500"
+                    >shopping_bag</span
+                  >
+                  <h3 class="mt-4 text-xl font-semibold text-gray-900 dark:text-white">
+                    Вы пока не сделали ни одного заказа.
+                  </h3>
+                  <p class="mt-1 text-base text-gray-500 dark:text-gray-400">
+                    Все ваши будущие заказы будут отображаться здесь.
+                  </p>
+                  <button
+                    class="mt-6 flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-11 px-6 bg-gray-900 text-white dark:bg-white dark:text-gray-900 text-base font-medium hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors"
+                  >
+                    <span class="truncate">Начать покупки</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>

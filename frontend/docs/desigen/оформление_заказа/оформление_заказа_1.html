@@ -1,0 +1,249 @@
+<!doctype html>
+<html class="light" lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Оформление заказа - FREESPORT</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined"
+      rel="stylesheet"
+    />
+    <script id="tailwind-config">
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              primary: '#137fec',
+              'background-light': '#f6f7f8',
+              'background-dark': '#101922',
+            },
+            fontFamily: {
+              display: ['Manrope'],
+            },
+            borderRadius: {
+              DEFAULT: '0.25rem',
+              lg: '0.5rem',
+              xl: '0.75rem',
+              full: '9999px',
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      body {
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+    </style>
+  </head>
+  <body
+    class="font-display bg-background-light dark:bg-background-dark text-gray-900 dark:text-gray-100"
+  >
+    <div
+      class="relative flex h-auto min-h-screen w-full flex-col group/design-root overflow-x-hidden"
+    >
+      <header
+        class="sticky top-0 z-20 bg-white/80 dark:bg-background-dark/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-800"
+      >
+        <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div class="flex h-16 items-center justify-between">
+            <div class="flex items-center gap-4 text-gray-900 dark:text-white">
+              <div class="text-gray-900 dark:text-white size-7">
+                <svg fill="currentColor" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+                  <path
+                    d="M39.5563 34.1455V13.8546C39.5563 15.708 36.8773 17.3437 32.7927 18.3189C30.2914 18.916 27.263 19.2655 24 19.2655C20.737 19.2655 17.7086 18.916 15.2073 18.3189C11.1227 17.3437 8.44365 15.708 8.44365 13.8546V34.1455C8.44365 35.9988 11.1227 37.6346 15.2073 38.6098C17.7086 39.2069 20.737 39.5564 24 39.5564C27.263 39.5564 30.2914 39.2069 32.7927 38.6098C36.8773 37.6346 39.5563 35.9988 39.5563 34.1455Z"
+                  ></path>
+                  <path
+                    clip-rule="evenodd"
+                    d="M10.4485 13.8519C10.4749 13.9271 10.6203 14.246 11.379 14.7361C12.298 15.3298 13.7492 15.9145 15.6717 16.3735C18.0007 16.9296 20.8712 17.2655 24 17.2655C27.1288 17.2655 29.9993 16.9296 32.3283 16.3735C34.2508 15.9145 35.702 15.3298 36.621 14.7361C37.3796 14.246 37.5251 13.9271 37.5515 13.8519C37.5287 13.7876 37.4333 13.5973 37.0635 13.2931C36.5266 12.8516 35.6288 12.3647 34.343 11.9175C31.79 11.0295 28.1333 10.4437 24 10.4437C19.8667 10.4437 16.2099 11.0295 13.657 11.9175C12.3712 12.3647 11.4734 12.8516 10.9365 13.2931C10.5667 13.5973 10.4713 13.7876 10.4485 13.8519ZM37.5563 18.7877C36.3176 19.3925 34.8502 19.8839 33.2571 20.2642C30.5836 20.9025 27.3973 21.2655 24 21.2655C20.6027 21.2655 17.4164 20.9025 14.7429 20.2642C13.1498 19.8839 11.6824 19.3925 10.4436 18.7877V34.1275C10.4515 34.1545 10.5427 34.4867 11.379 35.027C12.298 35.6207 13.7492 36.2054 15.6717 36.6644C18.0007 37.2205 20.8712 37.5564 24 37.5564C27.1288 37.5564 29.9993 37.2205 32.3283 36.6644C34.2508 36.2054 35.702 35.6207 36.621 35.027C37.4573 34.4867 37.5485 34.1546 37.5563 34.1275V18.7877ZM41.5563 13.8546V34.1455C41.5563 36.1078 40.158 37.5042 38.7915 38.3869C37.3498 39.3182 35.4192 40.0389 33.2571 40.5551C30.5836 41.1934 27.3973 41.5564 24 41.5564C20.6027 41.5564 17.4164 41.1934 14.7429 40.5551C12.5808 40.0389 10.6502 39.3182 9.20848 38.3869C7.84205 37.5042 6.44365 36.1078 6.44365 34.1455L6.44365 13.8546C6.44365 12.2684 7.37223 11.0454 8.39581 10.2036C9.43325 9.3505 10.8137 8.67141 12.343 8.13948C15.4203 7.06909 19.5418 6.44366 24 6.44366C28.4582 6.44366 32.5797 7.06909 35.657 8.13948C37.1863 8.67141 38.5667 9.3505 39.6042 10.2036C40.6278 11.0454 41.5563 12.2684 41.5563 13.8546Z"
+                    fill-rule="evenodd"
+                  ></path>
+                </svg>
+              </div>
+              <h2 class="text-xl font-bold leading-tight tracking-[-0.015em]">FREESPORT</h2>
+            </div>
+            <div class="flex items-center gap-4">
+              <button
+                class="flex h-10 w-10 cursor-pointer items-center justify-center overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
+              >
+                <span class="material-symbols-outlined text-2xl">shopping_cart</span>
+              </button>
+              <div
+                class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10"
+                data-alt="User avatar"
+                style="
+                  background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDFmhuNieRs7UZAoJ4uiHSBZrmdPCDEYlzwCwi2H2o49LLia_TgzbPGGYMaATBLGuwmMGmTUO3F5PTr0tM86-fI59Loy61FYxfth3mANgzSrYxCZ4WhgvedqtsjecTPVfBF3ju-UXFQEqMSXS3BaR4ON_POS5ks7FG0O2fSFlunXU94oT9WGKG0WjS-YOOzyNGdIXlB0FzeQoi8PyHHflN9_XiocOf3KMX9wTslLltb-bZHF4zd8tXM4HP8mJ2QBjbV8ZgIUv9D2to');
+                "
+              ></div>
+            </div>
+          </div>
+        </div>
+      </header>
+      <main class="flex-1">
+        <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10 lg:py-16">
+          <div class="mb-8 lg:mb-12">
+            <p class="text-4xl font-black leading-tight tracking-[-0.033em]">Оформление заказа</p>
+          </div>
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12 items-start">
+            <div class="lg:col-span-2 space-y-6">
+              <div class="bg-white dark:bg-background-dark rounded-xl shadow-sm">
+                <details class="group" open="">
+                  <summary class="flex cursor-pointer items-center justify-between p-6">
+                    <h3 class="text-xl font-bold">1. Ваши данные</h3>
+                    <div
+                      class="text-gray-500 dark:text-gray-400 group-open:rotate-180 transition-transform"
+                    >
+                      <span class="material-symbols-outlined">expand_more</span>
+                    </div>
+                  </summary>
+                  <div class="p-6 pt-0">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                      <label class="flex flex-col col-span-2">
+                        <p class="text-sm font-medium pb-2 text-gray-700 dark:text-gray-300">ФИО</p>
+                        <input
+                          class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg bg-white dark:bg-gray-800/50 text-gray-900 dark:text-gray-100 focus:outline-0 focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-100 border border-gray-300 dark:border-gray-700 h-12 placeholder:text-gray-400 dark:placeholder:text-gray-500 p-3 text-base font-normal leading-normal"
+                          placeholder="Иванов Иван Иванович"
+                          value=""
+                        />
+                      </label>
+                      <label class="flex flex-col">
+                        <p class="text-sm font-medium pb-2 text-gray-700 dark:text-gray-300">
+                          Email
+                        </p>
+                        <input
+                          class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg bg-white dark:bg-gray-800/50 text-gray-900 dark:text-gray-100 focus:outline-0 focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-100 border border-gray-300 dark:border-gray-700 h-12 placeholder:text-gray-400 dark:placeholder:text-gray-500 p-3 text-base font-normal leading-normal"
+                          placeholder="example@mail.com"
+                          value=""
+                        />
+                      </label>
+                      <label class="flex flex-col">
+                        <p class="text-sm font-medium pb-2 text-gray-700 dark:text-gray-300">
+                          Телефон
+                        </p>
+                        <input
+                          class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg bg-white dark:bg-gray-800/50 text-gray-900 dark:text-gray-100 focus:outline-0 focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-100 border border-gray-300 dark:border-gray-700 h-12 placeholder:text-gray-400 dark:placeholder:text-gray-500 p-3 text-base font-normal leading-normal"
+                          placeholder="+7 (___) ___-__-__"
+                          value=""
+                        />
+                      </label>
+                    </div>
+                  </div>
+                </details>
+              </div>
+              <div class="bg-white dark:bg-background-dark rounded-xl shadow-sm">
+                <details class="group">
+                  <summary class="flex cursor-pointer items-center justify-between p-6">
+                    <h3 class="text-xl font-bold">2. Доставка</h3>
+                    <div
+                      class="text-gray-500 dark:text-gray-400 group-open:rotate-180 transition-transform"
+                    >
+                      <span class="material-symbols-outlined">expand_more</span>
+                    </div>
+                  </summary>
+                  <div class="p-6 pt-0">
+                    <p class="text-gray-600 dark:text-gray-400 text-base">
+                      Здесь будут опции для выбора доставки курьером или в пункт самовывоза, с
+                      соответствующими полями для адреса или картой.
+                    </p>
+                  </div>
+                </details>
+              </div>
+              <div class="bg-white dark:bg-background-dark rounded-xl shadow-sm">
+                <details class="group">
+                  <summary class="flex cursor-pointer items-center justify-between p-6">
+                    <h3 class="text-xl font-bold">3. Оплата</h3>
+                    <div
+                      class="text-gray-500 dark:text-gray-400 group-open:rotate-180 transition-transform"
+                    >
+                      <span class="material-symbols-outlined">expand_more</span>
+                    </div>
+                  </summary>
+                  <div class="p-6 pt-0">
+                    <p class="text-gray-600 dark:text-gray-400 text-base">
+                      Здесь будут радио-кнопки для выбора способа оплаты и поле для промокода.
+                    </p>
+                  </div>
+                </details>
+              </div>
+            </div>
+            <div class="lg:col-span-1">
+              <div class="sticky top-24">
+                <div class="bg-white dark:bg-background-dark rounded-xl shadow-sm p-6">
+                  <h3 class="text-xl font-bold mb-6">Ваш заказ</h3>
+                  <div class="space-y-4">
+                    <div class="flex items-center gap-4">
+                      <div
+                        class="bg-center bg-no-repeat aspect-square bg-cover rounded-lg size-16"
+                        data-alt="Running shoes thumbnail"
+                        style="
+                          background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBF7PCLnRu1EpyT5izna_M2DooM1Dob_tjogOdczxv5okEiN9Yj0SX-E6to3hrDU2yGYiuDTSpx7jYZB6Gpdf3LV5PZQrWYEd8XSmPdSy5Nx3TCr9C-pw2b36S4a65MrFdn8OwVfIFhc_X-RKdsA44P6M9QpgUVdTrYml1sFwI3pv_MXqjc2pUDSs-zRiTzPGuZJu2-sMiQs23IEj-TpGJmIUV0pN7VRtdqjXQx_hlR0hk-oRWmkdWSDH7DJ8qI2Fmmq5dMUG-8IfM');
+                        "
+                      ></div>
+                      <div class="flex-1">
+                        <p class="font-semibold text-base leading-tight">Кроссовки FlashRun</p>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">
+                          Размер: 42, Цвет: Черный
+                        </p>
+                      </div>
+                      <p class="font-bold text-base whitespace-nowrap">8 990 ₽</p>
+                    </div>
+                    <div class="flex items-center gap-4">
+                      <div
+                        class="bg-center bg-no-repeat aspect-square bg-cover rounded-lg size-16"
+                        data-alt="Sports leggings thumbnail"
+                        style="
+                          background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCf0fqBSya_85Bf37cOdyNS-W0yuul8NzfpFC9Jh6GAv6Iupi34ZW4Icpg6rqgZSJb9japFhUmSl0x5zSPUGrVWe396QIz1PxFWj65Qf8fpXjW76ebne6qu3NB5h6QBai2wUnHWVfxX_jH363_MaEQA6hOriui2eUM_cIXn-kCnN5hdx-uJXcxjzlscBlhtiPpY4fkJCa_d1mvY9oKwPMI21ZDULjvI4Iz6Zb5JAkIS0ioH0dTakzDpUjYM8pHZg2fAMO3TwVI3zno');
+                        "
+                      ></div>
+                      <div class="flex-1">
+                        <p class="font-semibold text-base leading-tight">Леггинсы ProFit</p>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">
+                          Размер: M, Цвет: Серый
+                        </p>
+                      </div>
+                      <p class="font-bold text-base whitespace-nowrap">4 500 ₽</p>
+                    </div>
+                  </div>
+                  <div class="border-t border-gray-200 dark:border-gray-700 my-6"></div>
+                  <div class="space-y-3 text-base">
+                    <div class="flex justify-between">
+                      <span class="text-gray-600 dark:text-gray-400">Товары (2)</span>
+                      <span class="font-medium">13 490 ₽</span>
+                    </div>
+                    <div class="flex justify-between">
+                      <span class="text-gray-600 dark:text-gray-400">Скидка</span>
+                      <span class="font-medium text-red-500">-1 349 ₽</span>
+                    </div>
+                    <div class="flex justify-between">
+                      <span class="text-gray-600 dark:text-gray-400">Доставка</span>
+                      <span class="font-medium">Бесплатно</span>
+                    </div>
+                  </div>
+                  <div class="border-t border-gray-200 dark:border-gray-700 my-6"></div>
+                  <div class="flex justify-between items-baseline mb-6">
+                    <span class="text-lg font-bold">Итого</span>
+                    <span class="text-2xl font-black tracking-tight">12 141 ₽</span>
+                  </div>
+                  <button
+                    class="w-full flex items-center justify-center rounded-lg h-14 px-6 text-base font-bold bg-gray-900 text-white hover:bg-gray-800 dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-100 focus:ring-offset-2 dark:focus:ring-offset-background-dark"
+                  >
+                    <span>Перейти к оплате</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,354 @@
+<!doctype html>
+<html class="light" lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>FREESPORT - Личный кабинет</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700;900&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined"
+      rel="stylesheet"
+    />
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              primary: '#137fec',
+              'background-light': '#f6f7f8',
+              'background-dark': '#101922',
+            },
+            fontFamily: {
+              display: ['Lexend', 'sans-serif'],
+            },
+            borderRadius: {
+              DEFAULT: '0.25rem',
+              lg: '0.5rem',
+              xl: '0.75rem',
+              full: '9999px',
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      .material-symbols-outlined {
+        font-variation-settings:
+          'FILL' 0,
+          'wght' 400,
+          'GRAD' 0,
+          'opsz' 24;
+      }
+    </style>
+  </head>
+  <body class="bg-background-light dark:bg-background-dark font-display">
+    <div
+      class="relative flex h-auto min-h-screen w-full flex-col group/design-root overflow-x-hidden"
+    >
+      <div class="layout-container flex h-full grow flex-col">
+        <main class="flex-1">
+          <div class="container mx-auto px-4 py-8 md:py-12">
+            <div class="flex flex-col md:flex-row gap-8 lg:gap-12">
+              <aside class="w-full md:w-64 lg:w-72 flex-shrink-0">
+                <div class="flex flex-col gap-4 p-4 bg-white dark:bg-background-dark/50 rounded-xl">
+                  <div class="flex gap-3 items-center">
+                    <div class="relative">
+                      <div
+                        class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-12"
+                        data-alt="User avatar placeholder"
+                        style="
+                          background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDHZLitmOEXuRocFiov5qge5wj9Sf8YuilGUaLOyjgJAY7xpL7lGRUHhqv7OUIwWRAADSlds_caEwXwi3m2JwDYZ7Ujo55nUqqBWiycR9ODE7MmD2CsjQvQLWgWj71rZVEpU5lEBZ2MtEjLl8rJRxzf38Fiwdv7WOcpzZcHsHh_5Q6maZ5ZMpWtAVZgYg3D2QN-qRwbgJVn75vCavnRgEOSKuj9-_4ScVanxCZmu7AJsTDiKHuNDPQl5Yh-KBJtu4Cb9VmtDmBqlRQ');
+                        "
+                      ></div>
+                      <button
+                        class="absolute bottom-0 right-0 flex items-center justify-center size-5 bg-gray-800 text-white rounded-full border-2 border-white dark:bg-gray-200 dark:text-gray-800 dark:border-background-dark/50"
+                      >
+                        <span class="material-symbols-outlined !text-sm">edit</span>
+                      </button>
+                    </div>
+                    <div class="flex flex-col">
+                      <h1 class="text-gray-900 dark:text-white text-base font-bold leading-normal">
+                        Иван Петров
+                      </h1>
+                      <p
+                        class="text-gray-500 dark:text-gray-400 text-sm font-normal leading-normal"
+                      >
+                        ivan.p@example.com
+                      </p>
+                    </div>
+                  </div>
+                  <hr class="border-gray-200 dark:border-gray-700" />
+                  <div class="flex flex-col gap-1">
+                    <a
+                      class="flex items-center gap-3 px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-700"
+                      href="#"
+                    >
+                      <span class="material-symbols-outlined text-gray-900 dark:text-white"
+                        >person</span
+                      >
+                      <p class="text-gray-900 dark:text-white text-sm font-semibold leading-normal">
+                        Мои данные
+                      </p>
+                    </a>
+                    <a
+                      class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5"
+                      href="#"
+                    >
+                      <span class="material-symbols-outlined text-gray-700 dark:text-gray-300"
+                        >history</span
+                      >
+                      <p
+                        class="text-gray-700 dark:text-gray-300 text-sm font-medium leading-normal"
+                      >
+                        История заказов
+                      </p>
+                    </a>
+                    <a
+                      class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5"
+                      href="#"
+                    >
+                      <span class="material-symbols-outlined text-gray-700 dark:text-gray-300"
+                        >location_on</span
+                      >
+                      <p
+                        class="text-gray-700 dark:text-gray-300 text-sm font-medium leading-normal"
+                      >
+                        Адреса доставки
+                      </p>
+                    </a>
+                    <a
+                      class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5"
+                      href="#"
+                    >
+                      <span class="material-symbols-outlined text-gray-700 dark:text-gray-300"
+                        >settings</span
+                      >
+                      <p
+                        class="text-gray-700 dark:text-gray-300 text-sm font-medium leading-normal"
+                      >
+                        Настройки
+                      </p>
+                    </a>
+                    <a
+                      class="flex items-center gap-3 px-3 py-2 mt-4 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10"
+                      href="#"
+                    >
+                      <span class="material-symbols-outlined text-red-600 dark:text-red-400"
+                        >logout</span
+                      >
+                      <p class="text-red-600 dark:text-red-400 text-sm font-medium leading-normal">
+                        Выйти
+                      </p>
+                    </a>
+                  </div>
+                </div>
+              </aside>
+              <div class="flex-1 flex flex-col gap-8">
+                <header>
+                  <h1
+                    class="text-gray-900 dark:text-white text-4xl font-black leading-tight tracking-[-0.033em]"
+                  >
+                    Мой профиль
+                  </h1>
+                </header>
+                <section class="bg-white dark:bg-background-dark/50 p-6 rounded-xl shadow-sm">
+                  <div
+                    class="flex flex-col sm:flex-row items-start justify-between gap-3 border-b border-gray-200 dark:border-gray-700 pb-4 mb-6"
+                  >
+                    <div>
+                      <h2
+                        class="text-gray-900 dark:text-white text-lg font-bold leading-tight tracking-[-0.015em]"
+                      >
+                        Личная информация
+                      </h2>
+                      <p
+                        class="text-gray-500 dark:text-gray-400 text-sm font-normal leading-normal"
+                      >
+                        Здесь вы можете обновить свою личную информацию.
+                      </p>
+                    </div>
+                    <button
+                      class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-gray-900 text-white text-sm font-semibold leading-normal shadow-sm hover:bg-gray-800 dark:bg-gray-200 dark:text-gray-900 dark:hover:bg-gray-300 transition-colors"
+                    >
+                      <span class="truncate">Сохранить</span>
+                    </button>
+                  </div>
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <label class="flex flex-col">
+                      <p
+                        class="text-gray-900 dark:text-white text-sm font-medium leading-normal pb-2"
+                      >
+                        Имя
+                      </p>
+                      <input
+                        class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-gray-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-gray-500/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 focus:border-gray-500 dark:focus:border-gray-400 h-12 placeholder:text-gray-400 dark:placeholder:text-gray-500 px-4 text-base font-normal leading-normal"
+                        value="Иван"
+                      />
+                    </label>
+                    <label class="flex flex-col">
+                      <p
+                        class="text-gray-900 dark:text-white text-sm font-medium leading-normal pb-2"
+                      >
+                        Фамилия
+                      </p>
+                      <input
+                        class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-gray-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-gray-500/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 focus:border-gray-500 dark:focus:border-gray-400 h-12 placeholder:text-gray-400 dark:placeholder:text-gray-500 px-4 text-base font-normal leading-normal"
+                        value="Петров"
+                      />
+                    </label>
+                    <label class="flex flex-col">
+                      <p
+                        class="text-gray-900 dark:text-white text-sm font-medium leading-normal pb-2"
+                      >
+                        Дата рождения
+                      </p>
+                      <div class="flex w-full flex-1 items-stretch">
+                        <input
+                          class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-l-lg text-gray-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-gray-500/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 focus:border-gray-500 dark:focus:border-gray-400 h-12 placeholder:text-gray-400 dark:placeholder:text-gray-500 p-3 rounded-r-none border-r-0 pr-2 text-base font-normal leading-normal"
+                          placeholder="ДД.ММ.ГГГГ"
+                          value="15.08.1990"
+                        />
+                        <div
+                          class="text-gray-500 dark:text-gray-400 flex border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 items-center justify-center px-3 rounded-r-lg border-l-0"
+                        >
+                          <span class="material-symbols-outlined">calendar_today</span>
+                        </div>
+                      </div>
+                    </label>
+                    <label class="flex flex-col">
+                      <p
+                        class="text-gray-900 dark:text-white text-sm font-medium leading-normal pb-2"
+                      >
+                        Email
+                      </p>
+                      <input
+                        class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-gray-500 dark:text-gray-400 focus:outline-0 focus:ring-0 border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-900 h-12 placeholder:text-gray-400 dark:placeholder:text-gray-500 px-4 text-base font-normal leading-normal"
+                        disabled=""
+                        value="ivan.p@example.com"
+                      />
+                    </label>
+                  </div>
+                </section>
+                <section class="bg-white dark:bg-background-dark/50 p-6 rounded-xl shadow-sm">
+                  <div
+                    class="flex flex-col sm:flex-row items-start justify-between gap-3 border-b border-gray-200 dark:border-gray-700 pb-4 mb-6"
+                  >
+                    <div>
+                      <h2
+                        class="text-gray-900 dark:text-white text-lg font-bold leading-tight tracking-[-0.015em]"
+                      >
+                        Безопасность и вход
+                      </h2>
+                      <p
+                        class="text-gray-500 dark:text-gray-400 text-sm font-normal leading-normal"
+                      >
+                        Измените пароль для защиты вашего аккаунта.
+                      </p>
+                    </div>
+                    <button
+                      class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white text-sm font-semibold leading-normal hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                    >
+                      <span class="truncate">Изменить пароль</span>
+                    </button>
+                  </div>
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <label class="flex flex-col">
+                      <p
+                        class="text-gray-900 dark:text-white text-sm font-medium leading-normal pb-2"
+                      >
+                        Старый пароль
+                      </p>
+                      <input
+                        class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-gray-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-gray-500/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 focus:border-gray-500 dark:focus:border-gray-400 h-12 placeholder:text-gray-400 dark:placeholder:text-gray-500 px-4 text-base font-normal leading-normal"
+                        placeholder="••••••••"
+                        type="password"
+                      />
+                    </label>
+                    <div></div>
+                    <label class="flex flex-col">
+                      <p
+                        class="text-gray-900 dark:text-white text-sm font-medium leading-normal pb-2"
+                      >
+                        Новый пароль
+                      </p>
+                      <input
+                        class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-gray-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-gray-500/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 focus:border-gray-500 dark:focus:border-gray-400 h-12 placeholder:text-gray-400 dark:placeholder:text-gray-500 px-4 text-base font-normal leading-normal"
+                        type="password"
+                      />
+                    </label>
+                    <label class="flex flex-col">
+                      <p
+                        class="text-gray-900 dark:text-white text-sm font-medium leading-normal pb-2"
+                      >
+                        Повторите новый пароль
+                      </p>
+                      <input
+                        class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-gray-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-gray-500/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 focus:border-gray-500 dark:focus:border-gray-400 h-12 placeholder:text-gray-400 dark:placeholder:text-gray-500 px-4 text-base font-normal leading-normal"
+                        type="password"
+                      />
+                    </label>
+                  </div>
+                </section>
+                <section class="bg-white dark:bg-background-dark/50 p-6 rounded-xl shadow-sm">
+                  <div class="border-b border-gray-200 dark:border-gray-700 pb-4 mb-6">
+                    <h2
+                      class="text-gray-900 dark:text-white text-lg font-bold leading-tight tracking-[-0.015em]"
+                    >
+                      Настройки рассылок
+                    </h2>
+                    <p class="text-gray-500 dark:text-gray-400 text-sm font-normal leading-normal">
+                      Управляйте уведомлениями, которые вы получаете.
+                    </p>
+                  </div>
+                  <div class="flex flex-col gap-4">
+                    <label
+                      class="flex items-center justify-between cursor-pointer"
+                      for="email-toggle"
+                    >
+                      <div class="flex flex-col">
+                        <p class="text-gray-900 dark:text-white font-medium">Email-рассылка</p>
+                        <p class="text-gray-500 dark:text-gray-400 text-sm">
+                          Получать информацию о скидках и новых поступлениях.
+                        </p>
+                      </div>
+                      <div class="relative inline-flex items-center">
+                        <input checked="" class="sr-only peer" id="email-toggle" type="checkbox" />
+                        <div
+                          class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-gray-500/30 dark:peer-focus:ring-gray-400/30 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-gray-800 dark:peer-checked:bg-gray-400"
+                        ></div>
+                      </div>
+                    </label>
+                    <label
+                      class="flex items-center justify-between cursor-pointer"
+                      for="sms-toggle"
+                    >
+                      <div class="flex flex-col">
+                        <p class="text-gray-900 dark:text-white font-medium">SMS-уведомления</p>
+                        <p class="text-gray-500 dark:text-gray-400 text-sm">
+                          Получать уведомления о статусе заказа.
+                        </p>
+                      </div>
+                      <div class="relative inline-flex items-center">
+                        <input class="sr-only peer" id="sms-toggle" type="checkbox" />
+                        <div
+                          class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-gray-500/30 dark:peer-focus:ring-gray-400/30 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-gray-800 dark:peer-checked:bg-gray-400"
+                        ></div>
+                      </div>
+                    </label>
+                  </div>
+                </section>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </body>
+</html>

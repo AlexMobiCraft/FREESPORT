@@ -1,0 +1,328 @@
+<!doctype html>
+<html class="light" lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Адреса доставки - FREESPORT</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;700;900&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined"
+      rel="stylesheet"
+    />
+    <script id="tailwind-config">
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              primary: '#137fec',
+              'background-light': '#f6f7f8',
+              'background-dark': '#101922',
+              'text-light-primary': '#111418',
+              'text-dark-primary': '#f6f7f8',
+              'text-light-secondary': '#617589',
+              'text-dark-secondary': '#9cb3c9',
+              'card-light': '#ffffff',
+              'card-dark': '#1b2734',
+              'border-light': '#f0f2f4',
+              'border-dark': '#313f4e',
+            },
+            fontFamily: {
+              display: ['Lexend', 'sans-serif'],
+            },
+            borderRadius: { DEFAULT: '0.25rem', lg: '0.5rem', xl: '0.75rem', full: '9999px' },
+          },
+        },
+      };
+    </script>
+    <style>
+      .material-symbols-outlined {
+        font-variation-settings:
+          'FILL' 0,
+          'wght' 400,
+          'GRAD' 0,
+          'opsz' 24;
+      }
+    </style>
+  </head>
+  <body
+    class="font-display bg-background-light dark:bg-background-dark text-text-light-primary dark:text-text-dark-primary"
+  >
+    <div class="relative flex min-h-screen w-full flex-col">
+      <header
+        class="sticky top-0 z-20 w-full bg-card-light dark:bg-card-dark/80 backdrop-blur-sm border-b border-border-light dark:border-border-dark"
+      >
+        <div class="container mx-auto px-4">
+          <div class="flex h-16 items-center justify-between whitespace-nowrap">
+            <div class="flex items-center gap-8">
+              <div class="flex items-center gap-3">
+                <span
+                  class="material-symbols-outlined text-text-light-primary dark:text-text-dark-primary text-3xl"
+                  >sports_basketball</span
+                >
+                <h2 class="text-text-light-primary dark:text-text-dark-primary text-lg font-bold">
+                  FREESPORT
+                </h2>
+              </div>
+            </div>
+            <div class="flex flex-1 items-center justify-end gap-4">
+              <div class="hidden md:flex items-center gap-8">
+                <a
+                  class="text-text-light-primary dark:text-text-dark-primary hover:text-text-light-primary/70 dark:hover:text-text-dark-primary/70 text-sm font-medium"
+                  href="#"
+                  >Каталог</a
+                >
+                <a
+                  class="text-text-light-primary dark:text-text-dark-primary hover:text-text-light-primary/70 dark:hover:text-text-dark-primary/70 text-sm font-medium"
+                  href="#"
+                  >Бренды</a
+                >
+                <a
+                  class="text-text-light-primary dark:text-text-dark-primary hover:text-text-light-primary/70 dark:hover:text-text-dark-primary/70 text-sm font-medium"
+                  href="#"
+                  >Скидки</a
+                >
+              </div>
+              <div class="flex gap-2">
+                <button
+                  class="flex h-10 w-10 cursor-pointer items-center justify-center overflow-hidden rounded-lg bg-background-light dark:bg-background-dark text-text-light-primary dark:text-text-dark-primary hover:bg-zinc-200 dark:hover:bg-zinc-800"
+                >
+                  <span class="material-symbols-outlined text-xl">favorite</span>
+                </button>
+                <button
+                  class="flex h-10 w-10 cursor-pointer items-center justify-center overflow-hidden rounded-lg bg-background-light dark:bg-background-dark text-text-light-primary dark:text-text-dark-primary hover:bg-zinc-200 dark:hover:bg-zinc-800"
+                >
+                  <span class="material-symbols-outlined text-xl">shopping_cart</span>
+                </button>
+              </div>
+              <div
+                class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10"
+                data-alt="User avatar image"
+                style="
+                  background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuA6_lZBSDvuTIhLGrSAsnF5N8YWokBVtYMAMM-MnOW2AD25_V0Yuk9FWQj6SrGZu_bgjTF6r5n6r1FWy6T7zDKx3d4VHexwAgAv2WzCCCjc-aukHFZDRkWJIICjJKFrkUmiTd_YS-hmKuf0ZOsIAG_Jy25UD6dbePRCt0OcheFsdF_Amjv5UtL-Z0P6kB7sMkZJuzR8EqQt1fGgEUZT4Sxbmm9XUjfRfafYT_Beba61WZdSDSlSCrGqGOM2QwmbddkzJaETQKEbTIs');
+                "
+              ></div>
+            </div>
+          </div>
+        </div>
+      </header>
+      <main class="flex-grow container mx-auto px-4 py-8">
+        <div class="flex flex-col lg:flex-row gap-8">
+          <aside class="w-full lg:w-64 flex-shrink-0">
+            <div
+              class="flex flex-col gap-4 bg-card-light dark:bg-card-dark p-4 rounded-xl shadow-sm"
+            >
+              <div
+                class="flex items-center gap-3 border-b border-border-light dark:border-border-dark pb-4"
+              >
+                <div
+                  class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10"
+                  data-alt="User avatar image"
+                  style="
+                    background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDGja6sXbEJZlsUvtTXsyc8kNB6PNAiXImgBUmnByvEaLIg5WMp2KCycjLPoojq31NxQ8EEfeccNFmzTm5-D2EFm50Xjvzg2-V6ZTZEbzkiv2l4Fn2McUcHpBJ66luAGOx7c9jMxTe4Jb8cFD5XwPsYIT0e84jOmsMg-vpwrbce5fHduqa4laPQ3C-FI3wSBjrrc00nGBNVL088h340TIe1GRlo_pLJdms3YnZcnlv3Fk7xXbiDV53nwAyIhvd2D7rW6OUVuil2C-8');
+                  "
+                ></div>
+                <div class="flex flex-col">
+                  <h1
+                    class="text-text-light-primary dark:text-text-dark-primary text-base font-medium"
+                  >
+                    Анна Иванова
+                  </h1>
+                  <p class="text-text-light-secondary dark:text-text-dark-secondary text-sm">
+                    anna.ivanova@email.com
+                  </p>
+                </div>
+              </div>
+              <div class="flex flex-col gap-1">
+                <a
+                  class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-background-light dark:hover:bg-background-dark"
+                  href="#"
+                >
+                  <span
+                    class="material-symbols-outlined text-text-light-secondary dark:text-text-dark-secondary text-xl"
+                    >person</span
+                  >
+                  <p
+                    class="text-text-light-primary dark:text-text-dark-primary text-sm font-medium"
+                  >
+                    Профиль
+                  </p>
+                </a>
+                <a
+                  class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-background-light dark:hover:bg-background-dark"
+                  href="#"
+                >
+                  <span
+                    class="material-symbols-outlined text-text-light-secondary dark:text-text-dark-secondary text-xl"
+                    >receipt_long</span
+                  >
+                  <p
+                    class="text-text-light-primary dark:text-text-dark-primary text-sm font-medium"
+                  >
+                    Мои заказы
+                  </p>
+                </a>
+                <a
+                  class="flex items-center gap-3 px-3 py-2 rounded-lg bg-background-light dark:bg-background-dark"
+                  href="#"
+                >
+                  <span class="material-symbols-outlined">location_on</span>
+                  <p class="font-medium text-sm">Адреса доставки</p>
+                </a>
+                <a
+                  class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-background-light dark:hover:bg-background-dark"
+                  href="#"
+                >
+                  <span
+                    class="material-symbols-outlined text-text-light-secondary dark:text-text-dark-secondary text-xl"
+                    >credit_card</span
+                  >
+                  <p
+                    class="text-text-light-primary dark:text-text-dark-primary text-sm font-medium"
+                  >
+                    Способы оплаты
+                  </p>
+                </a>
+                <a
+                  class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-background-light dark:hover:bg-background-dark mt-4"
+                  href="#"
+                >
+                  <span
+                    class="material-symbols-outlined text-text-light-secondary dark:text-text-dark-secondary text-xl"
+                    >logout</span
+                  >
+                  <p
+                    class="text-text-light-primary dark:text-text-dark-primary text-sm font-medium"
+                  >
+                    Выйти
+                  </p>
+                </a>
+              </div>
+            </div>
+          </aside>
+          <div class="flex-1 flex flex-col gap-6">
+            <div class="flex flex-wrap items-center justify-between gap-4">
+              <h1
+                class="text-text-light-primary dark:text-text-dark-primary text-3xl font-black tracking-tight"
+              >
+                Адреса доставки
+              </h1>
+              <button
+                class="flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-11 px-5 bg-text-light-primary dark:bg-text-dark-primary text-background-light dark:text-background-dark gap-2 text-base font-bold leading-normal tracking-[0.015em] hover:bg-zinc-700 dark:hover:bg-zinc-200 transition-colors"
+              >
+                <span class="material-symbols-outlined">add</span>
+                <span class="truncate">Добавить новый адрес</span>
+              </button>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div
+                class="flex flex-col justify-between gap-4 rounded-xl bg-card-light dark:bg-card-dark p-5 shadow-sm border-2 border-text-light-primary dark:border-text-dark-primary"
+              >
+                <div class="flex flex-col gap-4">
+                  <div class="flex items-center justify-between">
+                    <span
+                      class="text-sm font-medium text-text-light-primary dark:text-text-dark-primary bg-zinc-200 dark:bg-zinc-800 px-2.5 py-1 rounded-full"
+                      >Основной</span
+                    >
+                    <div class="flex items-center gap-2">
+                      <button
+                        class="flex h-8 w-8 items-center justify-center rounded-lg text-text-light-secondary dark:text-text-dark-secondary hover:bg-background-light dark:hover:bg-background-dark hover:text-text-light-primary dark:hover:text-text-dark-primary"
+                      >
+                        <span class="material-symbols-outlined text-lg">edit</span>
+                      </button>
+                      <button
+                        class="flex h-8 w-8 items-center justify-center rounded-lg text-text-light-secondary dark:text-text-dark-secondary hover:bg-background-light dark:hover:bg-background-dark hover:text-red-500"
+                      >
+                        <span class="material-symbols-outlined text-lg">delete</span>
+                      </button>
+                    </div>
+                  </div>
+                  <div class="flex flex-col gap-1">
+                    <p
+                      class="text-text-light-primary dark:text-text-dark-primary text-base font-bold"
+                    >
+                      Анна Иванова
+                    </p>
+                    <p class="text-text-light-secondary dark:text-text-dark-secondary text-sm">
+                      +7 (916) 123-45-67
+                    </p>
+                    <p class="text-text-light-secondary dark:text-text-dark-secondary text-sm">
+                      123456, г. Москва, ул. Спортивная, д. 10, кв. 5
+                    </p>
+                  </div>
+                </div>
+                <div class="flex items-center">
+                  <label class="flex items-center cursor-not-allowed">
+                    <input
+                      checked=""
+                      class="form-radio h-4 w-4 text-text-light-primary dark:text-text-dark-primary bg-background-light dark:bg-background-dark border-border-light dark:border-border-dark focus:ring-text-light-primary dark:focus:ring-text-dark-primary"
+                      disabled=""
+                      name="default_address"
+                      type="radio"
+                    />
+                    <span
+                      class="ml-2 text-sm text-text-light-secondary dark:text-text-dark-secondary"
+                      >Использовать по умолчанию</span
+                    >
+                  </label>
+                </div>
+              </div>
+              <div
+                class="flex flex-col justify-between gap-4 rounded-xl bg-card-light dark:bg-card-dark p-5 shadow-sm border border-border-light dark:border-border-dark"
+              >
+                <div class="flex flex-col gap-4">
+                  <div class="flex items-center justify-end">
+                    <div class="flex items-center gap-2">
+                      <button
+                        class="flex h-8 w-8 items-center justify-center rounded-lg text-text-light-secondary dark:text-text-dark-secondary hover:bg-background-light dark:hover:bg-background-dark hover:text-text-light-primary dark:hover:text-text-dark-primary"
+                      >
+                        <span class="material-symbols-outlined text-lg">edit</span>
+                      </button>
+                      <button
+                        class="flex h-8 w-8 items-center justify-center rounded-lg text-text-light-secondary dark:text-text-dark-secondary hover:bg-background-light dark:hover:bg-background-dark hover:text-red-500"
+                      >
+                        <span class="material-symbols-outlined text-lg">delete</span>
+                      </button>
+                    </div>
+                  </div>
+                  <div class="flex flex-col gap-1">
+                    <p
+                      class="text-text-light-primary dark:text-text-dark-primary text-base font-bold"
+                    >
+                      Анна Иванова
+                    </p>
+                    <p class="text-text-light-secondary dark:text-text-dark-secondary text-sm">
+                      +7 (925) 765-43-21
+                    </p>
+                    <p class="text-text-light-secondary dark:text-text-dark-secondary text-sm">
+                      119048, г. Москва, ул. Ефремова, д. 2, стр. 1
+                    </p>
+                  </div>
+                </div>
+                <div class="flex items-center">
+                  <label class="flex items-center cursor-pointer">
+                    <input
+                      class="form-radio h-4 w-4 text-text-light-primary dark:text-text-dark-primary bg-background-light dark:bg-background-dark border-border-light dark:border-border-dark focus:ring-text-light-primary dark:focus:ring-text-dark-primary"
+                      name="default_address"
+                      type="radio"
+                    />
+                    <span
+                      class="ml-2 text-sm text-text-light-secondary dark:text-text-dark-secondary"
+                      >Использовать по умолчанию</span
+                    >
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>
