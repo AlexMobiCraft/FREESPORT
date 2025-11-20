@@ -21,7 +21,7 @@ describe('Input', () => {
     expect(screen.getByText('Enter your email')).toBeInTheDocument();
   });
 
-  // Edge Case: Конфликтующие состояния (error + success)
+  // Edge Case: Конфликтующие состояния (error + success) - обновлено для v2.0
   describe('Edge Case: Conflicting States', () => {
     it('prioritizes error over success when both provided', () => {
       render(
@@ -39,8 +39,9 @@ describe('Input', () => {
       expect(screen.queryByText('Valid input')).not.toBeInTheDocument();
 
       const input = screen.getByLabelText('Test');
-      expect(input).toHaveClass('border-accent-danger');
-      expect(input).not.toHaveClass('border-accent-success');
+      // Проверяем использование CSS переменных v2.0
+      expect(input.className).toContain('border-[var(--color-accent-danger)]');
+      expect(input.className).not.toContain('border-[var(--color-accent-success)]');
     });
   });
 
