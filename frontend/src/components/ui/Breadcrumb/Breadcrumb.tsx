@@ -42,7 +42,7 @@ export const Breadcrumb: React.FC<BreadcrumbProps> = ({ items, className }) => {
                   href={item.href}
                   className={cn(
                     'text-body-s text-neutral-700',
-                    'hover:text-primary transition-colors',
+                    'hover:text-primary transition-colors duration-short',
                     // Edge Case: Текст длиннее 150px - обрезка с ellipsis
                     'max-w-[150px] truncate'
                   )}
@@ -67,6 +67,7 @@ export const Breadcrumb: React.FC<BreadcrumbProps> = ({ items, className }) => {
                           .join(' > ')
                       : item.label
                   }
+                  aria-current={isLast ? 'page' : undefined}
                 >
                   {item.label}
                 </span>

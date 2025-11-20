@@ -1,14 +1,16 @@
 /**
  * Компонент Header с навигацией для FREESPORT Platform
  * Поддержка B2B/B2C интерфейсов и аутентификации
+ * Design System v2.0 - монохромная графитовая цветовая схема
  */
 'use client';
 
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { Search, Heart, ShoppingCart, Menu, X } from 'lucide-react';
 import { authSelectors } from '@/stores/authStore';
-import Button from '@/components/ui/Button';
+import { Button } from '@/components/ui/Button';
 
 const Header: React.FC = () => {
   const pathname = usePathname();
@@ -18,12 +20,16 @@ const Header: React.FC = () => {
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+  // TODO: Получать количество товаров из корзины
+  const cartItemsCount = 3; // Placeholder
+
   // Навигационные элементы
   const navigationItems = [
     { href: '/', label: 'Главная' },
     { href: '/catalog', label: 'Каталог' },
-    { href: '/about', label: 'О нас' },
-    { href: '/contacts', label: 'Контакты' },
+    { href: '/brands', label: 'Бренды' },
+    { href: '/news', label: 'Новости' },
+    { href: '/promotions', label: 'Акции' },
   ];
 
   // B2B навигация (дополнительные элементы для бизнес-пользователей)
@@ -37,15 +43,15 @@ const Header: React.FC = () => {
   };
 
   return (
-    <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
+    <header className="bg-white sticky top-0 z-50 shadow-[0_6px_16px_rgba(31,42,68,0.05)]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
+        <div className="flex justify-between items-center h-[60px]">
           {/* Логотип */}
           <div className="flex-shrink-0">
-            <Link href="/" className="flex items-center">
-              <span className="text-2xl font-bold text-blue-600">FREESPORT</span>
+            <Link href="/" className="flex items-center gap-2">
+              <span className="text-title-m font-bold text-text-primary">FREESPORT</span>
               {isB2BUser && (
-                <span className="ml-2 px-2 py-1 text-xs bg-orange-100 text-orange-800 rounded-full font-semibold">
+                <span className="px-2 py-1 text-[10px] bg-[#F9E1E1] text-[#A63232] rounded-full font-bold">
                   B2B
                 </span>
               )}
@@ -53,15 +59,15 @@ const Header: React.FC = () => {
           </div>
 
           {/* Основная навигация (десктоп) */}
-          <nav className="hidden md:flex space-x-8">
+          <nav className="hidden md:flex items-center gap-6">
             {navigationItems.map(item => (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`px-3 py-2 text-sm font-medium transition-colors duration-200 ${
+                className={`text-body-m font-medium transition-colors duration-short ${
                   isActivePage(item.href)
-                    ? 'text-blue-600 border-b-2 border-blue-600'
-                    : 'text-gray-700 hover:text-blue-600'
+                    ? 'text-text-primary'
+                    : 'text-text-primary hover:text-text-secondary'
                 }`}
               >
                 {item.label}
@@ -74,10 +80,10 @@ const Header: React.FC = () => {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`px-3 py-2 text-sm font-medium transition-colors duration-200 ${
+                  className={`text-body-m font-medium transition-colors duration-short ${
                     isActivePage(item.href)
-                      ? 'text-orange-600 border-b-2 border-orange-600'
-                      : 'text-gray-700 hover:text-orange-600'
+                      ? 'text-text-primary'
+                      : 'text-text-primary hover:text-text-secondary'
                   }`}
                 >
                   {item.label}
@@ -85,93 +91,158 @@ const Header: React.FC = () => {
               ))}
           </nav>
 
-          {/* Правая часть - аутентификация и корзина */}
-          <div className="flex items-center space-x-4">
-            {/* Корзина */}
-            <Link
-              href="/cart"
-              className="p-2 text-gray-600 hover:text-blue-600 transition-colors duration-200 relative"
-            >
-              <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-1.5 1.5M7 13l1.5 1.5M17 21a2 2 0 100-4 2 2 0 000 4zM9 21a2 2 0 100-4 2 2 0 000 4z"
-                />
-              </svg>
-              {/* TODO: Добавить счетчик товаров в корзине */}
-            </Link>
+          {/* Правая часть - иконки действий и аутентификация */}
+          <div className="flex items-center gap-4">
+            {/* Action Icons (desktop) */}
+            <div className="hidden md:flex items-center gap-4">
+              {/* Поиск */}
+              <button
+                aria-label="Поиск"
+                className="p-2 text-text-primary hover:text-text-secondary transition-colors duration-short focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-sm"
+              >
+                <Search className="w-6 h-6" />
+              </button>
 
-            {/* Авторизация/Профиль */}
-            {isAuthenticated && user ? (
-              <div className="flex items-center space-x-3">
-                <span className="text-sm text-gray-700">Привет, {user.firstName}!</span>
-                <Link href="/profile">
-                  <Button variant="outline" size="sm">
-                    Профиль
-                  </Button>
-                </Link>
-              </div>
-            ) : (
-              <div className="flex items-center space-x-2">
-                <Link href="/auth/login">
-                  <Button variant="outline" size="sm">
-                    Войти
-                  </Button>
-                </Link>
-                <Link href="/auth/register">
-                  <Button variant="primary" size="sm">
-                    Регистрация
-                  </Button>
-                </Link>
-              </div>
-            )}
+              {/* Избранное */}
+              <Link
+                href="/favorites"
+                aria-label="Избранное"
+                className="p-2 text-text-primary hover:text-text-secondary transition-colors duration-short focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-sm"
+              >
+                <Heart className="w-6 h-6" />
+              </Link>
+
+              {/* Корзина с Badge */}
+              <Link
+                href="/cart"
+                aria-label={`Корзина (${cartItemsCount} товаров)`}
+                className="relative p-2 text-text-primary hover:text-text-secondary transition-colors duration-short focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-sm"
+              >
+                <ShoppingCart className="w-6 h-6" />
+                {cartItemsCount > 0 && (
+                  <span className="absolute top-0 right-0 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold bg-[#F9E1E1] text-[#A63232] rounded-full">
+                    {cartItemsCount > 99 ? '99+' : cartItemsCount}
+                  </span>
+                )}
+              </Link>
+            </div>
+
+            {/* Авторизация/Профиль (desktop) */}
+            <div className="hidden md:flex items-center gap-2">
+              {isAuthenticated && user ? (
+                <>
+                  <span className="text-body-s text-text-secondary">Привет, {user.firstName}!</span>
+                  <Link href="/profile">
+                    <Button variant="outline" size="sm">
+                      Профиль
+                    </Button>
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link href="/auth/login">
+                    <Button variant="outline" size="sm">
+                      Войти
+                    </Button>
+                  </Link>
+                  <Link href="/auth/register">
+                    <Button variant="primary" size="sm">
+                      Регистрация
+                    </Button>
+                  </Link>
+                </>
+              )}
+            </div>
 
             {/* Мобильное меню - кнопка */}
             <button
-              className="md:hidden p-2 text-gray-600 hover:text-blue-600 transition-colors duration-200"
+              className="md:hidden p-2 text-text-primary hover:text-text-secondary transition-colors duration-short focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-sm"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              aria-label={isMobileMenuOpen ? 'Закрыть меню' : 'Открыть меню'}
+              aria-expanded={isMobileMenuOpen}
             >
-              <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                {isMobileMenuOpen ? (
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                ) : (
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M4 6h16M4 12h16M4 18h16"
-                  />
-                )}
-              </svg>
+              {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
           </div>
         </div>
 
         {/* Мобильная навигация */}
         {isMobileMenuOpen && (
-          <div className="md:hidden py-4 border-t border-gray-200">
+          <div className="md:hidden py-4 border-t border-neutral-300">
             <nav className="flex flex-col space-y-2">
+              {/* Основная навигация */}
               {[...navigationItems, ...(isB2BUser ? b2bNavigationItems : [])].map(item => (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`block px-3 py-2 text-base font-medium transition-colors duration-200 ${
+                  className={`block px-3 py-2 text-body-m font-medium rounded-sm transition-colors duration-short ${
                     isActivePage(item.href)
-                      ? 'text-blue-600 bg-blue-50'
-                      : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
+                      ? 'text-text-primary bg-neutral-200'
+                      : 'text-text-primary hover:text-text-secondary hover:bg-neutral-200'
                   }`}
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   {item.label}
                 </Link>
               ))}
+
+              {/* Мобильные иконки действий */}
+              <div className="flex items-center gap-4 px-3 py-2 border-t border-neutral-300 mt-2 pt-4">
+                <button
+                  aria-label="Поиск"
+                  className="p-2 text-text-primary hover:text-text-secondary transition-colors"
+                >
+                  <Search className="w-6 h-6" />
+                </button>
+                <Link
+                  href="/favorites"
+                  aria-label="Избранное"
+                  className="p-2 text-text-primary hover:text-text-secondary transition-colors"
+                >
+                  <Heart className="w-6 h-6" />
+                </Link>
+                <Link
+                  href="/cart"
+                  aria-label="Корзина"
+                  className="relative p-2 text-text-primary hover:text-text-secondary transition-colors"
+                >
+                  <ShoppingCart className="w-6 h-6" />
+                  {cartItemsCount > 0 && (
+                    <span className="absolute top-0 right-0 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold bg-[#F9E1E1] text-[#A63232] rounded-full">
+                      {cartItemsCount > 99 ? '99+' : cartItemsCount}
+                    </span>
+                  )}
+                </Link>
+              </div>
+
+              {/* Авторизация (mobile) */}
+              <div className="flex flex-col gap-2 px-3 py-2 border-t border-neutral-300 mt-2 pt-4">
+                {isAuthenticated && user ? (
+                  <>
+                    <span className="text-body-s text-text-secondary mb-2">
+                      Привет, {user.firstName}!
+                    </span>
+                    <Link href="/profile" onClick={() => setIsMobileMenuOpen(false)}>
+                      <Button variant="outline" size="sm" className="w-full">
+                        Профиль
+                      </Button>
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    <Link href="/auth/login" onClick={() => setIsMobileMenuOpen(false)}>
+                      <Button variant="outline" size="sm" className="w-full">
+                        Войти
+                      </Button>
+                    </Link>
+                    <Link href="/auth/register" onClick={() => setIsMobileMenuOpen(false)}>
+                      <Button variant="primary" size="sm" className="w-full">
+                        Регистрация
+                      </Button>
+                    </Link>
+                  </>
+                )}
+              </div>
             </nav>
           </div>
         )}

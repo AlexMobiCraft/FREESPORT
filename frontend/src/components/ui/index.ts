@@ -42,6 +42,9 @@ export type { ChipProps } from './Chip/Chip';
 export { Breadcrumb } from './Breadcrumb/Breadcrumb';
 export type { BreadcrumbProps, BreadcrumbItem } from './Breadcrumb/Breadcrumb';
 
+export { Pagination } from './Pagination/Pagination';
+export type { PaginationProps } from './Pagination/Pagination';
+
 export { Tabs } from './Tabs/Tabs';
 export type { TabsProps, Tab } from './Tabs/Tabs';
 
