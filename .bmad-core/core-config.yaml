@@ -7,6 +7,18 @@ prd:
   prdSharded: true
   prdShardedLocation: docs/prd
   epicFilePattern: epic-{n}*.md
+  completedEpics:
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+    - 6
+    - 7
+    - 8
+    - 9
+    - 10
+    - 11
 architecture:
   architectureFile: docs/architecture.md
   architectureVersion: v4

@@ -1,11 +1,11 @@
 {
   "meta": {
-    "name": "DESIGN System",
+    "name": "FREESPORT Design System",
     "purpose": "Единое описание визуального языка и UX-паттернов приложения, чтобы AI-агент и команда разрабатывали функции последовательно.",
-    "version": "1.0.0",
-    "lastUpdated": "2025-11-15",
-    "author": "Cascade AI",
-    "sourceFiles": ["src/App.jsx", "src/components/*.jsx", "tailwind.config.js"]
+    "version": "2.0.0",
+    "lastUpdated": "2025-11-20",
+    "author": "James (Dev Agent)",
+    "sourceFiles": ["docs/front-end-spec.md", "frontend/src/app/globals.css"]
   },
   "brand": {
     "tone": "Технологичный, дружелюбный e-commerce в стиле OZON",
@@ -154,9 +154,9 @@
     "shadows": {
       "default": "0 8px 24px rgba(15, 23, 42, 0.08)",
       "hover": "0 10px 32px rgba(15, 23, 42, 0.12)",
-      "primary": "0 10px 24px rgba(31, 31, 31, 0.28)",
-      "secondary": "0 6px 16px rgba(31, 31, 31, 0.12)",
-      "pressed": "0 6px 18px rgba(13, 13, 13, 0.24)",
+      "primary": "0 10px 24px rgba(0, 96, 255, 0.28)",
+      "secondary": "0 6px 16px rgba(0, 71, 204, 0.12)",
+      "pressed": "0 6px 18px rgba(0, 55, 166, 0.24)",
       "modal": "0 24px 64px rgba(15, 23, 42, 0.24)",
       "usage": "Использовать плавные тени для создания многоуровневой иерархии"
     },
