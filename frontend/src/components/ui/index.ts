@@ -13,8 +13,20 @@ export type { InputProps } from './Input/Input';
 export { Select } from './Select/Select';
 export type { SelectProps, SelectOption } from './Select/Select';
 
+export { SelectDropdown } from './Select/SelectDropdown';
+export type { SelectDropdownProps } from './Select/SelectDropdown';
+
 export { SearchField } from './SearchField/SearchField';
 export type { SearchFieldProps } from './SearchField/SearchField';
+
+export { PriceRangeSlider } from './PriceRangeSlider/PriceRangeSlider';
+export type { PriceRangeSliderProps } from './PriceRangeSlider/PriceRangeSlider';
+
+export { SortSelect, SORT_OPTIONS } from './SortSelect/SortSelect';
+export type { SortSelectProps, SortOption } from './SortSelect/SortSelect';
+
+export { FilterGroup } from './FilterGroup/FilterGroup';
+export type { FilterGroupProps } from './FilterGroup/FilterGroup';
 
 export { Checkbox } from './Checkbox/Checkbox';
 export type { CheckboxProps } from './Checkbox/Checkbox';
@@ -57,3 +69,16 @@ export type { InfoPanelProps } from './InfoPanel/InfoPanel';
 
 export { SupportPanel } from './SupportPanel/SupportPanel';
 export type { SupportPanelProps, SupportPanelVariant } from './SupportPanel/SupportPanel';
+
+// Modal & Toast Components
+export { Toast, ToastProvider, useToast } from './Toast';
+export type {
+  ToastProps,
+  ToastVariant,
+  ToastPosition,
+  ToastOptions,
+  ToastContextValue,
+} from './Toast';
+
+export { ConfirmDialog } from './ConfirmDialog';
+export type { ConfirmDialogProps } from './ConfirmDialog';

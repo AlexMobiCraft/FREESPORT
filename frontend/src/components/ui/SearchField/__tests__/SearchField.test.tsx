@@ -12,15 +12,15 @@ describe('SearchField', () => {
   it('renders search field with default placeholder', () => {
     render(<SearchField />);
 
-    const input = screen.getByRole('searchbox');
+    const input = screen.getByRole('combobox');
     expect(input).toBeInTheDocument();
-    expect(input).toHaveAttribute('placeholder', 'Поиск...');
+    expect(input).toHaveAttribute('placeholder', 'Поиск');
   });
 
   it('renders with custom placeholder', () => {
     render(<SearchField placeholder="Search products..." />);
 
-    const input = screen.getByRole('searchbox');
+    const input = screen.getByRole('combobox');
     expect(input).toHaveAttribute('placeholder', 'Search products...');
   });
 
@@ -29,7 +29,7 @@ describe('SearchField', () => {
     const handleChange = vi.fn();
     render(<SearchField onChange={handleChange} />);
 
-    const input = screen.getByRole('searchbox');
+    const input = screen.getByRole('combobox');
     fireEvent.change(input, { target: { value: 'test query' } });
 
     expect(handleChange).toHaveBeenCalledTimes(1);
@@ -40,7 +40,7 @@ describe('SearchField', () => {
     it('shows warning when input is less than minLength (default 2)', () => {
       render(<SearchField />);
 
-      const input = screen.getByRole('searchbox');
+      const input = screen.getByRole('combobox');
       fireEvent.change(input, { target: { value: 'a' } });
 
       expect(screen.getByText(/введите минимум 2 символа/i)).toBeInTheDocument();
@@ -50,7 +50,7 @@ describe('SearchField', () => {
     it('hides warning when input meets minLength', () => {
       render(<SearchField />);
 
-      const input = screen.getByRole('searchbox');
+      const input = screen.getByRole('combobox');
       fireEvent.change(input, { target: { value: 'a' } });
       expect(screen.getByText(/введите минимум 2 символа/i)).toBeInTheDocument();
 
@@ -61,7 +61,7 @@ describe('SearchField', () => {
     it('respects custom minLength prop', () => {
       render(<SearchField minLength={3} />);
 
-      const input = screen.getByRole('searchbox');
+      const input = screen.getByRole('combobox');
       fireEvent.change(input, { target: { value: 'ab' } });
 
       expect(screen.getByText(/введите минимум 3 символа/i)).toBeInTheDocument();
@@ -70,22 +70,34 @@ describe('SearchField', () => {
     it('does not show warning for empty input', () => {
       render(<SearchField />);
 
-      const input = screen.getByRole('searchbox');
+      const input = screen.getByRole('combobox');
       fireEvent.change(input, { target: { value: '' } });
 
       expect(screen.queryByText(/введите минимум/i)).not.toBeInTheDocument();
     });
   });
 
-  // onSearch callback
+  // onSearch callback (с debounce)
   describe('onSearch Callback', () => {
-    it('calls onSearch when input meets minLength', () => {
-      const handleSearch = vi.fn();
-      render(<SearchField onSearch={handleSearch} />);
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
 
-      const input = screen.getByRole('searchbox');
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('calls onSearch when input meets minLength after debounce', () => {
+      const handleSearch = vi.fn();
+      render(<SearchField onSearch={handleSearch} debounceMs={300} />);
+
+      const input = screen.getByRole('combobox');
       fireEvent.change(input, { target: { value: 'ab' } });
 
+      // onSearch вызывается после debounce (300ms)
+      expect(handleSearch).not.toHaveBeenCalled();
+
+      vi.advanceTimersByTime(300);
       expect(handleSearch).toHaveBeenCalledWith('ab');
     });
 
@@ -93,9 +105,10 @@ describe('SearchField', () => {
       const handleSearch = vi.fn();
       render(<SearchField onSearch={handleSearch} />);
 
-      const input = screen.getByRole('searchbox');
+      const input = screen.getByRole('combobox');
       fireEvent.change(input, { target: { value: 'a' } });
 
+      vi.advanceTimersByTime(300);
       expect(handleSearch).not.toHaveBeenCalled();
     });
 
@@ -103,9 +116,10 @@ describe('SearchField', () => {
       const handleSearch = vi.fn();
       render(<SearchField onSearch={handleSearch} />);
 
-      const input = screen.getByRole('searchbox');
+      const input = screen.getByRole('combobox');
       fireEvent.change(input, { target: { value: '' } });
 
+      vi.advanceTimersByTime(300);
       expect(handleSearch).not.toHaveBeenCalled();
     });
   });
@@ -114,7 +128,7 @@ describe('SearchField', () => {
   it('applies warning border when showing warning', () => {
     render(<SearchField />);
 
-    const input = screen.getByRole('searchbox');
+    const input = screen.getByRole('combobox');
     fireEvent.change(input, { target: { value: 'a' } });
 
     expect(input).toHaveClass('border-accent-warning');
@@ -125,15 +139,16 @@ describe('SearchField', () => {
     it('has aria-label for screen readers', () => {
       render(<SearchField />);
 
-      const input = screen.getByRole('searchbox');
+      const input = screen.getByRole('combobox');
       expect(input).toHaveAttribute('aria-label', 'Поиск');
     });
 
     it('has focus ring on focus', () => {
       render(<SearchField />);
 
-      const input = screen.getByRole('searchbox');
-      expect(input).toHaveClass('focus:ring-2', 'focus:ring-primary');
+      const input = screen.getByRole('combobox');
+      // SearchField использует focus:border-[#0060FF] вместо focus:ring
+      expect(input).toHaveClass('focus:border-[#0060FF]');
     });
 
     it('forwards ref correctly', () => {
@@ -155,7 +170,7 @@ describe('SearchField', () => {
   it('accepts custom className', () => {
     render(<SearchField className="custom-class" />);
 
-    const input = screen.getByRole('searchbox');
+    const input = screen.getByRole('combobox');
     expect(input).toHaveClass('custom-class');
   });
 
@@ -163,7 +178,7 @@ describe('SearchField', () => {
   it('updates value when typing', () => {
     render(<SearchField />);
 
-    const input = screen.getByRole('searchbox') as HTMLInputElement;
+    const input = screen.getByRole('combobox') as HTMLInputElement;
     fireEvent.change(input, { target: { value: 'test' } });
 
     expect(input.value).toBe('test');

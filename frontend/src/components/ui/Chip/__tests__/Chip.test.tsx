@@ -21,14 +21,14 @@ describe('Chip', () => {
       render(<Chip>Filter</Chip>);
 
       const chip = screen.getByText('Filter').parentElement;
-      expect(chip).toHaveClass('bg-neutral-100', 'border-neutral-400', 'text-text-primary');
+      expect(chip).toHaveClass('bg-white', 'border-[#D0D7E6]', 'text-[#4B5C7A]');
     });
 
     it('applies selected styles when selected prop is true', () => {
       render(<Chip selected>Selected</Chip>);
 
       const chip = screen.getByText('Selected').parentElement;
-      expect(chip).toHaveClass('bg-primary', 'text-text-inverse');
+      expect(chip).toHaveClass('bg-[#0060FF]', 'text-white');
       expect(chip).not.toHaveClass('border');
     });
   });
@@ -156,11 +156,11 @@ describe('Chip', () => {
       expect(chip).toHaveClass('inline-flex', 'items-center');
     });
 
-    it('has rounded-md shape', () => {
+    it('has rounded-2xl shape', () => {
       render(<Chip>Chip</Chip>);
 
       const chip = screen.getByText('Chip').parentElement;
-      expect(chip).toHaveClass('rounded-md');
+      expect(chip).toHaveClass('rounded-2xl');
     });
 
     it('has proper font weight', () => {
@@ -175,14 +175,14 @@ describe('Chip', () => {
 
       const chip = screen.getByText('Chip').parentElement;
       expect(chip).toHaveClass('transition-colors');
-      expect(chip).toHaveClass('duration-short');
+      expect(chip).toHaveClass('duration-[180ms]');
     });
 
     it('has proper padding', () => {
       render(<Chip>Chip</Chip>);
 
       const chip = screen.getByText('Chip').parentElement;
-      expect(chip).toHaveClass('px-3', 'py-1.5');
+      expect(chip).toHaveClass('px-3', 'py-1');
     });
   });
 
@@ -243,7 +243,7 @@ describe('Chip', () => {
       expect(screen.getByLabelText('Удалить')).toBeInTheDocument();
 
       const chip = screen.getByText('Complete').parentElement;
-      expect(chip).toHaveClass('bg-primary', 'text-text-inverse');
+      expect(chip).toHaveClass('bg-[#0060FF]', 'text-white');
     });
   });
 });

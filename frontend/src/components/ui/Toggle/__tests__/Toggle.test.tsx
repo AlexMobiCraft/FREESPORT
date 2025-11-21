@@ -98,14 +98,14 @@ describe('Toggle', () => {
   });
 
   // Transition animations
-  it('has transition duration of 200ms', () => {
+  it('has transition duration of 180ms (Design System v2.0)', () => {
     const { container } = render(<Toggle />);
 
     const track = container.querySelector('label[for]');
     const thumb = container.querySelector('span');
 
-    expect(track).toHaveClass('duration-[200ms]');
-    expect(thumb).toHaveClass('duration-[200ms]');
+    expect(track).toHaveClass('duration-[180ms]');
+    expect(thumb).toHaveClass('duration-[180ms]');
   });
 
   // Thumb movement
@@ -147,7 +147,7 @@ describe('Toggle', () => {
       const { container } = render(<Toggle />);
 
       const label = container.querySelector('label[for]');
-      expect(label).toHaveClass('peer-focus:ring-2', 'peer-focus:ring-primary');
+      expect(label).toHaveClass('peer-focus:ring-2', 'peer-focus:ring-[#0060FF]');
     });
 
     it('forwards ref correctly', () => {
@@ -168,18 +168,18 @@ describe('Toggle', () => {
 
   // Visual states
   describe('Visual States', () => {
-    it('has unchecked background color', () => {
+    it('has unchecked background color (Design System v2.0: #E3E8F2)', () => {
       const { container } = render(<Toggle checked={false} />);
 
       const track = container.querySelector('label[for]');
-      expect(track).toHaveClass('bg-neutral-300');
+      expect(track).toHaveClass('bg-[#E3E8F2]');
     });
 
-    it('has checked background color', () => {
+    it('has checked background color (Design System v2.0: #0060FF)', () => {
       const { container } = render(<Toggle checked />);
 
       const track = container.querySelector('label[for]');
-      expect(track).toHaveClass('peer-checked:bg-primary');
+      expect(track).toHaveClass('peer-checked:bg-[#0060FF]');
     });
 
     it('thumb has shadow', () => {

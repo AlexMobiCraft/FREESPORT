@@ -9,6 +9,9 @@ process.env.NEXT_PUBLIC_API_URL = 'http://localhost:8001/api/v1';
 import '@testing-library/jest-dom/vitest';
 import { vi } from 'vitest';
 
+// Подключение vitest-axe для accessibility тестирования
+import 'vitest-axe/extend-expect';
+
 // Импорт глобальных стилей для тестирования CSS переменных
 import './src/app/globals.css';
 

@@ -26,20 +26,20 @@ export const Chip = React.forwardRef<HTMLDivElement, ChipProps>(
       <div
         ref={ref}
         className={cn(
-          // Базовые стили
-          'inline-flex items-center gap-1.5',
-          'px-3 py-1.5 rounded-md',
-          'text-body-s font-medium',
-          'transition-colors duration-short',
+          // Базовые стили - Design System v2.0
+          'inline-flex items-center gap-2', // 8px gap
+          'px-3 py-1 rounded-2xl', // 16px radius
+          'text-caption font-medium', // caption typography
+          'transition-colors duration-[180ms]',
           // Edge Case: Минимальная ширина 60px для удобного клика
           'min-w-[60px]',
           // Edge Case: Переполнение текста - max 200px, single-line
           'max-w-[200px]',
 
-          // Состояния
+          // Состояния - Design System v2.0
           selected
-            ? 'bg-primary text-text-inverse'
-            : 'bg-neutral-100 border border-neutral-400 text-text-primary',
+            ? 'bg-[#0060FF] text-white' // Selected: #0060FF, white text
+            : 'bg-white border border-[#D0D7E6] text-[#4B5C7A]', // Default: white bg, #D0D7E6 border, #4B5C7A text
 
           className
         )}

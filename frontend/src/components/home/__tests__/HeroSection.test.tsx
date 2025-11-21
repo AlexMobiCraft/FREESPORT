@@ -247,15 +247,16 @@ describe('HeroSection Component', () => {
 
       // Проверка hero секции
       const section = container.querySelector('section');
-      expect(section).toHaveClass('text-text-inverse');
+      expect(section).toHaveClass('text-primary');
 
       // Проверка заголовка (h1 должен иметь display-l стили)
       const heading = screen.getByRole('heading', { level: 1 });
       expect(heading).toHaveClass('font-bold');
-      expect(heading).toHaveClass('text-text-inverse');
+      expect(heading).toHaveClass('text-5xl');
+      expect(heading).toHaveClass('text-primary');
     });
 
-    it('должен применять цветовую схему из design system', () => {
+    it('должен применять цветовую схему из design system v2.0', () => {
       vi.mocked(useAuthStore).mockReturnValue({
         user: null,
         isAuthenticated: false,
@@ -269,9 +270,24 @@ describe('HeroSection Component', () => {
       const { container } = render(<HeroSection />);
 
       const section = container.querySelector('section');
-      expect(section).toHaveClass('bg-gradient-to-r');
-      expect(section).toHaveClass('from-neutral-900');
-      expect(section).toHaveClass('to-neutral-700');
+      expect(section).toHaveClass('bg-[#F5F7FB]');
+    });
+
+    it('должен иметь accessibility атрибуты', () => {
+      vi.mocked(useAuthStore).mockReturnValue({
+        user: null,
+        isAuthenticated: false,
+        accessToken: null,
+        setTokens: vi.fn(),
+        setUser: vi.fn(),
+        logout: vi.fn(),
+        getRefreshToken: vi.fn(),
+      });
+
+      const { container } = render(<HeroSection />);
+
+      const section = container.querySelector('section');
+      expect(section).toHaveAttribute('aria-label', 'Hero section');
     });
   });
 
@@ -289,9 +305,25 @@ describe('HeroSection Component', () => {
 
       const { container } = render(<HeroSection />);
 
-      const innerContainer = container.querySelector('.mx-auto');
+      const innerContainer = container.querySelector('.max-w-\\[1280px\\]');
       expect(innerContainer).toBeInTheDocument();
-      expect(innerContainer).toHaveStyle({ maxWidth: '1280px' });
+    });
+
+    it('должен применять адаптивные padding классы', () => {
+      vi.mocked(useAuthStore).mockReturnValue({
+        user: null,
+        isAuthenticated: false,
+        accessToken: null,
+        setTokens: vi.fn(),
+        setUser: vi.fn(),
+        logout: vi.fn(),
+        getRefreshToken: vi.fn(),
+      });
+
+      const { container } = render(<HeroSection />);
+
+      const innerContainer = container.querySelector('.px-3');
+      expect(innerContainer).toHaveClass('px-3', 'md:px-4', 'lg:px-6');
     });
   });
 });

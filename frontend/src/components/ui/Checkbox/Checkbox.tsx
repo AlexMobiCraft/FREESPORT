@@ -48,21 +48,24 @@ export const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
             className={cn(
               // Базовые стили
               'relative flex items-center justify-center',
-              'w-5 h-5 rounded-sm',
-              'border border-neutral-400',
-              'bg-neutral-100',
+              'w-5 h-5 rounded-md', // 6px radius
+              'border-[1.5px] border-[#B9C3D6]', // Design System v2.0 border
+              'bg-white',
               'cursor-pointer',
-              'transition-all duration-[150ms]',
+              'transition-all duration-[180ms]', // Design System v2.0 timing
 
               // States
-              'peer-focus:ring-2 peer-focus:ring-primary peer-focus:ring-offset-2',
+              'peer-focus:ring-2 peer-focus:ring-[#0060FF] peer-focus:ring-offset-2', // Design System v2.0 focus
 
-              // Checked state
-              'peer-checked:bg-primary peer-checked:border-primary',
+              // Checked state - Design System v2.0: #1F1F1F
+              'peer-checked:bg-[#1F1F1F] peer-checked:border-[#1F1F1F]',
               'peer-checked:scale-100',
 
+              // Hover state
+              'peer-hover:border-[#333333]',
+
               // Indeterminate state
-              indeterminate && 'bg-primary border-primary',
+              indeterminate && 'bg-[#1F1F1F] border-[#1F1F1F]',
 
               // Disabled state
               disabled && 'opacity-50 cursor-not-allowed',
@@ -73,12 +76,12 @@ export const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
               className
             )}
           >
-            {/* Check Icon */}
+            {/* Check Icon - Design System v2.0: 18px, strokeWidth 3 */}
             {checked && !indeterminate && (
               <Check
                 className={cn(
-                  'w-4 h-4 text-text-inverse',
-                  'scale-100 transition-transform duration-[150ms]',
+                  'w-[18px] h-[18px] text-white',
+                  'scale-100 transition-transform duration-[180ms]',
                   'motion-reduce:transition-none'
                 )}
                 strokeWidth={3}
@@ -88,7 +91,7 @@ export const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
 
             {/* Indeterminate Icon */}
             {indeterminate && (
-              <Minus className="w-4 h-4 text-text-inverse" strokeWidth={3} aria-hidden="true" />
+              <Minus className="w-[18px] h-[18px] text-white" strokeWidth={3} aria-hidden="true" />
             )}
           </label>
         </div>

@@ -68,79 +68,30 @@ const HeroSection = () => {
 
   return (
     <section
-      className="relative bg-gradient-to-r from-neutral-900 to-neutral-700 text-text-inverse"
+      className="relative bg-[#F5F7FB] text-primary"
+      aria-label="Hero section"
       style={{ paddingTop: '64px', paddingBottom: '64px' }}
     >
-      <div className="mx-auto px-6 md:px-4 lg:px-6" style={{ maxWidth: '1280px' }}>
-        <div className="text-center">
+      <div className="mx-auto px-3 md:px-4 lg:px-6 max-w-[1280px]">
+        <div className="text-center md:text-left">
           {/* Hero заголовок - typography.display-l */}
-          <h1
-            className="font-bold mb-6 text-text-inverse"
-            style={{
-              fontSize: '48px',
-              lineHeight: '56px',
-              fontWeight: 700,
-            }}
-          >
-            {bannerContent.title}
-          </h1>
+          <h1 className="text-5xl font-bold mb-6 text-primary">{bannerContent.title}</h1>
 
           {/* Подзаголовок - typography.body-l */}
-          <p
-            className="mb-8 mx-auto text-neutral-300"
-            style={{
-              fontSize: '18px',
-              lineHeight: '28px',
-              fontWeight: 500,
-              maxWidth: '48rem',
-            }}
-          >
+          <p className="text-lg font-medium mb-8 mx-auto md:mx-0 text-secondary max-w-3xl">
             {bannerContent.subtitle}
           </p>
 
-          {/* CTA кнопка */}
-          <div className="flex justify-center">
+          {/* CTA кнопка - height 56px, radius 16px */}
+          <div className="flex justify-center md:justify-start">
             <Link href={bannerContent.cta.link}>
-              <Button
-                variant="primary"
-                size="large"
-                className="bg-primary-default hover:bg-primary-hover text-text-inverse"
-                style={{
-                  height: '48px',
-                  paddingLeft: '32px',
-                  paddingRight: '32px',
-                  borderRadius: '6px',
-                  fontSize: '18px',
-                  lineHeight: '28px',
-                  fontWeight: 500,
-                }}
-              >
+              <Button variant="primary" size="large" className="h-14 rounded-2xl">
                 {bannerContent.cta.text}
               </Button>
             </Link>
           </div>
         </div>
       </div>
-
-      {/* Адаптивные стили для mobile/tablet */}
-      <style jsx>{`
-        @media (max-width: 640px) {
-          h1 {
-            font-size: 32px !important;
-            line-height: 40px !important;
-          }
-          p {
-            font-size: 16px !important;
-            line-height: 24px !important;
-          }
-        }
-        @media (min-width: 641px) and (max-width: 1024px) {
-          h1 {
-            font-size: 40px !important;
-            line-height: 48px !important;
-          }
-        }
-      `}</style>
     </section>
   );
 };

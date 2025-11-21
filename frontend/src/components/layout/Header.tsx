@@ -10,6 +10,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Search, Heart, ShoppingCart, Menu, X } from 'lucide-react';
 import { authSelectors } from '@/stores/authStore';
+import { useCartStore } from '@/stores/cartStore';
 import { Button } from '@/components/ui/Button';
 
 const Header: React.FC = () => {
@@ -20,8 +21,8 @@ const Header: React.FC = () => {
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  // TODO: Получать количество товаров из корзины
-  const cartItemsCount = 3; // Placeholder
+  // Получаем количество товаров из корзины
+  const cartItemsCount = useCartStore(state => state.items.length);
 
   // Навигационные элементы
   const navigationItems = [
@@ -59,7 +60,7 @@ const Header: React.FC = () => {
           </div>
 
           {/* Основная навигация (десктоп) */}
-          <nav className="hidden md:flex items-center gap-6">
+          <nav aria-label="Основная навигация" className="hidden md:flex items-center gap-6">
             {navigationItems.map(item => (
               <Link
                 key={item.href}
@@ -131,9 +132,11 @@ const Header: React.FC = () => {
             <div className="hidden md:flex items-center gap-2">
               {isAuthenticated && user ? (
                 <>
-                  <span className="text-body-s text-text-secondary">Привет, {user.firstName}!</span>
+                  <span className="text-body-s text-text-secondary">
+                    Привет, {user.first_name}!
+                  </span>
                   <Link href="/profile">
-                    <Button variant="outline" size="sm">
+                    <Button variant="secondary" size="small">
                       Профиль
                     </Button>
                   </Link>
@@ -141,12 +144,12 @@ const Header: React.FC = () => {
               ) : (
                 <>
                   <Link href="/auth/login">
-                    <Button variant="outline" size="sm">
+                    <Button variant="secondary" size="small">
                       Войти
                     </Button>
                   </Link>
                   <Link href="/auth/register">
-                    <Button variant="primary" size="sm">
+                    <Button variant="primary" size="small">
                       Регистрация
                     </Button>
                   </Link>
@@ -169,7 +172,7 @@ const Header: React.FC = () => {
         {/* Мобильная навигация */}
         {isMobileMenuOpen && (
           <div className="md:hidden py-4 border-t border-neutral-300">
-            <nav className="flex flex-col space-y-2">
+            <nav aria-label="Мобильная навигация" className="flex flex-col space-y-2">
               {/* Основная навигация */}
               {[...navigationItems, ...(isB2BUser ? b2bNavigationItems : [])].map(item => (
                 <Link
@@ -220,10 +223,10 @@ const Header: React.FC = () => {
                 {isAuthenticated && user ? (
                   <>
                     <span className="text-body-s text-text-secondary mb-2">
-                      Привет, {user.firstName}!
+                      Привет, {user.first_name}!
                     </span>
                     <Link href="/profile" onClick={() => setIsMobileMenuOpen(false)}>
-                      <Button variant="outline" size="sm" className="w-full">
+                      <Button variant="secondary" size="small" className="w-full">
                         Профиль
                       </Button>
                     </Link>
@@ -231,12 +234,12 @@ const Header: React.FC = () => {
                 ) : (
                   <>
                     <Link href="/auth/login" onClick={() => setIsMobileMenuOpen(false)}>
-                      <Button variant="outline" size="sm" className="w-full">
+                      <Button variant="secondary" size="small" className="w-full">
                         Войти
                       </Button>
                     </Link>
                     <Link href="/auth/register" onClick={() => setIsMobileMenuOpen(false)}>
-                      <Button variant="primary" size="sm" className="w-full">
+                      <Button variant="primary" size="small" className="w-full">
                         Регистрация
                       </Button>
                     </Link>

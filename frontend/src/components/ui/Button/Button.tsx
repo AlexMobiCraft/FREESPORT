@@ -10,7 +10,7 @@ import { cn } from '@/utils/cn';
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   /** Вариант кнопки */
-  variant?: 'primary' | 'secondary' | 'tertiary' | 'subtle';
+  variant?: 'primary' | 'secondary' | 'tertiary' | 'subtle' | 'danger';
   /** Размер кнопки */
   size?: 'small' | 'medium' | 'large';
   /** Состояние загрузки */
@@ -67,6 +67,13 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
             'shadow-[var(--shadow-default)]',
             'hover:bg-[#D6E9FF] hover:-translate-y-0.5',
             'active:translate-y-0',
+          ],
+          variant === 'danger' && [
+            'bg-[#C23B3B] text-white',
+            'shadow-[var(--shadow-primary)]',
+            'hover:bg-[#A32F2F] hover:-translate-y-0.5',
+            'active:bg-[#8B2828] active:translate-y-0',
+            'focus:ring-[#C23B3B]',
           ],
 
           // Размеры

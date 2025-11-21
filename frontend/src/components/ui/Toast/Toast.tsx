@@ -1,0 +1,137 @@
+/**
+ * Toast Component
+ * Уведомления с вариантами success/error/warning/info
+ * Design System v2.0
+ *
+ * @see docs/frontend/design-system.json#components.Toast
+ */
+
+import React, { useEffect, useState, useCallback } from 'react';
+import { CheckCircle, XCircle, AlertTriangle, Info, X } from 'lucide-react';
+import { cn } from '@/utils/cn';
+
+export type ToastVariant = 'success' | 'error' | 'warning' | 'info';
+export type ToastPosition = 'top-right' | 'top-center' | 'bottom-right' | 'bottom-center';
+
+export interface ToastProps {
+  /** Уникальный ID toast */
+  id: string;
+  /** Вариант toast */
+  variant: ToastVariant;
+  /** Заголовок (опционально) */
+  title?: string;
+  /** Текст сообщения */
+  message: string;
+  /** Длительность отображения в мс */
+  duration?: number;
+  /** Callback при закрытии */
+  onClose: (id: string) => void;
+  /** Позиция на экране */
+  position?: ToastPosition;
+}
+
+const TOAST_VARIANTS = {
+  success: {
+    bg: '#E0F5E0',
+    border: '#1F7A1F',
+    icon: CheckCircle,
+    iconColor: '#1F7A1F',
+  },
+  error: {
+    bg: '#FFE1E1',
+    border: '#C23B3B',
+    icon: XCircle,
+    iconColor: '#C23B3B',
+  },
+  warning: {
+    bg: '#FFF1CC',
+    border: '#B07600',
+    icon: AlertTriangle,
+    iconColor: '#B07600',
+  },
+  info: {
+    bg: '#E1F0FF',
+    border: '#0F5DA3',
+    icon: Info,
+    iconColor: '#0F5DA3',
+  },
+} as const;
+
+export const Toast: React.FC<ToastProps> = ({
+  id,
+  variant,
+  title,
+  message,
+  duration = 5000,
+  onClose,
+}) => {
+  const [isExiting, setIsExiting] = useState(false);
+  const variantConfig = TOAST_VARIANTS[variant];
+  const Icon = variantConfig.icon;
+
+  const handleClose = useCallback(() => {
+    setIsExiting(true);
+    // Ждем завершения анимации перед удалением
+    setTimeout(() => {
+      onClose(id);
+    }, 180); // duration анимации
+  }, [id, onClose]);
+
+  // Auto-dismiss
+  useEffect(() => {
+    if (duration <= 0) return;
+
+    const timer = setTimeout(() => {
+      handleClose();
+    }, duration);
+
+    return () => clearTimeout(timer);
+  }, [duration, handleClose]);
+
+  return (
+    <div
+      role="alert"
+      aria-live="polite"
+      className={cn(
+        'rounded-xl p-4 min-w-[320px] max-w-[420px]',
+        'shadow-[0_8px_24px_rgba(15,23,42,0.12)]',
+        'border-l-4',
+        'flex gap-3 items-start',
+        isExiting ? 'animate-slideOutRight' : 'animate-slideInRight'
+      )}
+      style={{
+        backgroundColor: variantConfig.bg,
+        borderLeftColor: variantConfig.border,
+      }}
+    >
+      {/* Icon */}
+      <Icon
+        className="flex-shrink-0 mt-0.5"
+        size={24}
+        style={{ color: variantConfig.iconColor }}
+        strokeWidth={2}
+      />
+
+      {/* Content */}
+      <div className="flex-1 min-w-0">
+        {title && (
+          <div className="text-[16px] leading-[24px] font-semibold text-[#1B1B1B] mb-1">
+            {title}
+          </div>
+        )}
+        <div className="text-[14px] leading-[20px] font-medium text-[#4D4D4D]">{message}</div>
+      </div>
+
+      {/* Close button */}
+      <button
+        onClick={handleClose}
+        className="flex-shrink-0 hover:opacity-70 transition-opacity duration-[180ms] focus:outline-none focus:ring-2 focus:ring-[#1F1F1F] rounded"
+        aria-label="Закрыть уведомление"
+      >
+        <X size={16} className="text-[#7A7A7A]" strokeWidth={2} />
+      </button>
+    </div>
+  );
+};
+
+Toast.displayName = 'Toast';

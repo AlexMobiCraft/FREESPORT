@@ -32,7 +32,8 @@ describe('Checkbox', () => {
       render(<Checkbox indeterminate={true} label="Test" />);
       const checkbox = screen.getByRole('checkbox', { hidden: true });
       const label = checkbox.nextElementSibling as HTMLElement;
-      expect(label).toHaveClass('bg-primary');
+      // Design System v2.0: #1F1F1F для checked/indeterminate
+      expect(label).toHaveClass('bg-[#1F1F1F]');
     });
   });
 
@@ -64,7 +65,8 @@ describe('Checkbox', () => {
       const checkbox = screen.getByRole('checkbox', { hidden: true });
       const label = checkbox.nextElementSibling as HTMLElement;
       expect(label).toHaveClass('peer-focus:ring-2');
-      expect(label).toHaveClass('peer-focus:ring-primary');
+      // Design System v2.0: #0060FF для focus ring
+      expect(label).toHaveClass('peer-focus:ring-[#0060FF]');
     });
   });
 });

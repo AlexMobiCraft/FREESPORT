@@ -47,18 +47,19 @@ export const Toggle = React.forwardRef<HTMLInputElement, ToggleProps>(
             className={cn(
               // Track (контейнер)
               'relative block',
-              'w-11 h-6 rounded-full',
+              'w-11 h-6 rounded-full', // 44x24px, radius 999
               'cursor-pointer',
-              'transition-colors duration-[200ms]',
+              'transition-colors duration-[180ms]', // Design System v2.0 timing
+              '[transition-timing-function:cubic-bezier(0.4,0,0.2,1)]', // Design System v2.0 easing
 
-              // Unchecked state
-              'bg-neutral-300',
+              // Unchecked state - Design System v2.0: #E3E8F2
+              'bg-[#E3E8F2]',
 
-              // Checked state
-              'peer-checked:bg-primary',
+              // Checked state - Design System v2.0: #0060FF
+              'peer-checked:bg-[#0060FF]',
 
-              // Focus state
-              'peer-focus:ring-2 peer-focus:ring-primary peer-focus:ring-offset-2',
+              // Focus state - Design System v2.0: #0060FF
+              'peer-focus:ring-2 peer-focus:ring-[#0060FF] peer-focus:ring-offset-2',
 
               // Disabled state
               disabled && 'opacity-50 cursor-not-allowed',
@@ -69,17 +70,18 @@ export const Toggle = React.forwardRef<HTMLInputElement, ToggleProps>(
               className
             )}
           >
-            {/* Toggle Thumb (бегунок) */}
+            {/* Toggle Thumb (бегунок) - Design System v2.0 */}
             <span
               className={cn(
                 // Thumb
                 'absolute top-0.5 left-0.5',
-                'w-5 h-5',
-                'bg-text-inverse rounded-full',
-                'shadow-[0_2px_8px_rgba(0,0,0,0.16)]',
-                'transition-transform duration-[200ms]',
+                'w-5 h-5', // 20px
+                'bg-white rounded-full', // #FFFFFF
+                'shadow-[0_2px_8px_rgba(0,0,0,0.16)]', // Design System v2.0 shadow
+                'transition-transform duration-[180ms]', // Design System v2.0 timing
+                '[transition-timing-function:cubic-bezier(0.4,0,0.2,1)]', // Design System v2.0 easing
 
-                // Checked state - движение вправо
+                // Checked state - движение вправо (22px from left)
                 checked && 'translate-x-5',
 
                 // Edge Case: prefers-reduced-motion

@@ -1,14 +1,14 @@
 /**
  * NewArrivalsSection Component
  *
- * Блок "Новинки" на главной странице (Story 11.2).
- * Загружает и отображает 8 товаров с флагом is_new=true.
+ * Блок "Новинки" на главной странице (Story 12.7).
+ * Отображает товары с флагом is_new=true в горизонтальной ленте.
  *
  * Features:
- * - Загрузка данных через productsService.getNew()
- * - Loading state с skeleton loaders
- * - Error state с retry кнопкой
- * - Graceful degradation при пустых данных
+ * - Горизонтальная лента с scroll-snap
+ * - Использует ProductCard из Story 12.4
+ * - Кнопки навигации prev/next
+ * - Бейдж "NEW" на карточках
  *
  * @example
  * ```tsx
@@ -18,111 +18,86 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { RecommendationsRow } from '@/components/common';
-import { Button } from '@/components/ui';
-import productsService from '@/services/productsService';
-import type { Product } from '@/types/api';
-
-/**
- * Skeleton Loader для загрузки товаров
- */
-const SkeletonLoader: React.FC = () => (
-  <div className="py-12" role="status" aria-busy="true" aria-label="Загрузка новинок">
-    {/* Заголовок skeleton */}
-    <div className="h-7 w-32 bg-neutral-200 rounded-md animate-pulse mb-6"></div>
-
-    {/* Карточки товаров skeleton */}
-    <div className="flex gap-4 overflow-x-hidden">
-      {[...Array(8)].map((_, i) => (
-        <div key={i} className="w-[180px] flex-shrink-0">
-          <div className="bg-neutral-100 rounded-md p-6 animate-pulse">
-            {/* Изображение */}
-            <div className="h-[180px] bg-neutral-200 rounded-md mb-3"></div>
-            {/* Название */}
-            <div className="h-4 bg-neutral-200 rounded w-3/4 mb-2"></div>
-            <div className="h-4 bg-neutral-200 rounded w-1/2 mb-3"></div>
-            {/* Цена */}
-            <div className="h-5 bg-neutral-200 rounded w-2/3"></div>
-          </div>
-        </div>
-      ))}
-    </div>
-  </div>
-);
-
-/**
- * Error State компонент
- */
-interface ErrorStateProps {
-  onRetry: () => void;
-}
-
-const ErrorState: React.FC<ErrorStateProps> = ({ onRetry }) => (
-  <div className="py-12">
-    <div className="text-center py-8 px-4 bg-neutral-50 rounded-lg">
-      <div className="mb-4">
-        <svg
-          className="w-12 h-12 mx-auto text-neutral-400"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-          />
-        </svg>
-      </div>
-      <p className="text-body-m text-text-secondary mb-4">Не удалось загрузить новинки</p>
-      <Button variant="secondary" onClick={onRetry}>
-        Повторить попытку
-      </Button>
-    </div>
-  </div>
-);
+import React, { useRef } from 'react';
+import { ProductCard } from '@/components/business/ProductCard/ProductCard';
+import { MOCK_NEW_PRODUCTS } from '@/__mocks__/products';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 /**
  * Компонент блока "Новинки"
  */
 export const NewArrivalsSection: React.FC = () => {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  const loadNewArrivals = async () => {
-    setIsLoading(true);
-    setError(null);
+  const scroll = (direction: 'left' | 'right') => {
+    if (!scrollContainerRef.current) return;
 
-    try {
-      const data = await productsService.getNew();
-      setProducts(data);
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error('Unknown error'));
-      console.error('Failed to load new arrivals:', err);
-    } finally {
-      setIsLoading(false);
-    }
+    const container = scrollContainerRef.current;
+    const scrollAmount = container.clientWidth * 0.8;
+    const targetScroll =
+      container.scrollLeft + (direction === 'right' ? scrollAmount : -scrollAmount);
+
+    container.scrollTo({
+      left: targetScroll,
+      behavior: 'smooth',
+    });
   };
 
-  useEffect(() => {
-    loadNewArrivals();
-  }, []);
-
-  // Loading state
-  if (isLoading) {
-    return <SkeletonLoader />;
+  if (!MOCK_NEW_PRODUCTS || MOCK_NEW_PRODUCTS.length === 0) {
+    return null;
   }
 
-  // Error state
-  if (error) {
-    return <ErrorState onRetry={loadNewArrivals} />;
-  }
+  return (
+    <section
+      className="max-w-[1280px] mx-auto px-3 md:px-4 lg:px-6 relative"
+      aria-labelledby="new-arrivals-heading"
+    >
+      {/* Заголовок секции - headline-l */}
+      <h2 id="new-arrivals-heading" className="text-3xl font-bold mb-8 text-primary">
+        Новинки
+      </h2>
 
-  // Edge Case: Пустые данные - RecommendationsRow сам обработает (return null)
-  return <RecommendationsRow title="Новинки" items={products} />;
+      {/* Кнопки навигации */}
+      <button
+        onClick={() => scroll('left')}
+        className="absolute left-0 top-1/2 -translate-y-1/2 z-10 hidden lg:flex items-center justify-center w-10 h-10 bg-white rounded-full shadow-default hover:shadow-hover transition-shadow focus:outline-none focus:ring-2 focus:ring-primary"
+        aria-label="Предыдущие товары"
+      >
+        <ChevronLeft className="w-6 h-6 text-primary" />
+      </button>
+
+      <button
+        onClick={() => scroll('right')}
+        className="absolute right-0 top-1/2 -translate-y-1/2 z-10 hidden lg:flex items-center justify-center w-10 h-10 bg-white rounded-full shadow-default hover:shadow-hover transition-shadow focus:outline-none focus:ring-2 focus:ring-primary"
+        aria-label="Следующие товары"
+      >
+        <ChevronRight className="w-6 h-6 text-primary" />
+      </button>
+
+      {/* Горизонтальная лента товаров */}
+      <div
+        ref={scrollContainerRef}
+        className="flex gap-4 overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-4"
+        role="list"
+      >
+        {MOCK_NEW_PRODUCTS.map(product => (
+          <div key={product.id} className="flex-shrink-0 w-[280px] snap-start" role="listitem">
+            <ProductCard product={product} layout="compact" userRole="retail" />
+          </div>
+        ))}
+      </div>
+
+      <style jsx>{`
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+        }
+        .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+      `}</style>
+    </section>
+  );
 };
 
 NewArrivalsSection.displayName = 'NewArrivalsSection';

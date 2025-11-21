@@ -1,11 +1,13 @@
 /**
  * Modal Component
  * Центрированное окно с backdrop blur и управлением фокусом
+ * Design System v2.0
  *
- * @see frontend/docs/design-system.json#components.Modal
+ * @see docs/frontend/design-system.json#components.Modal
  */
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useId } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { cn } from '@/utils/cn';
 
@@ -15,39 +17,70 @@ export interface ModalProps {
   /** Callback при закрытии */
   onClose: () => void;
   /** Заголовок */
-  title: string;
+  title?: string;
+  /** Размер модала */
+  size?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
   /** Контент */
   children: React.ReactNode;
   /** Footer (опционально) */
   footer?: React.ReactNode;
+  /** Закрывать при клике на backdrop */
+  closeOnBackdrop?: boolean;
+  /** Закрывать по Escape */
+  closeOnEscape?: boolean;
+  /** Показывать кнопку закрытия */
+  showCloseButton?: boolean;
   /** CSS класс для кастомизации */
   className?: string;
 }
+
+const SIZE_CLASSES = {
+  sm: 'max-w-[400px]',
+  md: 'max-w-[560px]',
+  lg: 'max-w-[720px]',
+  xl: 'max-w-[960px]',
+  full: 'max-w-full m-4',
+} as const;
 
 export const Modal: React.FC<ModalProps> = ({
   isOpen,
   onClose,
   title,
+  size = 'md',
   children,
   footer,
+  closeOnBackdrop = true,
+  closeOnEscape = true,
+  showCloseButton = true,
   className,
 }) => {
   const modalRef = useRef<HTMLDivElement>(null);
   const previouslyFocusedElement = useRef<HTMLElement | null>(null);
+  const titleId = useId();
+  const descriptionId = useId();
 
-  // Edge Case: Предупреждение о вложенных модалах
+  // Body scroll lock
   useEffect(() => {
-    if (isOpen) {
-      const existingModals = document.querySelectorAll('[role="dialog"][aria-modal="true"]');
-      if (existingModals.length > 0) {
-        console.warn(
-          'Nested modals are not supported. Close the current modal before opening a new one.'
-        );
-      }
+    if (!isOpen) return;
+
+    const originalOverflow = document.body.style.overflow;
+    const originalPaddingRight = document.body.style.paddingRight;
+
+    // Вычисляем ширину scrollbar
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+
+    document.body.style.overflow = 'hidden';
+    if (scrollbarWidth > 0) {
+      document.body.style.paddingRight = `${scrollbarWidth}px`;
     }
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      document.body.style.paddingRight = originalPaddingRight;
+    };
   }, [isOpen]);
 
-  // Edge Case: Управление фокусом
+  // Focus management
   useEffect(() => {
     if (!isOpen) return;
 
@@ -60,7 +93,10 @@ export const Modal: React.FC<ModalProps> = ({
     );
 
     if (focusableElements && focusableElements.length > 0) {
-      focusableElements[0].focus();
+      // Небольшая задержка для завершения анимации
+      setTimeout(() => {
+        focusableElements[0].focus();
+      }, 100);
     }
 
     // Возвращаем фокус при закрытии
@@ -71,9 +107,9 @@ export const Modal: React.FC<ModalProps> = ({
     };
   }, [isOpen]);
 
-  // Edge Case: Focus trap (Tab циклически внутри Modal)
+  // Focus trap
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Escape') {
+    if (e.key === 'Escape' && closeOnEscape) {
       onClose();
       return;
     }
@@ -104,72 +140,93 @@ export const Modal: React.FC<ModalProps> = ({
     }
   };
 
-  // Edge Case: Клик на backdrop закрывает
-  const handleBackdropClick = (e: React.MouseEvent | React.KeyboardEvent) => {
-    if (e.target === e.currentTarget) {
+  // Backdrop click
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    if (closeOnBackdrop && e.target === e.currentTarget) {
       onClose();
     }
   };
 
   if (!isOpen) return null;
 
-  return (
+  const modalContent = (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fadeIn"
       onClick={handleBackdropClick}
       role="presentation"
     >
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-primary/50 backdrop-blur-sm" aria-hidden="true" />
+      {/* Backdrop with blur */}
+      <div
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity duration-[180ms]"
+        aria-hidden="true"
+      />
 
       {/* Modal Content */}
       <div
         ref={modalRef}
         role="dialog"
         aria-modal="true"
-        aria-labelledby="modal-title"
+        aria-labelledby={title ? titleId : undefined}
+        aria-describedby={descriptionId}
         className={cn(
-          'relative w-full max-w-[560px] max-h-[80vh]',
-          'bg-neutral-100 rounded-xl shadow-modal',
+          'relative w-full max-h-[calc(100vh-2rem)]',
+          'bg-white rounded-[24px]',
+          'shadow-[0_24px_64px_rgba(15,23,42,0.24)]',
           'flex flex-col',
+          'animate-scaleIn',
+          SIZE_CLASSES[size],
           className
         )}
         onKeyDown={handleKeyDown}
       >
         {/* Header */}
-        <div className="flex items-start justify-between p-6 border-b border-neutral-300">
-          <h2 id="modal-title" className="text-title-m font-semibold text-text-primary pr-8">
-            {title}
-          </h2>
-
-          {/* Close Button */}
-          <button
-            onClick={onClose}
-            className={cn(
-              'flex items-center justify-center',
-              'w-11 h-11 rounded-xl',
-              'transition-colors duration-short',
-              'hover:bg-[#E3E8F2]',
-              'focus:outline-none focus:ring-2 focus:ring-primary'
+        {(title || showCloseButton) && (
+          <div className="flex items-start justify-between p-6 border-b border-[#E3E8F2]">
+            {title && (
+              <h2
+                id={titleId}
+                className="text-[20px] leading-[28px] font-semibold text-[#1B1B1B] pr-8"
+              >
+                {title}
+              </h2>
             )}
-            aria-label="Закрыть модальное окно"
-          >
-            <X className="w-10 h-10 text-neutral-700" />
-          </button>
-        </div>
 
-        {/* Content - Edge Case: Overflow контента > 80vh - добавляем скролл */}
-        <div className="flex-1 overflow-y-auto p-6">{children}</div>
+            {/* Close Button */}
+            {showCloseButton && (
+              <button
+                onClick={onClose}
+                className={cn(
+                  'flex items-center justify-center',
+                  'w-11 h-11 rounded-xl',
+                  'transition-colors duration-[180ms]',
+                  'hover:bg-[#E3E8F2]',
+                  'focus:outline-none focus:ring-2 focus:ring-[#1F1F1F]'
+                )}
+                aria-label="Закрыть модальное окно"
+              >
+                <X className="w-10 h-10 text-[#7A7A7A]" strokeWidth={1.5} />
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Content */}
+        <div id={descriptionId} className="flex-1 overflow-y-auto p-6 max-h-[calc(100vh-200px)]">
+          {children}
+        </div>
 
         {/* Footer */}
         {footer && (
-          <div className="border-t border-neutral-300 p-6 flex items-center justify-end gap-3">
+          <div className="border-t border-[#E3E8F2] p-6 flex items-center justify-end gap-3">
             {footer}
           </div>
         )}
       </div>
     </div>
   );
+
+  // Render через Portal
+  return createPortal(modalContent, document.body);
 };
 
 Modal.displayName = 'Modal';
