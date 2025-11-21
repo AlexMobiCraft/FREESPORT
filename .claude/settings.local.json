@@ -40,7 +40,11 @@
       "Bash(npm run test:*)",
       "Bash(docker exec:*)",
       "Bash(git commit:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(powershell -Command \"(Get-Content src/components/layout/__tests__/Footer.test.tsx) -replace ''expect\\(screen\\.getByText\\(''''Контакты''''\\)\\)\\.toBeInTheDocument\\(\\);'', ''expect(headingTexts).toContain(''''Контакты'''');'' | Set-Content src/components/layout/__tests__/Footer.test.tsx.tmp; Move-Item -Force src/components/layout/__tests__/Footer.test.tsx.tmp src/components/layout/__tests__/Footer.test.tsx\")",
+      "Bash(powershell -Command:*)",
+      "Bash(powershell:*)",
+      "Bash(del fix-tests.ps1)"
     ],
     "deny": [],
     "ask": [],

@@ -26,7 +26,9 @@ export function shimmer(width: number, height: number): string {
  * Конвертирует SVG в base64 data URI
  */
 export function toBase64(str: string): string {
-  return typeof window === 'undefined' ? Buffer.from(str).toString('base64') : window.btoa(str);
+  return typeof window === 'undefined'
+    ? Buffer.from(str).toString('base64')
+    : window.btoa(unescape(encodeURIComponent(str)));
 }
 
 /**
