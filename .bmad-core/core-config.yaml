@@ -19,6 +19,7 @@ prd:
     - 9
     - 10
     - 11
+    - 12
 architecture:
   architectureFile: docs/architecture.md
   architectureVersion: v4
