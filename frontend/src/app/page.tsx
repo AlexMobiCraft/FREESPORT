@@ -7,7 +7,6 @@ import HeroSection from '@/components/home/HeroSection';
 import { HitsSection, NewArrivalsSection, CategoriesSection } from '@/components/home';
 import { NewsSection } from '@/components/home/NewsSection';
 import { SubscribeNewsSection } from '@/components/home/SubscribeNewsSection';
-import Footer from '@/components/layout/Footer';
 
 // ISR конфигурация: ревалидация каждый час
 export const revalidate = 3600;
@@ -49,39 +48,33 @@ export const metadata: Metadata = {
   },
 };
 
-export default function Home() {
+export default function HomePage() {
   return (
-    <>
-      {/* Semantic HTML: main */}
-      <main className="bg-[#F5F7FB]">
-        {/* Hero секция */}
-        <HeroSection />
+    <main className="bg-[#F5F7FB]">
+      {/* Hero секция */}
+      <HeroSection />
 
-        {/* Section spacing: 64px (py-16) для первой секции после hero */}
-        <section className="py-16" aria-label="Категории товаров">
-          <CategoriesSection />
-        </section>
+      {/* Section spacing: 64px (py-16) для первой секции после hero */}
+      <section className="py-16" aria-label="Категории товаров">
+        <CategoriesSection />
+      </section>
 
-        {/* Section spacing: 48px (py-12) для остальных секций */}
-        <section className="py-12" aria-label="Хиты продаж">
-          <HitsSection />
-        </section>
+      {/* Section spacing: 48px (py-12) для остальных секций */}
+      <section className="py-12" aria-label="Хиты продаж">
+        <HitsSection />
+      </section>
 
-        <section className="py-12" aria-label="Новинки">
-          <NewArrivalsSection />
-        </section>
+      <section className="py-12" aria-label="Новинки">
+        <NewArrivalsSection />
+      </section>
 
-        <section className="py-12" aria-label="Наш блог">
-          <NewsSection />
-        </section>
+      <section className="py-12" aria-label="Наш блог">
+        <NewsSection />
+      </section>
 
-        <section className="py-12" aria-label="Подписка на новости">
-          <SubscribeNewsSection />
-        </section>
-      </main>
-
-      {/* Footer */}
-      <Footer />
-    </>
+      <section className="py-12" aria-label="Подписка на новости">
+        <SubscribeNewsSection />
+      </section>
+    </main>
   );
 }

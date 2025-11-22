@@ -94,7 +94,7 @@ export const Footer: React.FC<FooterProps> = ({
   copyright = '© 2025 FREESPORT. Все права защищены.',
 }) => {
   return (
-    <footer className="bg-[#1F1F1F] text-white py-12" role="contentinfo">
+    <footer className="bg-[#111827] text-white py-12" role="contentinfo">
       <div className="max-w-[1280px] mx-auto px-3 md:px-4 lg:px-6">
         {/* Колонки */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-8">
@@ -104,7 +104,10 @@ export const Footer: React.FC<FooterProps> = ({
               <ul className="space-y-2">
                 {column.links.map((link, linkIndex) => (
                   <li key={linkIndex}>
-                    <Link href={link.href} className="text-sm hover:opacity-80 transition-opacity">
+                    <Link
+                      href={link.href}
+                      className="text-sm text-[#9ca3af] hover:text-white transition-colors"
+                    >
                       {link.label}
                     </Link>
                   </li>

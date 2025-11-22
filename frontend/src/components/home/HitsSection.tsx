@@ -32,6 +32,8 @@ export const HitsSection: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
 
   const fetchHits = async () => {
     try {
@@ -50,6 +52,31 @@ export const HitsSection: React.FC = () => {
   useEffect(() => {
     void fetchHits();
   }, []);
+
+  const updateScrollButtons = () => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const { scrollLeft, scrollWidth, clientWidth } = container;
+    setCanScrollLeft(scrollLeft > 4);
+    setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 4);
+  };
+
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    updateScrollButtons();
+
+    const handleResize = () => updateScrollButtons();
+    container.addEventListener('scroll', updateScrollButtons);
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      container.removeEventListener('scroll', updateScrollButtons);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [products.length, isLoading]);
 
   const scroll = (direction: 'left' | 'right') => {
     if (!scrollContainerRef.current) return;
@@ -80,21 +107,25 @@ export const HitsSection: React.FC = () => {
       </h2>
 
       {/* Кнопки навигации */}
-      <button
-        onClick={() => scroll('left')}
-        className="absolute left-0 top-1/2 -translate-y-1/2 z-10 hidden lg:flex items-center justify-center w-10 h-10 bg-white rounded-full shadow-default hover:shadow-hover transition-shadow focus:outline-none focus:ring-2 focus:ring-primary"
-        aria-label="Предыдущие товары"
-      >
-        <ChevronLeft className="w-6 h-6 text-primary" />
-      </button>
+      {canScrollLeft && (
+        <button
+          onClick={() => scroll('left')}
+          className="absolute left-1 top-1/2 -translate-y-1/2 z-10 hidden lg:flex items-center justify-center w-12 h-12 bg-transparent text-primary focus:outline-none"
+          aria-label="Предыдущие товары"
+        >
+          <ChevronLeft className="w-7 h-7" />
+        </button>
+      )}
 
-      <button
-        onClick={() => scroll('right')}
-        className="absolute right-0 top-1/2 -translate-y-1/2 z-10 hidden lg:flex items-center justify-center w-10 h-10 bg-white rounded-full shadow-default hover:shadow-hover transition-shadow focus:outline-none focus:ring-2 focus:ring-primary"
-        aria-label="Следующие товары"
-      >
-        <ChevronRight className="w-6 h-6 text-primary" />
-      </button>
+      {canScrollRight && (
+        <button
+          onClick={() => scroll('right')}
+          className="absolute right-1 top-1/2 -translate-y-1/2 z-10 hidden lg:flex items-center justify-center w-12 h-12 bg-transparent text-primary focus:outline-none"
+          aria-label="Следующие товары"
+        >
+          <ChevronRight className="w-7 h-7" />
+        </button>
+      )}
 
       {/* Состояние загрузки */}
       {isLoading && (
