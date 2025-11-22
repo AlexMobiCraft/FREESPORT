@@ -10,11 +10,14 @@ const inter = Inter({
   subsets: ['latin', 'cyrillic'],
 });
 
+const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+
 export const metadata: Metadata = {
   title: 'FREESPORT Platform | B2B/B2C спортивные товары',
   description:
     'Ведущая платформа продаж спортивных товаров. B2B/B2C решения для тренеров, федераций и дистрибьюторов.',
   keywords: 'спорт, товары, оптом, B2B, B2C, тренажеры, спортивный инвентарь',
+  metadataBase: new URL(appUrl),
 };
 
 export default function RootLayout({

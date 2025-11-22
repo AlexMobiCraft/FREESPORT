@@ -18,9 +18,10 @@
 
 'use client';
 
-import React, { useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ProductCard } from '@/components/business/ProductCard/ProductCard';
-import { MOCK_HIT_PRODUCTS } from '@/__mocks__/products';
+import productsService from '@/services/productsService';
+import type { Product } from '@/types/api';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 /**
@@ -28,6 +29,27 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
  */
 export const HitsSection: React.FC = () => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchHits = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const data = await productsService.getHits();
+      setProducts(data);
+    } catch (err) {
+      console.error(err);
+      setError('Не удалось загрузить хиты продаж');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void fetchHits();
+  }, []);
 
   const scroll = (direction: 'left' | 'right') => {
     if (!scrollContainerRef.current) return;
@@ -43,7 +65,7 @@ export const HitsSection: React.FC = () => {
     });
   };
 
-  if (!MOCK_HIT_PRODUCTS || MOCK_HIT_PRODUCTS.length === 0) {
+  if (!isLoading && !error && products.length === 0) {
     return null;
   }
 
@@ -74,18 +96,54 @@ export const HitsSection: React.FC = () => {
         <ChevronRight className="w-6 h-6 text-primary" />
       </button>
 
+      {/* Состояние загрузки */}
+      {isLoading && (
+        <div
+          role="status"
+          aria-label="Загрузка хитов продаж"
+          className="flex gap-2 overflow-hidden pb-3"
+        >
+          {Array.from({ length: 4 }).map((_, index) => (
+            <div
+              key={index}
+              className="flex-shrink-0 w-[200px] snap-start rounded-2xl bg-white p-3 shadow-default animate-pulse"
+            >
+              <div className="h-40 rounded-xl bg-neutral-200 mb-4" />
+              <div className="h-4 bg-neutral-200 rounded mb-2" />
+              <div className="h-4 bg-neutral-200 rounded w-2/3" />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Ошибка загрузки */}
+      {error && !isLoading && (
+        <div className="flex flex-col items-center justify-center gap-3 py-8">
+          <p className="text-body-m text-text-secondary text-center">{error}</p>
+          <button
+            type="button"
+            onClick={fetchHits}
+            className="px-6 py-2 rounded-lg bg-[#0b1220] text-white hover:bg-[#070d19] transition"
+          >
+            Повторить попытку
+          </button>
+        </div>
+      )}
+
       {/* Горизонтальная лента товаров */}
-      <div
-        ref={scrollContainerRef}
-        className="flex gap-4 overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-4"
-        role="list"
-      >
-        {MOCK_HIT_PRODUCTS.map(product => (
-          <div key={product.id} className="flex-shrink-0 w-[280px] snap-start" role="listitem">
-            <ProductCard product={product} layout="compact" userRole="retail" />
-          </div>
-        ))}
-      </div>
+      {!isLoading && !error && products.length > 0 && (
+        <div
+          ref={scrollContainerRef}
+          className="flex gap-2 overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-3"
+          role="list"
+        >
+          {products.map(product => (
+            <div key={product.id} className="flex-shrink-0 w-[200px] snap-start" role="listitem">
+              <ProductCard product={product} layout="compact" userRole="retail" />
+            </div>
+          ))}
+        </div>
+      )}
 
       <style jsx>{`
         .scrollbar-hide::-webkit-scrollbar {

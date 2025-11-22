@@ -35,6 +35,10 @@ export interface Product {
   opt3_price?: number;
   is_in_stock: boolean;
   stock_quantity?: number;
+  /** Основное изображение, возвращаемое списочным API */
+  main_image?: string | null;
+  /** Совместимость с ранними моками */
+  image?: string | null;
   category: {
     id: number;
     name: string;
@@ -44,11 +48,13 @@ export interface Product {
     id: number;
     name: string;
   };
-  images: Array<{
+  images?: Array<{
     id: number;
     image: string;
     is_primary: boolean;
   }>;
+  /** Признак доступности к заказу (backend field) */
+  can_be_ordered?: boolean;
 
   // Story 11.0: Маркетинговые флаги для бейджей
   is_hit: boolean;

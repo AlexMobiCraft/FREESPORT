@@ -7,6 +7,7 @@
 
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { useAuthStore } from '@/stores/authStore';
 import { Button } from '@/components/ui/Button/Button';
@@ -67,28 +68,47 @@ const HeroSection = () => {
   const bannerContent = getBannerContent();
 
   return (
-    <section
-      className="relative bg-[#F5F7FB] text-primary"
-      aria-label="Hero section"
-      style={{ paddingTop: '64px', paddingBottom: '64px' }}
-    >
-      <div className="mx-auto px-3 md:px-4 lg:px-6 max-w-[1280px]">
-        <div className="text-center md:text-left">
+    <section className="relative overflow-hidden text-white py-16" aria-label="Hero section">
+      <div
+        className="absolute inset-0 bg-gradient-to-br from-[#111827] to-[#1f2937]"
+        aria-hidden="true"
+      />
+
+      <div className="relative mx-auto px-3 md:px-4 lg:px-6 max-w-[1280px] flex flex-col-reverse gap-10 md:flex-row md:items-center">
+        <div className="text-center md:text-left max-w-2xl">
           {/* Hero заголовок - typography.display-l */}
-          <h1 className="text-5xl font-bold mb-6 text-primary">{bannerContent.title}</h1>
+          <h1 className="text-5xl font-bold mb-6 text-white">{bannerContent.title}</h1>
 
           {/* Подзаголовок - typography.body-l */}
-          <p className="text-lg font-medium mb-8 mx-auto md:mx-0 text-secondary max-w-3xl">
+          <p className="text-lg font-medium mb-8 mx-auto md:mx-0 text-[#E5E7EB] max-w-3xl">
             {bannerContent.subtitle}
           </p>
 
           {/* CTA кнопка - height 56px, radius 16px */}
           <div className="flex justify-center md:justify-start">
             <Link href={bannerContent.cta.link}>
-              <Button variant="primary" size="large" className="h-14 rounded-2xl">
+              <Button
+                variant="primary"
+                size="large"
+                className="h-14 rounded-2xl shadow-[0_0_30px_rgba(8,145,178,0.35)]"
+              >
                 {bannerContent.cta.text}
               </Button>
             </Link>
+          </div>
+        </div>
+
+        <div className="flex w-full items-center justify-center md:justify-end">
+          <div className="relative w-full max-w-[480px]">
+            <Image
+              src="/og-image.jpg"
+              alt="FREESPORT — подборка спортивных товаров"
+              width={960}
+              height={900}
+              className="h-auto w-full rounded-[32px] object-cover shadow-[0_35px_120px_rgba(0,0,0,0.35)]"
+              priority
+            />
+            <div className="pointer-events-none absolute inset-0 rounded-[32px] ring-1 ring-white/10" />
           </div>
         </div>
       </div>

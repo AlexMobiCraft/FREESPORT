@@ -19,12 +19,26 @@ const nextConfig: NextConfig = {
 
   // Настройки изображений
   images: {
-    domains: [
-      'localhost',
-      // TODO: Добавить домены для продакшена
+    remotePatterns: [
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+      },
+      {
+        protocol: 'http',
+        hostname: '127.0.0.1',
+      },
+      {
+        protocol: 'http',
+        hostname: 'backend',
+      },
+      // TODO: Добавить продакшен-домены
     ],
     formats: ['image/webp', 'image/avif'],
   },
+
+  // Разрешённые origin для dev окружения (Next.js 15 warning)
+  allowedDevOrigins: ['localhost', '127.0.0.1'],
 
   // Переписывание URL для API прокси в разработке
   async rewrites() {

@@ -46,16 +46,18 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 
           // Варианты
           variant === 'primary' && [
-            'bg-[var(--color-primary)] text-[var(--color-text-inverse)]',
-            'shadow-[var(--shadow-primary)]',
-            'hover:bg-[var(--color-primary-hover)] hover:-translate-y-0.5',
-            'active:bg-[var(--color-primary-active)] active:translate-y-0',
+            'bg-[#0b1220] text-white border border-transparent',
+            'shadow-[0_14px_32px_rgba(11,18,32,0.45)]',
+            'hover:bg-[#070d19] hover:-translate-y-0.5',
+            'active:bg-[#02060d] active:translate-y-0',
+            'focus:ring-[#0b1220]',
           ],
           variant === 'secondary' && [
-            'bg-[var(--color-neutral-100)] border border-[var(--color-primary)] text-[var(--color-primary)]',
-            'shadow-[var(--shadow-default)]',
-            'hover:bg-[var(--color-neutral-200)] hover:-translate-y-0.5',
-            'active:translate-y-0',
+            'bg-white text-[#1b1d21] border border-[#d8dce7]',
+            'shadow-[0_8px_24px_rgba(5,18,55,0.08)]',
+            'hover:bg-[#f9fafc] hover:-translate-y-0.5',
+            'active:bg-[#f1f3f7] active:translate-y-0',
+            'focus:ring-[#1b1d21]',
           ],
           variant === 'tertiary' && [
             'bg-transparent text-[var(--color-primary)]',
@@ -77,9 +79,9 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
           ],
 
           // Размеры
-          size === 'small' && 'h-10 px-6 text-body-s rounded-sm',
-          size === 'medium' && 'h-10 px-6 text-body-m rounded-sm',
-          size === 'large' && 'h-12 px-8 text-body-l rounded-sm',
+          size === 'small' && 'h-10 px-6 typo-body-s rounded-md',
+          size === 'medium' && 'h-11 px-7 typo-body-m rounded-md',
+          size === 'large' && 'h-12 px-8 typo-body-l rounded-lg',
 
           className
         )}

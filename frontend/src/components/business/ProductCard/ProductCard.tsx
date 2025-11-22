@@ -35,6 +35,35 @@ import { ProductBadge } from '@/components/common/ProductBadge';
 import type { Product } from '@/types/api';
 import { cn } from '@/utils/cn';
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
+const MEDIA_BASE_URL =
+  process.env.NEXT_PUBLIC_MEDIA_URL ||
+  (API_BASE_URL ? API_BASE_URL.replace(/\/api(?:\/v\d+)?\/?$/, '') : '');
+const MEDIA_BASE_URL_INTERNAL = process.env.NEXT_PUBLIC_MEDIA_URL_INTERNAL || MEDIA_BASE_URL;
+
+const resolveImageUrl = (path?: string | null): string | null => {
+  if (!path) return null;
+  if (/^(data|blob):/i.test(path)) {
+    return path;
+  }
+
+  if (/^https?:\/\//i.test(path)) {
+    if (MEDIA_BASE_URL && MEDIA_BASE_URL_INTERNAL && MEDIA_BASE_URL !== MEDIA_BASE_URL_INTERNAL) {
+      return path.replace(MEDIA_BASE_URL, MEDIA_BASE_URL_INTERNAL);
+    }
+    return path;
+  }
+
+  if (MEDIA_BASE_URL_INTERNAL) {
+    if (path.startsWith('/')) {
+      return `${MEDIA_BASE_URL_INTERNAL}${path}`;
+    }
+    return `${MEDIA_BASE_URL_INTERNAL}/${path}`;
+  }
+
+  return path;
+};
+
 /**
  * Роли пользователей для ценообразования
  */
@@ -126,6 +155,10 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
   ) => {
     const currentPrice = getProductPrice(product, userRole);
     const hasDiscount = product.discount_percent && product.discount_percent > 0;
+    const isInStock =
+      typeof product.is_in_stock === 'boolean'
+        ? product.is_in_stock
+        : (product.can_be_ordered ?? (product.stock_quantity ?? 0) > 0);
 
     // Обработчик добавления в корзину
     const handleAddToCart = (e: React.MouseEvent) => {
@@ -142,8 +175,13 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
     };
 
     // Получаем основное изображение
-    const primaryImage =
-      product.images?.find(img => img.is_primary)?.image || product.images?.[0]?.image;
+    const rawImage =
+      product.images?.find(img => img.is_primary)?.image ||
+      product.images?.[0]?.image ||
+      product.main_image ||
+      product.image ||
+      null;
+    const primaryImage = resolveImageUrl(rawImage);
 
     // Базовые стили карточки
     const cardBaseStyles = cn(
@@ -254,7 +292,7 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
               </p>
 
               {/* Статус наличия */}
-              {!product.is_in_stock && (
+              {!isInStock && (
                 <p className="text-caption text-[var(--color-text-secondary)] mt-1">
                   Нет в наличии
                 </p>
@@ -395,7 +433,7 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
             </div>
 
             {/* Кнопка "В корзину" */}
-            {product.is_in_stock && onAddToCart && (
+            {isInStock && onAddToCart && (
               <Button variant="primary" size="medium" onClick={handleAddToCart}>
                 В корзину
               </Button>

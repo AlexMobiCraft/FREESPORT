@@ -7,6 +7,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { Search, Heart, ShoppingCart, Menu, X } from 'lucide-react';
 import { authSelectors } from '@/stores/authStore';
@@ -50,7 +51,14 @@ const Header: React.FC = () => {
           {/* Логотип */}
           <div className="flex-shrink-0">
             <Link href="/" className="flex items-center gap-2">
-              <span className="text-title-m font-bold text-text-primary">FREESPORT</span>
+              <Image
+                src="/Freesport_logo.svg"
+                alt="FREESPORT"
+                width={120}
+                height={32}
+                className="h-8 w-auto"
+                priority
+              />
               {isB2BUser && (
                 <span className="px-2 py-1 text-[10px] bg-[#F9E1E1] text-[#A63232] rounded-full font-bold">
                   B2B
@@ -143,14 +151,14 @@ const Header: React.FC = () => {
                 </>
               ) : (
                 <>
-                  <Link href="/auth/login">
+                  <Link href="/auth/register">
                     <Button variant="secondary" size="small">
-                      Войти
+                      Регистрация
                     </Button>
                   </Link>
-                  <Link href="/auth/register">
+                  <Link href="/auth/login">
                     <Button variant="primary" size="small">
-                      Регистрация
+                      Войти
                     </Button>
                   </Link>
                 </>
@@ -233,14 +241,14 @@ const Header: React.FC = () => {
                   </>
                 ) : (
                   <>
-                    <Link href="/auth/login" onClick={() => setIsMobileMenuOpen(false)}>
+                    <Link href="/auth/register" onClick={() => setIsMobileMenuOpen(false)}>
                       <Button variant="secondary" size="small" className="w-full">
-                        Войти
+                        Регистрация
                       </Button>
                     </Link>
-                    <Link href="/auth/register" onClick={() => setIsMobileMenuOpen(false)}>
+                    <Link href="/auth/login" onClick={() => setIsMobileMenuOpen(false)}>
                       <Button variant="primary" size="small" className="w-full">
-                        Регистрация
+                        Войти
                       </Button>
                     </Link>
                   </>
