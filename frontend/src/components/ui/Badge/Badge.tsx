@@ -31,17 +31,17 @@ const variantConfig: Record<BadgeVariant, { bg: string; text: string; icon?: Rea
   delivered: {
     bg: 'bg-[#E0F5E0]',
     text: 'text-[#1F7A1F]',
-    icon: <CheckCircle2 className="w-4 h-4" aria-hidden="true" />,
+    icon: <CheckCircle2 className="w-3 h-3" aria-hidden="true" />,
   },
   transit: {
     bg: 'bg-[#FFF1CC]',
     text: 'text-[#B07600]',
-    icon: <Truck className="w-4 h-4" aria-hidden="true" />,
+    icon: <Truck className="w-3 h-3" aria-hidden="true" />,
   },
   cancelled: {
     bg: 'bg-[#FFE1E1]',
     text: 'text-[#C23B3B]',
-    icon: <X className="w-4 h-4" aria-hidden="true" />,
+    icon: <X className="w-3 h-3" aria-hidden="true" />,
   },
   promo: { bg: 'bg-[#F4EBDC]', text: 'text-[#8C4C00]' },
   sale: { bg: 'bg-[#F9E1E1]', text: 'text-[#A63232]' },
@@ -49,7 +49,7 @@ const variantConfig: Record<BadgeVariant, { bg: string; text: string; icon?: Rea
   premium: {
     bg: 'bg-[#F6F0E4]',
     text: 'text-[#6D4C1F]',
-    icon: <Sparkles className="w-4 h-4" aria-hidden="true" />,
+    icon: <Sparkles className="w-3 h-3" aria-hidden="true" />,
   },
   new: { bg: 'bg-[#E1F0FF]', text: 'text-[#0F5DA3]' },
   hit: { bg: 'bg-[#E3F6EC]', text: 'text-[#1F7A4A]' },
@@ -65,8 +65,8 @@ export const Badge = React.forwardRef<HTMLSpanElement, BadgeProps>(
         className={cn(
           // Базовые стили
           'inline-flex items-center gap-1',
-          'px-3 py-1 rounded-full',
-          'text-caption font-medium',
+          'px-2 py-0.5 rounded-full',
+          'text-[11px] leading-[14px] font-medium',
           // Edge Case: Переполнение текста - max 200px
           'max-w-[200px] truncate',
 
