@@ -68,7 +68,7 @@ export default function HomePage() {
         <NewArrivalsSection />
       </section>
 
-      <section className="py-12" aria-label="Наш блог">
+      <section className="py-12" aria-label="Новости">
         <NewsSection />
       </section>
 
