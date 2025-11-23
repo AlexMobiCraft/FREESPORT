@@ -437,8 +437,13 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
             </div>
 
             {/* Кнопка "В корзину" */}
-            {isInStock && onAddToCart && (
-              <Button variant="primary" size="medium" onClick={handleAddToCart}>
+            {isInStock && (
+              <Button
+                variant="primary"
+                size="medium"
+                onClick={onAddToCart ? handleAddToCart : undefined}
+                disabled={!onAddToCart}
+              >
                 В корзину
               </Button>
             )}
@@ -570,8 +575,14 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
           </div>
 
           {/* Кнопка "В корзину" */}
-          {isInStock && onAddToCart && (
-            <Button variant="primary" size="medium" onClick={handleAddToCart} className="w-full">
+          {isInStock && (
+            <Button
+              variant="primary"
+              size="medium"
+              onClick={onAddToCart ? handleAddToCart : undefined}
+              className="w-full"
+              disabled={!onAddToCart}
+            >
               В корзину
             </Button>
           )}
