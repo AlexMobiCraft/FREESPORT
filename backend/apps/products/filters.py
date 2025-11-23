@@ -16,9 +16,10 @@ class ProductFilter(django_filters.FilterSet):
     Фильтр для товаров согласно Story 2.4 и 2.9 требованиям
     """
 
-    # Фильтр по категории
+    # Фильтр по категории (с учетом дочерних)
     category_id = django_filters.NumberFilter(
-        field_name="category__id", help_text="ID категории для фильтрации"
+        method="filter_category_id",
+        help_text="ID категории для фильтрации (включая дочерние категории)",
     )
 
     # Фильтр по бренду (поддерживает как ID, так и slug)
@@ -125,6 +126,38 @@ class ProductFilter(django_filters.FilterSet):
                 brand_queries |= Q(brand__slug__iexact=brand_value)
 
         return queryset.filter(brand_queries)
+
+    def filter_category_id(self, queryset, name, value):
+        """Фильтрует товары по категории и всем её дочерним категориям"""
+        if not value:
+            return queryset
+
+        try:
+            category_id = int(value)
+        except (TypeError, ValueError):
+            return queryset
+
+        if not Category.objects.filter(id=category_id, is_active=True).exists():
+            return queryset.none()
+
+        category_ids = {category_id}
+        to_process = [category_id]
+
+        while to_process:
+            children = list(
+                Category.objects.filter(parent_id__in=to_process, is_active=True).values_list(
+                    "id", flat=True
+                )
+            )
+
+            new_children = [child_id for child_id in children if child_id not in category_ids]
+            if not new_children:
+                break
+
+            category_ids.update(new_children)
+            to_process = new_children
+
+        return queryset.filter(category__id__in=category_ids)
 
     def filter_min_price(self, queryset, name, value):
         """Фильтр по минимальной цене с учетом роли пользователя"""

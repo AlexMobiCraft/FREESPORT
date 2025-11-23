@@ -32,8 +32,15 @@ class CategoriesService {
    * Получить иерархию категорий (дерево)
    */
   async getTree(): Promise<CategoryTree[]> {
-    const response = await apiClient.get<CategoryTree[]>('/categories-tree/');
-    return response.data;
+    const response = await apiClient.get<CategoryTree[] | PaginatedResponse<CategoryTree>>(
+      '/categories-tree/'
+    );
+
+    if (Array.isArray(response.data)) {
+      return response.data;
+    }
+
+    return response.data?.results ?? [];
   }
 
   /**
