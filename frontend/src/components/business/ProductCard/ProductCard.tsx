@@ -155,10 +155,10 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
   ) => {
     const currentPrice = getProductPrice(product, userRole);
     const hasDiscount = product.discount_percent && product.discount_percent > 0;
-    const isInStock =
-      typeof product.is_in_stock === 'boolean'
-        ? product.is_in_stock
-        : (product.can_be_ordered ?? (product.stock_quantity ?? 0) > 0);
+    const stockQuantity = product.stock_quantity ?? 0;
+    const canBeOrdered = product.can_be_ordered ?? false;
+    const explicitStockFlag = typeof product.is_in_stock === 'boolean' ? product.is_in_stock : null;
+    const isInStock = explicitStockFlag === true || canBeOrdered || stockQuantity > 0;
 
     // Обработчик добавления в корзину
     const handleAddToCart = (e: React.MouseEvent) => {
