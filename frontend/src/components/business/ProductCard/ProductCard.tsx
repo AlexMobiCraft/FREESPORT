@@ -570,13 +570,13 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
           </div>
 
           {/* Кнопка "В корзину" */}
-          {product.is_in_stock && onAddToCart && (
+          {isInStock && onAddToCart && (
             <Button variant="primary" size="medium" onClick={handleAddToCart} className="w-full">
               В корзину
             </Button>
           )}
 
-          {!product.is_in_stock && (
+          {!isInStock && (
             <p className="text-body-s text-[var(--color-text-secondary)] text-center">
               Нет в наличии
             </p>
