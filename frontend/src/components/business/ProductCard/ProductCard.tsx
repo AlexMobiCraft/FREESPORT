@@ -185,7 +185,8 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
       product.main_image ||
       product.image ||
       null;
-    const primaryImage = resolveImageUrl(rawImage);
+    const resolvedProductImage = resolveImageUrl(rawImage);
+    const primaryImage = resolvedProductImage ?? '/images/No_image.svg';
 
     // Базовые стили карточки
     const cardBaseStyles = cn(
