@@ -27,7 +27,7 @@
 
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { Heart } from 'lucide-react';
 import { Button } from '@/components/ui';
@@ -40,6 +40,8 @@ const MEDIA_BASE_URL =
   process.env.NEXT_PUBLIC_MEDIA_URL ||
   (API_BASE_URL ? API_BASE_URL.replace(/\/api(?:\/v\d+)?\/?$/, '') : '');
 const MEDIA_BASE_URL_INTERNAL = process.env.NEXT_PUBLIC_MEDIA_URL_INTERNAL || MEDIA_BASE_URL;
+
+const IMAGE_FALLBACK_PATH = '/images/No_image.svg';
 
 const resolveImageUrl = (path?: string | null): string | null => {
   if (!path) return null;
@@ -186,7 +188,12 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
       product.image ||
       null;
     const resolvedProductImage = resolveImageUrl(rawImage);
-    const primaryImage = resolvedProductImage ?? '/images/No_image.svg';
+    const primaryImage = resolvedProductImage ?? IMAGE_FALLBACK_PATH;
+    const [imageSrc, setImageSrc] = useState(primaryImage);
+
+    useEffect(() => {
+      setImageSrc(primaryImage);
+    }, [primaryImage]);
 
     // Базовые стили карточки
     const cardBaseStyles = cn(
@@ -245,13 +252,14 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
             </button>
 
             {/* Изображение товара */}
-            {primaryImage ? (
+            {imageSrc ? (
               <Image
-                src={primaryImage}
+                src={imageSrc}
                 alt={product.name}
                 fill
                 sizes="180px"
                 className="object-cover"
+                onError={() => setImageSrc(IMAGE_FALLBACK_PATH)}
                 loading="lazy"
               />
             ) : (
@@ -324,13 +332,14 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
         >
           {/* Изображение */}
           <div className="relative w-[120px] h-[120px] flex-shrink-0 rounded-[8px] overflow-hidden bg-neutral-100">
-            {primaryImage ? (
+            {imageSrc ? (
               <Image
-                src={primaryImage}
+                src={imageSrc}
                 alt={product.name}
                 fill
                 sizes="120px"
                 className="object-cover"
+                onError={() => setImageSrc('/images/No_image.svg')}
                 loading="lazy"
               />
             ) : (
@@ -490,13 +499,14 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
           </button>
 
           {/* Изображение товара */}
-          {primaryImage ? (
+          {imageSrc ? (
             <Image
-              src={primaryImage}
+              src={imageSrc}
               alt={product.name}
               fill
               sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
               className="object-cover"
+              onError={() => setImageSrc('/images/No_image.svg')}
               loading="lazy"
             />
           ) : (

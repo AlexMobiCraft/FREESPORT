@@ -1,92 +1,16 @@
-<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!-- Created with Inkscape (http://www.inkscape.org/) -->
-<svg
-   xmlns:dc="http://purl.org/dc/elements/1.1/"
-   xmlns:cc="http://web.resource.org/cc/"
-   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
-   xmlns:svg="http://www.w3.org/2000/svg"
-   xmlns="http://www.w3.org/2000/svg"
-   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
-   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-   width="600"
-   height="600"
-   id="svg2"
-   sodipodi:version="0.32"
-   inkscape:version="0.46dev+devel"
-   version="1.0"
-   sodipodi:docbase="/home/cburnett/wikipedia/images"
-   sodipodi:docname="No_image_available.svg"
-   inkscape:output_extension="org.inkscape.output.svg.inkscape">
-  <defs
-     id="defs4" />
-  <sodipodi:namedview
-     id="base"
-     pagecolor="#ffffff"
-     bordercolor="#666666"
-     borderopacity="1.0"
-     gridtolerance="10000"
-     guidetolerance="10"
-     objecttolerance="10"
-     inkscape:pageopacity="0.0"
-     inkscape:pageshadow="2"
-     inkscape:zoom="1.1"
-     inkscape:cx="300"
-     inkscape:cy="339.7597"
-     inkscape:document-units="px"
-     inkscape:current-layer="layer1"
-     width="600px"
-     height="600px"
-     showgrid="true"
-     inkscape:grid-points="true"
-     inkscape:window-width="977"
-     inkscape:window-height="965"
-     inkscape:window-x="22"
-     inkscape:window-y="25" />
-  <metadata
-     id="metadata7">
-    <rdf:RDF>
-      <cc:Work
-         rdf:about="">
-        <dc:format>image/svg+xml</dc:format>
-        <dc:type
-           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-      </cc:Work>
-    </rdf:RDF>
-  </metadata>
-  <g
-     inkscape:label="Layer 1"
-     inkscape:groupmode="layer"
-     id="layer1">
-    <path
-       sodipodi:type="arc"
-       style="opacity:1;fill:#ffffff;fill-opacity:1;fill-rule:nonzero;stroke:#aaaaaa;stroke-width:10;stroke-linecap:square;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
-       id="path2162"
-       sodipodi:cx="300"
-       sodipodi:cy="300"
-       sodipodi:rx="280"
-       sodipodi:ry="280"
-       d="M 580 300 A 280 280 0 1 1  20,300 A 280 280 0 1 1  580 300 z" />
-    <text
-       xml:space="preserve"
-       style="font-size:12px;font-style:normal;font-weight:normal;text-align:center;line-height:125%;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:'Bitstream Vera Sans'"
-       x="300.03125"
-       y="230.54688"
-       id="text3134"
-       sodipodi:linespacing="125%"><tspan
-         sodipodi:role="line"
-         x="300.03125"
-         y="230.54688"
-         id="tspan3138"
-         style="font-size:64px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;fill:#464646;fill-opacity:1;font-family:'Lucida Sans Unicode'">НЕТ</tspan><tspan
-         sodipodi:role="line"
-         x="300.03125"
-         y="310.54688"
-         style="font-size:64px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;fill:#464646;fill-opacity:1;font-family:'Lucida Sans Unicode'"
-         id="tspan2245">ДОСТУПНОГО</tspan><tspan
-         sodipodi:role="line"
-         x="300.03125"
-         y="390.54688"
-         id="tspan3142"
-         style="font-size:64px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;fill:#464646;fill-opacity:1;font-family:'Lucida Sans Unicode'">ИЗОБРАЖЕНИЯ</tspan></text>
+<?xml version="1.0"?>
+<svg width="600" height="600" xmlns="http://www.w3.org/2000/svg" xmlns:svg="http://www.w3.org/2000/svg" version="1.0">
+
+ <metadata id="metadata7">image/svg+xml</metadata>
+ <g class="layer">
+  <title>Layer 1</title>
+  <g id="layer1">
+   <path d="m580,300a280,280 0 1 1 -560,0a280,280 0 1 1 560,0z" fill="#ffffff" fill-rule="nonzero" id="path2162" stroke="#e2e2e2" stroke-dashoffset="0" stroke-linecap="square" stroke-miterlimit="4" stroke-width="10"/>
+   <text fill="#ffffff" font-family="&#x27;Bitstream Vera Sans&#x27;" font-size="12px" font-style="normal" font-weight="normal" id="text3134" stroke="#e2e2e2" stroke-width="1px" text-anchor="middle" x="300.03" xml:space="preserve" y="230.55">
+    <tspan fill="#ffffff" font-family="&#x27;Lucida Sans Unicode&#x27;" font-size="64px" font-style="normal" font-weight="normal" id="tspan3138" stroke="#e2e2e2" text-anchor="middle" x="300.03" y="230.55">НЕТ</tspan>
+    <tspan fill="#ffffff" font-family="&#x27;Lucida Sans Unicode&#x27;" font-size="64px" font-style="normal" font-weight="normal" id="tspan2245" stroke="#e2e2e2" text-anchor="middle" x="300.03" y="310.55">ДОСТУПНОГО</tspan>
+    <tspan fill="#ffffff" font-family="&#x27;Lucida Sans Unicode&#x27;" font-size="64px" font-style="normal" font-weight="normal" id="tspan3142" stroke="#e2e2e2" text-anchor="middle" x="300.03" y="390.55">ИЗОБРАЖЕНИЯ</tspan>
+   </text>
   </g>
+ </g>
 </svg>
