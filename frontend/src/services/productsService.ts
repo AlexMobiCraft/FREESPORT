@@ -5,11 +5,12 @@
 import apiClient from './api-client';
 import type { Product, PaginatedResponse } from '@/types/api';
 
-interface ProductFilters {
+export interface ProductFilters {
   page?: number;
   page_size?: number;
   limit?: number;
   category?: string;
+  category_id?: number;
   brand?: string;
   min_price?: number;
   max_price?: number;

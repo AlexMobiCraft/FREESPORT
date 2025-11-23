@@ -24,11 +24,20 @@ export interface User {
   is_verified?: boolean;
 }
 
+export interface Brand {
+  id: number;
+  name: string;
+  slug: string;
+  logo?: string | null;
+  description?: string | null;
+  website?: string | null;
+}
+
 export interface Product {
   id: number;
   name: string;
   slug: string;
-  description: string;
+  description?: string;
   retail_price: number;
   opt1_price?: number;
   opt2_price?: number;
@@ -44,10 +53,7 @@ export interface Product {
     name: string;
     slug: string;
   };
-  brand?: {
-    id: number;
-    name: string;
-  };
+  brand?: Brand | null;
   images?: Array<{
     id: number;
     image: string;
