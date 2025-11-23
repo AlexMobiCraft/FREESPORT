@@ -8,5 +8,6 @@ export { NewArrivalsSection } from './NewArrivalsSection';
 export { CategoriesSection } from './CategoriesSection';
 export { CategoryCard } from './CategoryCard';
 export { NewsSection } from './NewsSection';
+export { BlogSection } from './BlogSection';
 export { BlogPostCard } from './BlogPostCard';
 export { SubscribeNewsSection } from './SubscribeNewsSection';

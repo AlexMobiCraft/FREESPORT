@@ -1,6 +1,6 @@
 /**
  * SubscribeNewsSection Component
- * Адаптивный layout для формы подписки и блока новостей
+ * Адаптивный layout для формы подписки и блока «Наш блог»
  *
  * Desktop (lg: ≥1024px): grid 2 колонки (форма 1/3, новости 2/3)
  * Tablet/Mobile (<1024px): вертикальный stack
@@ -10,7 +10,7 @@
 
 import React from 'react';
 import { SubscribeForm } from './SubscribeForm';
-import { NewsSection } from './NewsSection';
+import { BlogSection } from './BlogSection';
 
 export const SubscribeNewsSection: React.FC = () => {
   return (
@@ -24,7 +24,7 @@ export const SubscribeNewsSection: React.FC = () => {
 
           {/* Desktop: 2/3 ширины, Tablet/Mobile: full width */}
           <div className="lg:col-span-2">
-            <NewsSection />
+            <BlogSection />
           </div>
         </div>
       </div>

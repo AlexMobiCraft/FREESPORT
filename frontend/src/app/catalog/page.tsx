@@ -122,7 +122,7 @@ const CatalogPage: React.FC = () => {
               </div>
 
               {/* Кнопка в корзину */}
-              <Button variant="primary" size="sm" className="w-full">
+              <Button variant="primary" size="small" className="w-full">
                 В корзину
               </Button>
             </div>
@@ -133,22 +133,22 @@ const CatalogPage: React.FC = () => {
       {/* Пагинация */}
       <div className="flex justify-center">
         <nav className="flex items-center space-x-2">
-          <Button variant="outline" size="sm" disabled>
+          <Button variant="secondary" size="small" disabled>
             Предыдущая
           </Button>
 
           {[1, 2, 3, 4, 5].map(page => (
             <Button
               key={page}
-              variant={page === 1 ? 'primary' : 'outline'}
-              size="sm"
+              variant={page === 1 ? 'primary' : 'secondary'}
+              size="small"
               className="min-w-[40px]"
             >
               {page}
             </Button>
           ))}
 
-          <Button variant="outline" size="sm">
+          <Button variant="secondary" size="small">
             Следующая
           </Button>
         </nav>
