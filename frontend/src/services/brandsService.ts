@@ -7,7 +7,11 @@ import type { Brand, PaginatedResponse } from '@/types/api';
 
 class BrandsService {
   async getAll(): Promise<Brand[]> {
-    const response = await apiClient.get<PaginatedResponse<Brand>>('/brands/');
+    const response = await apiClient.get<PaginatedResponse<Brand>>('/brands/', {
+      params: {
+        page_size: 100,
+      },
+    });
     return response.data.results;
   }
 }
