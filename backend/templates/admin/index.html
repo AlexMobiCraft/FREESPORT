@@ -4,50 +4,54 @@
 {% block content %}
 <div id="content-main">
 {% for app in app_list %}
-    <div class="module">
-    <table>
-    <caption>
-        <a href="{{ app.app_url }}" class="section" title="{% blocktranslate with name=app.name %}Models in the {{ name }} application{% endblocktranslate %}">{{ app.name }}</a>
-    </caption>
-
-    {# Специальная обработка для приложения ИНТЕГРАЦИИ #}
-    {% if app.app_label == "integrations" %}
-        {# Добавляем кастомную ссылку на импорт ПЕРВОЙ в списке #}
-        <tr class="model-integrations-import">
-            <th scope="row"><a href="{% url 'admin:integrations_import_from_1c' %}">{% trans "Запустить новый импорт" %}</a></th>
-            <td></td>
-        </tr>
+    {% if app.app_label == "products" %}
+        {% include "admin/_app_block.html" with app=app %}
     {% endif %}
-
-    {# Стандартные модели #}
-    {% for model in app.models %}
-        <tr class="model-{{ model.object_name|lower }}">
-        {% if model.admin_url %}
-            <th scope="row"><a href="{{ model.admin_url }}">{{ model.name }}</a></th>
-        {% else %}
-            <th scope="row">{{ model.name }}</th>
-        {% endif %}
-
-        {% if model.add_url %}
-            <td><a href="{{ model.add_url }}" class="addlink">{% translate 'Add' %}</a></td>
-        {% else %}
-            <td></td>
-        {% endif %}
-
-        {% if model.admin_url %}
-            {% if model.view_only %}
-            <td><a href="{{ model.admin_url }}" class="viewlink">{% translate 'View' %}</a></td>
-            {% else %}
-            <td><a href="{{ model.admin_url }}" class="changelink">{% translate 'Change' %}</a></td>
-            {% endif %}
-        {% else %}
-            <td></td>
-        {% endif %}
-        </tr>
-    {% endfor %}
-    </table>
-    </div>
 {% endfor %}
+
+{% for app in app_list %}
+    {% if app.app_label == "integrations" %}
+        {% include "admin/_app_block.html" with app=app %}
+    {% endif %}
+{% endfor %}
+
+{% for app in app_list %}
+    {% if app.app_label == "common" %}
+        {% include "admin/_app_block.html" with app=app %}
+    {% endif %}
+{% endfor %}
+
+{% for app in app_list %}
+    {% if app.app_label == "orders" %}
+        {% include "admin/_app_block.html" with app=app %}
+    {% endif %}
+{% endfor %}
+
+{% for app in app_list %}
+    {% if app.app_label == "flatpages" %}
+        {% include "admin/_app_block.html" with app=app %}
+    {% endif %}
+{% endfor %}
+
+{% for app in app_list %}
+    {% if app.app_label == "users" %}
+        {% include "admin/_app_block.html" with app=app %}
+    {% endif %}
+{% endfor %}
+
+{% for app in app_list %}
+    {% if app.app_label == "auth" %}
+        {% include "admin/_app_block.html" with app=app %}
+    {% endif %}
+{% endfor %}
+
+{% with ordered_labels="products integrations common orders flatpages users auth" %}
+    {% for app in app_list %}
+        {% if app.app_label not in ordered_labels %}
+            {% include "admin/_app_block.html" with app=app %}
+        {% endif %}
+    {% endfor %}
+{% endwith %}
 </div>
 
 {% if not app_list %}

@@ -1,7 +1,7 @@
 import factory
 from factory.django import DjangoModelFactory
 
-from apps.products.models import Brand, Category, Product
+from apps.products.models import Brand, Brand1CMapping, Category, Product
 from apps.users.models import User
 
 
@@ -11,6 +11,15 @@ class BrandFactory(DjangoModelFactory):
 
     name = factory.Faker("company")
     slug = factory.LazyAttribute(lambda obj: obj.name.lower().replace(" ", "-"))
+
+
+class Brand1CMappingFactory(DjangoModelFactory):
+    class Meta:
+        model = Brand1CMapping
+
+    brand = factory.SubFactory(BrandFactory)
+    onec_id = factory.Faker("uuid4")
+    onec_name = factory.Faker("company")
 
 
 class CategoryFactory(DjangoModelFactory):
@@ -32,6 +41,7 @@ class ProductFactory(DjangoModelFactory):
         "pydecimal", left_digits=4, right_digits=2, positive=True
     )
     stock_quantity = factory.Faker("random_int", min=0, max=100)
+    onec_brand_id = factory.Faker("uuid4")
 
 
 class UserFactory(DjangoModelFactory):

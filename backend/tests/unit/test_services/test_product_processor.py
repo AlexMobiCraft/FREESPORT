@@ -3,11 +3,19 @@ Unit-тесты для ProductDataProcessor
 """
 
 from decimal import Decimal
+from unittest.mock import patch
 
 import pytest
 from django.utils import timezone
 
-from apps.products.models import Brand, Category, ImportSession, PriceType, Product
+from apps.products.models import (
+    Brand,
+    Brand1CMapping,
+    Category,
+    ImportSession,
+    PriceType,
+    Product,
+)
 from apps.products.services.processor import ProductDataProcessor
 
 
@@ -187,3 +195,85 @@ class TestProductDataProcessor:
         assert count == 2
         assert PriceType.objects.filter(onec_id="opt1-uuid").exists()
         assert PriceType.objects.filter(onec_id="trainer-uuid").exists()
+
+    def test_determine_brand_with_mapping(self, processor):
+        """Проверка _determine_brand() с существующим маппингом"""
+        # Создаём master-бренд и маппинг
+        master_brand = Brand.objects.create(
+            name="Nike", slug="nike", normalized_name="nike"
+        )
+        Brand1CMapping.objects.create(
+            onec_id="1c-nike-001", onec_name="Nike Inc", brand=master_brand
+        )
+
+        result_brand = processor._determine_brand(
+            brand_id="1c-nike-001", parent_id="product-123"
+        )
+
+        assert result_brand == master_brand
+        assert processor.stats["brand_fallbacks"] == 0
+
+    def test_determine_brand_without_mapping(self, processor):
+        """Проверка _determine_brand() без маппинга (fallback на No Brand)"""
+        result_brand = processor._determine_brand(
+            brand_id="1c-unknown-999", parent_id="product-456"
+        )
+
+        assert result_brand.name == "No Brand"
+        assert processor.stats["brand_fallbacks"] == 1
+
+    def test_determine_brand_with_none_brand_id(self, processor):
+        """Проверка _determine_brand() с brand_id=None"""
+        result_brand = processor._determine_brand(brand_id=None, parent_id="product-789")
+
+        assert result_brand.name == "No Brand"
+        assert processor.stats["brand_fallbacks"] == 1
+
+    def test_log_brand_mapping_missing(self, processor, caplog):
+        """Проверка _log_brand_mapping_missing() логирует WARNING с точным форматом"""
+        import logging
+
+        caplog.set_level(logging.WARNING)
+
+        processor._log_brand_mapping_missing(
+            brand_id="1c-missing-brand", parent_id="product-999"
+        )
+
+        assert processor.stats["brand_fallbacks"] == 1
+        assert len(caplog.records) == 1
+        record = caplog.records[0]
+        assert record.levelname == "WARNING"
+        assert "Brand1CMapping not found for onec_id=1c-missing-brand" in record.message
+        assert "product=product-999" in record.message
+        assert f"session={processor.session_id}" in record.message
+        assert "using 'No Brand' fallback" in record.message
+
+    def test_increment_brand_fallbacks(self, processor):
+        """Проверка _increment_brand_fallbacks() инкрементирует счётчик"""
+        assert processor.stats["brand_fallbacks"] == 0
+
+        processor._increment_brand_fallbacks()
+        assert processor.stats["brand_fallbacks"] == 1
+
+        processor._increment_brand_fallbacks()
+        assert processor.stats["brand_fallbacks"] == 2
+
+    def test_get_no_brand(self, processor):
+        """Проверка _get_no_brand() возвращает или создаёт fallback бренд"""
+        # Первый вызов создаёт бренд
+        brand1 = processor._get_no_brand()
+        assert brand1.name == "No Brand"
+        assert brand1.slug == "no-brand"
+        assert brand1.is_active is True
+
+        # Второй вызов возвращает существующий
+        brand2 = processor._get_no_brand()
+        assert brand1.pk == brand2.pk
+
+    def test_get_no_brand_idempotent(self, processor):
+        """Проверка идемпотентности _get_no_brand()"""
+        Brand.objects.create(name="No Brand", slug="no-brand", is_active=True)
+
+        brand = processor._get_no_brand()
+        assert brand.name == "No Brand"
+        assert Brand.objects.filter(name="No Brand").count() == 1

@@ -16,6 +16,8 @@ from django.db import models
 from django.utils.text import slugify
 from transliterate import translit
 
+from apps.products.utils.brands import normalize_brand_name
+
 if TYPE_CHECKING:
     from apps.users.models import User
 
@@ -27,26 +29,24 @@ class Brand(models.Model):
 
     name = cast(str, models.CharField("Название бренда", max_length=100, unique=False))
     slug = cast(str, models.SlugField("Slug", max_length=255, unique=False))
+    normalized_name = cast(
+        str,
+        models.CharField(
+            "Нормализованное название",
+            max_length=100,
+            unique=True,
+            blank=False,
+            null=False,
+            db_index=True,
+            help_text="Нормализованное название для дедупликации брендов",
+        ),
+    )
     logo = cast(
         models.ImageField, models.ImageField("Логотип", upload_to="brands/", blank=True)
     )
     description = cast(str, models.TextField("Описание", blank=True))
     website = cast(str, models.URLField("Веб-сайт", blank=True))
     is_active = cast(bool, models.BooleanField("Активный", default=True))
-
-    # Интеграция с 1С
-    onec_id = cast(
-        str,
-        models.CharField(
-            "ID в 1С",
-            max_length=100,
-            unique=True,
-            null=True,
-            blank=True,
-            db_index=True,
-            help_text="Уникальный идентификатор бренда из 1С",
-        ),
-    )
 
     created_at = cast(
         datetime, models.DateTimeField("Дата создания", auto_now_add=True)
@@ -59,6 +59,10 @@ class Brand(models.Model):
         db_table = "brands"
 
     def save(self, *args: Any, **kwargs: Any) -> None:
+        # Вычисляем normalized_name при сохранении
+        # Если name пустой, используем пустую строку вместо None
+        self.normalized_name = normalize_brand_name(self.name) if self.name else ""
+
         if not self.slug:
             try:
                 # Транслитерация кириллицы в латиницу, затем slugify
@@ -75,6 +79,53 @@ class Brand(models.Model):
 
     def __str__(self) -> str:
         return str(self.name)
+
+
+class Brand1CMapping(models.Model):
+    """
+    Маппинг брендов из 1С на master-бренды в системе.
+    Позволяет связывать несколько ID из 1С с одним брендом.
+    """
+
+    brand = cast(
+        Brand,
+        models.ForeignKey(
+            Brand,
+            on_delete=models.CASCADE,
+            related_name="onec_mappings",
+            verbose_name="Бренд",
+            help_text="Master-бренд в системе",
+        ),
+    )
+    onec_id = cast(
+        str,
+        models.CharField(
+            "ID в 1С",
+            max_length=100,
+            unique=True,
+            db_index=True,
+            help_text="Уникальный идентификатор бренда из 1С",
+        ),
+    )
+    onec_name = cast(
+        str,
+        models.CharField(
+            "Название в 1С",
+            max_length=100,
+            help_text="Оригинальное название бренда из 1С",
+        ),
+    )
+    created_at = cast(
+        datetime, models.DateTimeField("Дата создания", auto_now_add=True)
+    )
+
+    class Meta:
+        verbose_name = "Маппинг бренда 1С"
+        verbose_name_plural = "Маппинги брендов 1С"
+        db_table = "products_brand_1c_mapping"
+
+    def __str__(self) -> str:
+        return f"{self.onec_name} ({self.onec_id}) -> {self.brand}"
 
 
 class Category(models.Model):
@@ -414,6 +465,17 @@ class Product(models.Model):
             null=True,
             db_index=True,
             help_text="ID базового товара из goods.xml",
+        ),
+    )
+    onec_brand_id = cast(
+        str | None,
+        models.CharField(
+            "ID бренда в 1С",
+            max_length=100,
+            null=True,
+            blank=True,
+            db_index=True,
+            help_text="Исходный идентификатор бренда из CommerceML для обратной синхронизации",
         ),
     )
     sync_status = cast(

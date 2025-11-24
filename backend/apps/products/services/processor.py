@@ -2,16 +2,28 @@
 ProductDataProcessor - процессор для обработки данных товаров из 1С
 """
 
+from __future__ import annotations
+
 import logging
 import uuid
 from decimal import Decimal
 from typing import Any, Sequence
 
+from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
+
 from django.db import models
 from django.utils import timezone
 from django.utils.text import slugify
 
-from apps.products.models import Brand, Category, ImportSession, PriceType, Product
+from apps.products.models import (
+    Brand,
+    Brand1CMapping,
+    Category,
+    ImportSession,
+    PriceType,
+    Product,
+)
 from apps.products.services.parser import (
     BrandData,
     CategoryData,
@@ -40,7 +52,7 @@ class ProductDataProcessor:
     DEFAULT_PLACEHOLDER_IMAGE = "products/placeholder.png"
 
     def __init__(
-        self, session_id: int, skip_validation: bool = False, chunk_size: int = 1000
+        self, session_id: int, skip_validation: bool = True, chunk_size: int = 1000
     ):
         self.session_id = session_id
         self.skip_validation = skip_validation
@@ -50,6 +62,10 @@ class ProductDataProcessor:
             "updated": 0,
             "skipped": 0,
             "errors": 0,
+            "brand_fallbacks": 0,
+            "images_copied": 0,
+            "images_skipped": 0,
+            "images_errors": 0,
         }
         self._stock_buffer: dict[str, int] = {}
         self._missing_products_logged: set[str] = set()
@@ -103,6 +119,8 @@ class ProductDataProcessor:
 
             logger.info(f"Creating product placeholder for parent_id: {parent_id}")
 
+            brand_id = goods_data.get("brand_id")
+
             # Проверка существующего товара (по onec_id или parent_onec_id)
             existing = Product.objects.filter(
                 models.Q(onec_id=parent_id) | models.Q(parent_onec_id=parent_id)
@@ -112,6 +130,18 @@ class ProductDataProcessor:
                 if not existing.onec_id:
                     existing.onec_id = parent_id
                     existing.save(update_fields=["onec_id"])
+
+                brand = self._determine_brand(brand_id=brand_id, parent_id=parent_id)
+                fields_to_update: list[str] = []
+                if existing.brand_id != brand.pk:
+                    existing.brand = brand
+                    fields_to_update.append("brand")
+                if brand_id and existing.onec_brand_id != brand_id:
+                    existing.onec_brand_id = brand_id
+                    fields_to_update.append("onec_brand_id")
+
+                if fields_to_update:
+                    existing.save(update_fields=fields_to_update)
 
                 # НОВАЯ ФУНКЦИОНАЛЬНОСТЬ: Импорт изображений для существующих товаров
                 if not skip_images and base_dir and "images" in goods_data:
@@ -174,18 +204,8 @@ class ProductDataProcessor:
                     },
                 )
 
-            # Получаем бренд из данных товара или используем "No Brand"
-            brand = None
-            brand_id = goods_data.get("brand_id")
-            if brand_id:
-                brand = Brand.objects.filter(onec_id=brand_id).first()
-            # Если бренд не найден, используем "No Brand"
-            if brand is None:
-                brand, _ = Brand.objects.get_or_create(
-                    name="No Brand", defaults={"slug": "no-brand", "is_active": True}
-                )
-                # if brand_id:
-                # Brand with onec_id={brand_id} not found for product {parent_id}, using 'No Brand'
+            # Получаем бренд из данных товара или используем fallback
+            brand = self._determine_brand(brand_id=brand_id, parent_id=parent_id)
 
             # Генерируем уникальный slug для товара
             name_value = goods_data.get("name")
@@ -218,6 +238,7 @@ class ProductDataProcessor:
             product = Product(
                 onec_id=parent_id,  # Устанавливаем onec_id сразу
                 parent_onec_id=parent_id,
+                onec_brand_id=brand_id,  # Сохраняем исходный ID бренда из 1С
                 name=product_name,
                 slug=unique_slug,
                 description=description_text,
@@ -266,6 +287,47 @@ class ProductDataProcessor:
         except Exception as e:
             self._log_error(f"Error creating product placeholder: {e}", goods_data)
             return None
+
+    def _determine_brand(self, brand_id: str | None, parent_id: str) -> Brand:
+        """Определяет мастер-бренд через Brand1CMapping или возвращает fallback."""
+        if brand_id:
+            mapping = (
+                Brand1CMapping.objects.select_related("brand")
+                .filter(onec_id=brand_id)
+                .first()
+            )
+            if mapping and mapping.brand:
+                return mapping.brand
+            self._log_brand_mapping_missing(brand_id, parent_id)
+            return self._get_no_brand()
+
+        logger.warning(
+            f"Product {parent_id}: onec_brand_id not provided in CommerceML"
+        )
+        self._increment_brand_fallbacks()
+        return self._get_no_brand()
+
+    def _log_brand_mapping_missing(self, brand_id: str, parent_id: str) -> None:
+        """Фиксирует отсутствие маппинга бренда в логах и статистике."""
+        self._increment_brand_fallbacks()
+        logger.warning(
+            "Brand1CMapping not found for onec_id=%s, product=%s, session=%s, "
+            "using 'No Brand' fallback",
+            brand_id,
+            parent_id,
+            self.session_id,
+        )
+
+    def _increment_brand_fallbacks(self) -> None:
+        """Инкрементирует счётчик brand_fallbacks в статистике."""
+        self.stats["brand_fallbacks"] += 1
+
+    def _get_no_brand(self) -> Brand:
+        """Возвращает (или создаёт) fallback бренд 'No Brand'."""
+        brand, _ = Brand.objects.get_or_create(
+            name="No Brand", defaults={"slug": "no-brand", "is_active": True}
+        )
+        return brand
 
     def enrich_product_from_offer(self, offer_data: OfferData) -> bool:
         """Обогащение товара данными из offers.xml (onec_id, SKU, is_active=True)"""
@@ -575,69 +637,148 @@ class ProductDataProcessor:
 
     def process_brands(self, brands_data: Sequence[BrandData]) -> dict[str, int]:
         """
-        Обработка брендов из propertiesGoods.xml
+        Обработка брендов из propertiesGoods.xml с дедупликацией по normalized_name
 
         Args:
             brands_data: Список брендов с полями id и name
 
         Returns:
-            dict с количеством created, updated, skipped
+            dict с количеством brands_created, mappings_created, mappings_updated
         """
-        result = {"created": 0, "updated": 0, "skipped": 0}
+        from apps.products.utils.brands import normalize_brand_name
+
+        result = {
+            "brands_created": 0,
+            "mappings_created": 0,
+            "mappings_updated": 0,
+        }
 
         for brand_data in brands_data:
             try:
-                brand_id = brand_data.get("id")
-                brand_name = brand_data.get("name")
+                onec_id = brand_data.get("id")
+                onec_name = brand_data.get("name")
 
-                if not brand_id or not brand_name:
-                    # Skipping brand with missing id or name: {brand_data}
-                    result["skipped"] += 1
+                if not onec_id or not onec_name:
+                    logger.warning(
+                        f"Skipping brand with missing id or name: {brand_data}"
+                    )
                     continue
 
-                # Генерируем slug для бренда
-                try:
-                    from transliterate import translit
+                # Нормализуем название для поиска дубликатов
+                normalized = normalize_brand_name(onec_name)
 
-                    transliterated = translit(brand_name, "ru", reversed=True)
-                    base_slug = slugify(transliterated)
-                except (RuntimeError, ImportError):
-                    base_slug = slugify(brand_name)
+                # Проверяем существующий маппинг для этого onec_id
+                existing_mapping = Brand1CMapping.objects.filter(
+                    onec_id=onec_id
+                ).first()
 
-                if not base_slug:
-                    base_slug = f"brand-{brand_id[:8]}"
+                if existing_mapping:
+                    # Маппинг уже существует - обновляем onec_name если изменилось
+                    if existing_mapping.onec_name != onec_name:
+                        existing_mapping.onec_name = onec_name
+                        existing_mapping.save(update_fields=["onec_name"])
+                        result["mappings_updated"] += 1
+                        logger.debug(
+                            "Brand mapping updated - no changes",
+                            extra={
+                                "onec_id": onec_id,
+                                "brand_id": existing_mapping.brand.id,
+                                "operation": "update_noop",
+                                "import_session_id": self.session_id,
+                            },
+                        )
+                    else:
+                        result["mappings_updated"] += 1
+                    continue
 
-                # Обеспечиваем уникальность slug
-                unique_slug = base_slug
-                counter = 1
-                while (
-                    Brand.objects.filter(slug=unique_slug)
-                    .exclude(onec_id=brand_id)
-                    .exists()
-                ):
-                    unique_slug = f"{base_slug}-{counter}"
-                    counter += 1
+                # Ищем существующий бренд по normalized_name
+                existing_brand = Brand.objects.filter(
+                    normalized_name=normalized
+                ).first()
 
-                # Создаём или обновляем бренд
-                brand, created = Brand.objects.update_or_create(
-                    onec_id=brand_id,
-                    defaults={
-                        "name": brand_name,
-                        "slug": unique_slug,
-                        "is_active": True,
-                    },
-                )
+                if existing_brand:
+                    # Бренд существует - создаём только маппинг (объединение дубликатов)
+                    Brand1CMapping.objects.create(
+                        brand=existing_brand,
+                        onec_id=onec_id,
+                        onec_name=onec_name,
+                    )
+                    result["mappings_created"] += 1
 
-                if created:
-                    result["created"] += 1
+                    logger.info(
+                        "Brand mapping created - duplicate merged",
+                        extra={
+                            "onec_id": onec_id,
+                            "onec_name": onec_name,
+                            "brand_id": existing_brand.id,
+                            "brand_name": existing_brand.name,
+                            "normalized_name": existing_brand.normalized_name,
+                            "slug": existing_brand.slug,
+                            "operation": "merge",
+                            "import_session_id": self.session_id,
+                        },
+                    )
                 else:
-                    result["updated"] += 1
+                    # Бренд не найден - создаём новый бренд + маппинг
+                    # Генерируем уникальный slug
+                    try:
+                        from transliterate import translit
+
+                        transliterated = translit(onec_name, "ru", reversed=True)
+                        base_slug = slugify(transliterated)
+                    except (RuntimeError, ImportError):
+                        base_slug = slugify(onec_name)
+
+                    if not base_slug:
+                        base_slug = f"brand-{onec_id[:8]}"
+
+                    # Обеспечиваем уникальность slug
+                    unique_slug = base_slug
+                    counter = 2
+                    while Brand.objects.filter(slug=unique_slug).exists():
+                        unique_slug = f"{base_slug}-{counter}"
+                        counter += 1
+
+                    # Создаём бренд (normalized_name установится автоматически в save())
+                    brand = Brand.objects.create(
+                        name=onec_name,
+                        slug=unique_slug,
+                        is_active=True,
+                    )
+
+                    # Создаём маппинг
+                    Brand1CMapping.objects.create(
+                        brand=brand,
+                        onec_id=onec_id,
+                        onec_name=onec_name,
+                    )
+
+                    result["brands_created"] += 1
+                    result["mappings_created"] += 1
+
+                    logger.info(
+                        "Brand created with mapping",
+                        extra={
+                            "onec_id": onec_id,
+                            "onec_name": onec_name,
+                            "brand_id": brand.id,
+                            "brand_name": brand.name,
+                            "normalized_name": brand.normalized_name,
+                            "slug": brand.slug,
+                            "operation": "create",
+                            "import_session_id": self.session_id,
+                        },
+                    )
 
             except Exception as e:
-                # Error processing brand {brand_data}: {e}
-                result["skipped"] += 1
+                logger.error(f"Error processing brand {brand_data}: {e}")
+                self.stats["errors"] += 1
 
-        # Brands processed: {result['created']} created, {result['updated']} updated, {result['skipped']} skipped
+        logger.info(
+            f"Brands processed: {result['brands_created']} brands created, "
+            f"{result['mappings_created']} mappings created, "
+            f"{result['mappings_updated']} mappings updated"
+        )
         return result
 
     def import_product_images(
@@ -673,9 +814,6 @@ class ProductDataProcessor:
             f"Initial gallery: {product.gallery_images}"
         )
         from pathlib import Path
-
-        from django.core.files.base import ContentFile
-        from django.core.files.storage import default_storage
 
         result = {"copied": 0, "skipped": 0, "errors": 0}
 

@@ -499,3 +499,168 @@ class TestXMLDataParserImageParsing:
                         image_path.lower().endswith(ext)
                         for ext in [".jpg", ".jpeg", ".png", ".webp"]
                     ), f"Невалидное расширение: {image_path}"
+
+
+@pytest.mark.unit
+class TestXMLDataParserBrandParsing:
+    """Unit-тесты парсинга brand_id из goods.xml (Story 13.4)"""
+
+    def test_parse_goods_xml_with_brand_id(self, tmp_path):
+        """Парсинг товара с brand_id из свойства 'Бренд'"""
+        from tests.conftest import get_unique_suffix
+
+        # ARRANGE
+        unique_id = get_unique_suffix()
+        brand_uuid = "fb3f263e-dfd0-11ef-8361-fa163ea88911"
+        xml_content = f"""<?xml version="1.0" encoding="UTF-8"?>
+<Каталог>
+    <Товары>
+        <Товар>
+            <Ид>{unique_id}</Ид>
+            <Наименование>Nike Football</Наименование>
+            <ЗначенияСвойств>
+                <ЗначенияСвойства>
+                    <Ид>Бренд</Ид>
+                    <Значение>{brand_uuid}</Значение>
+                </ЗначенияСвойства>
+                <ЗначенияСвойства>
+                    <Ид>Цвет</Ид>
+                    <Значение>Белый</Значение>
+                </ЗначенияСвойства>
+            </ЗначенияСвойств>
+        </Товар>
+    </Товары>
+</Каталог>
+"""
+
+        test_file = tmp_path / "goods.xml"
+        test_file.write_text(xml_content, encoding="utf-8")
+
+        # ACT
+        parser = XMLDataParser()
+        goods_list = parser.parse_goods_xml(str(test_file))
+
+        # ASSERT
+        assert len(goods_list) == 1
+        goods_data = goods_list[0]
+        assert goods_data["id"] == unique_id
+        assert "brand_id" in goods_data
+        assert goods_data["brand_id"] == brand_uuid
+
+    def test_parse_goods_xml_without_brand_id(self, tmp_path):
+        """Парсинг товара без brand_id (свойство 'Бренд' отсутствует)"""
+        from tests.conftest import get_unique_suffix
+
+        # ARRANGE
+        unique_id = get_unique_suffix()
+        xml_content = f"""<?xml version="1.0" encoding="UTF-8"?>
+<Каталог>
+    <Товары>
+        <Товар>
+            <Ид>{unique_id}</Ид>
+            <Наименование>Generic Product</Наименование>
+            <ЗначенияСвойств>
+                <ЗначенияСвойства>
+                    <Ид>Цвет</Ид>
+                    <Значение>Черный</Значение>
+                </ЗначенияСвойства>
+            </ЗначенияСвойств>
+        </Товар>
+    </Товары>
+</Каталог>
+"""
+
+        test_file = tmp_path / "goods.xml"
+        test_file.write_text(xml_content, encoding="utf-8")
+
+        # ACT
+        parser = XMLDataParser()
+        goods_list = parser.parse_goods_xml(str(test_file))
+
+        # ASSERT
+        assert len(goods_list) == 1
+        goods_data = goods_list[0]
+        assert "brand_id" not in goods_data
+
+    def test_parse_goods_xml_with_empty_brand_uuid(self, tmp_path):
+        """Парсинг товара с пустым UUID бренда (00000000-0000-0000-0000-000000000000)"""
+        from tests.conftest import get_unique_suffix
+
+        # ARRANGE
+        unique_id = get_unique_suffix()
+        xml_content = f"""<?xml version="1.0" encoding="UTF-8"?>
+<Каталог>
+    <Товары>
+        <Товар>
+            <Ид>{unique_id}</Ид>
+            <Наименование>Product Without Brand</Наименование>
+            <ЗначенияСвойств>
+                <ЗначенияСвойства>
+                    <Ид>Бренд</Ид>
+                    <Значение>00000000-0000-0000-0000-000000000000</Значение>
+                </ЗначенияСвойства>
+            </ЗначенияСвойств>
+        </Товар>
+    </Товары>
+</Каталог>
+"""
+
+        test_file = tmp_path / "goods.xml"
+        test_file.write_text(xml_content, encoding="utf-8")
+
+        # ACT
+        parser = XMLDataParser()
+        goods_list = parser.parse_goods_xml(str(test_file))
+
+        # ASSERT - пустой UUID должен игнорироваться
+        assert len(goods_list) == 1
+        goods_data = goods_list[0]
+        assert "brand_id" not in goods_data
+
+    def test_parse_goods_xml_with_multiple_properties(self, tmp_path):
+        """Парсинг товара с несколькими свойствами, включая бренд"""
+        from tests.conftest import get_unique_suffix
+
+        # ARRANGE
+        unique_id = get_unique_suffix()
+        brand_uuid = "adidas-uuid-12345"
+        xml_content = f"""<?xml version="1.0" encoding="UTF-8"?>
+<Каталог>
+    <Товары>
+        <Товар>
+            <Ид>{unique_id}</Ид>
+            <Наименование>Adidas Sneakers</Наименование>
+            <ЗначенияСвойств>
+                <ЗначенияСвойства>
+                    <Ид>Размер</Ид>
+                    <Значение>42</Значение>
+                </ЗначенияСвойства>
+                <ЗначенияСвойства>
+                    <Ид>Бренд</Ид>
+                    <Значение>{brand_uuid}</Значение>
+                </ЗначенияСвойства>
+                <ЗначенияСвойства>
+                    <Ид>Цвет</Ид>
+                    <Значение>Синий</Значение>
+                </ЗначенияСвойства>
+                <ЗначенияСвойства>
+                    <Ид>Материал</Ид>
+                    <Значение>Кожа</Значение>
+                </ЗначенияСвойства>
+            </ЗначенияСвойств>
+        </Товар>
+    </Товары>
+</Каталог>
+"""
+
+        test_file = tmp_path / "goods.xml"
+        test_file.write_text(xml_content, encoding="utf-8")
+
+        # ACT
+        parser = XMLDataParser()
+        goods_list = parser.parse_goods_xml(str(test_file))
+
+        # ASSERT
+        assert len(goods_list) == 1
+        goods_data = goods_list[0]
+        assert goods_data["brand_id"] == brand_uuid

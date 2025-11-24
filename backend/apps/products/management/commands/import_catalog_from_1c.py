@@ -235,11 +235,15 @@ class Command(BaseCommand):
                     data_dir, "propertiesGoods", "propertiesGoods.xml"
                 )
                 if properties_goods_files:
-                    total_brands = 0
+                    total_brands_created = 0
+                    total_mappings_created = 0
+                    total_mappings_updated = 0
                     for file_path in properties_goods_files:
                         brands_data = parser.parse_properties_goods_xml(file_path)
                         result = processor.process_brands(brands_data)
-                        total_brands += result["created"] + result["updated"]
+                        total_brands_created += result["brands_created"]
+                        total_mappings_created += result["mappings_created"]
+                        total_mappings_updated += result["mappings_updated"]
                         self.stdout.write(
                             (
                                 f"   • {Path(file_path).name}: "
@@ -248,7 +252,9 @@ class Command(BaseCommand):
                         )
                     self.stdout.write(
                         self.style.SUCCESS(
-                            f"   ✅ Загружено брендов (всего): {total_brands}"
+                            f"   ✅ Создано брендов: {total_brands_created}, "
+                            f"маппингов создано: {total_mappings_created}, "
+                            f"маппингов обновлено: {total_mappings_updated}"
                         )
                     )
                 else:
@@ -417,6 +423,9 @@ class Command(BaseCommand):
             self.stdout.write(f"Обновлено товаров: {processor.stats['updated']}")
             self.stdout.write(f"Пропущено:         {processor.stats['skipped']}")
             self.stdout.write(f"Ошибок:            {processor.stats['errors']}")
+            self.stdout.write(
+                f"Brand fallbacks (no mapping): {processor.stats.get('brand_fallbacks', 0)}"
+            )
 
             # НОВАЯ СТАТИСТИКА: Изображения (Story 3.1.2)
             if not skip_images:

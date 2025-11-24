@@ -6,11 +6,17 @@ from __future__ import annotations
 
 from typing import Any
 
-from django.contrib import admin
-from django.db.models import QuerySet
-from django.http import HttpRequest
+from django.contrib import admin, messages
+from django.db import transaction
+from django.db.models import Count, QuerySet
+from django.http import HttpRequest, HttpResponseRedirect
+from django.shortcuts import render
+import logging
 
-from .models import Brand, Category, Product, ProductImage
+from .forms import MergeBrandsActionForm, TransferMappingsActionForm
+from .models import Brand, Brand1CMapping, Category, Product, ProductImage
+
+logger = logging.getLogger(__name__)
 
 
 class ProductImageInline(admin.TabularInline):
@@ -22,15 +28,162 @@ class ProductImageInline(admin.TabularInline):
     readonly_fields = ("created_at", "updated_at")
 
 
+class Brand1CMappingInline(admin.TabularInline):
+    """Инлайн маппингов 1С для бренда"""
+
+    model = Brand1CMapping
+    extra = 0
+    readonly_fields = ("created_at",)
+    classes = ("collapse",)
+
+
 @admin.register(Brand)
 class BrandAdmin(admin.ModelAdmin):
     """Admin для модели Brand"""
 
-    list_display = ("name", "slug", "onec_id", "is_active", "created_at")
+    list_display = (
+        "name",
+        "slug",
+        "normalized_name",
+        "mappings_count",
+        "is_active",
+        "created_at",
+    )
     list_filter = ("is_active", "created_at")
-    search_fields = ("name", "slug", "onec_id")
+    search_fields = ("name", "slug", "normalized_name")
     prepopulated_fields = {"slug": ("name",)}
-    readonly_fields = ("created_at", "updated_at")
+    readonly_fields = ("normalized_name", "created_at", "updated_at")
+    inlines = [Brand1CMappingInline]
+
+    def get_queryset(self, request: HttpRequest) -> QuerySet[Brand]:
+        """Оптимизация запросов и аннотация количества маппингов"""
+        qs = super().get_queryset(request)
+        return qs.annotate(mappings_count=Count("onec_mappings"))
+
+    @admin.display(description="Маппинги 1С", ordering="mappings_count")
+    def mappings_count(self, obj: Brand) -> int:
+        """Возвращает количество связанных маппингов 1С"""
+        return getattr(obj, "mappings_count", 0)
+
+    @admin.action(description="Объединить выбранные бренды")
+    def merge_brands(self, request: HttpRequest, queryset: QuerySet[Brand]) -> Any:
+        """Действие для объединения нескольких брендов в один"""
+        if "apply" in request.POST:
+            form = MergeBrandsActionForm(request.POST)
+            if form.is_valid():
+                target_brand = form.cleaned_data["target_brand"]
+                count = 0
+                try:
+                    with transaction.atomic():
+                        for source_brand in queryset:
+                            if source_brand == target_brand:
+                                continue
+
+                            # Перенос маппингов
+                            for mapping in source_brand.onec_mappings.all():
+                                if target_brand.onec_mappings.filter(
+                                    onec_id=mapping.onec_id
+                                ).exists():
+                                    logger.warning(
+                                        f"Duplicate mapping for brand {target_brand}: {mapping.onec_id}. Skipping transfer."
+                                    )
+                                    continue  # Mapping will be deleted with source_brand
+                                mapping.brand = target_brand
+                                mapping.save()
+
+                            # Перенос продуктов
+                            # У продуктов brand PROTECT, поэтому их НАДО перенести перед удалением бренда
+                            source_brand.products.update(brand=target_brand)
+
+                            source_brand.delete()
+                            count += 1
+
+                    self.message_user(
+                        request,
+                        f"Успешно объединено {count} брендов в {target_brand}",
+                        messages.SUCCESS,
+                    )
+                    return HttpResponseRedirect(request.get_full_path())
+                except Exception as e:
+                    logger.error(f"Error merging brands: {e}")
+                    self.message_user(request, f"Ошибка: {e}", messages.ERROR)
+                    return HttpResponseRedirect(request.get_full_path())
+        else:
+            form = MergeBrandsActionForm()
+
+        return render(
+            request,
+            "admin/products/brand/merge_action.html",
+            context={
+                "brands": queryset,
+                "form": form,
+                "title": "Объединение брендов",
+                "opts": self.model._meta,
+                "action_checkbox_name": admin.helpers.ACTION_CHECKBOX_NAME,  # type: ignore
+            },
+        )
+
+    actions = ["merge_brands"]
+
+
+@admin.register(Brand1CMapping)
+class Brand1CMappingAdmin(admin.ModelAdmin):
+    """Admin для модели Brand1CMapping"""
+
+    list_display = ("brand", "onec_id", "onec_name", "created_at")
+    list_filter = ("brand", "created_at")
+    search_fields = ("onec_id", "onec_name", "brand__name")
+    autocomplete_fields = ("brand",)
+    readonly_fields = ("created_at",)
+
+    @admin.action(description="Перенести на другой бренд")
+    def transfer_to_brand(
+        self, request: HttpRequest, queryset: QuerySet[Brand1CMapping]
+    ) -> Any:
+        """Действие для переноса маппингов на другой бренд"""
+        if "apply" in request.POST:
+            form = TransferMappingsActionForm(request.POST)
+            if form.is_valid():
+                target_brand = form.cleaned_data["target_brand"]
+                try:
+                    with transaction.atomic():
+                        count = 0
+                        for mapping in queryset:
+                            if target_brand.onec_mappings.filter(
+                                onec_id=mapping.onec_id
+                            ).exists():
+                                logger.warning(
+                                    f"Mapping {mapping.onec_id} already exists in {target_brand}. Skipping."
+                                )
+                                continue
+                            mapping.brand = target_brand
+                            mapping.save()
+                            count += 1
+                    self.message_user(
+                        request,
+                        f"Перенесено {count} маппингов на {target_brand}",
+                        messages.SUCCESS,
+                    )
+                    return HttpResponseRedirect(request.get_full_path())
+                except Exception as e:
+                    self.message_user(request, f"Ошибка: {e}", messages.ERROR)
+                    return HttpResponseRedirect(request.get_full_path())
+        else:
+            form = TransferMappingsActionForm()
+
+        return render(
+            request,
+            "admin/products/brand1cmapping/transfer_action.html",
+            context={
+                "mappings": queryset,
+                "form": form,
+                "title": "Перенос маппингов",
+                "opts": self.model._meta,
+                "action_checkbox_name": admin.helpers.ACTION_CHECKBOX_NAME,  # type: ignore
+            },
+        )
+
+    actions = ["transfer_to_brand"]
 
 
 @admin.register(Category)
@@ -79,7 +232,7 @@ class ProductAdmin(admin.ModelAdmin):
         "is_premium",
         "created_at",
     )
-    search_fields = ("name", "sku", "onec_id", "parent_onec_id")
+    search_fields = ("name", "sku", "onec_id", "parent_onec_id", "onec_brand_id")
     prepopulated_fields = {"slug": ("name",)}
     readonly_fields = (
         "created_at",
@@ -87,6 +240,7 @@ class ProductAdmin(admin.ModelAdmin):
         "last_sync_at",
         "sync_status",
         "error_message",
+        "onec_brand_id",
     )
     raw_id_fields = ("brand", "category")
     inlines = [ProductImageInline]  # Добавляем инлайн для изображений
@@ -147,6 +301,7 @@ class ProductAdmin(admin.ModelAdmin):
                 "fields": (
                     "onec_id",
                     "parent_onec_id",
+                    "onec_brand_id",
                     "sync_status",
                     "last_sync_at",
                     "error_message",

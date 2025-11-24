@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 import tempfile
 import time
 import uuid
@@ -17,7 +18,12 @@ from unittest.mock import MagicMock, mock_open, patch
 import pytest
 from django.core.files.storage import default_storage
 
-from apps.products.factories import BrandFactory, CategoryFactory, ProductFactory
+from apps.products.factories import (
+    Brand1CMappingFactory,
+    BrandFactory,
+    CategoryFactory,
+    ProductFactory,
+)
 from apps.products.models import ImportSession, Product
 from apps.products.services.processor import ProductDataProcessor
 
@@ -277,6 +283,8 @@ class TestImportProductImages:
         # ARRANGE
         category = CategoryFactory()
         brand = BrandFactory()
+        # Создаём маппинг для бренда из 1С
+        brand_mapping = Brand1CMappingFactory(brand=brand)
         session = ImportSession.objects.create(
             import_type=ImportSession.ImportType.CATALOG,
             status=ImportSession.ImportStatus.IN_PROGRESS,
@@ -289,7 +297,7 @@ class TestImportProductImages:
             "name": f"Test Product {unique_id}",
             "description": "Test description",
             "category_id": category.onec_id,
-            "brand_id": brand.onec_id,
+            "brand_id": brand_mapping.onec_id,
             "images": ["00/test_image.jpg"],
         }
 
@@ -331,7 +339,7 @@ class TestImportProductImages:
             if os.path.exists(test_image_path):
                 os.unlink(test_image_path)
             if os.path.exists(test_dir):
-                os.rmdir(test_dir)
+                shutil.rmtree(test_dir, ignore_errors=True)
 
     def test_import_product_images_preserves_existing_main_image(self):
         """Повторный импорт НЕ меняет существующий main_image (AC 2)"""
@@ -355,6 +363,11 @@ class TestImportProductImages:
         try:
             base_dir = os.path.dirname(tmp_path)
             image_filename = os.path.basename(tmp_path)
+            # Создаём поддиректорию и перемещаем файл
+            subdir = os.path.join(base_dir, "00")
+            os.makedirs(subdir, exist_ok=True)
+            new_path = os.path.join(subdir, image_filename)
+            os.rename(tmp_path, new_path)
             # Симулируем структуру с поддиректорией
             image_paths = [f"00/{image_filename}"]
 
@@ -381,7 +394,10 @@ class TestImportProductImages:
                 assert len(product.gallery_images) == 1
 
         finally:
-            os.unlink(tmp_path)
+            if os.path.exists(new_path):
+                os.unlink(new_path)
+            if os.path.exists(subdir):
+                shutil.rmtree(subdir, ignore_errors=True)
 
     def test_import_product_images_appends_to_gallery(self):
         """Повторный импорт добавляет в конец gallery_images (AC 2)"""
@@ -405,6 +421,11 @@ class TestImportProductImages:
         try:
             base_dir = os.path.dirname(tmp_path)
             image_filename = os.path.basename(tmp_path)
+            # Создаём поддиректорию и перемещаем файл
+            subdir = os.path.join(base_dir, "00")
+            os.makedirs(subdir, exist_ok=True)
+            new_path = os.path.join(subdir, image_filename)
+            os.rename(tmp_path, new_path)
             image_paths = [f"00/{image_filename}"]
 
             with patch(
@@ -430,7 +451,10 @@ class TestImportProductImages:
                 assert product.gallery_images[2] == f"products/00/{image_filename}"
 
         finally:
-            os.unlink(tmp_path)
+            if os.path.exists(new_path):
+                os.unlink(new_path)
+            if os.path.exists(subdir):
+                shutil.rmtree(subdir, ignore_errors=True)
 
     def test_import_product_images_prevents_duplicates_in_gallery(self):
         """Проверка предотвращения дубликатов в gallery_images (AC 2)"""
@@ -447,21 +471,40 @@ class TestImportProductImages:
         )
         processor = ProductDataProcessor(session_id=session.id)
 
-        # ACT - импортируем то же изображение повторно
-        with patch("apps.products.services.processor.default_storage") as mock_storage:
-            mock_storage.exists.return_value = True
-            result = processor.import_product_images(
-                product=product,
-                image_paths=["00/image.jpg"],
-                base_dir="/fake/path",
-                validate_images=False,
-            )
+        # Создаём физический файл для теста
+        with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
+            tmp.write(b"duplicate image")
+            tmp_path = tmp.name
 
-        # ASSERT
-        product.refresh_from_db()
-        # Дубликат НЕ должен добавиться
-        assert product.gallery_images.count(existing_image) == 1
-        assert result["skipped"] == 1
+        try:
+            base_dir = os.path.dirname(tmp_path)
+            # Создаём поддиректорию и перемещаем файл
+            subdir = os.path.join(base_dir, "00")
+            os.makedirs(subdir, exist_ok=True)
+            new_path = os.path.join(subdir, "image.jpg")
+            os.rename(tmp_path, new_path)
+
+            # ACT - импортируем то же изображение повторно
+            with patch("apps.products.services.processor.default_storage") as mock_storage:
+                mock_storage.exists.return_value = True
+                result = processor.import_product_images(
+                    product=product,
+                    image_paths=["00/image.jpg"],
+                    base_dir=base_dir,
+                    validate_images=False,
+                )
+
+            # ASSERT
+            product.refresh_from_db()
+            # Дубликат НЕ должен добавиться
+            assert product.gallery_images.count(existing_image) == 1
+            assert result["skipped"] == 1
+
+        finally:
+            if os.path.exists(new_path):
+                os.unlink(new_path)
+            if os.path.exists(subdir):
+                shutil.rmtree(subdir, ignore_errors=True)
 
     def test_import_product_images_preserves_directory_structure(self):
         """Сохранение структуры поддиректорий из 1С (AC 1)"""
@@ -480,6 +523,11 @@ class TestImportProductImages:
         try:
             base_dir = os.path.dirname(tmp_path)
             image_filename = os.path.basename(tmp_path)
+            # Создаём поддиректорию и перемещаем файл
+            subdir = os.path.join(base_dir, "00")
+            os.makedirs(subdir, exist_ok=True)
+            new_path = os.path.join(subdir, image_filename)
+            os.rename(tmp_path, new_path)
             # Путь с поддиректорией как в 1С
             image_paths = [f"00/{image_filename}"]
 
@@ -504,11 +552,14 @@ class TestImportProductImages:
                 product.refresh_from_db()
                 # Проверяем что путь содержит поддиректорию
                 assert product.main_image == expected_path
-                assert "00/" in product.main_image
+                assert "00/" in str(product.main_image)
                 # Проверяем что save вызван с правильным путём
                 mock_save.assert_called_once()
                 call_args = mock_save.call_args[0]
                 assert call_args[0] == expected_path
 
         finally:
-            os.unlink(tmp_path)
+            if os.path.exists(new_path):
+                os.unlink(new_path)
+            if os.path.exists(subdir):
+                shutil.rmtree(subdir, ignore_errors=True)

@@ -527,3 +527,28 @@ class TestProductStockLogic:
         field = Product._meta.get_field("reserved_quantity")
         assert "зарезервированного" in field.help_text.lower()
         assert "корзин" in field.help_text.lower() or "заказ" in field.help_text.lower()
+
+    def test_onec_brand_id_field(self):
+        """
+        Story 13.2: Тест поля onec_brand_id
+        """
+        # Создание товара с onec_brand_id
+        brand_id = "fb3f263e-dfd0-11ef-8361-fa163ea88911"
+        product = ProductFactory.create(onec_brand_id=brand_id)
+        
+        assert product.onec_brand_id == brand_id
+        
+        # Проверка nullable
+        product_without_brand_id = ProductFactory.create(onec_brand_id=None)
+        assert product_without_brand_id.onec_brand_id is None
+        
+        # Проверка max_length=100
+        field = Product._meta.get_field("onec_brand_id")
+        assert field.max_length == 100
+        
+        # Проверка db_index
+        assert field.db_index is True
+        
+        # Проверка nullable и blank
+        assert field.null is True
+        assert field.blank is True

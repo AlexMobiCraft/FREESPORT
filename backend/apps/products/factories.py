@@ -11,7 +11,7 @@ import factory
 from django.utils.text import slugify
 from factory import fuzzy
 
-from apps.products.models import Brand, Category, Product
+from apps.products.models import Brand, Brand1CMapping, Category, Product
 
 # Глобальный счетчик для обеспечения уникальности
 _unique_counter = 0
@@ -32,9 +32,19 @@ class BrandFactory(factory.django.DjangoModelFactory):
 
     name = factory.LazyFunction(lambda: f"Brand-{get_unique_suffix()}")
     slug = factory.LazyAttribute(lambda obj: slugify(obj.name))
-    onec_id = factory.LazyFunction(lambda: f"brand-1c-{get_unique_suffix()}")
     description = factory.Faker("text", max_nb_chars=200)
     is_active = True
+
+
+class Brand1CMappingFactory(factory.django.DjangoModelFactory):
+    """Factory для создания тестовых маппингов брендов из 1С"""
+
+    class Meta:
+        model = Brand1CMapping
+
+    brand = factory.SubFactory(BrandFactory)
+    onec_id = factory.LazyFunction(lambda: f"brand-1c-{get_unique_suffix()}")
+    onec_name = factory.LazyAttribute(lambda obj: obj.brand.name)
 
 
 class CategoryFactory(factory.django.DjangoModelFactory):
