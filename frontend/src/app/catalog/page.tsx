@@ -40,6 +40,7 @@ const PRICE_MAX = 50000;
 const DEFAULT_PRICE_RANGE: PriceRange = { min: PRICE_MIN, max: PRICE_MAX };
 const PRICE_STEP = 500;
 const PAGE_SIZE = 12;
+const MAX_VISIBLE_PAGES = 5;
 const DEFAULT_ORDERING = '-created_at';
 const DEFAULT_CATEGORY_LABEL = 'Спорт';
 
@@ -518,6 +519,18 @@ const CatalogPage: React.FC = () => {
     setPage(nextPage);
   };
 
+  const visiblePages = useMemo(() => {
+    if (totalPages <= MAX_VISIBLE_PAGES) {
+      return Array.from({ length: totalPages }, (_, index) => index + 1);
+    }
+
+    const half = Math.floor(MAX_VISIBLE_PAGES / 2);
+    const maxStart = totalPages - MAX_VISIBLE_PAGES + 1;
+    const startPage = Math.max(1, Math.min(page - half, maxStart));
+
+    return Array.from({ length: MAX_VISIBLE_PAGES }, (_, index) => startPage + index);
+  }, [page, totalPages]);
+
   const renderProducts = () => {
     if (isProductsLoading) {
       return (
@@ -710,24 +723,19 @@ const CatalogPage: React.FC = () => {
                   ←
                 </button>
 
-                {Array.from({ length: totalPages })
-                  .slice(0, 5)
-                  .map((_, index) => {
-                    const pageNumber = index + 1;
-                    return (
-                      <button
-                        key={pageNumber}
-                        onClick={() => handlePageChange(pageNumber)}
-                        className={
-                          pageNumber === page
-                            ? 'h-10 w-10 rounded-full bg-blue-600 text-white'
-                            : 'h-10 w-10 rounded-full border border-gray-200 text-gray-600'
-                        }
-                      >
-                        {pageNumber}
-                      </button>
-                    );
-                  })}
+                {visiblePages.map(pageNumber => (
+                  <button
+                    key={pageNumber}
+                    onClick={() => handlePageChange(pageNumber)}
+                    className={
+                      pageNumber === page
+                        ? 'h-10 w-10 rounded-full bg-blue-600 text-white'
+                        : 'h-10 w-10 rounded-full border border-gray-200 text-gray-600'
+                    }
+                  >
+                    {pageNumber}
+                  </button>
+                ))}
 
                 <button
                   className="h-10 w-10 rounded-full border border-gray-200 text-gray-500 disabled:opacity-40"
