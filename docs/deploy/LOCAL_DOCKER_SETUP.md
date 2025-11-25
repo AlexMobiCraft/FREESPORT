@@ -359,6 +359,9 @@ docker compose -f docker/docker-compose.yml exec backend python manage.py collec
 
 # 7. Создание суперпользователя (опционально)
 docker compose -f docker/docker-compose.yml exec backend python manage.py createsuperuser
+
+# 8. Пересборка образа фронтенд-контейнера
+docker compose -f docker/docker-compose.yml build --no-cache frontend
 ```
 
 ## 🧹 Очистка

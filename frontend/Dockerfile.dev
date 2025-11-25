@@ -11,8 +11,9 @@ RUN apk add --no-cache libc6-compat
 
 WORKDIR /app
 
-# Копирование файлов зависимостей
+# Копирование файлов зависимостей и вспомогательных скриптов
 COPY package.json package-lock.json* ./
+COPY scripts ./scripts
 
 # Установка зависимостей
 RUN npm ci --prefer-offline
