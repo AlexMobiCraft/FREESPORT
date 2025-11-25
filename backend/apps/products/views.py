@@ -8,6 +8,12 @@ from rest_framework.pagination import PageNumberPagination
 
 class CustomPageNumberPagination(PageNumberPagination):
     page_size_query_param = "page_size"
+    max_page_size = 100
+
+
+class BrandPageNumberPagination(CustomPageNumberPagination):
+    page_size = 100
+    max_page_size = 500
 
 
 from django.db.models import Count, Prefetch, Q
@@ -220,6 +226,7 @@ class BrandViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [permissions.AllowAny]
     serializer_class = BrandSerializer
     lookup_field = "slug"
+    pagination_class = BrandPageNumberPagination
 
     def get_queryset(self):
         """Только активные бренды"""
