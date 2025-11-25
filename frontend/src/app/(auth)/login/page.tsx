@@ -130,7 +130,7 @@ const LoginPage: React.FC = () => {
             <Button
               type="submit"
               variant="primary"
-              size="lg"
+              size="large"
               loading={isLoading}
               className="w-full"
             >

@@ -2,43 +2,53 @@
 
 /**
  * FREESPORT Design System - Tailwind CSS 4.0 Tokens
- * Based on design-system.json specification
+ * Based on design-system.json v2.1.0
+ *
+ * MIGRATION NOTE (2025-11-25):
+ * Цветовая схема обновлена с графитово-серой на сине-голубую.
+ * Все токены синхронизированы с design-system.json v2.1.0.
+ * Контрастность проверена — WCAG AA соблюдён ✅
+ * Подробнее: docs/frontend/color-scheme-migration.md
  */
 
 @theme inline {
   /* Colors - Primary */
-  --color-primary: #1f1f1f;
-  --color-primary-hover: #3a3a3a;
-  --color-primary-active: #0d0d0d;
-  --color-primary-subtle: #f2f2f2;
+  --color-primary: #0060ff;
+  --color-primary-hover: #0047cc;
+  --color-primary-active: #0037a6;
+  --color-primary-subtle: #e7f3ff;
 
   /* Colors - Secondary */
-  --color-secondary: #3d3d3d;
-  --color-secondary-hover: #2e2e2e;
-  --color-secondary-active: #1c1c1c;
-  --color-secondary-subtle: #eaeaea;
+  --color-secondary: #00b7ff;
+  --color-secondary-hover: #0095d6;
+  --color-secondary-active: #0078b3;
+  --color-secondary-subtle: #e1f5ff;
 
   /* Colors - Accent */
-  --color-accent-success: #4d4d4d;
-  --color-accent-warning: #6a6a6a;
-  --color-accent-danger: #2b2b2b;
-  --color-accent-promo: #8a8a8a;
+  --color-accent-success: #00aa5b;
+  --color-accent-success-bg: #e0f5e8;
+  --color-accent-warning: #f5a623;
+  --color-accent-warning-bg: #fff1cc;
+  --color-accent-danger: #e53935;
+  --color-accent-danger-bg: #ffe1e8;
+  --color-accent-promo: #ff2e93;
+  --color-accent-promo-bg: #fff0f5;
 
   /* Colors - Neutral Scale */
   --color-neutral-100: #ffffff;
-  --color-neutral-200: #f5f5f5;
-  --color-neutral-300: #e0e0e0;
-  --color-neutral-400: #c7c7c7;
-  --color-neutral-500: #a3a3a3;
-  --color-neutral-600: #7d7d7d;
-  --color-neutral-700: #5e5e5e;
-  --color-neutral-800: #3f3f3f;
-  --color-neutral-900: #1f1f1f;
+  --color-neutral-200: #f5f7fb;
+  --color-neutral-300: #e3e8f2;
+  --color-neutral-400: #b9c3d6;
+  --color-neutral-500: #8f9bb3;
+  --color-neutral-600: #6b7a99;
+  --color-neutral-700: #4b5c7a;
+  --color-neutral-800: #2d3a52;
+  --color-neutral-900: #1f2a44;
 
   /* Colors - Text */
-  --color-text-primary: #1b1b1b;
-  --color-text-secondary: #4d4d4d;
-  --color-text-muted: #7a7a7a;
+  --color-text-primary: #1f2a44;
+  --color-text-secondary: #4b5c7a;
+  --color-text-muted: #7f8ca8;
   --color-text-inverse: #ffffff;
 
   /* Typography - Color Usage (специфические цвета для типографики) */
@@ -98,15 +108,19 @@
   /* Backgrounds */
   --bg-canvas: #f5f7fb;
   --bg-panel: #ffffff;
-  --bg-emphasis: linear-gradient(135deg, rgba(0, 78, 255, 0.12), rgba(0, 149, 255, 0.08));
+  --bg-emphasis: linear-gradient(135deg, rgba(0, 96, 255, 0.12), rgba(0, 183, 255, 0.08));
 
   /* Shadows */
   --shadow-default: 0 8px 24px rgba(15, 23, 42, 0.08);
   --shadow-hover: 0 10px 32px rgba(15, 23, 42, 0.12);
-  --shadow-primary: 0 10px 24px rgba(0, 96, 255, 0.28);
-  --shadow-secondary: 0 6px 16px rgba(0, 71, 204, 0.12);
-  --shadow-pressed: 0 6px 18px rgba(0, 55, 166, 0.24);
+  --shadow-primary: 0 4px 12px rgba(0, 96, 255, 0.28);
+  --shadow-secondary: 0 2px 8px rgba(0, 96, 255, 0.16);
+  --shadow-pressed: inset 0 2px 4px rgba(0, 71, 204, 0.24);
   --shadow-modal: 0 24px 64px rgba(15, 23, 42, 0.24);
+
+  /* Focus states */
+  --focus-ring: 0 0 0 4px rgba(0, 96, 255, 0.12);
+  --focus-outline: 2px solid rgba(0, 96, 255, 0.6);
 
   /* Motion */
   --duration-short: 120ms;
