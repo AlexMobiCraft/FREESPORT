@@ -35,13 +35,13 @@ type CategoryNode = {
   children?: CategoryNode[];
 };
 
-const DEFAULT_PRICE_RANGE: PriceRange = { min: 500, max: 10000 };
 const PRICE_MIN = 1;
-const PRICE_MAX = 20000;
+const PRICE_MAX = 50000;
+const DEFAULT_PRICE_RANGE: PriceRange = { min: PRICE_MIN, max: PRICE_MAX };
 const PRICE_STEP = 500;
 const PAGE_SIZE = 12;
 const DEFAULT_ORDERING = '-created_at';
-const DEFAULT_CATEGORY_LABEL = 'Единоборства';
+const DEFAULT_CATEGORY_LABEL = 'Спорт';
 
 const CATEGORY_ICON_MAP: Record<string, string> = {
   sport: '🏃',
