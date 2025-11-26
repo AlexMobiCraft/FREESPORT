@@ -33,27 +33,27 @@ export interface ToastProps {
 const TOAST_VARIANTS = {
   success: {
     bg: '#E0F5E0',
-    border: '#1F7A1F',
+    borderClass: 'border-accent-success',
     icon: CheckCircle,
-    iconColor: '#1F7A1F',
+    iconClass: 'text-accent-success',
   },
   error: {
     bg: '#FFE1E1',
-    border: '#C23B3B',
+    borderClass: 'border-accent-danger',
     icon: XCircle,
-    iconColor: '#C23B3B',
+    iconClass: 'text-accent-danger',
   },
   warning: {
     bg: '#FFF1CC',
-    border: '#B07600',
+    borderClass: 'border-accent-warning',
     icon: AlertTriangle,
-    iconColor: '#B07600',
+    iconClass: 'text-accent-warning',
   },
   info: {
-    bg: '#E1F0FF',
-    border: '#0F5DA3',
+    bg: '#E7F3FF',
+    borderClass: 'border-primary',
     icon: Info,
-    iconColor: '#0F5DA3',
+    iconClass: 'text-primary',
   },
 } as const;
 
@@ -97,18 +97,17 @@ export const Toast: React.FC<ToastProps> = ({
         'shadow-[0_8px_24px_rgba(15,23,42,0.12)]',
         'border-l-4',
         'flex gap-3 items-start',
+        variantConfig.borderClass,
         isExiting ? 'animate-slideOutRight' : 'animate-slideInRight'
       )}
       style={{
         backgroundColor: variantConfig.bg,
-        borderLeftColor: variantConfig.border,
       }}
     >
       {/* Icon */}
       <Icon
-        className="flex-shrink-0 mt-0.5"
+        className={cn('flex-shrink-0 mt-0.5', variantConfig.iconClass)}
         size={24}
-        style={{ color: variantConfig.iconColor }}
         strokeWidth={2}
       />
 

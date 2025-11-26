@@ -41,33 +41,33 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
           // Базовые стили
           'inline-flex items-center justify-center gap-2',
           'font-medium transition-all',
-          'focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-offset-2',
+          'focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2',
           'disabled:opacity-50 disabled:cursor-not-allowed',
 
           // Варианты
           variant === 'primary' && [
-            'bg-[#0b1220] text-white border border-transparent',
+            'bg-primary text-white border border-transparent',
             'shadow-[0_14px_32px_rgba(11,18,32,0.45)]',
-            'hover:bg-[#070d19] hover:-translate-y-0.5',
-            'active:bg-[#02060d] active:translate-y-0',
-            'focus:ring-[#0b1220]',
+            'hover:bg-primary-hover hover:-translate-y-0.5',
+            'active:bg-primary-active active:translate-y-0',
+            'focus:ring-primary',
           ],
           variant === 'secondary' && [
-            'bg-white text-[#1b1d21] border border-[#d8dce7]',
+            'bg-white text-primary border border-primary',
             'shadow-[0_8px_24px_rgba(5,18,55,0.08)]',
-            'hover:bg-[#f9fafc] hover:-translate-y-0.5',
-            'active:bg-[#f1f3f7] active:translate-y-0',
-            'focus:ring-[#1b1d21]',
+            'hover:bg-primary-subtle hover:-translate-y-0.5',
+            'active:bg-primary-subtle/80 active:translate-y-0',
+            'focus:ring-primary',
           ],
           variant === 'tertiary' && [
-            'bg-transparent text-[var(--color-primary)]',
-            'hover:bg-[var(--color-neutral-200)] hover:-translate-y-0.5',
+            'bg-transparent text-primary',
+            'hover:bg-primary-subtle hover:-translate-y-0.5',
             'active:translate-y-0',
           ],
           variant === 'subtle' && [
-            'bg-[#E7F3FF] text-[var(--color-primary)]',
+            'bg-primary-subtle text-primary',
             'shadow-[var(--shadow-default)]',
-            'hover:bg-[#D6E9FF] hover:-translate-y-0.5',
+            'hover:bg-primary-subtle/80 hover:-translate-y-0.5',
             'active:translate-y-0',
           ],
           variant === 'danger' && [

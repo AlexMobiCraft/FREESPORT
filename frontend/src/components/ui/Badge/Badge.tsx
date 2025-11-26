@@ -43,16 +43,16 @@ const variantConfig: Record<BadgeVariant, { bg: string; text: string; icon?: Rea
     text: 'text-[#C23B3B]',
     icon: <X className="w-3 h-3" aria-hidden="true" />,
   },
-  promo: { bg: 'bg-[#F4EBDC]', text: 'text-[#8C4C00]' },
-  sale: { bg: 'bg-[#F9E1E1]', text: 'text-[#A63232]' },
-  discount: { bg: 'bg-[#F4E9FF]', text: 'text-[#5E32A1]' },
+  promo: { bg: 'bg-[#FFF0F5]', text: 'text-accent-promo' },
+  sale: { bg: 'bg-[#FFE1E8]', text: 'text-accent-danger' },
+  discount: { bg: 'bg-[#F0E7FF]', text: 'text-[#7C3AED]' },
   premium: {
     bg: 'bg-[#F6F0E4]',
     text: 'text-[#6D4C1F]',
     icon: <Sparkles className="w-3 h-3" aria-hidden="true" />,
   },
-  new: { bg: 'bg-[#E1F0FF]', text: 'text-[#0F5DA3]' },
-  hit: { bg: 'bg-[#E3F6EC]', text: 'text-[#1F7A4A]' },
+  new: { bg: 'bg-[#E7F3FF]', text: 'text-primary' },
+  hit: { bg: 'bg-[#E0F5E8]', text: 'text-accent-success' },
 };
 
 export const Badge = React.forwardRef<HTMLSpanElement, BadgeProps>(

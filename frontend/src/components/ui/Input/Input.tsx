@@ -69,7 +69,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
               'border border-[var(--color-neutral-400)]',
               'transition-colors duration-[var(--duration-short)]',
               'placeholder:text-[var(--color-neutral-500)] placeholder:truncate',
-              'focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)]',
+              'focus:outline-none focus:ring-4 focus:ring-primary/12 focus:outline-primary/60',
 
               // Edge Case: Иконка слева - добавляем отступ
               icon && 'pl-10',

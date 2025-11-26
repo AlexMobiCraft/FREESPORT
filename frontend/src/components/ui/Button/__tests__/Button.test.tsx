@@ -49,7 +49,7 @@ describe('Button', () => {
     it('renders subtle variant', () => {
       render(<Button variant="subtle">Subtle</Button>);
       const button = screen.getByRole('button');
-      expect(button).toHaveClass('bg-[#E7F3FF]');
+      expect(button).toHaveClass('bg-primary-subtle');
     });
   });
 
@@ -58,19 +58,19 @@ describe('Button', () => {
     it('applies small size styles', () => {
       render(<Button size="small">Small</Button>);
       const button = screen.getByRole('button');
-      expect(button).toHaveClass('h-10', 'text-body-s');
+      expect(button).toHaveClass('h-10', 'typo-body-s');
     });
 
     it('applies medium size styles (default)', () => {
       render(<Button>Medium</Button>);
       const button = screen.getByRole('button');
-      expect(button).toHaveClass('h-10', 'text-body-m');
+      expect(button).toHaveClass('h-11', 'typo-body-m');
     });
 
     it('applies large size styles', () => {
       render(<Button size="large">Large</Button>);
       const button = screen.getByRole('button');
-      expect(button).toHaveClass('h-12', 'text-body-l');
+      expect(button).toHaveClass('h-12', 'typo-body-l');
     });
   });
 

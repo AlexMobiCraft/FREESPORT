@@ -3,7 +3,7 @@
  * Тесты для debounce hook
  */
 
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
 import { useDebounce } from '../useDebounce';
 
 describe('useDebounce', () => {
@@ -12,6 +12,7 @@ describe('useDebounce', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
@@ -21,7 +22,7 @@ describe('useDebounce', () => {
     expect(result.current).toBe('initial');
   });
 
-  it('debounces value changes', () => {
+  it('debounces value changes', async () => {
     const { result, rerender } = renderHook(({ value, delay }) => useDebounce(value, delay), {
       initialProps: { value: 'initial', delay: 500 },
     });
@@ -29,40 +30,47 @@ describe('useDebounce', () => {
     expect(result.current).toBe('initial');
 
     // Изменяем значение
-    rerender({ value: 'updated', delay: 500 });
+    act(() => {
+      rerender({ value: 'updated', delay: 500 });
+    });
 
     // Значение еще не должно измениться
     expect(result.current).toBe('initial');
 
     // Fast-forward time
-    vi.advanceTimersByTime(500);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
 
     // Теперь значение должно обновиться
-    waitFor(() => {
-      expect(result.current).toBe('updated');
-    });
+    expect(result.current).toBe('updated');
   });
 
-  it('cancels previous timeout on rapid changes', () => {
+  it('cancels previous timeout on rapid changes', async () => {
+    vi.useRealTimers();
+    const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
     const { result, rerender } = renderHook(({ value, delay }) => useDebounce(value, delay), {
       initialProps: { value: 'initial', delay: 500 },
     });
 
-    // Быстрые изменения
-    rerender({ value: 'change1', delay: 500 });
-    vi.advanceTimersByTime(200);
-
-    rerender({ value: 'change2', delay: 500 });
-    vi.advanceTimersByTime(200);
-
-    rerender({ value: 'final', delay: 500 });
-    vi.advanceTimersByTime(500);
-
-    // Должно быть только финальное значение
-    waitFor(() => {
-      expect(result.current).toBe('final');
+    await act(async () => {
+      rerender({ value: 'change1', delay: 500 });
     });
-  });
+    await sleep(200);
+
+    await act(async () => {
+      rerender({ value: 'change2', delay: 500 });
+    });
+    await sleep(200);
+
+    await act(async () => {
+      rerender({ value: 'final', delay: 500 });
+    });
+    await sleep(600);
+
+    expect(result.current).toBe('final');
+  }, 7000);
 
   it('works with different data types', () => {
     // Number
@@ -84,23 +92,24 @@ describe('useDebounce', () => {
     expect(arrResult.current).toBe(arr);
   });
 
-  it('respects custom delay', () => {
+  it('respects custom delay', async () => {
+    vi.useRealTimers();
+    const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
     const { result, rerender } = renderHook(({ value, delay }) => useDebounce(value, delay), {
       initialProps: { value: 'initial', delay: 1000 },
     });
 
-    rerender({ value: 'updated', delay: 1000 });
+    await act(async () => {
+      rerender({ value: 'updated', delay: 1000 });
+    });
 
-    // После 500ms значение не должно измениться
-    vi.advanceTimersByTime(500);
+    await sleep(500);
     expect(result.current).toBe('initial');
 
-    // После 1000ms значение должно обновиться
-    vi.advanceTimersByTime(500);
-    waitFor(() => {
-      expect(result.current).toBe('updated');
-    });
-  });
+    await sleep(600);
+    expect(result.current).toBe('updated');
+  }, 7000);
 
   it('cleans up timeout on unmount', () => {
     const { unmount } = renderHook(() => useDebounce('test', 500));

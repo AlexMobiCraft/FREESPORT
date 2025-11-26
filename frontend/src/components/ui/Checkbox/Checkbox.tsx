@@ -55,17 +55,17 @@ export const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
               'transition-all duration-[180ms]', // Design System v2.0 timing
 
               // States
-              'peer-focus:ring-2 peer-focus:ring-[#0060FF] peer-focus:ring-offset-2', // Design System v2.0 focus
+              'peer-focus:ring-2 peer-focus:ring-primary/12 peer-focus:ring-offset-2',
 
-              // Checked state - Design System v2.0: #1F1F1F
-              'peer-checked:bg-[#1F1F1F] peer-checked:border-[#1F1F1F]',
+              // Checked state
+              'peer-checked:bg-primary peer-checked:border-primary',
               'peer-checked:scale-100',
 
               // Hover state
-              'peer-hover:border-[#333333]',
+              'peer-hover:border-primary-hover',
 
               // Indeterminate state
-              indeterminate && 'bg-[#1F1F1F] border-[#1F1F1F]',
+              indeterminate && 'bg-primary border-primary',
 
               // Disabled state
               disabled && 'opacity-50 cursor-not-allowed',

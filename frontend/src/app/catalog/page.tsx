@@ -715,7 +715,7 @@ const CatalogPage: React.FC = () => {
             <div className="flex justify-center">
               <nav className="flex items-center gap-2 text-sm">
                 <button
-                  className="h-10 w-10 rounded-full border border-gray-200 text-gray-500 disabled:opacity-40"
+                  className="h-10 w-10 rounded-full border border-neutral-300 text-neutral-500 hover:border-primary hover:text-primary disabled:opacity-40 transition-colors"
                   onClick={() => handlePageChange(page - 1)}
                   disabled={page === 1}
                   aria-label="Предыдущая страница"
@@ -729,8 +729,8 @@ const CatalogPage: React.FC = () => {
                     onClick={() => handlePageChange(pageNumber)}
                     className={
                       pageNumber === page
-                        ? 'h-10 w-10 rounded-full bg-blue-600 text-white'
-                        : 'h-10 w-10 rounded-full border border-gray-200 text-gray-600'
+                        ? 'h-10 w-10 rounded-full bg-primary text-white hover:bg-primary-hover'
+                        : 'h-10 w-10 rounded-full border border-neutral-300 text-neutral-600 hover:border-primary hover:text-primary'
                     }
                   >
                     {pageNumber}
@@ -738,7 +738,7 @@ const CatalogPage: React.FC = () => {
                 ))}
 
                 <button
-                  className="h-10 w-10 rounded-full border border-gray-200 text-gray-500 disabled:opacity-40"
+                  className="h-10 w-10 rounded-full border border-neutral-300 text-neutral-500 hover:border-primary hover:text-primary disabled:opacity-40 transition-colors"
                   onClick={() => handlePageChange(page + 1)}
                   disabled={page === totalPages}
                   aria-label="Следующая страница"

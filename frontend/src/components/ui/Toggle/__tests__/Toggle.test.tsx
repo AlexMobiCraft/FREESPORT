@@ -147,7 +147,7 @@ describe('Toggle', () => {
       const { container } = render(<Toggle />);
 
       const label = container.querySelector('label[for]');
-      expect(label).toHaveClass('peer-focus:ring-2', 'peer-focus:ring-[#0060FF]');
+      expect(label).toHaveClass('peer-focus:ring-2', 'peer-focus:ring-primary');
     });
 
     it('forwards ref correctly', () => {
@@ -168,18 +168,18 @@ describe('Toggle', () => {
 
   // Visual states
   describe('Visual States', () => {
-    it('has unchecked background color (Design System v2.0: #E3E8F2)', () => {
+    it('has unchecked background color', () => {
       const { container } = render(<Toggle checked={false} />);
 
       const track = container.querySelector('label[for]');
-      expect(track).toHaveClass('bg-[#E3E8F2]');
+      expect(track).toHaveClass('bg-neutral-300');
     });
 
-    it('has checked background color (Design System v2.0: #0060FF)', () => {
+    it('has checked background color', () => {
       const { container } = render(<Toggle checked />);
 
       const track = container.querySelector('label[for]');
-      expect(track).toHaveClass('peer-checked:bg-[#0060FF]');
+      expect(track).toHaveClass('peer-checked:bg-primary');
     });
 
     it('thumb has shadow', () => {

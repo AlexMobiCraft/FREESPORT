@@ -52,14 +52,14 @@ export const Toggle = React.forwardRef<HTMLInputElement, ToggleProps>(
               'transition-colors duration-[180ms]', // Design System v2.0 timing
               '[transition-timing-function:cubic-bezier(0.4,0,0.2,1)]', // Design System v2.0 easing
 
-              // Unchecked state - Design System v2.0: #E3E8F2
-              'bg-[#E3E8F2]',
+              // Unchecked state
+              'bg-neutral-300',
 
-              // Checked state - Design System v2.0: #0060FF
-              'peer-checked:bg-[#0060FF]',
+              // Checked state
+              'peer-checked:bg-primary',
 
-              // Focus state - Design System v2.0: #0060FF
-              'peer-focus:ring-2 peer-focus:ring-[#0060FF] peer-focus:ring-offset-2',
+              // Focus state
+              'peer-focus:ring-2 peer-focus:ring-primary peer-focus:ring-offset-2',
 
               // Disabled state
               disabled && 'opacity-50 cursor-not-allowed',

@@ -68,7 +68,7 @@ describe('Badge', () => {
       render(<Badge variant="promo">Promo</Badge>);
 
       const badge = screen.getByText('Promo');
-      expect(badge).toHaveClass('bg-[#F4EBDC]', 'text-[#8C4C00]');
+      expect(badge).toHaveClass('bg-[#FFF0F5]', 'text-accent-promo');
     });
 
     it('applies premium variant styles', () => {
@@ -86,7 +86,7 @@ describe('Badge', () => {
 
       const icon = container.querySelector('svg');
       expect(icon).toBeInTheDocument();
-      expect(icon).toHaveClass('w-4', 'h-4');
+      expect(icon).toHaveClass('w-3', 'h-3');
     });
 
     it('renders icon for transit variant', () => {
@@ -163,8 +163,8 @@ describe('Badge', () => {
       render(<Badge variant="new">New</Badge>);
 
       const badge = screen.getByText('New');
-      expect(badge).toHaveClass('px-3');
-      expect(badge).toHaveClass('py-1');
+      expect(badge).toHaveClass('px-2');
+      expect(badge).toHaveClass('py-0.5');
     });
   });
 

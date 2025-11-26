@@ -1,7 +1,7 @@
 /**
  * Компонент Header с навигацией для FREESPORT Platform
  * Поддержка B2B/B2C интерфейсов и аутентификации
- * Design System v2.0 - монохромная графитовая цветовая схема
+ * Design System v2.1.0 - сине-голубая цветовая схема
  */
 'use client';
 
@@ -60,7 +60,7 @@ const Header: React.FC = () => {
                 priority
               />
               {isB2BUser && (
-                <span className="px-2 py-1 text-[10px] bg-[#F9E1E1] text-[#A63232] rounded-full font-bold">
+                <span className="px-2 py-1 text-[10px] bg-accent-danger-bg text-accent-danger rounded-full font-bold">
                   B2B
                 </span>
               )}
@@ -129,7 +129,7 @@ const Header: React.FC = () => {
               >
                 <ShoppingCart className="w-6 h-6" />
                 {cartItemsCount > 0 && (
-                  <span className="absolute top-0 right-0 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold bg-[#F9E1E1] text-[#A63232] rounded-full">
+                  <span className="absolute top-0 right-0 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold bg-accent-danger-bg text-accent-danger rounded-full">
                     {cartItemsCount > 99 ? '99+' : cartItemsCount}
                   </span>
                 )}
@@ -219,7 +219,7 @@ const Header: React.FC = () => {
                 >
                   <ShoppingCart className="w-6 h-6" />
                   {cartItemsCount > 0 && (
-                    <span className="absolute top-0 right-0 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold bg-[#F9E1E1] text-[#A63232] rounded-full">
+                    <span className="absolute top-0 right-0 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold bg-accent-danger-bg text-accent-danger rounded-full">
                       {cartItemsCount > 99 ? '99+' : cartItemsCount}
                     </span>
                   )}
