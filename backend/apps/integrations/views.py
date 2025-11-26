@@ -60,6 +60,13 @@ def import_from_1c_view(request: HttpRequest) -> HttpResponse:
                 "requires_catalog": False,
             },
             {
+                "value": "images",
+                "label": "Только изображения товаров",
+                "description": "Обновление изображений товаров из директории 1С (main_image и gallery_images)",
+                "files": "data/import_1c/goods/import_files/**/*.jpg, **/*.png",
+                "requires_catalog": True,
+            },
+            {
                 "value": "stocks",
                 "label": "Только остатки",
                 "description": "Обновление остатков товаров на складах",
@@ -151,13 +158,24 @@ def _validate_dependencies(selected_types: list[str]) -> tuple[bool, str]:
     Returns:
         Tuple[bool, str]: (is_valid, error_message)
     """
-    if "stocks" in selected_types or "prices" in selected_types:
+    # Типы, требующие наличия товаров в БД
+    catalog_dependent_types = ["stocks", "prices", "images"]
+
+    if any(t in selected_types for t in catalog_dependent_types):
         if not Product.objects.exists():
-            return (
-                False,
-                "⚠️ Невозможно загрузить остатки/цены: "
-                "каталог товаров пуст. Сначала импортируйте полный каталог.",
-            )
+            # Определяем какой тип был выбран для более точного сообщения
+            if "images" in selected_types:
+                return (
+                    False,
+                    "⚠️ Невозможно загрузить изображения: "
+                    "каталог товаров пуст. Сначала импортируйте полный каталог.",
+                )
+            else:
+                return (
+                    False,
+                    "⚠️ Невозможно загрузить остатки/цены: "
+                    "каталог товаров пуст. Сначала импортируйте полный каталог.",
+                )
     return True, ""
 
 
@@ -166,7 +184,7 @@ def _create_and_run_import(import_type: str) -> ImportSession:
     Создание сессии импорта и запуск Celery задачи.
 
     Args:
-        import_type: Тип импорта (catalog, stocks, prices, customers)
+        import_type: Тип импорта (catalog, images, stocks, prices, customers)
 
     Returns:
         ImportSession: Созданная сессия импорта
@@ -229,6 +247,7 @@ def _create_and_run_import(import_type: str) -> ImportSession:
     # Маппинг типов импорта на типы сессий
     session_type_map = {
         "catalog": ImportSession.ImportType.CATALOG,
+        "images": ImportSession.ImportType.IMAGES,
         "stocks": ImportSession.ImportType.STOCKS,
         "prices": ImportSession.ImportType.PRICES,
         "customers": ImportSession.ImportType.CUSTOMERS,

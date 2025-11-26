@@ -263,6 +263,7 @@
         <strong>Требуемая структура директорий:</strong>
         <ul style="margin: 10px 0 0 20px;">
             <li><strong>Для полного каталога:</strong> goods/, offers/, prices/, rests/, priceLists/</li>
+            <li><strong>Для изображений:</strong> goods/import_files/</li>
             <li><strong>Для остатков:</strong> rests/</li>
             <li><strong>Для цен:</strong> prices/</li>
             <li><strong>Для клиентов:</strong> contragents/</li>
@@ -278,7 +279,7 @@
                 <input type="radio" name="import_type" value="{{ import_type.value }}" id="import_{{ import_type.value }}">
                 <label for="import_{{ import_type.value }}">
                     <span class="radio-label-header">
-                        {% if import_type.value == "catalog" %}📦{% elif import_type.value == "stocks" %}📊{% elif import_type.value == "prices" %}💰{% else %}👥{% endif %}
+                        {% if import_type.value == "catalog" %}📦{% elif import_type.value == "images" %}🖼️{% elif import_type.value == "stocks" %}📊{% elif import_type.value == "prices" %}💰{% else %}👥{% endif %}
                         {{ import_type.label }}
                     </span>
                     <span class="radio-description">{{ import_type.description }}</span>

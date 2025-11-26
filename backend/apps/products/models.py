@@ -645,6 +645,7 @@ class ImportSession(models.Model):
 
     class ImportType(models.TextChoices):
         CATALOG = "catalog", "Каталог товаров"
+        IMAGES = "images", "Изображения товаров"
         STOCKS = "stocks", "Остатки товаров"
         PRICES = "prices", "Цены товаров"
         CUSTOMERS = "customers", "Клиенты"
