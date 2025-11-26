@@ -37,7 +37,7 @@
 1. **Абсолютный приоритет удобству и быстроте выбора товара**
 2. **Оптика легкости**: много белого пространства, мягкие тени, отсутствие визуального шума
 3. **Чистая модульность**: все блоки строятся на 8-пиксельной сетке
-4. **Единая визуальная иерархия**: глубокие графитовые акценты, тёмный текст и мягкие серые подложки
+4. **Единая визуальная иерархия**: яркие синие акценты, голубые вторичные тона и мягкие нейтральные подложки
 5. **Обязательная адаптивность**: desktop-first, но без потери читаемости на tablet/mobile
 6. **Интерактивные состояния выражаются цветом и лёгкой анимацией**
 7. **CTA с мягкими радиусами и воздушными подложками**
@@ -50,6 +50,7 @@
 | 2025-08-12 | 1.1 | Финальная доработка B2B спецификации с исправлениями                                           |  (UX Expert) |
 | 2025-08-16 | 1.2 | Добавлены критические компоненты: сортировка товаров, верификация B2B, административная панель |  (UX Expert) |
 | 2025-11-19 | 2.0 | Полное обновление дизайн-системы: новая цветовая палитра, типографика, компоненты UI           |  (UX Expert) |
+| 2025-11-25 | 2.1 | Синхронизация документации с сине-голубой палитрой (Story 14.4)                                | John (PM)    |
 
 ## Информационная архитектура (IA)
 
@@ -950,8 +951,8 @@ color: text-primary
 gap: 16px между иконками
 
 // Cart Badge:
-background: #F9E1E1
-textColor: #A63232
+background: #FFE1E8
+textColor: #E53935
 radius: 999
 fontSize: 10px
 fontWeight: bold
@@ -971,10 +972,10 @@ interface ButtonProps {
 }
 
 // Варианты:
-primary:   bg-primary (#1F1F1F), text-inverse, тень primary
-secondary: bg-neutral-100, border primary, текст primary
-tertiary:  transparent фон, текст primary
-subtle:    bg #e7f3ffff, мягкая тень
+primary:   bg-primary (#0060FF), text-inverse, shadow-primary
+secondary: bg-neutral-100, border primary (#0060FF), text primary
+tertiary:  transparent фон, text primary (#0060FF)
+subtle:    bg #E7F3FF, text primary, мягкая тень
 
 // Размеры:
 small:  height: 40px, text: body-s
@@ -1139,18 +1140,18 @@ interface BadgeProps {
   children: string
 }
 
-// Варианты:
-sale:     { bg: '#F9E1E1', text: '#A63232' }        // Распродажа
-new:      { bg: '#E1F0FF', text: '#0F5DA3' }        // Новинка
-hit:      { bg: '#E3F6EC', text: '#1F7A4A' }        // Хит продаж
-promo:    { bg: '#F4EBDC', text: '#8C4C00' }        // Промо
-discount: { bg: '#F4E9FF', text: '#5E32A1' }        // Скидка
+// Варианты (обновлено 2025-11-25):
+sale:     { bg: '#FFE1E8', text: '#E53935' }        // Распродажа
+new:      { bg: '#E7F3FF', text: '#0060FF' }        // Новинка
+hit:      { bg: '#E0F5E8', text: '#00AA5B' }        // Хит продаж
+promo:    { bg: '#FFF0F5', text: '#FF2E93' }        // Промо
+discount: { bg: '#F0E7FF', text: '#7C3AED' }        // Скидка
 premium:  { bg: '#F6F0E4', text: '#6D4C1F' }        // Премиум
 
-// Статусы заказов:
-delivered:  { bg: '#E0F5E0', text: '#1F7A1F', icon: 'check-circle' }
+// Статусы заказов (синхронизированы с новой палитрой):
+delivered:  { bg: '#E0F5E8', text: '#00AA5B', icon: 'check-circle' }
 transit:    { bg: '#FFF1CC', text: '#B07600', icon: 'truck' }
-cancelled:  { bg: '#FFE1E1', text: '#C23B3B', icon: 'x' }
+cancelled:  { bg: '#FFE1E8', text: '#E53935', icon: 'x' }
 
 // Shape: rounded-full
 ```
@@ -1355,8 +1356,8 @@ interface SidebarFiltersProps {
 boxSize: 20px
 radius: 6px
 borderDefault: 1.5px solid #B9C3D6
-borderChecked: 1.5px solid #1F1F1F
-backgroundChecked: #1F1F1F
+borderChecked: 1.5px solid #0060FF
+backgroundChecked: #0060FF
 icon: { type: 'lucide-check', size: 18px, stroke: 3, color: '#FFFFFF' }
 label: { typography: 'body-m', spacing: 12px }
 
@@ -1392,8 +1393,9 @@ interface CheckboxProps {
 }
 
 // Checkbox:
-// - unchecked: border neutral
-// - checked: bg primary + Check scale 100
+// - unchecked: border neutral (B9C3D6)
+// - checked: bg primary (#0060FF) + Check scale 100
+// - focus: outline rgba(0,96,255,0.6)
 // - disabled: пониженная прозрачность
 // - Label справа, gap 12px
 
@@ -1623,10 +1625,10 @@ interface ToastProps {
 //  ↑ border-l-4 (4px левая граница для индикации статуса)
 
 // Варианты Toast:
-// Success: border-l-4 с цветом #1F7A4A (зеленый)
-// Error: border-l-4 с цветом #C23B3B (красный)
-// Warning: border-l-4 с цветом #B07600 (оранжевый)
-// Info: border-l-4 с цветом #0F5DA3 (синий)
+// Success: border-l-4 с цветом #00AA5B (зеленый)
+// Error: border-l-4 с цветом #E53935 (красный)
+// Warning: border-l-4 с цветом #F5A623 (оранжевый)
+// Info: border-l-4 с цветом #0060FF (синий)
 
 // Пример использования:
 ┌─────────────────────────────────┐
@@ -1638,10 +1640,10 @@ interface ToastProps {
 // Border-l-4 в Toast компонентах:
 // Левая граница толщиной 4px (border-l-4) служит основным визуальным
 // индикатором типа уведомления. Цвет границы соответствует статусу:
-// - Success: #1F7A4A (зеленый) - успешные операции
-// - Error: #C23B3B (красный) - ошибки и критические сообщения
-// - Warning: #B07600 (оранжевый) - предупреждения
-// - Info: #0F5DA3 (синий) - информационные сообщения
+// - Success: #00AA5B (зеленый) - успешные операции
+// - Error: #E53935 (красный) - ошибки и критические сообщения
+// - Warning: #F5A623 (оранжевый) - предупреждения
+// - Info: #0060FF (синий) - информационные сообщения
 
 // Техническая реализация:
 // - borderLeftWidth: 4px
@@ -1910,44 +1912,44 @@ const BrowserSupport = {
 
 ```scss
 // Основные цвета (Primary)
-$primary-default: #1F1F1F;     // CTA, ключевые акценты, выделение активных элементов
-$primary-hover: #3A3A3A;
-$primary-active: #0D0D0D;
-$primary-subtle: #F2F2F2;
+$primary-default: #0060FF;     // CTA, ключевые акценты, выделение активных элементов
+$primary-hover: #0047CC;
+$primary-active: #0037A6;
+$primary-subtle: #E7F3FF;
 
 // Вторичные цвета (Secondary)
-$secondary-default: #3D3D3D;   // Вторичные акценты, подсветка сервисных блоков
-$secondary-hover: #2E2E2E;
-$secondary-active: #1C1C1C;
-$secondary-subtle: #EAEAEA;
+$secondary-default: #00B7FF;   // Вторичные акценты, подсветка сервисных блоков
+$secondary-hover: #0095D6;
+$secondary-active: #0078B3;
+$secondary-subtle: #E1F5FF;
 
 // Акцентные цвета (Accent) - Статусы, бейджи, сигнальные состояния
-$accent-success: #4D4D4D;
-$accent-warning: #6A6A6A;
-$accent-danger: #2B2B2B;
-$accent-promo: #8A8A8A;
+$accent-success: #00AA5B;
+$accent-warning: #F5A623;
+$accent-danger: #E53935;
+$accent-promo: #FF2E93;
 
 // Нейтральные цвета - Фоны, бордеры, текстовые оттенки
 $neutral-100: #FFFFFF;
-$neutral-200: #F5F5F5;
-$neutral-300: #E0E0E0;
-$neutral-400: #C7C7C7;
-$neutral-500: #A3A3A3;
-$neutral-600: #7D7D7D;
-$neutral-700: #5E5E5E;
-$neutral-800: #3F3F3F;
-$neutral-900: #1F1F1F;
+$neutral-200: #F5F7FB;
+$neutral-300: #E3E8F2;
+$neutral-400: #B9C3D6;
+$neutral-500: #8F9BB3;
+$neutral-600: #6B7A99;
+$neutral-700: #4B5C7A;
+$neutral-800: #2D3A52;
+$neutral-900: #1F2A44;
 
 // Текстовые цвета - Базовые уровни контраста текста
-$text-primary: #1B1B1B;
-$text-secondary: #4D4D4D;
-$text-muted: #7A7A7A;
+$text-primary: #1F2A44;
+$text-secondary: #4B5C7A;
+$text-muted: #7F8CA8;
 $text-inverse: #FFFFFF;
 
 // Фоны
-$bg-canvas: #F5F7FB;           // Основной фон страницы
-$bg-panel: #FFFFFF;            // Фон карточек и панелей
-$bg-emphasis: linear-gradient(135deg, rgba(0, 78, 255, 0.12), rgba(0, 149, 255, 0.08));
+$bg-canvas: #F5F7FB;                                   // Основной фон страницы
+$bg-panel: #FFFFFF;                                    // Фон карточек и панелей
+$bg-emphasis: linear-gradient(135deg, rgba(0, 96, 255, 0.12), rgba(0, 183, 255, 0.08));
 ```
 
 ### Типографика
