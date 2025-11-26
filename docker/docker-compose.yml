@@ -61,6 +61,7 @@ services:
       - DB_PORT=5432
       - REDIS_URL=redis://:redis123@redis:6379/0
       - DEBUG=1
+      - ONEC_DATA_DIR=/app/data/import_1c
     volumes:
       - ../backend:/app
       - ../data:/app/data
