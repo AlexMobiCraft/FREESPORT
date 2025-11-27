@@ -31,7 +31,7 @@ services:
       dockerfile: Dockerfile
       args:
         DJANGO_SETTINGS_MODULE: freesport.settings.production
-    image: ${BACKEND_IMAGE:-ghcr.io/alexmobicraft/freesport/backend:latest}
+    image: ${BACKEND_IMAGE:-freesport-backend:local}
     container_name: freesport-backend
     environment:
       - DJANGO_SETTINGS_MODULE=freesport.settings.production
@@ -67,7 +67,7 @@ services:
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
         NODE_ENV: production
-    image: ${FRONTEND_IMAGE:-ghcr.io/alexmobicraft/freesport/frontend:latest}
+    image: ${FRONTEND_IMAGE:-freesport-frontend:local}
     container_name: freesport-frontend
     environment:
       - NODE_ENV=production
@@ -98,7 +98,7 @@ services:
     restart: unless-stopped
 
   celery:
-    image: ${BACKEND_IMAGE:-ghcr.io/alexmobicraft/freesport/backend:latest} # Используем тот же образ, что и backend
+    image: ${BACKEND_IMAGE:-freesport-backend:local} # Используем тот же образ, что и backend
     container_name: freesport-celery-worker
     command: celery -A freesport worker -l info
     environment:
@@ -125,7 +125,7 @@ services:
     restart: unless-stopped
 
   celery-beat:
-    image: ${BACKEND_IMAGE:-ghcr.io/alexmobicraft/freesport/backend:latest} # Используем тот же образ, что и backend
+    image: ${BACKEND_IMAGE:-freesport-backend:local} # Используем тот же образ, что и backend
     container_name: freesport-celery-beat
     command: celery -A freesport beat -l info
     environment:
