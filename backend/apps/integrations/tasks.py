@@ -12,6 +12,11 @@ from django.core.management import call_command
 
 from apps.products.models import ImportSession
 
+from django.utils import timezone
+
+from apps.products.models import ImportSession, Product
+from apps.products.services.processor import ProductDataProcessor
+
 logger = logging.getLogger(__name__)
 
 
@@ -53,7 +58,7 @@ def run_selective_import_task(
             raise ValueError(error_msg)
 
     results: list[dict[str, str]] = []
-    import_order = ["catalog", "stocks", "prices", "customers"]
+    import_order = ["catalog", "stocks", "prices", "customers", "images"]
 
     try:
         for import_type in import_order:
@@ -131,5 +136,213 @@ def _execute_import_type(import_type: str, task_id: str) -> dict[str, str]:
         call_command("import_customers_from_1c")
         return {"type": "customers", "message": "Клиенты импортированы"}
 
+    elif import_type == "images":
+        logger.info(f"[Task {task_id}] Запуск импорта изображений товаров")
+        result = _run_image_import(task_id)
+        return {"type": "images", "message": "Изображения обновлены"}
+
     else:
         raise ValueError(f"Неизвестный тип импорта: {import_type}")
+
+
+def _get_product_images(product: Product, base_dir: Path) -> list[str]:
+    """
+    Получить список изображений для товара из директории 1С.
+
+    Args:
+        product: Product instance с onec_id
+        base_dir: Путь к goods/import_files/
+
+    Returns:
+        Список относительных путей (например, ["00/001a16a4_image.jpg"])
+    """
+    if not product.onec_id:
+        return []
+
+    # Первые 2 символа onec_id определяют поддиректорию
+    onec_id = product.onec_id
+    subdir = onec_id[:2] if len(onec_id) >= 2 else "00"
+
+    images_dir = base_dir / subdir
+
+    if not images_dir.exists():
+        return []
+
+    # Поиск файлов начинающихся с onec_id
+    image_paths = []
+    for ext in ["*.jpg", "*.jpeg", "*.png"]:
+        for img_file in images_dir.glob(f"{onec_id}*"):
+            if img_file.suffix.lower() in [".jpg", ".jpeg", ".png"]:
+                # Относительный путь от base_dir
+                relative_path = f"{subdir}/{img_file.name}"
+                image_paths.append(relative_path)
+
+    return image_paths
+
+
+def _run_image_import(task_id: str) -> dict[str, str]:
+    """
+    Импорт изображений товаров из директории 1С.
+
+    Args:
+        task_id: ID задачи Celery
+
+    Returns:
+        Dict с результатом импорта
+
+    Raises:
+        FileNotFoundError: Если директория import_files не найдена
+        Exception: При критических ошибках импорта
+    """
+    logger.info(f"[Task {task_id}] Начало импорта изображений")
+
+    # Найти сессию по task_id
+    session = None
+    try:
+        session = ImportSession.objects.get(celery_task_id=task_id)
+    except ImportSession.DoesNotExist:
+        logger.warning(f"ImportSession не найдена для task_id: {task_id}")
+
+    # Обновить статус на IN_PROGRESS
+    if session:
+        session.status = ImportSession.ImportStatus.IN_PROGRESS
+        session.save(update_fields=["status"])
+        logger.info(
+            f"[Task {task_id}] ImportSession {session.id} установлена в IN_PROGRESS"
+        )
+
+    try:
+        # Получить директорию с данными 1С
+        onec_data_dir = getattr(settings, "ONEC_DATA_DIR", None)
+        if not onec_data_dir:
+            raise ValueError("Настройка ONEC_DATA_DIR не найдена в settings")
+
+        # Построить путь к директории изображений
+        base_dir = Path(onec_data_dir) / "goods" / "import_files"
+
+        # Проверить существование директории
+        if not base_dir.exists():
+            raise FileNotFoundError(
+                f"Директория изображений не найдена: {base_dir}. "
+                f"Убедитесь что данные из 1С синхронизированы."
+            )
+
+        logger.info(f"[Task {task_id}] Директория изображений: {base_dir}")
+
+        # Получить все активные товары с onec_id
+        products_qs = Product.objects.filter(
+            is_active=True, onec_id__isnull=False
+        ).exclude(onec_id="")
+
+        total_products = products_qs.count()
+        processed = 0
+        total_copied = 0
+        total_skipped = 0
+        total_errors = 0
+
+        logger.info(
+            f"[Task {task_id}] Найдено {total_products} активных товаров с onec_id"
+        )
+
+        # Создать экземпляр процессора
+        processor = ProductDataProcessor()
+
+        # Chunked processing для экономии памяти
+        for product in products_qs.iterator(chunk_size=100):
+            try:
+                # Получить список изображений для товара
+                image_paths = _get_product_images(product, base_dir)
+
+                if not image_paths:
+                    total_skipped += 1
+                    processed += 1
+                    continue
+
+                # Импортировать изображения
+                result = processor.import_product_images(
+                    product=product,
+                    image_paths=image_paths,
+                    base_dir=str(base_dir),
+                    validate_images=False,  # Для производительности
+                )
+
+                # Суммировать результаты
+                total_copied += result.get("copied", 0)
+                total_skipped += result.get("skipped", 0)
+                total_errors += result.get("errors", 0)
+                processed += 1
+
+                # Обновление прогресса каждые 50 товаров
+                if processed % 50 == 0:
+                    logger.info(
+                        f"[Task {task_id}] Прогресс: {processed}/{total_products} товаров. "
+                        f"Copied: {total_copied}, Skipped: {total_skipped}, Errors: {total_errors}"
+                    )
+
+                    if session:
+                        session.report_details = {
+                            "total_products": total_products,
+                            "processed": processed,
+                            "copied": total_copied,
+                            "skipped": total_skipped,
+                            "errors": total_errors,
+                            "last_updated": timezone.now().isoformat(),
+                        }
+                        session.save(update_fields=["report_details"])
+
+            except Exception as e:
+                logger.error(
+                    f"[Task {task_id}] Ошибка обработки товара {product.id} "
+                    f"(onec_id: {product.onec_id}): {e}"
+                )
+                total_errors += 1
+                processed += 1
+                # Продолжаем обработку остальных товаров
+
+        # Финализация сессии
+        if session:
+            session.status = ImportSession.ImportStatus.COMPLETED
+            session.finished_at = timezone.now()
+            session.report_details = {
+                "total_products": total_products,
+                "processed": processed,
+                "copied": total_copied,
+                "skipped": total_skipped,
+                "errors": total_errors,
+                "completed_at": timezone.now().isoformat(),
+            }
+            session.save(update_fields=["status", "finished_at", "report_details"])
+            logger.info(
+                f"[Task {task_id}] ImportSession {session.id} завершена успешно"
+            )
+
+        logger.info(
+            f"[Task {task_id}] Импорт изображений завершен. "
+            f"Обработано {processed} товаров. "
+            f"Copied: {total_copied}, Skipped: {total_skipped}, Errors: {total_errors}"
+        )
+
+        return {
+            "type": "images",
+            "message": f"Обработано {processed} товаров. "
+            f"Скопировано: {total_copied}, Пропущено: {total_skipped}, Ошибок: {total_errors}",
+        }
+
+    except Exception as e:
+        logger.error(
+            f"[Task {task_id}] Критическая ошибка импорта изображений: {e}",
+            exc_info=True,
+        )
+
+        # Обновить сессию как FAILED
+        if session:
+            session.status = ImportSession.ImportStatus.FAILED
+            session.finished_at = timezone.now()
+            session.error_message = str(e)
+            session.save(update_fields=["status", "finished_at", "error_message"])
+            logger.info(
+                f"[Task {task_id}] ImportSession {session.id} помечена как FAILED"
+            )
+
+        # Поднять исключение для retry механизма Celery
+        raise
