@@ -49,25 +49,40 @@ git checkout "$BRANCH"
 git pull origin "$BRANCH"
 log "Код успешно обновлен."
 
+# 3.5. Настройка прав доступа (Fix for PermissionError)
+log "Настройка прав доступа к директориям данных..."
+# Создаем директории, если они не существуют
+mkdir -p data/prod/static data/prod/media backend/logs
+
+# Устанавливаем владельца 1000:1000 (пользователь внутри контейнера)
+# Используем sudo, так как скрипт может быть запущен от пользователя freesport
+if command -v sudo >/dev/null 2>&1; then
+    sudo chown -R 1000:1000 data/prod/static data/prod/media backend/logs
+else
+    # Если sudo нет (например, запущен от root), выполняем напрямую
+    chown -R 1000:1000 data/prod/static data/prod/media backend/logs
+fi
+log "Права доступа настроены."
+
 # 4. Сборка новых Docker образов
 log "Сборка Docker образов из '$COMPOSE_BUILD_FILE'..."
-docker compose -f "$COMPOSE_BUILD_FILE" build --no-cache
+docker compose --env-file "$ENV_FILE" -f "$COMPOSE_BUILD_FILE" build --no-cache
 log "Образы успешно собраны."
 
 # 5. Остановка старых контейнеров и запуск новых
 log "Перезапуск сервисов из '$COMPOSE_PROD_FILE'..."
-docker compose -f "$COMPOSE_PROD_FILE" down -v
-docker compose -f "$COMPOSE_PROD_FILE" up -d
+docker compose --env-file "$ENV_FILE" -f "$COMPOSE_PROD_FILE" down -v
+docker compose --env-file "$ENV_FILE" -f "$COMPOSE_PROD_FILE" up -d
 log "Сервисы успешно перезапущены."
 
 # 6. Выполнение миграций базы данных
 log "Выполнение миграций Django..."
-docker compose -f "$COMPOSE_PROD_FILE" exec -T backend python manage.py migrate --no-input
+docker compose --env-file "$ENV_FILE" -f "$COMPOSE_PROD_FILE" exec -T backend python manage.py migrate --no-input
 log "Миграции успешно выполнены."
 
 # 7. Сбор статических файлов (опционально, но рекомендуется)
 log "Сбор статических файлов Django..."
-docker compose -f "$COMPOSE_PROD_FILE" exec -T backend python manage.py collectstatic --no-input
+docker compose --env-file "$ENV_FILE" -f "$COMPOSE_PROD_FILE" exec -T backend python manage.py collectstatic --no-input
 log "Статические файлы собраны."
 
 # 8. Очистка старых образов
