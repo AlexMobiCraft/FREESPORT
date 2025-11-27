@@ -1,7 +1,7 @@
 #!/bin/bash
 
-if ! [ -x "$(command -v docker-compose)" ]; then
-  echo 'Error: docker-compose is not installed.' >&2
+if ! [ -x "$(command -v docker)" ]; then
+  echo 'Error: docker is not installed.' >&2
   exit 1
 fi
 
@@ -28,7 +28,7 @@ fi
 
 
 echo "### Удаление временного сертификата для $domains ..."
-docker-compose -f docker/docker-compose.prod.yml run --rm --entrypoint "\
+docker compose -f docker/docker-compose.prod.yml run --rm --entrypoint "\
   rm -Rf /etc/letsencrypt/live/$domains && \
   rm -Rf /etc/letsencrypt/archive/$domains && \
   rm -Rf /etc/letsencrypt/renewal/$domains.conf" certbot
@@ -47,7 +47,7 @@ esac
 
 if [ $staging != "0" ]; then staging_arg="--staging"; fi
 
-docker-compose -f docker/docker-compose.prod.yml run --rm --entrypoint "\
+docker compose -f docker/docker-compose.prod.yml run --rm --entrypoint "\
   certbot certonly --webroot -w /var/www/certbot \
     $staging_arg \
     $email_arg \
@@ -58,4 +58,4 @@ docker-compose -f docker/docker-compose.prod.yml run --rm --entrypoint "\
 echo
 
 echo "### Перезагрузка Nginx..."
-docker-compose -f docker/docker-compose.prod.yml exec nginx nginx -s reload
+docker compose -f docker/docker-compose.prod.yml exec nginx nginx -s reload
