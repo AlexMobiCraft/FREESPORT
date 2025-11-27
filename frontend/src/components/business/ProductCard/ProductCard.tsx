@@ -49,18 +49,29 @@ const resolveImageUrl = (path?: string | null): string | null => {
     return path;
   }
 
+  const isServer = typeof window === 'undefined';
+  const publicBase = MEDIA_BASE_URL || MEDIA_BASE_URL_INTERNAL || '';
+  const internalBase = MEDIA_BASE_URL_INTERNAL || MEDIA_BASE_URL || '';
+
   if (/^https?:\/\//i.test(path)) {
-    if (MEDIA_BASE_URL && MEDIA_BASE_URL_INTERNAL && MEDIA_BASE_URL !== MEDIA_BASE_URL_INTERNAL) {
+    // На сервере используем внутренний хост, в браузере оставляем публичный URL
+    if (
+      isServer &&
+      MEDIA_BASE_URL &&
+      MEDIA_BASE_URL_INTERNAL &&
+      MEDIA_BASE_URL !== MEDIA_BASE_URL_INTERNAL
+    ) {
       return path.replace(MEDIA_BASE_URL, MEDIA_BASE_URL_INTERNAL);
     }
     return path;
   }
 
-  if (MEDIA_BASE_URL_INTERNAL) {
+  const baseForEnvironment = isServer ? internalBase : publicBase;
+  if (baseForEnvironment) {
     if (path.startsWith('/')) {
-      return `${MEDIA_BASE_URL_INTERNAL}${path}`;
+      return `${baseForEnvironment}${path}`;
     }
-    return `${MEDIA_BASE_URL_INTERNAL}/${path}`;
+    return `${baseForEnvironment}/${path}`;
   }
 
   return path;
