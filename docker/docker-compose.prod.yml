@@ -26,6 +26,11 @@ services:
     restart: unless-stopped
 
   backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+      args:
+        DJANGO_SETTINGS_MODULE: freesport.settings.production
     image: ${BACKEND_IMAGE:-ghcr.io/alexmobicraft/freesport/backend:latest}
     container_name: freesport-backend
     environment:
@@ -56,6 +61,12 @@ services:
     restart: unless-stopped
 
   frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+        NODE_ENV: production
     image: ${FRONTEND_IMAGE:-ghcr.io/alexmobicraft/freesport/frontend:latest}
     container_name: freesport-frontend
     environment:
