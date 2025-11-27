@@ -123,7 +123,7 @@ REST_FRAMEWORK = {
         "rest_framework.throttling.UserRateThrottle",
     ],
     "DEFAULT_THROTTLE_RATES": {
-        "anon": "10/hour",  # SPAM protection для /subscribe endpoint
-        "user": "100/hour",  # Для авторизованных пользователей
+        "anon": "1000/day",  # SPAM protection для /subscribe endpoint
+        "user": "10000/day",  # Для авторизованных пользователей
     },
 }
