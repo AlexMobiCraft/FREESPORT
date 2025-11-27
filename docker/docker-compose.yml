@@ -19,7 +19,7 @@ services:
     networks:
       - freesport-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d freesport"]
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d freesport" ]
       interval: 30s
       timeout: 30s
       retries: 10
@@ -37,7 +37,7 @@ services:
     networks:
       - freesport-network
     healthcheck:
-      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      test: [ "CMD", "redis-cli", "--raw", "incr", "ping" ]
       interval: 30s
       timeout: 30s
       retries: 10
@@ -78,7 +78,7 @@ services:
     networks:
       - freesport-network
     healthcheck:
-      test: ["CMD", "python", "manage.py", "check"]
+      test: [ "CMD", "python", "manage.py", "check" ]
       interval: 30s
       timeout: 30s
       retries: 10
@@ -140,13 +140,14 @@ services:
   celery:
     build:
       context: ../backend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     container_name: freesport-celery-worker
     command: celery -A freesport worker -l info
     volumes:
       - ../backend:/app
       - ../data:/app/data
       - ../backend/logs:/app/logs
+      - backend_media:/app/media
     environment:
       - DJANGO_SETTINGS_MODULE=freesport.settings.development
       - SECRET_KEY=development-secret-key-change-in-production
@@ -171,7 +172,7 @@ services:
   celery-beat:
     build:
       context: ../backend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     container_name: freesport-celery-beat
     command: celery -A freesport beat -l info
     volumes:
@@ -195,7 +196,6 @@ services:
     networks:
       - freesport-network
     restart: unless-stopped
-
 
 volumes:
   postgres_data:

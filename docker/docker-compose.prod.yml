@@ -116,6 +116,7 @@ services:
     volumes:
       - ../backend/logs:/app/logs
       - ${ONEC_DATA_DIR}:/app/data/import_1c
+      - ../data/prod/media:/app/media
     user: "1000:1000"
     depends_on:
       - db
@@ -151,6 +152,7 @@ services:
 volumes:
   postgres_data:
   redis_data:
+
 
 networks:
   freesport-network:
