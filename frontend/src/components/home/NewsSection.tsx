@@ -83,7 +83,7 @@ export const NewsSection: React.FC = () => {
 
   return (
     <section className="max-w-[1280px] mx-auto px-3 md:px-4 lg:px-6" aria-labelledby="news-heading">
-      <h2 id="news-heading" className="text-3xl font-bold mb-8 text-primary">
+      <h2 id="news-heading" className="text-3xl font-bold mb-8 text-text-primary">
         Новости
       </h2>
 

@@ -42,11 +42,11 @@ export const NewsCard: React.FC<NewsCardProps> = ({ title, excerpt, image, publi
       </div>
 
       <div className="p-4">
-        <time className="text-xs text-muted block mb-2" dateTime={publishedAt}>
+        <time className="text-xs text-text-secondary block mb-2" dateTime={publishedAt}>
           {formatDate(publishedAt)}
         </time>
-        <h3 className="text-xl font-semibold text-primary mb-2 line-clamp-2">{title}</h3>
-        <p className="text-sm text-secondary line-clamp-2">{excerpt}</p>
+        <h3 className="text-xl font-semibold text-text-primary mb-2 line-clamp-2">{title}</h3>
+        <p className="text-sm text-text-secondary line-clamp-2">{excerpt}</p>
       </div>
     </article>
   );

@@ -31,7 +31,7 @@ export const CategoriesSection: React.FC = () => {
       aria-labelledby="categories-heading"
     >
       {/* Заголовок секции - headline-l */}
-      <h2 id="categories-heading" className="text-3xl font-bold mb-8 text-primary">
+      <h2 id="categories-heading" className="text-3xl font-bold mb-8 text-text-primary">
         Категории
       </h2>
 

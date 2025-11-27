@@ -50,18 +50,18 @@ export const BlogPostCard: React.FC<BlogPostCardProps> = ({
       {/* Контент */}
       <div className="p-4">
         {/* Дата */}
-        <time className="text-xs text-muted block mb-2" dateTime={date}>
+        <time className="text-xs text-text-secondary block mb-2" dateTime={date}>
           {formatDate(date)}
         </time>
 
         {/* Заголовок */}
-        <h3 className="text-xl font-semibold text-primary mb-2 line-clamp-2">{title}</h3>
+        <h3 className="text-xl font-semibold text-text-primary mb-2 line-clamp-2">{title}</h3>
 
         {/* Excerpt */}
-        <p className="text-sm text-secondary line-clamp-2 mb-3">{excerpt}</p>
+        <p className="text-sm text-text-secondary line-clamp-2 mb-3">{excerpt}</p>
 
         {/* Ссылка */}
-        <span className="text-sm text-primary hover:underline inline-flex items-center gap-1">
+        <span className="text-sm text-text-primary hover:underline inline-flex items-center gap-1">
           Читать далее
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />

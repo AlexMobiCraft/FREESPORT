@@ -102,7 +102,7 @@ export const HitsSection: React.FC = () => {
       aria-labelledby="hits-heading"
     >
       {/* Заголовок секции - headline-l */}
-      <h2 id="hits-heading" className="text-3xl font-bold mb-8 text-primary">
+      <h2 id="hits-heading" className="text-3xl font-bold mb-8 text-text-primary">
         Хиты продаж
       </h2>
 

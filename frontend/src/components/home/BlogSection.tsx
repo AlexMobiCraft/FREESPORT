@@ -16,7 +16,7 @@ export const BlogSection: React.FC = () => {
 
   return (
     <section className="w-full" aria-labelledby="blog-heading">
-      <h2 id="blog-heading" className="text-3xl font-bold mb-8 text-primary">
+      <h2 id="blog-heading" className="text-3xl font-bold mb-8 text-text-primary">
         Наш блог
       </h2>
 

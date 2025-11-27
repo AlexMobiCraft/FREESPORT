@@ -102,7 +102,7 @@ export const NewArrivalsSection: React.FC = () => {
       aria-labelledby="new-arrivals-heading"
     >
       {/* Заголовок секции - headline-l */}
-      <h2 id="new-arrivals-heading" className="text-3xl font-bold mb-8 text-primary">
+      <h2 id="new-arrivals-heading" className="text-3xl font-bold mb-8 text-text-primary">
         Новинки
       </h2>
 
