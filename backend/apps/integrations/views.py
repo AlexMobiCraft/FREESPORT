@@ -243,6 +243,13 @@ def _create_and_run_import(import_type: str) -> ImportSession:
                 f"Директория контрагентов не найдена: {data_path / 'contragents'}. "
                 f"Убедитесь, что данные выгружены из 1С."
             )
+    elif import_type == "images":
+        import_files_dir = data_path / "goods" / "import_files"
+        if not import_files_dir.exists():
+            raise FileNotFoundError(
+                f"Директория изображений не найдена: {import_files_dir}. "
+                f"Убедитесь, что данные выгружены из 1С с изображениями товаров."
+            )
 
     # Маппинг типов импорта на типы сессий
     session_type_map = {

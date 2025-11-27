@@ -211,11 +211,26 @@ class ImportSessionAdmin(admin.ModelAdmin):
 
         Показывает HTML5 progress bar с процентами, если:
         - Статус: in_progress
-        - Есть данные о total_items в report_details
+        - Есть данные о прогрессе в report_details
+
+        Поддерживает разные форматы report_details:
+        - total_items/processed_items (catalog, stocks, prices)
+        - total_products/processed (images)
+        - total_customers/... (customers)
         """
         if obj.status == "in_progress" and obj.report_details:
-            total = obj.report_details.get("total_items", 0)
-            processed = obj.report_details.get("processed_items", 0)
+            # Попытка получить данные в разных форматах
+            total = (
+                obj.report_details.get("total_items")
+                or obj.report_details.get("total_products")
+                or obj.report_details.get("total_customers")
+                or 0
+            )
+            processed = (
+                obj.report_details.get("processed_items")
+                or obj.report_details.get("processed")
+                or 0
+            )
 
             if total > 0:
                 progress = (processed / total) * 100

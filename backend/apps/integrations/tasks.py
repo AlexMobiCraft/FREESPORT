@@ -244,8 +244,9 @@ def _run_image_import(task_id: str) -> dict[str, str]:
             f"[Task {task_id}] Найдено {total_products} активных товаров с onec_id"
         )
 
-        # Создать экземпляр процессора
-        processor = ProductDataProcessor()
+        # Создать экземпляр процессора, используя ID текущей сессии (если найдена)
+        processor_session_id = session.id if session else 0
+        processor = ProductDataProcessor(session_id=processor_session_id)
 
         # Chunked processing для экономии памяти
         for product in products_qs.iterator(chunk_size=100):
