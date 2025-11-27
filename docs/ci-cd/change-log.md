@@ -53,3 +53,15 @@
 - BACKEND_IMAGE=ghcr.io/alexmobicraft/freesport/backend:v20251111-1158
 - FRONTEND_IMAGE=ghcr.io/alexmobicraft/freesport/frontend:v20251111-1158
 
+
+## 2025-11-27 08:22:10
+- TAG=v20251127-0822
+- BACKEND_IMAGE=ghcr.io/alexmobicraft/freesport/backend:v20251127-0822
+- FRONTEND_IMAGE=ghcr.io/alexmobicraft/freesport/frontend:v20251127-0822
+
+
+## 2025-11-27 08:22:56
+- TAG=v20251127-0822
+- BACKEND_IMAGE=ghcr.io/alexmobicraft/freesport/backend:v20251127-0822
+- FRONTEND_IMAGE=ghcr.io/alexmobicraft/freesport/frontend:v20251127-0822
+
