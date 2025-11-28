@@ -77,13 +77,19 @@ class TestValidateDependencies:
 class TestCreateAndRunImport:
     """Тесты для функции создания и запуска импорта."""
 
+    @patch("apps.integrations.views.Path")
     @patch("apps.integrations.views.run_selective_import_task")
     @patch("apps.integrations.views.settings")
-    def test_create_catalog_import_session(self, mock_settings, mock_task):
+    def test_create_catalog_import_session(self, mock_settings, mock_task, mock_path):
         """Тест: создание сессии импорта каталога."""
         # Setup
         mock_settings.ONEC_DATA_DIR = "/path/to/data"
         mock_task.delay.return_value = MagicMock(id="test-task-id")
+        # Mock Path to always return exists=True
+        mock_path_instance = MagicMock()
+        mock_path_instance.exists.return_value = True
+        mock_path_instance.__truediv__ = lambda self, x: mock_path_instance
+        mock_path.return_value = mock_path_instance
 
         # Execute
         session = _create_and_run_import("catalog")
@@ -94,13 +100,19 @@ class TestCreateAndRunImport:
         assert session.celery_task_id == "test-task-id"
         mock_task.delay.assert_called_once_with(["catalog"], "/path/to/data")
 
+    @patch("apps.integrations.views.Path")
     @patch("apps.integrations.views.run_selective_import_task")
     @patch("apps.integrations.views.settings")
-    def test_create_stocks_import_session(self, mock_settings, mock_task):
+    def test_create_stocks_import_session(self, mock_settings, mock_task, mock_path):
         """Тест: создание сессии импорта остатков."""
         # Setup
         mock_settings.ONEC_DATA_DIR = "/path/to/data"
         mock_task.delay.return_value = MagicMock(id="test-task-id-2")
+        # Mock Path to always return exists=True
+        mock_path_instance = MagicMock()
+        mock_path_instance.exists.return_value = True
+        mock_path_instance.__truediv__ = lambda self, x: mock_path_instance
+        mock_path.return_value = mock_path_instance
 
         # Execute
         session = _create_and_run_import("stocks")
@@ -109,23 +121,35 @@ class TestCreateAndRunImport:
         assert session.import_type == ImportSession.ImportType.STOCKS
         assert session.celery_task_id == "test-task-id-2"
 
+    @patch("apps.integrations.views.Path")
     @patch("apps.integrations.views.run_selective_import_task")
     @patch("apps.integrations.views.settings")
-    def test_create_prices_import_session(self, mock_settings, mock_task):
+    def test_create_prices_import_session(self, mock_settings, mock_task, mock_path):
         """Тест: создание сессии импорта цен."""
         mock_settings.ONEC_DATA_DIR = "/path/to/data"
         mock_task.delay.return_value = MagicMock(id="test-task-id-3")
+        # Mock Path to always return exists=True
+        mock_path_instance = MagicMock()
+        mock_path_instance.exists.return_value = True
+        mock_path_instance.__truediv__ = lambda self, x: mock_path_instance
+        mock_path.return_value = mock_path_instance
 
         session = _create_and_run_import("prices")
 
         assert session.import_type == ImportSession.ImportType.PRICES
 
+    @patch("apps.integrations.views.Path")
     @patch("apps.integrations.views.run_selective_import_task")
     @patch("apps.integrations.views.settings")
-    def test_create_customers_import_session(self, mock_settings, mock_task):
+    def test_create_customers_import_session(self, mock_settings, mock_task, mock_path):
         """Тест: создание сессии импорта клиентов."""
         mock_settings.ONEC_DATA_DIR = "/path/to/data"
         mock_task.delay.return_value = MagicMock(id="test-task-id-4")
+        # Mock Path to always return exists=True
+        mock_path_instance = MagicMock()
+        mock_path_instance.exists.return_value = True
+        mock_path_instance.__truediv__ = lambda self, x: mock_path_instance
+        mock_path.return_value = mock_path_instance
 
         session = _create_and_run_import("customers")
 

@@ -153,7 +153,6 @@ class TestImportImagesIntegration(TestCase):
         session = ImportSession.objects.create(
             import_type=ImportSession.ImportType.CATALOG,
             status=ImportSession.ImportStatus.STARTED,
-            filename=f"test_goods_{unique_suffix}.xml",
         )
 
         # Шаг 3: Обработка товаров с изображениями
@@ -234,7 +233,6 @@ class TestImportImagesIntegration(TestCase):
         session = ImportSession.objects.create(
             import_type=ImportSession.ImportType.CATALOG,
             status=ImportSession.ImportStatus.STARTED,
-            filename=f"test_missing_images_{unique_suffix}.xml",
         )
         processor = ProductDataProcessor(session_id=session.id)
 
@@ -293,7 +291,6 @@ class TestImportImagesIntegration(TestCase):
         session = ImportSession.objects.create(
             import_type=ImportSession.ImportType.CATALOG,
             status=ImportSession.ImportStatus.STARTED,
-            filename=f"test_duplicates_{unique_suffix}.xml",
         )
         processor = ProductDataProcessor(session_id=session.id)
 
@@ -338,7 +335,6 @@ class TestImportImagesIntegration(TestCase):
         session = ImportSession.objects.create(
             import_type=ImportSession.ImportType.CATALOG,
             status=ImportSession.ImportStatus.STARTED,
-            filename=f"test_invalid_format_{unique_suffix}.xml",
         )
         processor = ProductDataProcessor(session_id=session.id, skip_validation=False)
 
@@ -369,7 +365,6 @@ class TestImportImagesIntegration(TestCase):
         session = ImportSession.objects.create(
             import_type=ImportSession.ImportType.CATALOG,
             status=ImportSession.ImportStatus.STARTED,
-            filename=f"test_no_images_{unique_suffix}.xml",
         )
         processor = ProductDataProcessor(session_id=session.id)
 
@@ -417,7 +412,6 @@ class TestImportImagesIntegration(TestCase):
         session = ImportSession.objects.create(
             import_type=ImportSession.ImportType.CATALOG,
             status=ImportSession.ImportStatus.STARTED,
-            filename=f"test_reimport_{unique_suffix}.xml",
         )
         processor = ProductDataProcessor(session_id=session.id)
 
@@ -475,7 +469,6 @@ class TestImportImagesIntegration(TestCase):
         session = ImportSession.objects.create(
             import_type=ImportSession.ImportType.CATALOG,
             status=ImportSession.ImportStatus.STARTED,
-            filename=f"test_skip_images_{unique_suffix}.xml",
         )
         processor = ProductDataProcessor(session_id=session.id)
 

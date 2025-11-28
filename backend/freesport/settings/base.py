@@ -311,6 +311,11 @@ SPECTACULAR_SETTINGS = {
     },
 }
 
+# Настройки для разрешения конфликтов синхронизации (Story 3.2.2)
+CONFLICT_NOTIFICATION_EMAIL = config(
+    "CONFLICT_NOTIFICATION_EMAIL", default="admin@freesport.ru"
+)
+
 # Настройки безопасности (переопределяются в продакшене)
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True

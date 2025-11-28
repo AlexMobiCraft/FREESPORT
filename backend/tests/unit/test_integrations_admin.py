@@ -33,7 +33,7 @@ class TestImportSessionAdmin:
     def superuser(self):
         """Создание суперпользователя для тестов"""
         return User.objects.create_superuser(
-            username="admin", email="admin@test.com", password="testpass123"
+            email="admin@test.com", password="testpass123"
         )
 
     @pytest.fixture

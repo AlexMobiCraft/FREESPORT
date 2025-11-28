@@ -26,36 +26,27 @@ class TestImportCustomersCommand:
     """Integration-тесты для команды import_customers_from_1c"""
 
     @pytest.fixture
-    def real_xml_file(self):
-        """Путь к реальному XML файлу из 1С"""
+    def real_data_dir(self):
+        """Путь к директории с данными 1С"""
         # В Docker контейнере data смонтирована в /app/data
         # Локально - из корня проекта
         import os
 
-        if os.path.exists("/app/data"):
+        if os.path.exists("/app/data/import_1c"):
             # Docker environment
-            xml_path = Path(
-                "/app/data/import_1c/contragents/"
-                "contragents_1_564750cd-8a00-4926-a2a4-7a1c995605c0.xml"
-            )
+            data_path = Path("/app/data/import_1c")
         else:
             # Local environment
             base_path = Path(__file__).parent.parent.parent.parent.parent
-            xml_path = (
-                base_path
-                / "data"
-                / "import_1c"
-                / "contragents"
-                / "contragents_1_564750cd-8a00-4926-a2a4-7a1c995605c0.xml"
-            )
-        return str(xml_path)
+            data_path = base_path / "data" / "import_1c"
+        return str(data_path)
 
-    def test_command_imports_real_customers(self, real_xml_file):
+    def test_command_imports_real_customers(self, real_data_dir):
         """Тест импорта реальных клиентов из 1С"""
         out = StringIO()
 
         # Запустить команду
-        call_command("import_customers_from_1c", file=real_xml_file, stdout=out)
+        call_command("import_customers_from_1c", data_dir=real_data_dir, stdout=out)
 
         output = out.getvalue()
 
@@ -88,13 +79,13 @@ class TestImportCustomersCommand:
         logs_count = CustomerSyncLog.objects.filter(session=session).count()
         assert logs_count > 0
 
-    def test_command_dry_run_mode(self, real_xml_file):
+    def test_command_dry_run_mode(self, real_data_dir):
         """Тест dry-run режима команды"""
         initial_users_count = User.objects.count()
 
         out = StringIO()
         call_command(
-            "import_customers_from_1c", file=real_xml_file, dry_run=True, stdout=out
+            "import_customers_from_1c", data_dir=real_data_dir, dry_run=True, stdout=out
         )
 
         output = out.getvalue()
@@ -112,13 +103,13 @@ class TestImportCustomersCommand:
         ).count()
         assert sessions_count == 0
 
-    def test_command_with_custom_chunk_size(self, real_xml_file):
+    def test_command_with_custom_chunk_size(self, real_data_dir):
         """Тест команды с пользовательским chunk_size"""
         out = StringIO()
 
         # Запустить с малым chunk_size
         call_command(
-            "import_customers_from_1c", file=real_xml_file, chunk_size=2, stdout=out
+            "import_customers_from_1c", data_dir=real_data_dir, chunk_size=2, stdout=out
         )
 
         output = out.getvalue()
@@ -130,25 +121,25 @@ class TestImportCustomersCommand:
         session = ImportSession.objects.latest("started_at")
         assert session.status == ImportSession.ImportStatus.COMPLETED
 
-    def test_command_handles_file_not_found(self):
-        """Тест обработки несуществующего файла"""
+    def test_command_handles_dir_not_found(self):
+        """Тест обработки несуществующей директории"""
         from django.core.management.base import CommandError
 
         with pytest.raises(CommandError) as exc_info:
-            call_command("import_customers_from_1c", file="/nonexistent/file.xml")
+            call_command("import_customers_from_1c", data_dir="/nonexistent/dir")
 
-        assert "Файл не найден" in str(exc_info.value)
+        assert "Директория не найдена" in str(exc_info.value)
 
-    def test_command_handles_invalid_chunk_size(self, real_xml_file):
+    def test_command_handles_invalid_chunk_size(self, real_data_dir):
         """Тест обработки невалидного chunk_size"""
         from django.core.management.base import CommandError
 
         with pytest.raises(CommandError) as exc_info:
-            call_command("import_customers_from_1c", file=real_xml_file, chunk_size=0)
+            call_command("import_customers_from_1c", data_dir=real_data_dir, chunk_size=0)
 
         assert "chunk-size" in str(exc_info.value).lower()
 
-    def test_command_prevents_concurrent_execution(self, real_xml_file):
+    def test_command_prevents_concurrent_execution(self, real_data_dir):
         """Тест защиты от параллельного выполнения"""
         # Создать активную сессию импорта
         ImportSession.objects.create(
@@ -159,7 +150,7 @@ class TestImportCustomersCommand:
         from django.core.management.base import CommandError
 
         with pytest.raises(CommandError) as exc_info:
-            call_command("import_customers_from_1c", file=real_xml_file)
+            call_command("import_customers_from_1c", data_dir=real_data_dir)
 
         error_message = str(exc_info.value)
         assert "уже выполняется" in error_message or "активн" in error_message
@@ -183,9 +174,9 @@ class TestImportCustomersCommand:
             assert session.status == ImportSession.ImportStatus.FAILED
             assert session.error_message != ""
 
-    def test_command_creates_correct_roles(self, real_xml_file):
+    def test_command_creates_correct_roles(self, real_data_dir):
         """Тест корректного маппинга ролей"""
-        call_command("import_customers_from_1c", file=real_xml_file)
+        call_command("import_customers_from_1c", data_dir=real_data_dir)
 
         # Проверить что роли корректно установлены
         users = User.objects.filter(created_in_1c=True)
@@ -195,9 +186,9 @@ class TestImportCustomersCommand:
         for user in users:
             assert user.role in valid_roles
 
-    def test_command_handles_customers_without_email(self, real_xml_file):
+    def test_command_handles_customers_without_email(self, real_data_dir):
         """Тест обработки клиентов без email"""
-        call_command("import_customers_from_1c", file=real_xml_file)
+        call_command("import_customers_from_1c", data_dir=real_data_dir)
 
         # Проверить что клиенты без email созданы
         users_without_email = User.objects.filter(created_in_1c=True, email="")
@@ -215,16 +206,16 @@ class TestImportCustomersCommand:
             )
             # Может быть warning логи для клиентов без email
 
-    def test_command_updates_existing_customers(self, real_xml_file):
+    def test_command_updates_existing_customers(self, real_data_dir):
         """Тест обновления существующих клиентов"""
         # Запустить импорт первый раз
-        call_command("import_customers_from_1c", file=real_xml_file)
+        call_command("import_customers_from_1c", data_dir=real_data_dir)
 
         first_session = ImportSession.objects.latest("started_at")
         first_created = first_session.report_details["created"]
 
         # Запустить импорт второй раз
-        call_command("import_customers_from_1c", file=real_xml_file)
+        call_command("import_customers_from_1c", data_dir=real_data_dir)
 
         second_session = ImportSession.objects.latest("started_at")
 
@@ -232,9 +223,9 @@ class TestImportCustomersCommand:
         assert second_session.report_details["updated"] > 0
         assert second_session.report_details["created"] == 0
 
-    def test_command_logs_all_operations(self, real_xml_file):
+    def test_command_logs_all_operations(self, real_data_dir):
         """Тест логирования всех операций"""
-        call_command("import_customers_from_1c", file=real_xml_file)
+        call_command("import_customers_from_1c", data_dir=real_data_dir)
 
         session = ImportSession.objects.latest("started_at")
         logs_count = CustomerSyncLog.objects.filter(session=session).count()
@@ -245,9 +236,9 @@ class TestImportCustomersCommand:
             logs_count >= total_processed
         )  # >= потому что может быть несколько логов на клиента
 
-    def test_command_sets_sync_status(self, real_xml_file):
+    def test_command_sets_sync_status(self, real_data_dir):
         """Тест установки статуса синхронизации"""
-        call_command("import_customers_from_1c", file=real_xml_file)
+        call_command("import_customers_from_1c", data_dir=real_data_dir)
 
         # Все импортированные клиенты должны иметь sync_status='synced'
         users = User.objects.filter(created_in_1c=True)

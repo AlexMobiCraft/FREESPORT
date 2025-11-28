@@ -109,7 +109,6 @@ class TestImageImportPerformance(TestCase):
         session = ImportSession.objects.create(
             import_type=ImportSession.ImportType.CATALOG,
             status=ImportSession.ImportStatus.STARTED,
-            filename=f"test_performance_{unique_suffix}.xml",
         )
         processor = ProductDataProcessor(session_id=session.id, chunk_size=1000)
 

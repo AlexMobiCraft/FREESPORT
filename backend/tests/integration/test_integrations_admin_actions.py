@@ -20,7 +20,7 @@ class TestImportSessionAdminActions:
     def admin_user(self):
         """Создание администратора для доступа к admin панели"""
         return User.objects.create_superuser(
-            username="admin", email="admin@test.com", password="testpass123"
+            email="admin@test.com", password="testpass123"
         )
 
     @pytest.fixture
