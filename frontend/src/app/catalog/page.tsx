@@ -343,6 +343,7 @@ const CatalogContent: React.FC = () => {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isProductsLoading, setIsProductsLoading] = useState(false);
   const [productsError, setProductsError] = useState<string | null>(null);
+  const [inStock, setInStock] = useState(true); // По умолчанию показываем только товары в наличии
 
   const activePathNodes = useMemo(() => {
     if (!activeCategoryId) {
@@ -466,6 +467,11 @@ const CatalogContent: React.FC = () => {
         filters.brand = Array.from(selectedBrandIds).join(',');
       }
 
+      // Фильтр по наличию
+      if (inStock) {
+        filters.in_stock = true;
+      }
+
       const response = await productsService.getAll(filters);
       setProducts(response.results);
       setTotalProducts(response.count);
@@ -475,7 +481,7 @@ const CatalogContent: React.FC = () => {
     } finally {
       setIsProductsLoading(false);
     }
-  }, [activeCategoryId, ordering, page, priceRange.max, priceRange.min, selectedBrandIds]);
+  }, [activeCategoryId, ordering, page, priceRange.max, priceRange.min, selectedBrandIds, inStock]);
 
   useEffect(() => {
     fetchProducts();
@@ -526,6 +532,7 @@ const CatalogContent: React.FC = () => {
     setSelectedBrandIds(new Set());
     setPriceRange(DEFAULT_PRICE_RANGE);
     setOrdering(DEFAULT_ORDERING);
+    setInStock(true); // Сбрасываем фильтр "В наличии" в true
     setPage(1);
 
     if (categoryTree.length) {
@@ -676,6 +683,22 @@ const CatalogContent: React.FC = () => {
                       ))}
                   </div>
                 </details>
+              </div>
+
+              {/* Чекбокс "В наличии" */}
+              <div className="pt-2 border-t border-gray-100">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="rounded"
+                    checked={inStock}
+                    onChange={e => {
+                      setInStock(e.target.checked);
+                      setPage(1);
+                    }}
+                  />
+                  <span className="text-sm text-gray-700">В наличии</span>
+                </label>
               </div>
 
               <div className="flex flex-col gap-3">
