@@ -5,7 +5,8 @@
 
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Button from '@/components/ui/Button';
 import { Grid2x2, List } from 'lucide-react';
 import { ProductCard as BusinessProductCard } from '@/components/business/ProductCard/ProductCard';
@@ -100,6 +101,21 @@ const findCategoryByLabel = (nodes: CategoryNode[], targetLabel: string): Catego
     }
     if (node.children) {
       const child = findCategoryByLabel(node.children, targetLabel);
+      if (child) {
+        return child;
+      }
+    }
+  }
+  return null;
+};
+
+const findCategoryBySlug = (nodes: CategoryNode[], targetSlug: string): CategoryNode | null => {
+  for (const node of nodes) {
+    if (node.slug === targetSlug) {
+      return node;
+    }
+    if (node.children) {
+      const child = findCategoryBySlug(node.children, targetSlug);
       if (child) {
         return child;
       }
@@ -305,7 +321,8 @@ const CategoryTree: React.FC<{
   );
 };
 
-const CatalogPage: React.FC = () => {
+const CatalogContent: React.FC = () => {
+  const searchParams = useSearchParams();
   const [categoryTree, setCategoryTree] = useState<CategoryNode[]>([]);
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
   const [activeCategoryId, setActiveCategoryId] = useState<number | null>(null);
@@ -351,13 +368,22 @@ const CatalogPage: React.FC = () => {
         const mapped = tree.map(mapCategoryTreeNode);
         setCategoryTree(mapped);
 
-        const fallbackCategory =
-          findCategoryByLabel(mapped, DEFAULT_CATEGORY_LABEL) ?? mapped[0] ?? null;
+        const categorySlug = searchParams.get('category');
+        let initialCategory: CategoryNode | null = null;
 
-        if (fallbackCategory) {
-          setActiveCategoryId(fallbackCategory.id);
-          setActiveCategoryLabel(fallbackCategory.label);
-          const pathNodes = findCategoryPathById(mapped, fallbackCategory.id);
+        if (categorySlug) {
+          initialCategory = findCategoryBySlug(mapped, categorySlug);
+        }
+
+        if (!initialCategory) {
+          initialCategory =
+            findCategoryByLabel(mapped, DEFAULT_CATEGORY_LABEL) ?? mapped[0] ?? null;
+        }
+
+        if (initialCategory) {
+          setActiveCategoryId(initialCategory.id);
+          setActiveCategoryLabel(initialCategory.label);
+          const pathNodes = findCategoryPathById(mapped, initialCategory.id);
           setExpandedKeys(new Set(getKeysForPath(pathNodes)));
         }
       } catch (error) {
@@ -377,7 +403,7 @@ const CatalogPage: React.FC = () => {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [searchParams]);
 
   useEffect(() => {
     let isMounted = true;
@@ -751,6 +777,14 @@ const CatalogPage: React.FC = () => {
         </div>
       </div>
     </div>
+  );
+};
+
+const CatalogPage: React.FC = () => {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#F5F7FB]" />}>
+      <CatalogContent />
+    </Suspense>
   );
 };
 
