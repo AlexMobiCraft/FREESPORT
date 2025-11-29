@@ -119,7 +119,7 @@ SERVER_EMAIL = config("SERVER_EMAIL", default="admin@freesport.ru")
 REST_FRAMEWORK = {
     **REST_FRAMEWORK,  # Наследуем настройки из base.py
     "DEFAULT_THROTTLE_CLASSES": [
-        "rest_framework.throttling.AnonRateThrottle",
+        "apps.common.throttling.ProxyAwareAnonRateThrottle",
         "rest_framework.throttling.UserRateThrottle",
     ],
     "DEFAULT_THROTTLE_RATES": {
