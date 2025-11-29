@@ -190,19 +190,3 @@ class NewsSerializer(serializers.ModelSerializer):
             }
 
         return data
-
-    def to_representation(self, instance: News) -> dict[str, Any]:
-        """
-        Кастомизация вывода.
-        Преобразуем image в полный URL.
-        """
-        data = super().to_representation(instance)
-
-        # Преобразуем image в полный URL
-        request = self.context.get("request")
-        if instance.image and request:
-            data["image"] = request.build_absolute_uri(instance.image.url)
-        elif not instance.image:
-            data["image"] = None
-
-        return data

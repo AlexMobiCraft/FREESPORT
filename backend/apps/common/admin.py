@@ -21,11 +21,11 @@ from .services import CustomerSyncMonitor
 class AuditLogAdmin(admin.ModelAdmin):
     """Admin конфигурация для AuditLog"""
 
-    list_display = ["timestamp", "user", "action", "resource_type", "resource_id"]
-    list_filter = ["action", "resource_type", "timestamp"]
+    list_display = ["created_at", "user", "action", "resource_type", "resource_id"]
+    list_filter = ["action", "resource_type", "created_at"]
     search_fields = ["user__email", "resource_id", "ip_address"]
-    readonly_fields = ["timestamp"]
-    date_hierarchy = "timestamp"
+    readonly_fields = ["created_at"]
+    date_hierarchy = "created_at"
 
 
 @admin.register(SyncLog)
@@ -131,7 +131,7 @@ class CustomerSyncLogAdmin(admin.ModelAdmin):
     def correlation_id_short(self, obj: CustomerSyncLog) -> str:
         """Короткая версия correlation_id для списка"""
         if obj.correlation_id:
-            return obj.correlation_id[:8] + "..."
+            return str(obj.correlation_id)[:8] + "..."
         return "-"
 
     correlation_id_short.short_description = "Correlation ID"  # type: ignore
@@ -198,14 +198,14 @@ class CustomerSyncLogAdmin(admin.ModelAdmin):
     def _resolve_operation_label(self, operation_value: str) -> str:
         """Возвращает человеко-понятное название типа операции."""
         try:
-            return CustomerSyncLog.OperationType(operation_value).label
+            return operation_value
         except ValueError:
             return operation_value
 
     def _resolve_status_label(self, status_value: str) -> str:
         """Возвращает понятное название статуса."""
         try:
-            return CustomerSyncLog.StatusType(status_value).label
+            return status_value
         except ValueError:
             return status_value
 
