@@ -58,7 +58,7 @@ cd /opt/freesport
 ./scripts/deploy/health-check.sh
 
 # Проверка логов на наличие ошибок
-docker compose -f docker/docker-compose.prod.yml logs
+docker compose --env-file .env.prod  -f docker/docker-compose.prod.yml logs
 
 # Проверка доступности сайта
 curl -I https://freesport.ru
@@ -168,8 +168,8 @@ grep SECRET_KEY .env.prod
 
 ```bash
 # Перезапустите сервисы
-docker compose -f docker/docker-compose.prod.yml down
-docker compose -f docker/docker-compose.prod.yml up -d
+docker compose --env-file .env.prod  -f docker/docker-compose.prod.yml down
+docker compose --env-file .env.prod  -f docker/docker-compose.prod.yml up -d
 
 # Проверьте работоспособность
 ./scripts/deploy/health-check.sh
@@ -277,10 +277,10 @@ sudo certbot --nginx -d freesport.ru
 ./scripts/deploy/health-check.sh
 
 # Просмотр логов
-docker compose -f docker/docker-compose.prod.yml logs -f
+docker compose --env-file .env.prod  -f docker/docker-compose.prod.yml logs -f
 
 # Перезапуск сервисов
-docker compose -f docker/docker-compose.prod.yml restart
+docker compose --env-file .env.prod  -f docker/docker-compose.prod.yml restart
 ```
 
 ### Полезные команды Docker
@@ -290,10 +290,10 @@ docker compose -f docker/docker-compose.prod.yml restart
 docker ps
 
 # Вход в контейнер backend
-docker compose -f docker/docker-compose.prod.yml exec backend bash
+docker compose --env-file .env.prod  -f docker/docker-compose.prod.yml exec backend bash
 
 # Подключение к базе данных
-docker compose -f docker/docker-compose.prod.yml exec db psql -U postgres -d freesport
+docker compose --env-file .env.prod  -f docker/docker-compose.prod.yml exec db psql -U postgres -d freesport
 
 # Очистка системы
 docker system prune -a
@@ -342,10 +342,10 @@ newgrp docker
 
 ```bash
 # Проверка логов
-docker compose -f docker/docker-compose.prod.yml logs
+docker compose --env-file .env.prod  -f docker/docker-compose.prod.yml logs
 
 # Пересборка образов
-docker compose -f docker/docker-compose.prod.yml build --no-cache
+docker compose --env-file .env.prod  -f docker/docker-compose.prod.yml build --no-cache
 ```
 
 ### Проблема: Нет доступа к сайту
@@ -355,7 +355,7 @@ docker compose -f docker/docker-compose.prod.yml build --no-cache
 sudo ufw status
 
 # Проверка Nginx
-docker compose -f docker/docker-compose.prod.yml exec nginx nginx -t
+docker compose --env-file .env.prod  -f docker/docker-compose.prod.yml exec nginx nginx -t
 ```
 
 ## 🔄 Автоматизация
