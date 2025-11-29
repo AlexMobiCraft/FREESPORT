@@ -19,6 +19,10 @@ const nextConfig: NextConfig = {
 
   // Настройки изображений
   images: {
+    // Отключаем оптимизацию в dev режиме, т.к. Next.js не может получить
+    // изображения по внутренним Docker URL (http://nginx, http://backend)
+    // В продакшен используем https://freesport.ru - оптимизация будет работать
+    unoptimized: process.env.NODE_ENV === 'development',
     remotePatterns: [
       {
         protocol: 'http',
@@ -32,7 +36,14 @@ const nextConfig: NextConfig = {
         protocol: 'http',
         hostname: 'backend',
       },
-      // TODO: Добавить продакшен-домены
+      {
+        protocol: 'http',
+        hostname: 'nginx',
+      },
+      {
+        protocol: 'https',
+        hostname: 'freesport.ru',
+      },
     ],
     formats: ['image/webp', 'image/avif'],
   },
@@ -48,6 +59,12 @@ const nextConfig: NextConfig = {
         destination: process.env.NEXT_PUBLIC_API_URL
           ? `${process.env.NEXT_PUBLIC_API_URL}/:path*`
           : 'http://localhost:8001/api/v1/:path*',
+      },
+      {
+        source: '/media/:path*',
+        destination: process.env.NEXT_PUBLIC_MEDIA_URL_INTERNAL
+          ? `${process.env.NEXT_PUBLIC_MEDIA_URL_INTERNAL}/media/:path*`
+          : 'http://backend:8000/media/:path*',
       },
     ];
   },

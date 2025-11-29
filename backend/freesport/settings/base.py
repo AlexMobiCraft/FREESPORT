@@ -228,6 +228,11 @@ STATICFILES_DIRS = [BASE_DIR / "static"]
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
+# Права доступа для загружаемых файлов
+# Необходимо для корректного чтения файлов Nginx'ом, когда бэкенд и веб-сервер работают от разных пользователей
+FILE_UPLOAD_PERMISSIONS = 0o644
+FILE_UPLOAD_DIRECTORY_PERMISSIONS = 0o755
+
 # Интеграция с 1С
 # Путь к директории с данными импорта из 1С
 # Поддерживает переменную окружения ONEC_DATA_DIR

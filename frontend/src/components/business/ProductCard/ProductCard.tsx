@@ -39,7 +39,6 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
 const MEDIA_BASE_URL =
   process.env.NEXT_PUBLIC_MEDIA_URL ||
   (API_BASE_URL ? API_BASE_URL.replace(/\/api(?:\/v\d+)?\/?$/, '') : '');
-const MEDIA_BASE_URL_INTERNAL = process.env.NEXT_PUBLIC_MEDIA_URL_INTERNAL || MEDIA_BASE_URL;
 
 const IMAGE_FALLBACK_PATH = '/images/No_image.svg';
 
@@ -49,29 +48,29 @@ const resolveImageUrl = (path?: string | null): string | null => {
     return path;
   }
 
-  const isServer = typeof window === 'undefined';
-  const publicBase = MEDIA_BASE_URL || MEDIA_BASE_URL_INTERNAL || '';
-  const internalBase = MEDIA_BASE_URL_INTERNAL || MEDIA_BASE_URL || '';
+  const publicBase = MEDIA_BASE_URL || '';
 
   if (/^https?:\/\//i.test(path)) {
-    // На сервере используем внутренний хост, в браузере оставляем публичный URL
-    if (
-      isServer &&
-      MEDIA_BASE_URL &&
-      MEDIA_BASE_URL_INTERNAL &&
-      MEDIA_BASE_URL !== MEDIA_BASE_URL_INTERNAL
-    ) {
-      return path.replace(MEDIA_BASE_URL, MEDIA_BASE_URL_INTERNAL);
+    // API может вернуть URL с внутренними Docker адресами (http://backend:8000 или http://nginx)
+    // Заменяем их на публичный адрес, доступный из браузера
+    if (path.startsWith('http://backend:8000')) {
+      return path.replace('http://backend:8000', publicBase);
     }
+
+    if (path.startsWith('http://nginx')) {
+      return path.replace('http://nginx', publicBase);
+    }
+
+    // Если путь уже публичный (например, https://freesport.ru), оставляем как есть
     return path;
   }
 
-  const baseForEnvironment = isServer ? internalBase : publicBase;
-  if (baseForEnvironment) {
+  // Если путь относительный, добавляем публичный базовый URL
+  if (publicBase) {
     if (path.startsWith('/')) {
-      return `${baseForEnvironment}${path}`;
+      return `${publicBase}${path}`;
     }
-    return `${baseForEnvironment}/${path}`;
+    return `${publicBase}/${path}`;
   }
 
   return path;

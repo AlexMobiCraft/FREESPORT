@@ -60,8 +60,15 @@ The project uses a modular Django apps architecture:
 
 The recommended way to run the project is with Docker Compose.
 
-# Build and start all services in the background  
-docker-compose up -d --build
+**Local Development:**
+```bash
+docker compose -f docker/docker-compose.yml
+```
+
+**Production:**
+```bash
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml
+```
 
 # Stop and remove all services  
 docker-compose down

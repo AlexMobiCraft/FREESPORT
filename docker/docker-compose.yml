@@ -101,7 +101,7 @@ services:
       - NEXT_PUBLIC_API_TIMEOUT=30000
       - NEXT_PUBLIC_APP_URL=http://localhost:3000
       - NEXT_PUBLIC_MEDIA_URL=http://localhost:8001
-      - NEXT_PUBLIC_MEDIA_URL_INTERNAL=http://backend:8000
+      - NEXT_PUBLIC_MEDIA_URL_INTERNAL=http://nginx
     command: >-
       sh -c "npm install && npm run dev"
     volumes:
