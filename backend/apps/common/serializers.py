@@ -166,6 +166,30 @@ class NewsSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
+    
+    def to_representation(self, instance: News) -> dict[str, Any]:
+        """
+        Кастомизация вывода.
+        Преобразуем image в полный URL и category в детальную информацию.
+        """
+        data = super().to_representation(instance)
+
+        # Преобразуем image в полный URL
+        request = self.context.get("request")
+        if instance.image and request:
+            data["image"] = request.build_absolute_uri(instance.image.url)
+        elif not instance.image:
+            data["image"] = None
+
+        # Добавляем детальную информацию о категории
+        if instance.category:
+            data["category"] = {
+                "id": instance.category.id,
+                "name": instance.category.name,
+                "slug": instance.category.slug,
+            }
+
+        return data
 
     def to_representation(self, instance: News) -> dict[str, Any]:
         """

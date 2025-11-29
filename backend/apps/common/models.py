@@ -584,12 +584,15 @@ class News(models.Model):
         blank=True,
         help_text="Имя автора (опционально)",
     )
-    category: models.CharField = models.CharField(
-        "Категория",
-        max_length=50,
+    category: models.ForeignKey = models.ForeignKey(
+        Category,
+        on_delete=models.CASCADE,
+        related_name="news",
+        verbose_name="Категория",
+        help_text="Категория новости (выбор из существующих)",
+        null=True,
         blank=True,
         db_index=True,
-        help_text="Категория новости (акция, новинка, событие)",
     )
     is_published: models.BooleanField = models.BooleanField(
         "Опубликована",

@@ -314,6 +314,7 @@ class NewsAdmin(admin.ModelAdmin):
         "title",
         "excerpt",
         "content",
+        "category__name",
     ]
     prepopulated_fields = {
         "slug": ("title",),
@@ -323,6 +324,14 @@ class NewsAdmin(admin.ModelAdmin):
         "updated_at",
     ]
     date_hierarchy = "published_at"
+    
+    # Улучшенное отображение поля категории с выпадающим списком
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        """Настройка отображения поля category для удобного выбора категорий"""
+        if db_field.name == "category":
+            kwargs["queryset"] = db_field.related_model.objects.filter(is_active=True)
+            kwargs["empty_label"] = "Выберите категорию"
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
     fieldsets = (
         (
