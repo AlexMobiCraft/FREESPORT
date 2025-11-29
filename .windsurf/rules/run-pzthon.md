@@ -1,6 +1,6 @@
 ---
 trigger: always_on
-description: запусл скриптов python
+description: запуск скриптов python
 ---
 
 Пред запуском скриптов на python нужно убедиться что загружено виртуальное окружение, если не загружено выполнить загрузку виртуального окружения (backend\venv\Scripts\activate)
