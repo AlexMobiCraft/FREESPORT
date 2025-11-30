@@ -46,7 +46,8 @@
       "Bash(powershell:*)",
       "Bash(del fix-tests.ps1)",
       "Bash(python manage.py makemigrations:*)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(findstr:*)"
     ],
     "deny": [],
     "ask": [],

@@ -101,9 +101,9 @@ interface ProductOption {
 - `src/components/common/Lightbox.tsx`
 
 **Дизайн спецификация:**
-- Primary image: 520x520px, radius 16px, shadow
+- Primary image: 520x520px, radius 16px, shadow-default
 - Thumbnails: 88x88px, gap 12px, radius 12px
-- Selected: ring-2 ring-primary (#0060FF)
+- Selected: ring-2 ring-primary
 
 ---
 

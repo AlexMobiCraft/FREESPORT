@@ -114,7 +114,7 @@
 1. ✅ Основное изображение отображается в размере 520x520px с радиусом 16px
 2. ✅ Вертикальная полоса превью (thumbnails) слева от основного изображения
 3. ✅ Thumbnails размером 88x88px с gap 12px и радиусом 12px
-4. ✅ Выбранный thumbnail подсвечивается рамкой 2px #0060FF
+4. ✅ Выбранный thumbnail подсвечивается рамкой 2px primary
 5. ✅ При клике на thumbnail меняется основное изображение
 6. ✅ Возможность открыть полноэкранный режим просмотра (lightbox)
 7. ✅ Навигация по изображениям в lightbox (стрелки влево/вправо)
@@ -227,22 +227,22 @@ interface CartItemCreate {
 ### Компоненты дизайн-системы
 
 **ProductGallery:**
-- `primaryImage`: 520x520px, radius 16px, shadow
+- `primaryImage`: 520x520px, radius 16px, shadow-default
 - `thumbnails`: vertical, 88x88px, gap 12px, radius 12px
-- `selectedBorder`: 2px solid #0060FF
+- `selectedBorder`: ring-2 ring-primary
 - `viewerControls`: lightbox с навигацией
 
 **ProductSummary:**
-- `priceBlock`: background #FFFFFF, radius 20px, shadow, padding 24px
-- `ctaPrimary`: background #0060FF, hover #0047CC, radius 16px, height 56px
-- `ctaSecondary`: border 1px #0060FF, radius 16px, height 56px
-- `promoBadge`: background #FF2E93, radius 999px
+- `priceBlock`: background bg-panel, radius 20px, shadow-modal, padding 24px
+- `ctaPrimary`: background bg-primary, hover bg-primary-hover, radius 16px, height 56px
+- `ctaSecondary`: border border-primary, radius 16px, height 56px
+- `promoBadge`: background bg-promo, radius 999px
 
 **Badge варианты:**
-- `new`: background #E7F3FF, textColor #0060FF
-- `hit`: background #E0F5E8, textColor #00AA5B
-- `sale`: background #FFE1E8, textColor #E53935
-- `discount`: background #F0E7FF, textColor #7C3AED
+- `new`: background bg-primary-bg, textColor text-primary
+- `hit`: background bg-success-bg, textColor text-success
+- `sale`: background bg-danger-bg, textColor text-danger
+- `discount`: background bg-neutral-100, textColor text-secondary
 
 ### SEO Требования
 
