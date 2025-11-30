@@ -53,7 +53,8 @@ Product (базовый товар)
     ├── size_value ("42", "XL")
     ├── prices (retail, opt1, opt2...)
     ├── stock_quantity
-    └── images[] (изображения этого варианта)
+    ├── main_image (основное изображение)
+    └── gallery_images[] (галерея)
 ```
 
 ### Ключевые принципы
@@ -74,7 +75,7 @@ Product (базовый товар)
 | Файл 1С | Что извлекаем | Куда записываем |
 |---------|---------------|-----------------|
 | `goods/goods.xml` | Базовая информация (название, описание, категория) | `Product` |
-| `goods/goods.xml` → `<Картинка>` | Изображения варианта товара | `ProductVariantImage` |
+| `goods/goods.xml` → `<Картинка>` | Изображения варианта товара | `ProductVariant.main_image`, `ProductVariant.gallery_images` |
 | `offers/offers.xml` | SKU, характеристики (цвет, размер) | `ProductVariant` |
 | `prices/prices.xml` | Цены по типам (розница, опт1, опт2...) | `ProductVariant.prices` |
 | `rests/rests.xml` | Остатки на складах | `ProductVariant.stock_quantity` |
@@ -177,6 +178,20 @@ class ProductVariant(models.Model):
     stock_quantity = models.PositiveIntegerField('Количество на складе', default=0)
     reserved_quantity = models.PositiveIntegerField('Зарезервировано', default=0)
     
+    # Изображения (аналогично текущей модели Product)
+    main_image = models.ImageField(
+        'Основное изображение',
+        upload_to='products/variants/',
+        blank=True,
+        help_text='Первое изображение из <Картинка> в goods.xml'
+    )
+    gallery_images = models.JSONField(
+        'Галерея изображений',
+        default=list,
+        blank=True,
+        help_text='Список путей к дополнительным изображениям'
+    )
+    
     # Статус и синхронизация
     is_active = models.BooleanField('Активен', default=True)
     last_sync_at = models.DateTimeField('Последняя синхронизация', null=True, blank=True)
@@ -213,42 +228,6 @@ class ProductVariant(models.Model):
         """Получить цену для конкретного пользователя"""
         # Логика аналогична Product.get_price_for_user
         pass
-```
-
-### ProductVariantImage
-
-```python
-class ProductVariantImage(models.Model):
-    """
-    Изображения варианта товара.
-    
-    Каждый вариант (цвет) имеет свой набор изображений.
-    """
-    
-    variant = models.ForeignKey(
-        ProductVariant,
-        on_delete=models.CASCADE,
-        related_name='images',
-        verbose_name='Вариант товара'
-    )
-    image = models.ImageField('Изображение', upload_to='products/variants/')
-    alt_text = models.CharField('Alt текст', max_length=255, blank=True)
-    is_main = models.BooleanField('Основное', default=False)
-    sort_order = models.PositiveIntegerField('Порядок сортировки', default=0)
-    
-    # Синхронизация с 1С
-    onec_path = models.CharField(
-        'Путь в 1С', 
-        max_length=500, 
-        blank=True,
-        help_text='Оригинальный путь из <Картинка> в goods.xml'
-    )
-    
-    class Meta:
-        verbose_name = 'Изображение варианта'
-        verbose_name_plural = 'Изображения вариантов'
-        db_table = 'product_variant_images'
-        ordering = ['sort_order']
 ```
 
 ### ColorMapping (справочник цветов)
@@ -293,7 +272,7 @@ class ColorMapping(models.Model):
 
 | Компонент | Изменение | Сложность | Приоритет |
 |-----------|-----------|-----------|-----------|
-| **Модели** | Новые модели `ProductVariant`, `ProductVariantImage`, `ColorMapping` | Средняя | Высокий |
+| **Модели** | Новые модели `ProductVariant`, `ColorMapping` | Средняя | Высокий |
 | **Импорт 1С** | Рефакторинг парсера для создания вариантов вместо отдельных Product | Высокая | Высокий |
 | **API** | Расширение `ProductDetailSerializer` полем `variants[]` | Средняя | Высокий |
 | **Frontend** | Компонент `ProductOptions` (Story 12.2) | Средняя | Высокий |
@@ -303,13 +282,17 @@ class ColorMapping(models.Model):
 
 ### Миграция данных
 
-Текущие записи `Product` (которые фактически являются SKU) необходимо:
+Для упрощения процесса миграции предлагается **очистить данные и выполнить импорт с нуля**:
 
-1. **Сгруппировать** по `parent_onec_id`
-2. **Создать базовые `Product`** для каждой группы (один Product на группу вариантов)
-3. **Преобразовать** существующие записи в `ProductVariant`
-4. **Перенести изображения** в `ProductVariantImage`
-5. **Обновить связи** в корзинах и заказах
+1. **Очистить таблицы** `products`, `product_images`, связанные корзины и заказы
+2. **Создать новые модели** `ProductVariant`, `ColorMapping`
+3. **Обновить импорт из 1С** для работы с новой структурой
+4. **Выполнить полный импорт** каталога из 1С
+
+**Обоснование:**
+- Проект находится на этапе разработки, production-данных нет
+- Сложная миграция существующих данных нецелесообразна
+- Импорт с нуля гарантирует консистентность данных
 
 ---
 
@@ -347,41 +330,46 @@ class ColorMapping(models.Model):
 
 ## План реализации
 
-### Фаза 1: Модели и миграция (Epic 3)
+### Фаза 1: Backend — модели, API, импорт (Epic 3)
 
-- [ ] Создать модели `ProductVariant`, `ProductVariantImage`, `ColorMapping`
+**Модели:**
+
+- [ ] Создать модель `ProductVariant` с полями: sku, onec_id, color_name, size_value, prices, stock, main_image, gallery_images
+- [ ] Создать модель `ColorMapping` для маппинга цветов на hex-коды
+- [ ] Обновить модель `Product` — убрать поля цен/остатков, оставить базовую информацию (name, description, brand, category)
 - [ ] Написать миграцию схемы БД
-- [ ] Создать data migration для переноса существующих данных
-- [ ] Обновить импорт из 1С (парсер + процессор)
-- [ ] Написать unit-тесты для новых моделей
 
-**Оценка:** 5-8 story points
+**Импорт из 1С:**
 
-### Фаза 2: API (Epic 2)
+- [ ] Рефакторинг парсера для создания `Product` + `ProductVariant`
+- [ ] Обновить процессор для записи изображений в `ProductVariant`
+- [ ] Очистить старые данные (products, product_images)
+- [ ] Выполнить полный импорт каталога из 1С
+
+**API:**
 
 - [ ] Создать `ProductVariantSerializer`
 - [ ] Расширить `ProductDetailSerializer` полем `variants[]`
-- [ ] Добавить эндпоинт `/products/{id}/variants/` (опционально)
 - [ ] Обновить OpenAPI спецификацию (`api-spec.yaml`)
-- [ ] Написать API тесты
+- [ ] Написать unit + API тесты
 
-**Оценка:** 3-5 story points
+**Оценка:** 8-13 story points
 
-### Фаза 3: Frontend (Epic 12 / Story 12.2)
+### Фаза 2: Frontend — Story 12.2
 
 - [ ] Обновить типы в `api.generated.ts`
-- [ ] Реализовать компонент `ProductOptions` (уже запланирован)
-- [ ] Интеграция с `ProductSummary` и корзиной
+- [ ] Реализовать компонент `ProductOptions`
+- [ ] Интеграция с `ProductSummary`
 - [ ] Написать frontend тесты
 
-**Оценка:** 5-8 story points (частично уже в Story 12.2)
+**Оценка:** 5-8 story points
 
-### Фаза 4: Корзина и заказы
+### Фаза 3: Корзина и заказы (отдельный Epic, не блокирует Story 12.2)
 
-- [ ] Обновить модель `CartItem` для хранения `variant_id`
-- [ ] Обновить модель `OrderItem` для связи с `ProductVariant`
-- [ ] Миграция существующих корзин и заказов
+- [ ] Обновить модель `CartItem` — добавить `variant_id`
+- [ ] Обновить модель `OrderItem` — связь с `ProductVariant`
 - [ ] Обновить API корзины и заказов
+- [ ] Написать тесты
 
 **Оценка:** 3-5 story points
 
@@ -391,7 +379,6 @@ class ColorMapping(models.Model):
 
 | Риск | Вероятность | Влияние | Митигация |
 |------|-------------|---------|-----------|
-| Сложность миграции существующих данных | Высокая | Высокое | Поэтапная миграция с dry-run режимом, резервное копирование |
 | Изменение структуры корзины/заказов | Средняя | Среднее | Обратная совместимость через `product_id` fallback |
 | Неполные данные о цветах/размерах в 1С | Средняя | Среднее | Валидация при импорте, логирование пропусков |
 | Отсутствие hex-кодов в 1С | 100% | Низкое | Справочник `ColorMapping` с ручным заполнением |
