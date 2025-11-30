@@ -44,6 +44,18 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: 'freesport.ru',
       },
+      {
+        protocol: 'https',
+        hostname: 'cdn.freesport.ru',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.freesport.ru',
+      },
+      {
+        protocol: 'https',
+        hostname: 'example.com', // Для тестов
+      },
     ],
     formats: ['image/webp', 'image/avif'],
   },

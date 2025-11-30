@@ -3,7 +3,7 @@
  */
 
 import apiClient from './api-client';
-import type { Product, PaginatedResponse } from '@/types/api';
+import type { Product, PaginatedResponse, ProductDetail } from '@/types/api';
 
 export interface ProductFilters {
   page?: number;
@@ -91,6 +91,15 @@ class ProductsService {
       },
     });
     return response.data.results;
+  }
+
+  /**
+   * Получить детальную информацию о товаре по slug (Story 12.1)
+   * GET /products/{slug}/
+   */
+  async getProductBySlug(slug: string): Promise<ProductDetail> {
+    const response = await apiClient.get<ProductDetail>(`/products/${slug}/`);
+    return response.data;
   }
 }
 

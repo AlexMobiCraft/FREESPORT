@@ -1,0 +1,102 @@
+/**
+ * Unit тесты для ProductBreadcrumbs (Story 12.1)
+ */
+
+import { describe, it, expect } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import ProductBreadcrumbs from '../ProductBreadcrumbs';
+
+describe('ProductBreadcrumbs', () => {
+  const mockBreadcrumbs = ['Главная', 'Обувь', 'Зал', 'ASICS'];
+  const mockProductName = 'ASICS Gel-Blast FF';
+
+  it('рендерит все breadcrumbs', () => {
+    render(<ProductBreadcrumbs breadcrumbs={mockBreadcrumbs} productName={mockProductName} />);
+
+    // Проверяем что все элементы отображаются
+    expect(screen.getByText('Главная')).toBeInTheDocument();
+    expect(screen.getByText('Обувь')).toBeInTheDocument();
+    expect(screen.getByText('Зал')).toBeInTheDocument();
+    expect(screen.getByText('ASICS')).toBeInTheDocument();
+    expect(screen.getByText(mockProductName)).toBeInTheDocument();
+  });
+
+  it('рендерит ссылку на главную страницу', () => {
+    render(<ProductBreadcrumbs breadcrumbs={mockBreadcrumbs} productName={mockProductName} />);
+
+    const homeLink = screen.getByText('Главная').closest('a');
+    expect(homeLink).toHaveAttribute('href', '/');
+  });
+
+  it('отображает текущий товар с aria-current', () => {
+    render(<ProductBreadcrumbs breadcrumbs={mockBreadcrumbs} productName={mockProductName} />);
+
+    const currentItem = screen.getByText(mockProductName).closest('li');
+    expect(currentItem).toHaveAttribute('aria-current', 'page');
+  });
+
+  it('содержит schema.org разметку', () => {
+    const { container } = render(
+      <ProductBreadcrumbs breadcrumbs={mockBreadcrumbs} productName={mockProductName} />
+    );
+
+    const breadcrumbList = container.querySelector(
+      '[itemType="https://schema.org/BreadcrumbList"]'
+    );
+    expect(breadcrumbList).toBeInTheDocument();
+
+    const listItems = container.querySelectorAll('[itemType="https://schema.org/ListItem"]');
+    // Главная + категории (кроме первой "Главная") + товар = 5 элементов
+    expect(listItems).toHaveLength(5);
+  });
+
+  it('корректно отображает позиции в schema.org', () => {
+    const { container } = render(
+      <ProductBreadcrumbs breadcrumbs={mockBreadcrumbs} productName={mockProductName} />
+    );
+
+    const positions = container.querySelectorAll('meta[itemProp="position"]');
+    expect(positions).toHaveLength(5);
+
+    // Проверяем значения позиций
+    expect(positions[0]).toHaveAttribute('content', '1'); // Главная
+    expect(positions[1]).toHaveAttribute('content', '2'); // Обувь
+    expect(positions[4]).toHaveAttribute('content', '5'); // Товар
+  });
+
+  it('рендерит иконки-разделители', () => {
+    const { container } = render(
+      <ProductBreadcrumbs breadcrumbs={mockBreadcrumbs} productName={mockProductName} />
+    );
+
+    const separators = container.querySelectorAll('svg[aria-hidden="true"]');
+    // Должно быть 4 разделителя (между Главная > Обувь > Зал > ASICS > Товар)
+    expect(separators.length).toBeGreaterThanOrEqual(4);
+  });
+
+  it('корректно работает с минимальным набором breadcrumbs', () => {
+    const minimalBreadcrumbs = ['Главная', 'Товары'];
+    render(<ProductBreadcrumbs breadcrumbs={minimalBreadcrumbs} productName="Тестовый товар" />);
+
+    expect(screen.getByText('Главная')).toBeInTheDocument();
+    expect(screen.getByText('Товары')).toBeInTheDocument();
+    expect(screen.getByText('Тестовый товар')).toBeInTheDocument();
+  });
+
+  it('применяет корректные CSS классы для навигации', () => {
+    const { container } = render(
+      <ProductBreadcrumbs breadcrumbs={mockBreadcrumbs} productName={mockProductName} />
+    );
+
+    const nav = container.querySelector('nav');
+    expect(nav).toHaveAttribute('aria-label', 'Breadcrumb');
+  });
+
+  it('текущий товар имеет жирный шрифт', () => {
+    render(<ProductBreadcrumbs breadcrumbs={mockBreadcrumbs} productName={mockProductName} />);
+
+    const currentProduct = screen.getByText(mockProductName);
+    expect(currentProduct).toHaveClass('font-medium');
+    expect(currentProduct).toHaveClass('text-neutral-900');
+  });
+});

@@ -212,3 +212,49 @@ export interface NewsList {
   previous: string | null;
   results: NewsItem[];
 }
+
+// Product Detail Types (Story 12.1)
+export interface ProductImage {
+  id?: number;
+  image: string;
+  alt_text?: string;
+  is_primary: boolean;
+}
+
+export interface ProductPrice {
+  retail: number;
+  wholesale?: {
+    level1?: number;
+    level2?: number;
+    level3?: number;
+  };
+  trainer?: number;
+  federation?: number;
+  currency: string;
+}
+
+export interface ProductCategory {
+  id: number;
+  name: string;
+  slug: string;
+  breadcrumbs: string[];
+}
+
+export interface ProductDetail {
+  id: number;
+  slug: string;
+  name: string;
+  sku: string;
+  brand: string;
+  description: string;
+  full_description?: string;
+  price: ProductPrice;
+  stock_quantity: number;
+  images: ProductImage[];
+  rating?: number;
+  reviews_count?: number;
+  specifications?: Record<string, string>;
+  category: ProductCategory;
+  is_in_stock: boolean;
+  can_be_ordered: boolean;
+}

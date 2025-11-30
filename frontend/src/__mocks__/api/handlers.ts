@@ -5,6 +5,11 @@
 
 import { http, HttpResponse } from 'msw';
 import type { Product, Category, NewsItem } from '@/types/api';
+import {
+  MOCK_PRODUCT_DETAIL,
+  MOCK_OUT_OF_STOCK_PRODUCT,
+  MOCK_UNAVAILABLE_PRODUCT,
+} from '../productDetail';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api/v1';
 
@@ -479,6 +484,27 @@ export const handlers = [
       previous: null,
       results: mockNews,
     });
+  }),
+
+  // Story 12.1: Product Detail endpoint
+  http.get(`${API_BASE_URL}/products/:slug/`, ({ params }) => {
+    const { slug } = params;
+
+    // Mock для разных состояний товара
+    if (slug === 'asics-gel-blast-ff') {
+      return HttpResponse.json(MOCK_PRODUCT_DETAIL);
+    }
+
+    if (slug === 'out-of-stock-product') {
+      return HttpResponse.json(MOCK_OUT_OF_STOCK_PRODUCT);
+    }
+
+    if (slug === 'unavailable-product') {
+      return HttpResponse.json(MOCK_UNAVAILABLE_PRODUCT);
+    }
+
+    // 404 для несуществующего товара
+    return HttpResponse.json({ detail: 'Product not found' }, { status: 404 });
   }),
 ];
 
