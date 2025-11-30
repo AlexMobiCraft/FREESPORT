@@ -60,6 +60,10 @@
         "dangerBg": "#FFE1E8",
         "promo": "#FF2E93",
         "promoBg": "#FFF0F5",
+        "violet": "#7C3AED",
+        "violetBg": "#F0E7FF",
+        "brown": "#6D4C1F",
+        "brownBg": "#F6F0E4",
         "usage": "Статусы, бейджи, фоновые подсветки сигнальных состояний"
       },
       "neutral": {

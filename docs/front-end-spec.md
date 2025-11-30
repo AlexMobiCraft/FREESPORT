@@ -1141,17 +1141,17 @@ interface BadgeProps {
 }
 
 // Варианты (обновлено 2025-11-25):
-sale:     { bg: '#FFE1E8', text: '#E53935' }        // Распродажа
-new:      { bg: '#E7F3FF', text: '#0060FF' }        // Новинка
-hit:      { bg: '#E0F5E8', text: '#00AA5B' }        // Хит продаж
-promo:    { bg: '#FFF0F5', text: '#FF2E93' }        // Промо
-discount: { bg: '#F0E7FF', text: '#7C3AED' }        // Скидка
-premium:  { bg: '#F6F0E4', text: '#6D4C1F' }        // Премиум
+sale:     { bg: 'var(--color-danger-bg)', text: 'var(--color-danger)' }        // Распродажа
+new:      { bg: 'var(--color-primary-subtle)', text: 'var(--color-primary)' }        // Новинка
+hit:      { bg: 'var(--color-success-bg)', text: 'var(--color-success)' }        // Хит продаж
+promo:    { bg: 'var(--color-promo-bg)', text: 'var(--color-promo)' }        // Промо
+discount: { bg: 'var(--color-accent-violet-bg)', text: 'var(--color-accent-violet)' }        // Скидка
+premium:  { bg: 'var(--color-accent-brown-bg)', text: 'var(--color-accent-brown)' }        // Премиум
 
 // Статусы заказов (синхронизированы с новой палитрой):
-delivered:  { bg: '#E0F5E8', text: '#00AA5B', icon: 'check-circle' }
-transit:    { bg: '#FFF1CC', text: '#B07600', icon: 'truck' }
-cancelled:  { bg: '#FFE1E8', text: '#E53935', icon: 'x' }
+delivered:  { bg: 'var(--color-success-bg)', text: 'var(--color-success)', icon: 'check-circle' }
+transit:    { bg: 'var(--color-warning-bg)', text: 'var(--color-warning)', icon: 'truck' }
+cancelled:  { bg: 'var(--color-danger-bg)', text: 'var(--color-danger)', icon: 'x' }
 
 // Shape: rounded-full
 ```
@@ -1355,15 +1355,15 @@ interface SidebarFiltersProps {
 // Checkbox:
 boxSize: 20px
 radius: 6px
-borderDefault: 1.5px solid #B9C3D6
-borderChecked: 1.5px solid #0060FF
-backgroundChecked: #0060FF
-icon: { type: 'lucide-check', size: 18px, stroke: 3, color: '#FFFFFF' }
+borderDefault: 1.5px solid var(--color-neutral-400)
+borderChecked: 1.5px solid var(--color-primary)
+backgroundChecked: var(--color-primary)
+icon: { type: 'lucide-check', size: 18px, stroke: 3, color: var(--color-text-inverse) }
 label: { typography: 'body-m', spacing: 12px }
 
 // Toggle:
-track: { width: 44px, height: 24px, radius: 999, off: '#E3E8F2', on: '#0060FF' }
-thumb: { size: 20px, color: '#FFFFFF', shadow: '0 2px 8px rgba(0, 0, 0, 0.16)' }
+track: { width: 44px, height: 24px, radius: 999, off: var(--color-neutral-300), on: var(--color-primary) }
+thumb: { size: 20px, color: var(--color-neutral-100), shadow: 'var(--shadow-default)' }
 ```
 
 #### Select (Выпадающий список)
@@ -1393,9 +1393,9 @@ interface CheckboxProps {
 }
 
 // Checkbox:
-// - unchecked: border neutral (B9C3D6)
-// - checked: bg primary (#0060FF) + Check scale 100
-// - focus: outline rgba(0,96,255,0.6)
+// - unchecked: border neutral (var(--color-neutral-400))
+// - checked: bg primary (var(--color-primary)) + Check scale 100
+// - focus: outline var(--color-primary-subtle)
 // - disabled: пониженная прозрачность
 // - Label справа, gap 12px
 
@@ -1505,10 +1505,10 @@ interface ModerationFilters {
 
 // Статусы заявок:
 const APPLICATION_STATUSES = {
-  pending: { label: 'На модерации', color: '#FF9800', icon: '🟡' },
-  urgent: { label: 'Срочная', color: '#f44336ff', icon: '🔴' },
-  approved: { label: 'Одобрена', color: '#4CAF50', icon: '🟢' },
-  rejected: { label: 'Отклонена', color: '#757575', icon: '⚫' }
+  pending: { label: 'На модерации', color: 'var(--color-warning)', icon: '🟡' },
+  urgent: { label: 'Срочная', color: 'var(--color-danger)', icon: '🔴' },
+  approved: { label: 'Одобрена', color: 'var(--color-success)', icon: '🟢' },
+  rejected: { label: 'Отклонена', color: 'var(--color-neutral-600)', icon: '⚫' }
 }
 ```
 
@@ -1542,10 +1542,10 @@ interface SyncLogEntry {
 
 // Индикаторы статуса синхронизации:
 const SYNC_STATUSES = {
-  success: { label: 'Синхронизировано', color: '#4CAF50', icon: '✅' },
-  error: { label: 'Ошибка', color: '#F44336', icon: '❌' },
-  warning: { label: 'Предупреждение', color: '#FF9800', icon: '⚠️' },
-  running: { label: 'Выполняется', color: '#2196F3', icon: '🔄' }
+  success: { label: 'Синхронизировано', color: 'var(--color-success)', icon: '✅' },
+  error: { label: 'Ошибка', color: 'var(--color-danger)', icon: '❌' },
+  warning: { label: 'Предупреждение', color: 'var(--color-warning)', icon: '⚠️' },
+  running: { label: 'Выполняется', color: 'var(--color-secondary)', icon: '🔄' }
 }
 ```
 
@@ -1597,12 +1597,12 @@ interface OrderStatusProps {
 }
 
 const OrderStatuses = {
-  pending: { label: 'Ожидает обработки', color: '#FFA726', icon: '⏳' },
-  confirmed: { label: 'Подтвержден', color: '#4CAF50', icon: '✅' },
-  processing: { label: 'В обработке', color: '#2196F3', icon: '📦' },
-  shipped: { label: 'Отправлен', color: '#FF9800', icon: '🚚' },
-  delivered: { label: 'Доставлен', color: '#4CAF50', icon: '📍' },
-  cancelled: { label: 'Отменен', color: '#F44336', icon: '❌' }
+  pending: { label: 'Ожидает обработки', color: 'var(--color-warning)', icon: '⏳' },
+  confirmed: { label: 'Подтвержден', color: 'var(--color-success)', icon: '✅' },
+  processing: { label: 'В обработке', color: 'var(--color-secondary)', icon: '📦' },
+  shipped: { label: 'Отправлен', color: 'var(--color-warning)', icon: '🚚' },
+  delivered: { label: 'Доставлен', color: 'var(--color-success)', icon: '📍' },
+  cancelled: { label: 'Отменен', color: 'var(--color-danger)', icon: '❌' }
 }
 ```
 
@@ -1625,10 +1625,10 @@ interface ToastProps {
 //  ↑ border-l-4 (4px левая граница для индикации статуса)
 
 // Варианты Toast:
-// Success: border-l-4 с цветом #00AA5B (зеленый)
-// Error: border-l-4 с цветом #E53935 (красный)
-// Warning: border-l-4 с цветом #F5A623 (оранжевый)
-// Info: border-l-4 с цветом #0060FF (синий)
+// Success: border-l-4 с цветом var(--color-success) (зеленый)
+// Error: border-l-4 с цветом var(--color-danger) (красный)
+// Warning: border-l-4 с цветом var(--color-warning) (оранжевый)
+// Info: border-l-4 с цветом var(--color-primary) (синий)
 
 // Пример использования:
 ┌─────────────────────────────────┐
@@ -1640,10 +1640,10 @@ interface ToastProps {
 // Border-l-4 в Toast компонентах:
 // Левая граница толщиной 4px (border-l-4) служит основным визуальным
 // индикатором типа уведомления. Цвет границы соответствует статусу:
-// - Success: #00AA5B (зеленый) - успешные операции
-// - Error: #E53935 (красный) - ошибки и критические сообщения
-// - Warning: #F5A623 (оранжевый) - предупреждения
-// - Info: #0060FF (синий) - информационные сообщения
+// - Success: var(--color-success) (зеленый) - успешные операции
+// - Error: var(--color-danger) (красный) - ошибки и критические сообщения
+// - Warning: var(--color-warning) (оранжевый) - предупреждения
+// - Info: var(--color-primary) (синий) - информационные сообщения
 
 // Техническая реализация:
 // - borderLeftWidth: 4px
@@ -1912,43 +1912,43 @@ const BrowserSupport = {
 
 ```scss
 // Основные цвета (Primary)
-$primary-default: #0060FF;     // CTA, ключевые акценты, выделение активных элементов
-$primary-hover: #0047CC;
-$primary-active: #0037A6;
-$primary-subtle: #E7F3FF;
+$primary-default: var(--color-primary);     // CTA, ключевые акценты, выделение активных элементов
+$primary-hover: var(--color-primary-hover);
+$primary-active: var(--color-primary-active);
+$primary-subtle: var(--color-primary-subtle);
 
 // Вторичные цвета (Secondary)
-$secondary-default: #00B7FF;   // Вторичные акценты, подсветка сервисных блоков
-$secondary-hover: #0095D6;
-$secondary-active: #0078B3;
-$secondary-subtle: #E1F5FF;
+$secondary-default: var(--color-secondary);   // Вторичные акценты, подсветка сервисных блоков
+$secondary-hover: var(--color-secondary-hover);
+$secondary-active: var(--color-secondary-active);
+$secondary-subtle: var(--color-secondary-subtle);
 
 // Акцентные цвета (Accent) - Статусы, бейджи, сигнальные состояния
-$accent-success: #00AA5B;
-$accent-warning: #F5A623;
-$accent-danger: #E53935;
-$accent-promo: #FF2E93;
+$accent-success: var(--color-success);
+$accent-warning: var(--color-warning);
+$accent-danger: var(--color-danger);
+$accent-promo: var(--color-promo);
 
 // Нейтральные цвета - Фоны, бордеры, текстовые оттенки
-$neutral-100: #FFFFFF;
-$neutral-200: #F5F7FB;
-$neutral-300: #E3E8F2;
-$neutral-400: #B9C3D6;
-$neutral-500: #8F9BB3;
-$neutral-600: #6B7A99;
-$neutral-700: #4B5C7A;
-$neutral-800: #2D3A52;
-$neutral-900: #1F2A44;
+$neutral-100: var(--color-neutral-100);
+$neutral-200: var(--color-neutral-200);
+$neutral-300: var(--color-neutral-300);
+$neutral-400: var(--color-neutral-400);
+$neutral-500: var(--color-neutral-500);
+$neutral-600: var(--color-neutral-600);
+$neutral-700: var(--color-neutral-700);
+$neutral-800: var(--color-neutral-800);
+$neutral-900: var(--color-neutral-900);
 
 // Текстовые цвета - Базовые уровни контраста текста
-$text-primary: #1F2A44;
-$text-secondary: #4B5C7A;
-$text-muted: #7F8CA8;
-$text-inverse: #FFFFFF;
+$text-primary: var(--color-text-primary);
+$text-secondary: var(--color-text-secondary);
+$text-muted: var(--color-text-muted);
+$text-inverse: var(--color-text-inverse);
 
 // Фоны
-$bg-canvas: #F5F7FB;                                   // Основной фон страницы
-$bg-panel: #FFFFFF;                                    // Фон карточек и панелей
+$bg-canvas: var(--bg-canvas);                                   // Основной фон страницы
+$bg-panel: var(--bg-panel);                                    // Фон карточек и панелей
 $bg-emphasis: linear-gradient(135deg, rgba(0, 96, 255, 0.12), rgba(0, 183, 255, 0.08));
 ```
 
@@ -2101,8 +2101,8 @@ $recommendations-title-style: title-m;
 $icon-style: 'Rounded minimal с толщиной линий 1.5-2px и скруглением 4px';
 $icon-primary-size: 24px;
 $icon-secondary-size: 20px;
-$icon-default-color: #4B5C7A;
-$icon-inverse-color: #FFFFFF;
+$icon-default-color: var(--color-neutral-700);
+$icon-inverse-color: var(--color-text-inverse);
 
 // Filled icons используются ограниченно для promo или CTA
 // Все иконки приводятся к таргетному размеру через общий renderer/cloneElement
@@ -2113,15 +2113,15 @@ $icon-inverse-color: #FFFFFF;
 ```scss
 // Hover состояние
 $hover-lift: translateY(-2px);
-$hover-shadow: 0 12px 32px rgba(0, 96, 255, 0.18);
+$hover-shadow: var(--shadow-hover);
 $hover-color-shift: primary-hover;
 
 // Focus состояние
-$focus-outline-color: rgba(0, 96, 255, 0.6);
+$focus-outline-color: var(--color-primary);
 $focus-outline-width: 2px;
 $focus-radius: 6px;
 
 // Pressed состояние
-$pressed-shadow: 0 6px 18px rgba(0, 55, 166, 0.24);
+$pressed-shadow: var(--shadow-pressed);
 $pressed-offset: translateY(0);
 ```
