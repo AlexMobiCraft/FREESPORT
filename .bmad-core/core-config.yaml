@@ -20,6 +20,7 @@ prd:
     - 10
     - 11
     - 12
+  # Epic 13: Product Variant System - будет добавлен после завершения Sprint N+1 и Story 13.4 (Production Migration)
 architecture:
   architectureFile: docs/architecture.md
   architectureVersion: v4

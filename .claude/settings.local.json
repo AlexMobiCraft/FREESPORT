@@ -47,7 +47,11 @@
       "Bash(del fix-tests.ps1)",
       "Bash(python manage.py makemigrations:*)",
       "Bash(python:*)",
-      "Bash(findstr:*)"
+      "Bash(findstr:*)",
+      "Bash(if [ ! -d \"docs/stories/epic-13\" ])",
+      "Bash(then mkdir -p docs/stories/epic-13)",
+      "Bash(else echo \"epic-13 already exists\")",
+      "Bash(fi)"
     ],
     "deny": [],
     "ask": [],
