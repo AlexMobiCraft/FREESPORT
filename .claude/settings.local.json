@@ -51,7 +51,10 @@
       "Bash(if [ ! -d \"docs/stories/epic-13\" ])",
       "Bash(then mkdir -p docs/stories/epic-13)",
       "Bash(else echo \"epic-13 already exists\")",
-      "Bash(fi)"
+      "Bash(fi)",
+      "Bash(if [ ! -d \"docs/qa/gates\" ])",
+      "Bash(then mkdir -p docs/qa/gates)",
+      "Bash(else echo \"gates directory already exists\")"
     ],
     "deny": [],
     "ask": [],

@@ -1,0 +1,265 @@
+# Quality Gate Decision: Story 13.2
+# Рефакторинг импорта из 1С для ProductVariant
+
+schema: 1
+story: "13.2"
+story_title: "Рефакторинг импорта из 1С для ProductVariant"
+gate: FAIL
+status_reason: "Критическая блокирующая зависимость: Story 13.1 (ProductVariant модели) не реализована. Story 13.2 требует существования модели ProductVariant перед началом рефакторинга."
+reviewer: "Quinn (Test Architect)"
+updated: "2025-12-01T14:00:00Z"
+
+# Waiver status
+waiver:
+  active: false
+
+# Top Issues (критические проблемы блокирующие разработку)
+top_issues:
+  - id: "DEP-001"
+    severity: high
+    finding: "Блокирующая зависимость: Story 13.1 (ProductVariant модели) не реализована"
+    impact: "Невозможно начать рефакторинг импорта без существования целевых моделей ProductVariant и ColorMapping"
+    suggested_action: |
+      ОБЯЗАТЕЛЬНО выполнить Story 13.1 ПЕРЕД началом Story 13.2:
+      1. Создать модель ProductVariant с полями из FR1
+      2. Создать модель ColorMapping
+      3. Рефакторировать модель Product (удалить price/stock поля)
+      4. Выполнить и протестировать миграции
+      5. Только ПОСЛЕ завершения Story 13.1 начинать Story 13.2
+    suggested_owner: po
+    references:
+      - "docs/stories/epic-13/13.1.backend-models-productvariant.md"
+      - "docs/qa/gates/13.1-backend-models-productvariant.yml"
+
+  - id: "ARCH-001"
+    severity: medium
+    finding: "Потенциальный конфликт с существующей структурой импорта"
+    impact: |
+      Текущий импорт использует двухэтапный подход:
+      - goods.xml → создание заготовок Product (с parent_onec_id)
+      - offers.xml → обогащение Product (с onec_id)
+
+      После рефакторинга ожидается:
+      - goods.xml → Product (базовая информация)
+      - offers.xml → ProductVariant (SKU, характеристики)
+
+      Риск: неполная миграция приведет к дублированию данных
+    suggested_action: |
+      1. Задокументировать стратегию миграции существующих данных
+      2. Создать migration script для очистки старых данных
+      3. Добавить флаг --clear-existing в команду импорта (уже есть в import_catalog_from_1c.py:68)
+      4. Протестировать полный цикл импорта на тестовых данных
+    suggested_owner: dev
+    references:
+      - "backend/apps/products/management/commands/import_catalog_from_1c.py:301-353"
+
+  - id: "SPEC-001"
+    severity: medium
+    finding: "Отсутствует спецификация обработки товаров без вариантов (AC5)"
+    impact: "Неясен workflow создания default ProductVariant для товаров из goods.xml без соответствующих <Предложение> в offers.xml"
+    status: "RESOLVED"
+    resolution_date: "2025-12-01T18:00:00Z"
+    resolution: |
+      PO добавил детализированный алгоритм в Dev Notes (строки 272-358):
+      - Функция create_default_variants() выполняется ПОСЛЕ parse_offers_xml() и ДО parse_prices_xml()
+      - Создает ProductVariant с sku=Product.onec_id, is_active=True
+      - Цены = 0 (будут обновлены из prices.xml)
+      - Обоснование решения is_active=True: товар виден в каталоге, frontend показывает "Цена по запросу"
+    suggested_action: |
+      ✅ COMPLETED - См. Story версия 1.1
+    suggested_owner: po
+    references:
+      - "docs/stories/epic-13/13.2.refactor-1c-import-productvariant.md:272-358"
+
+  - id: "SPEC-002"
+    severity: medium
+    finding: "Hybrid подход к изображениям недостаточно задокументирован"
+    impact: |
+      Story ссылается на Hybrid подход (FR10b из Epic 13), но детали неполные:
+      - Когда изображения записываются в ProductVariant.main_image/gallery_images?
+      - Когда используется Product.base_images fallback?
+      - Как обрабатывать <Картинка> из goods.xml vs offers.xml?
+    status: "RESOLVED"
+    resolution_date: "2025-12-01T18:00:00Z"
+    resolution: |
+      PO выбрал Вариант A (Hybrid Approach) и добавил полную спецификацию в Dev Notes (строки 360-492):
+      - Шаг 1: goods.xml → Product.base_images (parse_goods_xml_images)
+      - Шаг 2: offers.xml → ProductVariant.main_image/gallery_images (parse_offers_xml_images)
+      - Шаг 3: Frontend метод effective_images() для fallback на base_images
+      - Обоснование: соответствие FR10b, лучший UX, поддержка товаров без специфичных изображений
+    suggested_action: |
+      ✅ COMPLETED - См. Story версия 1.2
+    suggested_owner: po
+    references:
+      - "docs/stories/epic-13/13.2.refactor-1c-import-productvariant.md:360-492"
+
+  - id: "TEST-001"
+    severity: medium
+    finding: "Отсутствуют integration тесты для batch processing (AC9, NFR4)"
+    impact: "NFR4 требует обработки до 10,000 SKU без превышения памяти, но тесты не покрывают batch size 500"
+    suggested_action: |
+      Добавить integration тесты:
+      - test_batch_processing_500_variants()
+      - test_batch_processing_memory_usage() (с профилированием памяти)
+      - test_bulk_create_variants() (проверка использования bulk_create)
+      - test_bulk_update_prices() (проверка использования bulk_update)
+      - test_transaction_atomic_per_batch() (commit после каждого batch)
+    suggested_owner: dev
+    references:
+      - "docs/stories/epic-13/13.2.refactor-1c-import-productvariant.md:75-80"
+      - "docs/stories/epic-13/13.2.refactor-1c-import-productvariant.md:274-303"
+
+  - id: "LOG-001"
+    severity: low
+    finding: "Logging configuration требует создания отдельного logger"
+    impact: "NFR8 требует отдельный logger 'import_products', но неясно как интегрировать с существующим logging"
+    suggested_action: |
+      1. Обновить settings.py: добавить logger 'import_products'
+      2. Создать logs/ директорию в корне проекта
+      3. Добавить .gitignore для logs/*.log
+      4. Протестировать ротацию логов (для production)
+    suggested_owner: dev
+    references:
+      - "docs/stories/epic-13/13.2.refactor-1c-import-productvariant.md:88-94"
+
+# Risk Summary
+risk_summary:
+  totals:
+    critical: 1  # DEP-001
+    high: 0
+    medium: 2    # ARCH-001, TEST-001 (SPEC-001 и SPEC-002 RESOLVED)
+    low: 1       # LOG-001
+  highest:
+    score: 12    # DEP-001: probability=4 (100% происходит если начать сейчас) × impact=3 (полный блок)
+    id: "DEP-001"
+    description: "Блокирующая зависимость Story 13.1"
+  recommendations:
+    must_fix:
+      - "DEP-001: Завершить Story 13.1 перед началом Story 13.2"
+    resolved:
+      - "✅ SPEC-001: Уточнен workflow default variants (2025-12-01, Story v1.1)"
+      - "✅ SPEC-002: Определена Image Import Strategy - Hybrid Approach (2025-12-01, Story v1.2)"
+    monitor:
+      - "ARCH-001: Документировать migration strategy"
+      - "TEST-001: Добавить batch processing tests"
+      - "LOG-001: Настроить logging configuration"
+
+# Evidence
+evidence:
+  tests_reviewed: 0  # Story в статусе Draft, реализация отсутствует
+  risks_identified: 6
+  trace:
+    ac_covered: []  # Не применимо для Draft story
+    ac_gaps: [1, 2, 3, 4, 5, 6, 7, 8, 9]  # Все AC требуют уточнения
+
+# NFR Validation
+nfr_validation:
+  security:
+    status: PASS
+    notes: "Рефакторинг не вносит новых security рисков. Существующая валидация XML данных сохраняется."
+
+  performance:
+    status: CONCERNS
+    notes: |
+      NFR4: До 10,000 SKU без превышения памяти
+      - Спецификация batch processing (500 records/batch) корректна
+      - CONCERNS: Отсутствуют integration тесты для подтверждения (TEST-001)
+      - Рекомендация: Добавить memory profiling тесты
+
+  reliability:
+    status: CONCERNS
+    notes: |
+      - Логирование warnings/errors задокументировано (NFR8)
+      - CONCERNS: Integration Verification (IV1-IV3) требует тестов для проверки обратной совместимости
+      - Риск: После рефакторинга существующие API могут сломаться если Product.variants не будет правильно сериализован
+
+  maintainability:
+    status: PASS
+    notes: |
+      - Dev Notes детализированы с примерами кода
+      - CommerceML 3.1 структура задокументирована
+      - Типизация Python сохраняется (все примеры с type hints)
+
+# Quality Score
+quality_score: 40
+# Calculation:
+# 100 - (20 × 1 FAIL [DEP-001]) - (10 × 4 CONCERNS [ARCH-001, SPEC-001, SPEC-002, TEST-001]) = 40
+
+# Expiry
+expires: "2025-12-31T00:00:00Z"
+
+# Recommendations
+recommendations:
+  immediate:  # MUST fix before starting development
+    - action: "Завершить Story 13.1 (ProductVariant модели и миграции)"
+      priority: "P0 - Блокирующее"
+      status: "OPEN"
+      refs:
+        - "docs/stories/epic-13/13.1.backend-models-productvariant.md"
+        - "docs/qa/gates/13.1-backend-models-productvariant.yml"
+
+  resolved:  # Устранено PO 2025-12-01
+    - action: "Уточнить с PO workflow default variants (AC5)"
+      priority: "P1 - Критичное"
+      status: "✅ RESOLVED (2025-12-01)"
+      resolution: "PO добавил детальный алгоритм create_default_variants() в Story v1.1"
+      refs:
+        - "docs/stories/epic-13/13.2.refactor-1c-import-productvariant.md:272-358"
+
+    - action: "Определить с PO Image Import Strategy (Hybrid approach)"
+      priority: "P1 - Критичное"
+      status: "✅ RESOLVED (2025-12-01)"
+      resolution: "PO выбрал Вариант A (Hybrid) с полной спецификацией в Story v1.2"
+      refs:
+        - "docs/stories/epic-13/13.2.refactor-1c-import-productvariant.md:360-492"
+
+  future:  # Рекомендации для повышения качества
+    - action: "Добавить integration тесты для batch processing с memory profiling"
+      priority: "P2 - Важное"
+      refs:
+        - "docs/stories/epic-13/13.2.refactor-1c-import-productvariant.md:96-105"
+
+    - action: "Документировать migration strategy существующих данных"
+      priority: "P2 - Важное"
+      refs: []
+
+    - action: "Создать logging configuration в settings.py"
+      priority: "P3 - Желательное"
+      refs:
+        - "docs/stories/epic-13/13.2.refactor-1c-import-productvariant.md:309-349"
+
+# История gate решений (append-only audit trail)
+history:
+  - at: "2025-12-01T14:00:00Z"
+    gate: FAIL
+    reviewer: "Quinn (Test Architect)"
+    note: |
+      Pre-Implementation Specification Review.
+      Блокирующая зависимость: Story 13.1 не реализована.
+      Выявлено 6 issues (1 critical, 4 medium, 1 low).
+      Story НЕ готова к разработке до завершения Story 13.1 и уточнения SPEC-001, SPEC-002.
+
+  - at: "2025-12-01T18:00:00Z"
+    gate: FAIL (улучшено)
+    reviewer: "Sarah (Product Owner)"
+    note: |
+      PO устранил 2 из 6 issues:
+
+      ✅ SPEC-001 RESOLVED (Story v1.1):
+      - Добавлен детальный алгоритм create_default_variants() в Dev Notes (строки 272-358)
+      - Определено когда выполняется (после offers.xml, до prices.xml)
+      - Обоснование is_active=True для товаров без вариантов
+      - SKU fallback на Product.onec_id
+
+      ✅ SPEC-002 RESOLVED (Story v1.2):
+      - Выбрана стратегия Image Import: Вариант A (Hybrid Approach)
+      - Добавлены полные алгоритмы для goods.xml → Product.base_images и offers.xml → ProductVariant images
+      - Документирован метод effective_images() для frontend fallback
+      - Обоснование выбора: соответствие FR10b, лучший UX, поддержка товаров без изображений
+
+      Остается 4 issue (1 critical, 2 medium, 1 low):
+      - DEP-001 [CRITICAL]: Story 13.1 все еще блокирует (требует Dev)
+      - ARCH-001, TEST-001 [MEDIUM]: требуют Dev действий
+      - LOG-001 [LOW]: требует Dev действий
+
+      Gate остается FAIL до завершения Story 13.1.
