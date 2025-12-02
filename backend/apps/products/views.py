@@ -139,6 +139,17 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
         tags=["Products"],
     )
     def retrieve(self, request, *args, **kwargs):
+        """Retrieve с prefetch variants для оптимизации"""
+        # Оптимизация: prefetch variants для избежания N+1 queries
+        self.queryset = self.get_queryset().prefetch_related("variants")
+        return super().retrieve(request, *args, **kwargs)
+    def retrieve(self, request, *args, **kwargs):
+        """Retrieve с prefetch variants для оптимизации"""
+        # Оптимизация: prefetch variants для избежания N+1 queries
+        self.queryset = self.get_queryset().prefetch_related("variants")
+        return super().retrieve(request, *args, **kwargs)
+        # Оптимизация: prefetch variants для избежания N+1 queries
+        self.queryset = self.get_queryset().prefetch_related("variants")
         return super().retrieve(request, *args, **kwargs)
 
 
