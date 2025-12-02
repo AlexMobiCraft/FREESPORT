@@ -60,7 +60,7 @@ class ProductVariantSerializer(serializers.ModelSerializer):
             str: Цена как строка (сериализация Decimal)
         """
         request = self.context.get("request")
-        user: User | None = request.user if request else None
+        user: User | None = getattr(request, "user", None) if request else None
 
         price: Decimal = obj.get_price_for_user(user)
         return str(price)  # Сериализация Decimal → str
@@ -78,11 +78,14 @@ class ProductVariantSerializer(serializers.ModelSerializer):
         if not obj.color_name:
             return None
 
-        try:
-            mapping = ColorMapping.objects.get(name=obj.color_name)
-            return mapping.hex_code
-        except ColorMapping.DoesNotExist:
-            return None  # Fallback на None (frontend покажет текст)
+        # Кэшируем ColorMapping для избежания N+1 queries
+        if not hasattr(self, "_color_mapping_cache"):
+            self._color_mapping_cache = {
+                mapping.name: mapping.hex_code
+                for mapping in ColorMapping.objects.all()
+            }
+
+        return self._color_mapping_cache.get(obj.color_name)
 
 
 
@@ -202,19 +205,16 @@ class CategorySerializer(serializers.ModelSerializer):
 
 class ProductListSerializer(serializers.ModelSerializer):
     """
-    Serializer для списка товаров с ролевым ценообразованием
+    Serializer для списка товаров (базовая модель Product)
+
+    Примечание: Product - это базовая модель товара без цен и остатков.
+    Цены и остатки хранятся в ProductVariant.
+    Для получения вариантов используйте вложенное поле 'variants' в ProductDetailSerializer.
     """
 
     brand = BrandSerializer(read_only=True)
     category: Any = serializers.StringRelatedField(read_only=True)
-    current_price = serializers.SerializerMethodField()
-    price_type = serializers.SerializerMethodField()
-    can_be_ordered = serializers.BooleanField(read_only=True)
     specifications = serializers.JSONField(read_only=True)
-
-    # Дополнительные поля для B2B пользователей
-    rrp = serializers.SerializerMethodField()
-    msrp = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
@@ -222,20 +222,12 @@ class ProductListSerializer(serializers.ModelSerializer):
             "id",
             "name",
             "slug",
-            "sku",
             "brand",
             "category",
+            "description",
             "short_description",
-            "main_image",
-            "current_price",
-            "price_type",
-            "retail_price",
-            "rrp",
-            "msrp",
             "specifications",
-            "stock_quantity",
-            "min_order_quantity",
-            "can_be_ordered",
+            "base_images",
             "is_featured",
             # Story 11.0: Маркетинговые флаги для бейджей
             "is_hit",
@@ -254,60 +246,6 @@ class ProductListSerializer(serializers.ModelSerializer):
             "is_premium",
             "discount_percent",
         ]
-
-    def get_current_price(self, obj):
-        """Получить текущую цену для пользователя на основе его роли"""
-        request = self.context.get("request")
-        if not request or not request.user.is_authenticated:
-            return f"{obj.retail_price:.2f}"
-
-        price = obj.get_price_for_user(request.user)
-        return f"{price:.2f}"
-
-    def get_price_type(self, obj):
-        """Получить тип цены для пользователя"""
-        request = self.context.get("request")
-        if not request or not request.user.is_authenticated:
-            return "retail"
-
-        return request.user.role
-
-    def get_rrp(self, obj):
-        """RRP отображается только для B2B пользователей"""
-        request = self.context.get("request")
-        if (
-            request
-            and request.user.is_authenticated
-            and request.user.is_b2b_user
-            and obj.recommended_retail_price
-        ):
-            return f"{obj.recommended_retail_price:.2f}"
-        return None
-
-    def get_msrp(self, obj):
-        """MSRP отображается только для B2B пользователей"""
-        request = self.context.get("request")
-        if (
-            request
-            and request.user.is_authenticated
-            and request.user.is_b2b_user
-            and obj.max_suggested_retail_price
-        ):
-            return f"{obj.max_suggested_retail_price:.2f}"
-        return None
-
-    def to_representation(self, instance):
-        """Conditionally remove rrp and msrp for non-B2B users."""
-        ret = super().to_representation(instance)
-        request = self.context.get("request")
-        if (
-            not request
-            or not request.user.is_authenticated
-            or not request.user.is_b2b_user
-        ):
-            ret.pop("rrp", None)
-            ret.pop("msrp", None)
-        return ret
 
 
 class ProductDetailSerializer(ProductListSerializer):
@@ -334,36 +272,29 @@ class ProductDetailSerializer(ProductListSerializer):
         ]
 
     def get_images(self, obj):
-        """Получить галерею изображений включая основное"""
+        """
+        Получить галерею изображений из base_images
+
+        Product использует base_images (JSONField) - список URL изображений из 1С.
+        Первое изображение считается основным.
+        """
         images = []
         request = self.context.get("request")
 
-        # Основное изображение
-        if obj.main_image:
-            url = obj.main_image.url
-            if request and hasattr(request, "build_absolute_uri"):
-                url = request.build_absolute_uri(url)
-
-            images.append(
-                {
-                    "url": url,
-                    "alt_text": f"{obj.name} - основное изображение",
-                    "is_main": True,
-                }
-            )
-
-        # Дополнительные изображения из gallery_images
-        if obj.gallery_images:
-            for idx, img_url in enumerate(obj.gallery_images):
+        # base_images - это список URL изображений
+        if obj.base_images and isinstance(obj.base_images, list):
+            for idx, img_url in enumerate(obj.base_images):
                 url = img_url
                 if request and hasattr(request, "build_absolute_uri"):
-                    url = request.build_absolute_uri(url)
+                    # Если URL относительный, делаем абсолютным
+                    if not img_url.startswith(('http://', 'https://')):
+                        url = request.build_absolute_uri(img_url)
 
                 images.append(
                     {
                         "url": url,
-                        "alt_text": f"{obj.name} - изображение {idx + 2}",
-                        "is_main": False,
+                        "alt_text": f"{obj.name} - изображение {idx + 1}",
+                        "is_main": idx == 0,  # Первое изображение - основное
                     }
                 )
 

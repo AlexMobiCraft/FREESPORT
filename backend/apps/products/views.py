@@ -38,6 +38,7 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
     """
 
     permission_classes = [permissions.AllowAny]  # Каталог доступен всем
+    lookup_field = "slug"
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
     filterset_class = ProductFilter
     ordering_fields = ["name", "retail_price", "created_at", "stock_quantity"]
@@ -140,14 +141,6 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
     )
     def retrieve(self, request, *args, **kwargs):
         """Retrieve с prefetch variants для оптимизации"""
-        # Оптимизация: prefetch variants для избежания N+1 queries
-        self.queryset = self.get_queryset().prefetch_related("variants")
-        return super().retrieve(request, *args, **kwargs)
-    def retrieve(self, request, *args, **kwargs):
-        """Retrieve с prefetch variants для оптимизации"""
-        # Оптимизация: prefetch variants для избежания N+1 queries
-        self.queryset = self.get_queryset().prefetch_related("variants")
-        return super().retrieve(request, *args, **kwargs)
         # Оптимизация: prefetch variants для избежания N+1 queries
         self.queryset = self.get_queryset().prefetch_related("variants")
         return super().retrieve(request, *args, **kwargs)

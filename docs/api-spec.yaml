@@ -804,6 +804,11 @@ components:
                 "Размеры": "S, M, L, XL"
                 "Вес": "0.5 кг"
                 "Цвет": "Синий, красный, черный"
+            variants:
+              type: array
+              items:
+                $ref: '#/components/schemas/ProductVariant'
+              description: Варианты товара (цвет, размер, цены, остатки)
             related_products:
               type: array
               items:
@@ -825,6 +830,69 @@ components:
         is_primary:
           type: boolean
           description: Является ли основным изображением
+
+    ProductVariant:
+      type: object
+      required:
+        - id
+        - sku
+        - current_price
+        - stock_quantity
+        - is_in_stock
+        - available_quantity
+      properties:
+        id:
+          type: integer
+          description: ID варианта товара
+        sku:
+          type: string
+          description: Артикул SKU
+          example: "NIKE-AM-RED-42"
+        color_name:
+          type: string
+          nullable: true
+          description: Название цвета
+          example: "Красный"
+        size_value:
+          type: string
+          nullable: true
+          description: Размер
+          example: "42"
+        current_price:
+          type: string
+          format: decimal
+          description: Цена для текущего пользователя (роле-ориентированная)
+          example: "5990.00"
+        color_hex:
+          type: string
+          nullable: true
+          description: Hex-код цвета (если доступен из ColorMapping)
+          example: "#FF0000"
+        stock_quantity:
+          type: integer
+          description: Количество на складе
+          example: 15
+        is_in_stock:
+          type: boolean
+          description: Доступен для заказа (computed property)
+          example: true
+        available_quantity:
+          type: integer
+          description: Доступное количество (с учетом резерва, computed property)
+          example: 15
+        main_image:
+          type: string
+          format: uri
+          nullable: true
+          description: Основное изображение варианта
+          example: "/media/products/variants/nike-am-red.jpg"
+        gallery_images:
+          type: array
+          items:
+            type: string
+            format: uri
+          description: Галерея изображений варианта
+          example: ["/media/products/variants/nike-am-red-side.jpg"]
 
     Price:
       type: object

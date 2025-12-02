@@ -11,7 +11,14 @@ import factory
 from django.utils.text import slugify
 from factory import fuzzy
 
-from apps.products.models import Brand, Brand1CMapping, Category, Product
+from apps.products.models import (
+    Brand,
+    Brand1CMapping,
+    Category,
+    ColorMapping,
+    Product,
+    ProductVariant,
+)
 
 # Глобальный счетчик для обеспечения уникальности
 _unique_counter = 0
@@ -68,19 +75,48 @@ class ProductFactory(factory.django.DjangoModelFactory):
 
     name = factory.LazyFunction(lambda: f"Product-{get_unique_suffix()}")
     slug = factory.LazyAttribute(lambda obj: slugify(obj.name))
-    sku = factory.LazyFunction(lambda: f"SKU-{get_unique_suffix().upper()}")
     onec_id = factory.LazyFunction(lambda: f"1c-{get_unique_suffix()}")
     description = factory.Faker("text", max_nb_chars=500)
-    retail_price = fuzzy.FuzzyDecimal(100.0, 10000.0, 2)
-    opt1_price = fuzzy.FuzzyDecimal(80.0, 8000.0, 2)
-    opt2_price = fuzzy.FuzzyDecimal(60.0, 6000.0, 2)
-    opt3_price = fuzzy.FuzzyDecimal(50.0, 5000.0, 2)
-    trainer_price = fuzzy.FuzzyDecimal(40.0, 4000.0, 2)
-    recommended_retail_price = fuzzy.FuzzyDecimal(120.0, 12000.0, 2)
-    max_suggested_retail_price = fuzzy.FuzzyDecimal(130.0, 13000.0, 2)
-    stock_quantity = fuzzy.FuzzyInteger(0, 100)
+    short_description = factory.Faker("text", max_nb_chars=200)
     is_active = True
 
     # Связи
     category = factory.SubFactory(CategoryFactory)
     brand = factory.SubFactory(BrandFactory)
+
+
+class ColorMappingFactory(factory.django.DjangoModelFactory):
+    """Factory для создания тестовых маппингов цветов"""
+
+    class Meta:
+        model = ColorMapping
+
+    name = factory.LazyFunction(lambda: f"Color-{get_unique_suffix()}")
+    hex_code = fuzzy.FuzzyChoice(["#FF0000", "#00FF00", "#0000FF", "#FFFF00", "#FF00FF"])
+
+
+class ProductVariantFactory(factory.django.DjangoModelFactory):
+    """Factory для создания тестовых вариантов товаров"""
+
+    class Meta:
+        model = ProductVariant
+
+    product = factory.SubFactory(ProductFactory)
+    sku = factory.LazyFunction(lambda: f"SKU-{get_unique_suffix().upper()}")
+    onec_id = factory.LazyFunction(lambda: f"variant-1c-{get_unique_suffix()}")
+    color_name = factory.LazyFunction(lambda: f"Color-{get_unique_suffix()}")
+    size_value = fuzzy.FuzzyChoice(["XS", "S", "M", "L", "XL", "XXL", "38", "40", "42", "44"])
+
+    # Цены для различных ролей
+    retail_price = fuzzy.FuzzyDecimal(100.0, 10000.0, 2)
+    opt1_price = fuzzy.FuzzyDecimal(80.0, 8000.0, 2)
+    opt2_price = fuzzy.FuzzyDecimal(60.0, 6000.0, 2)
+    opt3_price = fuzzy.FuzzyDecimal(50.0, 5000.0, 2)
+    trainer_price = fuzzy.FuzzyDecimal(40.0, 4000.0, 2)
+    federation_price = fuzzy.FuzzyDecimal(45.0, 4500.0, 2)
+
+    # Остатки
+    stock_quantity = fuzzy.FuzzyInteger(0, 100)
+    reserved_quantity = fuzzy.FuzzyInteger(0, 10)
+
+    is_active = True

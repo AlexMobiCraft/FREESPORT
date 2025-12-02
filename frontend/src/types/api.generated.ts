@@ -946,6 +946,8 @@ export interface components {
       specifications?: {
         [key: string]: unknown;
       };
+      /** @description Варианты товара (цвет, размер, цены, остатки) */
+      variants?: components['schemas']['ProductVariant'][];
       /** @description Похожие товары */
       related_products?: components['schemas']['Product'][];
     };
@@ -960,6 +962,64 @@ export interface components {
       alt_text?: string;
       /** @description Является ли основным изображением */
       is_primary?: boolean;
+    };
+    ProductVariant: {
+      /** @description ID варианта товара */
+      id: number;
+      /**
+       * @description Артикул SKU
+       * @example NIKE-AM-RED-42
+       */
+      sku: string;
+      /**
+       * @description Название цвета
+       * @example Красный
+       */
+      color_name?: string | null;
+      /**
+       * @description Размер
+       * @example 42
+       */
+      size_value?: string | null;
+      /**
+       * Format: decimal
+       * @description Цена для текущего пользователя (роле-ориентированная)
+       * @example 5990.00
+       */
+      current_price: string;
+      /**
+       * @description Hex-код цвета (если доступен из ColorMapping)
+       * @example #FF0000
+       */
+      color_hex?: string | null;
+      /**
+       * @description Количество на складе
+       * @example 15
+       */
+      stock_quantity: number;
+      /**
+       * @description Доступен для заказа (computed property)
+       * @example true
+       */
+      is_in_stock: boolean;
+      /**
+       * @description Доступное количество (с учетом резерва, computed property)
+       * @example 15
+       */
+      available_quantity: number;
+      /**
+       * Format: uri
+       * @description Основное изображение варианта
+       * @example /media/products/variants/nike-am-red.jpg
+       */
+      main_image?: string | null;
+      /**
+       * @description Галерея изображений варианта
+       * @example [
+       *       "/media/products/variants/nike-am-red-side.jpg"
+       *     ]
+       */
+      gallery_images?: string[];
     };
     Price: {
       /**
