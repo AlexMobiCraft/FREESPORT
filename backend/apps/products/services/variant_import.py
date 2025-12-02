@@ -154,7 +154,7 @@ def extract_size_from_name(name: str) -> str:
 
 def extract_color_from_name(name: str) -> str:
     """
-    Извлечение цвета из названия товара
+    Извлечение цвета из названия товара используя ColorMapping модель
 
     Пример: "Боксерки BoyBo TITAN,IB-26 (одобрены ФБР), синий"
     Результат: "синий"
@@ -165,36 +165,14 @@ def extract_color_from_name(name: str) -> str:
     Returns:
         Извлечённый цвет или пустая строка
     """
-    # Известные цвета для поиска
-    colors = [
-        "белый",
-        "черный",
-        "чёрный",
-        "красный",
-        "синий",
-        "зеленый",
-        "зелёный",
-        "желтый",
-        "жёлтый",
-        "серый",
-        "розовый",
-        "оранжевый",
-        "фиолетовый",
-        "коричневый",
-        "бежевый",
-        "бордовый",
-        "голубой",
-        "салатовый",
-        "сиреневый",
-        "золотой",
-        "серебряный",
-        "камуфляж",
-        "хаки",
-    ]
+    from apps.products.models import ColorMapping
+
+    # Получаем цвета из ColorMapping модели
+    color_mappings = ColorMapping.objects.values_list("name", flat=True)
 
     name_lower = name.lower()
-    for color in colors:
-        if color in name_lower:
+    for color in color_mappings:
+        if color.lower() in name_lower:
             return color.capitalize()
 
     return ""
@@ -260,6 +238,70 @@ class VariantImportProcessor:
         self._stock_buffer: dict[str, int] = {}
         self._missing_products_logged: set[str] = set()
         self._missing_variants_logged: set[str] = set()
+
+    # ========================================================================
+    # Helper methods
+    # ========================================================================
+
+    def _save_image_if_not_exists(
+        self,
+        source_path: Path,
+        image_path: str,
+        destination_prefix: str,
+    ) -> str | None:
+        """
+        Helper метод для сохранения изображения если оно еще не существует
+
+        Args:
+            source_path: Путь к исходному файлу изображения
+            image_path: Относительный путь изображения из XML
+            destination_prefix: Префикс директории назначения ('base' или 'variants')
+
+        Returns:
+            Путь к сохраненному файлу или None если файл не найден/ошибка
+        """
+        from django.conf import settings
+        from django.core.files.base import ContentFile
+        from django.core.files.storage import default_storage
+
+        if not source_path.exists():
+            logger.warning(f"Image not found: {source_path}")
+            self.stats["images_errors"] += 1
+            return None
+
+        # Сохранение структуры директорий
+        filename = source_path.name
+        subdir = image_path.split("/")[0] if "/" in image_path else ""
+        destination_path = (
+            f"products/{destination_prefix}/{subdir}/{filename}"
+            if subdir
+            else f"products/{destination_prefix}/{filename}"
+        )
+
+        # Проверка существования
+        if default_storage.exists(destination_path):
+            self.stats["images_skipped"] += 1
+            return destination_path
+
+        # Создание директории
+        if subdir:
+            subdir_path = os.path.join(
+                settings.MEDIA_ROOT, "products", destination_prefix, subdir
+            )
+            os.makedirs(subdir_path, exist_ok=True)
+
+        # Копирование файла
+        try:
+            with open(source_path, "rb") as f:
+                saved_path = default_storage.save(
+                    destination_path, ContentFile(f.read())
+                )
+            self.stats["images_copied"] += 1
+            return saved_path
+        except Exception as e:
+            logger.error(f"Error saving image {image_path}: {e}")
+            self.stats["images_errors"] += 1
+            return None
 
     # ========================================================================
     # Task 1: Рефакторинг парсера goods.xml (AC: 1)
@@ -436,49 +478,13 @@ class VariantImportProcessor:
         for image_path in image_paths:
             try:
                 source_path = Path(base_dir) / image_path
-
-                if not source_path.exists():
-                    logger.warning(f"Image not found: {source_path}")
-                    self.stats["images_errors"] += 1
-                    continue
-
-                # Сохранение структуры директорий
-                filename = source_path.name
-                subdir = image_path.split("/")[0] if "/" in image_path else ""
-                destination_path = (
-                    f"products/base/{subdir}/{filename}"
-                    if subdir
-                    else f"products/base/{filename}"
+                saved_path = self._save_image_if_not_exists(
+                    source_path, image_path, "base"
                 )
 
-                # Проверка существования
-                if default_storage.exists(destination_path):
-                    if destination_path not in seen_paths:
-                        base_images.append(destination_path)
-                        seen_paths.add(destination_path)
-                    self.stats["images_skipped"] += 1
-                    continue
-
-                # Создание директории
-                if subdir:
-                    from django.conf import settings
-
-                    subdir_path = os.path.join(
-                        settings.MEDIA_ROOT, "products", "base", subdir
-                    )
-                    os.makedirs(subdir_path, exist_ok=True)
-
-                # Копирование файла
-                with open(source_path, "rb") as f:
-                    saved_path = default_storage.save(
-                        destination_path, ContentFile(f.read())
-                    )
-
-                if saved_path not in seen_paths:
+                if saved_path and saved_path not in seen_paths:
                     base_images.append(saved_path)
                     seen_paths.add(saved_path)
-
-                self.stats["images_copied"] += 1
 
             except Exception as e:
                 logger.error(f"Error copying image {image_path}: {e}")
@@ -489,7 +495,8 @@ class VariantImportProcessor:
             product.base_images = base_images
             product.save(update_fields=["base_images"])
             logger.info(
-                f"Product {product.onec_id} base_images updated: {len(base_images)} images"
+                f"Product {product.onec_id} base_images updated: "
+                f"{len(base_images)} images"
             )
 
     # ========================================================================
@@ -585,11 +592,17 @@ class VariantImportProcessor:
         if not parsed_chars["size_value"]:
             parsed_chars["size_value"] = extract_size_from_name(name)
 
-        if parsed_chars["color_name"] and variant.color_name != parsed_chars["color_name"]:
+        if (
+            parsed_chars["color_name"]
+            and variant.color_name != parsed_chars["color_name"]
+        ):
             variant.color_name = parsed_chars["color_name"]
             fields_to_update.append("color_name")
 
-        if parsed_chars["size_value"] and variant.size_value != parsed_chars["size_value"]:
+        if (
+            parsed_chars["size_value"]
+            and variant.size_value != parsed_chars["size_value"]
+        ):
             variant.size_value = parsed_chars["size_value"]
             fields_to_update.append("size_value")
 
@@ -661,7 +674,8 @@ class VariantImportProcessor:
             variant.save()
             logger.info(
                 f"ProductVariant created: {variant.onec_id} "
-                f"(sku={variant.sku}, color={variant.color_name}, size={variant.size_value})"
+                f"(sku={variant.sku}, color={variant.color_name}, "
+                f"size={variant.size_value})"
             )
             self.stats["variants_created"] += 1
 
@@ -705,54 +719,17 @@ class VariantImportProcessor:
         for image_path in image_paths:
             try:
                 source_path = Path(base_dir) / image_path
-
-                if not source_path.exists():
-                    logger.warning(f"Variant image not found: {source_path}")
-                    self.stats["images_errors"] += 1
-                    continue
-
-                filename = source_path.name
-                subdir = image_path.split("/")[0] if "/" in image_path else ""
-                destination_path = (
-                    f"products/variants/{subdir}/{filename}"
-                    if subdir
-                    else f"products/variants/{filename}"
+                saved_path = self._save_image_if_not_exists(
+                    source_path, image_path, "variants"
                 )
 
-                # Проверка существования
-                if default_storage.exists(destination_path):
+                if saved_path:
                     if not main_image_set:
-                        variant.main_image = destination_path
+                        variant.main_image = saved_path
                         main_image_set = True
-                    elif destination_path not in seen_paths:
-                        gallery_images.append(destination_path)
-                        seen_paths.add(destination_path)
-                    self.stats["images_skipped"] += 1
-                    continue
-
-                # Создание директории
-                if subdir:
-                    from django.conf import settings
-
-                    subdir_path = os.path.join(
-                        settings.MEDIA_ROOT, "products", "variants", subdir
-                    )
-                    os.makedirs(subdir_path, exist_ok=True)
-
-                # Копирование
-                with open(source_path, "rb") as f:
-                    saved_path = default_storage.save(
-                        destination_path, ContentFile(f.read())
-                    )
-
-                if not main_image_set:
-                    variant.main_image = saved_path
-                    main_image_set = True
-                elif saved_path not in seen_paths:
-                    gallery_images.append(saved_path)
-                    seen_paths.add(saved_path)
-
-                self.stats["images_copied"] += 1
+                    elif saved_path not in seen_paths:
+                        gallery_images.append(saved_path)
+                        seen_paths.add(saved_path)
 
             except Exception as e:
                 logger.error(f"Error copying variant image {image_path}: {e}")
@@ -777,17 +754,18 @@ class VariantImportProcessor:
         """
         from apps.products.models import Product, ProductVariant
 
-        # Найти все Products без ProductVariant
+        # Найти все Products без ProductVariant (включая неактивные)
         products_without_variants = Product.objects.filter(
             variants__isnull=True,
-            is_active=True,
         )
 
         count = products_without_variants.count()
         logger.info(f"Found {count} products without variants")
 
         if count == 0:
-            logger.info("No products without variants found, skipping default variant creation")
+            logger.info(
+                "No products without variants found, skipping default variant creation"
+            )
             return 0
 
         default_variants: list[ProductVariant] = []
@@ -1135,7 +1113,9 @@ class VariantImportProcessor:
                 session.error_message = error_message
             session.save()
 
-            logger.info(f"Import session {self.session_id} finalized with status: {status}")
+            logger.info(
+                f"Import session {self.session_id} finalized with status: {status}"
+            )
             logger.info(f"Import stats: {self.stats}")
 
         except ImportSession.DoesNotExist:

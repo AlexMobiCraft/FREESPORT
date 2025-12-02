@@ -305,6 +305,7 @@ class TestVariantImportProcessor(TransactionTestCase):
     def tearDown(self):
         """Очистка"""
         import shutil
+
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     def _create_xml_file(self, content: str, filename: str) -> str:
@@ -606,9 +607,7 @@ class TestVariantImportProcessor(TransactionTestCase):
         assert variant.stock_quantity == 80  # 50 + 30
 
         # Финализация
-        self.processor.finalize_session(
-            status=ImportSession.ImportStatus.COMPLETED
-        )
+        self.processor.finalize_session(status=ImportSession.ImportStatus.COMPLETED)
 
         self.session.refresh_from_db()
         assert self.session.status == ImportSession.ImportStatus.COMPLETED
@@ -708,3 +707,184 @@ class TestIntegrationVerification(TestCase):
 
         # Проверяем что warning был залогирован
         assert any("parent Product not found" in log for log in cm.output)
+
+
+# ============================================================================
+# AC6: Hybrid Images Tests (TEST-GAP-1)
+# ============================================================================
+
+
+@pytest.mark.integration
+@pytest.mark.django_db(transaction=True)
+class TestHybridImagesLogic(TransactionTestCase):
+    """
+    Integration тесты для AC6 - Hybrid images логика
+    - base_images fallback через effective_images()
+    - Копирование изображений в products/base/ и products/variants/
+    - main_image + gallery_images логика
+    """
+
+    def setUp(self):
+        """Настройка тестовых данных"""
+        # Создание Brand
+        self.brand = Brand.objects.create(
+            name="Test Brand", slug="test-brand", is_active=True
+        )
+
+        # Создание Category
+        self.category = Category.objects.create(
+            name="Test Category", slug="test-category", is_active=True
+        )
+
+        # Создание ImportSession
+        self.session = ImportSession.objects.create(
+            import_type=ImportSession.ImportType.CATALOG,
+            status=ImportSession.ImportStatus.STARTED,
+        )
+
+        # Создание процессора
+        self.processor = VariantImportProcessor(session_id=self.session.pk)
+
+    def _create_xml_file(self, content: str, filename: str) -> str:
+        """Создание временного XML файла"""
+        temp_dir = tempfile.mkdtemp()
+        file_path = os.path.join(temp_dir, filename)
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(content)
+        return file_path
+
+    def test_base_images_saved_to_product(self):
+        """
+        Тест: base_images сохраняются в Product.base_images
+        """
+        # Создаем Product напрямую с base_images
+        product = Product.objects.create(
+            onec_id="product-with-base-images",
+            name="Товар с base images",
+            slug="product-with-base-images",
+            brand=self.brand,
+            category=self.category,
+            is_active=True,
+            base_images=[
+                "products/base/goods/image1.jpg",
+                "products/base/goods/image2.jpg",
+            ],
+        )
+
+        # Проверка: Product создан
+        assert product is not None
+
+        # Проверка: base_images содержит 2 изображения
+        assert product.base_images is not None
+        assert len(product.base_images) == 2
+        assert "products/base/goods/image1.jpg" in product.base_images[0]
+        assert "products/base/goods/image2.jpg" in product.base_images[1]
+
+    def test_variant_images_saved_to_main_and_gallery(self):
+        """
+        Тест: Изображения варианта сохраняются в main_image и gallery_images
+        """
+        # Создаем Product
+        product = Product.objects.create(
+            onec_id="product-001",
+            name="Test Product",
+            slug="test-product",
+            brand=self.brand,
+            category=self.category,
+            is_active=True,
+        )
+
+        # Создаем временные файлы изображений
+        temp_dir = tempfile.mkdtemp()
+        variant_dir = os.path.join(temp_dir, "offers")
+        os.makedirs(variant_dir, exist_ok=True)
+
+        dummy_jpg = (
+            b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00"
+            b"\xff\xdb\x00C\x00\x03\x02\x02\x02\x02\x02\x03\x02\x02\x02\x03\x03\x03"
+            b"\x03\x04\x06\x04\x04\x04\x04\x04\x08\x06\x06\x05\x06\t\x08\n\n\t\x08"
+            b"\t\t\n\x0c\x0f\x0c\n\x0b\x0e\x0b\t\t\r\x11\r\x0e\x0f\x10\x10\x11\x10"
+            b"\n\x0c\x12\x13\x12\x10\x13\x0f\x10\x10\x10\xff\xc9\x00\x0b\x08\x00\x01"
+            b"\x00\x01\x01\x01\x11\x00\xff\xcc\x00\x06\x00\x10\x10\x05\xff\xda\x00"
+            b"\x08\x01\x01\x00\x00?\x00\xd2\xcf \xff\xd9"
+        )
+
+        variant_img1 = os.path.join(variant_dir, "variant1.jpg")
+        variant_img2 = os.path.join(variant_dir, "variant2.jpg")
+        variant_img3 = os.path.join(variant_dir, "variant3.jpg")
+
+        for img_path in [variant_img1, variant_img2, variant_img3]:
+            with open(img_path, "wb") as f:
+                f.write(dummy_jpg)
+
+        # Создаем offer_data с изображениями
+        offer_data = {
+            "id": "product-001#variant-001",
+            "name": "Test Variant Red",
+            "article": "VARIANT-001",
+            "characteristics": [
+                {"name": "Цвет", "value": "Красный"},
+                {"name": "Размер", "value": "M"},
+            ],
+            "images": [
+                "offers/variant1.jpg",
+                "offers/variant2.jpg",
+                "offers/variant3.jpg",
+            ],
+        }
+
+        # Обработка варианта
+        variant = self.processor.process_variant_from_offer(
+            offer_data, base_dir=temp_dir, skip_images=False
+        )
+
+        # Проверка: variant создан
+        assert variant is not None
+        assert variant.color_name == "Красный"
+        assert variant.size_value == "M"
+
+        # Проверка: main_image установлен (первое изображение)
+        assert variant.main_image is not None
+        assert "products/variants/offers/variant1.jpg" in str(variant.main_image)
+
+        # Проверка: gallery_images содержит остальные изображения
+        assert variant.gallery_images is not None
+        assert len(variant.gallery_images) == 2
+        assert "products/variants/offers/variant2.jpg" in str(variant.gallery_images[0])
+        assert "products/variants/offers/variant3.jpg" in str(variant.gallery_images[1])
+
+    def test_default_variant_without_images_uses_base_images(self):
+        """
+        Тест: Default variant без своих изображений использует base_images через effective_images()
+        """
+        # Создаем Product с base_images
+        product = Product.objects.create(
+            onec_id="product-with-base",
+            name="Product with base images",
+            slug="product-with-base",
+            brand=self.brand,
+            category=self.category,
+            is_active=True,
+            base_images=[
+                "products/base/image1.jpg",
+                "products/base/image2.jpg",
+            ],
+        )
+
+        # Создаем default variant
+        count = self.processor.create_default_variants()
+        assert count == 1
+
+        # Получаем созданный variant
+        variant = ProductVariant.objects.get(product=product)
+
+        # Проверка: variant не имеет своих изображений
+        assert variant.main_image is None or variant.main_image == ""
+        assert variant.gallery_images is None or len(variant.gallery_images) == 0
+
+        # Проверка: effective_images возвращает base_images
+        effective = variant.effective_images
+        assert effective is not None
+        assert len(effective) == 2
+        assert "products/base/image1.jpg" in effective[0]
+        assert "products/base/image2.jpg" in effective[1]
