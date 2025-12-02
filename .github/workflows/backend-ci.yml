@@ -166,6 +166,10 @@ jobs:
         echo "DJANGO_SETTINGS_MODULE=$DJANGO_SETTINGS_MODULE"
         # Проверяем настройки Django
         python -c "import os; os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'freesport.settings.test'); import django; django.setup(); from django.conf import settings; print('🔍 Django DB settings:'); print(f\"USER: {settings.DATABASES['default']['USER']}\"); print(f\"NAME: {settings.DATABASES['default']['NAME']}\"); print(f\"HOST: {settings.DATABASES['default']['HOST']}\")"
+        # Пересоздаем тестовую БД для чистого старта
+        echo "🔄 Пересоздание тестовой базы данных..."
+        PGPASSWORD=postgres psql -h localhost -U postgres -c "DROP DATABASE IF EXISTS freesport_test;" || true
+        PGPASSWORD=postgres psql -h localhost -U postgres -c "CREATE DATABASE freesport_test;" || true
         # Сбрасываем соединения с БД перед миграциями для избежания проблем с транзакциями
         python -c "import django; django.setup(); from django.db import connections; connections.close_all()" || true
         python manage.py migrate --noinput
@@ -184,7 +188,10 @@ jobs:
       run: |
         cd backend
         source venv/bin/activate
-        pytest --ignore=tests/integration/test_management_commands/test_import_customers.py --ignore=tests/unit/test_services/test_customer_parser.py -m "not integration and not data_dependent" --cov=. --cov-report=xml --cov-report=html --cov-report=term-missing --cov-fail-under=70
+        echo "🧪 Запуск тестов с покрытием..."
+        # Используем --reuse-db для переиспользования БД между тестами
+        # Добавляем -v для более подробного вывода
+        pytest --ignore=tests/integration/test_management_commands/test_import_customers.py --ignore=tests/unit/test_services/test_customer_parser.py -m "not integration and not data_dependent" --reuse-db -v --cov=. --cov-report=xml --cov-report=html --cov-report=term-missing --cov-fail-under=70
         
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@v4

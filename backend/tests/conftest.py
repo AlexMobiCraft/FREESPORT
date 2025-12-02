@@ -557,10 +557,11 @@ def enable_db_access_for_all_tests(db):
     # НЕ закрываем соединение - оставляем для следующих тестов
 
 
-@pytest.fixture(autouse=False)
+@pytest.fixture(autouse=True)
 def clear_db_before_test(transactional_db):
     """
     Оптимизированная очистка базы данных без deadlock'ов
+    Автоматически запускается перед каждым тестом для предотвращения конфликтов уникальности
     """
     from django.apps import apps
     from django.core.cache import cache
@@ -588,6 +589,8 @@ def clear_db_before_test(transactional_db):
             "orders.Order",
             "cart.Cart",
             "products.ProductImage",
+            "products.ProductVariants",  # Добавлено для избежания duplicate key
+            "products.ColorMappings",    # Добавлено для избежания duplicate key
             "products.Product",
             "products.Category",
             "products.Brand",
