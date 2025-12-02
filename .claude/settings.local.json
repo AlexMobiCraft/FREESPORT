@@ -54,7 +54,8 @@
       "Bash(fi)",
       "Bash(if [ ! -d \"docs/qa/gates\" ])",
       "Bash(then mkdir -p docs/qa/gates)",
-      "Bash(else echo \"gates directory already exists\")"
+      "Bash(else echo \"gates directory already exists\")",
+      "Bash(if not exist \"docs\\qa\\gates\" mkdir \"docs\\qa\\gates\")"
     ],
     "deny": [],
     "ask": [],

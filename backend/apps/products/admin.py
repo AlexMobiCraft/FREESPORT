@@ -14,7 +14,15 @@ from django.shortcuts import render
 import logging
 
 from .forms import MergeBrandsActionForm, TransferMappingsActionForm
-from .models import Brand, Brand1CMapping, Category, Product, ProductImage
+from .models import (
+    Brand,
+    Brand1CMapping,
+    Category,
+    ColorMapping,
+    Product,
+    ProductImage,
+    ProductVariant,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -204,11 +212,8 @@ class ProductAdmin(admin.ModelAdmin):
 
     list_display = (
         "name",
-        "sku",
         "brand",
         "category",
-        "retail_price",
-        "stock_quantity",
         "is_active",
         # Story 11.0: Маркетинговые флаги
         "is_hit",
@@ -232,7 +237,7 @@ class ProductAdmin(admin.ModelAdmin):
         "is_premium",
         "created_at",
     )
-    search_fields = ("name", "sku", "onec_id", "parent_onec_id", "onec_brand_id")
+    search_fields = ("name", "onec_id", "parent_onec_id", "onec_brand_id")
     prepopulated_fields = {"slug": ("name",)}
     readonly_fields = (
         "created_at",
@@ -259,34 +264,10 @@ class ProductAdmin(admin.ModelAdmin):
             },
         ),
         (
-            "Ценообразование",
+            "Изображения (Hybrid подход - Story 13.1)",
             {
-                "fields": (
-                    "retail_price",
-                    "opt1_price",
-                    "opt2_price",
-                    "opt3_price",
-                    "trainer_price",
-                    "federation_price",
-                    "recommended_retail_price",
-                    "max_suggested_retail_price",
-                )
-            },
-        ),
-        (
-            "Инвентаризация",
-            {
-                "fields": (
-                    "sku",
-                    "stock_quantity",
-                    "reserved_quantity",
-                )
-            },
-        ),
-        (
-            "Медиа и изображения",
-            {
-                "fields": ("main_image",),
+                "fields": ("base_images",),
+                "description": "Общие изображения товара из 1С. Используются как fallback для вариантов.",
             },
         ),
         (
@@ -412,3 +393,94 @@ class ProductAdmin(admin.ModelAdmin):
     def get_queryset(self, request: HttpRequest) -> QuerySet[Product]:
         """Оптимизация запросов"""
         return super().get_queryset(request).select_related("brand", "category")
+
+
+@admin.register(ColorMapping)
+class ColorMappingAdmin(admin.ModelAdmin):
+    """Admin для модели ColorMapping"""
+
+    list_display = ("name", "hex_code", "swatch_image")
+    search_fields = ("name", "hex_code")
+    ordering = ("name",)
+
+
+@admin.register(ProductVariant)
+class ProductVariantAdmin(admin.ModelAdmin):
+    """Admin для модели ProductVariant"""
+
+    list_display = (
+        "sku",
+        "product",
+        "color_name",
+        "size_value",
+        "retail_price",
+        "stock_quantity",
+        "is_active",
+    )
+    list_filter = ("is_active", "color_name", "size_value")
+    search_fields = ("sku", "onec_id", "product__name")
+    raw_id_fields = ("product",)
+    readonly_fields = ("created_at", "updated_at", "last_sync_at")
+    fieldsets = (
+        (
+            "Идентификация",
+            {
+                "fields": (
+                    "product",
+                    "sku",
+                    "onec_id",
+                )
+            },
+        ),
+        (
+            "Характеристики",
+            {
+                "fields": (
+                    "color_name",
+                    "size_value",
+                )
+            },
+        ),
+        (
+            "Ценообразование",
+            {
+                "fields": (
+                    "retail_price",
+                    "opt1_price",
+                    "opt2_price",
+                    "opt3_price",
+                    "trainer_price",
+                    "federation_price",
+                )
+            },
+        ),
+        (
+            "Остатки",
+            {
+                "fields": (
+                    "stock_quantity",
+                    "reserved_quantity",
+                )
+            },
+        ),
+        (
+            "Изображения (опционально)",
+            {
+                "fields": (
+                    "main_image",
+                    "gallery_images",
+                ),
+                "description": "Собственные изображения варианта. Если не заданы, используются Product.base_images.",
+            },
+        ),
+        (
+            "Статус и даты",
+            {
+                "fields": ("is_active", "last_sync_at", "created_at", "updated_at"),
+            },
+        ),
+    )
+
+    def get_queryset(self, request: HttpRequest) -> QuerySet[ProductVariant]:
+        """Оптимизация запросов"""
+        return super().get_queryset(request).select_related("product")

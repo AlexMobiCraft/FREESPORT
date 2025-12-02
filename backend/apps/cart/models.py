@@ -14,6 +14,7 @@ from django.db.models import Q
 
 if TYPE_CHECKING:
     from django.db.models import QuerySet
+    from decimal import Decimal
 
 User = get_user_model()
 
@@ -51,7 +52,7 @@ class Cart(models.Model):
         constraints = [
             # Корзина должна иметь либо пользователя, либо session_key
             models.CheckConstraint(
-                condition=Q(user__isnull=False) | Q(session_key__isnull=False),
+                check=Q(user__isnull=False) | Q(session_key__isnull=False),
                 name="cart_must_have_user_or_session",
             )
         ]
@@ -73,7 +74,7 @@ class Cart(models.Model):
     def total_amount(self):
         """Общая стоимость товаров в корзине"""
         from decimal import Decimal
-
+        
         total = Decimal("0")
         for item in self.items.select_related("product").all():
             user = self.user

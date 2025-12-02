@@ -1,0 +1,710 @@
+"""
+Integration тесты для импорта ProductVariant из 1С (Story 13.2)
+
+Тестирует новый workflow импорта:
+1. goods.xml → Product (базовая информация, base_images)
+2. offers.xml → ProductVariant (SKU, характеристики)
+3. Default variants → ProductVariant для товаров без вариантов
+4. prices.xml → ProductVariant (цены)
+5. rests.xml → ProductVariant (остатки)
+"""
+
+import os
+import tempfile
+from decimal import Decimal
+from pathlib import Path
+from unittest.mock import patch
+
+import pytest
+from django.test import TestCase, TransactionTestCase, override_settings
+
+from apps.products.models import (
+    Brand,
+    Brand1CMapping,
+    Category,
+    ImportSession,
+    PriceType,
+    Product,
+    ProductVariant,
+)
+from apps.products.services.parser import XMLDataParser
+from apps.products.services.variant_import import (
+    VariantImportProcessor,
+    extract_color_from_name,
+    extract_size_from_name,
+    parse_characteristics,
+    parse_onec_id,
+)
+
+
+# ============================================================================
+# Test fixtures - XML data
+# ============================================================================
+
+SAMPLE_GOODS_XML = """<?xml version="1.0" encoding="UTF-8"?>
+<КоммерческаяИнформация xmlns="urn:1C.ru:commerceml_3" ВерсияСхемы="3.1">
+    <Каталог>
+        <Товары>
+            <Товар>
+                <Ид>test-product-001</Ид>
+                <Наименование>Тестовый товар синий</Наименование>
+                <Описание>Описание тестового товара</Описание>
+                <Артикул>TEST-001</Артикул>
+                <Группы>
+                    <Ид>test-category-001</Ид>
+                </Группы>
+                <Картинка>import_files/00/test-image-1.jpg</Картинка>
+                <Картинка>import_files/00/test-image-2.jpg</Картинка>
+            </Товар>
+            <Товар>
+                <Ид>test-product-002</Ид>
+                <Наименование>Товар без вариантов</Наименование>
+                <Описание>Товар для теста default variant</Описание>
+                <Артикул>TEST-002</Артикул>
+            </Товар>
+        </Товары>
+    </Каталог>
+</КоммерческаяИнформация>
+"""
+
+SAMPLE_OFFERS_XML = """<?xml version="1.0" encoding="UTF-8"?>
+<КоммерческаяИнформация xmlns="urn:1C.ru:commerceml_3" ВерсияСхемы="3.1">
+    <ПакетПредложений>
+        <Предложения>
+            <Предложение>
+                <Ид>test-product-001#variant-001</Ид>
+                <Наименование>Тестовый товар синий (42)</Наименование>
+                <Артикул>TEST-001-42</Артикул>
+                <ХарактеристикиТовара>
+                    <ХарактеристикаТовара>
+                        <Наименование>Цвет</Наименование>
+                        <Значение>Синий</Значение>
+                    </ХарактеристикаТовара>
+                    <ХарактеристикаТовара>
+                        <Наименование>Размер</Наименование>
+                        <Значение>42</Значение>
+                    </ХарактеристикаТовара>
+                </ХарактеристикиТовара>
+            </Предложение>
+            <Предложение>
+                <Ид>test-product-001#variant-002</Ид>
+                <Наименование>Тестовый товар синий (44)</Наименование>
+                <Артикул>TEST-001-44</Артикул>
+                <ХарактеристикиТовара>
+                    <ХарактеристикаТовара>
+                        <Наименование>Цвет</Наименование>
+                        <Значение>Синий</Значение>
+                    </ХарактеристикаТовара>
+                    <ХарактеристикаТовара>
+                        <Наименование>Размер</Наименование>
+                        <Значение>44</Значение>
+                    </ХарактеристикаТовара>
+                </ХарактеристикиТовара>
+            </Предложение>
+            <Предложение>
+                <Ид>orphan-product#variant-orphan</Ид>
+                <Наименование>Вариант без родителя</Наименование>
+                <Артикул>ORPHAN-001</Артикул>
+            </Предложение>
+        </Предложения>
+    </ПакетПредложений>
+</КоммерческаяИнформация>
+"""
+
+SAMPLE_PRICES_XML = """<?xml version="1.0" encoding="UTF-8"?>
+<КоммерческаяИнформация xmlns="urn:1C.ru:commerceml_3" ВерсияСхемы="3.1">
+    <ПакетПредложений>
+        <Предложения>
+            <Предложение>
+                <Ид>test-product-001#variant-001</Ид>
+                <Цены>
+                    <Цена>
+                        <ИдТипаЦены>price-type-retail</ИдТипаЦены>
+                        <ЦенаЗаЕдиницу>1500.00</ЦенаЗаЕдиницу>
+                    </Цена>
+                    <Цена>
+                        <ИдТипаЦены>price-type-opt1</ИдТипаЦены>
+                        <ЦенаЗаЕдиницу>1200.00</ЦенаЗаЕдиницу>
+                    </Цена>
+                </Цены>
+            </Предложение>
+        </Предложения>
+    </ПакетПредложений>
+</КоммерческаяИнформация>
+"""
+
+SAMPLE_RESTS_XML = """<?xml version="1.0" encoding="UTF-8"?>
+<КоммерческаяИнформация xmlns="urn:1C.ru:commerceml_3" ВерсияСхемы="3.1">
+    <ПакетПредложений>
+        <Предложения>
+            <Предложение>
+                <Ид>test-product-001#variant-001</Ид>
+                <Остатки>
+                    <Остаток>
+                        <Склад>
+                            <Ид>warehouse-001</Ид>
+                            <Количество>50</Количество>
+                        </Склад>
+                    </Остаток>
+                    <Остаток>
+                        <Склад>
+                            <Ид>warehouse-002</Ид>
+                            <Количество>30</Количество>
+                        </Склад>
+                    </Остаток>
+                </Остатки>
+            </Предложение>
+        </Предложения>
+    </ПакетПредложений>
+</КоммерческаяИнформация>
+"""
+
+
+# ============================================================================
+# Unit tests for helper functions
+# ============================================================================
+
+
+class TestParseOnecId(TestCase):
+    """Тесты для функции parse_onec_id"""
+
+    def test_parse_composite_id(self):
+        """AC2: Парсинг составного ID parent#variant"""
+        parent_id, variant_id = parse_onec_id("12345678-abcd#87654321-dcba")
+        assert parent_id == "12345678-abcd"
+        assert variant_id == "87654321-dcba"
+
+    def test_parse_simple_id(self):
+        """Товар без вариантов - один ID для обоих"""
+        parent_id, variant_id = parse_onec_id("simple-product-id")
+        assert parent_id == "simple-product-id"
+        assert variant_id == "simple-product-id"
+
+    def test_parse_id_with_multiple_hashes(self):
+        """ID с несколькими # - разделяем только по первому"""
+        parent_id, variant_id = parse_onec_id("parent#variant#extra")
+        assert parent_id == "parent"
+        assert variant_id == "variant#extra"
+
+
+class TestParseCharacteristics(TestCase):
+    """Тесты для функции parse_characteristics"""
+
+    def test_parse_color_and_size(self):
+        """AC4: Извлечение цвета и размера из характеристик"""
+        characteristics = [
+            {"name": "Цвет", "value": "Синий"},
+            {"name": "Размер", "value": "42"},
+        ]
+        result = parse_characteristics(characteristics)
+        assert result["color_name"] == "Синий"
+        assert result["size_value"] == "42"
+
+    def test_parse_empty_values(self):
+        """Пустые значения игнорируются"""
+        characteristics = [
+            {"name": "Цвет", "value": ""},
+            {"name": "Размер", "value": ""},
+        ]
+        result = parse_characteristics(characteristics)
+        assert result["color_name"] == ""
+        assert result["size_value"] == ""
+
+    def test_parse_invalid_values(self):
+        """Невалидные значения (-999999999.9) игнорируются"""
+        characteristics = [
+            {"name": "Размер", "value": "-999 999 999,9"},
+        ]
+        result = parse_characteristics(characteristics)
+        assert result["size_value"] == ""
+
+
+class TestExtractFromName(TestCase):
+    """Тесты для извлечения характеристик из названия"""
+
+    def test_extract_size_from_name(self):
+        """Извлечение размера из названия в скобках"""
+        name = "Кимоно для джиу джитсу (BJJ) BoyBo, BBJJ24, синий (А5 (2XL))"
+        size = extract_size_from_name(name)
+        assert size == "А5 (2XL)"
+
+    def test_extract_simple_size(self):
+        """Извлечение простого размера"""
+        name = "Боксерки BoyBo TITAN (42)"
+        size = extract_size_from_name(name)
+        assert size == "42"
+
+    def test_extract_color_from_name(self):
+        """Извлечение цвета из названия"""
+        name = "Боксерки BoyBo TITAN,IB-26 (одобрены ФБР), синий"
+        color = extract_color_from_name(name)
+        assert color == "Синий"
+
+    def test_extract_no_color(self):
+        """Название без известного цвета"""
+        name = "Боксерки BoyBo TITAN"
+        color = extract_color_from_name(name)
+        assert color == ""
+
+
+# ============================================================================
+# Integration tests for VariantImportProcessor
+# ============================================================================
+
+
+@pytest.mark.django_db(transaction=True)
+class TestVariantImportProcessor(TransactionTestCase):
+    """Integration тесты для VariantImportProcessor"""
+
+    def setUp(self):
+        """Подготовка тестовых данных"""
+        # Создаём сессию импорта
+        self.session = ImportSession.objects.create(
+            import_type=ImportSession.ImportType.CATALOG,
+            status=ImportSession.ImportStatus.STARTED,
+        )
+
+        # Создаём тестовый бренд
+        self.brand = Brand.objects.create(
+            name="Test Brand",
+            slug="test-brand",
+            is_active=True,
+        )
+
+        # Создаём тестовую категорию
+        self.category = Category.objects.create(
+            name="Test Category",
+            slug="test-category",
+            onec_id="test-category-001",
+            is_active=True,
+        )
+
+        # Создаём типы цен
+        PriceType.objects.create(
+            onec_id="price-type-retail",
+            onec_name="Розничная цена",
+            product_field="retail_price",
+            is_active=True,
+        )
+        PriceType.objects.create(
+            onec_id="price-type-opt1",
+            onec_name="Оптовая цена 1",
+            product_field="opt1_price",
+            is_active=True,
+        )
+
+        # Инициализируем процессор
+        self.processor = VariantImportProcessor(
+            session_id=self.session.pk,
+            batch_size=500,
+        )
+
+        # Создаём временные XML файлы
+        self.temp_dir = tempfile.mkdtemp()
+
+    def tearDown(self):
+        """Очистка"""
+        import shutil
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
+
+    def _create_xml_file(self, content: str, filename: str) -> str:
+        """Создаёт временный XML файл"""
+        filepath = os.path.join(self.temp_dir, filename)
+        with open(filepath, "w", encoding="utf-8") as f:
+            f.write(content)
+        return filepath
+
+    def test_process_product_from_goods_creates_product(self):
+        """AC1: goods.xml создаёт Product с базовой информацией"""
+        goods_data = {
+            "id": "test-product-001",
+            "name": "Тестовый товар",
+            "description": "Описание товара",
+            "category_id": "test-category-001",
+        }
+
+        product = self.processor.process_product_from_goods(goods_data)
+
+        assert product is not None
+        assert product.onec_id == "test-product-001"
+        assert product.name == "Тестовый товар"
+        assert product.description == "Описание товара"
+        assert product.category == self.category
+        assert product.is_active is False  # Неактивен до создания variants
+        assert self.processor.stats["products_created"] == 1
+
+    def test_process_product_from_goods_no_prices(self):
+        """AC1: Product создаётся без цен (цены в ProductVariant)"""
+        goods_data = {
+            "id": "test-product-001",
+            "name": "Тестовый товар",
+        }
+
+        product = self.processor.process_product_from_goods(goods_data)
+
+        # Product не должен иметь полей цен (они удалены в Story 13.1)
+        assert not hasattr(product, "retail_price") or product.retail_price is None
+
+    def test_process_variant_from_offer_creates_variant(self):
+        """AC2: offers.xml создаёт ProductVariant"""
+        # Сначала создаём Product
+        product = Product.objects.create(
+            name="Тестовый товар",
+            slug="test-product",
+            onec_id="test-product-001",
+            parent_onec_id="test-product-001",
+            brand=self.brand,
+            category=self.category,
+            description="",
+            is_active=False,
+        )
+
+        offer_data = {
+            "id": "test-product-001#variant-001",
+            "name": "Тестовый товар (42)",
+            "article": "TEST-001-42",
+            "characteristics": [
+                {"name": "Цвет", "value": "Синий"},
+                {"name": "Размер", "value": "42"},
+            ],
+        }
+
+        variant = self.processor.process_variant_from_offer(offer_data)
+
+        assert variant is not None
+        assert variant.product == product
+        assert variant.onec_id == "test-product-001#variant-001"
+        assert variant.sku == "TEST-001-42"
+        assert variant.color_name == "Синий"
+        assert variant.size_value == "42"
+        assert variant.is_active is True
+        assert self.processor.stats["variants_created"] == 1
+
+    def test_process_variant_from_offer_skips_orphan(self):
+        """AC3: <Предложение> без parent пропускается с warning"""
+        offer_data = {
+            "id": "orphan-product#variant-orphan",
+            "name": "Вариант без родителя",
+            "article": "ORPHAN-001",
+        }
+
+        variant = self.processor.process_variant_from_offer(offer_data)
+
+        assert variant is None
+        assert self.processor.stats["skipped"] == 1
+
+    def test_process_variant_extracts_characteristics(self):
+        """AC4: Характеристики извлекаются из <ХарактеристикиТовара>"""
+        product = Product.objects.create(
+            name="Тестовый товар",
+            slug="test-product-2",
+            onec_id="test-product-002",
+            parent_onec_id="test-product-002",
+            brand=self.brand,
+            category=self.category,
+            description="",
+        )
+
+        offer_data = {
+            "id": "test-product-002#variant-001",
+            "name": "Товар красный XL",
+            "article": "TEST-002-XL",
+            "characteristics": [
+                {"name": "Цвет", "value": "Красный"},
+                {"name": "Размер", "value": "XL"},
+            ],
+        }
+
+        variant = self.processor.process_variant_from_offer(offer_data)
+
+        assert variant.color_name == "Красный"
+        assert variant.size_value == "XL"
+
+    def test_create_default_variants(self):
+        """AC5: Создание default variants для товаров без вариантов"""
+        # Создаём Product без вариантов
+        product = Product.objects.create(
+            name="Товар без вариантов",
+            slug="product-no-variants",
+            onec_id="no-variants-001",
+            parent_onec_id="no-variants-001",
+            brand=self.brand,
+            category=self.category,
+            description="",
+            is_active=True,
+        )
+
+        count = self.processor.create_default_variants()
+
+        assert count == 1
+        assert ProductVariant.objects.filter(product=product).count() == 1
+
+        variant = ProductVariant.objects.get(product=product)
+        assert variant.color_name == ""
+        assert variant.size_value == ""
+        assert variant.retail_price == Decimal("0")
+
+    def test_update_variant_prices(self):
+        """AC7: prices.xml обновляет цены ProductVariant"""
+        # Создаём Product и Variant
+        product = Product.objects.create(
+            name="Тестовый товар",
+            slug="test-product-prices",
+            onec_id="test-product-001",
+            parent_onec_id="test-product-001",
+            brand=self.brand,
+            category=self.category,
+            description="",
+        )
+        variant = ProductVariant.objects.create(
+            product=product,
+            sku="TEST-001-42",
+            onec_id="test-product-001#variant-001",
+            retail_price=Decimal("0"),
+        )
+
+        price_data = {
+            "id": "test-product-001#variant-001",
+            "prices": [
+                {"price_type_id": "price-type-retail", "value": Decimal("1500.00")},
+                {"price_type_id": "price-type-opt1", "value": Decimal("1200.00")},
+            ],
+        }
+
+        result = self.processor.update_variant_prices(price_data)
+
+        assert result is True
+        variant.refresh_from_db()
+        assert variant.retail_price == Decimal("1500.00")
+        assert variant.opt1_price == Decimal("1200.00")
+        assert self.processor.stats["prices_updated"] == 1
+
+    def test_update_variant_stock(self):
+        """AC8: rests.xml обновляет остатки ProductVariant"""
+        # Создаём Product и Variant
+        product = Product.objects.create(
+            name="Тестовый товар",
+            slug="test-product-stock",
+            onec_id="test-product-001",
+            parent_onec_id="test-product-001",
+            brand=self.brand,
+            category=self.category,
+            description="",
+        )
+        variant = ProductVariant.objects.create(
+            product=product,
+            sku="TEST-001-42",
+            onec_id="test-product-001#variant-001",
+            retail_price=Decimal("0"),
+            stock_quantity=0,
+        )
+
+        # Первый склад
+        rest_data_1 = {
+            "id": "test-product-001#variant-001",
+            "warehouse_id": "warehouse-001",
+            "quantity": 50,
+        }
+        self.processor.update_variant_stock(rest_data_1)
+
+        # Второй склад (суммируется)
+        rest_data_2 = {
+            "id": "test-product-001#variant-001",
+            "warehouse_id": "warehouse-002",
+            "quantity": 30,
+        }
+        self.processor.update_variant_stock(rest_data_2)
+
+        variant.refresh_from_db()
+        assert variant.stock_quantity == 80  # 50 + 30
+        assert self.processor.stats["stocks_updated"] == 2
+
+    def test_batch_processing(self):
+        """AC9/NFR4: Batch processing по 500 записей"""
+        # Создаём Product
+        product = Product.objects.create(
+            name="Тестовый товар batch",
+            slug="test-product-batch",
+            onec_id="batch-product-001",
+            parent_onec_id="batch-product-001",
+            brand=self.brand,
+            category=self.category,
+            description="",
+            is_active=True,
+        )
+
+        # Проверяем что batch_size установлен
+        assert self.processor.batch_size == 500
+
+        # Создаём несколько Products без вариантов для теста batch
+        for i in range(10):
+            Product.objects.create(
+                name=f"Batch Product {i}",
+                slug=f"batch-product-{i}",
+                onec_id=f"batch-{i}",
+                parent_onec_id=f"batch-{i}",
+                brand=self.brand,
+                category=self.category,
+                description="",
+                is_active=True,
+            )
+
+        count = self.processor.create_default_variants()
+        assert count == 11  # 10 + 1 original
+
+    def test_full_import_workflow(self):
+        """Integration test: полный workflow импорта"""
+        parser = XMLDataParser()
+
+        # Шаг 1: Создаём Product из goods.xml
+        goods_file = self._create_xml_file(SAMPLE_GOODS_XML, "goods.xml")
+        goods_data = parser.parse_goods_xml(goods_file)
+
+        for goods_item in goods_data:
+            self.processor.process_product_from_goods(goods_item)
+
+        assert Product.objects.count() == 2
+        assert self.processor.stats["products_created"] == 2
+
+        # Шаг 2: Создаём ProductVariant из offers.xml
+        offers_file = self._create_xml_file(SAMPLE_OFFERS_XML, "offers.xml")
+        offers_data = parser.parse_offers_xml(offers_file)
+
+        for offer_item in offers_data:
+            self.processor.process_variant_from_offer(offer_item)
+
+        # 2 варианта создано, 1 пропущен (orphan)
+        assert ProductVariant.objects.count() == 2
+        assert self.processor.stats["variants_created"] == 2
+        assert self.processor.stats["skipped"] == 1
+
+        # Шаг 3: Создаём default variants
+        count = self.processor.create_default_variants()
+        # Один Product (test-product-002) без вариантов
+        assert count == 1
+        assert ProductVariant.objects.count() == 3
+
+        # Шаг 4: Обновляем цены
+        prices_file = self._create_xml_file(SAMPLE_PRICES_XML, "prices.xml")
+        prices_data = parser.parse_prices_xml(prices_file)
+
+        for price_item in prices_data:
+            self.processor.update_variant_prices(price_item)
+
+        variant = ProductVariant.objects.get(onec_id="test-product-001#variant-001")
+        assert variant.retail_price == Decimal("1500.00")
+        assert variant.opt1_price == Decimal("1200.00")
+
+        # Шаг 5: Обновляем остатки
+        rests_file = self._create_xml_file(SAMPLE_RESTS_XML, "rests.xml")
+        rests_data = parser.parse_rests_xml(rests_file)
+
+        for rest_item in rests_data:
+            self.processor.update_variant_stock(rest_item)
+
+        variant.refresh_from_db()
+        assert variant.stock_quantity == 80  # 50 + 30
+
+        # Финализация
+        self.processor.finalize_session(
+            status=ImportSession.ImportStatus.COMPLETED
+        )
+
+        self.session.refresh_from_db()
+        assert self.session.status == ImportSession.ImportStatus.COMPLETED
+
+
+# ============================================================================
+# Integration Verification tests
+# ============================================================================
+
+
+@pytest.mark.django_db
+class TestIntegrationVerification(TestCase):
+    """Тесты Integration Verification (IV1, IV2, IV3)"""
+
+    def test_iv1_brands_categories_unchanged(self):
+        """IV1: Импорт брендов и категорий работает без изменений"""
+        from apps.products.services.processor import ProductDataProcessor
+
+        session = ImportSession.objects.create(
+            import_type=ImportSession.ImportType.CATALOG,
+            status=ImportSession.ImportStatus.STARTED,
+        )
+
+        processor = ProductDataProcessor(session_id=session.pk)
+
+        # Тест категорий
+        categories_data = [
+            {"id": "cat-001", "name": "Категория 1"},
+            {"id": "cat-002", "name": "Категория 2", "parent_id": "cat-001"},
+        ]
+        result = processor.process_categories(categories_data)
+
+        assert result["created"] == 2
+        assert Category.objects.filter(onec_id="cat-001").exists()
+        assert Category.objects.filter(onec_id="cat-002").exists()
+
+        # Тест брендов
+        brands_data = [
+            {"id": "brand-001", "name": "Бренд 1"},
+        ]
+        result = processor.process_brands(brands_data)
+
+        assert result["brands_created"] == 1
+        assert Brand.objects.filter(name="Бренд 1").exists()
+
+    def test_iv2_commerceml_compatibility(self):
+        """IV2: Совместимость с CommerceML 3.1"""
+        parser = XMLDataParser()
+
+        # Проверяем что парсер корректно обрабатывает namespace
+        xml_with_namespace = """<?xml version="1.0" encoding="UTF-8"?>
+        <КоммерческаяИнформация xmlns="urn:1C.ru:commerceml_3" ВерсияСхемы="3.1">
+            <Каталог>
+                <Товары>
+                    <Товар>
+                        <Ид>test-001</Ид>
+                        <Наименование>Тест</Наименование>
+                    </Товар>
+                </Товары>
+            </Каталог>
+        </КоммерческаяИнформация>
+        """
+
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".xml", delete=False, encoding="utf-8"
+        ) as f:
+            f.write(xml_with_namespace)
+            f.flush()
+
+            goods = parser.parse_goods_xml(f.name)
+
+        assert len(goods) == 1
+        assert goods[0]["id"] == "test-001"
+
+        os.unlink(f.name)
+
+    def test_iv3_logging_warnings(self):
+        """IV3: Логи содержат warnings для пропущенных записей"""
+        import logging
+
+        session = ImportSession.objects.create(
+            import_type=ImportSession.ImportType.CATALOG,
+            status=ImportSession.ImportStatus.STARTED,
+        )
+
+        processor = VariantImportProcessor(session_id=session.pk)
+
+        # Захватываем логи
+        with self.assertLogs("import_products", level="WARNING") as cm:
+            # Пытаемся создать variant без parent
+            offer_data = {
+                "id": "nonexistent-parent#variant-001",
+                "name": "Orphan variant",
+                "article": "ORPHAN",
+            }
+            processor.process_variant_from_offer(offer_data)
+
+        # Проверяем что warning был залогирован
+        assert any("parent Product not found" in log for log in cm.output)

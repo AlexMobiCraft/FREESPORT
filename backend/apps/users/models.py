@@ -56,7 +56,17 @@ class User(AbstractUser):
     if TYPE_CHECKING:
         # Type hints для автогенерируемых Django методов
         def get_role_display(self) -> str:
-            ...
+            """Отображение названия роли пользователя"""
+            role_map = {
+                "retail": "Розничный покупатель",
+                "wholesale_level1": "Оптовик уровень 1",
+                "wholesale_level2": "Оптовик уровень 2",
+                "wholesale_level3": "Оптовик уровень 3",
+                "trainer": "Тренер/Фитнес-клуб",
+                "federation_rep": "Представитель федерации",
+                "admin": "Администратор",
+            }
+            return role_map.get(self.role, self.role)
 
     # Роли пользователей согласно архитектурной документации
     ROLE_CHOICES = [

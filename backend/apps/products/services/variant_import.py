@@ -1,0 +1,1142 @@
+"""
+Сервисы для импорта ProductVariant из 1С (Story 13.2)
+
+Рефакторинг импорта для новой архитектуры Product + ProductVariant:
+- goods.xml → Product (базовая информация, base_images)
+- offers.xml → ProductVariant (SKU, характеристики)
+- prices.xml → ProductVariant (цены)
+- rests.xml → ProductVariant (остатки)
+"""
+
+from __future__ import annotations
+
+import logging
+import os
+import re
+import uuid
+from decimal import Decimal
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Sequence, TypedDict
+
+from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
+from django.db import models, transaction
+from django.utils import timezone
+from django.utils.text import slugify
+
+if TYPE_CHECKING:
+    from apps.products.models import Product, ProductVariant
+
+logger = logging.getLogger("import_products")
+
+
+# ============================================================================
+# TypedDict definitions for parsed data
+# ============================================================================
+
+
+class VariantOfferData(TypedDict, total=False):
+    """Данные варианта из offers.xml"""
+
+    id: str  # Составной ID: parent_id#variant_id
+    parent_id: str  # ID родительского Product
+    variant_id: str  # ID варианта
+    name: str
+    article: str  # SKU/Артикул
+    color_name: str
+    size_value: str
+    images: list[str]  # Пути к изображениям варианта
+
+
+class VariantPriceData(TypedDict):
+    """Данные цен варианта из prices.xml"""
+
+    id: str  # Составной ID: parent_id#variant_id
+    prices: list[dict[str, Any]]  # [{price_type_id, value}, ...]
+
+
+class VariantRestData(TypedDict):
+    """Данные остатков варианта из rests.xml"""
+
+    id: str  # Составной ID: parent_id#variant_id
+    warehouse_id: str
+    quantity: int
+
+
+# ============================================================================
+# Helper functions
+# ============================================================================
+
+
+def parse_onec_id(onec_id: str) -> tuple[str, str]:
+    """
+    Парсинг составного onec_id из offers.xml
+
+    Args:
+        onec_id: Строка вида "parent-uuid#variant-uuid"
+
+    Returns:
+        Tuple (parent_id, variant_id)
+
+    Raises:
+        ValueError: Если формат ID некорректен
+
+    Example:
+        >>> parse_onec_id("12345678-abcd#87654321-dcba")
+        ("12345678-abcd", "87654321-dcba")
+    """
+    if "#" not in onec_id:
+        # Товар без вариантов - используем один ID для обоих
+        return onec_id, onec_id
+
+    parts = onec_id.split("#", 1)
+    if len(parts) != 2:
+        raise ValueError(f"Invalid onec_id format: {onec_id}")
+
+    return parts[0], parts[1]
+
+
+def parse_characteristics(characteristics: list[dict[str, str]]) -> dict[str, str]:
+    """
+    Парсинг характеристик товара из offers.xml
+
+    Извлекает color_name и size_value из списка характеристик.
+    Поддерживает различные названия полей из 1С.
+
+    Args:
+        characteristics: Список словарей {name, value}
+
+    Returns:
+        Dict с ключами 'color_name', 'size_value'
+    """
+    result = {"color_name": "", "size_value": ""}
+
+    # Маппинг названий характеристик из 1С на наши поля
+    color_names = {"цвет", "color", "окраска"}
+    size_names = {"размер", "size", "размерtd", "детский размер"}
+
+    for char in characteristics:
+        name = char.get("name", "").lower().strip()
+        value = char.get("value", "").strip()
+
+        if not value or value == "-999 999 999,9" or value == "-999999999.9":
+            continue
+
+        if name in color_names:
+            result["color_name"] = value
+        elif name in size_names:
+            result["size_value"] = value
+
+    return result
+
+
+def extract_size_from_name(name: str) -> str:
+    """
+    Извлечение размера из названия товара
+
+    Пример: "Кимоно для джиу джитсу (BJJ) BoyBo, BBJJ24, синий (А5 (2XL))"
+    Результат: "А5 (2XL)"
+
+    Args:
+        name: Название товара
+
+    Returns:
+        Извлечённый размер или пустая строка
+    """
+    # Паттерн для размера в скобках в конце названия
+    # Примеры: (42), (XL), (А5 (2XL)), (36-38)
+    pattern = r"\(([^()]*(?:\([^()]*\)[^()]*)*)\)\s*$"
+    match = re.search(pattern, name)
+    if match:
+        return match.group(1).strip()
+    return ""
+
+
+def extract_color_from_name(name: str) -> str:
+    """
+    Извлечение цвета из названия товара
+
+    Пример: "Боксерки BoyBo TITAN,IB-26 (одобрены ФБР), синий"
+    Результат: "синий"
+
+    Args:
+        name: Название товара
+
+    Returns:
+        Извлечённый цвет или пустая строка
+    """
+    # Известные цвета для поиска
+    colors = [
+        "белый",
+        "черный",
+        "чёрный",
+        "красный",
+        "синий",
+        "зеленый",
+        "зелёный",
+        "желтый",
+        "жёлтый",
+        "серый",
+        "розовый",
+        "оранжевый",
+        "фиолетовый",
+        "коричневый",
+        "бежевый",
+        "бордовый",
+        "голубой",
+        "салатовый",
+        "сиреневый",
+        "золотой",
+        "серебряный",
+        "камуфляж",
+        "хаки",
+    ]
+
+    name_lower = name.lower()
+    for color in colors:
+        if color in name_lower:
+            return color.capitalize()
+
+    return ""
+
+
+# ============================================================================
+# VariantImportProcessor - основной процессор импорта
+# ============================================================================
+
+
+class VariantImportProcessor:
+    """
+    Процессор для импорта ProductVariant из 1С
+
+    Реализует новый workflow импорта:
+    1. goods.xml → Product (базовая информация, base_images)
+    2. offers.xml → ProductVariant (SKU, характеристики)
+    3. Default variants → ProductVariant для товаров без вариантов
+    4. prices.xml → ProductVariant (цены)
+    5. rests.xml → ProductVariant (остатки)
+    """
+
+    DEFAULT_PLACEHOLDER_IMAGE = "products/placeholder.png"
+    BATCH_SIZE = 500  # NFR4: batch processing
+
+    def __init__(
+        self,
+        session_id: int,
+        batch_size: int = 500,
+        skip_validation: bool = False,
+    ):
+        """
+        Инициализация процессора
+
+        Args:
+            session_id: ID сессии импорта
+            batch_size: Размер batch для bulk операций (default 500)
+            skip_validation: Пропустить валидацию данных
+        """
+        self.session_id = session_id
+        self.batch_size = batch_size
+        self.skip_validation = skip_validation
+
+        self.stats = {
+            "products_created": 0,
+            "products_updated": 0,
+            "variants_created": 0,
+            "variants_updated": 0,
+            "default_variants_created": 0,
+            "prices_updated": 0,
+            "stocks_updated": 0,
+            "skipped": 0,
+            "errors": 0,
+            "warnings": 0,
+            "images_copied": 0,
+            "images_skipped": 0,
+            "images_errors": 0,
+        }
+
+        # Кэш для оптимизации поиска
+        self._product_cache: dict[str, Any] = {}
+        self._variant_cache: dict[str, Any] = {}
+        self._stock_buffer: dict[str, int] = {}
+        self._missing_products_logged: set[str] = set()
+        self._missing_variants_logged: set[str] = set()
+
+    # ========================================================================
+    # Task 1: Рефакторинг парсера goods.xml (AC: 1)
+    # ========================================================================
+
+    def process_product_from_goods(
+        self,
+        goods_data: dict[str, Any],
+        base_dir: str | None = None,
+        skip_images: bool = False,
+    ) -> Any | None:
+        """
+        Создание/обновление Product из goods.xml (AC1)
+
+        Создаёт только базовую информацию Product:
+        - name, slug, brand, category, description
+        - base_images (Hybrid подход)
+        - НЕ записывает цены/остатки (перенесены в ProductVariant)
+
+        Args:
+            goods_data: Данные товара из XMLDataParser.parse_goods_xml()
+            base_dir: Базовая директория для изображений
+            skip_images: Пропустить импорт изображений
+
+        Returns:
+            Product instance или None при ошибке
+        """
+        from apps.products.models import Brand, Brand1CMapping, Category, Product
+
+        try:
+            parent_id = goods_data.get("id")
+            if not parent_id:
+                self._log_error("Missing parent_id in goods_data", goods_data)
+                return None
+
+            logger.info(f"Processing product from goods.xml: {parent_id}")
+
+            # Проверка существующего товара
+            existing = Product.objects.filter(
+                models.Q(onec_id=parent_id) | models.Q(parent_onec_id=parent_id)
+            ).first()
+
+            if existing:
+                # Обновление существующего Product
+                return self._update_existing_product(
+                    existing, goods_data, base_dir, skip_images
+                )
+
+            # Создание нового Product
+            return self._create_new_product(goods_data, base_dir, skip_images)
+
+        except Exception as e:
+            self._log_error(f"Error processing product from goods: {e}", goods_data)
+            return None
+
+    def _update_existing_product(
+        self,
+        product: Any,
+        goods_data: dict[str, Any],
+        base_dir: str | None,
+        skip_images: bool,
+    ) -> Any:
+        """Обновление существующего Product"""
+        from apps.products.models import Brand, Brand1CMapping
+
+        parent_id = goods_data.get("id")
+        brand_id = goods_data.get("brand_id")
+
+        # Убедимся что onec_id установлен
+        if not product.onec_id:
+            product.onec_id = parent_id
+
+        # Обновляем бренд если изменился
+        brand = self._determine_brand(brand_id, parent_id)
+        fields_to_update: list[str] = []
+
+        if product.brand_id != brand.pk:
+            product.brand = brand
+            fields_to_update.append("brand")
+
+        if brand_id and product.onec_brand_id != brand_id:
+            product.onec_brand_id = brand_id
+            fields_to_update.append("onec_brand_id")
+
+        # Обновляем описание если есть
+        description = goods_data.get("description")
+        if description and product.description != description:
+            product.description = description
+            fields_to_update.append("description")
+
+        if fields_to_update:
+            product.save(update_fields=fields_to_update)
+
+        # Импорт изображений в base_images (Hybrid подход)
+        if not skip_images and base_dir and "images" in goods_data:
+            self._import_base_images(product, goods_data["images"], base_dir)
+
+        self.stats["products_updated"] += 1
+        logger.info(f"Product updated: {product.onec_id}")
+        return product
+
+    def _create_new_product(
+        self,
+        goods_data: dict[str, Any],
+        base_dir: str | None,
+        skip_images: bool,
+    ) -> Any | None:
+        """Создание нового Product"""
+        from apps.products.models import Brand, Category, Product
+
+        parent_id = goods_data.get("id")
+        brand_id = goods_data.get("brand_id")
+
+        # Получаем категорию
+        category = self._get_or_create_category(goods_data)
+
+        # Получаем бренд
+        brand = self._determine_brand(brand_id, parent_id)
+
+        # Генерируем уникальный slug
+        name = goods_data.get("name", "Product Placeholder")
+        slug = self._generate_unique_slug(name, parent_id)
+
+        # Создание Product (без цен/остатков - они в ProductVariant)
+        product = Product(
+            onec_id=parent_id,
+            parent_onec_id=parent_id,
+            onec_brand_id=brand_id,
+            name=name,
+            slug=slug,
+            description=goods_data.get("description", ""),
+            brand=brand,
+            category=category,
+            is_active=False,  # Активируется после создания variants
+            sync_status=Product.SyncStatus.PENDING,
+            base_images=[],  # Будет заполнено при импорте изображений
+        )
+
+        try:
+            product.save()
+            logger.info(f"Product created: {product.onec_id}")
+            self.stats["products_created"] += 1
+
+            # Импорт изображений в base_images (Hybrid подход)
+            if not skip_images and base_dir and "images" in goods_data:
+                self._import_base_images(product, goods_data["images"], base_dir)
+
+            return product
+
+        except Exception as e:
+            self._log_error(f"Error saving product: {e}", goods_data)
+            return None
+
+    def _import_base_images(
+        self,
+        product: Any,
+        image_paths: list[str],
+        base_dir: str,
+    ) -> None:
+        """
+        Импорт изображений в Product.base_images (Hybrid подход AC6)
+
+        Args:
+            product: Product instance
+            image_paths: Список путей к изображениям из goods.xml
+            base_dir: Базовая директория импорта
+        """
+        if not image_paths:
+            return
+
+        base_images: list[str] = list(product.base_images or [])
+        seen_paths: set[str] = set(base_images)
+
+        for image_path in image_paths:
+            try:
+                source_path = Path(base_dir) / image_path
+
+                if not source_path.exists():
+                    logger.warning(f"Image not found: {source_path}")
+                    self.stats["images_errors"] += 1
+                    continue
+
+                # Сохранение структуры директорий
+                filename = source_path.name
+                subdir = image_path.split("/")[0] if "/" in image_path else ""
+                destination_path = (
+                    f"products/base/{subdir}/{filename}"
+                    if subdir
+                    else f"products/base/{filename}"
+                )
+
+                # Проверка существования
+                if default_storage.exists(destination_path):
+                    if destination_path not in seen_paths:
+                        base_images.append(destination_path)
+                        seen_paths.add(destination_path)
+                    self.stats["images_skipped"] += 1
+                    continue
+
+                # Создание директории
+                if subdir:
+                    from django.conf import settings
+
+                    subdir_path = os.path.join(
+                        settings.MEDIA_ROOT, "products", "base", subdir
+                    )
+                    os.makedirs(subdir_path, exist_ok=True)
+
+                # Копирование файла
+                with open(source_path, "rb") as f:
+                    saved_path = default_storage.save(
+                        destination_path, ContentFile(f.read())
+                    )
+
+                if saved_path not in seen_paths:
+                    base_images.append(saved_path)
+                    seen_paths.add(saved_path)
+
+                self.stats["images_copied"] += 1
+
+            except Exception as e:
+                logger.error(f"Error copying image {image_path}: {e}")
+                self.stats["images_errors"] += 1
+
+        # Сохранение base_images
+        if base_images != list(product.base_images or []):
+            product.base_images = base_images
+            product.save(update_fields=["base_images"])
+            logger.info(
+                f"Product {product.onec_id} base_images updated: {len(base_images)} images"
+            )
+
+    # ========================================================================
+    # Task 2: Парсер offers.xml для ProductVariant (AC: 2, 3, 4)
+    # ========================================================================
+
+    def process_variant_from_offer(
+        self,
+        offer_data: dict[str, Any],
+        base_dir: str | None = None,
+        skip_images: bool = False,
+    ) -> Any | None:
+        """
+        Создание ProductVariant из offers.xml (AC2, AC3, AC4)
+
+        Args:
+            offer_data: Данные предложения из XMLDataParser.parse_offers_xml()
+            base_dir: Базовая директория для изображений вариантов
+            skip_images: Пропустить импорт изображений
+
+        Returns:
+            ProductVariant instance или None при ошибке/пропуске
+        """
+        from apps.products.models import Product, ProductVariant
+
+        try:
+            onec_id = offer_data.get("id")
+            if not onec_id:
+                self._log_error("Missing id in offer_data", offer_data)
+                return None
+
+            # Парсинг составного ID (AC2)
+            try:
+                parent_id, variant_id = parse_onec_id(onec_id)
+            except ValueError as e:
+                logger.warning(f"Invalid onec_id format: {onec_id} - {e}")
+                self.stats["warnings"] += 1
+                return None
+
+            # Поиск родительского Product (AC3)
+            product = self._get_product_by_parent_id(parent_id)
+            if not product:
+                # AC3: логировать warning и пропустить
+                if parent_id not in self._missing_products_logged:
+                    logger.warning(
+                        f"Skipping <Предложение> {onec_id}: "
+                        f"parent Product not found (parent_id={parent_id})"
+                    )
+                    self._missing_products_logged.add(parent_id)
+                self.stats["skipped"] += 1
+                return None
+
+            # Проверка существующего варианта
+            existing_variant = ProductVariant.objects.filter(onec_id=onec_id).first()
+            if existing_variant:
+                return self._update_existing_variant(
+                    existing_variant, offer_data, base_dir, skip_images
+                )
+
+            # Создание нового варианта
+            return self._create_new_variant(
+                product, onec_id, offer_data, base_dir, skip_images
+            )
+
+        except Exception as e:
+            self._log_error(f"Error processing variant from offer: {e}", offer_data)
+            return None
+
+    def _update_existing_variant(
+        self,
+        variant: Any,
+        offer_data: dict[str, Any],
+        base_dir: str | None,
+        skip_images: bool,
+    ) -> Any:
+        """Обновление существующего ProductVariant"""
+        fields_to_update: list[str] = []
+
+        # Обновляем SKU если изменился
+        article = offer_data.get("article")
+        if article and variant.sku != article:
+            variant.sku = article
+            fields_to_update.append("sku")
+
+        # Обновляем характеристики (AC4)
+        characteristics = offer_data.get("characteristics", [])
+        parsed_chars = parse_characteristics(characteristics)
+
+        # Fallback на извлечение из названия
+        name = offer_data.get("name", "")
+        if not parsed_chars["color_name"]:
+            parsed_chars["color_name"] = extract_color_from_name(name)
+        if not parsed_chars["size_value"]:
+            parsed_chars["size_value"] = extract_size_from_name(name)
+
+        if parsed_chars["color_name"] and variant.color_name != parsed_chars["color_name"]:
+            variant.color_name = parsed_chars["color_name"]
+            fields_to_update.append("color_name")
+
+        if parsed_chars["size_value"] and variant.size_value != parsed_chars["size_value"]:
+            variant.size_value = parsed_chars["size_value"]
+            fields_to_update.append("size_value")
+
+        # Активируем вариант
+        if not variant.is_active:
+            variant.is_active = True
+            fields_to_update.append("is_active")
+
+        if fields_to_update:
+            variant.save(update_fields=fields_to_update)
+
+        # Импорт изображений варианта (AC6)
+        if not skip_images and base_dir:
+            images = offer_data.get("images", [])
+            if images:
+                self._import_variant_images(variant, images, base_dir)
+
+        self.stats["variants_updated"] += 1
+        logger.info(f"ProductVariant updated: {variant.onec_id}")
+        return variant
+
+    def _create_new_variant(
+        self,
+        product: Any,
+        onec_id: str,
+        offer_data: dict[str, Any],
+        base_dir: str | None,
+        skip_images: bool,
+    ) -> Any | None:
+        """Создание нового ProductVariant"""
+        from apps.products.models import ProductVariant
+
+        # Извлечение характеристик (AC4)
+        characteristics = offer_data.get("characteristics", [])
+        parsed_chars = parse_characteristics(characteristics)
+
+        # Fallback на извлечение из названия
+        name = offer_data.get("name", "")
+        if not parsed_chars["color_name"]:
+            parsed_chars["color_name"] = extract_color_from_name(name)
+        if not parsed_chars["size_value"]:
+            parsed_chars["size_value"] = extract_size_from_name(name)
+
+        # SKU
+        article = offer_data.get("article")
+        sku = article if article else f"SKU-{onec_id[:8]}"
+
+        # Обеспечиваем уникальность SKU
+        sku = self._ensure_unique_sku(sku)
+
+        variant = ProductVariant(
+            product=product,
+            sku=sku,
+            onec_id=onec_id,
+            color_name=parsed_chars["color_name"],
+            size_value=parsed_chars["size_value"],
+            is_active=True,
+            # Цены по умолчанию = 0, будут обновлены из prices.xml
+            retail_price=Decimal("0"),
+            opt1_price=None,
+            opt2_price=None,
+            opt3_price=None,
+            trainer_price=None,
+            federation_price=None,
+            stock_quantity=0,  # Будет обновлен из rests.xml
+        )
+
+        try:
+            variant.save()
+            logger.info(
+                f"ProductVariant created: {variant.onec_id} "
+                f"(sku={variant.sku}, color={variant.color_name}, size={variant.size_value})"
+            )
+            self.stats["variants_created"] += 1
+
+            # Активируем родительский Product
+            if not product.is_active:
+                product.is_active = True
+                product.sync_status = product.SyncStatus.IN_PROGRESS
+                product.save(update_fields=["is_active", "sync_status"])
+
+            # Импорт изображений варианта (AC6)
+            if not skip_images and base_dir:
+                images = offer_data.get("images", [])
+                if images:
+                    self._import_variant_images(variant, images, base_dir)
+
+            return variant
+
+        except Exception as e:
+            self._log_error(f"Error saving variant: {e}", offer_data)
+            return None
+
+    def _import_variant_images(
+        self,
+        variant: Any,
+        image_paths: list[str],
+        base_dir: str,
+    ) -> None:
+        """
+        Импорт изображений в ProductVariant (AC6 - Hybrid подход)
+
+        Первое изображение → main_image
+        Остальные → gallery_images
+        """
+        if not image_paths:
+            return
+
+        main_image_set = bool(variant.main_image)
+        gallery_images: list[str] = list(variant.gallery_images or [])
+        seen_paths: set[str] = set(gallery_images)
+
+        for image_path in image_paths:
+            try:
+                source_path = Path(base_dir) / image_path
+
+                if not source_path.exists():
+                    logger.warning(f"Variant image not found: {source_path}")
+                    self.stats["images_errors"] += 1
+                    continue
+
+                filename = source_path.name
+                subdir = image_path.split("/")[0] if "/" in image_path else ""
+                destination_path = (
+                    f"products/variants/{subdir}/{filename}"
+                    if subdir
+                    else f"products/variants/{filename}"
+                )
+
+                # Проверка существования
+                if default_storage.exists(destination_path):
+                    if not main_image_set:
+                        variant.main_image = destination_path
+                        main_image_set = True
+                    elif destination_path not in seen_paths:
+                        gallery_images.append(destination_path)
+                        seen_paths.add(destination_path)
+                    self.stats["images_skipped"] += 1
+                    continue
+
+                # Создание директории
+                if subdir:
+                    from django.conf import settings
+
+                    subdir_path = os.path.join(
+                        settings.MEDIA_ROOT, "products", "variants", subdir
+                    )
+                    os.makedirs(subdir_path, exist_ok=True)
+
+                # Копирование
+                with open(source_path, "rb") as f:
+                    saved_path = default_storage.save(
+                        destination_path, ContentFile(f.read())
+                    )
+
+                if not main_image_set:
+                    variant.main_image = saved_path
+                    main_image_set = True
+                elif saved_path not in seen_paths:
+                    gallery_images.append(saved_path)
+                    seen_paths.add(saved_path)
+
+                self.stats["images_copied"] += 1
+
+            except Exception as e:
+                logger.error(f"Error copying variant image {image_path}: {e}")
+                self.stats["images_errors"] += 1
+
+        # Сохранение
+        variant.gallery_images = gallery_images
+        variant.save(update_fields=["main_image", "gallery_images"])
+
+    # ========================================================================
+    # Task 3: Обработка товаров без вариантов (AC: 5)
+    # ========================================================================
+
+    def create_default_variants(self) -> int:
+        """
+        Создание дефолтных ProductVariant для товаров без вариантов (AC5)
+
+        Выполняется ПОСЛЕ parse_offers_xml() и ДО parse_prices_xml()
+
+        Returns:
+            Количество созданных default variants
+        """
+        from apps.products.models import Product, ProductVariant
+
+        # Найти все Products без ProductVariant
+        products_without_variants = Product.objects.filter(
+            variants__isnull=True,
+            is_active=True,
+        )
+
+        count = products_without_variants.count()
+        logger.info(f"Found {count} products without variants")
+
+        if count == 0:
+            logger.info("No products without variants found, skipping default variant creation")
+            return 0
+
+        default_variants: list[ProductVariant] = []
+        batch_count = 0
+
+        for product in products_without_variants.iterator():
+            # Генерируем уникальный SKU
+            sku = self._ensure_unique_sku(product.onec_id or f"DEFAULT-{product.pk}")
+
+            variant = ProductVariant(
+                product=product,
+                sku=sku,
+                onec_id=product.onec_id or f"default-{product.pk}",
+                color_name="",
+                size_value="",
+                is_active=True,
+                retail_price=Decimal("0"),
+                opt1_price=None,
+                opt2_price=None,
+                opt3_price=None,
+                trainer_price=None,
+                federation_price=None,
+                stock_quantity=0,
+            )
+            default_variants.append(variant)
+
+            logger.info(
+                f"Creating default variant for product: {product.name} "
+                f"(onec_id={product.onec_id}, sku={sku})"
+            )
+
+            # Batch processing (NFR4)
+            if len(default_variants) >= self.batch_size:
+                with transaction.atomic():
+                    ProductVariant.objects.bulk_create(
+                        default_variants, ignore_conflicts=True
+                    )
+                batch_count += len(default_variants)
+                logger.info(f"Processed {batch_count} default variants")
+                default_variants = []
+
+        # Сохранение оставшихся
+        if default_variants:
+            with transaction.atomic():
+                ProductVariant.objects.bulk_create(
+                    default_variants, ignore_conflicts=True
+                )
+            batch_count += len(default_variants)
+
+        self.stats["default_variants_created"] = batch_count
+        logger.info(f"Successfully created {batch_count} default variants")
+        return batch_count
+
+    # ========================================================================
+    # Task 5: Рефакторинг парсера prices.xml (AC: 7)
+    # ========================================================================
+
+    def update_variant_prices(self, price_data: dict[str, Any]) -> bool:
+        """
+        Обновление цен ProductVariant из prices.xml (AC7)
+
+        Args:
+            price_data: Данные цен из XMLDataParser.parse_prices_xml()
+
+        Returns:
+            True если обновление успешно, False при ошибке
+        """
+        from apps.products.models import PriceType, ProductVariant
+
+        try:
+            onec_id = price_data.get("id")
+            if not onec_id:
+                self._log_error("Missing id in price_data", price_data)
+                return False
+
+            # Находим ProductVariant по onec_id
+            variant = self._get_variant_by_onec_id(onec_id)
+            if not variant:
+                if onec_id not in self._missing_variants_logged:
+                    logger.warning(
+                        f"ProductVariant not found for price update: {onec_id}"
+                    )
+                    self._missing_variants_logged.add(onec_id)
+                self.stats["warnings"] += 1
+                return False
+
+            # Маппинг цен через PriceType
+            prices = price_data.get("prices", [])
+            price_updates: dict[str, Decimal] = {}
+
+            for price_item in prices:
+                price_type_id = price_item.get("price_type_id")
+                price_value = price_item.get("value")
+
+                if not price_type_id or price_value is None:
+                    continue
+
+                # Находим маппинг типа цены
+                price_type = PriceType.objects.filter(
+                    onec_id=price_type_id, is_active=True
+                ).first()
+
+                if price_type:
+                    field_name = price_type.product_field
+                    price_updates[field_name] = price_value
+
+            # Применяем обновления цен
+            fields_to_update: list[str] = []
+            for field_name, value in price_updates.items():
+                if hasattr(variant, field_name):
+                    setattr(variant, field_name, value)
+                    fields_to_update.append(field_name)
+
+            if fields_to_update:
+                variant.last_sync_at = timezone.now()
+                fields_to_update.append("last_sync_at")
+                variant.save(update_fields=fields_to_update)
+                self.stats["prices_updated"] += 1
+                return True
+
+            return False
+
+        except Exception as e:
+            self._log_error(f"Error updating variant prices: {e}", price_data)
+            return False
+
+    # ========================================================================
+    # Task 6: Рефакторинг парсера rests.xml (AC: 8)
+    # ========================================================================
+
+    def update_variant_stock(self, rest_data: dict[str, Any]) -> bool:
+        """
+        Обновление остатков ProductVariant из rests.xml (AC8)
+
+        Args:
+            rest_data: Данные остатков из XMLDataParser.parse_rests_xml()
+
+        Returns:
+            True если обновление успешно, False при ошибке
+        """
+        from apps.products.models import ProductVariant
+
+        try:
+            onec_id = rest_data.get("id")
+            quantity = rest_data.get("quantity", 0)
+
+            if not onec_id:
+                self._log_error("Missing id in rest_data", rest_data)
+                return False
+
+            # Находим ProductVariant по onec_id
+            variant = self._get_variant_by_onec_id(onec_id)
+            if not variant:
+                if onec_id not in self._missing_variants_logged:
+                    logger.warning(
+                        f"ProductVariant not found for stock update: {onec_id}"
+                    )
+                    self._missing_variants_logged.add(onec_id)
+                self.stats["warnings"] += 1
+                return False
+
+            # Суммируем остатки если товар на разных складах
+            total_quantity = self._stock_buffer.get(onec_id, 0) + quantity
+            self._stock_buffer[onec_id] = total_quantity
+
+            variant.stock_quantity = total_quantity
+            variant.last_sync_at = timezone.now()
+            variant.save(update_fields=["stock_quantity", "last_sync_at"])
+
+            # Обновляем статус родительского Product
+            product = variant.product
+            if product.sync_status != product.SyncStatus.COMPLETED:
+                product.sync_status = product.SyncStatus.COMPLETED
+                product.last_sync_at = timezone.now()
+                product.save(update_fields=["sync_status", "last_sync_at"])
+
+            self.stats["stocks_updated"] += 1
+            return True
+
+        except Exception as e:
+            self._log_error(f"Error updating variant stock: {e}", rest_data)
+            return False
+
+    # ========================================================================
+    # Helper methods
+    # ========================================================================
+
+    def _get_product_by_parent_id(self, parent_id: str) -> Any | None:
+        """Найти Product по parent_onec_id или onec_id"""
+        from apps.products.models import Product
+
+        # Проверяем кэш
+        if parent_id in self._product_cache:
+            return self._product_cache[parent_id]
+
+        product = Product.objects.filter(
+            models.Q(parent_onec_id=parent_id) | models.Q(onec_id=parent_id)
+        ).first()
+
+        if product:
+            self._product_cache[parent_id] = product
+
+        return product
+
+    def _get_variant_by_onec_id(self, onec_id: str) -> Any | None:
+        """Найти ProductVariant по onec_id"""
+        from apps.products.models import ProductVariant
+
+        # Проверяем кэш
+        if onec_id in self._variant_cache:
+            return self._variant_cache[onec_id]
+
+        variant = ProductVariant.objects.filter(onec_id=onec_id).first()
+
+        # Если не найден по полному ID, пробуем по parent_id
+        if not variant and "#" in onec_id:
+            parent_id = onec_id.split("#")[0]
+            variant = ProductVariant.objects.filter(onec_id=parent_id).first()
+
+        if variant:
+            self._variant_cache[onec_id] = variant
+
+        return variant
+
+    def _determine_brand(self, brand_id: str | None, parent_id: str) -> Any:
+        """Определяет бренд через Brand1CMapping или возвращает fallback"""
+        from apps.products.models import Brand, Brand1CMapping
+
+        if brand_id:
+            mapping = (
+                Brand1CMapping.objects.select_related("brand")
+                .filter(onec_id=brand_id)
+                .first()
+            )
+            if mapping and mapping.brand:
+                return mapping.brand
+
+            logger.warning(
+                f"Brand1CMapping not found for onec_id={brand_id}, "
+                f"product={parent_id}, using 'No Brand' fallback"
+            )
+
+        return self._get_no_brand()
+
+    def _get_no_brand(self) -> Any:
+        """Возвращает fallback бренд 'No Brand'"""
+        from apps.products.models import Brand
+
+        brand, _ = Brand.objects.get_or_create(
+            name="No Brand", defaults={"slug": "no-brand", "is_active": True}
+        )
+        return brand
+
+    def _get_or_create_category(self, goods_data: dict[str, Any]) -> Any:
+        """Получает или создаёт категорию"""
+        from apps.products.models import Category
+
+        category_id = goods_data.get("category_id")
+
+        if category_id:
+            category = Category.objects.filter(onec_id=category_id).first()
+            if category:
+                return category
+
+            # Создаём placeholder категорию
+            category_name = goods_data.get("category_name", f"Категория {category_id}")
+            slug = slugify(category_name) or f"category-{uuid.uuid4().hex[:8]}"
+
+            # Обеспечиваем уникальность slug
+            if Category.objects.filter(slug=slug).exists():
+                slug = f"{slug}-{uuid.uuid4().hex[:8]}"
+
+            category, _ = Category.objects.get_or_create(
+                onec_id=category_id,
+                defaults={
+                    "name": category_name,
+                    "slug": slug,
+                    "is_active": True,
+                },
+            )
+            return category
+
+        # Fallback категория
+        category, _ = Category.objects.get_or_create(
+            slug="uncategorized",
+            defaults={"name": "Без категории", "is_active": True},
+        )
+        return category
+
+    def _generate_unique_slug(self, name: str, parent_id: str) -> str:
+        """Генерирует уникальный slug для Product"""
+        from apps.products.models import Product
+
+        try:
+            from transliterate import translit
+
+            transliterated = translit(name, "ru", reversed=True)
+            base_slug = slugify(transliterated)
+        except (RuntimeError, ImportError):
+            base_slug = slugify(name)
+
+        if not base_slug:
+            base_slug = f"product-{parent_id[:8]}"
+
+        unique_slug = base_slug
+        while Product.objects.filter(slug=unique_slug).exists():
+            unique_slug = f"{base_slug}-{uuid.uuid4().hex[:8]}"
+
+        return unique_slug
+
+    def _ensure_unique_sku(self, sku: str) -> str:
+        """Обеспечивает уникальность SKU"""
+        from apps.products.models import ProductVariant
+
+        if not ProductVariant.objects.filter(sku=sku).exists():
+            return sku
+
+        counter = 1
+        unique_sku = f"{sku}-{counter}"
+        while ProductVariant.objects.filter(sku=unique_sku).exists():
+            counter += 1
+            unique_sku = f"{sku}-{counter}"
+
+        return unique_sku
+
+    def _log_error(self, message: str, data: Any) -> None:
+        """Логирование ошибки"""
+        logger.error(f"{message}: {data}")
+        self.stats["errors"] += 1
+
+    def get_stats(self) -> dict[str, int]:
+        """Возвращает статистику импорта"""
+        return self.stats.copy()
+
+    def finalize_session(self, status: str, error_message: str = "") -> None:
+        """Завершение сессии импорта"""
+        from apps.products.models import ImportSession
+
+        try:
+            session = ImportSession.objects.get(id=self.session_id)
+            session.status = status
+            session.finished_at = timezone.now()
+            session.report_details = self.stats
+            if error_message:
+                session.error_message = error_message
+            session.save()
+
+            logger.info(f"Import session {self.session_id} finalized with status: {status}")
+            logger.info(f"Import stats: {self.stats}")
+
+        except ImportSession.DoesNotExist:
+            logger.error(f"ImportSession {self.session_id} not found")

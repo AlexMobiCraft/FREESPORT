@@ -243,127 +243,17 @@ class Product(models.Model):
         dict, models.JSONField("Технические характеристики", default=dict, blank=True)
     )
 
-    # Ценообразование для различных ролей пользователей
-    retail_price = cast(
-        Decimal,
-        models.DecimalField(
-            "Розничная цена",
-            max_digits=10,
-            decimal_places=2,
-            validators=[MinValueValidator(0)],
-        ),
-    )
-    opt1_price = cast(
-        Decimal | None,
-        models.DecimalField(
-            "Оптовая цена уровень 1",
-            max_digits=10,
-            decimal_places=2,
-            null=True,
+    # Изображения (Hybrid подход)
+    # Структура: ['url1.jpg', 'url2.jpg', ...] - список URL изображений из 1С
+    # Используется как fallback в ProductVariant.effective_images()
+    base_images = cast(
+        list,
+        models.JSONField(
+            "Базовые изображения",
+            default=list,
             blank=True,
-            validators=[MinValueValidator(0)],
+            help_text="Общие изображения товара из 1С (используются как fallback для вариантов)",
         ),
-    )
-    opt2_price = cast(
-        Decimal | None,
-        models.DecimalField(
-            "Оптовая цена уровень 2",
-            max_digits=10,
-            decimal_places=2,
-            null=True,
-            blank=True,
-            validators=[MinValueValidator(0)],
-        ),
-    )
-    opt3_price = cast(
-        Decimal | None,
-        models.DecimalField(
-            "Оптовая цена уровень 3",
-            max_digits=10,
-            decimal_places=2,
-            null=True,
-            blank=True,
-            validators=[MinValueValidator(0)],
-        ),
-    )
-    trainer_price = cast(
-        Decimal | None,
-        models.DecimalField(
-            "Цена для тренера",
-            max_digits=10,
-            decimal_places=2,
-            null=True,
-            blank=True,
-            validators=[MinValueValidator(0)],
-        ),
-    )
-    federation_price = cast(
-        Decimal | None,
-        models.DecimalField(
-            "Цена для представителя федерации",
-            max_digits=10,
-            decimal_places=2,
-            null=True,
-            blank=True,
-            validators=[MinValueValidator(0)],
-        ),
-    )
-
-    # Информационные цены для B2B пользователей
-    recommended_retail_price = cast(
-        Decimal | None,
-        models.DecimalField(
-            "Рекомендованная розничная цена (RRP)",
-            max_digits=10,
-            decimal_places=2,
-            null=True,
-            blank=True,
-            validators=[MinValueValidator(0)],
-        ),
-    )
-    max_suggested_retail_price = cast(
-        Decimal | None,
-        models.DecimalField(
-            "Максимальная рекомендованная цена (MSRP)",
-            max_digits=10,
-            decimal_places=2,
-            null=True,
-            blank=True,
-            validators=[MinValueValidator(0)],
-        ),
-    )
-
-    # Инвентаризация
-    sku = cast(
-        str, models.CharField("Артикул", max_length=100, unique=True, blank=True)
-    )
-    stock_quantity = cast(
-        int,
-        models.PositiveIntegerField(
-            "Количество на складе",
-            default=0,
-            help_text="Доступное количество на складе",
-        ),
-    )
-    reserved_quantity = cast(
-        int,
-        models.PositiveIntegerField(
-            "Зарезервированное количество",
-            default=0,
-            help_text="Количество товара, зарезервированного в корзинах и заказах",
-        ),
-    )
-    min_order_quantity = cast(
-        int, models.PositiveIntegerField("Минимальное количество заказа", default=1)
-    )
-
-    # Изображения
-    main_image = cast(
-        models.ImageField,
-        models.ImageField("Основное изображение", upload_to="products/"),
-    )
-    gallery_images = cast(
-        list, models.JSONField("Галерея изображений", default=list, blank=True)
     )
 
     # SEO и мета информация
@@ -502,8 +392,6 @@ class Product(models.Model):
         indexes = [
             models.Index(fields=["is_active", "category"]),
             models.Index(fields=["brand", "is_active"]),
-            models.Index(fields=["sku"]),
-            models.Index(fields=["stock_quantity"]),
             models.Index(fields=["onec_id"]),  # 1С integration index
             models.Index(fields=["parent_onec_id"]),  # Parent 1C ID index
             models.Index(fields=["sync_status"]),  # Sync status index
@@ -541,48 +429,10 @@ class Product(models.Model):
                     self.slug = f"{base_slug}-{uuid.uuid4().hex}"
                     break
 
-        if not self.sku:
-            self.sku = f"AUTO-{int(time.time())}-{uuid.uuid4().hex[:8].upper()}"
         super().save(*args, **kwargs)
 
     def __str__(self) -> str:
-        return f"{self.name} ({self.sku})"
-
-    def get_price_for_user(self, user: User | None) -> Decimal:
-        """Получить цену товара для конкретного пользователя на основе его роли"""
-        if not user or not user.is_authenticated:
-            return self.retail_price
-
-        role_price_mapping = {
-            "retail": self.retail_price,
-            "wholesale_level1": self.opt1_price or self.retail_price,
-            "wholesale_level2": self.opt2_price or self.retail_price,
-            "wholesale_level3": self.opt3_price or self.retail_price,
-            "trainer": self.trainer_price or self.retail_price,
-            "federation_rep": self.federation_price or self.retail_price,
-        }
-
-        return role_price_mapping.get(user.role, self.retail_price)
-
-    @property
-    def is_in_stock(self) -> bool:
-        """Проверка наличия товара на складе"""
-        return self.stock_quantity > 0
-
-    @property
-    def can_be_ordered(self) -> bool:
-        """Можно ли заказать товар"""
-        available_quantity = self.stock_quantity - self.reserved_quantity
-        return (
-            self.is_active
-            and self.is_in_stock
-            and available_quantity >= self.min_order_quantity
-        )
-
-    @property
-    def available_quantity(self) -> int:
-        """Доступное количество товара (с учетом резерва)"""
-        return max(0, self.stock_quantity - self.reserved_quantity)
+        return self.name
 
 
 class ProductImage(models.Model):
@@ -798,3 +648,328 @@ class PriceType(models.Model):
 
     def __str__(self) -> str:
         return f"{self.onec_name} → {self.product_field}"
+
+
+class ColorMapping(models.Model):
+    """
+    Маппинг цветов на hex-коды для визуализации вариантов товаров
+    """
+
+    name = cast(
+        str,
+        models.CharField(
+            "Название цвета",
+            max_length=100,
+            unique=True,
+            help_text="Название цвета из 1С",
+        ),
+    )
+    hex_code = cast(
+        str,
+        models.CharField(
+            "Hex-код",
+            max_length=7,
+            help_text="Hex-код цвета (например: #FF0000)",
+        ),
+    )
+    swatch_image = cast(
+        models.ImageField,
+        models.ImageField(
+            "Изображение свотча",
+            upload_to="colors/",
+            blank=True,
+            help_text="Для градиентов и паттернов",
+        ),
+    )
+
+    class Meta:
+        verbose_name = "Маппинг цвета"
+        verbose_name_plural = "Маппинг цветов"
+        db_table = "color_mappings"
+        ordering = ["name"]
+
+    def __str__(self) -> str:
+        return f"{self.name} ({self.hex_code})"
+
+
+class ProductVariant(models.Model):
+    """
+    SKU-вариант товара с ценами, остатками и характеристиками
+    Hybrid подход: собственные изображения варианта с fallback на Product.base_images
+    """
+
+    # Foreign Key
+    product = cast(
+        Product,
+        models.ForeignKey(
+            Product,
+            on_delete=models.CASCADE,
+            related_name="variants",
+            verbose_name="Товар",
+        ),
+    )
+
+    # Идентификация
+    sku = cast(
+        str,
+        models.CharField(
+            "Артикул SKU",
+            max_length=100,
+            unique=True,
+            db_index=True,
+            help_text="Уникальный артикул варианта",
+        ),
+    )
+    onec_id = cast(
+        str,
+        models.CharField(
+            "ID в 1С",
+            max_length=100,
+            unique=True,
+            db_index=True,
+            help_text="Составной ID: parent_id#variant_id",
+        ),
+    )
+
+    # Характеристики
+    color_name = cast(
+        str,
+        models.CharField(
+            "Цвет",
+            max_length=100,
+            blank=True,
+            db_index=True,
+            help_text="Название цвета из 1С",
+        ),
+    )
+    size_value = cast(
+        str,
+        models.CharField(
+            "Размер",
+            max_length=50,
+            blank=True,
+            db_index=True,
+            help_text="Значение размера",
+        ),
+    )
+
+    # Цены для различных ролей (6 типов)
+    retail_price = cast(
+        Decimal,
+        models.DecimalField(
+            "Розничная цена",
+            max_digits=10,
+            decimal_places=2,
+            validators=[MinValueValidator(Decimal("0"))],
+            help_text="Цена для роли retail",
+        ),
+    )
+    opt1_price = cast(
+        Decimal | None,
+        models.DecimalField(
+            "Оптовая цена уровень 1",
+            max_digits=10,
+            decimal_places=2,
+            null=True,
+            blank=True,
+            validators=[MinValueValidator(Decimal("0"))],
+            help_text="Цена для роли wholesale_level1",
+        ),
+    )
+    opt2_price = cast(
+        Decimal | None,
+        models.DecimalField(
+            "Оптовая цена уровень 2",
+            max_digits=10,
+            decimal_places=2,
+            null=True,
+            blank=True,
+            validators=[MinValueValidator(Decimal("0"))],
+            help_text="Цена для роли wholesale_level2",
+        ),
+    )
+    opt3_price = cast(
+        Decimal | None,
+        models.DecimalField(
+            "Оптовая цена уровень 3",
+            max_digits=10,
+            decimal_places=2,
+            null=True,
+            blank=True,
+            validators=[MinValueValidator(Decimal("0"))],
+            help_text="Цена для роли wholesale_level3",
+        ),
+    )
+    trainer_price = cast(
+        Decimal | None,
+        models.DecimalField(
+            "Цена для тренера",
+            max_digits=10,
+            decimal_places=2,
+            null=True,
+            blank=True,
+            validators=[MinValueValidator(Decimal("0"))],
+            help_text="Цена для роли trainer",
+        ),
+    )
+    federation_price = cast(
+        Decimal | None,
+        models.DecimalField(
+            "Цена для представителя федерации",
+            max_digits=10,
+            decimal_places=2,
+            null=True,
+            blank=True,
+            validators=[MinValueValidator(Decimal("0"))],
+            help_text="Цена для роли federation_rep",
+        ),
+    )
+
+    # Остатки
+    stock_quantity = cast(
+        int,
+        models.PositiveIntegerField(
+            "Количество на складе",
+            default=0,
+            db_index=True,
+            help_text="Доступное количество на складе",
+        ),
+    )
+    reserved_quantity = cast(
+        int,
+        models.PositiveIntegerField(
+            "Зарезервированное количество",
+            default=0,
+            help_text="Количество, зарезервированное в корзинах и заказах",
+        ),
+    )
+
+    # Изображения (Hybrid подход - опциональные)
+    main_image = cast(
+        models.ImageField,
+        models.ImageField(
+            "Основное изображение",
+            upload_to="products/variants/",
+            null=True,
+            blank=True,
+            help_text="Основное изображение варианта (опционально)",
+        ),
+    )
+    gallery_images = cast(
+        list,
+        models.JSONField(
+            "Галерея изображений",
+            default=list,
+            blank=True,
+            help_text="Список URL дополнительных изображений варианта",
+        ),
+    )
+
+    # Статус
+    is_active = cast(
+        bool,
+        models.BooleanField(
+            "Активный",
+            default=True,
+            db_index=True,
+            help_text="Доступен для заказа",
+        ),
+    )
+    last_sync_at = cast(
+        datetime | None,
+        models.DateTimeField(
+            "Последняя синхронизация",
+            null=True,
+            blank=True,
+            help_text="Время последней синхронизации с 1С",
+        ),
+    )
+    created_at = cast(
+        datetime,
+        models.DateTimeField("Дата создания", auto_now_add=True),
+    )
+    updated_at = cast(
+        datetime,
+        models.DateTimeField("Дата обновления", auto_now=True),
+    )
+
+    class Meta:
+        verbose_name = "Вариант товара"
+        verbose_name_plural = "Варианты товаров"
+        db_table = "product_variants"
+        ordering = ["color_name", "size_value"]
+        indexes = [
+            models.Index(fields=["product", "is_active"]),
+            models.Index(fields=["sku"]),
+            models.Index(fields=["onec_id"]),
+            models.Index(fields=["color_name"]),
+            models.Index(fields=["size_value"]),
+            models.Index(fields=["stock_quantity"]),
+            # Композитный индекс для оптимизации фильтрации по характеристикам
+            models.Index(
+                fields=["color_name", "size_value"],
+                name="idx_variant_characteristics",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        """Строковое представление варианта товара"""
+        return f"{self.product.name} - {self.sku}"
+
+    def clean(self) -> None:
+        """
+        Валидация модели: хотя бы одна характеристика (цвет или размер) должна быть заполнена.
+        Если импорт из 1С создаёт варианты без характеристик - это допустимый сценарий,
+        но для UI выбора опций рекомендуется иметь хотя бы одну характеристику.
+        """
+        super().clean()
+        if not self.color_name and not self.size_value:
+            # Это WARNING, не ValidationError - позволяем создать вариант,
+            # но логируем предупреждение для мониторинга качества данных из 1С
+            import logging
+
+            logger = logging.getLogger(__name__)
+            logger.warning(
+                f"ProductVariant {self.sku} создан без характеристик "
+                f"(color_name и size_value пустые). Проверьте данные из 1С."
+            )
+
+    @property
+    def is_in_stock(self) -> bool:
+        """Проверка наличия товара на складе"""
+        return self.stock_quantity > 0
+
+    @property
+    def available_quantity(self) -> int:
+        """Доступное количество товара (с учетом резерва)"""
+        return max(0, self.stock_quantity - self.reserved_quantity)
+
+    @property
+    def effective_images(self) -> list[str]:
+        """
+        Hybrid подход: вернуть собственные изображения варианта,
+        если отсутствуют - fallback на Product.base_images
+        """
+        if self.main_image:
+            images = [self.main_image.url]
+            if self.gallery_images:
+                images.extend(self.gallery_images)
+            return images
+        # Fallback на базовые изображения продукта
+        return self.product.base_images if self.product.base_images else []
+
+    def get_price_for_user(self, user: User | None) -> Decimal:
+        """Получить цену варианта для конкретного пользователя на основе его роли"""
+        if not user or not user.is_authenticated:
+            return self.retail_price
+
+        role_price_mapping = {
+            "retail": self.retail_price,
+            "wholesale_level1": self.opt1_price or self.retail_price,
+            "wholesale_level2": self.opt2_price or self.retail_price,
+            "wholesale_level3": self.opt3_price or self.retail_price,
+            "trainer": self.trainer_price or self.retail_price,
+            "federation_rep": self.federation_price or self.retail_price,
+        }
+
+        return role_price_mapping.get(user.role, self.retail_price)
