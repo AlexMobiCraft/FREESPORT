@@ -4,6 +4,7 @@
 """
 import os
 import sys
+
 import django
 
 # Настройка Django без БД

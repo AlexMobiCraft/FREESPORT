@@ -371,6 +371,7 @@ class TestImportSessionAdminActions:
         """
         # Arrange
         import os
+
         from django.conf import settings
 
         # Путь к JavaScript файлу

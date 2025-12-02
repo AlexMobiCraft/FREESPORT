@@ -4,6 +4,7 @@ Django Admin для приложения products
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from django.contrib import admin, messages
@@ -11,18 +12,10 @@ from django.db import transaction
 from django.db.models import Count, QuerySet
 from django.http import HttpRequest, HttpResponseRedirect
 from django.shortcuts import render
-import logging
 
 from .forms import MergeBrandsActionForm, TransferMappingsActionForm
-from .models import (
-    Brand,
-    Brand1CMapping,
-    Category,
-    ColorMapping,
-    Product,
-    ProductImage,
-    ProductVariant,
-)
+from .models import (Brand, Brand1CMapping, Category, ColorMapping, Product,
+                     ProductImage, ProductVariant)
 
 logger = logging.getLogger(__name__)
 

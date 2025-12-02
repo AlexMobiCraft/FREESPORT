@@ -5,17 +5,17 @@ Integration-тесты для команды import_customers_from_1c
 
 from __future__ import annotations
 
-import pytest
-from pathlib import Path
-from django.core.management import call_command
-from django.contrib.auth import get_user_model
 from io import StringIO
+from pathlib import Path
 from typing import Type, cast
+
+import pytest
+from django.contrib.auth import get_user_model
+from django.core.management import call_command
 
 from apps.common.models import CustomerSyncLog
 from apps.products.models import ImportSession
 from apps.users.models import User as CustomUserModel
-
 
 User = cast(Type[CustomUserModel], get_user_model())
 
@@ -135,7 +135,9 @@ class TestImportCustomersCommand:
         from django.core.management.base import CommandError
 
         with pytest.raises(CommandError) as exc_info:
-            call_command("import_customers_from_1c", data_dir=real_data_dir, chunk_size=0)
+            call_command(
+                "import_customers_from_1c", data_dir=real_data_dir, chunk_size=0
+            )
 
         assert "chunk-size" in str(exc_info.value).lower()
 

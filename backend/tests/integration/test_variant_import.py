@@ -18,24 +18,15 @@ from unittest.mock import patch
 import pytest
 from django.test import TestCase, TransactionTestCase, override_settings
 
-from apps.products.models import (
-    Brand,
-    Brand1CMapping,
-    Category,
-    ImportSession,
-    PriceType,
-    Product,
-    ProductVariant,
-)
+from apps.products.models import (Brand, Brand1CMapping, Category,
+                                  ImportSession, PriceType, Product,
+                                  ProductVariant)
 from apps.products.services.parser import XMLDataParser
-from apps.products.services.variant_import import (
-    VariantImportProcessor,
-    extract_color_from_name,
-    extract_size_from_name,
-    parse_characteristics,
-    parse_onec_id,
-)
-
+from apps.products.services.variant_import import (VariantImportProcessor,
+                                                   extract_color_from_name,
+                                                   extract_size_from_name,
+                                                   parse_characteristics,
+                                                   parse_onec_id)
 
 # ============================================================================
 # Test fixtures - XML data

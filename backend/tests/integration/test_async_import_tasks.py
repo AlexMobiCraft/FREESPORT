@@ -2,14 +2,15 @@
 Интеграционные тесты для асинхронного импорта через Celery
 """
 
-import pytest
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import MagicMock, Mock, patch
 
-from django.conf import settings
+import pytest
 from celery.exceptions import Retry
+from django.conf import settings
 
-from apps.integrations.tasks import run_selective_import_task, _execute_import_type
+from apps.integrations.tasks import (_execute_import_type,
+                                     run_selective_import_task)
 
 
 @pytest.mark.integration

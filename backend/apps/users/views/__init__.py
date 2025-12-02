@@ -6,12 +6,8 @@ Views для API управления пользователями
 # Импорты для совместимости с существующими URL patterns
 from .authentication import UserLoginView, UserRegistrationView
 from .misc import user_roles_view
-from .personal_cabinet import (
-    AddressViewSet,
-    FavoriteViewSet,
-    OrderHistoryView,
-    UserDashboardView,
-)
+from .personal_cabinet import (AddressViewSet, FavoriteViewSet,
+                               OrderHistoryView, UserDashboardView)
 from .profile import UserProfileView
 
 __all__ = [

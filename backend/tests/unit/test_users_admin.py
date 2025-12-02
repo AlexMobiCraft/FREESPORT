@@ -10,8 +10,8 @@ from django.test import RequestFactory, TestCase
 from django.utils.html import strip_tags
 
 from apps.common.models import AuditLog
-from apps.users.admin import UserAdmin, CompanyAdmin
-from apps.users.models import Company, Address
+from apps.users.admin import CompanyAdmin, UserAdmin
+from apps.users.models import Address, Company
 
 User = get_user_model()
 

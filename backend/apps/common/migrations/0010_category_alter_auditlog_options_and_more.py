@@ -7,7 +7,6 @@ from django.db import migrations, models
 from django.utils.text import slugify
 
 
-
 def migrate_news_categories(apps, schema_editor):
     News = apps.get_model("common", "News")
 
@@ -21,10 +20,11 @@ def migrate_news_categories(apps, schema_editor):
             news.category = None
             news.save()
 
+
 def reverse_migrate_news_categories(apps, schema_editor):
     News = apps.get_model("common", "News")
     Category = apps.get_model("common", "Category")
-    
+
     for news in News.objects.all():
         if news.category and news.category.isdigit():
             try:
@@ -565,7 +565,7 @@ class Migration(migrations.Migration):
         ),
         migrations.RunSQL(
             sql="DROP INDEX IF EXISTS news_category_4f2b8f_idx; DROP INDEX IF EXISTS news_categor_db4f5a_idx;",
-            reverse_sql=migrations.RunSQL.noop
+            reverse_sql=migrations.RunSQL.noop,
         ),
         migrations.AlterField(
             model_name="news",
@@ -580,8 +580,7 @@ class Migration(migrations.Migration):
             ),
         ),
         migrations.RunSQL(
-            sql=r"UPDATE news SET category = NULL;",
-            reverse_sql=migrations.RunSQL.noop
+            sql=r"UPDATE news SET category = NULL;", reverse_sql=migrations.RunSQL.noop
         ),
         migrations.AlterField(
             model_name="news",

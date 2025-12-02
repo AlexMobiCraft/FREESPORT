@@ -32,18 +32,22 @@ class TestImageImportDirectoryValidation(TestCase):
         # Прямой тест функции проверки директории в _create_and_run_import
         # через вызов с мок-директорией которая не существует
         from pathlib import Path
+
         from apps.integrations.views import _create_and_run_import
-        
+
         # Патчим settings.ONEC_DATA_DIR на несуществующую директорию
         with patch("apps.integrations.views.settings") as mock_settings:
             mock_settings.ONEC_DATA_DIR = "/tmp/nonexistent_test_dir"
-            
+
             # Попытка запустить импорт должна упасть с FileNotFoundError
             with pytest.raises(FileNotFoundError) as exc_info:
                 _create_and_run_import("images")
-            
+
             # Проверяем что ошибка о том что директория не найдена
-            assert "не найдена" in str(exc_info.value) or "not found" in str(exc_info.value).lower()
+            assert (
+                "не найдена" in str(exc_info.value)
+                or "not found" in str(exc_info.value).lower()
+            )
 
     @patch("pathlib.Path.exists", return_value=True)
     @patch("apps.integrations.views.run_selective_import_task")
@@ -211,7 +215,9 @@ class TestAllImportTypesRegression(TestCase):
     @patch("apps.integrations.tasks.call_command")
     @patch("pathlib.Path.exists", return_value=True)
     @patch("apps.integrations.tasks.ProductDataProcessor")
-    def test_all_import_types_create_sessions(self, mock_processor, mock_exists, mock_call_command) -> None:
+    def test_all_import_types_create_sessions(
+        self, mock_processor, mock_exists, mock_call_command
+    ) -> None:
         """Проверка создания сессий для всех типов импорта."""
         # Создать товары для типов требующих catalog
         ProductFactory.create()
@@ -320,8 +326,9 @@ class TestProgressDisplayAdaptation(TestCase):
 
     def test_progress_display_works_with_images_format(self) -> None:
         """Проверка progress_display с форматом report_details для images."""
-        from apps.integrations.admin import ImportSessionAdmin
         from django.contrib import admin
+
+        from apps.integrations.admin import ImportSessionAdmin
 
         # Создать сессию с форматом images
         session = Session.objects.create(
@@ -347,8 +354,9 @@ class TestProgressDisplayAdaptation(TestCase):
 
     def test_progress_display_works_with_catalog_format(self) -> None:
         """Проверка что progress_display работает со старым форматом catalog."""
-        from apps.integrations.admin import ImportSessionAdmin
         from django.contrib import admin
+
+        from apps.integrations.admin import ImportSessionAdmin
 
         # Создать сессию с форматом catalog
         session = Session.objects.create(
@@ -372,8 +380,9 @@ class TestProgressDisplayAdaptation(TestCase):
 
     def test_progress_display_returns_dash_when_no_data(self) -> None:
         """Проверка что progress_display возвращает '-' при отсутствии данных."""
-        from apps.integrations.admin import ImportSessionAdmin
         from django.contrib import admin
+
+        from apps.integrations.admin import ImportSessionAdmin
 
         # Создать сессию без report_details
         session = Session.objects.create(
@@ -421,8 +430,9 @@ class TestCoverageGaps(TestCase):
 
     def test_import_session_with_none_report_details(self) -> None:
         """Проверка обработки None в report_details."""
-        from apps.integrations.admin import ImportSessionAdmin
         from django.contrib import admin
+
+        from apps.integrations.admin import ImportSessionAdmin
 
         session = Session.objects.create(
             import_type="images", status="started", report_details={}

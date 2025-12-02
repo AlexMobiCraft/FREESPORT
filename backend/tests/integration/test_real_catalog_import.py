@@ -9,12 +9,11 @@ from pathlib import Path
 from typing import Any, Optional, cast
 
 import pytest
+from django.apps import apps
 from django.conf import settings
 from django.core.management import call_command
 from django.db import connection
 from django.db.utils import OperationalError
-
-from django.apps import apps
 
 brand_model = apps.get_model("products", "Brand")
 category_model = apps.get_model("products", "Category")

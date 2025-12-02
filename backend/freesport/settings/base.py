@@ -8,6 +8,8 @@ import sys
 from datetime import timedelta
 from pathlib import Path
 
+from decouple import config
+
 # Временно отключаем патч для исправления проблем с кодировкой psycopg2 на Windows
 # try:
 #     import monkey_patch_psycopg2
@@ -15,7 +17,6 @@ from pathlib import Path
 # except ImportError:
 #     pass  # Патч не применен, но продолжаем работу
 
-from decouple import config
 
 # Настройка кодировки для Windows консоли
 if sys.platform == "win32":

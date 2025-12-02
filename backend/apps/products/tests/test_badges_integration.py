@@ -4,11 +4,12 @@
 
 from __future__ import annotations
 
-import pytest
 from decimal import Decimal
 
-from apps.products.models import Product, Brand, Category
+import pytest
+
 from apps.products.filters import ProductFilter
+from apps.products.models import Brand, Category, Product
 from apps.products.serializers import ProductListSerializer
 
 

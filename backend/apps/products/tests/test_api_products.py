@@ -14,11 +14,8 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from apps.products.factories import (
-    ColorMappingFactory,
-    ProductFactory,
-    ProductVariantFactory,
-)
+from apps.products.factories import (ColorMappingFactory, ProductFactory,
+                                     ProductVariantFactory)
 from apps.products.models import ColorMapping, Product, ProductVariant
 from apps.users.models import User
 
@@ -87,7 +84,9 @@ class TestProductRetrieveWithVariants:
         self, api_client, product_with_variants
     ):
         """Тест: GET /products/{slug}/ возвращает массив variants"""
-        url = reverse("products:product-detail", kwargs={"slug": product_with_variants.slug})
+        url = reverse(
+            "products:product-detail", kwargs={"slug": product_with_variants.slug}
+        )
         response = api_client.get(url)
 
         assert response.status_code == status.HTTP_200_OK
@@ -99,7 +98,9 @@ class TestProductRetrieveWithVariants:
 
     def test_variants_contain_correct_fields(self, api_client, product_with_variants):
         """Тест: variants содержат все необходимые поля"""
-        url = reverse("products:product-detail", kwargs={"slug": product_with_variants.slug})
+        url = reverse(
+            "products:product-detail", kwargs={"slug": product_with_variants.slug}
+        )
         response = api_client.get(url)
 
         assert response.status_code == status.HTTP_200_OK
@@ -131,7 +132,9 @@ class TestProductRetrieveWithVariants:
         """Тест: current_price рассчитывается для retail пользователя"""
         api_client.force_authenticate(user=retail_user)
 
-        url = reverse("products:product-detail", kwargs={"slug": product_with_variants.slug})
+        url = reverse(
+            "products:product-detail", kwargs={"slug": product_with_variants.slug}
+        )
         response = api_client.get(url)
 
         assert response.status_code == status.HTTP_200_OK
@@ -148,7 +151,9 @@ class TestProductRetrieveWithVariants:
         """Тест: current_price рассчитывается для wholesale пользователя"""
         api_client.force_authenticate(user=wholesale_user)
 
-        url = reverse("products:product-detail", kwargs={"slug": product_with_variants.slug})
+        url = reverse(
+            "products:product-detail", kwargs={"slug": product_with_variants.slug}
+        )
         response = api_client.get(url)
 
         assert response.status_code == status.HTTP_200_OK
@@ -159,12 +164,12 @@ class TestProductRetrieveWithVariants:
             variant = ProductVariant.objects.get(id=variant_data["id"])
             assert variant_data["current_price"] == str(variant.opt1_price)
 
-    def test_current_price_for_anonymous_user(
-        self, api_client, product_with_variants
-    ):
+    def test_current_price_for_anonymous_user(self, api_client, product_with_variants):
         """Тест: current_price = retail_price для анонимного пользователя"""
         # Не аутентифицируемся
-        url = reverse("products:product-detail", kwargs={"slug": product_with_variants.slug})
+        url = reverse(
+            "products:product-detail", kwargs={"slug": product_with_variants.slug}
+        )
         response = api_client.get(url)
 
         assert response.status_code == status.HTTP_200_OK
@@ -178,23 +183,25 @@ class TestProductRetrieveWithVariants:
     def test_color_hex_with_color_mapping(self, api_client, product_with_variants):
         """Тест: color_hex возвращается из ColorMapping"""
         # Создаем ColorMapping для цветов (get_or_create для избежания дубликатов)
-        ColorMapping.objects.get_or_create(name="Красный", defaults={"hex_code": "#FF0000"})
-        ColorMapping.objects.get_or_create(name="Синий", defaults={"hex_code": "#0000FF"})
+        ColorMapping.objects.get_or_create(
+            name="Красный", defaults={"hex_code": "#FF0000"}
+        )
+        ColorMapping.objects.get_or_create(
+            name="Синий", defaults={"hex_code": "#0000FF"}
+        )
 
-        url = reverse("products:product-detail", kwargs={"slug": product_with_variants.slug})
+        url = reverse(
+            "products:product-detail", kwargs={"slug": product_with_variants.slug}
+        )
         response = api_client.get(url)
 
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
 
         # Проверяем что hex коды возвращаются
-        red_variant = next(
-            v for v in data["variants"] if v["color_name"] == "Красный"
-        )
+        red_variant = next(v for v in data["variants"] if v["color_name"] == "Красный")
         blue_variant = next(v for v in data["variants"] if v["color_name"] == "Синий")
-        black_variant = next(
-            v for v in data["variants"] if v["color_name"] == "Черный"
-        )
+        black_variant = next(v for v in data["variants"] if v["color_name"] == "Черный")
 
         assert red_variant["color_hex"] == "#FF0000"
         assert blue_variant["color_hex"] == "#0000FF"
@@ -205,7 +212,9 @@ class TestProductRetrieveWithVariants:
         self, api_client, product_with_variants
     ):
         """Тест: is_in_stock корректно отражает наличие товара"""
-        url = reverse("products:product-detail", kwargs={"slug": product_with_variants.slug})
+        url = reverse(
+            "products:product-detail", kwargs={"slug": product_with_variants.slug}
+        )
         response = api_client.get(url)
 
         assert response.status_code == status.HTTP_200_OK
@@ -232,9 +241,7 @@ class TestProductRetrieveWithVariants:
         assert "variants" in data
         assert data["variants"] == []
 
-    def test_integration_verification_iv1_list_endpoint_unchanged(
-        self, api_client, db
-    ):
+    def test_integration_verification_iv1_list_endpoint_unchanged(self, api_client, db):
         """IV1: Существующий endpoint /products/ не изменен"""
         ProductFactory.create_batch(3)
 

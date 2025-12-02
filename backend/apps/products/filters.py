@@ -4,7 +4,8 @@
 
 import django_filters
 from django.conf import settings
-from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector
+from django.contrib.postgres.search import (SearchQuery, SearchRank,
+                                            SearchVector)
 from django.db import connection
 from django.db.models import Q
 
@@ -145,12 +146,14 @@ class ProductFilter(django_filters.FilterSet):
 
         while to_process:
             children = list(
-                Category.objects.filter(parent_id__in=to_process, is_active=True).values_list(
-                    "id", flat=True
-                )
+                Category.objects.filter(
+                    parent_id__in=to_process, is_active=True
+                ).values_list("id", flat=True)
             )
 
-            new_children = [child_id for child_id in children if child_id not in category_ids]
+            new_children = [
+                child_id for child_id in children if child_id not in category_ids
+            ]
             if not new_children:
                 break
 

@@ -2,13 +2,14 @@
 Integration-тесты для сценариев разрешения конфликтов (Story 3.2.2)
 """
 
-import pytest
 from unittest.mock import patch
+
+import pytest
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 
+from apps.common.models import CustomerSyncLog, SyncConflict
 from apps.users.services.conflict_resolution import CustomerConflictResolver
-from apps.common.models import SyncConflict, CustomerSyncLog
 
 User = get_user_model()
 

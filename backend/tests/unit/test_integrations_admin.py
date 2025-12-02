@@ -2,12 +2,13 @@
 Unit-тесты для admin интерфейса приложения integrations
 """
 
+from unittest.mock import Mock, patch
+
 import pytest
 from django.contrib.admin.sites import AdminSite
 from django.contrib.auth import get_user_model
 from django.http import HttpRequest
 from django.test import RequestFactory
-from unittest.mock import Mock, patch
 
 from apps.integrations.admin import ImportSessionAdmin
 from apps.integrations.models import Session
@@ -74,8 +75,9 @@ class TestImportSessionAdmin:
         Проверяет корректность расчета времени выполнения.
         """
         # Arrange
-        from django.utils import timezone
         from datetime import timedelta
+
+        from django.utils import timezone
 
         session = Session.objects.create(import_type="catalog", status="completed")
         session.started_at = timezone.now() - timedelta(minutes=5)

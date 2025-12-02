@@ -5,7 +5,8 @@ URL маршруты для каталога товаров
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
-from .views import BrandViewSet, CategoryTreeViewSet, CategoryViewSet, ProductViewSet
+from .views import (BrandViewSet, CategoryTreeViewSet, CategoryViewSet,
+                    ProductViewSet)
 
 # Router для ViewSets
 router = DefaultRouter()

@@ -4,15 +4,17 @@
 """
 import os
 import sys
+
 import django
 
 # Настройка Django
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "freesport.settings.test")
 django.setup()
 
-from django.db.models import Avg, Count, Sum
-from apps.orders.models import Order
 from django.contrib.auth import get_user_model
+from django.db.models import Avg, Count, Sum
+
+from apps.orders.models import Order
 
 User = get_user_model()
 

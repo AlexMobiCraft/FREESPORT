@@ -2,6 +2,7 @@
 XMLDataParser - парсер для XML файлов из 1С (CommerceML 3.1)
 """
 
+import logging
 import os
 from decimal import Decimal
 from typing import Any, Iterator, TypedDict, cast
@@ -9,7 +10,6 @@ from xml.etree.ElementTree import Element, ElementTree
 
 import defusedxml.ElementTree as ET
 from django.conf import settings
-import logging
 
 logger = logging.getLogger(__name__)
 

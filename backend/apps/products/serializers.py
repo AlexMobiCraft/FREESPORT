@@ -10,7 +10,8 @@ from typing import TYPE_CHECKING, Any
 from django.db.models import Count, Q
 from rest_framework import serializers
 
-from .models import Brand, Category, ColorMapping, Product, ProductImage, ProductVariant
+from .models import (Brand, Category, ColorMapping, Product, ProductImage,
+                     ProductVariant)
 
 if TYPE_CHECKING:
     from apps.users.models import User
@@ -81,13 +82,10 @@ class ProductVariantSerializer(serializers.ModelSerializer):
         # Кэшируем ColorMapping для избежания N+1 queries
         if not hasattr(self, "_color_mapping_cache"):
             self._color_mapping_cache = {
-                mapping.name: mapping.hex_code
-                for mapping in ColorMapping.objects.all()
+                mapping.name: mapping.hex_code for mapping in ColorMapping.objects.all()
             }
 
         return self._color_mapping_cache.get(obj.color_name)
-
-
 
 
 class ProductImageSerializer(serializers.ModelSerializer):
@@ -287,7 +285,7 @@ class ProductDetailSerializer(ProductListSerializer):
                 url = img_url
                 if request and hasattr(request, "build_absolute_uri"):
                     # Если URL относительный, делаем абсолютным
-                    if not img_url.startswith(('http://', 'https://')):
+                    if not img_url.startswith(("http://", "https://")):
                         url = request.build_absolute_uri(img_url)
 
                 images.append(

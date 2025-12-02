@@ -2,7 +2,8 @@
 Views для аутентификации пользователей
 """
 
-from drf_spectacular.utils import OpenApiExample, OpenApiResponse, extend_schema
+from drf_spectacular.utils import (OpenApiExample, OpenApiResponse,
+                                   extend_schema)
 from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView

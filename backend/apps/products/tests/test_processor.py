@@ -18,12 +18,8 @@ from unittest.mock import MagicMock, mock_open, patch
 import pytest
 from django.core.files.storage import default_storage
 
-from apps.products.factories import (
-    Brand1CMappingFactory,
-    BrandFactory,
-    CategoryFactory,
-    ProductFactory,
-)
+from apps.products.factories import (Brand1CMappingFactory, BrandFactory,
+                                     CategoryFactory, ProductFactory)
 from apps.products.models import ImportSession, Product
 from apps.products.services.processor import ProductDataProcessor
 
@@ -485,7 +481,9 @@ class TestImportProductImages:
             os.rename(tmp_path, new_path)
 
             # ACT - импортируем то же изображение повторно
-            with patch("apps.products.services.processor.default_storage") as mock_storage:
+            with patch(
+                "apps.products.services.processor.default_storage"
+            ) as mock_storage:
                 mock_storage.exists.return_value = True
                 result = processor.import_product_images(
                     product=product,

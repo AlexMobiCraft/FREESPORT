@@ -2,14 +2,15 @@
 Unit-тесты для CustomerConflictResolver (Story 3.2.2)
 """
 
-import pytest
 from datetime import datetime
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 
+from apps.common.models import CustomerSyncLog, SyncConflict
 from apps.users.services.conflict_resolution import CustomerConflictResolver
-from apps.common.models import SyncConflict, CustomerSyncLog
 
 User = get_user_model()
 

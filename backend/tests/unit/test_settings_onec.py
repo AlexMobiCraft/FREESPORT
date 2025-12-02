@@ -59,11 +59,11 @@ class TestOneCSettings:
 
         # Act
         from importlib import reload
+
         from django.conf import settings as django_settings
 
         # Примечание: в реальном приложении настройки загружаются один раз
         # Этот тест проверяет логику, но не перезагружает settings
-
         # Assert
         # В тестовой среде settings уже загружены, поэтому проверяем
         # что переменная окружения установлена

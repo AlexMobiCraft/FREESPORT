@@ -86,9 +86,7 @@ class TestImportFromView(TestCase):
 
         # Проверяем наличие типа images в context
         import_types = response.context["import_types"]
-        images_type = next(
-            (t for t in import_types if t["value"] == "images"), None
-        )
+        images_type = next((t for t in import_types if t["value"] == "images"), None)
 
         assert images_type is not None
         assert images_type["label"] == "Только изображения товаров"

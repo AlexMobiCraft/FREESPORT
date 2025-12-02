@@ -8,14 +8,8 @@ from unittest.mock import patch
 import pytest
 from django.utils import timezone
 
-from apps.products.models import (
-    Brand,
-    Brand1CMapping,
-    Category,
-    ImportSession,
-    PriceType,
-    Product,
-)
+from apps.products.models import (Brand, Brand1CMapping, Category,
+                                  ImportSession, PriceType, Product)
 from apps.products.services.processor import ProductDataProcessor
 
 
@@ -224,7 +218,9 @@ class TestProductDataProcessor:
 
     def test_determine_brand_with_none_brand_id(self, processor):
         """Проверка _determine_brand() с brand_id=None"""
-        result_brand = processor._determine_brand(brand_id=None, parent_id="product-789")
+        result_brand = processor._determine_brand(
+            brand_id=None, parent_id="product-789"
+        )
 
         assert result_brand.name == "No Brand"
         assert processor.stats["brand_fallbacks"] == 1

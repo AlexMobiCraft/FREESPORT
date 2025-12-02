@@ -83,3 +83,169 @@ export const MOCK_UNAVAILABLE_PRODUCT: ProductDetail = {
   is_in_stock: false,
   can_be_ordered: false,
 };
+
+/**
+ * Story 13.5a: Mock данные для товара с вариантами (размеры и цвета)
+ * Используется для тестирования ProductOptions компонента
+ */
+export interface ProductVariant {
+  id: number;
+  sku: string;
+  color_name?: string;
+  color_hex?: string | null;
+  size_value?: string;
+  current_price: string;
+  stock_quantity: number;
+  is_in_stock: boolean;
+  available_quantity: number;
+}
+
+export interface ProductDetailWithVariants extends ProductDetail {
+  variants: ProductVariant[];
+}
+
+export const MOCK_PRODUCT_VARIANTS: ProductVariant[] = [
+  {
+    id: 1,
+    sku: 'NIKE-AM-RED-42',
+    color_name: 'Красный',
+    color_hex: '#FF0000',
+    size_value: '42',
+    current_price: '5990.00',
+    stock_quantity: 15,
+    is_in_stock: true,
+    available_quantity: 15,
+  },
+  {
+    id: 2,
+    sku: 'NIKE-AM-RED-43',
+    color_name: 'Красный',
+    color_hex: '#FF0000',
+    size_value: '43',
+    current_price: '5990.00',
+    stock_quantity: 0,
+    is_in_stock: false,
+    available_quantity: 0,
+  },
+  {
+    id: 3,
+    sku: 'NIKE-AM-RED-44',
+    color_name: 'Красный',
+    color_hex: '#FF0000',
+    size_value: '44',
+    current_price: '5990.00',
+    stock_quantity: 8,
+    is_in_stock: true,
+    available_quantity: 8,
+  },
+  {
+    id: 4,
+    sku: 'NIKE-AM-BLUE-42',
+    color_name: 'Синий',
+    color_hex: '#0000FF',
+    size_value: '42',
+    current_price: '5990.00',
+    stock_quantity: 10,
+    is_in_stock: true,
+    available_quantity: 10,
+  },
+  {
+    id: 5,
+    sku: 'NIKE-AM-BLUE-43',
+    color_name: 'Синий',
+    color_hex: '#0000FF',
+    size_value: '43',
+    current_price: '5990.00',
+    stock_quantity: 5,
+    is_in_stock: true,
+    available_quantity: 5,
+  },
+  {
+    id: 6,
+    sku: 'NIKE-AM-BLUE-44',
+    color_name: 'Синий',
+    color_hex: '#0000FF',
+    size_value: '44',
+    current_price: '5990.00',
+    stock_quantity: 0,
+    is_in_stock: false,
+    available_quantity: 0,
+  },
+  {
+    id: 7,
+    sku: 'NIKE-AM-BLACK-42',
+    color_name: 'Черный',
+    color_hex: '#000000',
+    size_value: '42',
+    current_price: '6490.00',
+    stock_quantity: 20,
+    is_in_stock: true,
+    available_quantity: 20,
+  },
+  {
+    id: 8,
+    sku: 'NIKE-AM-BLACK-43',
+    color_name: 'Черный',
+    color_hex: '#000000',
+    size_value: '43',
+    current_price: '6490.00',
+    stock_quantity: 12,
+    is_in_stock: true,
+    available_quantity: 12,
+  },
+];
+
+export const MOCK_PRODUCT_WITH_VARIANTS: ProductDetailWithVariants = {
+  id: 201,
+  slug: 'nike-air-max',
+  name: 'Кроссовки Nike Air Max',
+  sku: 'NIKE-AM-2025',
+  brand: 'Nike',
+  description: 'Легендарные кроссовки Nike Air Max с технологией воздушной подушки',
+  full_description:
+    'Nike Air Max - это культовая модель кроссовок, которая сочетает в себе стиль и комфорт. Технология Air Max обеспечивает превосходную амортизацию при каждом шаге.',
+  price: {
+    retail: 5990,
+    wholesale: {
+      level1: 5490,
+      level2: 5190,
+      level3: 4890,
+    },
+    trainer: 4990,
+    federation: 4490,
+    currency: 'RUB',
+  },
+  stock_quantity: 70,
+  images: [
+    {
+      id: 1,
+      image: 'https://cdn.freesport.ru/products/nike-air-max/main.jpg',
+      alt_text: 'Nike Air Max front',
+      is_primary: true,
+    },
+    {
+      id: 2,
+      image: 'https://cdn.freesport.ru/products/nike-air-max/side.jpg',
+      alt_text: 'Nike Air Max side',
+      is_primary: false,
+    },
+  ],
+  rating: 4.8,
+  reviews_count: 156,
+  specifications: {
+    Материал: 'Кожа + текстиль',
+    Вес: '320 г',
+    Технологии: 'Air Max, Cushlon',
+    'Страна производства': 'Вьетнам',
+    Назначение: 'Повседневная носка, бег',
+  },
+  category: {
+    id: 2,
+    name: 'Обувь',
+    slug: 'obuv',
+    breadcrumbs: ['Главная', 'Обувь', 'Кроссовки', 'Nike'],
+  },
+  is_in_stock: true,
+  can_be_ordered: true,
+  variants: MOCK_PRODUCT_VARIANTS,
+};

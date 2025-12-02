@@ -4,12 +4,13 @@ Unit-тесты для маркетинговых флагов Product model (St
 
 from __future__ import annotations
 
-import pytest
 from decimal import Decimal
+
+import pytest
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 
-from apps.products.models import Product, Brand, Category
+from apps.products.models import Brand, Category, Product
 
 
 @pytest.mark.django_db

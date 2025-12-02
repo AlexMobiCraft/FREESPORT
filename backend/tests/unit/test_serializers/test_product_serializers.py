@@ -9,13 +9,10 @@ from decimal import Decimal
 import pytest
 from django.contrib.auth import get_user_model
 
-from apps.products.serializers import (
-    BrandSerializer,
-    CategorySerializer,
-    ProductDetailSerializer,
-    ProductImageSerializer,
-    ProductListSerializer,
-)
+from apps.products.serializers import (BrandSerializer, CategorySerializer,
+                                       ProductDetailSerializer,
+                                       ProductImageSerializer,
+                                       ProductListSerializer)
 
 
 # Добавляем ProductSpecificationSerializer как заглушку для тестов
@@ -423,21 +420,21 @@ class TestOnecBrandIdSerializerGuardrail:
         product = product_factory.create(
             onec_brand_id="fb3f263e-dfd0-11ef-8361-fa163ea88911"
         )
-        
+
         serializer = ProductListSerializer(product)
         data = serializer.data
-        
+
         # onec_brand_id не должно быть в публичном API
         assert "onec_brand_id" not in data
-        
+
     def test_onec_brand_id_not_in_product_detail_serializer(self, product_factory):
         """Тест что ProductDetailSerializer не возвращает onec_brand_id"""
         product = product_factory.create(
             onec_brand_id="fb3f263e-dfd0-11ef-8361-fa163ea88911"
         )
-        
+
         serializer = ProductDetailSerializer(product)
         data = serializer.data
-        
+
         # onec_brand_id не должно быть в публичном API
         assert "onec_brand_id" not in data

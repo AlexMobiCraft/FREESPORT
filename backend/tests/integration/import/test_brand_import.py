@@ -17,7 +17,7 @@ from apps.products.utils.brands import normalize_brand_name
 class TestBrandImportDeduplication(TestCase):
     """
     Тесты дедупликации брендов при импорте из 1С
-    
+
     Проверяет:
     - Объединение дубликатов по normalized_name
     - Создание Brand1CMapping для каждого onec_id
@@ -39,7 +39,7 @@ class TestBrandImportDeduplication(TestCase):
     def test_process_brands_merges_duplicates(self):
         """
         Тест объединения дубликатов брендов
-        
+
         Импортирует "BoyBo" и "BOYBO" и проверяет:
         - Создаётся только один Brand
         - Создаются два Brand1CMapping
@@ -78,7 +78,7 @@ class TestBrandImportDeduplication(TestCase):
     def test_process_brands_idempotent_reimport(self):
         """
         Тест идемпотентности повторного импорта
-        
+
         Повторный импорт тех же данных должен:
         - Не создавать новые бренды
         - Обновлять существующие маппинги
@@ -119,7 +119,7 @@ class TestBrandImportDeduplication(TestCase):
     def test_process_brands_case_insensitive_merge(self):
         """
         Тест объединения брендов с разным регистром
-        
+
         Проверяет что "adidas", "Adidas", "ADIDAS" объединяются в один бренд
         """
         # Arrange
@@ -148,7 +148,7 @@ class TestBrandImportDeduplication(TestCase):
     def test_process_brands_whitespace_normalization(self):
         """
         Тест нормализации пробелов в названиях брендов
-        
+
         "Under Armour" и "UnderArmour" должны объединяться
         """
         # Arrange
@@ -169,7 +169,7 @@ class TestBrandImportDeduplication(TestCase):
     def test_process_brands_special_chars_normalization(self):
         """
         Тест нормализации специальных символов
-        
+
         "Nike-Pro" и "Nike Pro" должны объединяться
         """
         # Arrange
@@ -188,7 +188,7 @@ class TestBrandImportDeduplication(TestCase):
     def test_process_brands_unique_slug_generation(self):
         """
         Тест генерации уникальных slug при конфликтах
-        
+
         Если slug уже занят, должен добавляться числовой суффикс
         """
         # Arrange: Создаём бренд с занятым slug
@@ -231,7 +231,7 @@ class TestBrandImportDeduplication(TestCase):
     def test_process_brands_missing_fields(self):
         """
         Тест обработки брендов с отсутствующими полями
-        
+
         Бренды без id или name должны пропускаться
         """
         # Arrange
@@ -254,7 +254,7 @@ class TestBrandImportDeduplication(TestCase):
     def test_process_brands_update_onec_name(self):
         """
         Тест обновления onec_name при изменении в 1С
-        
+
         Если название бренда в 1С изменилось, onec_name в маппинге должен обновиться
         """
         # Arrange: Первый импорт
@@ -277,7 +277,7 @@ class TestBrandImportDeduplication(TestCase):
     def test_process_brands_cyrillic_names(self):
         """
         Тест обработки брендов с кириллическими названиями
-        
+
         "Рокки" и "РОККИ" должны объединяться
         """
         # Arrange

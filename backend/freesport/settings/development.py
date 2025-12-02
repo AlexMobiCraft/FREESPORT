@@ -3,12 +3,15 @@
 """
 
 import os
+
 from .base import *
 
 # ВНИМАНИЕ: не используйте debug=True в продакшене!
 DEBUG = True
 
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1,backend').split(',')
+ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1,backend").split(
+    ","
+)
 
 # Дополнительные приложения для разработки
 INSTALLED_APPS += [

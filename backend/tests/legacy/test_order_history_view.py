@@ -4,15 +4,17 @@
 """
 import os
 import sys
+
 import django
 
 # Настройка Django
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "freesport.settings.test")
 django.setup()
 
-from apps.users.views.personal_cabinet import OrderHistoryView
-from apps.orders.models import Order
 from django.contrib.auth import get_user_model
+
+from apps.orders.models import Order
+from apps.users.views.personal_cabinet import OrderHistoryView
 
 User = get_user_model()
 

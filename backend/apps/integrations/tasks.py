@@ -9,9 +9,6 @@ from typing import Any
 from celery import shared_task
 from django.conf import settings
 from django.core.management import call_command
-
-from apps.products.models import ImportSession
-
 from django.utils import timezone
 
 from apps.products.models import ImportSession, Product

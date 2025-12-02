@@ -99,7 +99,9 @@ class TestProductVariant:
 
     def test_get_price_for_retail_user(self, variant, db):
         """AC7: get_price_for_user возвращает retail_price для retail пользователя"""
-        user = User.objects.create_user(email="retail@test.com", password="pass", role="retail")
+        user = User.objects.create_user(
+            email="retail@test.com", password="pass", role="retail"
+        )
         price = variant.get_price_for_user(user)
         assert price == variant.retail_price
 
@@ -135,7 +137,9 @@ class TestProductVariant:
         """AC7: get_price_for_user возвращает trainer_price для trainer"""
         variant.trainer_price = Decimal("750.00")
         variant.save()
-        user = User.objects.create_user(email="trainer@test.com", password="pass", role="trainer")
+        user = User.objects.create_user(
+            email="trainer@test.com", password="pass", role="trainer"
+        )
         price = variant.get_price_for_user(user)
         assert price == Decimal("750.00")
 
@@ -143,7 +147,9 @@ class TestProductVariant:
         """AC7: get_price_for_user возвращает federation_price для federation_rep"""
         variant.federation_price = Decimal("700.00")
         variant.save()
-        user = User.objects.create_user(email="fed@test.com", password="pass", role="federation_rep")
+        user = User.objects.create_user(
+            email="fed@test.com", password="pass", role="federation_rep"
+        )
         price = variant.get_price_for_user(user)
         assert price == Decimal("700.00")
 
@@ -183,20 +189,19 @@ class TestProductVariant:
     # TEST-GAP-1: effective_images() Hybrid логика
     def test_effective_images_with_variant_own_images(self, product):
         """TEST-GAP-1: effective_images возвращает собственные изображения варианта"""
-        from django.core.files.uploadedfile import SimpleUploadedFile
         from io import BytesIO
+
+        from django.core.files.uploadedfile import SimpleUploadedFile
         from PIL import Image
 
         # Создаем реальное изображение для тестирования
-        image = Image.new('RGB', (100, 100), color='red')
+        image = Image.new("RGB", (100, 100), color="red")
         image_io = BytesIO()
-        image.save(image_io, format='JPEG')
+        image.save(image_io, format="JPEG")
         image_io.seek(0)
 
         uploaded_file = SimpleUploadedFile(
-            "test_variant_image.jpg",
-            image_io.read(),
-            content_type="image/jpeg"
+            "test_variant_image.jpg", image_io.read(), content_type="image/jpeg"
         )
 
         # Создаем вариант с реальным main_image
@@ -209,7 +214,7 @@ class TestProductVariant:
             gallery_images=[
                 "http://example.com/gallery1.jpg",
                 "http://example.com/gallery2.jpg",
-            ]
+            ],
         )
 
         images = variant.effective_images

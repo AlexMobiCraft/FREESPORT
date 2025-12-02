@@ -5,14 +5,15 @@ Unit-тесты для CustomerDataProcessor
 
 from __future__ import annotations
 
-import pytest
 from decimal import Decimal
+
+import pytest
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 
-from apps.users.services.processor import CustomerDataProcessor
 from apps.common.models import CustomerSyncLog
 from apps.products.models import ImportSession
+from apps.users.services.processor import CustomerDataProcessor
 
 User = get_user_model()
 

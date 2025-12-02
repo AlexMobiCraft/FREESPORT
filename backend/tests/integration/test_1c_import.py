@@ -79,7 +79,7 @@ class TestOnecBrandIdImport:
     def test_onec_brand_id_filled_during_import(self):
         """
         AC2: Проверка заполнения onec_brand_id при импорте товара из CommerceML
-        
+
         Given: CommerceML XML содержит товар с <Производитель><Ид>
         When: Выполняется импорт каталога через import_catalog_from_1c
         Then: Product.onec_brand_id заполняется значением из XML
@@ -107,36 +107,34 @@ class TestOnecBrandIdImport:
         products_with_brand_id = Product.objects.filter(
             onec_brand_id__isnull=False
         ).count()
-        
+
         # Ожидаем что большинство товаров имеют onec_brand_id
         # (некоторые товары могут не иметь бренда в XML)
-        assert products_with_brand_id > 0, (
-            "Должны быть товары с заполненным onec_brand_id"
-        )
+        assert (
+            products_with_brand_id > 0
+        ), "Должны быть товары с заполненным onec_brand_id"
 
         # Проверяем конкретный товар с известным brand_id
-        sample_product = Product.objects.filter(
-            onec_brand_id__isnull=False
-        ).first()
-        
+        sample_product = Product.objects.filter(onec_brand_id__isnull=False).first()
+
         if sample_product:
             # Проверяем формат данных
             assert sample_product.onec_brand_id, "onec_brand_id не должен быть пустым"
-            assert len(sample_product.onec_brand_id) > 0, (
-                "onec_brand_id должен содержать данные"
-            )
-            
+            assert (
+                len(sample_product.onec_brand_id) > 0
+            ), "onec_brand_id должен содержать данные"
+
             # Проверяем что это валидный UUID формат из 1С
             # Пример: fb3f263e-dfd0-11ef-8361-fa163ea88911
             brand_id = sample_product.onec_brand_id
-            assert len(brand_id) <= 100, (
-                f"onec_brand_id не должен превышать 100 символов: {len(brand_id)}"
-            )
+            assert (
+                len(brand_id) <= 100
+            ), f"onec_brand_id не должен превышать 100 символов: {len(brand_id)}"
 
     def test_onec_brand_id_nullable_for_products_without_brand(self):
         """
         AC2: Проверка что onec_brand_id может быть NULL для товаров без бренда
-        
+
         Given: CommerceML XML содержит товар без <Производитель>
         When: Выполняется импорт каталога
         Then: Product.onec_brand_id остается NULL
@@ -156,22 +154,20 @@ class TestOnecBrandIdImport:
         assert products_count > 0, "Должны быть импортированы товары"
 
         # Проверяем что поле nullable работает корректно
-        products_without_brand_id = Product.objects.filter(
-            onec_brand_id__isnull=True
-        )
-        
+        products_without_brand_id = Product.objects.filter(onec_brand_id__isnull=True)
+
         # Допускаем наличие товаров без brand_id (это валидный кейс)
         # Главное что импорт не падает на таких товарах
         if products_without_brand_id.exists():
             sample = products_without_brand_id.first()
-            assert sample.onec_brand_id is None, (
-                "onec_brand_id должен быть None для товаров без бренда"
-            )
+            assert (
+                sample.onec_brand_id is None
+            ), "onec_brand_id должен быть None для товаров без бренда"
 
     def test_onec_brand_id_idempotency(self):
         """
         AC2: Проверка идемпотентности импорта onec_brand_id
-        
+
         Given: Товар уже импортирован с onec_brand_id
         When: Выполняется повторный импорт того же товара
         Then: onec_brand_id не изменяется (или обновляется корректно)
@@ -192,10 +188,10 @@ class TestOnecBrandIdImport:
                 "onec_id", "onec_brand_id"
             )[:10]
         )
-        
-        assert len(first_import_products) > 0, (
-            "Должны быть товары с onec_brand_id после первого импорта"
-        )
+
+        assert (
+            len(first_import_products) > 0
+        ), "Должны быть товары с onec_brand_id после первого импорта"
 
         # Второй импорт (идемпотентность)
         call_command(

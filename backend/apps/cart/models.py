@@ -13,8 +13,9 @@ from django.db import models
 from django.db.models import Q
 
 if TYPE_CHECKING:
-    from django.db.models import QuerySet
     from decimal import Decimal
+
+    from django.db.models import QuerySet
 
 User = get_user_model()
 
@@ -74,7 +75,7 @@ class Cart(models.Model):
     def total_amount(self):
         """Общая стоимость товаров в корзине"""
         from decimal import Decimal
-        
+
         total = Decimal("0")
         for item in self.items.select_related("product").all():
             user = self.user

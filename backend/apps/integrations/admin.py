@@ -8,7 +8,8 @@ from .models import Session
 
 admin.site.site_header = "Администрирование портала FREESPORT"
 admin.site.site_title = "Администрирование портала FREESPORT"  # опционально
-admin.site.index_title = "Панель управления"            # опционально
+admin.site.index_title = "Панель управления"  # опционально
+
 
 @admin.register(Session)
 class ImportSessionAdmin(admin.ModelAdmin):

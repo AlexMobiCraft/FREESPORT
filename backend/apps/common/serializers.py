@@ -166,7 +166,7 @@ class NewsSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-    
+
     def to_representation(self, instance: News) -> dict[str, Any]:
         """
         Кастомизация вывода.

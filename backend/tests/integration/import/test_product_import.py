@@ -17,13 +17,8 @@ from decimal import Decimal
 import pytest
 from django.utils import timezone
 
-from apps.products.models import (
-    Brand,
-    Brand1CMapping,
-    Category,
-    ImportSession,
-    Product,
-)
+from apps.products.models import (Brand, Brand1CMapping, Category,
+                                  ImportSession, Product)
 from apps.products.services.processor import ProductDataProcessor
 
 
@@ -237,9 +232,7 @@ class TestProductImportBrandMapping:
         assert updated_product.onec_brand_id == "1c-original-brand"  # НЕ стёрт
         assert processor.stats["brand_fallbacks"] == 1  # Fallback из-за None
 
-    def test_reimport_with_different_brand_id(
-        self, processor, category, master_brand
-    ):
+    def test_reimport_with_different_brand_id(self, processor, category, master_brand):
         """
         Edge case: Повторный импорт с изменённым brand_id обновляет onec_brand_id
         """

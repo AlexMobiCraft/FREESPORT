@@ -10,7 +10,8 @@ from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 
 from apps.orders.models import Order, OrderItem
-from tests.conftest import OrderFactory, OrderItemFactory, ProductFactory, UserFactory
+from tests.conftest import (OrderFactory, OrderItemFactory, ProductFactory,
+                            UserFactory)
 
 
 @pytest.mark.django_db

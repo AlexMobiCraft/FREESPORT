@@ -12,11 +12,8 @@ import pytest
 from rest_framework.request import Request
 from rest_framework.test import APIRequestFactory
 
-from apps.products.factories import (
-    ColorMappingFactory,
-    ProductFactory,
-    ProductVariantFactory,
-)
+from apps.products.factories import (ColorMappingFactory, ProductFactory,
+                                     ProductVariantFactory)
 from apps.products.models import ColorMapping, ProductVariant
 from apps.products.serializers import ProductVariantSerializer
 from apps.users.models import User
@@ -128,7 +125,10 @@ class TestProductVariantSerializer:
         """Тест: color_hex возвращает hex-код из ColorMapping"""
         # Создаем ColorMapping для цвета варианта
         from apps.products.models import ColorMapping
-        ColorMapping.objects.update_or_create(name=variant.color_name, defaults={"hex_code": "#FF0000"})
+
+        ColorMapping.objects.update_or_create(
+            name=variant.color_name, defaults={"hex_code": "#FF0000"}
+        )
 
         request = api_factory.get("/")
         serializer = ProductVariantSerializer(variant, context={"request": request})
@@ -217,7 +217,9 @@ class TestProductVariantSerializer:
         variants = ProductVariantFactory.create_batch(3, product=product)
 
         request = api_factory.get("/")
-        serializer = ProductVariantSerializer(variants, many=True, context={"request": request})
+        serializer = ProductVariantSerializer(
+            variants, many=True, context={"request": request}
+        )
         data = serializer.data
 
         assert len(data) == 3

@@ -5,12 +5,13 @@ Django Admin конфигурация для управления пользов
 
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from django.utils.html import format_html
-from django.http import HttpRequest
 from django.db.models import QuerySet
+from django.http import HttpRequest
+from django.utils.html import format_html
 
 from apps.common.models import AuditLog
-from .models import User, Company, Address, Favorite
+
+from .models import Address, Company, Favorite, User
 
 
 class CompanyInline(admin.StackedInline):

@@ -2,15 +2,15 @@ from __future__ import annotations
 
 import uuid
 from typing import TYPE_CHECKING
+
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.db import models
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
-from django.contrib.auth import get_user_model
 
 if TYPE_CHECKING:
     pass  # Используется для type hints
-
 
 
 class TimeStampedModel(models.Model):
@@ -186,7 +186,7 @@ class CustomerSyncLog(TimeStampedModel):
         """Отображение длительности в человекочитаемом формате."""
         if self.duration_ms is None:
             return _("Не определено")
-        
+
         if self.duration_ms < 1000:
             return _("Менее 1 секунды")
         elif self.duration_ms < 60000:
@@ -406,11 +406,10 @@ class Category(models.Model):
     def __str__(self) -> str:
         return self.name
 
-
     def get_absolute_url(self) -> str:
         """Возвращает абсолютный URL категории."""
-        from django.urls import reverse
         from django.conf import settings
+        from django.urls import reverse
 
         if self.parent:
             return reverse("common:category-detail", kwargs={"slug": self.slug})
@@ -422,6 +421,7 @@ class Category(models.Model):
         super().clean()
         if self.parent and self.parent == self:
             from django.core.exceptions import ValidationError
+
             raise ValidationError(
                 _("Категория не может быть родительской для самой себя"),
                 code="self_parent",
@@ -587,7 +587,7 @@ class News(models.Model):
 
     def get_absolute_url(self) -> str:
         """Возвращает абсолютный URL новости."""
-        from django.urls import reverse
         from django.conf import settings
+        from django.urls import reverse
 
         return reverse("common:news-detail", kwargs={"slug": self.slug})

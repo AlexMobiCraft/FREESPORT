@@ -9,6 +9,7 @@ import {
   MOCK_PRODUCT_DETAIL,
   MOCK_OUT_OF_STOCK_PRODUCT,
   MOCK_UNAVAILABLE_PRODUCT,
+  MOCK_PRODUCT_WITH_VARIANTS,
 } from '../productDetail';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api/v1';
@@ -501,6 +502,11 @@ export const handlers = [
 
     if (slug === 'unavailable-product') {
       return HttpResponse.json(MOCK_UNAVAILABLE_PRODUCT);
+    }
+
+    // Story 13.5a: Product with variants
+    if (slug === 'nike-air-max' || slug === 'product-with-variants') {
+      return HttpResponse.json(MOCK_PRODUCT_WITH_VARIANTS);
     }
 
     // 404 для несуществующего товара

@@ -15,12 +15,8 @@ if TYPE_CHECKING:
     pass  # Пока не используем TYPE_CHECKING импорты
 
 from .models import Cart, CartItem
-from .serializers import (
-    CartItemCreateSerializer,
-    CartItemSerializer,
-    CartItemUpdateSerializer,
-    CartSerializer,
-)
+from .serializers import (CartItemCreateSerializer, CartItemSerializer,
+                          CartItemUpdateSerializer, CartSerializer)
 
 
 class CartViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):

@@ -590,7 +590,7 @@ def clear_db_before_test(transactional_db):
             "cart.Cart",
             "products.ProductImage",
             "products.ProductVariants",  # Добавлено для избежания duplicate key
-            "products.ColorMappings",    # Добавлено для избежания duplicate key
+            "products.ColorMappings",  # Добавлено для избежания duplicate key
             "products.Product",
             "products.Category",
             "products.Brand",
@@ -627,40 +627,40 @@ def truncate_db(transactional_db):
     """
     Агрессивная очистка базы данных с TRUNCATE и сбросом последовательностей
     Используйте эту фикстуру явно для тестов, требующих полной очистки:
-    
+
     def test_something(truncate_db):
         # Ваш тест
         pass
     """
     from django.db import connection
-    
+
     yield
-    
+
     # Очистка после теста с TRUNCATE
     try:
         with connection.cursor() as cursor:
             # Список таблиц для очистки
             tables = [
-                'cart_cartitem',
-                'orders_orderitem',
-                'orders_order',
-                'cart_cart',
-                'products_productimage',
-                'products_productvariants',
-                'products_colormappings',
-                'products_product',
-                'products_category',
-                'products_brand',
-                'users_address',
-                'users_company',
-                'common_auditlog',
-                'common_synclog',
+                "cart_cartitem",
+                "orders_orderitem",
+                "orders_order",
+                "cart_cart",
+                "products_productimage",
+                "products_productvariants",
+                "products_colormappings",
+                "products_product",
+                "products_category",
+                "products_brand",
+                "users_address",
+                "users_company",
+                "common_auditlog",
+                "common_synclog",
             ]
-            
+
             # TRUNCATE с CASCADE и сбросом последовательностей
             for table in tables:
                 try:
-                    cursor.execute(f'TRUNCATE TABLE {table} RESTART IDENTITY CASCADE;')
+                    cursor.execute(f"TRUNCATE TABLE {table} RESTART IDENTITY CASCADE;")
                 except Exception:
                     # Игнорируем ошибки для несуществующих таблиц
                     pass

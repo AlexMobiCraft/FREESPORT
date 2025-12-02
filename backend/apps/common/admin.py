@@ -13,7 +13,8 @@ from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
 from django.utils import timezone
 
-from .models import AuditLog, CustomerSyncLog, News, Newsletter, SyncConflict, SyncLog
+from .models import (AuditLog, CustomerSyncLog, News, Newsletter, SyncConflict,
+                     SyncLog)
 from .services import CustomerSyncMonitor
 
 
@@ -324,7 +325,7 @@ class NewsAdmin(admin.ModelAdmin):
         "updated_at",
     ]
     date_hierarchy = "published_at"
-    
+
     # Улучшенное отображение поля категории с выпадающим списком
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         """Настройка отображения поля category для удобного выбора категорий"""

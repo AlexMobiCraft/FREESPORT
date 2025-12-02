@@ -2,19 +2,17 @@
 Тесты для Celery задач импорта изображений.
 """
 
-import pytest
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock, call
+from unittest.mock import MagicMock, Mock, call, patch
+
+import pytest
 from django.test import TestCase
 from django.utils import timezone
 
-from apps.integrations.tasks import (
-    _execute_import_type,
-    _get_product_images,
-    _run_image_import,
-)
-from apps.products.models import ImportSession, Product
+from apps.integrations.tasks import (_execute_import_type, _get_product_images,
+                                     _run_image_import)
 from apps.products.factories import ProductFactory
+from apps.products.models import ImportSession, Product
 
 
 @pytest.mark.unit

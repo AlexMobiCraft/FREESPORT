@@ -2,9 +2,10 @@
 # Migration created due to Docker/DB connection issues on Windows
 
 from decimal import Decimal
-from django.db import migrations, models
-import django.db.models.deletion
+
 import django.core.validators
+import django.db.models.deletion
+from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
@@ -329,9 +330,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "updated_at",
-                    models.DateTimeField(
-                        auto_now=True, verbose_name="Дата обновления"
-                    ),
+                    models.DateTimeField(auto_now=True, verbose_name="Дата обновления"),
                 ),
                 (
                     "product",

@@ -9,20 +9,11 @@ from django.contrib import messages
 from django.contrib.admin.sites import AdminSite
 from django.test import RequestFactory, TestCase
 
-from apps.products.admin import (
-    Brand1CMappingAdmin,
-    Brand1CMappingInline,
-    BrandAdmin,
-    ProductAdmin,
-)
+from apps.products.admin import (Brand1CMappingAdmin, Brand1CMappingInline,
+                                 BrandAdmin, ProductAdmin)
 from apps.products.models import Brand, Brand1CMapping, Product
-from tests.factories import (
-    Brand1CMappingFactory,
-    BrandFactory,
-    CategoryFactory,
-    ProductFactory,
-    UserFactory,
-)
+from tests.factories import (Brand1CMappingFactory, BrandFactory,
+                             CategoryFactory, ProductFactory, UserFactory)
 
 
 @pytest.mark.django_db
@@ -41,52 +32,50 @@ class TestProductAdmin(TestCase):
     def test_onec_brand_id_in_readonly_fields(self):
         """
         AC3: Проверка что onec_brand_id находится в readonly_fields
-        
+
         Given: ProductAdmin настроен
         When: Проверяем readonly_fields
         Then: onec_brand_id присутствует в списке readonly полей
         """
-        readonly_fields = self.admin.get_readonly_fields(
-            request=None, obj=None
-        )
-        
-        assert "onec_brand_id" in readonly_fields, (
-            "onec_brand_id должен быть в readonly_fields"
-        )
+        readonly_fields = self.admin.get_readonly_fields(request=None, obj=None)
+
+        assert (
+            "onec_brand_id" in readonly_fields
+        ), "onec_brand_id должен быть в readonly_fields"
 
     def test_onec_brand_id_in_search_fields(self):
         """
         AC3: Проверка что onec_brand_id доступен для поиска
-        
+
         Given: ProductAdmin настроен
         When: Проверяем search_fields
         Then: onec_brand_id присутствует в списке полей для поиска
         """
         search_fields = self.admin.search_fields
-        
-        assert "onec_brand_id" in search_fields, (
-            "onec_brand_id должен быть в search_fields"
-        )
+
+        assert (
+            "onec_brand_id" in search_fields
+        ), "onec_brand_id должен быть в search_fields"
 
     def test_onec_brand_id_in_fieldsets(self):
         """
         AC3: Проверка что onec_brand_id отображается в fieldsets
-        
+
         Given: ProductAdmin настроен с fieldsets
         When: Проверяем структуру fieldsets
         Then: onec_brand_id присутствует в секции "Интеграция с 1С"
         """
         fieldsets = self.admin.get_fieldsets(request=None, obj=None)
-        
+
         # Ищем секцию "Интеграция с 1С" или аналогичную
         onec_section_found = False
         onec_brand_id_found = False
-        
+
         for section_name, section_data in fieldsets:
             if section_name and "1С" in section_name:
                 onec_section_found = True
                 fields = section_data.get("fields", [])
-                
+
                 # Проверяем что onec_brand_id в этой секции
                 for field in fields:
                     if isinstance(field, (list, tuple)):
@@ -96,18 +85,14 @@ class TestProductAdmin(TestCase):
                     elif field == "onec_brand_id":
                         onec_brand_id_found = True
                         break
-        
-        assert onec_section_found, (
-            "Должна существовать секция с 1С данными в fieldsets"
-        )
-        assert onec_brand_id_found, (
-            "onec_brand_id должен быть в секции 1С данных"
-        )
+
+        assert onec_section_found, "Должна существовать секция с 1С данными в fieldsets"
+        assert onec_brand_id_found, "onec_brand_id должен быть в секции 1С данных"
 
     def test_onec_brand_id_readonly_in_form(self):
         """
         AC3: Проверка что onec_brand_id нельзя редактировать через форму
-        
+
         Given: Товар с заполненным onec_brand_id
         When: Открываем форму редактирования в админке
         Then: Поле onec_brand_id доступно только для чтения
@@ -119,29 +104,29 @@ class TestProductAdmin(TestCase):
             name="Test Product",
             brand=brand,
             category=category,
-            onec_brand_id="fb3f263e-dfd0-11ef-8361-fa163ea88911"
+            onec_brand_id="fb3f263e-dfd0-11ef-8361-fa163ea88911",
         )
 
         # Получаем readonly поля для конкретного объекта
         request = self.factory.get("/admin/products/product/")
         request.user = self.superuser
-        
+
         readonly_fields = self.admin.get_readonly_fields(request, obj=product)
-        
-        assert "onec_brand_id" in readonly_fields, (
-            "onec_brand_id должен быть readonly при редактировании товара"
-        )
+
+        assert (
+            "onec_brand_id" in readonly_fields
+        ), "onec_brand_id должен быть readonly при редактировании товара"
 
     def test_onec_brand_id_display_in_list(self):
         """
         AC3: Проверка что onec_brand_id может отображаться в list_display
-        
+
         Given: ProductAdmin настроен
         When: Проверяем list_display (опционально)
         Then: onec_brand_id может быть в списке отображаемых полей
         """
         list_display = self.admin.list_display
-        
+
         # onec_brand_id опционально может быть в list_display
         # Это не обязательное требование, но проверяем если есть
         if "onec_brand_id" in list_display:
@@ -149,14 +134,14 @@ class TestProductAdmin(TestCase):
             product = ProductFactory.create(
                 onec_brand_id="fb3f263e-dfd0-11ef-8361-fa163ea88911"
             )
-            
+
             # Проверяем что значение можно получить
             assert product.onec_brand_id == "fb3f263e-dfd0-11ef-8361-fa163ea88911"
 
     def test_onec_brand_id_search_functionality(self):
         """
         AC3: Проверка функциональности поиска по onec_brand_id
-        
+
         Given: Товары с разными onec_brand_id
         When: Выполняем поиск по onec_brand_id через админку
         Then: Находим правильные товары
@@ -164,30 +149,29 @@ class TestProductAdmin(TestCase):
         # Создаем товары с разными brand_id
         brand = BrandFactory.create(name="Test Brand")
         category = CategoryFactory.create(name="Test Category")
-        
+
         product1 = ProductFactory.create(
             name="Product 1",
             brand=brand,
             category=category,
-            onec_brand_id="aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+            onec_brand_id="aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
         )
         product2 = ProductFactory.create(
             name="Product 2",
             brand=brand,
             category=category,
-            onec_brand_id="bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
+            onec_brand_id="bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
         )
         product3 = ProductFactory.create(
             name="Product 3",
             brand=brand,
             category=category,
-            onec_brand_id=None  # Товар без brand_id
+            onec_brand_id=None,  # Товар без brand_id
         )
 
         # Создаем запрос с поиском
         request = self.factory.get(
-            "/admin/products/product/",
-            {"q": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"}
+            "/admin/products/product/", {"q": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"}
         )
         request.user = self.superuser
 
@@ -196,19 +180,19 @@ class TestProductAdmin(TestCase):
         queryset = changelist.get_queryset(request)
 
         # Проверяем что нашли правильный товар
-        assert queryset.filter(id=product1.id).exists(), (
-            "Поиск должен найти товар с указанным onec_brand_id"
-        )
-        
+        assert queryset.filter(
+            id=product1.id
+        ).exists(), "Поиск должен найти товар с указанным onec_brand_id"
+
         # Проверяем что другие товары не найдены
-        assert not queryset.filter(id=product2.id).exists(), (
-            "Поиск не должен найти товар с другим onec_brand_id"
-        )
+        assert not queryset.filter(
+            id=product2.id
+        ).exists(), "Поиск не должен найти товар с другим onec_brand_id"
 
     def test_onec_brand_id_null_display(self):
         """
         AC3: Проверка отображения NULL значения onec_brand_id в админке
-        
+
         Given: Товар без onec_brand_id (NULL)
         When: Открываем товар в админке
         Then: Поле корректно отображает отсутствие значения
@@ -219,13 +203,13 @@ class TestProductAdmin(TestCase):
         # Получаем readonly поля
         request = self.factory.get("/admin/products/product/")
         request.user = self.superuser
-        
+
         readonly_fields = self.admin.get_readonly_fields(request, obj=product)
-        
+
         assert "onec_brand_id" in readonly_fields
-        assert product.onec_brand_id is None, (
-            "onec_brand_id должен быть None для товара без бренда"
-        )
+        assert (
+            product.onec_brand_id is None
+        ), "onec_brand_id должен быть None для товара без бренда"
 
 
 @pytest.mark.django_db
