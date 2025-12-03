@@ -384,6 +384,15 @@ class Product(models.Model):
     )
     error_message = cast(str, models.TextField("Сообщение об ошибке", blank=True))
 
+    # Many-to-Many relationship with AttributeValue
+    attributes = models.ManyToManyField(
+        "AttributeValue",
+        blank=True,
+        related_name="products",
+        verbose_name="Атрибуты",
+        help_text="Атрибуты товара (цвет, материал, размер и т.д.)",
+    )
+
     class Meta:
         verbose_name = "Товар"
         verbose_name_plural = "Товары"
@@ -893,6 +902,15 @@ class ProductVariant(models.Model):
         models.DateTimeField("Дата обновления", auto_now=True),
     )
 
+    # Many-to-Many relationship with AttributeValue
+    attributes = models.ManyToManyField(
+        "AttributeValue",
+        blank=True,
+        related_name="variants",
+        verbose_name="Атрибуты",
+        help_text="Атрибуты варианта товара (цвет, материал, размер и т.д.)",
+    )
+
     class Meta:
         verbose_name = "Вариант товара"
         verbose_name_plural = "Варианты товаров"
@@ -973,3 +991,157 @@ class ProductVariant(models.Model):
         }
 
         return role_price_mapping.get(user.role, self.retail_price)
+
+
+class Attribute(models.Model):
+    """
+    Модель атрибута товара (тип свойства: Цвет, Размер, Материал и т.д.)
+    """
+
+    name = cast(
+        str,
+        models.CharField(
+            "Название атрибута",
+            max_length=255,
+            help_text="Название типа свойства (например, 'Цвет', 'Размер', 'Материал')",
+        ),
+    )
+    slug = cast(
+        str,
+        models.SlugField(
+            "Slug",
+            max_length=255,
+            unique=True,
+            db_index=True,
+            help_text="URL-совместимый идентификатор",
+        ),
+    )
+    onec_id = cast(
+        str,
+        models.CharField(
+            "ID в 1С",
+            max_length=255,
+            unique=True,
+            db_index=True,
+            help_text="Уникальный идентификатор атрибута из 1С",
+        ),
+    )
+    type = cast(
+        str,
+        models.CharField(
+            "Тип атрибута",
+            max_length=50,
+            blank=True,
+            help_text="Тип атрибута для будущей логики фильтрации",
+        ),
+    )
+    created_at = cast(
+        datetime, models.DateTimeField("Дата создания", auto_now_add=True)
+    )
+    updated_at = cast(datetime, models.DateTimeField("Дата обновления", auto_now=True))
+
+    class Meta:
+        verbose_name = "Атрибут товара"
+        verbose_name_plural = "Атрибуты товаров"
+        db_table = "product_attributes"
+        ordering = ["name"]
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        """Автоматическая генерация slug при сохранении"""
+        if not self.slug:
+            try:
+                # Транслитерация кириллицы в латиницу, затем slugify
+                transliterated = translit(self.name, "ru", reversed=True)
+                self.slug = slugify(transliterated)
+            except RuntimeError:
+                # Fallback на обычный slugify
+                self.slug = slugify(self.name)
+
+            # Если slug все еще пустой, создаем fallback
+            if not self.slug:
+                self.slug = f"attribute-{self.pk or int(time.time())}"
+
+        super().save(*args, **kwargs)
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class AttributeValue(models.Model):
+    """
+    Модель значения атрибута (конкретное значение: Красный, XL, Хлопок и т.д.)
+    """
+
+    attribute = cast(
+        Attribute,
+        models.ForeignKey(
+            Attribute,
+            on_delete=models.CASCADE,
+            related_name="values",
+            verbose_name="Атрибут",
+            help_text="Тип атрибута, к которому относится это значение",
+        ),
+    )
+    value = cast(
+        str,
+        models.CharField(
+            "Значение",
+            max_length=255,
+            help_text=(
+                "Конкретное значение атрибута "
+                "(например, 'Красный', 'XL', 'Хлопок')"
+            ),
+        ),
+    )
+    slug = cast(
+        str,
+        models.SlugField(
+            "Slug",
+            max_length=255,
+            db_index=True,
+            help_text="URL-совместимый идентификатор",
+        ),
+    )
+    onec_id = cast(
+        str,
+        models.CharField(
+            "ID в 1С",
+            max_length=255,
+            unique=True,
+            db_index=True,
+            help_text="Уникальный идентификатор значения атрибута из 1С",
+        ),
+    )
+    created_at = cast(
+        datetime, models.DateTimeField("Дата создания", auto_now_add=True)
+    )
+    updated_at = cast(datetime, models.DateTimeField("Дата обновления", auto_now=True))
+
+    class Meta:
+        verbose_name = "Значение атрибута"
+        verbose_name_plural = "Значения атрибутов"
+        db_table = "product_attribute_values"
+        ordering = ["attribute", "value"]
+        indexes = [
+            models.Index(fields=["attribute", "value"]),
+        ]
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        """Автоматическая генерация slug при сохранении"""
+        if not self.slug:
+            try:
+                # Транслитерация кириллицы в латиницу, затем slugify
+                transliterated = translit(self.value, "ru", reversed=True)
+                self.slug = slugify(transliterated)
+            except RuntimeError:
+                # Fallback на обычный slugify
+                self.slug = slugify(self.value)
+
+            # Если slug все еще пустой, создаем fallback
+            if not self.slug:
+                self.slug = f"value-{self.pk or int(time.time())}"
+
+        super().save(*args, **kwargs)
+
+    def __str__(self) -> str:
+        return f"{self.attribute.name}: {self.value}"

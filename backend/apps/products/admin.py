@@ -15,6 +15,8 @@ from django.shortcuts import render
 
 from .forms import MergeBrandsActionForm, TransferMappingsActionForm
 from .models import (
+    Attribute,
+    AttributeValue,
     Brand,
     Brand1CMapping,
     Category,
@@ -484,3 +486,28 @@ class ProductVariantAdmin(admin.ModelAdmin):
     def get_queryset(self, request: HttpRequest) -> QuerySet[ProductVariant]:
         """Оптимизация запросов"""
         return super().get_queryset(request).select_related("product")
+
+
+@admin.register(Attribute)
+class AttributeAdmin(admin.ModelAdmin):
+    """Admin для модели Attribute"""
+
+    list_display = ("name", "slug", "onec_id", "type", "created_at")
+    list_filter = ("type", "created_at")
+    search_fields = ("name", "slug", "onec_id")
+    prepopulated_fields = {"slug": ("name",)}
+    readonly_fields = ("created_at", "updated_at")
+    ordering = ("name",)
+
+
+@admin.register(AttributeValue)
+class AttributeValueAdmin(admin.ModelAdmin):
+    """Admin для модели AttributeValue"""
+
+    list_display = ("value", "attribute", "slug", "onec_id", "created_at")
+    list_filter = ("attribute", "created_at")
+    search_fields = ("value", "slug", "onec_id", "attribute__name")
+    prepopulated_fields = {"slug": ("value",)}
+    readonly_fields = ("created_at", "updated_at")
+    raw_id_fields = ("attribute",)
+    ordering = ("attribute", "value")
