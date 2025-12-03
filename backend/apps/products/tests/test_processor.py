@@ -18,8 +18,12 @@ from unittest.mock import MagicMock, mock_open, patch
 import pytest
 from django.core.files.storage import default_storage
 
-from apps.products.factories import (Brand1CMappingFactory, BrandFactory,
-                                     CategoryFactory, ProductFactory)
+from apps.products.factories import (
+    Brand1CMappingFactory,
+    BrandFactory,
+    CategoryFactory,
+    ProductFactory,
+)
 from apps.products.models import ImportSession, Product
 from apps.products.services.processor import ProductDataProcessor
 

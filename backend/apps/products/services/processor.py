@@ -16,11 +16,23 @@ from django.db import models
 from django.utils import timezone
 from django.utils.text import slugify
 
-from apps.products.models import (Brand, Brand1CMapping, Category,
-                                  ImportSession, PriceType, Product)
-from apps.products.services.parser import (BrandData, CategoryData, GoodsData,
-                                           OfferData, PriceData, PriceTypeData,
-                                           RestData)
+from apps.products.models import (
+    Brand,
+    Brand1CMapping,
+    Category,
+    ImportSession,
+    PriceType,
+    Product,
+)
+from apps.products.services.parser import (
+    BrandData,
+    CategoryData,
+    GoodsData,
+    OfferData,
+    PriceData,
+    PriceTypeData,
+    RestData,
+)
 
 logger = logging.getLogger(__name__)
 

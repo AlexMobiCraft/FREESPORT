@@ -295,8 +295,7 @@ class TestImportPerformance:
     def test_import_database_queries_efficiency(self, tmp_path):
         """Тест эффективности запросов к БД при импорте"""
         from django.db import connection, reset_queries
-        from django.test.utils import \
-            override_settings as django_override_settings
+        from django.test.utils import override_settings as django_override_settings
 
         test_dir = self.setup_test_data_directory(tmp_path, 100)
 

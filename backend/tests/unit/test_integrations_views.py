@@ -13,10 +13,12 @@ from django.contrib.messages import get_messages
 from django.test import RequestFactory
 from django.urls import reverse
 
-from apps.integrations.views import (_create_and_run_import,
-                                     _handle_import_request,
-                                     _validate_dependencies,
-                                     import_from_1c_view)
+from apps.integrations.views import (
+    _create_and_run_import,
+    _handle_import_request,
+    _validate_dependencies,
+    import_from_1c_view,
+)
 from apps.products.models import ImportSession, Product
 
 User = get_user_model()

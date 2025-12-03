@@ -9,8 +9,11 @@ import pytest
 from django.test import TestCase
 from django.utils import timezone
 
-from apps.integrations.tasks import (_execute_import_type, _get_product_images,
-                                     _run_image_import)
+from apps.integrations.tasks import (
+    _execute_import_type,
+    _get_product_images,
+    _run_image_import,
+)
 from apps.products.factories import ProductFactory
 from apps.products.models import ImportSession, Product
 

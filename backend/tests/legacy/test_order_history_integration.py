@@ -13,8 +13,9 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "freesport.settings.test")
 
 from django.contrib.auth import get_user_model  # noqa: E402
 from rest_framework.test import APIClient  # noqa: E402
-from rest_framework_simplejwt.tokens import \
-    RefreshToken as JWTRefreshToken  # noqa: E402
+from rest_framework_simplejwt.tokens import (
+    RefreshToken as JWTRefreshToken,
+)  # noqa: E402
 
 from apps.orders.models import Order  # noqa: E402
 

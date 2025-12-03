@@ -21,8 +21,7 @@ from django.core.management import call_command
 from django.core.management.base import BaseCommand, CommandError
 from tqdm import tqdm
 
-from apps.products.models import (Brand, Category, ImportSession, Product,
-                                  ProductVariant)
+from apps.products.models import Brand, Category, ImportSession, Product, ProductVariant
 from apps.products.services.parser import XMLDataParser
 from apps.products.services.processor import ProductDataProcessor
 from apps.products.services.variant_import import VariantImportProcessor
@@ -650,8 +649,9 @@ class Command(BaseCommand):
 
     def _legacy_import(self, data_dir: str, options: dict) -> None:
         """Запуск старого импорта через import_catalog_from_1c"""
-        from apps.products.management.commands.import_catalog_from_1c import \
-            Command as LegacyCommand
+        from apps.products.management.commands.import_catalog_from_1c import (
+            Command as LegacyCommand,
+        )
 
         legacy_cmd = LegacyCommand()
         legacy_cmd.handle(**options)

@@ -1,30 +1,23 @@
 /**
- * ProductOptions Component (Story 13.5a)
+ * ProductOptions Component (Story 13.5a, 13.5b)
  * Компонент для выбора вариантов товара (размер, цвет)
  *
  * @see docs/stories/epic-13/13.5a.productoptions-ui-msw-mock.md
+ * @see docs/stories/epic-13/13.5b.productoptions-api-integration.md
  */
 
 'use client';
 
 import React, { useCallback, useMemo } from 'react';
 import { cn } from '@/utils/cn';
+import type { components } from '@/types/api.generated';
 
 /**
- * Интерфейс варианта товара
- * Соответствует ProductVariantSchema из backend API
+ * Тип варианта товара из api.generated.ts
+ * Включает поля: id, sku, color_name, color_hex, size_value, current_price,
+ * stock_quantity, is_in_stock, available_quantity, main_image, gallery_images
  */
-export interface ProductVariant {
-  id: number;
-  sku: string;
-  color_name?: string;
-  color_hex?: string | null;
-  size_value?: string;
-  current_price: string;
-  stock_quantity: number;
-  is_in_stock: boolean;
-  available_quantity: number;
-}
+export type ProductVariant = components['schemas']['ProductVariant'];
 
 /**
  * Интерфейс выбранных опций

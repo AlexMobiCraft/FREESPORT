@@ -6,9 +6,16 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenRefreshView
 
-from .views import (AddressViewSet, FavoriteViewSet, OrderHistoryView,
-                    UserDashboardView, UserLoginView, UserProfileView,
-                    UserRegistrationView, user_roles_view)
+from .views import (
+    AddressViewSet,
+    FavoriteViewSet,
+    OrderHistoryView,
+    UserDashboardView,
+    UserLoginView,
+    UserProfileView,
+    UserRegistrationView,
+    user_roles_view,
+)
 
 # Router для ViewSets
 router = DefaultRouter()

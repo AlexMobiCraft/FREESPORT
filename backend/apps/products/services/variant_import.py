@@ -329,8 +329,7 @@ class VariantImportProcessor:
         Returns:
             Product instance или None при ошибке
         """
-        from apps.products.models import (Brand, Brand1CMapping, Category,
-                                          Product)
+        from apps.products.models import Brand, Brand1CMapping, Category, Product
 
         try:
             parent_id = goods_data.get("id")

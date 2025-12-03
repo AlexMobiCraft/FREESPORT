@@ -10,8 +10,7 @@ from typing import TYPE_CHECKING, Any
 from django.db.models import Count, Q
 from rest_framework import serializers
 
-from .models import (Brand, Category, ColorMapping, Product, ProductImage,
-                     ProductVariant)
+from .models import Brand, Category, ColorMapping, Product, ProductImage, ProductVariant
 
 if TYPE_CHECKING:
     from apps.users.models import User

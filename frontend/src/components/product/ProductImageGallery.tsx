@@ -1,24 +1,70 @@
 'use client';
 
 /**
- * Product Image Gallery Component (Story 12.1 - QA Fix UX-001)
+ * Product Image Gallery Component (Story 12.1, 13.5b)
  * Галерея изображений товара с поддержкой zoom/lightbox
+ * Интегрируется с ProductOptions для обновления изображения при смене цвета
+ *
+ * @see docs/stories/epic-13/13.5b.productoptions-api-integration.md
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import type { ProductImage } from '@/types/api';
+import type { ProductVariant } from './ProductOptions';
 
 interface ProductImageGalleryProps {
   images: ProductImage[];
   productName: string;
+  /** Выбранный вариант товара (для обновления изображения при смене цвета) */
+  selectedVariant?: ProductVariant | null;
 }
 
-export default function ProductImageGallery({ images, productName }: ProductImageGalleryProps) {
+export default function ProductImageGallery({
+  images,
+  productName,
+  selectedVariant,
+}: ProductImageGalleryProps) {
   const [selectedImage, setSelectedImage] = useState(
     images.find(img => img.is_primary) || images[0]
   );
+  const [galleryImages, setGalleryImages] = useState<ProductImage[]>(images);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+
+  /**
+   * Обновляет изображения при изменении selectedVariant
+   * Если у варианта есть main_image, используем его
+   */
+  useEffect(() => {
+    if (selectedVariant?.main_image) {
+      // Создаем ProductImage из main_image варианта
+      const variantMainImage: ProductImage = {
+        image: selectedVariant.main_image,
+        alt_text:
+          `${productName} - ${selectedVariant.color_name || ''} ${selectedVariant.size_value || ''}`.trim(),
+        is_primary: true,
+      };
+
+      setSelectedImage(variantMainImage);
+
+      // Если есть gallery_images у варианта, обновляем галерею
+      if (selectedVariant.gallery_images && selectedVariant.gallery_images.length > 0) {
+        const variantGallery: ProductImage[] = selectedVariant.gallery_images.map((img, index) => ({
+          image: img,
+          alt_text: `${productName} - вид ${index + 1}`,
+          is_primary: false,
+        }));
+        setGalleryImages([variantMainImage, ...variantGallery]);
+      } else {
+        // Если у варианта нет галереи, показываем только main_image
+        setGalleryImages([variantMainImage]);
+      }
+    } else if (!selectedVariant) {
+      // Сброс к исходным изображениям товара
+      setGalleryImages(images);
+      setSelectedImage(images.find(img => img.is_primary) || images[0]);
+    }
+  }, [selectedVariant, images, productName]);
 
   if (!images || images.length === 0) {
     return (
@@ -37,16 +83,16 @@ export default function ProductImageGallery({ images, productName }: ProductImag
   };
 
   const navigateImage = (direction: 'prev' | 'next') => {
-    const currentIndex = images.indexOf(selectedImage);
+    const currentIndex = galleryImages.findIndex(img => img.image === selectedImage.image);
     let newIndex;
 
     if (direction === 'prev') {
-      newIndex = currentIndex === 0 ? images.length - 1 : currentIndex - 1;
+      newIndex = currentIndex === 0 ? galleryImages.length - 1 : currentIndex - 1;
     } else {
-      newIndex = currentIndex === images.length - 1 ? 0 : currentIndex + 1;
+      newIndex = currentIndex === galleryImages.length - 1 ? 0 : currentIndex + 1;
     }
 
-    setSelectedImage(images[newIndex]);
+    setSelectedImage(galleryImages[newIndex]);
   };
 
   return (
@@ -88,14 +134,14 @@ export default function ProductImageGallery({ images, productName }: ProductImag
       </div>
 
       {/* Thumbnails */}
-      {images.length > 1 && (
-        <div className="mt-4 grid grid-cols-4 gap-2">
-          {images.map((image, index) => (
+      {galleryImages.length > 1 && (
+        <div className="mt-4 grid grid-cols-4 gap-2" data-testid="image-thumbnails">
+          {galleryImages.map((image, index) => (
             <button
-              key={index}
+              key={`${image.image}-${index}`}
               onClick={() => setSelectedImage(image)}
               className={`aspect-square rounded-lg border overflow-hidden transition-all hover:border-primary-500 ${
-                image === selectedImage
+                image.image === selectedImage.image
                   ? 'border-primary-500 border-2 ring-2 ring-primary-200'
                   : 'border-neutral-200'
               }`}
@@ -142,7 +188,7 @@ export default function ProductImageGallery({ images, productName }: ProductImag
           </button>
 
           {/* Previous button */}
-          {images.length > 1 && (
+          {galleryImages.length > 1 && (
             <button
               onClick={e => {
                 e.stopPropagation();
@@ -179,7 +225,7 @@ export default function ProductImageGallery({ images, productName }: ProductImag
           </div>
 
           {/* Next button */}
-          {images.length > 1 && (
+          {galleryImages.length > 1 && (
             <button
               onClick={e => {
                 e.stopPropagation();
@@ -200,9 +246,10 @@ export default function ProductImageGallery({ images, productName }: ProductImag
           )}
 
           {/* Image counter */}
-          {images.length > 1 && (
+          {galleryImages.length > 1 && (
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-white/10 backdrop-blur-sm text-white px-4 py-2 rounded-full text-sm">
-              {images.indexOf(selectedImage) + 1} / {images.length}
+              {galleryImages.findIndex(img => img.image === selectedImage.image) + 1} /{' '}
+              {galleryImages.length}
             </div>
           )}
         </div>

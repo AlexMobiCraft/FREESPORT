@@ -17,8 +17,7 @@ from decimal import Decimal
 import pytest
 from django.utils import timezone
 
-from apps.products.models import (Brand, Brand1CMapping, Category,
-                                  ImportSession, Product)
+from apps.products.models import Brand, Brand1CMapping, Category, ImportSession, Product
 from apps.products.services.processor import ProductDataProcessor
 
 

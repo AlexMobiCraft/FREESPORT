@@ -14,8 +14,15 @@ from django.http import HttpRequest, HttpResponseRedirect
 from django.shortcuts import render
 
 from .forms import MergeBrandsActionForm, TransferMappingsActionForm
-from .models import (Brand, Brand1CMapping, Category, ColorMapping, Product,
-                     ProductImage, ProductVariant)
+from .models import (
+    Brand,
+    Brand1CMapping,
+    Category,
+    ColorMapping,
+    Product,
+    ProductImage,
+    ProductVariant,
+)
 
 logger = logging.getLogger(__name__)
 

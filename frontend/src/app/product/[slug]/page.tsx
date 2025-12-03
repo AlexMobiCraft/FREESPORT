@@ -1,6 +1,9 @@
 /**
- * Product Detail Page (Story 12.1)
+ * Product Detail Page (Story 12.1, 13.5b)
  * SSR страница детального просмотра товара
+ * Интегрирует ProductOptions с ProductGallery и ProductSummary
+ *
+ * @see docs/stories/epic-13/13.5b.productoptions-api-integration.md
  */
 
 import { Metadata } from 'next';
@@ -8,9 +11,7 @@ import { notFound } from 'next/navigation';
 import { cookies } from 'next/headers';
 import productsService from '@/services/productsService';
 import ProductBreadcrumbs from '@/components/product/ProductBreadcrumbs';
-import ProductInfo from '@/components/product/ProductInfo';
-import ProductSpecs from '@/components/product/ProductSpecs';
-import ProductImageGallery from '@/components/product/ProductImageGallery';
+import ProductPageClient from '@/components/product/ProductPageClient';
 import type { UserRole } from '@/utils/pricing';
 
 interface ProductPageProps {
@@ -129,72 +130,8 @@ export default async function ProductPage({ params }: ProductPageProps) {
       {/* Breadcrumbs */}
       <ProductBreadcrumbs breadcrumbs={product.category.breadcrumbs} productName={product.name} />
 
-      {/* Main Grid Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
-        {/* Left Column: Image Gallery (2/3) */}
-        <div className="lg:col-span-2">
-          {/* Product Images with Zoom/Lightbox */}
-          <ProductImageGallery images={product.images} productName={product.name} />
-
-          {/* Product Specifications */}
-          <div className="mt-8">
-            <ProductSpecs specifications={product.specifications} />
-          </div>
-        </div>
-
-        {/* Right Column: Product Summary (1/3) - Sticky */}
-        <div className="lg:col-span-1">
-          <div className="lg:sticky lg:top-24">
-            <div className="bg-white rounded-lg border border-neutral-200 p-6">
-              <ProductInfo product={product} userRole={userRole} />
-
-              {/* Add to Cart Button */}
-              {(product.is_in_stock || product.can_be_ordered) && (
-                <button className="w-full mt-6 px-6 py-3 bg-primary-600 text-white font-medium rounded-lg hover:bg-primary-700 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2">
-                  Добавить в корзину
-                </button>
-              )}
-            </div>
-
-            {/* Schema.org Product Structured Data */}
-            <script
-              type="application/ld+json"
-              dangerouslySetInnerHTML={{
-                __html: JSON.stringify({
-                  '@context': 'https://schema.org',
-                  '@type': 'Product',
-                  name: product.name,
-                  image: product.images.map(img => img.image),
-                  description: product.description,
-                  sku: product.sku,
-                  brand: {
-                    '@type': 'Brand',
-                    name: product.brand,
-                  },
-                  offers: {
-                    '@type': 'Offer',
-                    url: `https://freesport.ru/product/${product.slug}`,
-                    priceCurrency: product.price.currency,
-                    price: product.price.retail,
-                    availability: product.is_in_stock
-                      ? 'https://schema.org/InStock'
-                      : product.can_be_ordered
-                        ? 'https://schema.org/PreOrder'
-                        : 'https://schema.org/OutOfStock',
-                  },
-                  aggregateRating: product.rating
-                    ? {
-                        '@type': 'AggregateRating',
-                        ratingValue: product.rating,
-                        reviewCount: product.reviews_count || 0,
-                      }
-                    : undefined,
-                }),
-              }}
-            />
-          </div>
-        </div>
-      </div>
+      {/* Main Content - Client Component для интеграции с вариантами */}
+      <ProductPageClient product={product} userRole={userRole} />
     </div>
   );
 }

@@ -11,8 +11,7 @@ from django.core.exceptions import ValidationError
 from django.test import TestCase
 
 from apps.common.models import AuditLog, SyncLog
-from tests.conftest import (AuditLogFactory, ProductFactory, SyncLogFactory,
-                            UserFactory)
+from tests.conftest import AuditLogFactory, ProductFactory, SyncLogFactory, UserFactory
 
 User = get_user_model()
 

@@ -3,8 +3,7 @@ from django.urls import reverse
 from rest_framework import status
 
 from apps.products.models import Brand, Category, Product
-from tests.conftest import (BrandFactory, CategoryFactory, ProductFactory,
-                            UserFactory)
+from tests.conftest import BrandFactory, CategoryFactory, ProductFactory, UserFactory
 
 pytestmark = pytest.mark.django_db
 

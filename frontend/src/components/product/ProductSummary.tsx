@@ -1,9 +1,10 @@
 /**
- * ProductSummary Component (Story 13.5a)
+ * ProductSummary Component (Story 13.5a, 13.5b)
  * Компонент-обёртка для ProductInfo и ProductOptions
  * Управляет состоянием выбранного варианта товара
  *
  * @see docs/stories/epic-13/13.5a.productoptions-ui-msw-mock.md
+ * @see docs/stories/epic-13/13.5b.productoptions-api-integration.md
  */
 
 'use client';
@@ -22,6 +23,46 @@ export interface ProductDetailWithVariants extends ProductDetail {
 }
 
 /**
+ * Результат валидации опций
+ */
+export interface ValidationResult {
+  valid: boolean;
+  message?: string;
+}
+
+/**
+ * Валидирует выбранные опции товара
+ * @param selectedOptions - текущие выбранные опции
+ * @param variants - доступные варианты товара
+ * @returns результат валидации с сообщением об ошибке
+ */
+export function validateOptions(
+  selectedOptions: SelectedOptions,
+  variants: ProductVariant[]
+): ValidationResult {
+  // Извлечь уникальные опции
+  const sizes = [...new Set(variants.map(v => v.size_value).filter(Boolean))];
+  const colors = [...new Set(variants.map(v => v.color_name).filter(Boolean))];
+
+  // Проверить обязательные опции
+  if (sizes.length > 0 && !selectedOptions.size) {
+    return {
+      valid: false,
+      message: 'Пожалуйста, выберите размер',
+    };
+  }
+
+  if (colors.length > 0 && !selectedOptions.color) {
+    return {
+      valid: false,
+      message: 'Пожалуйста, выберите цвет',
+    };
+  }
+
+  return { valid: true };
+}
+
+/**
  * Props компонента ProductSummary
  */
 interface ProductSummaryProps {
@@ -31,6 +72,8 @@ interface ProductSummaryProps {
   userRole?: UserRole;
   /** Callback при добавлении в корзину */
   onAddToCart?: (variantId?: number) => void;
+  /** Callback при изменении выбранного варианта (для интеграции с ProductGallery) */
+  onVariantChange?: (variant: ProductVariant | null) => void;
 }
 
 /**
@@ -43,9 +86,12 @@ export default function ProductSummary({
   product,
   userRole = 'guest',
   onAddToCart,
+  onVariantChange,
 }: ProductSummaryProps) {
   // Состояние выбранных опций
   const [selectedOptions, setSelectedOptions] = useState<SelectedOptions>({});
+  // Состояние ошибки валидации
+  const [validationError, setValidationError] = useState<string>('');
 
   // Варианты товара (если есть) - мемоизируем для стабильности ссылки
   const variants = useMemo(() => product.variants || [], [product.variants]);
@@ -71,19 +117,55 @@ export default function ProductSummary({
 
   /**
    * Обработчик изменения выбора опций
+   * Уведомляет родительский компонент об изменении варианта
    */
-  const handleSelectionChange = useCallback((newOptions: SelectedOptions) => {
-    setSelectedOptions(newOptions);
-  }, []);
+  const handleSelectionChange = useCallback(
+    (newOptions: SelectedOptions) => {
+      setSelectedOptions(newOptions);
+      setValidationError(''); // Сбрасываем ошибку при изменении выбора
+
+      // Найти новый вариант и уведомить родителя
+      if (onVariantChange && variants.length > 0) {
+        const newVariant =
+          variants.find(v => {
+            const sizeMatch = !newOptions.size || v.size_value === newOptions.size;
+            const colorMatch = !newOptions.color || v.color_name === newOptions.color;
+            return sizeMatch && colorMatch;
+          }) || null;
+        onVariantChange(newVariant);
+      }
+    },
+    [onVariantChange, variants]
+  );
 
   /**
-   * Обработчик добавления в корзину
+   * Обработчик добавления в корзину с валидацией
    */
   const handleAddToCart = useCallback(() => {
+    // Валидация перед добавлением в корзину
+    if (variants.length > 0) {
+      const validation = validateOptions(selectedOptions, variants);
+      if (!validation.valid) {
+        setValidationError(validation.message || 'Пожалуйста, выберите все опции товара');
+        return;
+      }
+
+      if (!selectedVariant) {
+        setValidationError('Пожалуйста, выберите все опции товара');
+        return;
+      }
+
+      if (!selectedVariant.is_in_stock) {
+        setValidationError('Выбранный вариант недоступен');
+        return;
+      }
+    }
+
+    setValidationError('');
     if (onAddToCart) {
       onAddToCart(selectedVariant?.id);
     }
-  }, [onAddToCart, selectedVariant]);
+  }, [onAddToCart, selectedVariant, selectedOptions, variants]);
 
   /**
    * Проверяет, можно ли добавить товар в корзину
@@ -156,6 +238,17 @@ export default function ProductSummary({
                 : 'Нет в наличии'}
             </span>
           </div>
+        </div>
+      )}
+
+      {/* Сообщение об ошибке валидации */}
+      {validationError && (
+        <div
+          className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm"
+          data-testid="validation-error"
+          role="alert"
+        >
+          {validationError}
         </div>
       )}
 

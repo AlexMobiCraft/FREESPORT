@@ -8,8 +8,14 @@ from unittest.mock import patch
 import pytest
 from django.utils import timezone
 
-from apps.products.models import (Brand, Brand1CMapping, Category,
-                                  ImportSession, PriceType, Product)
+from apps.products.models import (
+    Brand,
+    Brand1CMapping,
+    Category,
+    ImportSession,
+    PriceType,
+    Product,
+)
 from apps.products.services.processor import ProductDataProcessor
 
 
