@@ -216,6 +216,7 @@ graph TD
 ### 5.1 Архитектура компонентов
 
 ```mermaid
+
 graph TD
     A[Management Commands] --> B[Import Service]
     B --> C[Data Parser]
