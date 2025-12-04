@@ -24,7 +24,7 @@ interface ProductPageProps {
  * Получает роль пользователя из backend API
  * Fallback на 'guest' если не авторизован
  */
-export async function getUserRole(): Promise<UserRole> {
+async function getUserRole(): Promise<UserRole> {
   try {
     const cookieStore = await cookies();
     const sessionId = cookieStore.get('sessionid')?.value || cookieStore.get('fs_session')?.value;
