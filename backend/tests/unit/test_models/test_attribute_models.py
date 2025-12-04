@@ -209,8 +209,8 @@ class TestProductAttributeRelationship:
         """Тест: можно добавить атрибуты к Product."""
         # ARRANGE
         suffix = get_unique_suffix()
-        brand = brand_factory()
-        category = category_factory()
+        brand = brand_factory.create()
+        category = category_factory.create()
         product = Product.objects.create(
             name=f"Товар {suffix}",
             slug=f"product-{suffix}",
@@ -241,8 +241,8 @@ class TestProductAttributeRelationship:
         """Тест: Product может иметь несколько атрибутов."""
         # ARRANGE
         suffix = get_unique_suffix()
-        brand = brand_factory()
-        category = category_factory()
+        brand = brand_factory.create()
+        category = category_factory.create()
         product = Product.objects.create(
             name=f"Товар {suffix}",
             slug=f"product-{suffix}",
@@ -288,8 +288,8 @@ class TestProductVariantAttributeRelationship:
         """Тест: можно добавить атрибуты к ProductVariant."""
         # ARRANGE
         suffix = get_unique_suffix()
-        brand = brand_factory()
-        category = category_factory()
+        brand = brand_factory.create()
+        category = category_factory.create()
         product = Product.objects.create(
             name=f"Товар {suffix}",
             slug=f"product-{suffix}",
@@ -326,8 +326,8 @@ class TestProductVariantAttributeRelationship:
         """Тест: ProductVariant может иметь несколько атрибутов."""
         # ARRANGE
         suffix = get_unique_suffix()
-        brand = brand_factory()
-        category = category_factory()
+        brand = brand_factory.create()
+        category = category_factory.create()
         product = Product.objects.create(
             name=f"Товар {suffix}",
             slug=f"product-{suffix}",
