@@ -19,7 +19,7 @@ services:
     networks:
       - freesport-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d freesport"]
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d freesport" ]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -36,7 +36,7 @@ services:
     networks:
       - freesport-network
     healthcheck:
-      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      test: [ "CMD", "redis-cli", "--raw", "incr", "ping" ]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -57,7 +57,7 @@ services:
       - DB_PASSWORD=password123
       - DB_HOST=db
       - DB_PORT=5432
-      - REDIS_URL=redis://:redis123@redis:6379/0
+      - REDIS_URL=redis://:redis123@freesport-redis:6379/0
       - DEBUG=1
     volumes:
       - ../backend:/app
@@ -75,7 +75,7 @@ services:
     networks:
       - freesport-network
     healthcheck:
-      test: ["CMD", "python", "manage.py", "check"]
+      test: [ "CMD", "python", "manage.py", "check" ]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -147,7 +147,7 @@ services:
       - DB_PASSWORD=password123
       - DB_HOST=db
       - DB_PORT=5432
-      - REDIS_URL=redis://:redis123@redis:6379/0
+      - REDIS_URL=redis://:redis123@freesport-redis:6379/0
       - DEBUG=1
     depends_on:
       db:
@@ -176,7 +176,7 @@ services:
       - DB_PASSWORD=password123
       - DB_HOST=db
       - DB_PORT=5432
-      - REDIS_URL=redis://:redis123@redis:6379/0
+      - REDIS_URL=redis://:redis123@freesport-redis:6379/0
       - DEBUG=1
     depends_on:
       db:
@@ -186,7 +186,6 @@ services:
     networks:
       - freesport-network
     restart: unless-stopped
-
 
 volumes:
   postgres_data:
