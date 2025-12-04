@@ -16,7 +16,7 @@ class BrandPageNumberPagination(CustomPageNumberPagination):
     max_page_size = 500
 
 
-from django.db.models import Count, Prefetch, Q
+from django.db.models import Count, Prefetch, Q, Min, Sum
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
@@ -52,6 +52,10 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
             Product.objects.filter(is_active=True)
             .select_related("brand", "category")
             .prefetch_related("category__parent")
+            .annotate(
+                retail_price=Min("variants__retail_price"),
+                stock_quantity=Sum("variants__stock_quantity"),
+            )
         )
 
     def get_serializer_class(self):

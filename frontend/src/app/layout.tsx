@@ -4,6 +4,7 @@ import { Toaster } from 'react-hot-toast';
 import './globals.css';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
+import LayoutWrapper from '@/components/layout/LayoutWrapper';
 
 const inter = Inter({
   variable: '--font-inter',
@@ -28,11 +29,9 @@ export default function RootLayout({
   return (
     <html lang="ru">
       <body className={`${inter.variable} font-sans antialiased`}>
-        <div className="min-h-screen flex flex-col">
-          <Header />
-          <main className="flex-grow">{children}</main>
-          <Footer />
-        </div>
+        <LayoutWrapper header={<Header />} footer={<Footer />}>
+          {children}
+        </LayoutWrapper>
         <Toaster
           position="top-right"
           toastOptions={{

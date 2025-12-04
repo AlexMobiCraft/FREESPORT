@@ -23,16 +23,17 @@
     "axios": "^1.13.2",
     "clsx": "^2.1.1",
     "lucide-react": "^0.553.0",
+    "motion": "^12.23.25",
     "next": "15.4.6",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-hook-form": "^7.62.0",
     "react-hot-toast": "^2.6.0",
+    "sonner": "^2.0.7",
     "tailwind-merge": "^3.4.0",
     "zustand": "^4.5.7"
   },
   "devDependencies": {
-    "@rollup/rollup-linux-x64-musl": "^4.53.3",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^6.1.4",
     "@testing-library/react": "^16.3.0",

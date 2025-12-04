@@ -169,38 +169,38 @@ class ProductFilter(django_filters.FilterSet):
 
         request = self.request
         if not request or not request.user.is_authenticated:
-            return queryset.filter(retail_price__gte=value)
+            return queryset.filter(variants__retail_price__gte=value).distinct()
 
         user_role = request.user.role
 
         # Определяем поле цены в зависимости от роли
         if user_role == "wholesale_level1":
             return queryset.filter(
-                Q(opt1_price__gte=value)
-                | Q(opt1_price__isnull=True, retail_price__gte=value)
-            )
+                Q(variants__opt1_price__gte=value)
+                | Q(variants__opt1_price__isnull=True, variants__retail_price__gte=value)
+            ).distinct()
         elif user_role == "wholesale_level2":
             return queryset.filter(
-                Q(opt2_price__gte=value)
-                | Q(opt2_price__isnull=True, retail_price__gte=value)
-            )
+                Q(variants__opt2_price__gte=value)
+                | Q(variants__opt2_price__isnull=True, variants__retail_price__gte=value)
+            ).distinct()
         elif user_role == "wholesale_level3":
             return queryset.filter(
-                Q(opt3_price__gte=value)
-                | Q(opt3_price__isnull=True, retail_price__gte=value)
-            )
+                Q(variants__opt3_price__gte=value)
+                | Q(variants__opt3_price__isnull=True, variants__retail_price__gte=value)
+            ).distinct()
         elif user_role == "trainer":
             return queryset.filter(
-                Q(trainer_price__gte=value)
-                | Q(trainer_price__isnull=True, retail_price__gte=value)
-            )
+                Q(variants__trainer_price__gte=value)
+                | Q(variants__trainer_price__isnull=True, variants__retail_price__gte=value)
+            ).distinct()
         elif user_role == "federation_rep":
             return queryset.filter(
-                Q(federation_price__gte=value)
-                | Q(federation_price__isnull=True, retail_price__gte=value)
-            )
+                Q(variants__federation_price__gte=value)
+                | Q(variants__federation_price__isnull=True, variants__retail_price__gte=value)
+            ).distinct()
         else:
-            return queryset.filter(retail_price__gte=value)
+            return queryset.filter(variants__retail_price__gte=value).distinct()
 
     def filter_max_price(self, queryset, name, value):
         """Фильтр по максимальной цене с учетом роли пользователя"""
@@ -210,47 +210,50 @@ class ProductFilter(django_filters.FilterSet):
 
         request = self.request
         if not request or not request.user.is_authenticated:
-            return queryset.filter(retail_price__lte=value)
+            return queryset.filter(variants__retail_price__lte=value).distinct()
 
         user_role = request.user.role
 
         # Определяем поле цены в зависимости от роли
         if user_role == "wholesale_level1":
             return queryset.filter(
-                Q(opt1_price__lte=value)
-                | Q(opt1_price__isnull=True, retail_price__lte=value)
-            )
+                Q(variants__opt1_price__lte=value)
+                | Q(variants__opt1_price__isnull=True, variants__retail_price__lte=value)
+            ).distinct()
         elif user_role == "wholesale_level2":
             return queryset.filter(
-                Q(opt2_price__lte=value)
-                | Q(opt2_price__isnull=True, retail_price__lte=value)
-            )
+                Q(variants__opt2_price__lte=value)
+                | Q(variants__opt2_price__isnull=True, variants__retail_price__lte=value)
+            ).distinct()
         elif user_role == "wholesale_level3":
             return queryset.filter(
-                Q(opt3_price__lte=value)
-                | Q(opt3_price__isnull=True, retail_price__lte=value)
-            )
+                Q(variants__opt3_price__lte=value)
+                | Q(variants__opt3_price__isnull=True, variants__retail_price__lte=value)
+            ).distinct()
         elif user_role == "trainer":
             return queryset.filter(
-                Q(trainer_price__lte=value)
-                | Q(trainer_price__isnull=True, retail_price__lte=value)
-            )
+                Q(variants__trainer_price__lte=value)
+                | Q(variants__trainer_price__isnull=True, variants__retail_price__lte=value)
+            ).distinct()
         elif user_role == "federation_rep":
             return queryset.filter(
-                Q(federation_price__lte=value)
-                | Q(federation_price__isnull=True, retail_price__lte=value)
-            )
+                Q(variants__federation_price__lte=value)
+                | Q(variants__federation_price__isnull=True, variants__retail_price__lte=value)
+            ).distinct()
         else:
-            return queryset.filter(retail_price__lte=value)
+            return queryset.filter(variants__retail_price__lte=value).distinct()
 
     def filter_in_stock(self, queryset, name, value):
         """Фильтр по наличию товара с учетом флага is_active"""
         if value:
-            # Товары в наличии: есть количество на складе И товар активен
-            return queryset.filter(stock_quantity__gt=0, is_active=True)
+            # Товары в наличии: есть хотя бы один вариант с количеством > 0
+            return queryset.filter(variants__stock_quantity__gt=0, is_active=True).distinct()
         else:
-            # Товары НЕ в наличии: нет количества ИЛИ товар неактивен
-            return queryset.filter(Q(stock_quantity=0) | Q(is_active=False))
+            # Товары НЕ в наличии: все варианты имеют 0 или товар неактивен
+            # Или у товара вообще нет вариантов
+            return queryset.filter(
+                Q(variants__stock_quantity=0) | Q(variants__isnull=True) | Q(is_active=False)
+            ).distinct()
 
     def filter_search(self, queryset, name, value):
         """Полнотекстовый поиск с поддержкой PostgreSQL FTS и fallback для других БД"""
