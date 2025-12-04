@@ -15,9 +15,9 @@ import ProductPageClient from '@/components/product/ProductPageClient';
 import type { UserRole } from '@/utils/pricing';
 
 interface ProductPageProps {
-  params: {
+  params: Promise<{
     slug: string;
-  };
+  }>;
 }
 
 /**
@@ -80,7 +80,8 @@ async function getUserRole(): Promise<UserRole> {
  */
 export async function generateMetadata({ params }: ProductPageProps): Promise<Metadata> {
   try {
-    const product = await productsService.getProductBySlug(params.slug);
+    const { slug } = await params;
+    const product = await productsService.getProductBySlug(slug);
 
     const primaryImage = product.images.find(img => img.is_primary) || product.images[0];
 
@@ -111,13 +112,14 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
  * Product Detail Page Component
  */
 export default async function ProductPage({ params }: ProductPageProps) {
+  const { slug } = await params;
   let product;
   let userRole: UserRole = 'guest';
 
   try {
     // Загружаем данные товара и роль пользователя параллельно
     [product, userRole] = await Promise.all([
-      productsService.getProductBySlug(params.slug),
+      productsService.getProductBySlug(slug),
       getUserRole(),
     ]);
   } catch (error) {
