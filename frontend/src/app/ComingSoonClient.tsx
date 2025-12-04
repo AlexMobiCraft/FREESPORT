@@ -161,7 +161,7 @@ export default function ComingSoon() {
             transition={{ delay: 1, duration: 0.6 }}
             className="text-white/80 text-sm"
           >
-            <p>© 2024 FREESPORT.RU — Все права защищены</p>
+            <p>© 2025-2026 FREESPORT.RU — Все права защищены</p>
             <p className="mt-2">По вопросам сотрудничества: info@freesport.ru</p>
           </motion.div>
         </motion.div>
