@@ -60,6 +60,16 @@ def import_from_1c_view(request: HttpRequest) -> HttpResponse:
                 "requires_catalog": False,
             },
             {
+                "value": "attributes",
+                "label": "Загрузить атрибуты (справочники)",
+                "description": (
+                    "Импорт атрибутов товаров и их значений "
+                    "из propertiesGoods и propertiesOffers"
+                ),
+                "files": "propertiesGoods/*.xml, propertiesOffers/*.xml",
+                "requires_catalog": False,
+            },
+            {
                 "value": "images",
                 "label": "Только изображения товаров",
                 "description": "Обновление изображений товаров из директории 1С (main_image и gallery_images)",

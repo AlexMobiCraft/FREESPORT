@@ -55,7 +55,7 @@ def run_selective_import_task(
             raise ValueError(error_msg)
 
     results: list[dict[str, str]] = []
-    import_order = ["catalog", "stocks", "prices", "customers", "images"]
+    import_order = ["catalog", "attributes", "stocks", "prices", "customers", "images"]
 
     try:
         for import_type in import_order:
@@ -100,7 +100,7 @@ def _execute_import_type(import_type: str, task_id: str) -> dict[str, str]:
     Выполнение импорта конкретного типа данных.
 
     Args:
-        import_type: Тип импорта (catalog, stocks, prices, customers)
+        import_type: Тип импорта (catalog, attributes, stocks, prices, customers, images)
         data_dir: Директория с данными 1С
         task_id: ID задачи Celery для логирования
 
@@ -115,6 +115,14 @@ def _execute_import_type(import_type: str, task_id: str) -> dict[str, str]:
         logger.info(f"[Task {task_id}] Запуск import_catalog_from_1c --file-type=all")
         call_command("import_catalog_from_1c", "--file-type", "all")
         return {"type": "catalog", "message": "Каталог импортирован"}
+
+    elif import_type == "attributes":
+        logger.info(f"[Task {task_id}] Запуск import_attributes --file-type=all")
+        call_command("import_attributes", "--file-type", "all")
+        return {
+            "type": "attributes",
+            "message": "Атрибуты и справочники импортированы",
+        }
 
     elif import_type == "stocks":
         logger.info(f"[Task {task_id}] Запуск import_catalog_from_1c --file-type=rests")

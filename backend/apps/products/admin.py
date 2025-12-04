@@ -488,16 +488,33 @@ class ProductVariantAdmin(admin.ModelAdmin):
         return super().get_queryset(request).select_related("product")
 
 
+class AttributeValueInline(admin.TabularInline):
+    """Inline для отображения значений атрибута в карточке Attribute"""
+
+    model = AttributeValue
+    extra = 0  # Не показывать пустые формы для добавления
+    fields = ("value", "slug", "onec_id", "created_at")
+    readonly_fields = ("created_at",)
+    can_delete = True
+    show_change_link = True  # Ссылка на редактирование значения
+
+
 @admin.register(Attribute)
 class AttributeAdmin(admin.ModelAdmin):
-    """Admin для модели Attribute"""
+    """Admin для модели Attribute с подсчетом значений и inline значениями"""
 
-    list_display = ("name", "slug", "onec_id", "type", "created_at")
+    list_display = ("name", "slug", "onec_id", "type", "values_count", "created_at")
     list_filter = ("type", "created_at")
     search_fields = ("name", "slug", "onec_id")
     prepopulated_fields = {"slug": ("name",)}
-    readonly_fields = ("created_at", "updated_at")
+    readonly_fields = ("created_at", "updated_at", "values_count")
     ordering = ("name",)
+    inlines = [AttributeValueInline]
+
+    @admin.display(description="Кол-во значений")
+    def values_count(self, obj):
+        """Отображение количества значений для атрибута"""
+        return obj.values.count()
 
 
 @admin.register(AttributeValue)

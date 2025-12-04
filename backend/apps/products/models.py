@@ -510,6 +510,7 @@ class ImportSession(models.Model):
 
     class ImportType(models.TextChoices):
         CATALOG = "catalog", "Каталог товаров"
+        ATTRIBUTES = "attributes", "Атрибуты (справочники)"
         IMAGES = "images", "Изображения товаров"
         STOCKS = "stocks", "Остатки товаров"
         PRICES = "prices", "Цены товаров"
@@ -914,10 +915,7 @@ class ProductVariant(models.Model):
         blank=True,
         related_name="variants",
         verbose_name="Атрибуты",
-        help_text=(
-            "Атрибуты варианта товара "
-            "(цвет, материал, размер и т.д.)"
-        ),
+        help_text=("Атрибуты варианта товара " "(цвет, материал, размер и т.д.)"),
     )
 
     class Meta:
@@ -1058,19 +1056,28 @@ class Attribute(models.Model):
         ordering = ["name"]
 
     def save(self, *args: Any, **kwargs: Any) -> None:
-        """Автоматическая генерация slug при сохранении"""
+        """Автоматическая генерация slug при сохранении с обработкой дубликатов"""
         if not self.slug:
             try:
                 # Транслитерация кириллицы в латиницу, затем slugify
                 transliterated = translit(self.name, "ru", reversed=True)
-                self.slug = slugify(transliterated)
+                base_slug = slugify(transliterated)
             except RuntimeError:
                 # Fallback на обычный slugify
-                self.slug = slugify(self.name)
+                base_slug = slugify(self.name)
 
             # Если slug все еще пустой, создаем fallback
-            if not self.slug:
-                self.slug = f"attribute-{self.pk or int(time.time())}"
+            if not base_slug:
+                base_slug = f"attribute-{self.pk or int(time.time())}"
+
+            # Проверка уникальности и добавление суффикса при необходимости
+            slug = base_slug
+            counter = 1
+            while Attribute.objects.filter(slug=slug).exclude(pk=self.pk).exists():
+                slug = f"{base_slug}-{counter}"
+                counter += 1
+
+            self.slug = slug
 
         super().save(*args, **kwargs)
 
@@ -1099,8 +1106,7 @@ class AttributeValue(models.Model):
             "Значение",
             max_length=255,
             help_text=(
-                "Конкретное значение атрибута "
-                "(например, 'Красный', 'XL', 'Хлопок')"
+                "Конкретное значение атрибута " "(например, 'Красный', 'XL', 'Хлопок')"
             ),
         ),
     )
