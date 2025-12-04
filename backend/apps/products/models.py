@@ -252,7 +252,10 @@ class Product(models.Model):
             "Базовые изображения",
             default=list,
             blank=True,
-            help_text="Общие изображения товара из 1С (используются как fallback для вариантов)",
+            help_text=(
+                "Общие изображения товара из 1С "
+                "(используются как fallback для вариантов)"
+            ),
         ),
     )
 
@@ -365,7 +368,10 @@ class Product(models.Model):
             null=True,
             blank=True,
             db_index=True,
-            help_text="Исходный идентификатор бренда из CommerceML для обратной синхронизации",
+            help_text=(
+                "Исходный идентификатор бренда из CommerceML "
+                "для обратной синхронизации"
+            ),
         ),
     )
     sync_status = cast(
@@ -385,7 +391,7 @@ class Product(models.Model):
     error_message = cast(str, models.TextField("Сообщение об ошибке", blank=True))
 
     # Many-to-Many relationship with AttributeValue
-    attributes = models.ManyToManyField(
+    attributes: models.ManyToManyField = models.ManyToManyField(
         "AttributeValue",
         blank=True,
         related_name="products",
@@ -903,12 +909,15 @@ class ProductVariant(models.Model):
     )
 
     # Many-to-Many relationship with AttributeValue
-    attributes = models.ManyToManyField(
+    attributes: models.ManyToManyField = models.ManyToManyField(
         "AttributeValue",
         blank=True,
         related_name="variants",
         verbose_name="Атрибуты",
-        help_text="Атрибуты варианта товара (цвет, материал, размер и т.д.)",
+        help_text=(
+            "Атрибуты варианта товара "
+            "(цвет, материал, размер и т.д.)"
+        ),
     )
 
     class Meta:
@@ -936,9 +945,11 @@ class ProductVariant(models.Model):
 
     def clean(self) -> None:
         """
-        Валидация модели: хотя бы одна характеристика (цвет или размер) должна быть заполнена.
-        Если импорт из 1С создаёт варианты без характеристик - это допустимый сценарий,
-        но для UI выбора опций рекомендуется иметь хотя бы одну характеристику.
+        Валидация модели: хотя бы одна характеристика
+        (цвет или размер) должна быть заполнена.
+        Если импорт из 1С создаёт варианты без характеристик -
+        это допустимый сценарий, но для UI выбора опций
+        рекомендуется иметь хотя бы одну характеристику.
         """
         super().clean()
         if not self.color_name and not self.size_value:
