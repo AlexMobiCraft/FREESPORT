@@ -10,7 +10,16 @@ from typing import TYPE_CHECKING, Any
 from django.db.models import Count, Q
 from rest_framework import serializers
 
-from .models import Brand, Category, ColorMapping, Product, ProductImage, ProductVariant
+from .models import (
+    Attribute,
+    AttributeValue,
+    Brand,
+    Category,
+    ColorMapping,
+    Product,
+    ProductImage,
+    ProductVariant,
+)
 
 if TYPE_CHECKING:
     from apps.users.models import User
@@ -367,3 +376,50 @@ class CategoryTreeSerializer(serializers.ModelSerializer):
         )
 
         return CategoryTreeSerializer(children, many=True, context=self.context).data
+
+
+class AttributeValueFilterSerializer(serializers.ModelSerializer):
+    """
+    Serializer для значений атрибутов в фильтрах каталога.
+
+    Используется для endpoint /api/v1/catalog/filters/ для построения
+    фильтров на фронтенде на основе активных атрибутов.
+    """
+
+    class Meta:
+        model = AttributeValue
+        fields = ["id", "value", "slug"]
+
+
+class AttributeFilterSerializer(serializers.ModelSerializer):
+    """
+    Serializer для атрибутов в фильтрах каталога.
+
+    Возвращает список активных атрибутов с их значениями для построения
+    фильтров в каталоге товаров.
+
+    Fields:
+    - id: ID атрибута
+    - name: Название атрибута
+    - slug: URL-совместимый идентификатор
+    - values: Список значений атрибута
+    """
+
+    values = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Attribute
+        fields = ["id", "name", "slug", "values"]
+
+    def get_values(self, obj: Attribute) -> list[dict[str, Any]]:
+        """
+        Получить все значения атрибута.
+
+        Args:
+            obj: Attribute instance
+
+        Returns:
+            List[dict]: Список значений атрибута
+        """
+        return AttributeValueFilterSerializer(obj.values.all(), many=True).data
+

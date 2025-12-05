@@ -345,3 +345,175 @@ class TestImportSessionAdminColoredStatus:
         assert "style=" in result
         assert "color:" in result
         assert "</span>" in result
+
+
+@pytest.mark.integration
+@pytest.mark.django_db
+class TestAttributeAdminMergeAttributes:
+    """Integration тесты для merge_attributes admin action"""
+
+    def setup_method(self) -> None:
+        """Настройка перед каждым тестом"""
+        from django.contrib.admin.sites import AdminSite
+
+        from apps.products.admin import AttributeAdmin
+        from apps.products.models import Attribute
+
+        self.admin = AttributeAdmin(Attribute, AdminSite())
+
+    def test_merge_requires_minimum_two_attributes(self) -> None:
+        """
+        Тест что объединение требует минимум 2 атрибута.
+
+        Проверяет что при выборе одного атрибута показывается предупреждение.
+        """
+        from unittest.mock import MagicMock
+
+        from apps.products.models import Attribute
+
+        # Arrange
+        attr = Attribute.objects.create(name="TestAttr-Single", type="Справочник")
+        queryset = Attribute.objects.filter(pk=attr.pk)
+        request = MagicMock()
+        request.POST = {}
+
+        # Act
+        result = self.admin.merge_attributes(request, queryset)
+
+        # Assert
+        assert result is None
+        request.assert_not_called  # Не должно быть вызовов render
+
+    def test_merge_transfers_mappings(self) -> None:
+        """
+        Тест переноса маппингов 1С при объединении атрибутов.
+        """
+        import time
+        import uuid
+        from unittest.mock import MagicMock
+
+        from django.contrib.admin.models import LogEntry
+        from django.contrib.auth import get_user_model
+
+        from apps.products.models import Attribute, Attribute1CMapping
+
+        User = get_user_model()
+
+        # Arrange - уникальные имена для теста
+        suffix = f"{int(time.time() * 1000)}-{uuid.uuid4().hex[:6]}"
+
+        target_attr = Attribute.objects.create(
+            name=f"TargetAttr-{suffix}", type="Справочник"
+        )
+        source_attr = Attribute.objects.create(
+            name=f"SourceAttr-{suffix}", type="Справочник"
+        )
+
+        Attribute1CMapping.objects.create(
+            attribute=source_attr,
+            onec_id=f"source-mapping-{suffix}",
+            onec_name="Source Mapping",
+            source="goods",
+        )
+
+        queryset = Attribute.objects.filter(pk__in=[target_attr.pk, source_attr.pk])
+
+        # Mock request с user для LogEntry
+        user = User.objects.create_user(
+            email=f"test-merge-{suffix}@example.com",
+            password="testpass123",
+            phone=f"+70000{suffix[:6]}",
+        )
+        request = MagicMock()
+        request.POST = {"apply": "1", "target_attribute": str(target_attr.pk)}
+        request.user = user
+        request.get_full_path.return_value = "/admin/products/attribute/"
+
+        # Act
+        from apps.products.forms import MergeAttributesActionForm
+
+        form = MergeAttributesActionForm(request.POST)
+        assert form.is_valid(), f"Form errors: {form.errors}"
+
+        self.admin.merge_attributes(request, queryset)
+
+        # Assert
+        # Маппинг должен быть перенесен на target
+        assert Attribute1CMapping.objects.filter(
+            attribute=target_attr, onec_id=f"source-mapping-{suffix}"
+        ).exists()
+
+        # Source атрибут должен быть удален
+        assert not Attribute.objects.filter(pk=source_attr.pk).exists()
+
+        # LogEntry должен быть создан
+        log_entries = LogEntry.objects.filter(object_id=str(target_attr.pk))
+        assert log_entries.exists()
+
+    def test_merge_deduplicates_values(self) -> None:
+        """
+        Тест дедупликации значений при объединении атрибутов.
+        """
+        import time
+        import uuid
+        from unittest.mock import MagicMock
+
+        from django.contrib.auth import get_user_model
+
+        from apps.products.models import (
+            Attribute,
+            AttributeValue,
+            AttributeValue1CMapping,
+        )
+
+        User = get_user_model()
+
+        # Arrange
+        suffix = f"{int(time.time() * 1000)}-{uuid.uuid4().hex[:6]}"
+
+        target_attr = Attribute.objects.create(
+            name=f"Target-{suffix}", type="Справочник"
+        )
+        source_attr = Attribute.objects.create(
+            name=f"Source-{suffix}", type="Справочник"
+        )
+
+        # Одинаковые значения в обоих атрибутах
+        target_value = AttributeValue.objects.create(
+            attribute=target_attr, value=f"Red-{suffix}"
+        )
+        source_value = AttributeValue.objects.create(
+            attribute=source_attr, value=f"red-{suffix}"  # Same normalized_value
+        )
+
+        # Маппинг для source value
+        AttributeValue1CMapping.objects.create(
+            attribute_value=source_value,
+            onec_id=f"value-mapping-{suffix}",
+            onec_value="red",
+            source="goods",
+        )
+
+        queryset = Attribute.objects.filter(pk__in=[target_attr.pk, source_attr.pk])
+
+        user = User.objects.create_user(
+            email=f"test-dedup-{suffix}@example.com",
+            password="testpass123",
+            phone=f"+70001{suffix[:6]}",
+        )
+        request = MagicMock()
+        request.POST = {"apply": "1", "target_attribute": str(target_attr.pk)}
+        request.user = user
+        request.get_full_path.return_value = "/admin/products/attribute/"
+
+        # Act
+        self.admin.merge_attributes(request, queryset)
+
+        # Assert
+        # Должно остаться только одно значение у target
+        assert target_attr.values.count() == 1
+
+        # Маппинг source value должен быть перенесен на target value
+        assert AttributeValue1CMapping.objects.filter(
+            attribute_value=target_value, onec_id=f"value-mapping-{suffix}"
+        ).exists()

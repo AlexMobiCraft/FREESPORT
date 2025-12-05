@@ -1,0 +1,119 @@
+# Quality Gate: Story 14.3 - Дедупликация атрибутов
+schema: 1
+story: "14.3"
+story_title: "Дедупликация атрибутов при импорте из 1С"
+gate: CONCERNS
+status_reason: "Sub-stories 14.3.1-14.3.4 полностью реализованы с высоким качеством. Sub-stories 14.3.5-14.3.7 (API фильтрация, UI импорта, документация) ожидают реализации."
+reviewer: "Quinn (Test Architect)"
+updated: "2025-12-05T05:15:00+01:00"
+
+waiver: { active: false }
+
+top_issues:
+  - id: "IMPL-001"
+    severity: medium
+    finding: "Story 14.3.5 (UI импорта с информацией о дедупликации) не реализована"
+    suggested_action: "Обновить UI импорта в apps/integrations/views.py с информацией о дедупликации и активации"
+    suggested_owner: dev
+  - id: "IMPL-002"
+    severity: medium
+    finding: "Story 14.3.6 (API фильтрация по is_active) не реализована"
+    suggested_action: "Добавить фильтрацию is_active в ProductSerializer, CatalogFilterViewSet и параметр include_inactive"
+    suggested_owner: dev
+  - id: "IMPL-003"
+    severity: low
+    finding: "Story 14.3.7 (документация и Migration Runbook) не реализована"
+    suggested_action: "Создать docs/guides/migration-14.3-attribute-deduplication.md и обновить архитектурную документацию"
+    suggested_owner: dev
+  - id: "ADMIN-001"
+    severity: low
+    finding: "merge_attributes action (AC 14.3.4.7) не реализован"
+    suggested_action: "Добавить admin action для объединения атрибутов с intermediate page"
+    suggested_owner: dev
+
+quality_score: 70  # 100 - 10*2(medium) - 10*2(low) = 70
+
+expires: "2025-12-19T05:15:00+01:00"
+
+evidence:
+  tests_reviewed: 58
+  risks_identified: 4
+  trace:
+    ac_covered: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]  # 14.3.1-14.3.4 AC
+    ac_gaps: [13, 14, 15, 16, 17, 18, 19, 20]  # 14.3.5-14.3.7 AC
+
+nfr_validation:
+  security:
+    status: PASS
+    notes: "defusedxml для XXE защиты, CASCADE удаление, валидация source choices"
+  performance:
+    status: PASS
+    notes: "db_index на onec_id, normalized_name, normalized_value; composite index (attribute, source)"
+  reliability:
+    status: PASS
+    notes: "@transaction.atomic в импорте, IntegrityError на дубликаты onec_id"
+  maintainability:
+    status: PASS
+    notes: "Полная типизация (TYPE_CHECKING, annotations), docstrings, 1122 строки тестов"
+
+recommendations:
+  immediate:
+    - action: "Реализовать Sub-stories 14.3.5-14.3.7 для полного завершения Epic 14.3"
+      refs: ["apps/integrations/views.py", "apps/products/serializers.py", "docs/architecture/"]
+    - action: "Добавить merge_attributes admin action с intermediate page"
+      refs: ["apps/products/admin.py:541"]
+  future:
+    - action: "Рассмотреть добавление bulk import с progress tracking для больших объемов"
+      refs: ["apps/products/services/attribute_import.py"]
+    - action: "Добавить API endpoint для получения статистики дедупликации"
+      refs: ["apps/products/views.py"]
+
+# Implementation Status by Sub-story
+implementation_status:
+  "14.3.1_models":
+    status: COMPLETE
+    evidence:
+      - "Attribute1CMapping model (models.py:1198-1255)"
+      - "normalized_name field (models.py:1038-1048)"
+      - "is_active field (models.py:1050-1057)"
+      - "normalize_attribute_name() utility"
+  "14.3.2_attributevalue":
+    status: COMPLETE
+    evidence:
+      - "AttributeValue1CMapping model (models.py:1258-1318)"
+      - "normalized_value field (models.py:1138-1147)"
+      - "UniqueConstraint on (attribute, normalized_value)"
+      - "normalize_attribute_value() utility"
+  "14.3.3_import_logic":
+    status: COMPLETE
+    evidence:
+      - "_save_properties() with deduplication (services/attribute_import.py:244-343)"
+      - "_save_attribute_value() with normalized_value lookup"
+      - "source parameter propagation"
+      - "Statistics: mappings_created, values_deduplicated"
+  "14.3.4_admin":
+    status: PARTIAL
+    evidence:
+      - "Attribute1CMappingInline (admin.py:504-512)"
+      - "mappings_count field (admin.py:577-580)"
+      - "is_active filter (admin.py:529)"
+      - "activate/deactivate actions (admin.py:582-604)"
+    missing:
+      - "merge_attributes action with intermediate page"
+  "14.3.5_import_ui":
+    status: NOT_STARTED
+    missing:
+      - "UI description update for deduplication"
+      - "Statistics display in import results"
+  "14.3.6_api_filtering":
+    status: NOT_STARTED
+    missing:
+      - "ProductSerializer is_active filtering"
+      - "CatalogFilterViewSet active-only"
+      - "include_inactive parameter for staff"
+  "14.3.7_documentation":
+    status: NOT_STARTED
+    missing:
+      - "Architecture docs update"
+      - "Migration Runbook"
+      - "Admin guide for attribute activation"

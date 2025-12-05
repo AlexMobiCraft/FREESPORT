@@ -22,8 +22,9 @@ from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 
 from .filters import ProductFilter
-from .models import Brand, Category, Product
+from .models import Attribute, Brand, Category, Product
 from .serializers import (
+    AttributeFilterSerializer,
     BrandSerializer,
     CategorySerializer,
     CategoryTreeSerializer,
@@ -255,3 +256,67 @@ class BrandViewSet(viewsets.ReadOnlyModelViewSet):
     )
     def retrieve(self, request, *args, **kwargs):
         return super().retrieve(request, *args, **kwargs)
+
+
+class AttributeFilterViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    ViewSet для фильтров каталога на основе активных атрибутов.
+
+    Возвращает список активных атрибутов для построения фильтров в каталоге.
+    Каждый атрибут содержит список значений для формирования UI фильтров.
+
+    Endpoints:
+    - GET /api/v1/catalog/filters/ - список активных атрибутов
+    - GET /api/v1/catalog/filters/{id}/ - детали атрибута
+
+    Query Parameters:
+    - include_inactive: true/false - включить неактивные атрибуты (только для staff)
+    """
+
+    serializer_class = AttributeFilterSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def get_queryset(self):
+        """
+        Получить queryset атрибутов для фильтрации.
+
+        По умолчанию возвращает только активные атрибуты (is_active=True).
+        Staff users могут использовать параметр include_inactive=true
+        для получения всех атрибутов.
+
+        Returns:
+            QuerySet[Attribute]: Отфильтрованный queryset атрибутов
+        """
+        queryset = Attribute.objects.prefetch_related("values")
+
+        # Проверяем параметр include_inactive
+        include_inactive = self.request.query_params.get("include_inactive", "false")
+
+        if include_inactive.lower() == "true" and self.request.user.is_staff:
+            # Staff users могут видеть все атрибуты
+            return queryset.order_by("name")
+
+        # По умолчанию только активные атрибуты
+        return queryset.filter(is_active=True).order_by("name")
+
+    @extend_schema(
+        summary="Фильтры каталога",
+        description=(
+            "Получение списка активных атрибутов для фильтрации товаров в каталоге. "
+            "Возвращает атрибуты с их значениями для построения UI фильтров."
+        ),
+        parameters=[
+            OpenApiParameter(
+                "include_inactive",
+                OpenApiTypes.BOOL,
+                description=(
+                    "Включить неактивные атрибуты (только для staff users). "
+                    "Для обычных пользователей параметр игнорируется."
+                ),
+            ),
+        ],
+        tags=["Catalog Filters"],
+    )
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+

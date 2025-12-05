@@ -63,8 +63,10 @@ def import_from_1c_view(request: HttpRequest) -> HttpResponse:
                 "value": "attributes",
                 "label": "Загрузить атрибуты (справочники)",
                 "description": (
-                    "Импорт атрибутов товаров и их значений "
-                    "из propertiesGoods и propertiesOffers"
+                    "Импорт атрибутов товаров и их значений. "
+                    "Дубликаты объединяются автоматически по нормализованному имени. "
+                    "Новые атрибуты импортируются как неактивные (is_active=False). "
+                    "После импорта активируйте нужные атрибуты в разделе Товары → Атрибуты."
                 ),
                 "files": "propertiesGoods/*.xml, propertiesOffers/*.xml",
                 "requires_catalog": False,

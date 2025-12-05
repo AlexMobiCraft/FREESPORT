@@ -13,7 +13,10 @@ from django.db.models import Count, QuerySet
 from django.http import HttpRequest, HttpResponseRedirect
 from django.shortcuts import render
 
-from .forms import MergeBrandsActionForm, TransferMappingsActionForm
+from django.contrib.admin.models import CHANGE, LogEntry
+from django.contrib.contenttypes.models import ContentType
+
+from .forms import MergeAttributesActionForm, MergeBrandsActionForm, TransferMappingsActionForm
 from .models import (
     Attribute,
     Attribute1CMapping,
@@ -538,7 +541,7 @@ class AttributeAdmin(admin.ModelAdmin):
     )
     ordering = ("name",)
     inlines = [AttributeValueInline, Attribute1CMappingInline]
-    actions = ["activate_attributes", "deactivate_attributes"]
+    actions = ["activate_attributes", "deactivate_attributes", "merge_attributes"]
 
     fieldsets = (
         (
@@ -603,6 +606,149 @@ class AttributeAdmin(admin.ModelAdmin):
             messages.SUCCESS,
         )
 
+    @admin.action(description="🔗 Объединить выбранные атрибуты")
+    def merge_attributes(
+        self, request: HttpRequest, queryset: QuerySet[Attribute]
+    ) -> Any:
+        """
+        Действие для объединения нескольких атрибутов в один.
+
+        Переносит все маппинги 1С и значения атрибутов на целевой атрибут.
+        Исходные атрибуты удаляются после переноса.
+        """
+        # Валидация: минимум 2 атрибута
+        if queryset.count() < 2:
+            self.message_user(
+                request,
+                "Для объединения необходимо выбрать минимум 2 атрибута.",
+                messages.WARNING,
+            )
+            return None
+
+        if "apply" in request.POST:
+            form = MergeAttributesActionForm(request.POST)
+            if form.is_valid():
+                target_attribute = form.cleaned_data["target_attribute"]
+                merged_count = 0
+                mappings_transferred = 0
+                values_transferred = 0
+                values_deduplicated = 0
+
+                try:
+                    with transaction.atomic():
+                        for source_attribute in queryset:
+                            if source_attribute == target_attribute:
+                                continue
+
+                            # 1. Перенос маппингов 1С
+                            for mapping in source_attribute.onec_mappings.all():
+                                if target_attribute.onec_mappings.filter(
+                                    onec_id=mapping.onec_id
+                                ).exists():
+                                    logger.warning(
+                                        f"Duplicate mapping for attribute {target_attribute}: "
+                                        f"{mapping.onec_id}. Skipping transfer."
+                                    )
+                                    continue
+                                mapping.attribute = target_attribute
+                                mapping.save()
+                                mappings_transferred += 1
+
+                            # 2. Перенос значений атрибута с дедупликацией
+                            for value in source_attribute.values.all():
+                                # Проверяем есть ли уже такое значение у target
+                                existing_value = target_attribute.values.filter(
+                                    normalized_value=value.normalized_value
+                                ).first()
+
+                                if existing_value:
+                                    # Значение уже существует - переносим только маппинги
+                                    for value_mapping in value.onec_mappings.all():
+                                        if existing_value.onec_mappings.filter(
+                                            onec_id=value_mapping.onec_id
+                                        ).exists():
+                                            continue
+                                        value_mapping.attribute_value = existing_value
+                                        value_mapping.save()
+                                    values_deduplicated += 1
+                                else:
+                                    # Переносим значение целиком
+                                    value.attribute = target_attribute
+                                    value.save()
+                                    values_transferred += 1
+
+                            # 3. Удаляем исходный атрибут (CASCADE удалит оставшиеся связи)
+                            source_attribute.delete()
+                            merged_count += 1
+
+                        # 4. Audit logging через LogEntry
+                        LogEntry.objects.log_action(
+                            user_id=request.user.pk,
+                            content_type_id=ContentType.objects.get_for_model(
+                                Attribute
+                            ).pk,
+                            object_id=target_attribute.pk,
+                            object_repr=str(target_attribute),
+                            action_flag=CHANGE,
+                            change_message=f"Объединены {merged_count} атрибутов. "
+                            f"Перенесено маппингов: {mappings_transferred}, "
+                            f"значений: {values_transferred}, "
+                            f"дедуплицировано: {values_deduplicated}.",
+                        )
+
+                    self.message_user(
+                        request,
+                        f"Успешно объединено {merged_count} атрибутов в '{target_attribute}'. "
+                        f"Перенесено маппингов: {mappings_transferred}, "
+                        f"значений: {values_transferred}.",
+                        messages.SUCCESS,
+                    )
+                    return HttpResponseRedirect(request.get_full_path())
+
+                except Exception as e:
+                    logger.error(f"Error merging attributes: {e}")
+                    self.message_user(
+                        request,
+                        f"Ошибка при объединении атрибутов: {e}",
+                        messages.ERROR,
+                    )
+                    return HttpResponseRedirect(request.get_full_path())
+        else:
+            form = MergeAttributesActionForm()
+
+        # Подготовка статистики для preview
+        attributes_with_stats = []
+        total_mappings = 0
+        total_values = 0
+
+        for attr in queryset:
+            mappings_count = attr.onec_mappings.count()
+            values_count = attr.values.count()
+            total_mappings += mappings_count
+            total_values += values_count
+            attributes_with_stats.append(
+                {
+                    "name": attr.name,
+                    "pk": attr.pk,
+                    "mappings_count": mappings_count,
+                    "values_count": values_count,
+                    "is_active": attr.is_active,
+                }
+            )
+
+        return render(
+            request,
+            "admin/products/attribute/merge_action.html",
+            context={
+                "attributes": attributes_with_stats,
+                "total_mappings": total_mappings,
+                "total_values": total_values,
+                "form": form,
+                "title": "Объединение атрибутов",
+                "opts": self.model._meta,
+                "action_checkbox_name": admin.helpers.ACTION_CHECKBOX_NAME,  # type: ignore
+            },
+        )
 
 class AttributeValue1CMappingInline(admin.TabularInline):
     """Inline для отображения маппингов 1С в карточке AttributeValue"""
