@@ -16,7 +16,9 @@ from django.shortcuts import render
 from .forms import MergeBrandsActionForm, TransferMappingsActionForm
 from .models import (
     Attribute,
+    Attribute1CMapping,
     AttributeValue,
+    AttributeValue1CMapping,
     Brand,
     Brand1CMapping,
     Category,
@@ -503,11 +505,19 @@ class AttributeValueInline(admin.TabularInline):
 class AttributeAdmin(admin.ModelAdmin):
     """Admin для модели Attribute с подсчетом значений и inline значениями"""
 
-    list_display = ("name", "slug", "onec_id", "type", "values_count", "created_at")
-    list_filter = ("type", "created_at")
-    search_fields = ("name", "slug", "onec_id")
+    list_display = (
+        "name",
+        "slug",
+        "normalized_name",
+        "is_active",
+        "type",
+        "values_count",
+        "created_at",
+    )
+    list_filter = ("type", "is_active", "created_at")
+    search_fields = ("name", "slug", "normalized_name")
     prepopulated_fields = {"slug": ("name",)}
-    readonly_fields = ("created_at", "updated_at", "values_count")
+    readonly_fields = ("created_at", "updated_at", "values_count", "normalized_name")
     ordering = ("name",)
     inlines = [AttributeValueInline]
 
@@ -521,10 +531,34 @@ class AttributeAdmin(admin.ModelAdmin):
 class AttributeValueAdmin(admin.ModelAdmin):
     """Admin для модели AttributeValue"""
 
-    list_display = ("value", "attribute", "slug", "onec_id", "created_at")
+    list_display = ("value", "attribute", "slug", "created_at")
     list_filter = ("attribute", "created_at")
-    search_fields = ("value", "slug", "onec_id", "attribute__name")
+    search_fields = ("value", "slug", "attribute__name")
     prepopulated_fields = {"slug": ("value",)}
     readonly_fields = ("created_at", "updated_at")
     raw_id_fields = ("attribute",)
     ordering = ("attribute", "value")
+
+
+@admin.register(Attribute1CMapping)
+class Attribute1CMappingAdmin(admin.ModelAdmin):
+    """Admin для модели Attribute1CMapping"""
+
+    list_display = ("onec_name", "onec_id", "attribute", "source", "created_at")
+    list_filter = ("source", "created_at")
+    search_fields = ("onec_name", "onec_id", "attribute__name")
+    readonly_fields = ("created_at",)
+    raw_id_fields = ("attribute",)
+    ordering = ("attribute", "onec_name")
+
+
+@admin.register(AttributeValue1CMapping)
+class AttributeValue1CMappingAdmin(admin.ModelAdmin):
+    """Admin для модели AttributeValue1CMapping"""
+
+    list_display = ("onec_value", "onec_id", "attribute_value", "source", "created_at")
+    list_filter = ("source", "created_at")
+    search_fields = ("onec_value", "onec_id", "attribute_value__value")
+    readonly_fields = ("created_at",)
+    raw_id_fields = ("attribute_value",)
+    ordering = ("attribute_value", "onec_value")

@@ -16,6 +16,7 @@ from django.db import models
 from django.utils.text import slugify
 from transliterate import translit
 
+from apps.products.utils.attributes import normalize_attribute_name
 from apps.products.utils.brands import normalize_brand_name
 
 if TYPE_CHECKING:
@@ -1025,16 +1026,6 @@ class Attribute(models.Model):
             help_text="URL-совместимый идентификатор",
         ),
     )
-    onec_id = cast(
-        str,
-        models.CharField(
-            "ID в 1С",
-            max_length=255,
-            unique=True,
-            db_index=True,
-            help_text="Уникальный идентификатор атрибута из 1С",
-        ),
-    )
     type = cast(
         str,
         models.CharField(
@@ -1042,6 +1033,27 @@ class Attribute(models.Model):
             max_length=50,
             blank=True,
             help_text="Тип атрибута для будущей логики фильтрации",
+        ),
+    )
+    normalized_name = cast(
+        str,
+        models.CharField(
+            "Нормализованное название",
+            max_length=255,
+            unique=True,
+            db_index=True,
+            blank=True,
+            null=True,
+            help_text="Нормализованное название для дедупликации атрибутов",
+        ),
+    )
+    is_active = cast(
+        bool,
+        models.BooleanField(
+            "Активный атрибут",
+            default=False,
+            db_index=True,
+            help_text="Атрибут активен и отображается в каталоге",
         ),
     )
     created_at = cast(
@@ -1056,7 +1068,11 @@ class Attribute(models.Model):
         ordering = ["name"]
 
     def save(self, *args: Any, **kwargs: Any) -> None:
-        """Автоматическая генерация slug при сохранении с обработкой дубликатов"""
+        """Автоматическая генерация slug и normalized_name при сохранении"""
+        # Вычисляем normalized_name для дедупликации
+        self.normalized_name = normalize_attribute_name(self.name) if self.name else ""
+
+        # Автогенерация slug с обработкой дубликатов
         if not self.slug:
             try:
                 # Транслитерация кириллицы в латиницу, затем slugify
@@ -1119,14 +1135,15 @@ class AttributeValue(models.Model):
             help_text="URL-совместимый идентификатор",
         ),
     )
-    onec_id = cast(
+    normalized_value = cast(
         str,
         models.CharField(
-            "ID в 1С",
+            "Нормализованное значение",
             max_length=255,
-            unique=True,
             db_index=True,
-            help_text="Уникальный идентификатор значения атрибута из 1С",
+            blank=True,
+            null=True,  # Initially nullable for migration
+            help_text="Нормализованное значение для дедупликации",
         ),
     )
     created_at = cast(
@@ -1142,9 +1159,23 @@ class AttributeValue(models.Model):
         indexes = [
             models.Index(fields=["attribute", "value"]),
         ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["attribute", "normalized_value"],
+                name="unique_attribute_normalized_value",
+            ),
+        ]
 
     def save(self, *args: Any, **kwargs: Any) -> None:
-        """Автоматическая генерация slug при сохранении"""
+        """Автоматическая генерация slug и normalized_value при сохранении"""
+        # Вычисляем normalized_value для дедупликации
+        from apps.products.utils.attributes import normalize_attribute_value
+
+        self.normalized_value = (
+            normalize_attribute_value(self.value) if self.value else ""
+        )
+
+        # Автогенерация slug
         if not self.slug:
             try:
                 # Транслитерация кириллицы в латиницу, затем slugify
@@ -1162,3 +1193,126 @@ class AttributeValue(models.Model):
 
     def __str__(self) -> str:
         return f"{self.attribute.name}: {self.value}"
+
+
+class Attribute1CMapping(models.Model):
+    """
+    Маппинг атрибутов из 1С на master-атрибуты в системе.
+    Позволяет связывать несколько ID из 1С с одним атрибутом для дедупликации.
+    """
+
+    attribute = cast(
+        Attribute,
+        models.ForeignKey(
+            Attribute,
+            on_delete=models.CASCADE,
+            related_name="onec_mappings",
+            verbose_name="Атрибут",
+            help_text="Master-атрибут в системе",
+        ),
+    )
+    onec_id = cast(
+        str,
+        models.CharField(
+            "ID в 1С",
+            max_length=255,
+            unique=True,
+            db_index=True,
+            help_text="Уникальный идентификатор атрибута из 1С",
+        ),
+    )
+    onec_name = cast(
+        str,
+        models.CharField(
+            "Название в 1С",
+            max_length=255,
+            help_text="Оригинальное название атрибута из 1С",
+        ),
+    )
+    source = cast(
+        str,
+        models.CharField(
+            "Источник импорта",
+            max_length=10,
+            choices=[("goods", "Goods"), ("offers", "Offers")],
+            help_text="Тип файла откуда импортирован атрибут (goods/offers)",
+        ),
+    )
+    created_at = cast(
+        datetime,
+        models.DateTimeField("Дата создания", auto_now_add=True),
+    )
+
+    class Meta:
+        verbose_name = "Маппинг атрибута 1С"
+        verbose_name_plural = "Маппинги атрибутов 1С"
+        db_table = "product_attribute_1c_mappings"
+        indexes = [
+            models.Index(fields=["attribute", "source"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.onec_name} ({self.onec_id}) → {self.attribute.name}"
+
+
+class AttributeValue1CMapping(models.Model):
+    """
+    Маппинг значений атрибутов из 1С на master-значения в системе.
+    Позволяет связывать несколько ID из 1С с одним значением для дедупликации.
+    """
+
+    attribute_value = cast(
+        AttributeValue,
+        models.ForeignKey(
+            AttributeValue,
+            on_delete=models.CASCADE,
+            related_name="onec_mappings",
+            verbose_name="Значение атрибута",
+            help_text="Master-значение атрибута в системе",
+        ),
+    )
+    onec_id = cast(
+        str,
+        models.CharField(
+            "ID в 1С",
+            max_length=255,
+            unique=True,
+            db_index=True,
+            help_text="Уникальный идентификатор значения атрибута из 1С",
+        ),
+    )
+    onec_value = cast(
+        str,
+        models.CharField(
+            "Значение в 1С",
+            max_length=255,
+            help_text="Оригинальное значение атрибута из 1С",
+        ),
+    )
+    source = cast(
+        str,
+        models.CharField(
+            "Источник импорта",
+            max_length=10,
+            choices=[("goods", "Goods"), ("offers", "Offers")],
+            help_text="Тип файла откуда импортировано значение (goods/offers)",
+        ),
+    )
+    created_at = cast(
+        datetime,
+        models.DateTimeField("Дата создания", auto_now_add=True),
+    )
+
+    class Meta:
+        verbose_name = "Маппинг значения атрибута 1С"
+        verbose_name_plural = "Маппинги значений атрибутов 1С"
+        db_table = "product_attribute_value_1c_mappings"
+        indexes = [
+            models.Index(fields=["attribute_value", "source"]),
+        ]
+
+    def __str__(self) -> str:
+        return (
+            f"{self.onec_value} ({self.onec_id}) → "
+            f"{self.attribute_value.attribute.name}: {self.attribute_value.value}"
+        )

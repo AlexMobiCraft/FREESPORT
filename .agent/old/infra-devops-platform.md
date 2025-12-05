@@ -1,11 +1,7 @@
 ---
-description: 
-auto_execution_mode: 1
+description: Activates the DevOps Infrastructure Specialist Platform Engineer agent from the BMad Method.
 ---
 
--
-description: infra-devops-platform
-auto_execution_mode: 3
 ---
 
 <!-- Powered by BMAD™ Core -->

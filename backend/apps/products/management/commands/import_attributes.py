@@ -115,28 +115,40 @@ class Command(BaseCommand):
         self.stdout.write(f"📁 Директория данных: {data_dir}\n")
         self.stdout.write(f"📋 Тип файлов: {file_type}\n")
 
-        # Инициализация сервиса
-        service = AttributeImportService()
-
         try:
+            # Суммарная статистика для всех импортов
+            total_stats = {
+                "attributes_created": 0,
+                "mappings_created": 0,
+                "attributes_deduplicated": 0,
+                "values_created": 0,
+                "value_mappings_created": 0,
+                "values_deduplicated": 0,
+                "errors": 0,
+            }
+
             # Импорт propertiesGoods
             if file_type in ["goods", "all"]:
-                self._import_properties_goods(service, data_dir_path, dry_run)
+                goods_stats = self._import_properties_goods(data_dir_path, dry_run)
+                for key in total_stats:
+                    total_stats[key] += goods_stats.get(key, 0)
 
             # Импорт propertiesOffers
             if file_type in ["offers", "all"]:
-                self._import_properties_offers(service, data_dir_path, dry_run)
+                offers_stats = self._import_properties_offers(data_dir_path, dry_run)
+                for key in total_stats:
+                    total_stats[key] += offers_stats.get(key, 0)
 
             # Вывод итоговой статистики
-            self._print_stats(service.get_stats(), dry_run)
+            self._print_stats(total_stats, dry_run)
 
         except Exception as e:
             self.stdout.write(self.style.ERROR(f"\n❌ Ошибка импорта: {e}\n"))
             raise CommandError(f"Импорт прерван: {e}")
 
     def _import_properties_goods(
-        self, service: AttributeImportService, data_dir: Path, dry_run: bool
-    ) -> None:
+        self, data_dir: Path, dry_run: bool
+    ) -> dict[str, int]:
         """Импорт свойств товаров (propertiesGoods)"""
         properties_goods_dir = data_dir / "propertiesGoods"
 
@@ -147,13 +159,24 @@ class Command(BaseCommand):
                     "   Пропуск propertiesGoods\n"
                 )
             )
-            return
+            return {
+                "attributes_created": 0,
+                "mappings_created": 0,
+                "attributes_deduplicated": 0,
+                "values_created": 0,
+                "value_mappings_created": 0,
+                "values_deduplicated": 0,
+                "errors": 0,
+            }
 
         self.stdout.write(
             self.style.SUCCESS(
                 f"\n{'─' * 70}\n" f"📄 Обработка propertiesGoods/*.xml\n" f"{'─' * 70}\n"
             )
         )
+
+        # Создаем отдельный сервис для goods с source="goods"
+        service = AttributeImportService(source="goods", dry_run=dry_run)
 
         if dry_run:
             # В dry-run режиме только парсим без сохранения
@@ -162,10 +185,11 @@ class Command(BaseCommand):
             service.import_from_directory(str(properties_goods_dir))
 
         self.stdout.write(self.style.SUCCESS("✅ propertiesGoods обработаны\n"))
+        return service.get_stats()
 
     def _import_properties_offers(
-        self, service: AttributeImportService, data_dir: Path, dry_run: bool
-    ) -> None:
+        self, data_dir: Path, dry_run: bool
+    ) -> dict[str, int]:
         """Импорт свойств предложений (propertiesOffers)"""
         properties_offers_dir = data_dir / "propertiesOffers"
 
@@ -176,7 +200,15 @@ class Command(BaseCommand):
                     "   Пропуск propertiesOffers\n"
                 )
             )
-            return
+            return {
+                "attributes_created": 0,
+                "mappings_created": 0,
+                "attributes_deduplicated": 0,
+                "values_created": 0,
+                "value_mappings_created": 0,
+                "values_deduplicated": 0,
+                "errors": 0,
+            }
 
         self.stdout.write(
             self.style.SUCCESS(
@@ -186,6 +218,9 @@ class Command(BaseCommand):
             )
         )
 
+        # Создаем отдельный сервис для offers с source="offers"
+        service = AttributeImportService(source="offers", dry_run=dry_run)
+
         if dry_run:
             # В dry-run режиме только парсим без сохранения
             self._dry_run_import(service, str(properties_offers_dir))
@@ -193,6 +228,7 @@ class Command(BaseCommand):
             service.import_from_directory(str(properties_offers_dir))
 
         self.stdout.write(self.style.SUCCESS("✅ propertiesOffers обработаны\n"))
+        return service.get_stats()
 
     def _dry_run_import(self, service: AttributeImportService, directory: str) -> None:
         """Тестовый импорт без записи в БД (только парсинг)"""
@@ -221,7 +257,7 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.ERROR(f"   ✗ {filename}: {e}\n"))
 
     def _print_stats(self, stats: dict[str, int], dry_run: bool) -> None:
-        """Вывод итоговой статистики импорта"""
+        """Вывод итоговой статистики импорта с дедупликацией"""
         self.stdout.write(
             self.style.SUCCESS(
                 f"\n{'=' * 70}\n" f"📊 Итоговая статистика импорта\n" f"{'=' * 70}\n"
@@ -235,18 +271,55 @@ class Command(BaseCommand):
         else:
             self.stdout.write(
                 f"✨ Атрибуты:\n"
-                f"   • Создано: {stats['attributes_created']}\n"
-                f"   • Обновлено: {stats['attributes_updated']}\n"
+                f"   • Создано новых: {stats['attributes_created']}\n"
+                f"   • Дедуплицировано (объединено): {stats['attributes_deduplicated']}\n"
+                f"   • Создано маппингов 1С: {stats['mappings_created']}\n"
                 f"\n"
                 f"🎯 Значения атрибутов:\n"
-                f"   • Создано: {stats['values_created']}\n"
-                f"   • Обновлено: {stats['values_updated']}\n"
+                f"   • Создано новых: {stats['values_created']}\n"
+                f"   • Дедуплицировано (объединено): {stats['values_deduplicated']}\n"
+                f"   • Создано маппингов 1С: {stats['value_mappings_created']}\n"
                 f"\n"
             )
+
+            # Вывод эффективности дедупликации
+            total_attrs = (
+                stats["attributes_created"] + stats["attributes_deduplicated"]
+            )
+            total_values = stats["values_created"] + stats["values_deduplicated"]
+
+            if total_attrs > 0:
+                dedup_rate = (
+                    stats["attributes_deduplicated"] / total_attrs * 100
+                )
+                self.stdout.write(
+                    f"📈 Эффективность дедупликации атрибутов: "
+                    f"{dedup_rate:.1f}% ({stats['attributes_deduplicated']}/{total_attrs})\n"
+                )
+
+            if total_values > 0:
+                value_dedup_rate = (
+                    stats["values_deduplicated"] / total_values * 100
+                )
+                self.stdout.write(
+                    f"📈 Эффективность дедупликации значений: "
+                    f"{value_dedup_rate:.1f}% ({stats['values_deduplicated']}/{total_values})\n"
+                )
+
+            self.stdout.write("\n")
 
             if stats["errors"] > 0:
                 self.stdout.write(self.style.ERROR(f"❌ Ошибок: {stats['errors']}\n"))
             else:
                 self.stdout.write(self.style.SUCCESS("✅ Ошибок нет\n"))
+
+            # Напоминание об активации атрибутов
+            if stats["attributes_created"] > 0:
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"\n⚠️  Новые атрибуты созданы с is_active=False\n"
+                        f"   Для отображения в каталоге активируйте их в Django Admin\n"
+                    )
+                )
 
         self.stdout.write(self.style.SUCCESS(f"{'=' * 70}\n"))

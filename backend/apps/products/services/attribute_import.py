@@ -37,17 +37,38 @@ class AttributeImportService:
         getattr(settings, "IMPORT_MAX_FILE_SIZE", 100) * 1024 * 1024
     )  # MB to bytes
 
-    def __init__(self) -> None:
-        """Инициализация сервиса"""
-        from apps.products.models import Attribute, AttributeValue
+    def __init__(self, source: str = "goods", dry_run: bool = False) -> None:
+        """
+        Инициализация сервиса с дедупликацией
+
+        Args:
+            source: Источник импорта ('goods' или 'offers')
+            dry_run: Режим тестирования без записи в БД
+        """
+        from apps.products.models import (
+            Attribute,
+            Attribute1CMapping,
+            AttributeValue,
+            AttributeValue1CMapping,
+        )
 
         self.attribute_model: type[Attribute] = Attribute
+        self.attribute_mapping_model: type[Attribute1CMapping] = Attribute1CMapping
         self.attribute_value_model: type[AttributeValue] = AttributeValue
+        self.attribute_value_mapping_model: type[
+            AttributeValue1CMapping
+        ] = AttributeValue1CMapping
+
+        self.source = source
+        self.dry_run = dry_run
+
         self.stats = {
             "attributes_created": 0,
-            "attributes_updated": 0,
+            "mappings_created": 0,
+            "attributes_deduplicated": 0,
             "values_created": 0,
-            "values_updated": 0,
+            "value_mappings_created": 0,
+            "values_deduplicated": 0,
             "errors": 0,
         }
 
@@ -223,58 +244,164 @@ class AttributeImportService:
     @transaction.atomic
     def _save_properties(self, properties: list[dict[str, Any]]) -> None:
         """
-        Сохранение свойств в БД с дедупликацией
+        Сохранение свойств в БД с дедупликацией по normalized_name
+
+        Алгоритм:
+        1. Проверить существующий маппинг по onec_id
+        2. Если нет маппинга - искать атрибут по normalized_name
+        3. Если найден - использовать существующий (дедупликация)
+        4. Если не найден - создать новый (is_active=False)
+        5. Создать маппинг 1С ID → Attribute
+        6. Аналогично обработать значения атрибутов
 
         Args:
             properties: Список словарей с данными свойств
         """
+        from apps.products.utils.attributes import (
+            normalize_attribute_name,
+            normalize_attribute_value,
+        )
+
+        if self.dry_run:
+            logger.info(
+                f"DRY-RUN: Would process {len(properties)} properties from {self.source}"
+            )
+            return
+
         for prop_data in properties:
             try:
-                # Создание/обновление атрибута
-                attribute, created = self.attribute_model.objects.update_or_create(
-                    onec_id=prop_data["onec_id"],
-                    defaults={"name": prop_data["name"], "type": prop_data["type"]},
-                )
+                onec_id = prop_data["onec_id"]
+                onec_name = prop_data["name"]
+                attr_type = prop_data["type"]
+                normalized = normalize_attribute_name(onec_name)
 
-                if created:
-                    self.stats["attributes_created"] += 1
+                # Шаг 1: Проверяем существующий маппинг
+                existing_mapping = self.attribute_mapping_model.objects.filter(
+                    onec_id=onec_id
+                ).first()
+
+                if existing_mapping:
+                    # Используем существующий атрибут через маппинг
+                    attribute = existing_mapping.attribute
                     logger.debug(
-                        f"Created attribute: {attribute.name} ({attribute.onec_id})"
+                        f"Found existing mapping: {onec_name} → {attribute.name}"
                     )
                 else:
-                    self.stats["attributes_updated"] += 1
-                    logger.debug(
-                        f"Updated attribute: {attribute.name} ({attribute.onec_id})"
-                    )
+                    # Шаг 2: Ищем атрибут по normalized_name для дедупликации
+                    existing_attr = self.attribute_model.objects.filter(
+                        normalized_name=normalized
+                    ).first()
 
-                # Создание/обновление значений атрибута
-                for value_data in prop_data["values"]:
-                    (
-                        value_obj,
-                        value_created,
-                    ) = self.attribute_value_model.objects.update_or_create(
-                        onec_id=value_data["onec_id"],
-                        defaults={
-                            "attribute": attribute,
-                            "value": value_data["value"],
-                        },
-                    )
-
-                    if value_created:
-                        self.stats["values_created"] += 1
-                        logger.debug(
-                            f"Created value: {value_obj.value} for {attribute.name}"
+                    if existing_attr:
+                        # Дедупликация: используем существующий атрибут
+                        attribute = existing_attr
+                        self.stats["attributes_deduplicated"] += 1
+                        logger.info(
+                            f"Attribute deduplicated: '{onec_name}' → '{attribute.name}' "
+                            f"(normalized: '{normalized}')"
                         )
                     else:
-                        self.stats["values_updated"] += 1
-                        logger.debug(
-                            f"Updated value: {value_obj.value} for {attribute.name}"
+                        # Шаг 3: Создаем новый атрибут (is_active=False)
+                        attribute = self.attribute_model.objects.create(
+                            name=onec_name,
+                            type=attr_type,
+                            is_active=False,  # Требует ручной активации
                         )
+                        self.stats["attributes_created"] += 1
+                        logger.debug(
+                            f"Created new attribute: {attribute.name} (id={attribute.id})"
+                        )
+
+                    # Шаг 4: Создаем маппинг 1С ID → Attribute
+                    self.attribute_mapping_model.objects.create(
+                        attribute=attribute,
+                        onec_id=onec_id,
+                        onec_name=onec_name,
+                        source=self.source,
+                    )
+                    self.stats["mappings_created"] += 1
+                    logger.debug(f"Created mapping for {onec_name} ({onec_id})")
+
+                # Шаг 5: Обработка значений атрибута
+                for value_data in prop_data["values"]:
+                    try:
+                        self._save_attribute_value(
+                            attribute=attribute,
+                            value_onec_id=value_data["onec_id"],
+                            value_text=value_data["value"],
+                        )
+                    except Exception as e:
+                        logger.error(
+                            f"Error saving value '{value_data['value']}' "
+                            f"for attribute '{attribute.name}': {e}"
+                        )
+                        self.stats["errors"] += 1
 
             except Exception as e:
                 logger.error(f"Error saving property {prop_data.get('name')}: {e}")
                 self.stats["errors"] += 1
-                raise
+                # Не пробрасываем исключение, продолжаем обработку других свойств
+
+    def _save_attribute_value(
+        self, attribute: Attribute, value_onec_id: str, value_text: str
+    ) -> None:
+        """
+        Сохранение значения атрибута с дедупликацией по normalized_value
+
+        Args:
+            attribute: Атрибут, к которому относится значение
+            value_onec_id: ID значения из 1С
+            value_text: Текст значения
+        """
+        from apps.products.utils.attributes import normalize_attribute_value
+
+        normalized_value = normalize_attribute_value(value_text)
+
+        # Шаг 1: Проверяем существующий маппинг значения
+        existing_value_mapping = self.attribute_value_mapping_model.objects.filter(
+            onec_id=value_onec_id
+        ).first()
+
+        if existing_value_mapping:
+            # Используем существующее значение через маппинг
+            logger.debug(
+                f"Found existing value mapping: {value_text} → "
+                f"{existing_value_mapping.attribute_value.value}"
+            )
+            return
+
+        # Шаг 2: Ищем значение по (attribute, normalized_value)
+        existing_value = self.attribute_value_model.objects.filter(
+            attribute=attribute, normalized_value=normalized_value
+        ).first()
+
+        if existing_value:
+            # Дедупликация: используем существующее значение
+            value_obj = existing_value
+            self.stats["values_deduplicated"] += 1
+            logger.info(
+                f"Value deduplicated: '{value_text}' → '{value_obj.value}' "
+                f"for attribute '{attribute.name}'"
+            )
+        else:
+            # Создаем новое значение
+            value_obj = self.attribute_value_model.objects.create(
+                attribute=attribute, value=value_text
+            )
+            self.stats["values_created"] += 1
+            logger.debug(
+                f"Created new value: {value_obj.value} for {attribute.name}"
+            )
+
+        # Создаем маппинг 1С ID → AttributeValue
+        self.attribute_value_mapping_model.objects.create(
+            attribute_value=value_obj,
+            onec_id=value_onec_id,
+            onec_value=value_text,
+            source=self.source,
+        )
+        self.stats["value_mappings_created"] += 1
+        logger.debug(f"Created value mapping for {value_text} ({value_onec_id})")
 
     def get_stats(self) -> dict[str, int]:
         """Получить статистику импорта"""
@@ -284,8 +411,10 @@ class AttributeImportService:
         """Сбросить статистику"""
         self.stats = {
             "attributes_created": 0,
-            "attributes_updated": 0,
+            "mappings_created": 0,
+            "attributes_deduplicated": 0,
             "values_created": 0,
-            "values_updated": 0,
+            "value_mappings_created": 0,
+            "values_deduplicated": 0,
             "errors": 0,
         }
