@@ -2,18 +2,27 @@
 Фильтры для каталога товаров
 """
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
+
 import django_filters
 from django.conf import settings
 from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector
 from django.db import connection
-from django.db.models import Q
+from django.db.models import Q, QuerySet
 
-from .models import Brand, Category, Product
+from .models import Attribute, Brand, Category, Product
+
+if TYPE_CHECKING:
+    from django.http import HttpRequest
 
 
 class ProductFilter(django_filters.FilterSet):
     """
-    Фильтр для товаров согласно Story 2.4 и 2.9 требованиям
+    Фильтр для товаров согласно Story 2.4, 2.9 и 14.6 требованиям
+
+    Story 14.6: Динамические фильтры по атрибутам (attr_<slug>=<value>)
     """
 
     # Фильтр по категории (с учетом дочерних)
@@ -22,6 +31,34 @@ class ProductFilter(django_filters.FilterSet):
         help_text="ID категории для фильтрации (включая дочерние категории)",
     )
 
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """
+        Story 14.6: Динамическое создание фильтров для всех активных атрибутов
+
+        Создает фильтры вида attr_<slug> для каждого активного атрибута.
+        Например: ?attr_color=red,blue или ?attr_size=xl
+        """
+        super().__init__(*args, **kwargs)
+
+        # Загружаем только активные атрибуты для создания фильтров
+        active_attributes = Attribute.objects.filter(is_active=True).only(
+            "id", "slug", "name"
+        )
+
+        for attr in active_attributes:
+            filter_name = f"attr_{attr.slug}"
+            # Создаем CharFilter с методом filter_attribute
+            self.filters[filter_name] = django_filters.CharFilter(
+                method="filter_attribute",
+                label=attr.name,
+                help_text=(
+                    f"Фильтр по атрибуту '{attr.name}'. "
+                    f"Поддерживает множественные значения: {filter_name}=value1,value2"
+                ),
+            )
+            # Сохраняем slug атрибута для использования в filter_attribute
+            self.filters[filter_name].attribute_slug = attr.slug
+
     # Фильтр по бренду (поддерживает как ID, так и slug)
     brand = django_filters.CharFilter(
         method="filter_brand",
@@ -29,6 +66,47 @@ class ProductFilter(django_filters.FilterSet):
             "Бренд по ID или slug. Поддерживает множественный выбор: brand=nike,adidas"
         ),
     )
+
+    def filter_attribute(
+        self, queryset: QuerySet[Product], name: str, value: str
+    ) -> QuerySet[Product]:
+        """
+        Story 14.6: Фильтрация товаров по динамическим атрибутам
+
+        Поддерживает:
+        - Одиночное значение: ?attr_color=red
+        - Множественные значения (OR): ?attr_color=red,blue
+        - Множественные атрибуты (AND): ?attr_color=red&attr_size=xl
+
+        Args:
+            queryset: Исходный QuerySet товаров
+            name: Имя фильтра (attr_<slug>)
+            value: Значение фильтра (может содержать запятые для OR)
+
+        Returns:
+            Отфильтрованный QuerySet
+        """
+        if not value:
+            return queryset
+
+        # Получаем slug атрибута из фильтра
+        filter_obj = self.filters.get(name)
+        if not filter_obj or not hasattr(filter_obj, "attribute_slug"):
+            return queryset
+
+        attribute_slug = filter_obj.attribute_slug
+
+        # Парсим значения (поддержка множественных значений через запятую)
+        values = [v.strip() for v in value.split(",") if v.strip()]
+        if not values:
+            return queryset
+
+        # Фильтрация через M2M relationship
+        # Товары, у которых есть атрибут с данным slug и значением из списка
+        return queryset.filter(
+            attributes__attribute__slug=attribute_slug,
+            attributes__slug__in=values,
+        ).distinct()
 
     # Ценовой диапазон
     min_price = django_filters.NumberFilter(
@@ -104,7 +182,9 @@ class ProductFilter(django_filters.FilterSet):
             "has_discount",
         ]
 
-    def filter_brand(self, queryset, name, value):
+    def filter_brand(
+        self, queryset: QuerySet[Product], name: str, value: str
+    ) -> QuerySet[Product]:
         """Фильтр по бренду через ID или slug с поддержкой множественного выбора"""
         if not value:
             return queryset
@@ -177,27 +257,39 @@ class ProductFilter(django_filters.FilterSet):
         if user_role == "wholesale_level1":
             return queryset.filter(
                 Q(variants__opt1_price__gte=value)
-                | Q(variants__opt1_price__isnull=True, variants__retail_price__gte=value)
+                | Q(
+                    variants__opt1_price__isnull=True, variants__retail_price__gte=value
+                )
             ).distinct()
         elif user_role == "wholesale_level2":
             return queryset.filter(
                 Q(variants__opt2_price__gte=value)
-                | Q(variants__opt2_price__isnull=True, variants__retail_price__gte=value)
+                | Q(
+                    variants__opt2_price__isnull=True, variants__retail_price__gte=value
+                )
             ).distinct()
         elif user_role == "wholesale_level3":
             return queryset.filter(
                 Q(variants__opt3_price__gte=value)
-                | Q(variants__opt3_price__isnull=True, variants__retail_price__gte=value)
+                | Q(
+                    variants__opt3_price__isnull=True, variants__retail_price__gte=value
+                )
             ).distinct()
         elif user_role == "trainer":
             return queryset.filter(
                 Q(variants__trainer_price__gte=value)
-                | Q(variants__trainer_price__isnull=True, variants__retail_price__gte=value)
+                | Q(
+                    variants__trainer_price__isnull=True,
+                    variants__retail_price__gte=value,
+                )
             ).distinct()
         elif user_role == "federation_rep":
             return queryset.filter(
                 Q(variants__federation_price__gte=value)
-                | Q(variants__federation_price__isnull=True, variants__retail_price__gte=value)
+                | Q(
+                    variants__federation_price__isnull=True,
+                    variants__retail_price__gte=value,
+                )
             ).distinct()
         else:
             return queryset.filter(variants__retail_price__gte=value).distinct()
@@ -218,27 +310,39 @@ class ProductFilter(django_filters.FilterSet):
         if user_role == "wholesale_level1":
             return queryset.filter(
                 Q(variants__opt1_price__lte=value)
-                | Q(variants__opt1_price__isnull=True, variants__retail_price__lte=value)
+                | Q(
+                    variants__opt1_price__isnull=True, variants__retail_price__lte=value
+                )
             ).distinct()
         elif user_role == "wholesale_level2":
             return queryset.filter(
                 Q(variants__opt2_price__lte=value)
-                | Q(variants__opt2_price__isnull=True, variants__retail_price__lte=value)
+                | Q(
+                    variants__opt2_price__isnull=True, variants__retail_price__lte=value
+                )
             ).distinct()
         elif user_role == "wholesale_level3":
             return queryset.filter(
                 Q(variants__opt3_price__lte=value)
-                | Q(variants__opt3_price__isnull=True, variants__retail_price__lte=value)
+                | Q(
+                    variants__opt3_price__isnull=True, variants__retail_price__lte=value
+                )
             ).distinct()
         elif user_role == "trainer":
             return queryset.filter(
                 Q(variants__trainer_price__lte=value)
-                | Q(variants__trainer_price__isnull=True, variants__retail_price__lte=value)
+                | Q(
+                    variants__trainer_price__isnull=True,
+                    variants__retail_price__lte=value,
+                )
             ).distinct()
         elif user_role == "federation_rep":
             return queryset.filter(
                 Q(variants__federation_price__lte=value)
-                | Q(variants__federation_price__isnull=True, variants__retail_price__lte=value)
+                | Q(
+                    variants__federation_price__isnull=True,
+                    variants__retail_price__lte=value,
+                )
             ).distinct()
         else:
             return queryset.filter(variants__retail_price__lte=value).distinct()
@@ -247,12 +351,16 @@ class ProductFilter(django_filters.FilterSet):
         """Фильтр по наличию товара с учетом флага is_active"""
         if value:
             # Товары в наличии: есть хотя бы один вариант с количеством > 0
-            return queryset.filter(variants__stock_quantity__gt=0, is_active=True).distinct()
+            return queryset.filter(
+                variants__stock_quantity__gt=0, is_active=True
+            ).distinct()
         else:
             # Товары НЕ в наличии: все варианты имеют 0 или товар неактивен
             # Или у товара вообще нет вариантов
             return queryset.filter(
-                Q(variants__stock_quantity=0) | Q(variants__isnull=True) | Q(is_active=False)
+                Q(variants__stock_quantity=0)
+                | Q(variants__isnull=True)
+                | Q(is_active=False)
             ).distinct()
 
     def filter_search(self, queryset, name, value):

@@ -1,7 +1,15 @@
 import factory
 from factory.django import DjangoModelFactory
 
-from apps.products.models import Brand, Brand1CMapping, Category, Product
+from apps.products.models import (
+    Attribute,
+    AttributeValue,
+    Brand,
+    Brand1CMapping,
+    Category,
+    Product,
+    ProductVariant,
+)
 from apps.users.models import User
 
 
@@ -52,3 +60,33 @@ class UserFactory(DjangoModelFactory):
     first_name = factory.Faker("first_name")
     last_name = factory.Faker("last_name")
     is_active = True
+
+
+class AttributeFactory(DjangoModelFactory):
+    class Meta:
+        model = Attribute
+
+    name = factory.Faker("word")
+    slug = factory.LazyAttribute(lambda obj: obj.name.lower())
+    is_active = True
+
+
+class AttributeValueFactory(DjangoModelFactory):
+    class Meta:
+        model = AttributeValue
+
+    attribute = factory.SubFactory(AttributeFactory)
+    value = factory.Faker("word")
+    slug = factory.LazyAttribute(lambda obj: obj.value.lower())
+
+
+class ProductVariantFactory(DjangoModelFactory):
+    class Meta:
+        model = ProductVariant
+
+    product = factory.SubFactory(ProductFactory)
+    sku = factory.Faker("ean13")
+    retail_price = factory.Faker(
+        "pydecimal", left_digits=4, right_digits=2, positive=True
+    )
+    stock_quantity = factory.Faker("random_int", min=0, max=100)

@@ -2,8 +2,14 @@
 Views для каталога товаров
 """
 
+from __future__ import annotations
+
+from typing import Any
+
 from rest_framework import filters, permissions, viewsets
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.request import Request
+from rest_framework.response import Response
 
 
 class CustomPageNumberPagination(PageNumberPagination):
@@ -31,6 +37,7 @@ from .serializers import (
     ProductDetailSerializer,
     ProductListSerializer,
 )
+from .services.facets import AttributeFacetService
 
 
 class ProductViewSet(viewsets.ReadOnlyModelViewSet):
@@ -154,8 +161,41 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
         ],
         tags=["Products"],
     )
-    def list(self, request, *args, **kwargs):
-        return super().list(request, *args, **kwargs)
+    def list(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        """
+        Story 14.6: Список товаров с facets (фасетами) атрибутов
+
+        Возвращает список товаров с дополнительной секцией 'facets',
+        содержащей доступные значения атрибутов с подсчетом товаров.
+
+        Response format:
+        {
+            "count": 100,
+            "next": "...",
+            "previous": null,
+            "results": [...],
+            "facets": {
+                "color": [
+                    {"value": "Красный", "slug": "krasnyj", "count": 10},
+                    {"value": "Синий", "slug": "sinij", "count": 5}
+                ],
+                "size": [...]
+            }
+        }
+        """
+        # Получаем стандартный response от родительского класса
+        response = super().list(request, *args, **kwargs)
+
+        # Получаем отфильтрованный queryset
+        queryset = self.filter_queryset(self.get_queryset())
+
+        # Генерируем facets для текущего набора товаров
+        facets = AttributeFacetService.get_facets(queryset)
+
+        # Добавляем facets в response data
+        response.data["facets"] = facets
+
+        return response
 
     @extend_schema(
         summary="Детали товара",
