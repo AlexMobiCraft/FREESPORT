@@ -4,6 +4,8 @@ Unit и Integration тесты для дедупликации атрибуто�
 
 from __future__ import annotations
 
+import time
+import uuid
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
@@ -21,6 +23,16 @@ from apps.products.utils.attributes import (
     normalize_attribute_name,
     normalize_attribute_value,
 )
+
+# Глобальный счетчик для обеспечения уникальности в тестах
+_unique_counter = 0
+
+
+def get_unique_suffix() -> str:
+    """Генерирует абсолютно уникальный суффикс для тестов"""
+    global _unique_counter
+    _unique_counter += 1
+    return f"{int(time.time() * 1000)}-{_unique_counter}-{uuid.uuid4().hex[:6]}"
 
 
 @pytest.mark.unit
@@ -904,3 +916,206 @@ class TestAttributeImportServiceValidation:
         # Ошибка учитывается дважды: в import_from_file и в import_from_directory
         assert stats["errors"] == 2
         assert stats["attributes_created"] == 1  # Атрибут из valid.xml создан
+
+
+@pytest.mark.integration
+@pytest.mark.django_db
+class TestAttributeAdminActions:
+    """Тесты для admin actions в AttributeAdmin"""
+
+    def test_activate_attributes_action(self) -> None:
+        """Тест массовой активации атрибутов через admin action"""
+        from django.contrib.admin.sites import site
+        from django.contrib.auth import get_user_model
+        from django.contrib.messages.storage.fallback import FallbackStorage
+        from django.test import RequestFactory
+
+        from apps.products.admin import AttributeAdmin
+
+        User = get_user_model()
+
+        # Создаем суперпользователя
+        admin_user = User.objects.create_superuser(
+            email=f"admin-{get_unique_suffix()}@test.com",
+            password="test123",
+        )
+
+        # Создаем неактивные атрибуты
+        suffix = get_unique_suffix()
+        attr1 = Attribute.objects.create(
+            name=f"Color-{suffix}",
+            type="text",
+            is_active=False,
+        )
+        attr2 = Attribute.objects.create(
+            name=f"Size-{suffix}",
+            type="text",
+            is_active=False,
+        )
+
+        # Создаем request с messages storage
+        factory = RequestFactory()
+        request = factory.post("/admin/products/attribute/")
+        request.user = admin_user
+        # Добавляем фейковое messages storage
+        setattr(request, "session", "session")
+        messages = FallbackStorage(request)
+        setattr(request, "_messages", messages)
+
+        admin_instance = AttributeAdmin(Attribute, site)
+        queryset = Attribute.objects.filter(id__in=[attr1.id, attr2.id])
+
+        # Выполняем action
+        admin_instance.activate_attributes(request, queryset)
+
+        # Проверяем что атрибуты активированы
+        attr1.refresh_from_db()
+        attr2.refresh_from_db()
+        assert attr1.is_active is True
+        assert attr2.is_active is True
+
+    def test_deactivate_attributes_action(self) -> None:
+        """Тест массовой деактивации атрибутов через admin action"""
+        from django.contrib.admin.sites import site
+        from django.contrib.auth import get_user_model
+        from django.contrib.messages.storage.fallback import FallbackStorage
+        from django.test import RequestFactory
+
+        from apps.products.admin import AttributeAdmin
+
+        User = get_user_model()
+
+        admin_user = User.objects.create_superuser(
+            email=f"admin-{get_unique_suffix()}@test.com",
+            password="test123",
+        )
+
+        # Создаем активные атрибуты
+        suffix = get_unique_suffix()
+        attr1 = Attribute.objects.create(
+            name=f"Color-{suffix}",
+            type="text",
+            is_active=True,
+        )
+        attr2 = Attribute.objects.create(
+            name=f"Size-{suffix}",
+            type="text",
+            is_active=True,
+        )
+
+        # Создаем request с messages storage
+        factory = RequestFactory()
+        request = factory.post("/admin/products/attribute/")
+        request.user = admin_user
+        setattr(request, "session", "session")
+        messages = FallbackStorage(request)
+        setattr(request, "_messages", messages)
+
+        admin_instance = AttributeAdmin(Attribute, site)
+        queryset = Attribute.objects.filter(id__in=[attr1.id, attr2.id])
+
+        admin_instance.deactivate_attributes(request, queryset)
+
+        attr1.refresh_from_db()
+        attr2.refresh_from_db()
+        assert attr1.is_active is False
+        assert attr2.is_active is False
+
+
+@pytest.mark.integration
+@pytest.mark.django_db
+class TestAttributeAdminDisplay:
+    """Тесты для display методов в AttributeAdmin"""
+
+    def test_values_count_display(self) -> None:
+        """Тест отображения количества значений атрибута"""
+        from django.contrib.admin.sites import site
+
+        from apps.products.admin import AttributeAdmin
+
+        suffix = get_unique_suffix()
+        attribute = Attribute.objects.create(
+            name=f"Size-{suffix}",
+            type="text",
+        )
+
+        # Создаем значения
+        AttributeValue.objects.create(attribute=attribute, value=f"S-{suffix}")
+        AttributeValue.objects.create(attribute=attribute, value=f"M-{suffix}")
+        AttributeValue.objects.create(attribute=attribute, value=f"L-{suffix}")
+
+        admin_instance = AttributeAdmin(Attribute, site)
+        count = admin_instance.values_count(attribute)
+
+        assert count == 3
+
+    def test_mappings_count_display(self) -> None:
+        """Тест отображения количества маппингов 1С"""
+        from django.contrib.admin.sites import site
+
+        from apps.products.admin import AttributeAdmin
+
+        suffix = get_unique_suffix()
+        attribute = Attribute.objects.create(
+            name=f"Size-{suffix}",
+            type="text",
+        )
+
+        # Создаем маппинги
+        Attribute1CMapping.objects.create(
+            attribute=attribute,
+            onec_id=f"1c-id-1-{suffix}",
+            onec_name=f"Size-1-{suffix}",
+            source="goods",
+        )
+        Attribute1CMapping.objects.create(
+            attribute=attribute,
+            onec_id=f"1c-id-2-{suffix}",
+            onec_name=f"SIZE-2-{suffix}",
+            source="offers",
+        )
+
+        admin_instance = AttributeAdmin(Attribute, site)
+        count = admin_instance.mappings_count(attribute)
+
+        assert count == 2
+
+
+@pytest.mark.integration
+@pytest.mark.django_db
+class TestAttributeValueAdminDisplay:
+    """Тесты для display методов в AttributeValueAdmin"""
+
+    def test_value_mappings_count_display(self) -> None:
+        """Тест отображения количества маппингов для значения атрибута"""
+        from django.contrib.admin.sites import site
+
+        from apps.products.admin import AttributeValueAdmin
+
+        suffix = get_unique_suffix()
+        attribute = Attribute.objects.create(
+            name=f"Size-{suffix}",
+            type="text",
+        )
+        attr_value = AttributeValue.objects.create(
+            attribute=attribute, value=f"Large-{suffix}"
+        )
+
+        # Создаем маппинги значений
+        AttributeValue1CMapping.objects.create(
+            attribute_value=attr_value,
+            onec_id=f"1c-val-1-{suffix}",
+            onec_value=f"L-{suffix}",
+            source="goods",
+        )
+        AttributeValue1CMapping.objects.create(
+            attribute_value=attr_value,
+            onec_id=f"1c-val-2-{suffix}",
+            onec_value=f"Large-{suffix}",
+            source="offers",
+        )
+
+        admin_instance = AttributeValueAdmin(AttributeValue, site)
+        count = admin_instance.mappings_count(attr_value)
+
+        assert count == 2

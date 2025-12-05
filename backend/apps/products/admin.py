@@ -495,10 +495,21 @@ class AttributeValueInline(admin.TabularInline):
 
     model = AttributeValue
     extra = 0  # Не показывать пустые формы для добавления
-    fields = ("value", "slug", "onec_id", "created_at")
-    readonly_fields = ("created_at",)
+    fields = ("value", "slug", "normalized_value", "created_at")
+    readonly_fields = ("created_at", "normalized_value")
     can_delete = True
     show_change_link = True  # Ссылка на редактирование значения
+
+
+class Attribute1CMappingInline(admin.TabularInline):
+    """Inline для отображения маппингов 1С в карточке Attribute"""
+
+    model = Attribute1CMapping
+    extra = 0
+    fields = ("onec_id", "onec_name", "source", "created_at")
+    readonly_fields = ("created_at",)
+    can_delete = False  # Не позволяем удалять маппинги
+    show_change_link = True
 
 
 @admin.register(Attribute)
@@ -512,32 +523,150 @@ class AttributeAdmin(admin.ModelAdmin):
         "is_active",
         "type",
         "values_count",
+        "mappings_count",
         "created_at",
     )
     list_filter = ("type", "is_active", "created_at")
     search_fields = ("name", "slug", "normalized_name")
     prepopulated_fields = {"slug": ("name",)}
-    readonly_fields = ("created_at", "updated_at", "values_count", "normalized_name")
+    readonly_fields = (
+        "created_at",
+        "updated_at",
+        "values_count",
+        "mappings_count",
+        "normalized_name",
+    )
     ordering = ("name",)
-    inlines = [AttributeValueInline]
+    inlines = [AttributeValueInline, Attribute1CMappingInline]
+    actions = ["activate_attributes", "deactivate_attributes"]
+
+    fieldsets = (
+        (
+            "Основная информация",
+            {
+                "fields": (
+                    "name",
+                    "slug",
+                    "normalized_name",
+                    "type",
+                    "is_active",
+                )
+            },
+        ),
+        (
+            "Статистика",
+            {
+                "fields": ("values_count", "mappings_count"),
+                "classes": ("collapse",),
+            },
+        ),
+        (
+            "Даты",
+            {
+                "fields": ("created_at", "updated_at"),
+                "classes": ("collapse",),
+            },
+        ),
+    )
 
     @admin.display(description="Кол-во значений")
-    def values_count(self, obj):
+    def values_count(self, obj: Attribute) -> int:
         """Отображение количества значений для атрибута"""
         return obj.values.count()
+
+    @admin.display(description="Кол-во маппингов 1С")
+    def mappings_count(self, obj: Attribute) -> int:
+        """Отображение количества маппингов 1С для атрибута"""
+        return obj.onec_mappings.count()
+
+    @admin.action(description="✅ Активировать выбранные атрибуты")
+    def activate_attributes(
+        self, request: HttpRequest, queryset: QuerySet[Attribute]
+    ) -> None:
+        """Массовая активация атрибутов"""
+        updated = queryset.update(is_active=True)
+        self.message_user(
+            request,
+            f"Активировано атрибутов: {updated}",
+            messages.SUCCESS,
+        )
+
+    @admin.action(description="❌ Деактивировать выбранные атрибуты")
+    def deactivate_attributes(
+        self, request: HttpRequest, queryset: QuerySet[Attribute]
+    ) -> None:
+        """Массовая деактивация атрибутов"""
+        updated = queryset.update(is_active=False)
+        self.message_user(
+            request,
+            f"Деактивировано атрибутов: {updated}",
+            messages.SUCCESS,
+        )
+
+
+class AttributeValue1CMappingInline(admin.TabularInline):
+    """Inline для отображения маппингов 1С в карточке AttributeValue"""
+
+    model = AttributeValue1CMapping
+    extra = 0
+    fields = ("onec_id", "onec_value", "source", "created_at")
+    readonly_fields = ("created_at",)
+    can_delete = False  # Не позволяем удалять маппинги
+    show_change_link = True
 
 
 @admin.register(AttributeValue)
 class AttributeValueAdmin(admin.ModelAdmin):
-    """Admin для модели AttributeValue"""
+    """Admin для модели AttributeValue с маппингами 1С"""
 
-    list_display = ("value", "attribute", "slug", "created_at")
+    list_display = (
+        "value",
+        "attribute",
+        "slug",
+        "normalized_value",
+        "mappings_count",
+        "created_at",
+    )
     list_filter = ("attribute", "created_at")
-    search_fields = ("value", "slug", "attribute__name")
+    search_fields = ("value", "slug", "normalized_value", "attribute__name")
     prepopulated_fields = {"slug": ("value",)}
-    readonly_fields = ("created_at", "updated_at")
+    readonly_fields = ("created_at", "updated_at", "normalized_value", "mappings_count")
     raw_id_fields = ("attribute",)
     ordering = ("attribute", "value")
+    inlines = [AttributeValue1CMappingInline]
+
+    fieldsets = (
+        (
+            "Основная информация",
+            {
+                "fields": (
+                    "attribute",
+                    "value",
+                    "slug",
+                    "normalized_value",
+                )
+            },
+        ),
+        (
+            "Статистика",
+            {
+                "fields": ("mappings_count",),
+                "classes": ("collapse",),
+            },
+        ),
+        (
+            "Даты",
+            {
+                "fields": ("created_at", "updated_at"),
+                "classes": ("collapse",),
+            },
+        ),
+    )
+
+    @admin.display(description="Кол-во маппингов 1С")
+    def mappings_count(self, obj: AttributeValue) -> int:
+        """Отображение количества маппингов 1С для значения атрибута"""
+        return obj.onec_mappings.count()
 
 
 @admin.register(Attribute1CMapping)
