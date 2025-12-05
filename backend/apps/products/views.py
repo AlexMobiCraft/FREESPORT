@@ -22,7 +22,7 @@ from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 
 from .filters import ProductFilter
-from .models import Attribute, Brand, Category, Product
+from .models import Attribute, AttributeValue, Brand, Category, Product, ProductVariant
 from .serializers import (
     AttributeFilterSerializer,
     BrandSerializer,
@@ -52,7 +52,25 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
         return (
             Product.objects.filter(is_active=True)
             .select_related("brand", "category")
-            .prefetch_related("category__parent")
+            .prefetch_related(
+                "category__parent",
+                # Story 14.5: Prefetch атрибутов для избежания N+1 queries
+                Prefetch(
+                    "attributes",
+                    queryset=AttributeValue.objects.select_related("attribute"),
+                    to_attr="prefetched_attributes",
+                ),
+                Prefetch(
+                    "variants",
+                    queryset=ProductVariant.objects.prefetch_related(
+                        Prefetch(
+                            "attributes",
+                            queryset=AttributeValue.objects.select_related("attribute"),
+                            to_attr="prefetched_attributes",
+                        )
+                    ),
+                ),
+            )
             .annotate(
                 retail_price=Min("variants__retail_price"),
                 stock_quantity=Sum("variants__stock_quantity"),
@@ -145,9 +163,8 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
         tags=["Products"],
     )
     def retrieve(self, request, *args, **kwargs):
-        """Retrieve с prefetch variants для оптимизации"""
-        # Оптимизация: prefetch variants для избежания N+1 queries
-        self.queryset = self.get_queryset().prefetch_related("variants")
+        """Retrieve с prefetch variants и attributes для оптимизации"""
+        # Prefetch уже настроен в get_queryset() (Story 14.5)
         return super().retrieve(request, *args, **kwargs)
 
 
@@ -319,4 +336,3 @@ class AttributeFilterViewSet(viewsets.ReadOnlyModelViewSet):
     )
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
-

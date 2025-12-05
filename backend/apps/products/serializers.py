@@ -21,6 +21,28 @@ from .models import (
     ProductVariant,
 )
 
+
+class AttributeValueSerializer(serializers.ModelSerializer):
+    """
+    Serializer для значений атрибутов товара
+
+    Возвращает структурированную информацию об атрибутах:
+    - name: Название атрибута (из связанного Attribute)
+    - value: Значение атрибута
+    - slug: URL-совместимый идентификатор
+    - type: Тип атрибута для будущей логики фильтрации
+    """
+
+    name = serializers.CharField(source="attribute.name", read_only=True)
+    slug = serializers.CharField(source="attribute.slug", read_only=True)
+    type = serializers.CharField(source="attribute.type", read_only=True)
+
+    class Meta:
+        model = AttributeValue
+        fields = ["name", "value", "slug", "type"]
+        read_only_fields = fields
+
+
 if TYPE_CHECKING:
     from apps.users.models import User
 
@@ -34,12 +56,14 @@ class ProductVariantSerializer(serializers.ModelSerializer):
     - color_hex: hex-код цвета из ColorMapping
     - is_in_stock: computed property из модели
     - available_quantity: computed property из модели
+    - attributes: объединенный список атрибутов (вариант + продукт с наследованием)
     """
 
     current_price = serializers.SerializerMethodField()
     color_hex = serializers.SerializerMethodField()
     is_in_stock = serializers.BooleanField(read_only=True)
     available_quantity = serializers.IntegerField(read_only=True)
+    attributes = serializers.SerializerMethodField()
 
     class Meta:
         model = ProductVariant
@@ -55,6 +79,7 @@ class ProductVariantSerializer(serializers.ModelSerializer):
             "available_quantity",
             "main_image",
             "gallery_images",
+            "attributes",
         ]
         read_only_fields = fields  # Все поля read-only
 
@@ -94,6 +119,49 @@ class ProductVariantSerializer(serializers.ModelSerializer):
             }
 
         return self._color_mapping_cache.get(obj.color_name)
+
+    def get_attributes(self, obj: ProductVariant) -> list[dict[str, Any]]:
+        """
+        Получить атрибуты варианта с наследованием от продукта
+
+        Логика наследования:
+        1. Получаем атрибуты продукта
+        2. Получаем атрибуты варианта
+        3. Объединяем: если вариант имеет значение атрибута,
+           оно переопределяет значение продукта
+        4. Возвращаем комбинированный список
+
+        Args:
+            obj: ProductVariant instance
+
+        Returns:
+            list[dict]: Список атрибутов с полями name, value, slug, type
+        """
+        # Словарь для хранения атрибутов (ключ = attribute_id)
+        attributes_dict: dict[int, AttributeValue] = {}
+
+        # 1. Добавляем атрибуты продукта (базовые значения)
+        if hasattr(obj.product, "prefetched_attributes"):
+            # Используем prefetched данные если доступны
+            for attr_value in obj.product.prefetched_attributes:
+                attributes_dict[attr_value.attribute_id] = attr_value
+        else:
+            # Fallback на прямой запрос
+            for attr_value in obj.product.attributes.select_related("attribute").all():
+                attributes_dict[attr_value.attribute_id] = attr_value
+
+        # 2. Переопределяем атрибутами варианта (приоритет выше)
+        if hasattr(obj, "prefetched_attributes"):
+            # Используем prefetched данные если доступны
+            for attr_value in obj.prefetched_attributes:
+                attributes_dict[attr_value.attribute_id] = attr_value
+        else:
+            # Fallback на прямой запрос
+            for attr_value in obj.attributes.select_related("attribute").all():
+                attributes_dict[attr_value.attribute_id] = attr_value
+
+        # 3. Сериализуем объединенный список
+        return AttributeValueSerializer(list(attributes_dict.values()), many=True).data
 
 
 class ProductImageSerializer(serializers.ModelSerializer):
@@ -215,12 +283,14 @@ class ProductListSerializer(serializers.ModelSerializer):
 
     Примечание: Product - это базовая модель товара без цен и остатков.
     Цены и остатки хранятся в ProductVariant.
-    Для получения вариантов используйте вложенное поле 'variants' в ProductDetailSerializer.
+    Для получения вариантов используйте вложенное поле 'variants'
+    в ProductDetailSerializer.
     """
 
     brand = BrandSerializer(read_only=True)
     category: Any = serializers.StringRelatedField(read_only=True)
     specifications = serializers.JSONField(read_only=True)
+    attributes = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
@@ -243,6 +313,7 @@ class ProductListSerializer(serializers.ModelSerializer):
             "is_premium",
             "discount_percent",
             "created_at",
+            "attributes",
         ]
         read_only_fields = [
             "is_hit",
@@ -252,6 +323,25 @@ class ProductListSerializer(serializers.ModelSerializer):
             "is_premium",
             "discount_percent",
         ]
+
+    def get_attributes(self, obj: Product) -> list[dict[str, Any]]:
+        """
+        Получить атрибуты продукта
+
+        Args:
+            obj: Product instance
+
+        Returns:
+            list[dict]: Список атрибутов с полями name, value, slug, type
+        """
+        if hasattr(obj, "prefetched_attributes"):
+            # Используем prefetched данные если доступны
+            attr_values = obj.prefetched_attributes
+        else:
+            # Fallback на прямой запрос
+            attr_values = obj.attributes.select_related("attribute").all()
+
+        return AttributeValueSerializer(attr_values, many=True).data
 
 
 class ProductDetailSerializer(ProductListSerializer):
@@ -422,4 +512,3 @@ class AttributeFilterSerializer(serializers.ModelSerializer):
             List[dict]: Список значений атрибута
         """
         return AttributeValueFilterSerializer(obj.values.all(), many=True).data
-
