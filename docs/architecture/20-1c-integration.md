@@ -186,6 +186,7 @@ graph TD
 | `prices.xml` -> `<Цены>` | `retail_price`, `opt1_price` и т.д. | Цены мапятся на соответствующие поля. |
 | `rests.xml` -> `<Количество>` | `stock_quantity` | Остатки суммируются и записываются. |
 
+
 ### 4.2 Маппинг справочников
 
 | Файл-справочник | Модель в FREESPORT | Назначение |
@@ -194,8 +195,13 @@ graph TD
 | `priceLists.xml` | `PriceType` | Маппинг типов цен 1С на роли пользователей. |
 | `storages.xml` | `(не используется)` | Остатки агрегируются, детальная информация по складам игнорируется. |
 | `units.xml` | `Unit` | Единицы измерения. |
-| `propertiesGoods/` | `Attribute`, `AttributeValue`, `Brand` | Создание атрибутов и **определение бренда** (если он задан как свойство). |
-| `propertiesOffers/` | `Attribute`, `AttributeValue` | Создание атрибутов для SKU. |
+| `propertiesGoods/` | `Attribute`, `AttributeValue`, `Attribute1CMapping`, `AttributeValue1CMapping`, `Brand` | Создание атрибутов с дедупликацией и **определение бренда** (если он задан как свойство). |
+| `propertiesOffers/` | `Attribute`, `AttributeValue`, `Attribute1CMapping`, `AttributeValue1CMapping` | Создание атрибутов для SKU с дедупликацией. |
+
+> **Дедупликация атрибутов (Story 14.3):**  
+> При импорте атрибутов из 1С применяется нормализация названий (lowercase, удаление пробелов).  
+> Атрибуты с одинаковыми `normalized_name` объединяются в единую master-сущность.  
+> Все оригинальные `onec_id` сохраняются в таблице маппингов (`Attribute1CMapping`, `AttributeValue1CMapping`). |
 
 ### 4.3 Маппинг покупателей (`contragents.xml`)
 

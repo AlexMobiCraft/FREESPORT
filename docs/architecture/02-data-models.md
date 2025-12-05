@@ -247,11 +247,78 @@ class OrderItem(models.Model):
     # Количество и цены
     quantity = models.PositiveIntegerField()
     unit_price = models.DecimalField(max_digits=10, decimal_places=2)
-    total_price = models.DecimalField(max_digits=12, decimal_places=2)
-    
     # Интеграция с 1С
     onec_product_id = models.CharField(max_length=50, blank=True)
 ```
+
+### Модели атрибутов и дедупликации (Story 14.3)
+
+```python
+class Attribute(models.Model):
+    """
+    Атрибут товара (цвет, размер и т.д.) с поддержкой дедупликации
+    """
+    name = models.CharField(max_length=255)
+    slug = models.SlugField(max_length=255, unique=True)
+    normalized_name = models.CharField(max_length=255, unique=True, db_index=True)
+    is_active = models.BooleanField(default=False)  # По умолчанию неактивен
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def save(self, *args, **kwargs):
+        # Автоматическое вычисление normalized_name
+        from apps.products.utils import normalize_attribute_name
+        self.normalized_name = normalize_attribute_name(self.name)
+        super().save(*args, **kwargs)
+
+class AttributeValue(models.Model):
+    """
+    Значение атрибута с дедупликацией
+    """
+    attribute = models.ForeignKey(Attribute, on_delete=models.CASCADE, related_name='values')
+    value = models.CharField(max_length=255)
+    slug = models.SlugField(max_length=255)
+    normalized_value = models.CharField(max_length=255, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['attribute', 'normalized_value'],
+                name='unique_attribute_normalized_value'
+            )
+        ]
+
+class Attribute1CMapping(models.Model):
+    """
+    Маппинг атрибутов на ID из 1С для дедупликации
+    """
+    attribute = models.ForeignKey(Attribute, on_delete=models.CASCADE, related_name='onec_mappings')
+    onec_id = models.CharField(max_length=255, unique=True, db_index=True)
+    onec_name = models.CharField(max_length=255)  # Оригинальное название из 1С
+    source = models.CharField(max_length=10, choices=[('goods', 'Goods'), ('offers', 'Offers')])
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'product_attribute_1c_mappings'
+        verbose_name = 'Маппинг атрибута 1С'
+
+class AttributeValue1CMapping(models.Model):
+    """
+    Маппинг значений атрибутов на ID из 1С
+    """
+    attribute_value = models.ForeignKey(AttributeValue, on_delete=models.CASCADE, related_name='onec_mappings')
+    onec_id = models.CharField(max_length=255, unique=True, db_index=True)
+    onec_value = models.CharField(max_length=255)  # Оригинальное значение из 1С
+    source = models.CharField(max_length=10, choices=[('goods', 'Goods'), ('offers', 'Offers')])
+    created_at = models.DateTimeField(auto_now_add=True)
+```
+
+**Архитектурные особенности дедупликации:**
+
+- **Master Attribute**: Единый атрибут на платформе = одно уникальное `normalized_name`
+- **1C ID Mapping**: Множество ID из 1С (из разных источников goods/offers) связаны с одним master-атрибутом
+- **Флаг активности**: `is_active=False` по умолчанию, требует ручной активации через Django Admin
+- **Нормализация**: lowercase + удаление пробелов и спецсимволов для определения "одинаковости"
 
 ### Модели интеграции с 1С
 
@@ -366,7 +433,7 @@ class SyncConflict(models.Model):
 
 ### Обновленная диаграмма связей
 
-Диаграмма связей обновлена для включения новых моделей интеграции с 1С:
+Диаграмма связей обновлена для включения новых моделей интеграции с 1С и дедупликации атрибутов:
 
 ```mermaid
 erDiagram
@@ -390,4 +457,9 @@ erDiagram
     
     ImportLog ||--o{ CustomerSyncLog : tracks
     SyncConflict }|--|| CustomerSyncLog : resolves
+    
+    Attribute ||--o{ AttributeValue : has_values
+    Attribute ||--o{ Attribute1CMapping : "1C mappings"
+    AttributeValue ||--o{ AttributeValue1CMapping : "1C mappings"
 ```
+

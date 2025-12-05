@@ -148,6 +148,31 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProductDetail'
 
+  # Catalog Filters (Story 14.3)
+  /catalog/filters/:
+    get:
+      tags: [Catalog Filters]
+      summary: Получение списка атрибутов для фильтрации товаров
+      description: |
+        Возвращает активные атрибуты с их значениями для построения UI фильтров в каталоге.
+        Staff users могут использовать include_inactive=true для просмотра всех атрибутов.
+      parameters:
+        - name: include_inactive
+          in: query
+          description: Включить неактивные атрибуты (только для staff users)
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Список атрибутов для фильтрации
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AttributeFilter'
+
   # Cart Management
   /cart/:
     get:
@@ -679,6 +704,38 @@ components:
             federation_price:
               type: number
 
+    # Catalog Filter Schemas (Story 14.3)
+    AttributeFilter:
+      type: object
+      description: Атрибут для фильтрации товаров в каталоге
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+          description: Название атрибута
+        slug:
+          type: string
+          description: URL-совместимый идентификатор
+        values:
+          type: array
+          description: Список значений атрибута
+          items:
+            $ref: '#/components/schemas/AttributeValueFilter'
+
+    AttributeValueFilter:
+      type: object
+      description: Значение атрибута для фильтра
+      properties:
+        id:
+          type: integer
+        value:
+          type: string
+          description: Отображаемое значение
+        slug:
+          type: string
+          description: URL-совместимый идентификатор значения
+
     # 1C Integration Schemas
     Customer1C:
       type: object
@@ -1084,4 +1141,4 @@ components:
 - Статусу синхронизации (`sync_status`, `export_status`)
 - Типу операции (`operation_type`, `conflict_type`)
 - Статусу разрешения (`is_resolved`)
-
+

@@ -230,6 +230,8 @@ class VariantImportProcessor:
             "images_copied": 0,
             "images_skipped": 0,
             "images_errors": 0,
+            "attributes_linked": 0,
+            "attributes_missing": 0,
         }
 
         # Кэш для оптимизации поиска
@@ -620,6 +622,18 @@ class VariantImportProcessor:
             if images:
                 self._import_variant_images(variant, images, base_dir)
 
+        # Story 14.4: Связывание атрибутов с ProductVariant (offers.xml)
+        characteristics = offer_data.get("characteristics", [])
+        if characteristics:
+            try:
+                self._link_variant_attributes(variant, characteristics)
+            except Exception as attr_error:
+                logger.error(
+                    f"Error linking attributes for variant {variant.onec_id}: "
+                    f"{attr_error}"
+                )
+                self.stats["errors"] += 1
+
         self.stats["variants_updated"] += 1
         logger.info(f"ProductVariant updated: {variant.onec_id}")
         return variant
@@ -690,6 +704,18 @@ class VariantImportProcessor:
                 images = offer_data.get("images", [])
                 if images:
                     self._import_variant_images(variant, images, base_dir)
+
+            # Story 14.4: Связывание атрибутов с ProductVariant (offers.xml)
+            characteristics = offer_data.get("characteristics", [])
+            if characteristics:
+                try:
+                    self._link_variant_attributes(variant, characteristics)
+                except Exception as attr_error:
+                    logger.error(
+                        f"Error linking attributes for new variant {variant.onec_id}: "
+                        f"{attr_error}"
+                    )
+                    self.stats["errors"] += 1
 
             return variant
 
@@ -948,6 +974,109 @@ class VariantImportProcessor:
         except Exception as e:
             self._log_error(f"Error updating variant stock: {e}", rest_data)
             return False
+
+    # ========================================================================
+    # Story 14.4: Link attributes to ProductVariant
+    # ========================================================================
+
+    def _link_variant_attributes(
+        self, variant: Any, characteristics: list[dict[str, str]]
+    ) -> None:
+        """
+        Связывание атрибутов с ProductVariant по normalized name/value (offers.xml).
+
+        Args:
+            variant: ProductVariant instance для связывания атрибутов
+            characteristics: Список словарей {name, value} из offers.xml
+
+        Behavior:
+            - Search Attribute by normalized_name (NO is_active filter - Variant C)
+            - Search AttributeValue by attribute + normalized_value
+            - Create AttributeValue on-the-fly if missing (AC3)
+            - Handle slug uniqueness for on-the-fly values
+            - Update stats: attributes_linked, attributes_missing
+        """
+        from apps.products.models import Attribute, AttributeValue
+        from apps.products.utils.attributes import (
+            normalize_attribute_name,
+            normalize_attribute_value,
+        )
+
+        if not characteristics:
+            return
+
+        attribute_values_to_link = []
+
+        for char in characteristics:
+            char_name = char.get("name", "").strip()
+            char_value = char.get("value", "").strip()
+
+            if not char_name or not char_value:
+                continue
+
+            # Нормализация для поиска
+            normalized_name = normalize_attribute_name(char_name)
+            normalized_value = normalize_attribute_value(char_value)
+
+            # Поиск Attribute по normalized_name (БЕЗ фильтрации по is_active)
+            attribute = Attribute.objects.filter(
+                normalized_name=normalized_name
+            ).first()
+
+            if not attribute:
+                logger.warning(
+                    f"Attribute not found for normalized_name='{normalized_name}' "
+                    f"(original: '{char_name}'), variant={variant.onec_id}, "
+                    f"skipping attribute linkage"
+                )
+                self.stats["attributes_missing"] += 1
+                continue
+
+            # Поиск AttributeValue по attribute + normalized_value
+            attribute_value = AttributeValue.objects.filter(
+                attribute=attribute,
+                normalized_value=normalized_value,
+            ).first()
+
+            if not attribute_value:
+                # AC3: Create AttributeValue on-the-fly
+                try:
+                    from transliterate import translit
+
+                    transliterated = translit(char_value, "ru", reversed=True)
+                    base_slug = slugify(transliterated)
+                except (RuntimeError, ImportError):
+                    base_slug = slugify(char_value)
+
+                if not base_slug:
+                    base_slug = f"value-{normalized_value[:20]}"
+
+                # Обеспечиваем уникальность slug
+                slug = base_slug
+                counter = 1
+                while AttributeValue.objects.filter(slug=slug).exists():
+                    slug = f"{base_slug}-{counter}"
+                    counter += 1
+
+                attribute_value = AttributeValue.objects.create(
+                    attribute=attribute,
+                    value=char_value,
+                    slug=slug,
+                    normalized_value=normalized_value,
+                )
+
+                logger.info(
+                    f"Created AttributeValue on-the-fly: "
+                    f"{attribute.name}='{char_value}' (slug={slug}), "
+                    f"variant={variant.onec_id}"
+                )
+
+            attribute_values_to_link.append(attribute_value)
+            self.stats["attributes_linked"] += 1
+
+        # Bulk link через set()
+        if attribute_values_to_link:
+            variant.attributes.set(attribute_values_to_link)
 
     # ========================================================================
     # Helper methods

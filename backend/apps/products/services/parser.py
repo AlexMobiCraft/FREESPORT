@@ -14,6 +14,13 @@ from django.conf import settings
 logger = logging.getLogger(__name__)
 
 
+class PropertyValueData(TypedDict):
+    """Данные значения свойства из goods.xml"""
+
+    property_id: str  # GUID атрибута (Ид)
+    value_id: str  # GUID значения атрибута (Значение)
+
+
 class GoodsData(TypedDict, total=False):
     id: str
     name: str
@@ -23,6 +30,7 @@ class GoodsData(TypedDict, total=False):
     category_name: str
     brand_id: str
     images: list[str]
+    property_values: list[PropertyValueData]  # Значения свойств товара
 
 
 class OfferCharacteristic(TypedDict):
@@ -235,24 +243,41 @@ class XMLDataParser:
                 if category_name:
                     goods_data["category_name"] = category_name
 
-            # Извлечение ID бренда из ЗначенияСвойств
+            # Извлечение ID бренда и значений свойств из ЗначенияСвойств
             properties_values_element = self._find_child(
                 product_element, "ЗначенияСвойств"
             )
+            property_values_list: list[PropertyValueData] = []
+
             if properties_values_element is not None:
                 for property_value in self._find_children(
                     properties_values_element, "ЗначенияСвойства"
                 ):
                     property_id = self._find_text(property_value, "Ид")
+                    value_id = self._find_text(property_value, "Значение")
+
                     # Свойство "Бренд" имеет Ид="Бренд"
                     if property_id == "Бренд":
-                        brand_id = self._find_text(property_value, "Значение")
                         if (
-                            brand_id
-                            and brand_id != "00000000-0000-0000-0000-000000000000"
+                            value_id
+                            and value_id != "00000000-0000-0000-0000-000000000000"
                         ):
-                            goods_data["brand_id"] = brand_id
-                        break
+                            goods_data["brand_id"] = value_id
+
+                    # Собираем все свойства (включая бренд) для связывания атрибутов
+                    # Фильтруем пустые GUID значения (AC: Task 1.4)
+                    if (
+                        property_id
+                        and value_id
+                        and value_id != "00000000-0000-0000-0000-000000000000"
+                    ):
+                        property_values_list.append({
+                            "property_id": property_id,
+                            "value_id": value_id,
+                        })
+
+            if property_values_list:
+                goods_data["property_values"] = property_values_list
 
             # Извлечение и валидация путей изображений с дедупликацией
             image_elements = product_element.findall(".//Картинка")

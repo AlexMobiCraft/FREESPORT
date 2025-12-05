@@ -17,6 +17,8 @@ from django.utils import timezone
 from django.utils.text import slugify
 
 from apps.products.models import (
+    Attribute1CMapping,
+    AttributeValue1CMapping,
     Brand,
     Brand1CMapping,
     Category,
@@ -31,6 +33,7 @@ from apps.products.services.parser import (
     OfferData,
     PriceData,
     PriceTypeData,
+    PropertyValueData,
     RestData,
 )
 
@@ -72,6 +75,8 @@ class ProductDataProcessor:
             "images_copied": 0,
             "images_skipped": 0,
             "images_errors": 0,
+            "attributes_linked": 0,
+            "attributes_missing_mapping": 0,
         }
         self._stock_buffer: dict[str, int] = {}
         self._missing_products_logged: set[str] = set()
@@ -174,6 +179,20 @@ class ProductDataProcessor:
                         # статистике
                         self.stats["errors"] += 1
 
+                # Story 14.4: Связывание атрибутов с Product (goods.xml)
+                if "property_values" in goods_data:
+                    try:
+                        self._link_product_attributes(
+                            product=existing,
+                            property_values=goods_data["property_values"],
+                        )
+                    except Exception as attr_error:
+                        logger.error(
+                            f"Error linking attributes for existing product "
+                            f"{existing.onec_id}: {attr_error}"
+                        )
+                        self.stats["errors"] += 1
+
                 self.stats["updated"] += 1
                 return existing
 
@@ -255,10 +274,8 @@ class ProductDataProcessor:
                 description=description_text,
                 brand=brand,
                 category=category,
-                retail_price=Decimal("0.00"),  # Будет обновлено из prices.xml
                 is_active=False,  # Неактивен до обогащения данными
                 sync_status=Product.SyncStatus.PENDING,
-                main_image=self.DEFAULT_PLACEHOLDER_IMAGE,
             )
             try:
                 product.save()
@@ -287,6 +304,20 @@ class ProductDataProcessor:
                         )
                         # Не прерываем процесс, а продолжаем с ошибкой в
                         # статистике
+                        self.stats["errors"] += 1
+
+                # Story 14.4: Связывание атрибутов с Product (goods.xml)
+                if "property_values" in goods_data:
+                    try:
+                        self._link_product_attributes(
+                            product=product,
+                            property_values=goods_data["property_values"],
+                        )
+                    except Exception as attr_error:
+                        logger.error(
+                            f"Error linking attributes for product "
+                            f"{product.onec_id}: {attr_error}"
+                        )
                         self.stats["errors"] += 1
 
                 return product
@@ -342,6 +373,57 @@ class ProductDataProcessor:
             name="No Brand", defaults={"slug": "no-brand", "is_active": True}
         )
         return brand
+
+    def _link_product_attributes(
+        self, product: Product, property_values: list[PropertyValueData]
+    ) -> None:
+        """
+        Связывание атрибутов с Product через AttributeValue1CMapping (goods.xml).
+
+        Args:
+            product: Product instance для связывания атрибутов
+            property_values: Список словарей с property_id и value_id из goods.xml
+
+        Behavior:
+            - Lookup AttributeValue via AttributeValue1CMapping.onec_id
+            - Link ALL attributes (active and inactive) - NO is_active filter
+            - Use select_related() for query optimization
+            - Update stats: attributes_linked, attributes_missing_mapping
+        """
+        if not property_values:
+            return
+
+        # Извлекаем все value_id для batch lookup
+        value_ids = [pv["value_id"] for pv in property_values]
+
+        # Batch lookup через AttributeValue1CMapping с select_related
+        mappings = AttributeValue1CMapping.objects.filter(
+            onec_id__in=value_ids
+        ).select_related("attribute_value", "attribute_value__attribute")
+
+        # Создаем маппинг onec_id -> AttributeValue для быстрого поиска
+        value_mapping = {m.onec_id: m.attribute_value for m in mappings}
+
+        # Собираем AttributeValue для связывания (bulk operation)
+        attribute_values_to_link = []
+        for pv in property_values:
+            value_id = pv["value_id"]
+            attribute_value = value_mapping.get(value_id)
+
+            if attribute_value:
+                attribute_values_to_link.append(attribute_value)
+                self.stats["attributes_linked"] += 1
+            else:
+                # Маппинг не найден - логируем warning
+                logger.warning(
+                    f"AttributeValue1CMapping not found for onec_id={value_id}, "
+                    f"product={product.onec_id}, skipping attribute linkage"
+                )
+                self.stats["attributes_missing_mapping"] += 1
+
+        # Bulk link через set() для производительности
+        if attribute_values_to_link:
+            product.attributes.set(attribute_values_to_link)
 
     def enrich_product_from_offer(self, offer_data: OfferData) -> bool:
         """

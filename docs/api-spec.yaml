@@ -47,6 +47,8 @@ tags:
     description: Заказы и их обработка
   - name: Search
     description: Поиск и фильтрация товаров
+  - name: Catalog Filters
+    description: Фильтры каталога и атрибуты товаров (Story 14.3)
   - name: Pages
     description: Статические страницы и контент
 
@@ -521,6 +523,36 @@ paths:
           description: Доступ запрещен
         '404':
           description: Заказ не найден
+
+  # =============================================================================
+  # CATALOG FILTERS (Story 14.3)
+  # =============================================================================
+  /catalog/filters/:
+    get:
+      tags: [Catalog Filters]
+      summary: Получение списка атрибутов для фильтрации товаров
+      description: |
+        Возвращает активные атрибуты с их значениями для построения UI фильтров в каталоге.
+        По умолчанию возвращаются только активные атрибуты (is_active=True).
+        Staff users могут использовать параметр include_inactive=true для просмотра всех атрибутов.
+      parameters:
+        - name: include_inactive
+          in: query
+          description: |
+            Включить неактивные атрибуты в ответ.
+            Доступно только для staff users. Для обычных пользователей параметр игнорируется.
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Список атрибутов для фильтрации
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AttributeFilter'
 
   # =============================================================================
   # PAGES
@@ -1186,6 +1218,48 @@ components:
         postal_code:
           type: string
           pattern: '^\d{6}$'
+
+    # Catalog Filter Schemas (Story 14.3)
+    AttributeFilter:
+      type: object
+      description: Атрибут для фильтрации товаров в каталоге
+      properties:
+        id:
+          type: integer
+          description: ID атрибута
+        name:
+          type: string
+          description: Название атрибута
+          example: "Размер"
+        slug:
+          type: string
+          description: URL-совместимый идентификатор атрибута
+          example: "razmer"
+        is_active:
+          type: boolean
+          description: Активен ли атрибут (отображается в каталоге)
+          example: true
+        values:
+          type: array
+          description: Список значений атрибута для фильтрации
+          items:
+            $ref: '#/components/schemas/AttributeValueFilter'
+
+    AttributeValueFilter:
+      type: object
+      description: Значение атрибута для фильтра
+      properties:
+        id:
+          type: integer
+          description: ID значения атрибута
+        value:
+          type: string
+          description: Отображаемое значение
+          example: "Красный"
+        slug:
+          type: string
+          description: URL-совместимый идентификатор значения
+          example: "krasnyj"
 
     # Common Schemas
     Error:
