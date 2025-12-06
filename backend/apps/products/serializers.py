@@ -358,33 +358,33 @@ class ProductListSerializer(serializers.ModelSerializer):
         # Fallback на прямой запрос
         return obj.variants.order_by("retail_price").first()
 
-    def get_retail_price(self, obj: Product) -> float | None:
+    def get_retail_price(self, obj: Product) -> float:
         """Получить розничную цену из первого варианта"""
         variant = self._get_first_variant(obj)
         if variant:
             return float(variant.retail_price)
-        return None
+        return 0.0
 
-    def get_opt1_price(self, obj: Product) -> float | None:
+    def get_opt1_price(self, obj: Product) -> float:
         """Получить оптовую цену уровня 1 из первого варианта"""
         variant = self._get_first_variant(obj)
         if variant and variant.opt1_price:
             return float(variant.opt1_price)
-        return None
+        return 0.0
 
-    def get_opt2_price(self, obj: Product) -> float | None:
+    def get_opt2_price(self, obj: Product) -> float:
         """Получить оптовую цену уровня 2 из первого варианта"""
         variant = self._get_first_variant(obj)
         if variant and variant.opt2_price:
             return float(variant.opt2_price)
-        return None
+        return 0.0
 
-    def get_opt3_price(self, obj: Product) -> float | None:
+    def get_opt3_price(self, obj: Product) -> float:
         """Получить оптовую цену уровня 3 из первого варианта"""
         variant = self._get_first_variant(obj)
         if variant and variant.opt3_price:
             return float(variant.opt3_price)
-        return None
+        return 0.0
 
     def get_stock_quantity(self, obj: Product) -> int:
         """Получить суммарное количество на складе по всем вариантам"""
