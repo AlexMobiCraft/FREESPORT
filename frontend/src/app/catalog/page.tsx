@@ -14,6 +14,8 @@ import productsService, { type ProductFilters } from '@/services/productsService
 import categoriesService from '@/services/categoriesService';
 import brandsService from '@/services/brandsService';
 import type { Product, CategoryTree as CategoryTreeResponse, Brand } from '@/types/api';
+import { useCartStore } from '@/stores/cartStore';
+import { useToast } from '@/components/ui/Toast';
 
 type PriceRange = {
   min: number;
@@ -345,6 +347,10 @@ const CatalogContent: React.FC = () => {
   const [productsError, setProductsError] = useState<string | null>(null);
   const [inStock, setInStock] = useState(true); // По умолчанию показываем только товары в наличии
 
+  // Cart integration
+  const { addItem } = useCartStore();
+  const { success, error: toastError } = useToast();
+
   const activePathNodes = useMemo(() => {
     if (!activeCategoryId) {
       return [] as CategoryNode[];
@@ -568,6 +574,56 @@ const CatalogContent: React.FC = () => {
     return Array.from({ length: MAX_VISIBLE_PAGES }, (_, index) => startPage + index);
   }, [page, totalPages]);
 
+  /**
+   * Обработчик добавления товара в корзину
+   *
+   * ВАЖНО: Список товаров не содержит variants (оптимизация API).
+   * Поэтому сначала запрашиваем детали товара для получения вариантов.
+   * Автоматически выбираем первый доступный вариант.
+   *
+   * TODO: В будущем добавить модальное окно для выбора конкретного варианта
+   */
+  const handleAddToCart = useCallback(
+    async (productId: number) => {
+      const product = products.find(p => p.id === productId);
+      if (!product) {
+        toastError('Товар не найден');
+        return;
+      }
+
+      try {
+        // Запрашиваем детали товара для получения вариантов
+        const productDetail = await productsService.getProductBySlug(product.slug);
+
+        if (!productDetail.variants || productDetail.variants.length === 0) {
+          toastError('У товара отсутствуют варианты для заказа');
+          return;
+        }
+
+        // Выбираем первый доступный вариант
+        const availableVariant = productDetail.variants.find(v => v.is_in_stock);
+
+        if (!availableVariant) {
+          toastError('К сожалению, выбранный товар недоступен');
+          return;
+        }
+
+        // Добавляем в корзину
+        const result = await addItem(availableVariant.id, 1);
+
+        if (result.success) {
+          success(`${product.name} добавлен в корзину`);
+        } else {
+          toastError(result.error || 'Ошибка при добавлении в корзину');
+        }
+      } catch (error) {
+        console.error('Error adding to cart:', error);
+        toastError('Не удалось добавить товар в корзину');
+      }
+    },
+    [products, addItem, success, toastError]
+  );
+
   const renderProducts = () => {
     if (isProductsLoading) {
       return (
@@ -591,7 +647,12 @@ const CatalogContent: React.FC = () => {
       return (
         <div className="space-y-4">
           {products.map(product => (
-            <BusinessProductCard key={product.id} product={product} layout="list" />
+            <BusinessProductCard
+              key={product.id}
+              product={product}
+              layout="list"
+              onAddToCart={handleAddToCart}
+            />
           ))}
         </div>
       );
@@ -600,7 +661,12 @@ const CatalogContent: React.FC = () => {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {products.map(product => (
-          <BusinessProductCard key={product.id} product={product} layout="grid" />
+          <BusinessProductCard
+            key={product.id}
+            product={product}
+            layout="grid"
+            onAddToCart={handleAddToCart}
+          />
         ))}
       </div>
     );

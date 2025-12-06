@@ -240,6 +240,24 @@ export interface ProductCategory {
   breadcrumbs: string[];
 }
 
+/**
+ * ProductVariant интерфейс (Story 13.x)
+ * Представляет вариант товара с конкретными характеристиками
+ */
+export interface ProductVariant {
+  id: number;
+  sku: string;
+  color_name?: string | null;
+  size_value?: string | null;
+  current_price: string; // Decimal as string
+  color_hex?: string | null;
+  stock_quantity: number;
+  is_in_stock: boolean;
+  available_quantity: number;
+  main_image?: string | null;
+  gallery_images?: string[];
+}
+
 export interface ProductDetail {
   id: number;
   slug: string;
@@ -257,4 +275,6 @@ export interface ProductDetail {
   category: ProductCategory;
   is_in_stock: boolean;
   can_be_ordered: boolean;
+  /** Варианты товара (Story 13.x) */
+  variants?: ProductVariant[];
 }
