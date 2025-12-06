@@ -99,7 +99,9 @@ class CartItemViewSet(viewsets.ModelViewSet):
         if self.request.user.is_authenticated:
             try:
                 cart = Cart.objects.get(user=self.request.user)
-                return CartItem.objects.filter(cart=cart).select_related("product")
+                return CartItem.objects.filter(cart=cart).select_related(
+                    "variant__product"
+                )
             except Cart.DoesNotExist:
                 return CartItem.objects.none()
         else:
@@ -107,7 +109,9 @@ class CartItemViewSet(viewsets.ModelViewSet):
             if session_key:
                 try:
                     cart = Cart.objects.get(session_key=session_key)
-                    return CartItem.objects.filter(cart=cart).select_related("product")
+                    return CartItem.objects.filter(cart=cart).select_related(
+                        "variant__product"
+                    )
                 except Cart.DoesNotExist:
                     return CartItem.objects.none()
             return CartItem.objects.none()
@@ -132,21 +136,35 @@ class CartItemViewSet(viewsets.ModelViewSet):
         return cart
 
     def perform_create(self, serializer):
-        """Добавить товар в корзину с логикой объединения"""
+        """Добавить вариант товара в корзину с логикой объединения"""
+        from apps.products.models import ProductVariant
+
         cart = self.get_or_create_cart()
-        product = serializer.validated_data["product"]
+        variant_id = serializer.validated_data["variant_id"]
         quantity = serializer.validated_data["quantity"]
 
-        # Проверяем, есть ли уже такой товар в корзине
+        # Получаем вариант товара
+        variant = ProductVariant.objects.select_related("product").get(pk=variant_id)
+
+        # Получаем цену для текущего пользователя
+        user = self.request.user if self.request.user.is_authenticated else None
+        price = variant.get_price_for_user(user)
+
+        # Проверяем, есть ли уже такой вариант в корзине
         try:
-            cart_item = CartItem.objects.get(cart=cart, product=product)
+            cart_item = CartItem.objects.get(cart=cart, variant=variant)
             # Если есть, увеличиваем количество
             cart_item.quantity += quantity
             cart_item.save()
             self.cart_item = cart_item
         except CartItem.DoesNotExist:
-            # Если нет, создаем новый элемент
-            self.cart_item = serializer.save(cart=cart)
+            # Если нет, создаем новый элемент с снимком цены
+            self.cart_item = CartItem.objects.create(
+                cart=cart,
+                variant=variant,
+                quantity=quantity,
+                price_snapshot=price,
+            )
 
     @extend_schema(
         summary="Список товаров в корзине",
@@ -172,9 +190,9 @@ class CartItemViewSet(viewsets.ModelViewSet):
         return super().retrieve(request, *args, **kwargs)
 
     @extend_schema(
-        summary="Добавить товар в корзину",
-        description="Добавление товара в корзину с автоматическим "
-        "объединением одинаковых товаров",
+        summary="Добавить вариант товара в корзину",
+        description="Добавление варианта товара (variant_id) в корзину с автоматическим "
+        "объединением одинаковых вариантов. Цена фиксируется в момент добавления.",
         tags=["Cart Items"],
     )
     def create(self, request, *args, **kwargs):

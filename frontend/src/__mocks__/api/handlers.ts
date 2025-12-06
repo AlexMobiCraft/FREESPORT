@@ -512,6 +512,87 @@ export const handlers = [
     // 404 для несуществующего товара
     return HttpResponse.json({ detail: 'Product not found' }, { status: 404 });
   }),
+
+  // Story 12.3: Cart API endpoints
+  http.get(`${API_BASE_URL}/cart/`, () => {
+    return HttpResponse.json({
+      id: 1,
+      items: [],
+      total_amount: 0,
+      promo_code: null,
+      discount_amount: 0,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+  }),
+
+  http.post(`${API_BASE_URL}/cart/items/`, async ({ request }) => {
+    const body = (await request.json()) as { variant_id: number; quantity: number };
+    return HttpResponse.json(
+      {
+        id: Date.now(),
+        variant_id: body.variant_id,
+        product: {
+          id: 1,
+          name: 'Test Product',
+          slug: 'test-product',
+          image: '/test.jpg',
+        },
+        variant: {
+          sku: 'TEST-SKU-001',
+          color_name: 'Красный',
+          size_value: 'L',
+        },
+        quantity: body.quantity,
+        unit_price: '2500.00',
+        total_price: (2500 * body.quantity).toFixed(2),
+        added_at: new Date().toISOString(),
+      },
+      { status: 201 }
+    );
+  }),
+
+  http.patch(`${API_BASE_URL}/cart/items/:id/`, async ({ params, request }) => {
+    const body = (await request.json()) as { quantity: number };
+    return HttpResponse.json({
+      id: Number(params.id),
+      variant_id: 101,
+      product: {
+        id: 1,
+        name: 'Test Product',
+        slug: 'test-product',
+        image: '/test.jpg',
+      },
+      variant: {
+        sku: 'TEST-SKU-001',
+        color_name: 'Красный',
+        size_value: 'L',
+      },
+      quantity: body.quantity,
+      unit_price: '2500.00',
+      total_price: (2500 * body.quantity).toFixed(2),
+      added_at: new Date().toISOString(),
+    });
+  }),
+
+  http.delete(`${API_BASE_URL}/cart/items/:id/`, () => {
+    return new HttpResponse(null, { status: 204 });
+  }),
+
+  http.delete(`${API_BASE_URL}/cart/clear/`, () => {
+    return new HttpResponse(null, { status: 204 });
+  }),
+
+  http.post(`${API_BASE_URL}/cart/apply-promo/`, async ({ request }) => {
+    const body = (await request.json()) as { code: string };
+    return HttpResponse.json({
+      id: 1,
+      items: [],
+      total_amount: 0,
+      promo_code: body.code,
+      discount_amount: 100,
+    });
+  }),
 ];
 
 /**

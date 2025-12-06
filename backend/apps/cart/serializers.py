@@ -12,108 +12,118 @@ from rest_framework import serializers
 from .models import Cart, CartItem
 
 if TYPE_CHECKING:
-    from apps.products.models import Product
+    from apps.products.models import ProductVariant
 
 User = get_user_model()
 
 
 class CartItemSerializer(serializers.ModelSerializer):
     """
-    Serializer для элемента корзины с ценовой информацией
+    Serializer для элемента корзины с ценовой информацией.
+    Работает с ProductVariant вместо Product.
     """
 
-    product_name = serializers.CharField(source="product.name", read_only=True)
-    product_sku = serializers.CharField(source="product.sku", read_only=True)
-    product_image = serializers.SerializerMethodField()
+    # Информация о товаре и варианте
+    product = serializers.SerializerMethodField()
+    variant = serializers.SerializerMethodField()
+
+    # Цены
     unit_price = serializers.SerializerMethodField()
     total_price = serializers.ReadOnlyField()
-    # Добавляем вложенный объект продукта для совместимости с тестами
-    product = serializers.SerializerMethodField()
 
     class Meta:
         model = CartItem
         fields = [
             "id",
+            "variant_id",
             "product",
-            "product_name",
-            "product_sku",
-            "product_image",
+            "variant",
             "quantity",
             "unit_price",
             "total_price",
             "added_at",
         ]
-        read_only_fields = ["id", "added_at"]
-
-    def get_product_image(self, obj: CartItem) -> str | None:
-        """Получить URL изображения товара"""
-        if obj.product.main_image:
-            request = self.context.get("request")
-            if request and hasattr(request, "build_absolute_uri"):
-                return str(request.build_absolute_uri(obj.product.main_image.url))
-            return str(obj.product.main_image.url)
-        return None
-
-    def get_unit_price(self, obj: CartItem) -> str:
-        """Получить цену товара для пользователя корзины"""
-        user = obj.cart.user
-        price = obj.product.get_price_for_user(user)
-        return str(price)
+        read_only_fields = ["id", "added_at", "unit_price", "total_price"]
 
     def get_product(self, obj: CartItem) -> Dict[str, Any]:
-        """Получить информацию о продукте для совместимости с тестами"""
-        product = obj.product
-        user = obj.cart.user
+        """Получить информацию о товаре"""
+        product = obj.variant.product
 
-        data = {
+        # Получаем главное изображение
+        image_url = None
+        if obj.variant.effective_images:
+            request = self.context.get("request")
+            if request and hasattr(request, "build_absolute_uri"):
+                image_url = request.build_absolute_uri(obj.variant.effective_images[0])
+            else:
+                image_url = obj.variant.effective_images[0]
+
+        return {
             "id": product.id,
             "name": product.name,
-            "sku": product.sku,
-            "retail_price": str(product.retail_price),
+            "slug": product.slug,
+            "image": image_url,
         }
 
-        # Добавляем B2B цены если пользователь B2B
-        if user and hasattr(user, "is_b2b_user") and user.is_b2b_user:
-            if hasattr(product, "opt1_price") and product.opt1_price:
-                data["opt1_price"] = str(product.opt1_price)
-            if hasattr(product, "opt2_price") and product.opt2_price:
-                data["opt2_price"] = str(product.opt2_price)
-            if hasattr(product, "opt3_price") and product.opt3_price:
-                data["opt3_price"] = str(product.opt3_price)
+    def get_variant(self, obj: CartItem) -> Dict[str, Any]:
+        """Получить информацию о варианте"""
+        return {
+            "sku": obj.variant.sku,
+            "color_name": obj.variant.color_name,
+            "size_value": obj.variant.size_value,
+        }
 
-        return data
+    def get_unit_price(self, obj: CartItem) -> str:
+        """Получить цену из снимка"""
+        return str(obj.price_snapshot)
 
 
 class CartItemCreateSerializer(serializers.ModelSerializer):
     """
-    Serializer для создания элемента корзины
+    Serializer для создания элемента корзины.
+    Принимает variant_id вместо product_id.
     """
+
+    variant_id = serializers.IntegerField(write_only=True)
 
     class Meta:
         model = CartItem
-        fields = ["product", "quantity"]
+        fields = ["variant_id", "quantity"]
 
-    def validate_product(self, value: Product) -> Product:
-        """Валидация товара"""
-        if not value.is_active:
+    def validate_variant_id(self, value: int) -> int:
+        """Валидация варианта товара"""
+        from apps.products.models import ProductVariant
+
+        try:
+            variant = ProductVariant.objects.select_related("product").get(pk=value)
+        except ProductVariant.DoesNotExist:
+            raise serializers.ValidationError("Вариант товара не найден")
+
+        # Проверяем активность товара и варианта
+        if not variant.product.is_active:
             raise serializers.ValidationError("Товар неактивен")
+
+        if not variant.is_active:
+            raise serializers.ValidationError("Вариант товара неактивен")
+
         return value
 
-    def validate(self, attrs):
-        """Дополнительная валидация"""
-        product = attrs["product"]
+    def validate(self, attrs: Dict[str, Any]) -> Dict[str, Any]:
+        """Дополнительная валидация количества"""
+        from apps.products.models import ProductVariant
+
+        variant_id = attrs["variant_id"]
         quantity = attrs["quantity"]
 
-        # Проверяем наличие на складе
-        if quantity > product.stock_quantity:
-            raise serializers.ValidationError(
-                f"Недостаточно товара на складе. Доступно: {product.stock_quantity}"
-            )
+        # Получаем вариант для валидации
+        variant = ProductVariant.objects.select_related("product").get(pk=variant_id)
 
-        # Проверяем минимальное количество заказа
-        if quantity < product.min_order_quantity:
+        # Проверяем наличие на складе
+        if quantity > variant.stock_quantity:
             raise serializers.ValidationError(
-                f"Минимальное количество заказа: {product.min_order_quantity}"
+                {
+                    "quantity": f"Недостаточно товара на складе. Доступно: {variant.stock_quantity}"
+                }
             )
 
         return attrs
@@ -131,24 +141,25 @@ class CartItemUpdateSerializer(serializers.ModelSerializer):
         model = CartItem
         fields = ["quantity"]
 
-    def validate_quantity(self, value):
+    def validate_quantity(self, value: int) -> int:
         """Валидация количества"""
         if value < 1:
             raise serializers.ValidationError("Количество должно быть больше 0")
         return value
 
-    def validate(self, attrs):
+    def validate(self, attrs: Dict[str, Any]) -> Dict[str, Any]:
         """Валидация остатков на складе"""
         # Проверяем, что instance установлен
         if not self.instance:
             raise serializers.ValidationError("Элемент корзины не найден")
 
         quantity = attrs["quantity"]
-        product = self.instance.product
+        variant = self.instance.variant
 
-        if quantity > product.stock_quantity:
+        # Проверяем наличие на складе
+        if quantity > variant.stock_quantity:
             raise serializers.ValidationError(
-                f"Недостаточно товара на складе. Доступно: {product.stock_quantity}"
+                f"Недостаточно товара на складе. Доступно: {variant.stock_quantity}"
             )
 
         return attrs

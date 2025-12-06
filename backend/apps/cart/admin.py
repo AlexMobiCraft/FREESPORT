@@ -15,7 +15,7 @@ class CartItemInline(admin.TabularInline):
     model = CartItem
     extra = 0
     readonly_fields = ("total_price", "added_at", "updated_at")
-    fields = ("product", "quantity", "total_price", "added_at")
+    fields = ("variant", "quantity", "price_snapshot", "total_price", "added_at")
 
 
 @admin.register(Cart)
@@ -51,9 +51,21 @@ class CartItemAdmin(admin.ModelAdmin):
     Админ панель для элементов корзины
     """
 
-    list_display = ("id", "cart_user", "product", "quantity", "total_price", "added_at")
+    list_display = (
+        "id",
+        "cart_user",
+        "variant_display",
+        "quantity",
+        "price_snapshot",
+        "total_price",
+        "added_at",
+    )
     list_filter = ("added_at", "updated_at")
-    search_fields = ("product__name", "product__sku", "cart__user__email")
+    search_fields = (
+        "variant__product__name",
+        "variant__sku",
+        "cart__user__email",
+    )
     readonly_fields = ("total_price", "added_at", "updated_at")
 
     @admin.display(description="Владелец корзины")
@@ -62,3 +74,14 @@ class CartItemAdmin(admin.ModelAdmin):
         if obj.cart.user:
             return f"{obj.cart.user.email}"
         return f"Гость ({obj.cart.session_key[:10]}...)"
+
+    @admin.display(description="Вариант товара")
+    def variant_display(self, obj):
+        """Отображение варианта товара с характеристиками"""
+        variant_info = []
+        if obj.variant.color_name:
+            variant_info.append(obj.variant.color_name)
+        if obj.variant.size_value:
+            variant_info.append(obj.variant.size_value)
+        variant_str = f" ({', '.join(variant_info)})" if variant_info else ""
+        return f"{obj.variant.product.name}{variant_str}"

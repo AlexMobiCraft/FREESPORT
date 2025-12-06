@@ -20,7 +20,8 @@ prd:
     - 10
     - 11
     - 12
-  # Epic 13: Product Variant System - будет добавлен после завершения Sprint N+1 и Story 13.4 (Production Migration)
+    - 13  # Product Variant System (Stories 13.1, 13.3, 13.5a завершены)
+    - 14  # Cart API & UI extensions (все истории эпика 14 завершены)
 architecture:
   architectureFile: docs/architecture.md
   architectureVersion: v4

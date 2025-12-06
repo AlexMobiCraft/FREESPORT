@@ -12,7 +12,7 @@ from .models import Cart, CartItem
 @receiver(pre_save, sender=CartItem)
 def update_reserved_quantity_on_save(sender, instance, **kwargs):
     """
-    Обновляет зарезервированное количество товара до сохранения CartItem.
+    Обновляет зарезервированное количество варианта товара до сохранения CartItem.
     """
     if instance.pk:  # Если это обновление существующего объекта
         try:
@@ -23,22 +23,22 @@ def update_reserved_quantity_on_save(sender, instance, **kwargs):
     else:  # Если это создание нового объекта
         quantity_diff = instance.quantity
 
-    product = instance.product
-    product.reserved_quantity += quantity_diff
-    product.save(update_fields=["reserved_quantity"])
+    variant = instance.variant
+    variant.reserved_quantity += quantity_diff
+    variant.save(update_fields=["reserved_quantity"])
 
 
 @receiver(post_delete, sender=CartItem)
 def update_reserved_quantity_on_delete(sender, instance, **kwargs):
     """
-    Уменьшает зарезервированное количество товара после удаления CartItem.
+    Уменьшает зарезервированное количество варианта товара после удаления CartItem.
     """
-    product = instance.product
-    product.reserved_quantity -= instance.quantity
+    variant = instance.variant
+    variant.reserved_quantity -= instance.quantity
     # Убедимся, что резерв не станет отрицательным
-    if product.reserved_quantity < 0:
-        product.reserved_quantity = 0
-    product.save(update_fields=["reserved_quantity"])
+    if variant.reserved_quantity < 0:
+        variant.reserved_quantity = 0
+    variant.save(update_fields=["reserved_quantity"])
 
 
 User = get_user_model()
@@ -71,19 +71,20 @@ def merge_guest_cart_on_login(sender, instance, created, **kwargs):
             # Переносим товары из гостевой корзины
             for guest_item in guest_cart.items.all():
                 try:
-                    # Проверяем, есть ли уже такой товар в корзине пользователя
+                    # Проверяем, есть ли уже такой вариант в корзине пользователя
                     user_item = CartItem.objects.get(
-                        cart=user_cart, product=guest_item.product
+                        cart=user_cart, variant=guest_item.variant
                     )
                     # Если есть, увеличиваем количество
                     user_item.quantity += guest_item.quantity
                     user_item.save()
                 except CartItem.DoesNotExist:
-                    # Если нет, создаем новый элемент
+                    # Если нет, создаем новый элемент с price_snapshot
                     CartItem.objects.create(
                         cart=user_cart,
-                        product=guest_item.product,
+                        variant=guest_item.variant,
                         quantity=guest_item.quantity,
+                        price_snapshot=guest_item.price_snapshot,
                     )
 
             # Удаляем гостевую корзину

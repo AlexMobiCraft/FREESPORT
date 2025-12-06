@@ -1,8 +1,9 @@
 /**
- * ProductSummary Component (Story 13.5a, 13.5b)
+ * ProductSummary Component (Story 12.3, 13.5a, 13.5b)
  * Компонент-обёртка для ProductInfo и ProductOptions
- * Управляет состоянием выбранного варианта товара
+ * Управляет состоянием выбранного варианта товара и добавлением в корзину
  *
+ * @see docs/stories/epic-12/12.3.add-to-cart.md
  * @see docs/stories/epic-13/13.5a.productoptions-ui-msw-mock.md
  * @see docs/stories/epic-13/13.5b.productoptions-api-integration.md
  */
@@ -12,6 +13,8 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import type { ProductDetail } from '@/types/api';
 import type { UserRole } from '@/utils/pricing';
+import { useCartStore } from '@/stores/cartStore';
+import { useToast } from '@/components/ui/Toast';
 import ProductInfo from './ProductInfo';
 import { ProductOptions, type ProductVariant, type SelectedOptions } from './ProductOptions';
 
@@ -92,6 +95,12 @@ export default function ProductSummary({
   const [selectedOptions, setSelectedOptions] = useState<SelectedOptions>({});
   // Состояние ошибки валидации
   const [validationError, setValidationError] = useState<string>('');
+  // Состояние количества
+  const [quantity, setQuantity] = useState<number>(1);
+
+  // Hooks для работы с корзиной и уведомлениями
+  const { addItem, isLoading } = useCartStore();
+  const { success, error: toastError } = useToast();
 
   // Варианты товара (если есть) - мемоизируем для стабильности ссылки
   const variants = useMemo(() => product.variants || [], [product.variants]);
@@ -141,31 +150,64 @@ export default function ProductSummary({
   /**
    * Обработчик добавления в корзину с валидацией
    */
-  const handleAddToCart = useCallback(() => {
+  const handleAddToCart = useCallback(async () => {
     // Валидация перед добавлением в корзину
     if (variants.length > 0) {
       const validation = validateOptions(selectedOptions, variants);
       if (!validation.valid) {
         setValidationError(validation.message || 'Пожалуйста, выберите все опции товара');
+        toastError(validation.message || 'Пожалуйста, выберите все опции товара');
         return;
       }
 
       if (!selectedVariant) {
-        setValidationError('Пожалуйста, выберите все опции товара');
+        const msg = 'Пожалуйста, выберите все опции товара';
+        setValidationError(msg);
+        toastError(msg);
         return;
       }
 
       if (!selectedVariant.is_in_stock) {
-        setValidationError('Выбранный вариант недоступен');
+        const msg = 'Выбранный вариант недоступен';
+        setValidationError(msg);
+        toastError(msg);
         return;
       }
     }
 
     setValidationError('');
-    if (onAddToCart) {
-      onAddToCart(selectedVariant?.id);
+
+    // Добавляем в корзину через cartStore
+    const variantId = selectedVariant?.id;
+    if (!variantId) {
+      toastError('Не удалось определить вариант товара');
+      return;
     }
-  }, [onAddToCart, selectedVariant, selectedOptions, variants]);
+
+    const result = await addItem(variantId, quantity);
+
+    if (result.success) {
+      success('Товар добавлен в корзину');
+      // Сбрасываем количество после успешного добавления
+      setQuantity(1);
+
+      // Вызываем внешний callback если он есть
+      if (onAddToCart) {
+        onAddToCart(variantId);
+      }
+    } else {
+      toastError(result.error || 'Ошибка при добавлении в корзину');
+    }
+  }, [
+    addItem,
+    quantity,
+    selectedVariant,
+    selectedOptions,
+    variants,
+    onAddToCart,
+    success,
+    toastError,
+  ]);
 
   /**
    * Проверяет, можно ли добавить товар в корзину
@@ -256,19 +298,42 @@ export default function ProductSummary({
       <button
         type="button"
         onClick={handleAddToCart}
-        disabled={!canAddToCart || (variants.length > 0 && !selectedVariant)}
+        disabled={!canAddToCart || (variants.length > 0 && !selectedVariant) || isLoading}
         className={`
           w-full px-6 py-3 font-medium rounded-lg transition-colors
           focus:outline-none focus:ring-2 focus:ring-offset-2
+          flex items-center justify-center gap-2
           ${
-            canAddToCart && (variants.length === 0 || selectedVariant)
+            canAddToCart && (variants.length === 0 || selectedVariant) && !isLoading
               ? 'bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-500'
               : 'bg-neutral-300 text-neutral-500 cursor-not-allowed'
           }
         `}
         data-testid="add-to-cart-button"
       >
-        {addToCartButtonText}
+        {isLoading && (
+          <svg
+            className="animate-spin h-5 w-5"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              className="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              strokeWidth="4"
+            ></circle>
+            <path
+              className="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            ></path>
+          </svg>
+        )}
+        {isLoading ? 'Добавление...' : addToCartButtonText}
       </button>
     </div>
   );

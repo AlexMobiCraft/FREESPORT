@@ -1,9 +1,10 @@
 /**
  * Cart Service - методы для работы с корзиной
+ * Обновлено для работы с ProductVariant (variant_id вместо product_id)
  */
 
 import apiClient from './api-client';
-import type { Cart, CartItem } from '@/types/api';
+import type { Cart, CartItem } from '@/types/cart';
 
 class CartService {
   /**
@@ -15,11 +16,13 @@ class CartService {
   }
 
   /**
-   * Добавить товар в корзину
+   * Добавить вариант товара в корзину
+   * @param variantId - ID варианта товара (ProductVariant)
+   * @param quantity - Количество
    */
-  async add(productId: number, quantity: number): Promise<CartItem> {
+  async add(variantId: number, quantity: number): Promise<CartItem> {
     const response = await apiClient.post<CartItem>('/cart/items/', {
-      product_id: productId,
+      variant_id: variantId,
       quantity,
     });
     return response.data;
@@ -40,6 +43,13 @@ class CartService {
    */
   async remove(itemId: number): Promise<void> {
     await apiClient.delete(`/cart/items/${itemId}/`);
+  }
+
+  /**
+   * Очистить корзину
+   */
+  async clear(): Promise<void> {
+    await apiClient.delete('/cart/clear/');
   }
 
   /**

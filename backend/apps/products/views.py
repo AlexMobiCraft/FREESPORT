@@ -22,7 +22,7 @@ class BrandPageNumberPagination(CustomPageNumberPagination):
     max_page_size = 500
 
 
-from django.db.models import Count, Prefetch, Q, Min, Sum
+from django.db.models import Count, Exists, OuterRef, Prefetch, Q, Min, Sum
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
@@ -67,20 +67,22 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
                     queryset=AttributeValue.objects.select_related("attribute"),
                     to_attr="prefetched_attributes",
                 ),
+                # Prefetch первого варианта для получения цен (для списка)
                 Prefetch(
                     "variants",
-                    queryset=ProductVariant.objects.prefetch_related(
-                        Prefetch(
-                            "attributes",
-                            queryset=AttributeValue.objects.select_related("attribute"),
-                            to_attr="prefetched_attributes",
-                        )
-                    ),
+                    queryset=ProductVariant.objects.order_by("retail_price"),
+                    to_attr="first_variant_list",
                 ),
             )
             .annotate(
-                retail_price=Min("variants__retail_price"),
-                stock_quantity=Sum("variants__stock_quantity"),
+                # Аннотации для использования в ProductListSerializer
+                total_stock=Sum("variants__stock_quantity"),
+                has_stock=Exists(
+                    ProductVariant.objects.filter(
+                        product=OuterRef("pk"),
+                        stock_quantity__gt=0
+                    )
+                ),
             )
         )
 

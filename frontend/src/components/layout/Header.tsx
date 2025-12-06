@@ -23,7 +23,7 @@ const Header: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Получаем количество товаров из корзины
-  const cartItemsCount = useCartStore(state => state.items.length);
+  const cartItemsCount = useCartStore(state => state.totalItems);
 
   // Навигационные элементы
   const navigationItems = [
@@ -129,7 +129,10 @@ const Header: React.FC = () => {
               >
                 <ShoppingCart className="w-6 h-6" />
                 {cartItemsCount > 0 && (
-                  <span className="absolute top-0 right-0 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold bg-accent-danger-bg text-accent-danger rounded-full">
+                  <span
+                    data-testid="cart-count"
+                    className="absolute top-0 right-0 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold bg-accent-danger-bg text-accent-danger rounded-full"
+                  >
                     {cartItemsCount > 99 ? '99+' : cartItemsCount}
                   </span>
                 )}
@@ -219,7 +222,10 @@ const Header: React.FC = () => {
                 >
                   <ShoppingCart className="w-6 h-6" />
                   {cartItemsCount > 0 && (
-                    <span className="absolute top-0 right-0 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold bg-accent-danger-bg text-accent-danger rounded-full">
+                    <span
+                      data-testid="cart-count"
+                      className="absolute top-0 right-0 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold bg-accent-danger-bg text-accent-danger rounded-full"
+                    >
                       {cartItemsCount > 99 ? '99+' : cartItemsCount}
                     </span>
                   )}

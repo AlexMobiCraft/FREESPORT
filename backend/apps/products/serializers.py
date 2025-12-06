@@ -285,12 +285,29 @@ class ProductListSerializer(serializers.ModelSerializer):
     Цены и остатки хранятся в ProductVariant.
     Для получения вариантов используйте вложенное поле 'variants'
     в ProductDetailSerializer.
+
+    Вычисляемые поля для обратной совместимости (данные из вариантов):
+    - retail_price, opt1_price, opt2_price, opt3_price: цены из первого варианта
+    - stock_quantity: суммарное количество на складе по всем вариантам
+    - is_in_stock: есть ли хотя бы один вариант в наличии
+    - main_image: изображение из первого варианта или base_images
+    - can_be_ordered: можно ли заказать товар
     """
 
     brand = BrandSerializer(read_only=True)
     category: Any = serializers.StringRelatedField(read_only=True)
     specifications = serializers.JSONField(read_only=True)
     attributes = serializers.SerializerMethodField()
+
+    # Вычисляемые поля для обратной совместимости с frontend
+    retail_price = serializers.SerializerMethodField()
+    opt1_price = serializers.SerializerMethodField()
+    opt2_price = serializers.SerializerMethodField()
+    opt3_price = serializers.SerializerMethodField()
+    stock_quantity = serializers.SerializerMethodField()
+    is_in_stock = serializers.SerializerMethodField()
+    main_image = serializers.SerializerMethodField()
+    can_be_ordered = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
@@ -314,6 +331,15 @@ class ProductListSerializer(serializers.ModelSerializer):
             "discount_percent",
             "created_at",
             "attributes",
+            # Вычисляемые поля из вариантов (обратная совместимость)
+            "retail_price",
+            "opt1_price",
+            "opt2_price",
+            "opt3_price",
+            "stock_quantity",
+            "is_in_stock",
+            "main_image",
+            "can_be_ordered",
         ]
         read_only_fields = [
             "is_hit",
@@ -323,6 +349,78 @@ class ProductListSerializer(serializers.ModelSerializer):
             "is_premium",
             "discount_percent",
         ]
+
+    def _get_first_variant(self, obj: Product) -> "ProductVariant | None":
+        """Получить первый вариант товара (кэшированный или из БД)"""
+        # Используем prefetched данные если доступны
+        if hasattr(obj, "first_variant_list") and obj.first_variant_list:
+            return obj.first_variant_list[0]
+        # Fallback на прямой запрос
+        return obj.variants.order_by("retail_price").first()
+
+    def get_retail_price(self, obj: Product) -> float | None:
+        """Получить розничную цену из первого варианта"""
+        variant = self._get_first_variant(obj)
+        if variant:
+            return float(variant.retail_price)
+        return None
+
+    def get_opt1_price(self, obj: Product) -> float | None:
+        """Получить оптовую цену уровня 1 из первого варианта"""
+        variant = self._get_first_variant(obj)
+        if variant and variant.opt1_price:
+            return float(variant.opt1_price)
+        return None
+
+    def get_opt2_price(self, obj: Product) -> float | None:
+        """Получить оптовую цену уровня 2 из первого варианта"""
+        variant = self._get_first_variant(obj)
+        if variant and variant.opt2_price:
+            return float(variant.opt2_price)
+        return None
+
+    def get_opt3_price(self, obj: Product) -> float | None:
+        """Получить оптовую цену уровня 3 из первого варианта"""
+        variant = self._get_first_variant(obj)
+        if variant and variant.opt3_price:
+            return float(variant.opt3_price)
+        return None
+
+    def get_stock_quantity(self, obj: Product) -> int:
+        """Получить суммарное количество на складе по всем вариантам"""
+        # Используем аннотированное значение если доступно
+        if hasattr(obj, "total_stock") and obj.total_stock is not None:
+            return obj.total_stock
+        # Fallback на агрегацию
+        from django.db.models import Sum
+
+        result = obj.variants.aggregate(total=Sum("stock_quantity"))
+        return result["total"] or 0
+
+    def get_is_in_stock(self, obj: Product) -> bool:
+        """Проверить наличие товара (любой вариант в наличии)"""
+        # Используем аннотированное значение если доступно
+        if hasattr(obj, "has_stock"):
+            return obj.has_stock
+        # Используем prefetched данные
+        if hasattr(obj, "first_variant_list") and obj.first_variant_list:
+            return any(v.stock_quantity > 0 for v in obj.first_variant_list)
+        # Fallback на проверку в БД
+        return obj.variants.filter(stock_quantity__gt=0).exists()
+
+    def get_main_image(self, obj: Product) -> str | None:
+        """Получить основное изображение из первого варианта или base_images"""
+        variant = self._get_first_variant(obj)
+        if variant and variant.main_image:
+            return variant.main_image
+        # Fallback на base_images
+        if obj.base_images and isinstance(obj.base_images, list) and obj.base_images:
+            return obj.base_images[0]
+        return None
+
+    def get_can_be_ordered(self, obj: Product) -> bool:
+        """Проверить можно ли заказать товар"""
+        return self.get_is_in_stock(obj)
 
     def get_attributes(self, obj: Product) -> list[dict[str, Any]]:
         """

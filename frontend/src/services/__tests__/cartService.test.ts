@@ -1,5 +1,6 @@
 /**
  * Cart Service Tests
+ * Обновлено для работы с variant_id (Story 12.3)
  */
 import cartService from '../cartService';
 import { server } from '../../../__mocks__/server';
@@ -27,43 +28,66 @@ describe('cartService', () => {
   });
 
   describe('add', () => {
-    test('adds item to cart successfully', async () => {
+    test('adds item to cart successfully with variant_id', async () => {
       server.use(
         http.post('http://localhost:8001/api/v1/cart/items/', async ({ request }) => {
-          const body = (await request.json()) as { product_id: number; quantity: number };
+          const body = (await request.json()) as { variant_id: number; quantity: number };
+
+          // Валидация: должен быть variant_id, а не product_id
+          expect(body).toHaveProperty('variant_id');
+          expect(body).not.toHaveProperty('product_id');
+
           return HttpResponse.json(
             {
               id: Date.now(),
+              variant_id: body.variant_id,
               product: {
-                id: body.product_id,
+                id: 1,
                 name: 'Test Product',
                 slug: 'test-product',
-                retail_price: 2500,
-                is_in_stock: true,
+                image: '/test.jpg',
+              },
+              variant: {
+                sku: 'TEST-SKU-001',
+                color_name: 'Красный',
+                size_value: 'L',
               },
               quantity: body.quantity,
-              price: 2500,
+              unit_price: '2500.00',
+              total_price: (2500 * body.quantity).toFixed(2),
+              added_at: new Date().toISOString(),
             },
             { status: 201 }
           );
         })
       );
 
-      const result = await cartService.add(1, 2);
+      const result = await cartService.add(101, 2);
 
-      expect(result.product.id).toBe(1);
+      expect(result.variant_id).toBe(101);
       expect(result.quantity).toBe(2);
-      expect(result.price).toBe(2500);
+      expect(result.unit_price).toBe('2500.00');
+      expect(result.total_price).toBe('5000.00');
     });
 
     test('handles out of stock error', async () => {
       server.use(
         http.post('http://localhost:8001/api/v1/cart/items/', () => {
-          return HttpResponse.json({ detail: 'Product out of stock' }, { status: 400 });
+          return HttpResponse.json({ detail: 'Product variant out of stock' }, { status: 400 });
         })
       );
 
-      await expect(cartService.add(1, 1)).rejects.toThrow();
+      await expect(cartService.add(101, 1)).rejects.toThrow();
+    });
+
+    test('handles invalid variant_id', async () => {
+      server.use(
+        http.post('http://localhost:8001/api/v1/cart/items/', () => {
+          return HttpResponse.json({ detail: 'Variant not found' }, { status: 404 });
+        })
+      );
+
+      await expect(cartService.add(999, 1)).rejects.toThrow();
     });
   });
 
@@ -74,15 +98,22 @@ describe('cartService', () => {
           const body = (await request.json()) as { quantity: number };
           return HttpResponse.json({
             id: Number(params.id),
+            variant_id: 101,
             product: {
               id: 1,
               name: 'Test Product',
               slug: 'test-product',
-              retail_price: 2500,
-              is_in_stock: true,
+              image: '/test.jpg',
+            },
+            variant: {
+              sku: 'TEST-SKU-001',
+              color_name: 'Красный',
+              size_value: 'L',
             },
             quantity: body.quantity,
-            price: 2500,
+            unit_price: '2500.00',
+            total_price: (2500 * body.quantity).toFixed(2),
+            added_at: new Date().toISOString(),
           });
         })
       );
@@ -90,6 +121,7 @@ describe('cartService', () => {
       const result = await cartService.update(1, 5);
 
       expect(result.quantity).toBe(5);
+      expect(result.total_price).toBe('12500.00');
     });
   });
 

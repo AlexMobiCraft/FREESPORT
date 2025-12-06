@@ -1066,13 +1066,16 @@ components:
 
     CartItemCreate:
       type: object
-      required: [product_id, quantity]
+      required: [variant_id, quantity]
       properties:
-        product_id:
+        variant_id:
           type: integer
+          description: ID варианта товара (ProductVariant.id)
         quantity:
           type: integer
           minimum: 1
+        # Deprecated: product_id больше не используется
+        # Используйте variant_id для добавления в корзину
 
     # Order Schemas
     OrderList:

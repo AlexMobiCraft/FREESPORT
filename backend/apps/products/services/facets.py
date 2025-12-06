@@ -79,8 +79,8 @@ class AttributeFacetService:
         attribute_values = (
             AttributeValue.objects.filter(
                 # Только значения, связанные с товарами из queryset
-                Q(product__id__in=product_ids)
-                | Q(productvariant__product__id__in=product_ids),
+                Q(products__id__in=product_ids)
+                | Q(variants__product__id__in=product_ids),
                 # Только активные атрибуты
                 attribute__is_active=True,
             )
@@ -92,8 +92,8 @@ class AttributeFacetService:
             )
             .annotate(
                 # Подсчет уникальных товаров с этим значением
-                count=Count("product__id", distinct=True)
-                + Count("productvariant__product__id", distinct=True)
+                count=Count("products__id", distinct=True)
+                + Count("variants__product__id", distinct=True)
             )
             .order_by("attribute__slug", "-count")  # Сортировка по популярности
         )

@@ -1,94 +1,234 @@
 /**
  * Cart Store - управление корзиной покупок
  *
- * Локальное состояние корзины для быстрого UI
- * Синхронизируется с backend через cartService
+ * Features:
+ * - Optimistic Updates для мгновенного отклика UI
+ * - Rollback при ошибках API
+ * - Работа с ProductVariant (variant_id)
+ * - Автоматический расчет total
  */
 
 import { create } from 'zustand';
-import { devtools } from 'zustand/middleware';
-import type { CartItem, Product } from '@/types/api';
+import { devtools, persist } from 'zustand/middleware';
+import cartService from '@/services/cartService';
+import type { CartItem, CartState as CartStateType } from '@/types/cart';
 
-interface CartState {
-  items: CartItem[];
-  totalAmount: number;
-
+interface CartStore extends CartStateType {
   // Actions
-  addItem: (product: Product, quantity: number) => void;
-  removeItem: (itemId: number) => void;
-  updateQuantity: (itemId: number, quantity: number) => void;
-  clearCart: () => void;
+  addItem: (variantId: number, quantity: number) => Promise<{ success: boolean; error?: string }>;
+  removeItem: (itemId: number) => Promise<{ success: boolean; error?: string }>;
+  updateQuantity: (
+    itemId: number,
+    quantity: number
+  ) => Promise<{ success: boolean; error?: string }>;
+  clearCart: () => Promise<void>;
+  fetchCart: () => Promise<void>;
+
+  // Getters
+  getTotalItems: () => number;
+  setItems: (items: CartItem[]) => void;
+  setError: (error: string | null) => void;
+  setLoading: (loading: boolean) => void;
 }
 
-export const useCartStore = create<CartState>()(
+/**
+ * Расчет totalItems и totalPrice
+ */
+const calculateTotals = (items: CartItem[]) => {
+  const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
+  const totalPrice = items.reduce((sum, item) => sum + parseFloat(item.total_price), 0);
+  return { totalItems, totalPrice };
+};
+
+export const useCartStore = create<CartStore>()(
   devtools(
-    (set, get) => ({
-      items: [],
-      totalAmount: 0,
+    persist(
+      (set, get) => ({
+        items: [],
+        totalItems: 0,
+        totalPrice: 0,
+        isLoading: false,
+        error: null,
 
-      addItem: (product: Product, quantity: number) => {
-        const existingItem = get().items.find(item => item.product.id === product.id);
+        // Setters
+        setItems: (items: CartItem[]) => {
+          const { totalItems, totalPrice } = calculateTotals(items);
+          set({ items, totalItems, totalPrice });
+        },
 
-        if (existingItem) {
-          // Обновить количество существующего товара
-          set(state => ({
-            items: state.items.map(item =>
-              item.product.id === product.id
-                ? { ...item, quantity: item.quantity + quantity }
-                : item
-            ),
-          }));
-        } else {
-          // Добавить новый товар
-          set(state => ({
-            items: [
-              ...state.items,
-              {
-                id: Date.now(), // Временный ID до синхронизации с backend
-                product: {
-                  id: product.id,
-                  name: product.name,
-                  slug: product.slug,
-                  retail_price: product.retail_price,
-                  opt1_price: product.opt1_price,
-                  is_in_stock: product.is_in_stock,
-                },
-                quantity,
-                price: product.retail_price,
+        setError: (error: string | null) => set({ error }),
+
+        setLoading: (isLoading: boolean) => set({ isLoading }),
+
+        // Getters
+        getTotalItems: () => get().totalItems,
+
+        // Загрузить корзину с backend
+        fetchCart: async () => {
+          set({ isLoading: true, error: null });
+          try {
+            const cart = await cartService.get();
+            get().setItems(cart.items);
+          } catch (error) {
+            const errorMsg = error instanceof Error ? error.message : 'Ошибка загрузки корзины';
+            set({ error: errorMsg });
+          } finally {
+            set({ isLoading: false });
+          }
+        },
+
+        // Добавить товар в корзину (Optimistic Update)
+        addItem: async (variantId: number, quantity: number) => {
+          // Сохраняем предыдущее состояние для rollback
+          const previousState = { ...get() };
+
+          set({ isLoading: true, error: null });
+
+          try {
+            // Optimistic update - мгновенно обновляем UI
+            const tempItem: CartItem = {
+              id: Date.now(), // Временный ID
+              variant_id: variantId,
+              product: {
+                id: 0,
+                name: 'Загрузка...',
+                slug: '',
+                image: null,
               },
-            ],
-          }));
-        }
+              variant: {
+                sku: '',
+                color_name: null,
+                size_value: null,
+              },
+              quantity,
+              unit_price: '0',
+              total_price: '0',
+              added_at: new Date().toISOString(),
+            };
 
-        // Пересчитать total
-        const newTotal = get().items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-        set({ totalAmount: newTotal });
-      },
+            set(state => {
+              const { totalItems, totalPrice } = calculateTotals([...state.items, tempItem]);
+              return {
+                items: [...state.items, tempItem],
+                totalItems,
+                totalPrice,
+              };
+            });
 
-      removeItem: (itemId: number) => {
-        set(state => ({
-          items: state.items.filter(item => item.id !== itemId),
-        }));
+            // Отправляем запрос на backend
+            const realItem = await cartService.add(variantId, quantity);
 
-        // Пересчитать total
-        const newTotal = get().items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-        set({ totalAmount: newTotal });
-      },
+            // Заменяем временный item на реальный
+            set(state => {
+              const items = state.items.map(item => (item.id === tempItem.id ? realItem : item));
+              const { totalItems, totalPrice } = calculateTotals(items);
+              return { items, totalItems, totalPrice, isLoading: false };
+            });
 
-      updateQuantity: (itemId: number, quantity: number) => {
-        set(state => ({
-          items: state.items.map(item => (item.id === itemId ? { ...item, quantity } : item)),
-        }));
+            return { success: true };
+          } catch (error) {
+            // ROLLBACK: восстанавливаем предыдущее состояние
+            set(previousState);
 
-        // Пересчитать total
-        const newTotal = get().items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-        set({ totalAmount: newTotal });
-      },
+            const errorMsg = error instanceof Error ? error.message : 'Ошибка добавления в корзину';
+            set({ error: errorMsg, isLoading: false });
 
-      clearCart: () => {
-        set({ items: [], totalAmount: 0 });
-      },
-    }),
+            return { success: false, error: errorMsg };
+          }
+        },
+
+        // Удалить товар из корзины (Optimistic Update)
+        removeItem: async (itemId: number) => {
+          const previousState = { ...get() };
+
+          set({ isLoading: true, error: null });
+
+          try {
+            // Optimistic update
+            const items = get().items.filter(item => item.id !== itemId);
+            get().setItems(items);
+
+            // Отправляем запрос на backend
+            await cartService.remove(itemId);
+
+            set({ isLoading: false });
+            return { success: true };
+          } catch (error) {
+            // ROLLBACK
+            set(previousState);
+
+            const errorMsg = error instanceof Error ? error.message : 'Ошибка удаления из корзины';
+            set({ error: errorMsg, isLoading: false });
+
+            return { success: false, error: errorMsg };
+          }
+        },
+
+        // Обновить количество (Optimistic Update)
+        updateQuantity: async (itemId: number, quantity: number) => {
+          const previousState = { ...get() };
+
+          set({ isLoading: true, error: null });
+
+          try {
+            // Optimistic update
+            const items = get().items.map(item =>
+              item.id === itemId ? { ...item, quantity } : item
+            );
+            get().setItems(items);
+
+            // Отправляем запрос на backend
+            const updatedItem = await cartService.update(itemId, quantity);
+
+            // Обновляем реальными данными
+            const finalItems = get().items.map(item => (item.id === itemId ? updatedItem : item));
+            get().setItems(finalItems);
+
+            set({ isLoading: false });
+            return { success: true };
+          } catch (error) {
+            // ROLLBACK
+            set(previousState);
+
+            const errorMsg =
+              error instanceof Error ? error.message : 'Ошибка обновления количества';
+            set({ error: errorMsg, isLoading: false });
+
+            return { success: false, error: errorMsg };
+          }
+        },
+
+        // Очистить корзину
+        clearCart: async () => {
+          const previousState = { ...get() };
+
+          set({ isLoading: true, error: null });
+
+          try {
+            // Optimistic update
+            set({ items: [], totalItems: 0, totalPrice: 0 });
+
+            // Отправляем запрос на backend
+            await cartService.clear();
+
+            set({ isLoading: false });
+          } catch (error) {
+            // ROLLBACK
+            set(previousState);
+
+            const errorMsg = error instanceof Error ? error.message : 'Ошибка очистки корзины';
+            set({ error: errorMsg, isLoading: false });
+          }
+        },
+      }),
+      {
+        name: 'cart-storage', // Ключ в localStorage
+        partialize: state => ({
+          // Сохраняем только items (остальное вычисляется)
+          items: state.items,
+        }),
+      }
+    ),
     { name: 'CartStore' }
   )
 );
