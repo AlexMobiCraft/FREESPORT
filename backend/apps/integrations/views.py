@@ -60,6 +60,17 @@ def import_from_1c_view(request: HttpRequest) -> HttpResponse:
                 "requires_catalog": False,
             },
             {
+                "value": "variants",
+                "label": "Варианты товаров (ProductVariant)",
+                "description": (
+                    "Импорт SKU-вариантов товаров из offers.xml. "
+                    "Создаёт ProductVariant с ценами, остатками, цветом и размером. "
+                    "Требует предварительного импорта каталога товаров."
+                ),
+                "files": "offers_*.xml, prices_*.xml, rests_*.xml",
+                "requires_catalog": True,
+            },
+            {
                 "value": "attributes",
                 "label": "Загрузить атрибуты (справочники)",
                 "description": (
@@ -171,7 +182,7 @@ def _validate_dependencies(selected_types: list[str]) -> tuple[bool, str]:
         Tuple[bool, str]: (is_valid, error_message)
     """
     # Типы, требующие наличия товаров в БД
-    catalog_dependent_types = ["stocks", "prices", "images"]
+    catalog_dependent_types = ["stocks", "prices", "images", "variants"]
 
     if any(t in selected_types for t in catalog_dependent_types):
         if not Product.objects.exists():
@@ -185,7 +196,7 @@ def _validate_dependencies(selected_types: list[str]) -> tuple[bool, str]:
             else:
                 return (
                     False,
-                    "⚠️ Невозможно загрузить остатки/цены: "
+                    "⚠️ Невозможно загрузить остатки/цены/варианты: "
                     "каталог товаров пуст. Сначала импортируйте полный каталог.",
                 )
     return True, ""
@@ -262,10 +273,22 @@ def _create_and_run_import(import_type: str) -> ImportSession:
                 f"Директория изображений не найдена: {import_files_dir}. "
                 f"Убедитесь, что данные выгружены из 1С с изображениями товаров."
             )
+    elif import_type == "variants":
+        required_subdirs = ["offers", "prices", "rests"]
+        missing_subdirs = [
+            subdir for subdir in required_subdirs if not (data_path / subdir).exists()
+        ]
+        if missing_subdirs:
+            raise FileNotFoundError(
+                f"Отсутствуют обязательные поддиректории в {data_dir}: "
+                f"{', '.join(missing_subdirs)}. "
+                f"Убедитесь, что данные выгружены из 1С в правильной структуре."
+            )
 
     # Маппинг типов импорта на типы сессий
     session_type_map = {
         "catalog": ImportSession.ImportType.CATALOG,
+        "variants": ImportSession.ImportType.VARIANTS,
         "images": ImportSession.ImportType.IMAGES,
         "stocks": ImportSession.ImportType.STOCKS,
         "prices": ImportSession.ImportType.PRICES,

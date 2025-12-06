@@ -33,21 +33,21 @@ async function getUserRole(): Promise<UserRole> {
       return 'guest';
     }
 
-    // Серверный вызов к backend API для получения профиля пользователя
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001';
+    // Для SSR в Docker используем внутренний URL backend
+    // INTERNAL_API_URL - для серверных запросов внутри Docker network
+    const apiUrl =
+      process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://backend:8000';
     const response = await fetch(`${apiUrl}/api/v1/users/profile/`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
         Cookie: `sessionid=${sessionId}`,
       },
-      credentials: 'include',
       cache: 'no-store', // Не кэшируем профиль для актуальности роли
     });
 
     if (!response.ok) {
       // При ошибке (401, 403, 500) возвращаем guest
-      console.warn(`Failed to fetch user profile: ${response.status}`);
       return 'guest';
     }
 
@@ -69,8 +69,8 @@ async function getUserRole(): Promise<UserRole> {
     ];
 
     return validRoles.includes(role) ? role : 'retail';
-  } catch (error) {
-    console.error('Error getting user role:', error);
+  } catch {
+    // При любой ошибке сети возвращаем guest (не логируем для чистоты консоли)
     return 'guest';
   }
 }
@@ -130,7 +130,10 @@ export default async function ProductPage({ params }: ProductPageProps) {
   return (
     <div className="container mx-auto px-4 py-8">
       {/* Breadcrumbs */}
-      <ProductBreadcrumbs breadcrumbs={product.category.breadcrumbs} productName={product.name} />
+      <ProductBreadcrumbs
+        breadcrumbs={product.category?.breadcrumbs || []}
+        productName={product.name}
+      />
 
       {/* Main Content - Client Component для интеграции с вариантами */}
       <ProductPageClient product={product} userRole={userRole} />

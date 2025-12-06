@@ -55,7 +55,7 @@ def run_selective_import_task(
             raise ValueError(error_msg)
 
     results: list[dict[str, str]] = []
-    import_order = ["catalog", "attributes", "stocks", "prices", "customers", "images"]
+    import_order = ["catalog", "attributes", "variants", "stocks", "prices", "customers", "images"]
 
     try:
         for import_type in import_order:
@@ -145,6 +145,11 @@ def _execute_import_type(import_type: str, task_id: str) -> dict[str, str]:
         logger.info(f"[Task {task_id}] Запуск импорта изображений товаров")
         result = _run_image_import(task_id)
         return {"type": "images", "message": "Изображения обновлены"}
+
+    elif import_type == "variants":
+        logger.info(f"[Task {task_id}] Запуск импорта вариантов товаров")
+        call_command("import_products_from_1c", "--variants-only")
+        return {"type": "variants", "message": "Варианты товаров импортированы"}
 
     else:
         raise ValueError(f"Неизвестный тип импорта: {import_type}")

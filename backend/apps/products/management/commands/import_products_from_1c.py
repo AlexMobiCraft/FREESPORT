@@ -104,6 +104,15 @@ class Command(BaseCommand):
             action="store_true",
             help="Пропустить создание default variants для товаров без вариантов",
         )
+        parser.add_argument(
+            "--variants-only",
+            action="store_true",
+            help=(
+                "Импортировать только варианты (offers.xml, prices.xml, rests.xml) "
+                "без пересоздания базовых товаров (goods.xml). "
+                "Требует предварительно импортированного каталога товаров."
+            ),
+        )
 
     def handle(self, *args, **options):
         """Основная логика команды"""
@@ -122,6 +131,11 @@ class Command(BaseCommand):
         skip_images = options.get("skip_images", False)
         legacy_mode = options.get("legacy_mode", False)
         skip_default_variants = options.get("skip_default_variants", False)
+        variants_only = options.get("variants_only", False)
+
+        # --variants-only переопределяет file_type
+        if variants_only:
+            file_type = "offers"  # Импортировать только offers + prices + rests
 
         # Валидация директории
         if not os.path.exists(data_dir):
@@ -138,6 +152,15 @@ class Command(BaseCommand):
                 if not os.path.exists(subdir_path):
                     raise CommandError(
                         f"Отсутствует обязательная поддиректория: {subdir}"
+                    )
+        elif file_type == "offers" or variants_only:
+            # Для --variants-only нужны только offers, prices, rests
+            required_subdirs = ["offers", "prices", "rests"]
+            for subdir in required_subdirs:
+                subdir_path = os.path.join(data_dir, subdir)
+                if not os.path.exists(subdir_path):
+                    raise CommandError(
+                        f"Отсутствует обязательная поддиректория для импорта вариантов: {subdir}"
                     )
 
         if dry_run:
@@ -176,9 +199,13 @@ class Command(BaseCommand):
 
         # Вывод параметров импорта
         self.stdout.write("\n" + "=" * 60)
-        self.stdout.write("📊 ПАРАМЕТРЫ ИМПОРТА (ProductVariant mode):")
+        if variants_only:
+            self.stdout.write("📊 ПАРАМЕТРЫ ИМПОРТА (Только варианты):")
+        else:
+            self.stdout.write("📊 ПАРАМЕТРЫ ИМПОРТА (ProductVariant mode):")
         self.stdout.write(f"   Директория: {data_dir}")
         self.stdout.write(f"   Тип файлов: {file_type}")
+        self.stdout.write(f"   Variants only: {variants_only}")
         self.stdout.write(f"   Batch size: {batch_size}")
         self.stdout.write(f"   Skip validation: {skip_validation}")
         self.stdout.write(f"   Skip backup: {skip_backup}")
@@ -187,8 +214,13 @@ class Command(BaseCommand):
         self.stdout.write("=" * 60)
 
         # Создание сессии импорта
+        session_type = (
+            ImportSession.ImportType.VARIANTS
+            if variants_only
+            else ImportSession.ImportType.CATALOG
+        )
         session = ImportSession.objects.create(
-            import_type=ImportSession.ImportType.CATALOG,
+            import_type=session_type,
             status=ImportSession.ImportStatus.STARTED,
         )
         session_id = cast(int, session.pk)
@@ -244,11 +276,11 @@ class Command(BaseCommand):
                 self._create_default_variants(variant_processor)
 
             # ШАГ 4: Парсинг prices.xml → ProductVariant (цены)
-            if file_type in ["all", "prices"]:
+            if file_type in ["all", "prices", "offers"]:
                 self._import_variant_prices(data_dir, parser, variant_processor)
 
             # ШАГ 5: Парсинг rests.xml → ProductVariant (остатки)
-            if file_type in ["all", "rests"]:
+            if file_type in ["all", "rests", "offers"]:
                 self._import_variant_stocks(data_dir, parser, variant_processor)
 
             # Финализация сессии

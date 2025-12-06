@@ -1,10 +1,12 @@
+'use client';
+
 /**
  * ToastProvider Component
  * Контекст и провайдер для управления toast уведомлениями
  * Design System v2.0
  */
 
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Toast, ToastVariant, ToastPosition } from './Toast';
 
@@ -44,6 +46,12 @@ const MAX_VISIBLE_TOASTS = 5;
 
 export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const [isMounted, setIsMounted] = useState(false);
+
+  // Проверяем, что компонент смонтирован (клиент)
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const generateId = useCallback(() => {
     return `toast-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -134,35 +142,36 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   return (
     <ToastContext.Provider value={value}>
       {children}
-      {/* Render toast containers для каждой позиции */}
-      {Object.entries(toastsByPosition).map(([position, positionToasts]) => {
-        if (positionToasts.length === 0) return null;
+      {/* Render toast containers для каждой позиции (только на клиенте) */}
+      {isMounted &&
+        Object.entries(toastsByPosition).map(([position, positionToasts]) => {
+          if (positionToasts.length === 0) return null;
 
-        const positionClass = POSITION_CLASSES[position as ToastPosition];
+          const positionClass = POSITION_CLASSES[position as ToastPosition];
 
-        return createPortal(
-          <div
-            key={position}
-            className={`fixed z-[100] flex flex-col gap-3 ${positionClass}`}
-            aria-live="polite"
-            aria-atomic="true"
-          >
-            {positionToasts.map(toastItem => (
-              <Toast
-                key={toastItem.id}
-                id={toastItem.id}
-                variant={toastItem.variant}
-                title={toastItem.title}
-                message={toastItem.message}
-                duration={toastItem.duration}
-                position={toastItem.position}
-                onClose={dismiss}
-              />
-            ))}
-          </div>,
-          document.body
-        );
-      })}
+          return createPortal(
+            <div
+              key={position}
+              className={`fixed z-[100] flex flex-col gap-3 ${positionClass}`}
+              aria-live="polite"
+              aria-atomic="true"
+            >
+              {positionToasts.map(toastItem => (
+                <Toast
+                  key={toastItem.id}
+                  id={toastItem.id}
+                  variant={toastItem.variant}
+                  title={toastItem.title}
+                  message={toastItem.message}
+                  duration={toastItem.duration}
+                  position={toastItem.position}
+                  onClose={dismiss}
+                />
+              ))}
+            </div>,
+            document.body
+          );
+        })}
     </ToastContext.Provider>
   );
 };

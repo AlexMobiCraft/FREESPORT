@@ -11,7 +11,12 @@ interface ProductBreadcrumbsProps {
   productName: string;
 }
 
-export default function ProductBreadcrumbs({ breadcrumbs, productName }: ProductBreadcrumbsProps) {
+export default function ProductBreadcrumbs({
+  breadcrumbs = [],
+  productName,
+}: ProductBreadcrumbsProps) {
+  // Защита от undefined/null
+  const safeBreadcrumbs = breadcrumbs || [];
   return (
     <nav aria-label="Breadcrumb" className="mb-6">
       <ol
@@ -28,7 +33,7 @@ export default function ProductBreadcrumbs({ breadcrumbs, productName }: Product
         </li>
 
         {/* Категории из breadcrumbs */}
-        {breadcrumbs.slice(1).map((crumb, index) => (
+        {safeBreadcrumbs.slice(1).map((crumb, index) => (
           <li
             key={index}
             className="flex items-center gap-2"
@@ -72,7 +77,7 @@ export default function ProductBreadcrumbs({ breadcrumbs, productName }: Product
           <span className="text-neutral-900 font-medium" itemProp="name">
             {productName}
           </span>
-          <meta itemProp="position" content={String(breadcrumbs.length + 1)} />
+          <meta itemProp="position" content={String(safeBreadcrumbs.length + 1)} />
         </li>
       </ol>
     </nav>

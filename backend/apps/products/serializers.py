@@ -442,14 +442,24 @@ class ProductListSerializer(serializers.ModelSerializer):
         return obj.variants.filter(stock_quantity__gt=0).exists()
 
     def get_main_image(self, obj: Product) -> str | None:
-        """Получить основное изображение из первого варианта или base_images"""
+        """
+        Получить основное изображение из первого варианта или base_images
+        
+        Возвращает относительный URL с /media/ префиксом
+        """
         variant = self._get_first_variant(obj)
         if variant and variant.main_image:
             # Возвращаем URL, а не ImageField объект
             return variant.main_image.url
         # Fallback на base_images
         if obj.base_images and isinstance(obj.base_images, list) and obj.base_images:
-            return obj.base_images[0]
+            img_url = obj.base_images[0]
+            # Добавляем /media/ префикс если путь начинается с /products/
+            if img_url.startswith("/products/"):
+                return f"/media{img_url}"
+            elif not img_url.startswith("/media/") and not img_url.startswith(("http://", "https://")):
+                return f"/media/{img_url.lstrip('/')}"
+            return img_url
         return None
 
     def get_can_be_ordered(self, obj: Product) -> bool:
@@ -505,6 +515,9 @@ class ProductDetailSerializer(ProductListSerializer):
 
         Product использует base_images (JSONField) - список URL изображений из 1С.
         Первое изображение считается основным.
+        
+        Пути в base_images хранятся как относительные от /media/:
+        - /products/base/... → /media/products/base/...
         """
         images = []
         request = self.context.get("request")
@@ -513,10 +526,20 @@ class ProductDetailSerializer(ProductListSerializer):
         if obj.base_images and isinstance(obj.base_images, list):
             for idx, img_url in enumerate(obj.base_images):
                 url = img_url
-                if request and hasattr(request, "build_absolute_uri"):
-                    # Если URL относительный, делаем абсолютным
-                    if not img_url.startswith(("http://", "https://")):
+                
+                # Формируем абсолютный URL от корня сервера
+                if not img_url.startswith(("http://", "https://")):
+                    # Добавляем /media/ префикс если путь начинается с /products/
+                    if img_url.startswith("/products/"):
+                        img_url = f"/media{img_url}"
+                    elif not img_url.startswith("/media/"):
+                        img_url = f"/media/{img_url.lstrip('/')}"
+                    
+                    # Строим абсолютный URL от корня
+                    if request and hasattr(request, "build_absolute_uri"):
                         url = request.build_absolute_uri(img_url)
+                    else:
+                        url = img_url
 
                 images.append(
                     {

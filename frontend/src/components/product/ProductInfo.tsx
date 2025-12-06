@@ -13,7 +13,10 @@ interface ProductInfoProps {
 }
 
 export default function ProductInfo({ product, userRole = 'guest' }: ProductInfoProps) {
-  const currentPrice = getPriceForRole(product.price, userRole);
+  // Защита от undefined для product.price
+  const defaultPrice = { retail: 0, currency: 'RUB' };
+  const price = product.price || defaultPrice;
+  const currentPrice = getPriceForRole(price, userRole);
 
   // Определяем статус наличия
   const getStockStatus = () => {
@@ -124,7 +127,7 @@ export default function ProductInfo({ product, userRole = 'guest' }: ProductInfo
       {/* Цена */}
       <div className="py-4">
         <div className="text-4xl font-bold text-neutral-900">
-          {formatPrice(currentPrice, product.price.currency)}
+          {formatPrice(currentPrice, price.currency)}
         </div>
       </div>
 

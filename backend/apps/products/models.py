@@ -511,6 +511,7 @@ class ImportSession(models.Model):
 
     class ImportType(models.TextChoices):
         CATALOG = "catalog", "Каталог товаров"
+        VARIANTS = "variants", "Варианты товаров"
         ATTRIBUTES = "attributes", "Атрибуты (справочники)"
         IMAGES = "images", "Изображения товаров"
         STOCKS = "stocks", "Остатки товаров"

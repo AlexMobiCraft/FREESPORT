@@ -29,6 +29,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { Heart } from 'lucide-react';
 import { Button } from '@/components/ui';
 import { ProductBadge } from '@/components/common/ProductBadge';
@@ -329,25 +330,197 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
     // List layout
     if (layout === 'list') {
       return (
+        <Link href={`/product/${product.slug}`} className="block">
+          <div
+            ref={ref}
+            className={cn(
+              cardBaseStyles,
+              'flex gap-4 p-4',
+              'focus-within:ring-2 focus-within:ring-[var(--color-primary)] focus-within:ring-offset-2',
+              'cursor-pointer',
+              className
+            )}
+            role="article"
+            aria-label={`Товар: ${product.name}`}
+          >
+            {/* Изображение */}
+            <div className="relative w-[120px] h-[120px] flex-shrink-0 rounded-[8px] overflow-hidden bg-neutral-100">
+              {imageSrc ? (
+                <Image
+                  src={imageSrc}
+                  alt={product.name}
+                  fill
+                  sizes="120px"
+                  className="object-cover"
+                  onError={() => setImageSrc('/images/No_image.svg')}
+                  loading="lazy"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-neutral-400">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="48"
+                    height="48"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                    <circle cx="8.5" cy="8.5" r="1.5" />
+                    <polyline points="21 15 16 10 5 21" />
+                  </svg>
+                </div>
+              )}
+            </div>
+
+            {/* Информация о товаре */}
+            <div className="flex-1 flex flex-col justify-between">
+              <div>
+                {/* Бренд и Badge */}
+                <div className="flex items-center gap-2 mb-1">
+                  {product.brand && (
+                    <p className="text-body-s text-[var(--color-text-secondary)]">
+                      {product.brand.name}
+                    </p>
+                  )}
+                  <ProductBadge product={product} />
+                </div>
+
+                {/* Название */}
+                <h3 className="text-body-m font-medium text-[var(--color-text-primary)] mb-2 line-clamp-2">
+                  {product.name}
+                </h3>
+
+                {/* Описание */}
+                {product.description && (
+                  <p className="text-body-s text-[var(--color-text-secondary)] line-clamp-2">
+                    {product.description}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Цена и CTA */}
+            <div className="flex flex-col items-end gap-2 justify-between">
+              {/* Кнопка избранного */}
+              <button
+                onClick={handleToggleFavorite}
+                className={cn(
+                  'p-2 rounded-full bg-white/80 backdrop-blur-sm',
+                  'transition-colors',
+                  isFavorite ? 'text-[#A63232]' : 'text-neutral-600',
+                  'hover:text-[#A63232]',
+                  'focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]'
+                )}
+                aria-label={isFavorite ? 'Удалить из избранного' : 'Добавить в избранное'}
+                role="button"
+              >
+                <Heart className="w-5 h-5" fill={isFavorite ? 'currentColor' : 'none'} />
+              </button>
+
+              {/* Цена */}
+              <div className="text-right">
+                {hasDiscount && (
+                  <p className="text-body-s text-[var(--color-text-muted)] line-through mr-2">
+                    {product.retail_price.toLocaleString('ru-RU')} ₽
+                  </p>
+                )}
+                <p className="text-title-m font-semibold text-[var(--color-text-primary)]">
+                  {currentPrice.toLocaleString('ru-RU')} ₽
+                </p>
+
+                {/* RRP/MSRP для B2B */}
+                {mode === 'b2b' &&
+                  showRRP &&
+                  (product as Product & { recommended_retail_price?: number })
+                    .recommended_retail_price !== undefined && (
+                    <p className="text-body-s text-[var(--color-text-secondary)] mt-1">
+                      РРЦ:{' '}
+                      {(
+                        (product as Product & { recommended_retail_price?: number })
+                          .recommended_retail_price ?? 0
+                      ).toLocaleString('ru-RU')}{' '}
+                      ₽
+                    </p>
+                  )}
+                {mode === 'b2b' &&
+                  showMSRP &&
+                  (product as Product & { max_suggested_retail_price?: number })
+                    .max_suggested_retail_price !== undefined && (
+                    <p className="text-body-s text-[var(--color-text-secondary)] mt-1">
+                      MSRP:{' '}
+                      {(
+                        (product as Product & { max_suggested_retail_price?: number })
+                          .max_suggested_retail_price ?? 0
+                      ).toLocaleString('ru-RU')}{' '}
+                      ₽
+                    </p>
+                  )}
+              </div>
+
+              {/* Кнопка "В корзину" */}
+              {isInStock && (
+                <Button
+                  variant="primary"
+                  size="medium"
+                  onClick={onAddToCart ? handleAddToCart : undefined}
+                  disabled={!onAddToCart}
+                >
+                  В корзину
+                </Button>
+              )}
+            </div>
+          </div>
+        </Link>
+      );
+    }
+
+    // Grid layout (default)
+    return (
+      <Link href={`/product/${product.slug}`} className="block">
         <div
           ref={ref}
           className={cn(
             cardBaseStyles,
-            'flex gap-4 p-4',
             'focus-within:ring-2 focus-within:ring-[var(--color-primary)] focus-within:ring-offset-2',
+            'cursor-pointer',
             className
           )}
           role="article"
           aria-label={`Товар: ${product.name}`}
         >
           {/* Изображение */}
-          <div className="relative w-[120px] h-[120px] flex-shrink-0 rounded-[8px] overflow-hidden bg-neutral-100">
+          <div className="relative w-full aspect-square bg-neutral-100">
+            {/* Badge */}
+            <div className="absolute top-2 left-2 z-10">
+              <ProductBadge product={product} />
+            </div>
+
+            {/* Кнопка избранного */}
+            <button
+              onClick={handleToggleFavorite}
+              className={cn(
+                'absolute top-2 right-2 z-10',
+                'p-2 rounded-full bg-white/80 backdrop-blur-sm',
+                'transition-colors',
+                isFavorite ? 'text-[#A63232]' : 'text-neutral-600',
+                'hover:text-[#A63232]',
+                'focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]'
+              )}
+              aria-label={isFavorite ? 'Удалить из избранного' : 'Добавить в избранное'}
+              role="button"
+            >
+              <Heart className="w-5 h-5" fill={isFavorite ? 'currentColor' : 'none'} />
+            </button>
+
+            {/* Изображение товара */}
             {imageSrc ? (
               <Image
                 src={imageSrc}
                 alt={product.name}
                 fill
-                sizes="120px"
+                sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
                 className="object-cover"
                 onError={() => setImageSrc('/images/No_image.svg')}
                 loading="lazy"
@@ -356,8 +529,8 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
               <div className="w-full h-full flex items-center justify-center text-neutral-400">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  width="48"
-                  height="48"
+                  width="64"
+                  height="64"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -372,52 +545,24 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
           </div>
 
           {/* Информация о товаре */}
-          <div className="flex-1 flex flex-col justify-between">
-            <div>
-              {/* Бренд и Badge */}
-              <div className="flex items-center gap-2 mb-1">
-                {product.brand && (
-                  <p className="text-body-s text-[var(--color-text-secondary)]">
-                    {product.brand.name}
-                  </p>
-                )}
-                <ProductBadge product={product} />
-              </div>
+          <div className="p-4 flex flex-col">
+            {/* Бренд */}
+            {product.brand && (
+              <p className="text-body-s text-[var(--color-text-secondary)] mb-1">
+                {product.brand.name}
+              </p>
+            )}
 
-              {/* Название */}
-              <h3 className="text-body-m font-medium text-[var(--color-text-primary)] mb-2 line-clamp-2">
-                {product.name}
-              </h3>
-
-              {/* Описание */}
-              {product.description && (
-                <p className="text-body-s text-[var(--color-text-secondary)] line-clamp-2">
-                  {product.description}
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* Цена и CTA */}
-          <div className="flex flex-col items-end gap-2 justify-between">
-            {/* Кнопка избранного */}
-            <button
-              onClick={handleToggleFavorite}
-              className={cn(
-                'p-2 rounded-full bg-white/80 backdrop-blur-sm',
-                'transition-colors',
-                isFavorite ? 'text-[#A63232]' : 'text-neutral-600',
-                'hover:text-[#A63232]',
-                'focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]'
-              )}
-              aria-label={isFavorite ? 'Удалить из избранного' : 'Добавить в избранное'}
-              role="button"
+            {/* Название */}
+            <h3
+              className="text-body-m font-medium text-[var(--color-text-primary)] mb-2 line-clamp-2"
+              title={product.name}
             >
-              <Heart className="w-5 h-5" fill={isFavorite ? 'currentColor' : 'none'} />
-            </button>
+              {product.name}
+            </h3>
 
             {/* Цена */}
-            <div className="text-right">
+            <div className="mb-3">
               {hasDiscount && (
                 <p className="text-body-s text-[var(--color-text-muted)] line-through mr-2">
                   {product.retail_price.toLocaleString('ru-RU')} ₽
@@ -462,159 +607,21 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
                 variant="primary"
                 size="medium"
                 onClick={onAddToCart ? handleAddToCart : undefined}
+                className="w-full"
                 disabled={!onAddToCart}
               >
                 В корзину
               </Button>
             )}
-          </div>
-        </div>
-      );
-    }
 
-    // Grid layout (default)
-    return (
-      <div
-        ref={ref}
-        className={cn(
-          cardBaseStyles,
-          'focus-within:ring-2 focus-within:ring-[var(--color-primary)] focus-within:ring-offset-2',
-          className
-        )}
-        role="article"
-        aria-label={`Товар: ${product.name}`}
-      >
-        {/* Изображение */}
-        <div className="relative w-full aspect-square bg-neutral-100">
-          {/* Badge */}
-          <div className="absolute top-2 left-2 z-10">
-            <ProductBadge product={product} />
-          </div>
-
-          {/* Кнопка избранного */}
-          <button
-            onClick={handleToggleFavorite}
-            className={cn(
-              'absolute top-2 right-2 z-10',
-              'p-2 rounded-full bg-white/80 backdrop-blur-sm',
-              'transition-colors',
-              isFavorite ? 'text-[#A63232]' : 'text-neutral-600',
-              'hover:text-[#A63232]',
-              'focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]'
-            )}
-            aria-label={isFavorite ? 'Удалить из избранного' : 'Добавить в избранное'}
-            role="button"
-          >
-            <Heart className="w-5 h-5" fill={isFavorite ? 'currentColor' : 'none'} />
-          </button>
-
-          {/* Изображение товара */}
-          {imageSrc ? (
-            <Image
-              src={imageSrc}
-              alt={product.name}
-              fill
-              sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
-              className="object-cover"
-              onError={() => setImageSrc('/images/No_image.svg')}
-              loading="lazy"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-neutral-400">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="64"
-                height="64"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                <circle cx="8.5" cy="8.5" r="1.5" />
-                <polyline points="21 15 16 10 5 21" />
-              </svg>
-            </div>
-          )}
-        </div>
-
-        {/* Информация о товаре */}
-        <div className="p-4 flex flex-col">
-          {/* Бренд */}
-          {product.brand && (
-            <p className="text-body-s text-[var(--color-text-secondary)] mb-1">
-              {product.brand.name}
-            </p>
-          )}
-
-          {/* Название */}
-          <h3
-            className="text-body-m font-medium text-[var(--color-text-primary)] mb-2 line-clamp-2"
-            title={product.name}
-          >
-            {product.name}
-          </h3>
-
-          {/* Цена */}
-          <div className="mb-3">
-            {hasDiscount && (
-              <p className="text-body-s text-[var(--color-text-muted)] line-through mr-2">
-                {product.retail_price.toLocaleString('ru-RU')} ₽
+            {!isInStock && (
+              <p className="text-body-s text-[var(--color-text-secondary)] text-center">
+                Нет в наличии
               </p>
             )}
-            <p className="text-title-m font-semibold text-[var(--color-text-primary)]">
-              {currentPrice.toLocaleString('ru-RU')} ₽
-            </p>
-
-            {/* RRP/MSRP для B2B */}
-            {mode === 'b2b' &&
-              showRRP &&
-              (product as Product & { recommended_retail_price?: number })
-                .recommended_retail_price !== undefined && (
-                <p className="text-body-s text-[var(--color-text-secondary)] mt-1">
-                  РРЦ:{' '}
-                  {(
-                    (product as Product & { recommended_retail_price?: number })
-                      .recommended_retail_price ?? 0
-                  ).toLocaleString('ru-RU')}{' '}
-                  ₽
-                </p>
-              )}
-            {mode === 'b2b' &&
-              showMSRP &&
-              (product as Product & { max_suggested_retail_price?: number })
-                .max_suggested_retail_price !== undefined && (
-                <p className="text-body-s text-[var(--color-text-secondary)] mt-1">
-                  MSRP:{' '}
-                  {(
-                    (product as Product & { max_suggested_retail_price?: number })
-                      .max_suggested_retail_price ?? 0
-                  ).toLocaleString('ru-RU')}{' '}
-                  ₽
-                </p>
-              )}
           </div>
-
-          {/* Кнопка "В корзину" */}
-          {isInStock && (
-            <Button
-              variant="primary"
-              size="medium"
-              onClick={onAddToCart ? handleAddToCart : undefined}
-              className="w-full"
-              disabled={!onAddToCart}
-            >
-              В корзину
-            </Button>
-          )}
-
-          {!isInStock && (
-            <p className="text-body-s text-[var(--color-text-secondary)] text-center">
-              Нет в наличии
-            </p>
-          )}
         </div>
-      </div>
+      </Link>
     );
   }
 );

@@ -3,7 +3,129 @@
  */
 
 import apiClient from './api-client';
-import type { Product, PaginatedResponse, ProductDetail } from '@/types/api';
+import type { Product, PaginatedResponse, ProductDetail, ProductImage } from '@/types/api';
+import { normalizeImageUrl } from '@/utils/media';
+
+/**
+ * Интерфейс ответа API для детальной информации о товаре
+ * Backend возвращает данные в этом формате
+ */
+interface ApiProductDetailResponse {
+  id: number;
+  name: string;
+  slug: string;
+  brand: { id: number; name: string; slug: string } | null;
+  category: string; // StringRelatedField возвращает строку
+  description: string;
+  short_description?: string;
+  specifications?: Record<string, string>;
+  base_images?: string[];
+  is_featured?: boolean;
+  is_hit?: boolean;
+  is_new?: boolean;
+  is_sale?: boolean;
+  is_promo?: boolean;
+  is_premium?: boolean;
+  discount_percent?: number | null;
+  created_at?: string;
+  // Вычисляемые поля из вариантов
+  retail_price: number;
+  opt1_price?: number;
+  opt2_price?: number;
+  opt3_price?: number;
+  stock_quantity: number;
+  is_in_stock: boolean;
+  main_image?: string | null;
+  can_be_ordered: boolean;
+  // Детальные поля
+  images?: Array<{ url: string; alt_text: string; is_main: boolean }>;
+  related_products?: unknown[];
+  category_breadcrumbs?: Array<{ id: number; name: string; slug: string }>;
+  seo_title?: string;
+  seo_description?: string;
+  variants?: Array<{
+    id: number;
+    sku: string;
+    color_name?: string | null;
+    size_value?: string | null;
+    current_price: string;
+    color_hex?: string | null;
+    stock_quantity: number;
+    is_in_stock: boolean;
+    available_quantity: number;
+    main_image?: string | null;
+    gallery_images?: string[];
+  }>;
+}
+
+/**
+ * Адаптирует данные из API в формат ProductDetail для компонентов
+ * Backend возвращает данные в формате ApiProductDetailResponse
+ */
+function adaptProductToDetail(apiProduct: ApiProductDetailResponse): ProductDetail {
+  // Адаптируем изображения из формата API [{url, alt_text, is_main}]
+  // в формат компонентов [{image, alt_text, is_primary}]
+  // Нормализуем URL для корректной работы в Docker
+  const images: ProductImage[] = (apiProduct.images || []).map(img => ({
+    image: normalizeImageUrl(img.url),
+    alt_text: img.alt_text || apiProduct.name,
+    is_primary: img.is_main,
+  }));
+
+  // Если нет изображений, но есть main_image или base_images
+  if (images.length === 0) {
+    if (apiProduct.main_image) {
+      images.push({
+        image: normalizeImageUrl(apiProduct.main_image),
+        alt_text: apiProduct.name,
+        is_primary: true,
+      });
+    } else if (apiProduct.base_images && apiProduct.base_images.length > 0) {
+      apiProduct.base_images.forEach((url, idx) => {
+        images.push({
+          image: normalizeImageUrl(url),
+          alt_text: `${apiProduct.name} - изображение ${idx + 1}`,
+          is_primary: idx === 0,
+        });
+      });
+    }
+  }
+
+  // Извлекаем breadcrumbs из category_breadcrumbs
+  const breadcrumbs = (apiProduct.category_breadcrumbs || []).map(b => b.name);
+  const categoryFromBreadcrumbs = apiProduct.category_breadcrumbs?.slice(-1)[0];
+
+  return {
+    id: apiProduct.id,
+    slug: apiProduct.slug,
+    name: apiProduct.name,
+    sku: apiProduct.variants?.[0]?.sku || `SKU-${apiProduct.id}`,
+    brand: apiProduct.brand?.name || '',
+    description: apiProduct.description || '',
+    full_description: apiProduct.description || '',
+    price: {
+      retail: apiProduct.retail_price || 0,
+      wholesale: {
+        level1: apiProduct.opt1_price,
+        level2: apiProduct.opt2_price,
+        level3: apiProduct.opt3_price,
+      },
+      currency: 'RUB',
+    },
+    stock_quantity: apiProduct.stock_quantity || 0,
+    images,
+    specifications: apiProduct.specifications,
+    category: {
+      id: categoryFromBreadcrumbs?.id || 0,
+      name: categoryFromBreadcrumbs?.name || String(apiProduct.category || ''),
+      slug: categoryFromBreadcrumbs?.slug || '',
+      breadcrumbs: breadcrumbs.length > 0 ? breadcrumbs : [String(apiProduct.category || '')],
+    },
+    is_in_stock: apiProduct.is_in_stock,
+    can_be_ordered: apiProduct.can_be_ordered,
+    variants: apiProduct.variants,
+  };
+}
 
 export interface ProductFilters {
   page?: number;
@@ -96,10 +218,11 @@ class ProductsService {
   /**
    * Получить детальную информацию о товаре по slug (Story 12.1)
    * GET /products/{slug}/
+   * Адаптирует данные из формата API в формат ProductDetail
    */
   async getProductBySlug(slug: string): Promise<ProductDetail> {
-    const response = await apiClient.get<ProductDetail>(`/products/${slug}/`);
-    return response.data;
+    const response = await apiClient.get<ApiProductDetailResponse>(`/products/${slug}/`);
+    return adaptProductToDetail(response.data);
   }
 }
 

@@ -94,10 +94,10 @@ export default function ProductPageClient({ product, userRole }: ProductPageClie
                 offers: {
                   '@type': 'Offer',
                   url: `https://freesport.ru/product/${product.slug}`,
-                  priceCurrency: product.price.currency,
+                  priceCurrency: product.price?.currency || 'RUB',
                   price: selectedVariant
                     ? parseFloat(selectedVariant.current_price)
-                    : product.price.retail,
+                    : product.price?.retail || 0,
                   availability: selectedVariant
                     ? selectedVariant.is_in_stock
                       ? 'https://schema.org/InStock'
