@@ -936,6 +936,16 @@ class ProductVariant(models.Model):
                 fields=["color_name", "size_value"],
                 name="idx_variant_characteristics",
             ),
+            # Индексы для оптимизации ценовых фильтров (Story 12.7 performance)
+            models.Index(fields=["retail_price"]),
+            models.Index(
+                fields=["product", "stock_quantity"],
+                name="idx_variant_product_stock",
+            ),
+            models.Index(
+                fields=["product", "retail_price"],
+                name="idx_variant_product_price",
+            ),
         ]
 
     def __str__(self) -> str:

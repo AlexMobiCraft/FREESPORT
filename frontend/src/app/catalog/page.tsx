@@ -484,8 +484,12 @@ const CatalogContent: React.FC = () => {
   }, [activeCategoryId, ordering, page, priceRange.max, priceRange.min, selectedBrandIds, inStock]);
 
   useEffect(() => {
-    fetchProducts();
-  }, [fetchProducts]);
+    // Ждём пока категория будет установлена перед запросом товаров
+    // Это предотвращает дублирующий запрос без category_id
+    if (activeCategoryId !== null) {
+      fetchProducts();
+    }
+  }, [fetchProducts, activeCategoryId]);
 
   const handleToggle = (key: string) => {
     setExpandedKeys(prev => {

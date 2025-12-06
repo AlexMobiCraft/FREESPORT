@@ -165,37 +165,16 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
     )
     def list(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         """
-        Story 14.6: Список товаров с facets (фасетами) атрибутов
+        Список товаров (оптимизированная версия, без facets по умолчанию)
 
-        Возвращает список товаров с дополнительной секцией 'facets',
-        содержащей доступные значения атрибутов с подсчетом товаров.
-
-        Response format:
-        {
-            "count": 100,
-            "next": "...",
-            "previous": null,
-            "results": [...],
-            "facets": {
-                "color": [
-                    {"value": "Красный", "slug": "krasnyj", "count": 10},
-                    {"value": "Синий", "slug": "sinij", "count": 5}
-                ],
-                "size": [...]
-            }
-        }
+        Facets были удалены из базового запроса для оптимизации производительности.
+        Используйте отдельный endpoint для получения facets если нужно.
         """
         # Получаем стандартный response от родительского класса
         response = super().list(request, *args, **kwargs)
 
-        # Получаем отфильтрованный queryset
-        queryset = self.filter_queryset(self.get_queryset())
-
-        # Генерируем facets для текущего набора товаров
-        facets = AttributeFacetService.get_facets(queryset)
-
-        # Добавляем facets в response data
-        response.data["facets"] = facets
+        # Возвращаем пустые facets для совместимости с фронтендом
+        response.data["facets"] = {}
 
         return response
 

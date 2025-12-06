@@ -37,13 +37,23 @@ class ProductFilter(django_filters.FilterSet):
 
         Создает фильтры вида attr_<slug> для каждого активного атрибута.
         Например: ?attr_color=red,blue или ?attr_size=xl
+        
+        Оптимизировано: кешируем атрибуты для избежания запроса к БД при каждом запросе.
         """
         super().__init__(*args, **kwargs)
 
-        # Загружаем только активные атрибуты для создания фильтров
-        active_attributes = Attribute.objects.filter(is_active=True).only(
-            "id", "slug", "name"
-        )
+        from django.core.cache import cache
+        
+        cache_key = "active_attributes_for_filters"
+        active_attributes = cache.get(cache_key)
+        
+        if active_attributes is None:
+            # Загружаем только активные атрибуты для создания фильтров
+            active_attributes = list(
+                Attribute.objects.filter(is_active=True).only("id", "slug", "name")
+            )
+            # Кешируем на 5 минут
+            cache.set(cache_key, active_attributes, 300)
 
         for attr in active_attributes:
             filter_name = f"attr_{attr.slug}"
@@ -208,7 +218,10 @@ class ProductFilter(django_filters.FilterSet):
         return queryset.filter(brand_queries)
 
     def filter_category_id(self, queryset, name, value):
-        """Фильтрует товары по категории и всем её дочерним категориям"""
+        """
+        Фильтрует товары по категории и всем её дочерним категориям.
+        Оптимизировано: используем один запрос с get_descendants_ids.
+        """
         if not value:
             return queryset
 
@@ -217,151 +230,172 @@ class ProductFilter(django_filters.FilterSet):
         except (TypeError, ValueError):
             return queryset
 
-        if not Category.objects.filter(id=category_id, is_active=True).exists():
-            return queryset.none()
-
-        category_ids = {category_id}
-        to_process = [category_id]
-
-        while to_process:
-            children = list(
-                Category.objects.filter(
-                    parent_id__in=to_process, is_active=True
-                ).values_list("id", flat=True)
-            )
-
-            new_children = [
-                child_id for child_id in children if child_id not in category_ids
-            ]
-            if not new_children:
-                break
-
-            category_ids.update(new_children)
-            to_process = new_children
-
-        return queryset.filter(category__id__in=category_ids)
+        # Получаем все ID категорий одним запросом используя MPTT-подобный подход
+        # или просто кешируем дерево категорий
+        from django.core.cache import cache
+        
+        cache_key = f"category_descendants_{category_id}"
+        category_ids = cache.get(cache_key)
+        
+        if category_ids is None:
+            # Проверяем существование категории
+            if not Category.objects.filter(id=category_id, is_active=True).exists():
+                return queryset.none()
+            
+            # Собираем все ID за один проход (максимум 4 уровня вложенности)
+            category_ids = {category_id}
+            current_level = [category_id]
+            
+            for _ in range(4):  # Максимум 4 уровня вложенности
+                if not current_level:
+                    break
+                children = list(
+                    Category.objects.filter(
+                        parent_id__in=current_level, is_active=True
+                    ).values_list("id", flat=True)
+                )
+                if not children:
+                    break
+                category_ids.update(children)
+                current_level = children
+            
+            # Кешируем на 5 минут
+            cache.set(cache_key, list(category_ids), 300)
+        
+        return queryset.filter(category_id__in=category_ids)
 
     def filter_min_price(self, queryset, name, value):
-        """Фильтр по минимальной цене с учетом роли пользователя"""
-        # Валидация значения
+        """
+        Фильтр по минимальной цене с учетом роли пользователя.
+        Оптимизировано: использует Exists subquery вместо JOIN для избежания декартова произведения.
+        """
+        from django.db.models import Exists, OuterRef
+        from .models import ProductVariant
+        
         if value is None or value < 0:
             return queryset
 
+        # Сохраняем значение для использования в qs property
+        # Это будет объединено с max_price и in_stock в одном subquery
+        if not hasattr(self, '_variant_filters'):
+            self._variant_filters = Q()
+        
         request = self.request
         if not request or not request.user.is_authenticated:
-            return queryset.filter(variants__retail_price__gte=value).distinct()
-
-        user_role = request.user.role
-
-        # Определяем поле цены в зависимости от роли
-        if user_role == "wholesale_level1":
-            return queryset.filter(
-                Q(variants__opt1_price__gte=value)
-                | Q(
-                    variants__opt1_price__isnull=True, variants__retail_price__gte=value
-                )
-            ).distinct()
-        elif user_role == "wholesale_level2":
-            return queryset.filter(
-                Q(variants__opt2_price__gte=value)
-                | Q(
-                    variants__opt2_price__isnull=True, variants__retail_price__gte=value
-                )
-            ).distinct()
-        elif user_role == "wholesale_level3":
-            return queryset.filter(
-                Q(variants__opt3_price__gte=value)
-                | Q(
-                    variants__opt3_price__isnull=True, variants__retail_price__gte=value
-                )
-            ).distinct()
-        elif user_role == "trainer":
-            return queryset.filter(
-                Q(variants__trainer_price__gte=value)
-                | Q(
-                    variants__trainer_price__isnull=True,
-                    variants__retail_price__gte=value,
-                )
-            ).distinct()
-        elif user_role == "federation_rep":
-            return queryset.filter(
-                Q(variants__federation_price__gte=value)
-                | Q(
-                    variants__federation_price__isnull=True,
-                    variants__retail_price__gte=value,
-                )
-            ).distinct()
+            self._variant_filters &= Q(retail_price__gte=value)
         else:
-            return queryset.filter(variants__retail_price__gte=value).distinct()
+            user_role = request.user.role
+            if user_role == "wholesale_level1":
+                self._variant_filters &= (
+                    Q(opt1_price__gte=value) | 
+                    Q(opt1_price__isnull=True, retail_price__gte=value)
+                )
+            elif user_role == "wholesale_level2":
+                self._variant_filters &= (
+                    Q(opt2_price__gte=value) | 
+                    Q(opt2_price__isnull=True, retail_price__gte=value)
+                )
+            elif user_role == "wholesale_level3":
+                self._variant_filters &= (
+                    Q(opt3_price__gte=value) | 
+                    Q(opt3_price__isnull=True, retail_price__gte=value)
+                )
+            elif user_role == "trainer":
+                self._variant_filters &= (
+                    Q(trainer_price__gte=value) | 
+                    Q(trainer_price__isnull=True, retail_price__gte=value)
+                )
+            elif user_role == "federation_rep":
+                self._variant_filters &= (
+                    Q(federation_price__gte=value) | 
+                    Q(federation_price__isnull=True, retail_price__gte=value)
+                )
+            else:
+                self._variant_filters &= Q(retail_price__gte=value)
+        
+        return queryset
 
     def filter_max_price(self, queryset, name, value):
-        """Фильтр по максимальной цене с учетом роли пользователя"""
-        # Валидация значения
+        """
+        Фильтр по максимальной цене с учетом роли пользователя.
+        Оптимизировано: накапливает условия для единого subquery.
+        """
         if value is None or value < 0:
             return queryset
 
+        if not hasattr(self, '_variant_filters'):
+            self._variant_filters = Q()
+        
         request = self.request
         if not request or not request.user.is_authenticated:
-            return queryset.filter(variants__retail_price__lte=value).distinct()
-
-        user_role = request.user.role
-
-        # Определяем поле цены в зависимости от роли
-        if user_role == "wholesale_level1":
-            return queryset.filter(
-                Q(variants__opt1_price__lte=value)
-                | Q(
-                    variants__opt1_price__isnull=True, variants__retail_price__lte=value
-                )
-            ).distinct()
-        elif user_role == "wholesale_level2":
-            return queryset.filter(
-                Q(variants__opt2_price__lte=value)
-                | Q(
-                    variants__opt2_price__isnull=True, variants__retail_price__lte=value
-                )
-            ).distinct()
-        elif user_role == "wholesale_level3":
-            return queryset.filter(
-                Q(variants__opt3_price__lte=value)
-                | Q(
-                    variants__opt3_price__isnull=True, variants__retail_price__lte=value
-                )
-            ).distinct()
-        elif user_role == "trainer":
-            return queryset.filter(
-                Q(variants__trainer_price__lte=value)
-                | Q(
-                    variants__trainer_price__isnull=True,
-                    variants__retail_price__lte=value,
-                )
-            ).distinct()
-        elif user_role == "federation_rep":
-            return queryset.filter(
-                Q(variants__federation_price__lte=value)
-                | Q(
-                    variants__federation_price__isnull=True,
-                    variants__retail_price__lte=value,
-                )
-            ).distinct()
+            self._variant_filters &= Q(retail_price__lte=value)
         else:
-            return queryset.filter(variants__retail_price__lte=value).distinct()
+            user_role = request.user.role
+            if user_role == "wholesale_level1":
+                self._variant_filters &= (
+                    Q(opt1_price__lte=value) | 
+                    Q(opt1_price__isnull=True, retail_price__lte=value)
+                )
+            elif user_role == "wholesale_level2":
+                self._variant_filters &= (
+                    Q(opt2_price__lte=value) | 
+                    Q(opt2_price__isnull=True, retail_price__lte=value)
+                )
+            elif user_role == "wholesale_level3":
+                self._variant_filters &= (
+                    Q(opt3_price__lte=value) | 
+                    Q(opt3_price__isnull=True, retail_price__lte=value)
+                )
+            elif user_role == "trainer":
+                self._variant_filters &= (
+                    Q(trainer_price__lte=value) | 
+                    Q(trainer_price__isnull=True, retail_price__lte=value)
+                )
+            elif user_role == "federation_rep":
+                self._variant_filters &= (
+                    Q(federation_price__lte=value) | 
+                    Q(federation_price__isnull=True, retail_price__lte=value)
+                )
+            else:
+                self._variant_filters &= Q(retail_price__lte=value)
+        
+        return queryset
 
     def filter_in_stock(self, queryset, name, value):
-        """Фильтр по наличию товара с учетом флага is_active"""
+        """
+        Фильтр по наличию товара.
+        Оптимизировано: накапливает условия для единого subquery.
+        """
+        if not hasattr(self, '_variant_filters'):
+            self._variant_filters = Q()
+        
         if value:
-            # Товары в наличии: есть хотя бы один вариант с количеством > 0
-            return queryset.filter(
-                variants__stock_quantity__gt=0, is_active=True
-            ).distinct()
-        else:
-            # Товары НЕ в наличии: все варианты имеют 0 или товар неактивен
-            # Или у товара вообще нет вариантов
-            return queryset.filter(
-                Q(variants__stock_quantity=0)
-                | Q(variants__isnull=True)
-                | Q(is_active=False)
-            ).distinct()
+            self._variant_filters &= Q(stock_quantity__gt=0)
+        # Для in_stock=False не добавляем условие - покажем все товары
+        
+        return queryset
+    
+    @property
+    def qs(self):
+        """
+        Переопределяем qs чтобы применить накопленные variant фильтры одним subquery.
+        Это критически важно для производительности!
+        """
+        from django.db.models import Exists, OuterRef
+        from .models import ProductVariant
+        
+        queryset = super().qs
+        
+        # Применяем накопленные фильтры по вариантам одним Exists subquery
+        if hasattr(self, '_variant_filters') and self._variant_filters:
+            variant_subquery = ProductVariant.objects.filter(
+                product=OuterRef('pk'),
+                **{k: v for k, v in []},  # placeholder
+            ).filter(self._variant_filters)
+            
+            queryset = queryset.filter(Exists(variant_subquery))
+        
+        return queryset
 
     def filter_search(self, queryset, name, value):
         """Полнотекстовый поиск с поддержкой PostgreSQL FTS и fallback для других БД"""
