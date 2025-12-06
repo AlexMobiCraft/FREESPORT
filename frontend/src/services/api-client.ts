@@ -17,7 +17,11 @@ import axios, {
 import { useAuthStore } from '@/stores/authStore';
 
 // Конфигурация из environment variables
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api/v1';
+// Для SSR используем внутренний URL (внутри Docker сети), для браузера - публичный
+const isServer = typeof window === 'undefined';
+const API_URL_PUBLIC = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api/v1';
+const API_URL_INTERNAL = process.env.NEXT_PUBLIC_API_URL_INTERNAL || API_URL_PUBLIC;
+const API_URL = isServer ? API_URL_INTERNAL : API_URL_PUBLIC;
 const API_TIMEOUT = parseInt(process.env.NEXT_PUBLIC_API_TIMEOUT || '30000');
 
 // Create axios instance
