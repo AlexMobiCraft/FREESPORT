@@ -34,33 +34,42 @@ export default function ProductImageGallery({
   /**
    * Обновляет изображения при изменении selectedVariant
    * Если у варианта есть main_image, используем его
+   * Иначе показываем базовые изображения товара
    */
   useEffect(() => {
-    if (selectedVariant?.main_image) {
-      // Создаем ProductImage из main_image варианта
-      const variantMainImage: ProductImage = {
-        image: selectedVariant.main_image,
-        alt_text:
-          `${productName} - ${selectedVariant.color_name || ''} ${selectedVariant.size_value || ''}`.trim(),
-        is_primary: true,
-      };
+    if (selectedVariant) {
+      if (selectedVariant.main_image) {
+        // Создаем ProductImage из main_image варианта
+        const variantMainImage: ProductImage = {
+          image: selectedVariant.main_image,
+          alt_text:
+            `${productName} - ${selectedVariant.color_name || ''} ${selectedVariant.size_value || ''}`.trim(),
+          is_primary: true,
+        };
 
-      setSelectedImage(variantMainImage);
+        setSelectedImage(variantMainImage);
 
-      // Если есть gallery_images у варианта, обновляем галерею
-      if (selectedVariant.gallery_images && selectedVariant.gallery_images.length > 0) {
-        const variantGallery: ProductImage[] = selectedVariant.gallery_images.map((img, index) => ({
-          image: img,
-          alt_text: `${productName} - вид ${index + 1}`,
-          is_primary: false,
-        }));
-        setGalleryImages([variantMainImage, ...variantGallery]);
+        // Если есть gallery_images у варианта, обновляем галерею
+        if (selectedVariant.gallery_images && selectedVariant.gallery_images.length > 0) {
+          const variantGallery: ProductImage[] = selectedVariant.gallery_images.map(
+            (img, index) => ({
+              image: img,
+              alt_text: `${productName} - вид ${index + 1}`,
+              is_primary: false,
+            })
+          );
+          setGalleryImages([variantMainImage, ...variantGallery]);
+        } else {
+          // Если у варианта нет галереи, показываем только main_image
+          setGalleryImages([variantMainImage]);
+        }
       } else {
-        // Если у варианта нет галереи, показываем только main_image
-        setGalleryImages([variantMainImage]);
+        // Вариант выбран, но у него нет изображения — показываем базовые изображения товара
+        setGalleryImages(images);
+        setSelectedImage(images.find(img => img.is_primary) || images[0]);
       }
-    } else if (!selectedVariant) {
-      // Сброс к исходным изображениям товара
+    } else {
+      // Вариант не выбран — показываем базовые изображения товара
       setGalleryImages(images);
       setSelectedImage(images.find(img => img.is_primary) || images[0]);
     }

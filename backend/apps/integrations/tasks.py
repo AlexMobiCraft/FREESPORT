@@ -101,8 +101,7 @@ def _execute_import_type(import_type: str, task_id: str) -> dict[str, str]:
 
     Args:
         import_type: Тип импорта (catalog, attributes, stocks, prices, customers, images)
-        data_dir: Директория с данными 1С
-        task_id: ID задачи Celery для логирования
+        task_id: ID задачи Celery для логирования и связи с сессией
 
     Returns:
         Dict с результатом импорта
@@ -113,7 +112,11 @@ def _execute_import_type(import_type: str, task_id: str) -> dict[str, str]:
     """
     if import_type == "catalog":
         logger.info(f"[Task {task_id}] Запуск import_catalog_from_1c --file-type=all")
-        call_command("import_catalog_from_1c", "--file-type", "all")
+        call_command(
+            "import_catalog_from_1c",
+            "--file-type", "all",
+            "--celery-task-id", task_id,
+        )
         return {"type": "catalog", "message": "Каталог импортирован"}
 
     elif import_type == "attributes":
@@ -126,14 +129,22 @@ def _execute_import_type(import_type: str, task_id: str) -> dict[str, str]:
 
     elif import_type == "stocks":
         logger.info(f"[Task {task_id}] Запуск import_catalog_from_1c --file-type=rests")
-        call_command("import_catalog_from_1c", "--file-type", "rests")
+        call_command(
+            "import_catalog_from_1c",
+            "--file-type", "rests",
+            "--celery-task-id", task_id,
+        )
         return {"type": "stocks", "message": "Остатки обновлены"}
 
     elif import_type == "prices":
         logger.info(
             f"[Task {task_id}] Запуск import_catalog_from_1c --file-type=prices"
         )
-        call_command("import_catalog_from_1c", "--file-type", "prices")
+        call_command(
+            "import_catalog_from_1c",
+            "--file-type", "prices",
+            "--celery-task-id", task_id,
+        )
         return {"type": "prices", "message": "Цены обновлены"}
 
     elif import_type == "customers":
@@ -148,7 +159,11 @@ def _execute_import_type(import_type: str, task_id: str) -> dict[str, str]:
 
     elif import_type == "variants":
         logger.info(f"[Task {task_id}] Запуск импорта вариантов товаров")
-        call_command("import_products_from_1c", "--variants-only")
+        call_command(
+            "import_products_from_1c",
+            "--variants-only",
+            "--celery-task-id", task_id,
+        )
         return {"type": "variants", "message": "Варианты товаров импортированы"}
 
     else:

@@ -82,6 +82,15 @@ class Command(BaseCommand):
             action="store_true",
             help="Пропустить импорт изображений товаров (только метаданные)",
         )
+        parser.add_argument(
+            "--celery-task-id",
+            type=str,
+            default=None,
+            help=(
+                "ID Celery задачи для связи с существующей сессией импорта. "
+                "Если указан, команда использует существующую сессию вместо создания новой."
+            ),
+        )
 
     def handle(self, *args, **options):
         """Основная логика команды"""
@@ -98,6 +107,7 @@ class Command(BaseCommand):
         clear_existing = options.get("clear_existing", False)
         skip_backup = options.get("skip_backup", False)
         skip_images = options.get("skip_images", False)
+        celery_task_id = options.get("celery_task_id", None)
 
         # Валидация директории
         if not os.path.exists(data_dir):
@@ -168,20 +178,39 @@ class Command(BaseCommand):
         self.stdout.write(f"   Clear existing: {clear_existing}")
         self.stdout.write("=" * 50)
 
-        # Создание сессии импорта
-        session = ImportSession.objects.create(
-            import_type=ImportSession.ImportType.CATALOG,
-            status=ImportSession.ImportStatus.STARTED,
-        )
-        session_id = cast(int, session.pk)
+        # Создание или получение существующей сессии импорта
+        session = None
+        if celery_task_id:
+            # Ищем существующую сессию по celery_task_id
+            try:
+                session = ImportSession.objects.get(celery_task_id=celery_task_id)
+                session.status = ImportSession.ImportStatus.IN_PROGRESS
+                session.save(update_fields=["status"])
+                self.stdout.write(
+                    self.style.SUCCESS(
+                        f"\n✅ Используется существующая сессия импорта ID: {session.pk}"
+                    )
+                )
+            except ImportSession.DoesNotExist:
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"\n⚠️ Сессия с celery_task_id={celery_task_id} не найдена, создаём новую"
+                    )
+                )
 
-        self.stdout.write(
-            self.style.SUCCESS(
-                "\n✅ Создана сессия импорта ID: {session_id}".format(
-                    session_id=session_id
+        if session is None:
+            session = ImportSession.objects.create(
+                import_type=ImportSession.ImportType.CATALOG,
+                status=ImportSession.ImportStatus.STARTED,
+                celery_task_id=celery_task_id,
+            )
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f"\n✅ Создана сессия импорта ID: {session.pk}"
                 )
             )
-        )
+
+        session_id = cast(int, session.pk)
 
         try:
             # Инициализация парсера и процессора с параметрами
