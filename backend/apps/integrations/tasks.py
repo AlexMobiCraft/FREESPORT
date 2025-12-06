@@ -11,8 +11,8 @@ from django.conf import settings
 from django.core.management import call_command
 from django.utils import timezone
 
-from apps.products.models import ImportSession, Product
-from apps.products.services.processor import ProductDataProcessor
+from apps.products.models import ImportSession, Product, ProductVariant
+from apps.products.services.variant_import import VariantImportProcessor
 
 logger = logging.getLogger(__name__)
 
@@ -251,7 +251,7 @@ def _run_image_import(task_id: str) -> dict[str, str]:
 
         # Создать экземпляр процессора, используя ID текущей сессии (если найдена)
         processor_session_id = session.id if session else 0
-        processor = ProductDataProcessor(session_id=processor_session_id)
+        processor = VariantImportProcessor(session_id=processor_session_id)
 
         # Chunked processing для экономии памяти
         for product in products_qs.iterator(chunk_size=100):
@@ -264,18 +264,28 @@ def _run_image_import(task_id: str) -> dict[str, str]:
                     processed += 1
                     continue
 
-                # Импортировать изображения
-                result = processor.import_product_images(
+                # Epic 13/14: Импорт изображений в Product.base_images (Hybrid подход)
+                # Это fallback для вариантов без собственных изображений
+                processor._import_base_images(
                     product=product,
                     image_paths=image_paths,
                     base_dir=str(base_dir),
-                    validate_images=False,  # Для производительности
                 )
 
-                # Суммировать результаты
-                total_copied += result.get("copied", 0)
-                total_skipped += result.get("skipped", 0)
-                total_errors += result.get("errors", 0)
+                # Импортируем изображения в первый ProductVariant (если есть)
+                # Это обеспечивает отображение изображений в карточках товаров
+                first_variant = product.variants.first()
+                if first_variant:
+                    processor._import_variant_images(
+                        variant=first_variant,
+                        image_paths=image_paths,
+                        base_dir=str(base_dir),
+                    )
+                    total_copied += len(image_paths)
+                else:
+                    # Если нет вариантов, считаем как base_images
+                    total_copied += len(image_paths)
+
                 processed += 1
 
                 # Обновление прогресса каждые 50 товаров

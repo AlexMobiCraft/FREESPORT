@@ -155,28 +155,25 @@ class ProductDataProcessor:
                 if fields_to_update:
                     existing.save(update_fields=fields_to_update)
 
-                # НОВАЯ ФУНКЦИОНАЛЬНОСТЬ: Импорт изображений для существующих
-                # товаров
+                # Epic 13/14: Импорт изображений в Product.base_images
+                # Метод import_product_images() устарел — изображения теперь
+                # хранятся в ProductVariant.main_image с fallback на base_images
                 if not skip_images and base_dir and "images" in goods_data:
                     try:
                         logger.info(
-                            "Importing images for existing product "
+                            "Importing base_images for existing product "
                             f"{existing.onec_id}"
                         )
-                        image_result = self.import_product_images(
+                        self._import_base_images_simple(
                             product=existing,
                             image_paths=goods_data["images"],
                             base_dir=base_dir,
-                            validate_images=not self.skip_validation,
                         )
-                        self._update_image_stats(image_result)
                     except Exception as img_error:
                         logger.error(
-                            f"Error importing images for existing product "
+                            f"Error importing base_images for existing product "
                             f"{existing.onec_id}: {img_error}"
                         )
-                        # Не прерываем процесс, а продолжаем с ошибкой в
-                        # статистике
                         self.stats["errors"] += 1
 
                 # Story 14.4: Связывание атрибутов с Product (goods.xml)
@@ -284,26 +281,24 @@ class ProductDataProcessor:
                 )
                 self.stats["created"] += 1
 
-                # НОВАЯ ФУНКЦИОНАЛЬНОСТЬ: Импорт изображений
+                # Epic 13/14: Импорт изображений в Product.base_images
+                # Метод import_product_images() устарел — изображения теперь
+                # хранятся в ProductVariant.main_image с fallback на base_images
                 if not skip_images and base_dir and "images" in goods_data:
                     try:
                         logger.info(
-                            f"Importing images for new product " f"{product.onec_id}"
+                            f"Importing base_images for new product {product.onec_id}"
                         )
-                        image_result = self.import_product_images(
+                        self._import_base_images_simple(
                             product=product,
                             image_paths=goods_data["images"],
                             base_dir=base_dir,
-                            validate_images=not self.skip_validation,
                         )
-                        self._update_image_stats(image_result)
                     except Exception as img_error:
                         logger.error(
-                            f"Error importing images for new product "
+                            f"Error importing base_images for new product "
                             f"{product.onec_id}: {img_error}"
                         )
-                        # Не прерываем процесс, а продолжаем с ошибкой в
-                        # статистике
                         self.stats["errors"] += 1
 
                 # Story 14.4: Связывание атрибутов с Product (goods.xml)
@@ -618,6 +613,91 @@ class ProductDataProcessor:
             self.stats[stats_key] += image_result.get(result_key, 0)
 
         logger.info(f"Updated image stats: {self.stats}")
+
+    def _import_base_images_simple(
+        self,
+        product: Product,
+        image_paths: list[str],
+        base_dir: str,
+    ) -> None:
+        """
+        Импорт изображений в Product.base_images (Epic 13/14 Hybrid подход).
+
+        Сохраняет пути к изображениям в JSONField base_images.
+        Это fallback для вариантов без собственных изображений.
+
+        Args:
+            product: Product instance
+            image_paths: Список путей к изображениям из goods.xml
+            base_dir: Базовая директория импорта
+
+        Note:
+            Метод import_product_images() устарел после Epic 13.
+            Изображения теперь хранятся в ProductVariant.main_image/gallery_images.
+        """
+        if not image_paths:
+            return
+
+        from pathlib import Path
+
+        base_images: list[str] = list(product.base_images or [])
+        seen_paths: set[str] = set(base_images)
+        images_added = 0
+
+        for image_path in image_paths:
+            try:
+                source_path = Path(base_dir) / image_path
+
+                if not source_path.exists():
+                    logger.warning(f"Base image file not found: {source_path}")
+                    continue
+
+                # Построение пути для сохранения (сохраняем структуру директорий)
+                filename = source_path.name
+                subdir = image_path.split("/")[0] if "/" in image_path else ""
+                destination_path = (
+                    f"products/{subdir}/{filename}" if subdir else f"products/{filename}"
+                )
+
+                # Проверка дубликатов
+                if destination_path in seen_paths:
+                    continue
+
+                # Копирование файла если не существует
+                if not default_storage.exists(destination_path):
+                    # Создание поддиректории
+                    if subdir:
+                        from django.conf import settings
+
+                        subdir_full_path = os.path.join(
+                            settings.MEDIA_ROOT, "products", subdir
+                        )
+                        os.makedirs(subdir_full_path, exist_ok=True)
+
+                    # Копирование файла
+                    with open(source_path, "rb") as f:
+                        file_content = f.read()
+                        default_storage.save(destination_path, ContentFile(file_content))
+
+                # Добавление в base_images
+                base_images.append(destination_path)
+                seen_paths.add(destination_path)
+                images_added += 1
+
+            except Exception as e:
+                logger.error(f"Error copying base image {image_path}: {e}")
+                self.stats["errors"] += 1
+
+        # Сохранение base_images если изменились
+        if images_added > 0:
+            product.base_images = base_images
+            product.save(update_fields=["base_images"])
+            logger.info(
+                f"Product {product.onec_id} base_images updated: "
+                f"{images_added} images added, total {len(base_images)}"
+            )
+            self.stats.setdefault("images_copied", 0)
+            self.stats["images_copied"] += images_added
 
     def process_categories(self, categories_data: list[CategoryData]) -> dict[str, int]:
         """

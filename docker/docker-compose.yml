@@ -59,7 +59,7 @@ services:
       - DB_PASSWORD=password123
       - DB_HOST=db
       - DB_PORT=5432
-      - REDIS_URL=redis://:redis123@freesport-redis:6379/0
+      - REDIS_URL=redis://:redis123@redis:6379/0
       - DEBUG=1
       - ONEC_DATA_DIR=/app/data/import_1c
     volumes:
@@ -156,7 +156,7 @@ services:
       - DB_PASSWORD=password123
       - DB_HOST=db
       - DB_PORT=5432
-      - REDIS_URL=redis://:redis123@freesport-redis:6379/0
+      - REDIS_URL=redis://:redis123@redis:6379/0
       - DEBUG=1
       - ONEC_DATA_DIR=/app/data/import_1c
     depends_on:
@@ -186,7 +186,7 @@ services:
       - DB_PASSWORD=password123
       - DB_HOST=db
       - DB_PORT=5432
-      - REDIS_URL=redis://:redis123@freesport-redis:6379/0
+      - REDIS_URL=redis://:redis123@redis:6379/0
       - DEBUG=1
     depends_on:
       db:

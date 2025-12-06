@@ -327,7 +327,47 @@ CONFLICT_NOTIFICATION_EMAIL = config(
 # ============================================================================
 
 LOGS_DIR = BASE_DIR / "logs"
-LOGS_DIR.mkdir(exist_ok=True)
+
+# Создаём директорию логов безопасно
+try:
+    LOGS_DIR.mkdir(exist_ok=True)
+    _base_file_logging_available = LOGS_DIR.exists() and os.access(str(LOGS_DIR), os.W_OK)
+except (OSError, PermissionError):
+    _base_file_logging_available = False
+
+# Базовые handlers (всегда доступны)
+_base_handlers = {
+    "console": {
+        "level": "INFO",
+        "class": "logging.StreamHandler",
+        "formatter": "simple",
+    },
+}
+
+# Добавляем файловые handlers только если директория доступна
+if _base_file_logging_available:
+    _base_handlers["import_file"] = {
+        "level": "INFO",
+        "class": "logging.handlers.RotatingFileHandler",
+        "filename": str(LOGS_DIR / "import_products.log"),
+        "maxBytes": 10 * 1024 * 1024,  # 10 MB
+        "backupCount": 5,
+        "formatter": "verbose",
+        "encoding": "utf-8",
+    }
+    _base_handlers["error_file"] = {
+        "level": "ERROR",
+        "class": "logging.handlers.RotatingFileHandler",
+        "filename": str(LOGS_DIR / "errors.log"),
+        "maxBytes": 10 * 1024 * 1024,  # 10 MB
+        "backupCount": 5,
+        "formatter": "verbose",
+        "encoding": "utf-8",
+    }
+
+# Определяем loggers в зависимости от доступности файлового логирования
+_import_handlers = ["import_file", "console"] if _base_file_logging_available else ["console"]
+_products_handlers = ["console", "error_file"] if _base_file_logging_available else ["console"]
 
 LOGGING = {
     "version": 1,
@@ -344,31 +384,7 @@ LOGGING = {
             "datefmt": "%H:%M:%S",
         },
     },
-    "handlers": {
-        "console": {
-            "level": "INFO",
-            "class": "logging.StreamHandler",
-            "formatter": "simple",
-        },
-        "import_file": {
-            "level": "INFO",
-            "class": "logging.handlers.RotatingFileHandler",
-            "filename": str(LOGS_DIR / "import_products.log"),
-            "maxBytes": 10 * 1024 * 1024,  # 10 MB
-            "backupCount": 5,
-            "formatter": "verbose",
-            "encoding": "utf-8",
-        },
-        "error_file": {
-            "level": "ERROR",
-            "class": "logging.handlers.RotatingFileHandler",
-            "filename": str(LOGS_DIR / "errors.log"),
-            "maxBytes": 10 * 1024 * 1024,  # 10 MB
-            "backupCount": 5,
-            "formatter": "verbose",
-            "encoding": "utf-8",
-        },
-    },
+    "handlers": _base_handlers,
     "loggers": {
         "django": {
             "handlers": ["console"],
@@ -376,12 +392,12 @@ LOGGING = {
             "propagate": True,
         },
         "import_products": {
-            "handlers": ["import_file", "console"],
+            "handlers": _import_handlers,
             "level": "INFO",
             "propagate": False,
         },
         "apps.products": {
-            "handlers": ["console", "error_file"],
+            "handlers": _products_handlers,
             "level": "INFO",
             "propagate": False,
         },

@@ -323,7 +323,7 @@ class FavoriteSerializer(serializers.ModelSerializer):
         decimal_places=2,
         read_only=True,
     )
-    product_image = serializers.CharField(source="product.main_image", read_only=True)
+    product_image = serializers.SerializerMethodField()
     product_slug = serializers.CharField(source="product.slug", read_only=True)
     product_sku = serializers.CharField(source="product.sku", read_only=True)
 
@@ -340,6 +340,21 @@ class FavoriteSerializer(serializers.ModelSerializer):
             "created_at",
         ]
         read_only_fields = ["id", "created_at"]
+
+    def get_product_image(self, obj) -> str | None:
+        """
+        Получить изображение товара из ProductVariant или Product.base_images.
+        Epic 13/14: изображения хранятся в ProductVariant.main_image с fallback на Product.base_images.
+        """
+        product = obj.product
+        # Пробуем получить изображение из первого активного варианта
+        first_variant = product.variants.filter(is_active=True).first()
+        if first_variant and first_variant.main_image:
+            return str(first_variant.main_image)
+        # Fallback на base_images
+        if product.base_images and len(product.base_images) > 0:
+            return product.base_images[0]
+        return None
 
 
 class FavoriteCreateSerializer(serializers.ModelSerializer):

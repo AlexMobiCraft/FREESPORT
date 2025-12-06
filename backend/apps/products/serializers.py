@@ -64,6 +64,8 @@ class ProductVariantSerializer(serializers.ModelSerializer):
     is_in_stock = serializers.BooleanField(read_only=True)
     available_quantity = serializers.IntegerField(read_only=True)
     attributes = serializers.SerializerMethodField()
+    main_image = serializers.SerializerMethodField()
+    gallery_images = serializers.SerializerMethodField()
 
     class Meta:
         model = ProductVariant
@@ -82,6 +84,37 @@ class ProductVariantSerializer(serializers.ModelSerializer):
             "attributes",
         ]
         read_only_fields = fields  # Все поля read-only
+
+    def get_main_image(self, obj: ProductVariant) -> str | None:
+        """
+        Получить URL основного изображения варианта
+
+        Args:
+            obj: ProductVariant instance
+
+        Returns:
+            str | None: URL изображения или None
+        """
+        if obj.main_image:
+            request = self.context.get("request")
+            if request and hasattr(request, "build_absolute_uri"):
+                return request.build_absolute_uri(obj.main_image.url)
+            return obj.main_image.url
+        return None
+
+    def get_gallery_images(self, obj: ProductVariant) -> list[str]:
+        """
+        Получить список URL галереи изображений варианта
+
+        Args:
+            obj: ProductVariant instance
+
+        Returns:
+            list[str]: Список URL изображений
+        """
+        if obj.gallery_images and isinstance(obj.gallery_images, list):
+            return obj.gallery_images
+        return []
 
     def get_current_price(self, obj: ProductVariant) -> str:
         """
@@ -412,7 +445,8 @@ class ProductListSerializer(serializers.ModelSerializer):
         """Получить основное изображение из первого варианта или base_images"""
         variant = self._get_first_variant(obj)
         if variant and variant.main_image:
-            return variant.main_image
+            # Возвращаем URL, а не ImageField объект
+            return variant.main_image.url
         # Fallback на base_images
         if obj.base_images and isinstance(obj.base_images, list) and obj.base_images:
             return obj.base_images[0]

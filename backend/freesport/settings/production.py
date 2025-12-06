@@ -4,9 +4,6 @@
 
 from .base import *
 
-LOG_DIR = BASE_DIR / "logs"
-LOG_DIR.mkdir(parents=True, exist_ok=True)
-
 # БЕЗОПАСНОСТЬ: Debug должен быть False в продакшене!
 DEBUG = False
 
@@ -67,7 +64,7 @@ CACHES = {
     }
 }
 
-# Логирование для продакшена
+# Логирование для продакшена (только console для Docker)
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -80,13 +77,6 @@ LOGGING = {
     "handlers": {
         "console": {
             "class": "logging.StreamHandler",
-            "formatter": "verbose",
-        },
-        "file": {
-            "class": "logging.handlers.RotatingFileHandler",
-            "filename": str(LOG_DIR / "django.log"),
-            "maxBytes": 1024 * 1024 * 15,  # 15MB
-            "backupCount": 10,
             "formatter": "verbose",
         },
     },
