@@ -1,0 +1,40 @@
+# <!-- Powered by BMAD™ Core -->
+schema: 1
+story: "26.1"
+story_title: "Story 26.1: Cart Page Component & Layout"
+gate: "PASS"
+status_reason: "Все AC реализованы, покрытия тестами достаточно; критических рисков нет."
+reviewer: "Quinn (Test Architect)"
+updated: "2025-12-07T15:00:00Z"
+
+waiver: { active: false }
+
+top_issues: []
+
+risk_summary:
+  totals: { critical: 0, high: 0, medium: 0, low: 0 }
+  recommendations:
+    must_fix: []
+    monitor: []
+
+quality_score: 100
+expires: "2025-12-21T00:00:00Z"
+
+evidence:
+  tests_reviewed: 77
+  risks_identified: 0
+  trace:
+    ac_covered: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    ac_gaps: []
+
+nfr_validation:
+  security: { status: PASS, notes: "Нет работы с чувствительными данными; UI-уровень." }
+  performance: { status: PASS, notes: "Легковесные компоненты, Skeleton без тяжёлых зависимостей." }
+  reliability: { status: PASS, notes: "Обработаны loading/error/empty, retry доступен." }
+  maintainability: { status: PASS, notes: "Структура модульная, тесты покрывают ключевые состояния." }
+
+recommendations:
+  immediate: []
+  future:
+    - action: "Заменить placeholder CartItemCard/CartSummary на финальные реализации после историй 26.2/26.3 и добавить интеграционные тесты."
+      refs: ["frontend/src/components/cart/CartPage.tsx"]

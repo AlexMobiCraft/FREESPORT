@@ -82,3 +82,7 @@ export type {
 
 export { ConfirmDialog } from './ConfirmDialog';
 export type { ConfirmDialogProps } from './ConfirmDialog';
+
+// Loading Components
+export { Skeleton } from './Skeleton';
+export type { SkeletonProps } from './Skeleton';
