@@ -19,10 +19,10 @@ const nextConfig: NextConfig = {
 
   // Настройки изображений
   images: {
-    // Отключаем оптимизацию в dev режиме, т.к. Next.js не может получить
-    // изображения по внутренним Docker URL (http://nginx, http://backend)
-    // В продакшен используем https://freesport.ru - оптимизация будет работать
-    unoptimized: process.env.NODE_ENV === 'development',
+    // Отключаем оптимизацию изображений (unoptimized: true) для всех окружений,
+    // чтобы ссылки на изображения всегда были прямыми (например, /media/...),
+    // как того требует конфигурация проекта.
+    unoptimized: true,
     remotePatterns: [
       {
         protocol: 'http',
