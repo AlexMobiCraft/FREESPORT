@@ -68,3 +68,23 @@ export interface Cart {
   created_at: string;
   updated_at: string;
 }
+
+/**
+ * Ответ API при применении промокода
+ * @see Story 26.4: Promo Code Integration
+ */
+export interface PromoResponse {
+  success: boolean;
+  code?: string;
+  discount_type?: 'percent' | 'fixed';
+  discount_value?: number;
+  error?: string;
+}
+
+/**
+ * Запрос на применение промокода
+ */
+export interface ApplyPromoRequest {
+  code: string;
+  cartTotal: number;
+}

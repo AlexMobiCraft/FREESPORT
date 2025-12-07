@@ -23,6 +23,18 @@ const mockCartStore = {
   items: [] as Array<{ id: number }>,
   totalPrice: 0,
   totalItems: 0,
+  // Story 26.4: Promo state
+  promoCode: null as string | null,
+  discountType: null as 'percent' | 'fixed' | null,
+  discountValue: 0,
+  getPromoDiscount: () => {
+    if (!mockCartStore.discountType) return 0;
+    const discount =
+      mockCartStore.discountType === 'percent'
+        ? mockCartStore.totalPrice * (mockCartStore.discountValue / 100)
+        : mockCartStore.discountValue;
+    return Math.min(discount, mockCartStore.totalPrice);
+  },
 };
 
 vi.mock('@/stores/cartStore', () => ({
@@ -62,6 +74,10 @@ const resetCartStore = () => {
   mockCartStore.items = [];
   mockCartStore.totalPrice = 0;
   mockCartStore.totalItems = 0;
+  // Story 26.4: Reset promo state
+  mockCartStore.promoCode = null;
+  mockCartStore.discountType = null;
+  mockCartStore.discountValue = 0;
 };
 
 /**

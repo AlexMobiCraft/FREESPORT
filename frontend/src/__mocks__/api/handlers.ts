@@ -583,14 +583,61 @@ export const handlers = [
     return new HttpResponse(null, { status: 204 });
   }),
 
+  /**
+   * Story 26.4: Promo code handler
+   * Тестовые промокоды: SAVE10, SAVE20, FLAT500, EXPIRED, INVALID
+   */
   http.post(`${API_BASE_URL}/cart/apply-promo/`, async ({ request }) => {
-    const body = (await request.json()) as { code: string };
+    const { code, cartTotal } = (await request.json()) as { code: string; cartTotal?: number };
+
+    // Конфигурация тестовых промокодов
+    const promos: Record<
+      string,
+      {
+        discount_type: 'percent' | 'fixed';
+        discount_value: number;
+        min_order?: number;
+      }
+    > = {
+      SAVE10: { discount_type: 'percent', discount_value: 10 },
+      SAVE20: { discount_type: 'percent', discount_value: 20, min_order: 5000 },
+      FLAT500: { discount_type: 'fixed', discount_value: 500 },
+    };
+
+    // Проверка истёкшего промокода
+    if (code.toUpperCase() === 'EXPIRED') {
+      return HttpResponse.json(
+        { success: false, error: 'Срок действия промокода истёк' },
+        { status: 400 }
+      );
+    }
+
+    // Поиск промокода
+    const promo = promos[code.toUpperCase()];
+    if (!promo) {
+      return HttpResponse.json(
+        { success: false, error: 'Промокод недействителен' },
+        { status: 400 }
+      );
+    }
+
+    // Проверка минимальной суммы заказа
+    if (promo.min_order && cartTotal && cartTotal < promo.min_order) {
+      return HttpResponse.json(
+        {
+          success: false,
+          error: `Минимальная сумма заказа для этого промокода: ${promo.min_order}₽`,
+        },
+        { status: 400 }
+      );
+    }
+
+    // Успешное применение промокода
     return HttpResponse.json({
-      id: 1,
-      items: [],
-      total_amount: 0,
-      promo_code: body.code,
-      discount_amount: 100,
+      success: true,
+      code: code.toUpperCase(),
+      discount_type: promo.discount_type,
+      discount_value: promo.discount_value,
     });
   }),
 ];

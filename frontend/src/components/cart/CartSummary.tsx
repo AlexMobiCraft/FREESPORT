@@ -3,13 +3,14 @@
  *
  * Функции:
  * - Отображение итоговой суммы заказа (totalPrice из cartStore)
- * - Placeholder для скидки по промокоду (Story 26.4)
+ * - Отображение скидки по промокоду (Story 26.4)
  * - Кнопка "Оформить заказ" с условным рендерингом Link/button
  * - Sticky позиционирование на desktop
  * - Hydration паттерн с mounted state
  * - Accessibility: aria-live для динамических сумм
  *
  * @see Story 26.3: Cart Summary & Checkout CTA
+ * @see Story 26.4: Promo Code Integration
  */
 'use client';
 
@@ -26,7 +27,7 @@ import PromoCodeInput from './PromoCodeInput';
 export const CartSummary = () => {
   // Hydration паттерн - предотвращаем mismatch между server/client
   const [mounted, setMounted] = useState(false);
-  const { items, totalPrice } = useCartStore();
+  const { items, totalPrice, getPromoDiscount } = useCartStore();
 
   useEffect(() => {
     setMounted(true);
@@ -35,9 +36,9 @@ export const CartSummary = () => {
   // До монтирования или при пустой корзине - кнопка неактивна
   const isEmpty = !mounted || items.length === 0;
 
-  // Placeholder для Story 26.4 - скидка по промокоду
-  const promoDiscount = 0;
-  const finalTotal = totalPrice - promoDiscount;
+  // Story 26.4: скидка по промокоду (динамический расчёт)
+  const promoDiscount = mounted ? getPromoDiscount() : 0;
+  const finalTotal = Math.max(0, totalPrice - promoDiscount);
 
   return (
     <div
@@ -63,7 +64,7 @@ export const CartSummary = () => {
           </span>
         </div>
 
-        {/* Скидка по промокоду - скрыта до Story 26.4 */}
+        {/* Скидка по промокоду (Story 26.4) */}
         {promoDiscount > 0 && (
           <div className="flex justify-between text-body-m">
             <span className="text-[var(--color-accent-success)]">Скидка по промокоду</span>
@@ -93,7 +94,7 @@ export const CartSummary = () => {
         </span>
       </div>
 
-      {/* Promo Code - placeholder для Story 26.4 */}
+      {/* Promo Code (Story 26.4) */}
       <PromoCodeInput />
 
       {/* Checkout Button - условный рендеринг Link/button */}

@@ -14,6 +14,11 @@ import cartService from '@/services/cartService';
 import type { CartItem, CartState as CartStateType } from '@/types/cart';
 
 interface CartStore extends CartStateType {
+  // Promo state (Story 26.4)
+  promoCode: string | null;
+  discountType: 'percent' | 'fixed' | null;
+  discountValue: number;
+
   // Actions
   addItem: (variantId: number, quantity: number) => Promise<{ success: boolean; error?: string }>;
   removeItem: (itemId: number) => Promise<{ success: boolean; error?: string }>;
@@ -23,6 +28,11 @@ interface CartStore extends CartStateType {
   ) => Promise<{ success: boolean; error?: string }>;
   clearCart: () => Promise<void>;
   fetchCart: () => Promise<void>;
+
+  // Promo actions (Story 26.4)
+  applyPromo: (code: string, discountType: 'percent' | 'fixed', discountValue: number) => void;
+  clearPromo: () => void;
+  getPromoDiscount: () => number;
 
   // Getters
   getTotalItems: () => number;
@@ -50,6 +60,11 @@ export const useCartStore = create<CartStore>()(
         isLoading: false,
         error: null,
 
+        // Promo state (Story 26.4)
+        promoCode: null,
+        discountType: null,
+        discountValue: 0,
+
         // Setters
         setItems: (items: CartItem[]) => {
           const { totalItems, totalPrice } = calculateTotals(items);
@@ -62,6 +77,33 @@ export const useCartStore = create<CartStore>()(
 
         // Getters
         getTotalItems: () => get().totalItems,
+
+        /**
+         * Динамический расчёт скидки по промокоду
+         * Пересчитывается при каждом изменении корзины
+         */
+        getPromoDiscount: () => {
+          const { totalPrice, discountType, discountValue } = get();
+          if (!discountType) return 0;
+          const discount =
+            discountType === 'percent' ? totalPrice * (discountValue / 100) : discountValue;
+          // Скидка не может превышать сумму корзины
+          return Math.min(discount, totalPrice);
+        },
+
+        /**
+         * Применить промокод
+         */
+        applyPromo: (code: string, discountType: 'percent' | 'fixed', discountValue: number) => {
+          set({ promoCode: code, discountType, discountValue });
+        },
+
+        /**
+         * Очистить промокод
+         */
+        clearPromo: () => {
+          set({ promoCode: null, discountType: null, discountValue: 0 });
+        },
 
         // Загрузить корзину с backend
         fetchCart: async () => {
@@ -224,8 +266,11 @@ export const useCartStore = create<CartStore>()(
       {
         name: 'cart-storage', // Ключ в localStorage
         partialize: state => ({
-          // Сохраняем только items (остальное вычисляется)
+          // Сохраняем items и promo state (Story 26.4)
           items: state.items,
+          promoCode: state.promoCode,
+          discountType: state.discountType,
+          discountValue: state.discountValue,
         }),
       }
     ),
