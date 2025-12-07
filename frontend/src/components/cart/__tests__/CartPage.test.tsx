@@ -80,6 +80,12 @@ const mockEmptyStore = {
   fetchCart: vi.fn(),
   totalPrice: 0,
   totalItems: 0,
+  updateQuantity: vi.fn().mockResolvedValue({ success: true }),
+  removeItem: vi.fn().mockResolvedValue({ success: true }),
+  promoCode: null,
+  discountType: null,
+  discountValue: 0,
+  getPromoDiscount: vi.fn().mockReturnValue(0),
 };
 
 const mockStoreWithItems = {
@@ -89,6 +95,12 @@ const mockStoreWithItems = {
   fetchCart: vi.fn(),
   totalPrice: 3000,
   totalItems: 2,
+  updateQuantity: vi.fn().mockResolvedValue({ success: true }),
+  removeItem: vi.fn().mockResolvedValue({ success: true }),
+  promoCode: null,
+  discountType: null,
+  discountValue: 0,
+  getPromoDiscount: vi.fn().mockReturnValue(0),
 };
 
 const mockLoadingStore = {
@@ -98,6 +110,12 @@ const mockLoadingStore = {
   fetchCart: vi.fn(),
   totalPrice: 0,
   totalItems: 0,
+  updateQuantity: vi.fn().mockResolvedValue({ success: true }),
+  removeItem: vi.fn().mockResolvedValue({ success: true }),
+  promoCode: null,
+  discountType: null,
+  discountValue: 0,
+  getPromoDiscount: vi.fn().mockReturnValue(0),
 };
 
 const mockErrorStore = {
@@ -107,6 +125,12 @@ const mockErrorStore = {
   fetchCart: vi.fn(),
   totalPrice: 0,
   totalItems: 0,
+  updateQuantity: vi.fn().mockResolvedValue({ success: true }),
+  removeItem: vi.fn().mockResolvedValue({ success: true }),
+  promoCode: null,
+  discountType: null,
+  discountValue: 0,
+  getPromoDiscount: vi.fn().mockReturnValue(0),
 };
 
 describe('CartPage', () => {
@@ -177,8 +201,11 @@ describe('CartPage', () => {
       render(<CartPage />);
 
       await waitFor(() => {
-        expect(screen.getByText('Черный / XL')).toBeInTheDocument();
-        expect(screen.getByText('Артикул: SKU-001')).toBeInTheDocument();
+        // CartItemCard форматирует как "Арт: SKU | Цвет: X | Размер: Y"
+        const skuElement = screen.getByTestId('cart-item-sku');
+        expect(skuElement).toHaveTextContent('Арт: SKU-001');
+        expect(skuElement).toHaveTextContent('Цвет: Черный');
+        expect(skuElement).toHaveTextContent('Размер: XL');
       });
     });
 
@@ -323,8 +350,9 @@ describe('CartPage', () => {
       render(<CartPage />);
 
       await waitFor(() => {
-        const summary = screen.getByTestId('cart-summary');
-        expect(summary).toHaveAttribute('aria-live', 'polite');
+        // aria-live на внутреннем элементе с ценами
+        const priceSection = screen.getByTestId('subtotal-amount').parentElement?.parentElement;
+        expect(priceSection).toHaveAttribute('aria-live', 'polite');
       });
     });
   });
