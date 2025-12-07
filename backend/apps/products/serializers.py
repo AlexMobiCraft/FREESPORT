@@ -93,12 +93,11 @@ class ProductVariantSerializer(serializers.ModelSerializer):
             obj: ProductVariant instance
 
         Returns:
-            str | None: URL изображения или None
+            str | None: URL изображения или None (относительный путь с /media/)
         """
         if obj.main_image:
-            request = self.context.get("request")
-            if request and hasattr(request, "build_absolute_uri"):
-                return request.build_absolute_uri(obj.main_image.url)
+            # Возвращаем относительный URL с /media/ префиксом
+            # Nginx обработает этот путь
             return obj.main_image.url
         return None
 
@@ -106,15 +105,49 @@ class ProductVariantSerializer(serializers.ModelSerializer):
         """
         Получить список URL галереи изображений варианта
 
+        Пути в gallery_images хранятся как относительные от /media/:
+        - /products/variants/... → /media/products/variants/...
+
+        Дубликаты и main_image исключаются из результата.
+
         Args:
             obj: ProductVariant instance
 
         Returns:
-            list[str]: Список URL изображений
+            list[str]: Список уникальных URL изображений с /media/ префиксом
         """
-        if obj.gallery_images and isinstance(obj.gallery_images, list):
-            return obj.gallery_images
-        return []
+        if not obj.gallery_images or not isinstance(obj.gallery_images, list):
+            return []
+
+        # Получаем main_image для исключения дубликатов
+        main_image_url = obj.main_image.url if obj.main_image else None
+        # Извлекаем имя файла из main_image для сравнения
+        main_image_filename = main_image_url.split("/")[-1] if main_image_url else None
+
+        seen_filenames = set()
+        if main_image_filename:
+            seen_filenames.add(main_image_filename)
+
+        result = []
+        for img_url in obj.gallery_images:
+            if not img_url:
+                continue
+
+            # Извлекаем имя файла для проверки дубликатов
+            filename = img_url.split("/")[-1]
+            if filename in seen_filenames:
+                continue
+            seen_filenames.add(filename)
+
+            # Добавляем /media/ префикс если путь относительный
+            if img_url.startswith("/products/"):
+                result.append(f"/media{img_url}")
+            elif not img_url.startswith("/media/") and not img_url.startswith(("http://", "https://")):
+                result.append(f"/media/{img_url.lstrip('/')}")
+            else:
+                result.append(img_url)
+
+        return result
 
     def get_current_price(self, obj: ProductVariant) -> str:
         """

@@ -12,6 +12,7 @@ import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import type { ProductImage } from '@/types/api';
 import type { ProductVariant } from './ProductOptions';
+import { normalizeImageUrl } from '@/utils/media';
 
 interface ProductImageGalleryProps {
   images: ProductImage[];
@@ -20,15 +21,28 @@ interface ProductImageGalleryProps {
   selectedVariant?: ProductVariant | null;
 }
 
+/** Placeholder изображение если нет реальных */
+const PLACEHOLDER_IMAGE: ProductImage = {
+  image: '/images/No_image.svg',
+  alt_text: 'Изображение отсутствует',
+  is_primary: true,
+};
+
+/** Безопасное получение первого изображения из массива */
+function getDefaultImage(imgArray: ProductImage[]): ProductImage {
+  if (!imgArray || imgArray.length === 0) return PLACEHOLDER_IMAGE;
+  return imgArray.find(img => img.is_primary) || imgArray[0] || PLACEHOLDER_IMAGE;
+}
+
 export default function ProductImageGallery({
   images,
   productName,
   selectedVariant,
 }: ProductImageGalleryProps) {
-  const [selectedImage, setSelectedImage] = useState(
-    images.find(img => img.is_primary) || images[0]
+  const [selectedImage, setSelectedImage] = useState<ProductImage>(() => getDefaultImage(images));
+  const [galleryImages, setGalleryImages] = useState<ProductImage[]>(
+    images && images.length > 0 ? images : [PLACEHOLDER_IMAGE]
   );
-  const [galleryImages, setGalleryImages] = useState<ProductImage[]>(images);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
 
   /**
@@ -37,41 +51,58 @@ export default function ProductImageGallery({
    * Иначе показываем базовые изображения товара
    */
   useEffect(() => {
+    // Базовые изображения товара (с fallback на placeholder)
+    const baseImages = images && images.length > 0 ? images : [PLACEHOLDER_IMAGE];
+
     if (selectedVariant) {
       if (selectedVariant.main_image) {
         // Создаем ProductImage из main_image варианта
+        // Нормализуем URL для корректной работы в Docker
         const variantMainImage: ProductImage = {
-          image: selectedVariant.main_image,
+          image: normalizeImageUrl(selectedVariant.main_image),
           alt_text:
             `${productName} - ${selectedVariant.color_name || ''} ${selectedVariant.size_value || ''}`.trim(),
           is_primary: true,
         };
 
-        setSelectedImage(variantMainImage);
-
         // Если есть gallery_images у варианта, обновляем галерею
         if (selectedVariant.gallery_images && selectedVariant.gallery_images.length > 0) {
-          const variantGallery: ProductImage[] = selectedVariant.gallery_images.map(
-            (img, index) => ({
-              image: img,
-              alt_text: `${productName} - вид ${index + 1}`,
-              is_primary: false,
-            })
-          );
-          setGalleryImages([variantMainImage, ...variantGallery]);
+          // Фильтруем дубликаты:
+          // 1. Исключаем main_image из gallery_images
+          // 2. Убираем повторяющиеся URL внутри gallery_images
+          const mainImageNormalized = normalizeImageUrl(selectedVariant.main_image);
+          const seenUrls = new Set<string>([mainImageNormalized]);
+
+          const variantGallery: ProductImage[] = [];
+          selectedVariant.gallery_images.forEach(img => {
+            const normalizedImg = normalizeImageUrl(img);
+            if (!seenUrls.has(normalizedImg)) {
+              seenUrls.add(normalizedImg);
+              variantGallery.push({
+                image: normalizedImg,
+                alt_text: `${productName} - вид ${variantGallery.length + 2}`,
+                is_primary: false,
+              });
+            }
+          });
+
+          const newGallery = [variantMainImage, ...variantGallery];
+          setGalleryImages(newGallery);
+          setSelectedImage(variantMainImage);
         } else {
           // Если у варианта нет галереи, показываем только main_image
           setGalleryImages([variantMainImage]);
+          setSelectedImage(variantMainImage);
         }
       } else {
         // Вариант выбран, но у него нет изображения — показываем базовые изображения товара
-        setGalleryImages(images);
-        setSelectedImage(images.find(img => img.is_primary) || images[0]);
+        setGalleryImages(baseImages);
+        setSelectedImage(getDefaultImage(baseImages));
       }
     } else {
       // Вариант не выбран — показываем базовые изображения товара
-      setGalleryImages(images);
-      setSelectedImage(images.find(img => img.is_primary) || images[0]);
+      setGalleryImages(baseImages);
+      setSelectedImage(getDefaultImage(baseImages));
     }
   }, [selectedVariant, images, productName]);
 

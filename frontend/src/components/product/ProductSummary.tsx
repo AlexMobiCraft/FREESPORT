@@ -10,7 +10,7 @@
 
 'use client';
 
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import type { ProductDetail } from '@/types/api';
 import type { UserRole } from '@/utils/pricing';
 import { useCartStore } from '@/stores/cartStore';
@@ -104,6 +104,63 @@ export default function ProductSummary({
 
   // Варианты товара (если есть) - мемоизируем для стабильности ссылки
   const variants = useMemo(() => product.variants || [], [product.variants]);
+
+  // Ref для callback чтобы избежать лишних перерендеров
+  const onVariantChangeRef = useRef(onVariantChange);
+  onVariantChangeRef.current = onVariantChange;
+
+  // Флаг инициализации для предотвращения повторного автовыбора
+  const isInitializedRef = useRef(false);
+
+  /**
+   * Извлекает уникальные размеры и цвета из вариантов
+   */
+  const { sizes, colors } = useMemo(() => {
+    const sizeSet = new Set<string>();
+    const colorSet = new Set<string>();
+    variants.forEach(v => {
+      if (v.size_value) sizeSet.add(v.size_value);
+      if (v.color_name) colorSet.add(v.color_name);
+    });
+    return {
+      sizes: Array.from(sizeSet),
+      colors: Array.from(colorSet),
+    };
+  }, [variants]);
+
+  /**
+   * Автоматически выбирает первый доступный вариант при загрузке
+   */
+  useEffect(() => {
+    // Пропускаем если уже инициализировано или нет вариантов
+    if (isInitializedRef.current || variants.length === 0) return;
+
+    // Находим первый доступный вариант (в наличии)
+    const firstAvailable = variants.find(v => v.is_in_stock) || variants[0];
+    if (!firstAvailable) return;
+
+    // Формируем начальные опции из первого варианта
+    const initialOptions: SelectedOptions = {};
+
+    if (sizes.length > 0 && firstAvailable.size_value) {
+      initialOptions.size = firstAvailable.size_value;
+    }
+
+    if (colors.length > 0 && firstAvailable.color_name) {
+      initialOptions.color = firstAvailable.color_name;
+    }
+
+    // Устанавливаем начальные опции только если они не пустые
+    if (initialOptions.size || initialOptions.color) {
+      isInitializedRef.current = true;
+      setSelectedOptions(initialOptions);
+
+      // Уведомляем родительский компонент о выбранном варианте (через ref)
+      if (onVariantChangeRef.current) {
+        onVariantChangeRef.current(firstAvailable);
+      }
+    }
+  }, [variants, sizes.length, colors.length]);
 
   /**
    * Находит вариант по выбранным опциям
