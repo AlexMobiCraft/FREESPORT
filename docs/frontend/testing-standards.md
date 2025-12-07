@@ -112,13 +112,13 @@ describe('useAuth Hook', () => {
 
 ```tsx
 // src/services/__tests__/api.test.ts
-import { rest } from 'msw';
+import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 import { fetchProducts } from '../api';
 
 const server = setupServer(
-  rest.get('/api/products', (req, res, ctx) => {
-    return res(ctx.json([{ id: 1, name: 'Test Product', price: 100 }]));
+  http.get('/api/products', () => {
+    return HttpResponse.json([{ id: 1, name: 'Test Product', price: 100 }]);
   })
 );
 
@@ -249,34 +249,41 @@ global.IntersectionObserver = vi.fn().mockImplementation(() => ({
 
 ```typescript
 // src/__mocks__/handlers.ts
-import { rest } from 'msw';
+// MSW 2.x API - используйте http и HttpResponse вместо устаревших rest и ctx
+import { http, HttpResponse } from 'msw';
 
 export const handlers = [
   // Auth endpoints
-  rest.post('/api/auth/login', (req, res, ctx) => {
-    return res(
-      ctx.status(200),
-      ctx.json({
-        user: { id: 1, email: 'test@example.com' },
-        token: 'mock-jwt-token',
-      })
-    );
+  http.post('/api/auth/login', async ({ request }) => {
+    const body = await request.json();
+    return HttpResponse.json({
+      user: { id: 1, email: 'test@example.com' },
+      token: 'mock-jwt-token',
+    });
   }),
 
   // Products endpoints
-  rest.get('/api/products', (req, res, ctx) => {
-    return res(
-      ctx.status(200),
-      ctx.json([
-        { id: 1, name: 'Test Product', price: 100 },
-        { id: 2, name: 'Another Product', price: 200 },
-      ])
-    );
+  http.get('/api/products', () => {
+    return HttpResponse.json([
+      { id: 1, name: 'Test Product', price: 100 },
+      { id: 2, name: 'Another Product', price: 200 },
+    ]);
   }),
 
   // Cart endpoints
-  rest.get('/api/cart', (req, res, ctx) => {
-    return res(ctx.status(200), ctx.json({ items: [], total: 0 }));
+  http.get('/api/cart', () => {
+    return HttpResponse.json({ items: [], total: 0 });
+  }),
+  
+  // Cart item update
+  http.patch('/api/v1/cart/items/:id/', async ({ request, params }) => {
+    const { quantity } = await request.json() as { quantity: number };
+    return HttpResponse.json({ id: params.id, quantity });
+  }),
+  
+  // Cart item delete
+  http.delete('/api/v1/cart/items/:id/', () => {
+    return new HttpResponse(null, { status: 204 });
   }),
 ];
 ```
