@@ -1,0 +1,55 @@
+# Quality Gate: 26.3 Cart Summary & Checkout CTA
+
+schema: 1
+story: "26.3"
+story_title: "Cart Summary & Checkout CTA"
+gate: PASS
+status_reason: "All 11 acceptance criteria met. Implementation quality excellent with proper hydration pattern, conditional Link/button rendering, accessibility support, and 36 passing tests."
+reviewer: "Quinn (Test Architect)"
+updated: "2025-12-07T16:35:00+01:00"
+
+waiver:
+  active: false
+
+top_issues: []
+
+risk_summary:
+  totals:
+    critical: 0
+    high: 0
+    medium: 0
+    low: 0
+  recommendations:
+    must_fix: []
+    monitor: []
+
+# Extended fields
+quality_score: 100
+expires: "2025-12-21T16:35:00+01:00"
+
+evidence:
+  tests_reviewed: 36
+  risks_identified: 0
+  trace:
+    ac_covered: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+    ac_gaps: []
+
+nfr_validation:
+  security:
+    status: PASS
+    notes: "UI component, no security concerns"
+  performance:
+    status: PASS
+    notes: "Minimal re-renders, Intl.NumberFormat for price formatting"
+  reliability:
+    status: PASS
+    notes: "Proper hydration handling, error states covered"
+  maintainability:
+    status: PASS
+    notes: "Well-documented components, clear JSDoc, barrel exports"
+
+recommendations:
+  immediate: []
+  future:
+    - action: "Integrate with real promo API in Story 26.4"
+      refs: ["frontend/src/components/cart/PromoCodeInput.tsx"]
