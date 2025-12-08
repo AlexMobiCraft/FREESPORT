@@ -264,7 +264,7 @@ export const useCartStore = create<CartStore>()(
         },
       }),
       {
-        name: 'cart-storage', // Ключ в localStorage
+        name: 'cart-storage-v2', // Ключ в localStorage (v2 для сброса кэша после добавления методов)
         partialize: state => ({
           // Сохраняем items и promo state (Story 26.4)
           items: state.items,

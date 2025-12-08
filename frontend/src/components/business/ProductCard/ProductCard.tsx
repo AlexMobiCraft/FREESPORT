@@ -31,7 +31,6 @@ import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Heart } from 'lucide-react';
-import { Button } from '@/components/ui';
 import { ProductBadge } from '@/components/common/ProductBadge';
 import type { Product } from '@/types/api';
 import { cn } from '@/utils/cn';
@@ -158,7 +157,7 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
       userRole = 'retail',
       showRRP = false,
       showMSRP = false,
-      onAddToCart,
+
       onToggleFavorite,
       isFavorite = false,
       onClick,
@@ -176,13 +175,6 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
         : null;
     const fallbackStockState = canBeOrdered || stockQuantity > 0;
     const isInStock = explicitStockFlag !== null ? explicitStockFlag : fallbackStockState;
-
-    // Обработчик добавления в корзину
-    const handleAddToCart = (e: React.MouseEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      onAddToCart?.(product.id);
-    };
 
     // Обработчик переключения избранного
     const handleToggleFavorite = (e: React.MouseEvent) => {
@@ -458,18 +450,6 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
                     </p>
                   )}
               </div>
-
-              {/* Кнопка "В корзину" */}
-              {isInStock && (
-                <Button
-                  variant="primary"
-                  size="medium"
-                  onClick={onAddToCart ? handleAddToCart : undefined}
-                  disabled={!onAddToCart}
-                >
-                  В корзину
-                </Button>
-              )}
             </div>
           </div>
         </Link>
@@ -601,19 +581,7 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
                 )}
             </div>
 
-            {/* Кнопка "В корзину" */}
-            {isInStock && (
-              <Button
-                variant="primary"
-                size="medium"
-                onClick={onAddToCart ? handleAddToCart : undefined}
-                className="w-full"
-                disabled={!onAddToCart}
-              >
-                В корзину
-              </Button>
-            )}
-
+            {/* Статус наличия */}
             {!isInStock && (
               <p className="text-body-s text-[var(--color-text-secondary)] text-center">
                 Нет в наличии

@@ -137,14 +137,6 @@ export default function ProductInfo({ product, userRole = 'guest' }: ProductInfo
           {stockStatus.label}
         </span>
       </div>
-
-      {/* Описание */}
-      {product.description && (
-        <div className="pt-4 border-t border-neutral-200">
-          <h3 className="text-lg font-semibold text-neutral-900 mb-2">Описание</h3>
-          <p className="text-base text-neutral-700 leading-relaxed">{product.description}</p>
-        </div>
-      )}
     </div>
   );
 }

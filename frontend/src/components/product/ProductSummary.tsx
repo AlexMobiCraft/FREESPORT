@@ -297,7 +297,7 @@ export default function ProductSummary({
   }, [variants, selectedVariant, canAddToCart]);
 
   return (
-    <div className="space-y-6" data-testid="product-summary">
+    <div className="space-y-4" data-testid="product-summary">
       {/* Основная информация о товаре */}
       <ProductInfo product={product} userRole={userRole} />
 
@@ -357,13 +357,13 @@ export default function ProductSummary({
         onClick={handleAddToCart}
         disabled={!canAddToCart || (variants.length > 0 && !selectedVariant) || isLoading}
         className={`
-          w-full px-6 py-3 font-medium rounded-lg transition-colors
-          focus:outline-none focus:ring-2 focus:ring-offset-2
+          w-full h-14 px-6 text-lg font-medium rounded-2xl transition-all duration-150
+          focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#0060FF]/60
           flex items-center justify-center gap-2
           ${
             canAddToCart && (variants.length === 0 || selectedVariant) && !isLoading
-              ? 'bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-500'
-              : 'bg-neutral-300 text-neutral-500 cursor-not-allowed'
+              ? 'bg-[#0060FF] text-white hover:bg-[#0047CC] active:bg-[#0037A6] shadow-[0_4px_12px_rgba(0,96,255,0.28)]'
+              : 'bg-[#E3E8F2] text-[#8F9BB3] cursor-not-allowed'
           }
         `}
         data-testid="add-to-cart-button"
@@ -392,6 +392,14 @@ export default function ProductSummary({
         )}
         {isLoading ? 'Добавление...' : addToCartButtonText}
       </button>
+
+      {/* Описание товара (перемещено вниз) */}
+      {product.description && (
+        <div className="pt-4 border-t border-neutral-200">
+          <h3 className="text-lg font-semibold text-neutral-900 mb-2">Описание</h3>
+          <p className="text-base text-neutral-700 leading-relaxed">{product.description}</p>
+        </div>
+      )}
     </div>
   );
 }
