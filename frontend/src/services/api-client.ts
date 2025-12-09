@@ -18,9 +18,14 @@ import { useAuthStore } from '@/stores/authStore';
 
 // Конфигурация из environment variables
 // Для SSR используем внутренний URL (внутри Docker сети), для браузера - публичный
+// INTERNAL_API_URL - серверная переменная (без NEXT_PUBLIC_ префикса), доступна в runtime
+// NEXT_PUBLIC_API_URL - клиентская переменная, встраивается при сборке
 const isServer = typeof window === 'undefined';
 const API_URL_PUBLIC = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api/v1';
-const API_URL_INTERNAL = process.env.NEXT_PUBLIC_API_URL_INTERNAL || API_URL_PUBLIC;
+const API_URL_INTERNAL =
+  process.env.INTERNAL_API_URL
+    ? `${process.env.INTERNAL_API_URL}/api/v1`
+    : process.env.NEXT_PUBLIC_API_URL_INTERNAL || 'http://backend:8000/api/v1';
 const API_URL = isServer ? API_URL_INTERNAL : API_URL_PUBLIC;
 const API_TIMEOUT = parseInt(process.env.NEXT_PUBLIC_API_TIMEOUT || '30000');
 
@@ -57,7 +62,12 @@ const processQueue = (error: unknown, token: string | null = null) => {
  */
 const retryRequest = async (config: AxiosRequestConfig, retryCount = 0): Promise<AxiosResponse> => {
   try {
-    return await axios(config);
+    // Ensure baseURL is preserved for retry requests (fixes ECONNREFUSED in Docker SSR)
+    const retryConfig: AxiosRequestConfig = {
+      ...config,
+      baseURL: config.baseURL || API_URL,
+    };
+    return await axios(retryConfig);
   } catch (error) {
     const axiosError = error as AxiosError;
     const shouldRetry =
