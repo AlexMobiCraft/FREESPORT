@@ -27,6 +27,8 @@ prd:
     - 24
     - 25
     - 26
+  activeEpics:
+    - 27  # Import Modules Refactoring
 architecture:
   architectureFile: docs/architecture.md
   architectureVersion: v4
