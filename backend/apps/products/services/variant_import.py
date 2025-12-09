@@ -178,6 +178,25 @@ def extract_color_from_name(name: str) -> str:
     return ""
 
 
+
+def normalize_image_path(image_path: str) -> str:
+    """
+    Нормализация пути к изображению.
+    
+    Убирает префикс 'import_files/' если присутствует, чтобы обеспечить
+    единый стандарт путей между XML-импортом и импортом через админку.
+    
+    Args:
+        image_path: Путь к изображению (относительный)
+        
+    Returns:
+        Нормализованный путь без префикса 'import_files/'
+    """
+    if image_path.startswith("import_files/"):
+        return image_path[len("import_files/"):]
+    return image_path
+
+
 # ============================================================================
 # VariantImportProcessor - основной процессор импорта
 # ============================================================================
@@ -479,7 +498,9 @@ class VariantImportProcessor:
 
         for image_path in image_paths:
             try:
-                source_path = Path(base_dir) / image_path
+                # Нормализация пути (убираем import_files/ если есть)
+                normalized_path = normalize_image_path(image_path)
+                source_path = Path(base_dir) / normalized_path
                 saved_path = self._save_image_if_not_exists(
                     source_path, image_path, "base"
                 )
@@ -744,7 +765,9 @@ class VariantImportProcessor:
 
         for image_path in image_paths:
             try:
-                source_path = Path(base_dir) / image_path
+                # Нормализация пути (убираем import_files/ если есть)
+                normalized_path = normalize_image_path(image_path)
+                source_path = Path(base_dir) / normalized_path
                 saved_path = self._save_image_if_not_exists(
                     source_path, image_path, "variants"
                 )
