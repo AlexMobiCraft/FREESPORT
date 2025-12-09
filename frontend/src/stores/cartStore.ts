@@ -161,8 +161,22 @@ export const useCartStore = create<CartStore>()(
             const realItem = await cartService.add(variantId, quantity);
 
             // Заменяем временный item на реальный
+            // ВАЖНО: backend объединяет товары с одинаковым variant_id,
+            // поэтому realItem может иметь id отличный от tempItem.id
             set(state => {
-              const items = state.items.map(item => (item.id === tempItem.id ? realItem : item));
+              // 1. Удаляем временный item
+              let items = state.items.filter(item => item.id !== tempItem.id);
+
+              // 2. Проверяем, есть ли уже item с таким id (backend вернул существующий)
+              const existingIndex = items.findIndex(item => item.id === realItem.id);
+              if (existingIndex >= 0) {
+                // Заменяем существующий item на обновлённый
+                items[existingIndex] = realItem;
+              } else {
+                // Добавляем новый item
+                items.push(realItem);
+              }
+
               const { totalItems, totalPrice } = calculateTotals(items);
               return { items, totalItems, totalPrice, isLoading: false };
             });
