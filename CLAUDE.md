@@ -112,7 +112,7 @@ docs/
 ├── api-spec.yaml               # OpenAPI спецификация
 ├── api-views-documentation.md  # Документация API endpoints
 ├── stories/                    # User stories по Epic
-│   ├── epic-1/  epic-2/  epic-3/  ... epic-11/
+│   ├── epic-1/  epic-2/  epic-3/  ... epic-26/
 ├── decisions/                  # Архитектурные решения
 ├── guides/                     # Руководства
 ├── qa/                         # Тестирование и QA
