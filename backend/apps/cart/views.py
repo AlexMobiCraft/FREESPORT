@@ -235,7 +235,15 @@ class CartItemViewSet(viewsets.ModelViewSet):
     )
     def partial_update(self, request, *args, **kwargs):
         """Частичное обновление товара в корзине"""
-        return super().partial_update(request, *args, **kwargs)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+
+        # Возвращаем полный CartItem (не только quantity)
+        # Frontend ожидает полный объект с id, product, variant и т.д.
+        response_serializer = CartItemSerializer(instance, context={"request": request})
+        return Response(response_serializer.data)
 
     @extend_schema(
         summary="Удалить товар из корзины",

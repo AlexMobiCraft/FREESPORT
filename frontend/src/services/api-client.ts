@@ -36,6 +36,8 @@ const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  // ВАЖНО: withCredentials включает отправку cookies (sessionid) для гостевых корзин
+  withCredentials: true,
 });
 
 // State для refresh token handling (предотвращение race conditions)

@@ -264,10 +264,11 @@ export const useCartStore = create<CartStore>()(
         },
       }),
       {
-        name: 'cart-storage-v2', // Ключ в localStorage (v2 для сброса кэша после добавления методов)
+        name: 'cart-storage-v3', // v3: убрали items из localStorage, загружаем только с сервера
         partialize: state => ({
-          // Сохраняем items и promo state (Story 26.4)
-          items: state.items,
+          // Сохраняем только promo state (Story 26.4)
+          // ВАЖНО: items НЕ сохраняем в localStorage, т.к. они загружаются с сервера
+          // Это предотвращает дублирование и рассинхронизацию с backend
           promoCode: state.promoCode,
           discountType: state.discountType,
           discountValue: state.discountValue,
