@@ -161,8 +161,22 @@ export const useCartStore = create<CartStore>()(
             const realItem = await cartService.add(variantId, quantity);
 
             // Заменяем временный item на реальный
+            // ВАЖНО: backend объединяет товары с одинаковым variant_id,
+            // поэтому realItem может иметь id отличный от tempItem.id
             set(state => {
-              const items = state.items.map(item => (item.id === tempItem.id ? realItem : item));
+              // 1. Удаляем временный item
+              const items = state.items.filter(item => item.id !== tempItem.id);
+
+              // 2. Проверяем, есть ли уже item с таким id (backend вернул существующий)
+              const existingIndex = items.findIndex(item => item.id === realItem.id);
+              if (existingIndex >= 0) {
+                // Заменяем существующий item на обновлённый
+                items[existingIndex] = realItem;
+              } else {
+                // Добавляем новый item
+                items.push(realItem);
+              }
+
               const { totalItems, totalPrice } = calculateTotals(items);
               return { items, totalItems, totalPrice, isLoading: false };
             });
@@ -264,10 +278,11 @@ export const useCartStore = create<CartStore>()(
         },
       }),
       {
-        name: 'cart-storage-v2', // Ключ в localStorage (v2 для сброса кэша после добавления методов)
+        name: 'cart-storage-v3', // v3: убрали items из localStorage, загружаем только с сервера
         partialize: state => ({
-          // Сохраняем items и promo state (Story 26.4)
-          items: state.items,
+          // Сохраняем только promo state (Story 26.4)
+          // ВАЖНО: items НЕ сохраняем в localStorage, т.к. они загружаются с сервера
+          // Это предотвращает дублирование и рассинхронизацию с backend
           promoCode: state.promoCode,
           discountType: state.discountType,
           discountValue: state.discountValue,

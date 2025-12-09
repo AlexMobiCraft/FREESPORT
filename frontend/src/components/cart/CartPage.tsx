@@ -30,12 +30,14 @@ export const CartPage = () => {
     setMounted(true);
   }, []);
 
-  // Загружаем корзину при монтировании (если items пустые)
+  // Загружаем корзину при монтировании (всегда синхронизируем с сервером)
+  // ВАЖНО: Нельзя полагаться только на localStorage, т.к. там могут быть
+  // устаревшие ID (optimistic updates), что приведёт к 404 при операциях
   useEffect(() => {
-    if (mounted && items.length === 0) {
+    if (mounted) {
       fetchCart();
     }
-  }, [mounted, items.length, fetchCart]);
+  }, [mounted, fetchCart]);
 
   // SSR: показываем skeleton до hydration
   if (!mounted) {
