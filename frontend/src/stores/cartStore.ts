@@ -165,7 +165,7 @@ export const useCartStore = create<CartStore>()(
             // поэтому realItem может иметь id отличный от tempItem.id
             set(state => {
               // 1. Удаляем временный item
-              let items = state.items.filter(item => item.id !== tempItem.id);
+              const items = state.items.filter(item => item.id !== tempItem.id);
 
               // 2. Проверяем, есть ли уже item с таким id (backend вернул существующий)
               const existingIndex = items.findIndex(item => item.id === realItem.id);
