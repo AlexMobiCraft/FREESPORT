@@ -22,6 +22,11 @@ prd:
     - 12
     - 13  # Product Variant System (Stories 13.1, 13.3, 13.5a завершены)
     - 14  # Cart API & UI extensions (все истории эпика 14 завершены)
+    - 22
+    - 23
+    - 24
+    - 25
+    - 26
 architecture:
   architectureFile: docs/architecture.md
   architectureVersion: v4
