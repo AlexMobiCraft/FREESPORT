@@ -94,7 +94,7 @@
 
 Этот скрипт предоставит меню для выбора:
 - Story 3.1.3 — real catalog (8 тестов)
-- Story 3.1.2 — import_catalog_from_1c
+- Epic 27 — VariantImportProcessor / import_products_from_1c
 - Все backend тесты (pytest tests)
 - Произвольный путь/тест
 

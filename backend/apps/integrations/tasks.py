@@ -111,9 +111,9 @@ def _execute_import_type(import_type: str, task_id: str) -> dict[str, str]:
         Exception: При ошибках выполнения команды
     """
     if import_type == "catalog":
-        logger.info(f"[Task {task_id}] Запуск import_catalog_from_1c --file-type=all")
+        logger.info(f"[Task {task_id}] Запуск import_products_from_1c --file-type=all")
         call_command(
-            "import_catalog_from_1c",
+            "import_products_from_1c",
             "--file-type", "all",
             "--celery-task-id", task_id,
         )
@@ -128,9 +128,9 @@ def _execute_import_type(import_type: str, task_id: str) -> dict[str, str]:
         }
 
     elif import_type == "stocks":
-        logger.info(f"[Task {task_id}] Запуск import_catalog_from_1c --file-type=rests")
+        logger.info(f"[Task {task_id}] Запуск import_products_from_1c --file-type=rests")
         call_command(
-            "import_catalog_from_1c",
+            "import_products_from_1c",
             "--file-type", "rests",
             "--celery-task-id", task_id,
         )
@@ -138,10 +138,10 @@ def _execute_import_type(import_type: str, task_id: str) -> dict[str, str]:
 
     elif import_type == "prices":
         logger.info(
-            f"[Task {task_id}] Запуск import_catalog_from_1c --file-type=prices"
+            f"[Task {task_id}] Запуск import_products_from_1c --file-type=prices"
         )
         call_command(
-            "import_catalog_from_1c",
+            "import_products_from_1c",
             "--file-type", "prices",
             "--celery-task-id", task_id,
         )

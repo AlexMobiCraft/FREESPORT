@@ -1,7 +1,7 @@
 """
-Сервисы для импорта ProductVariant из 1С (Story 13.2)
+Сервисы для импорта ProductVariant из 1С
 
-Рефакторинг импорта для новой архитектуры Product + ProductVariant:
+Основной процессор импорта для новой архитектуры Product + ProductVariant:
 - goods.xml → Product (базовая информация, base_images)
 - offers.xml → ProductVariant (SKU, характеристики)
 - prices.xml → ProductVariant (цены)
@@ -61,6 +61,30 @@ class VariantRestData(TypedDict):
     id: str  # Составной ID: parent_id#variant_id
     warehouse_id: str
     quantity: int
+
+
+class CategoryData(TypedDict, total=False):
+    """Данные категории из goods.xml"""
+
+    id: str
+    name: str
+    description: str
+    parent_id: str
+
+
+class BrandData(TypedDict):
+    """Данные бренда из propertiesGoods.xml"""
+
+    id: str
+    name: str
+
+
+class PriceTypeData(TypedDict):
+    """Данные типа цены из prices.xml"""
+
+    onec_id: str
+    onec_name: str
+    product_field: str
 
 
 # ============================================================================
@@ -178,17 +202,16 @@ def extract_color_from_name(name: str) -> str:
     return ""
 
 
-
 def normalize_image_path(image_path: str) -> str:
     """
     Нормализация пути к изображению.
-    
+
     Убирает префикс 'import_files/' если присутствует, чтобы обеспечить
     единый стандарт путей между XML-импортом и импортом через админку.
-    
+
     Args:
         image_path: Путь к изображению (относительный)
-        
+
     Returns:
         Нормализованный путь без префикса 'import_files/'
     """
@@ -206,7 +229,7 @@ class VariantImportProcessor:
     """
     Процессор для импорта ProductVariant из 1С
 
-    Реализует новый workflow импорта:
+    Workflow импорта:
     1. goods.xml → Product (базовая информация, base_images)
     2. offers.xml → ProductVariant (SKU, характеристики)
     3. Default variants → ProductVariant для товаров без вариантов
@@ -251,6 +274,9 @@ class VariantImportProcessor:
             "images_errors": 0,
             "attributes_linked": 0,
             "attributes_missing": 0,
+            # Story 27.1: Keys for migrated methods
+            "brand_fallbacks": 0,
+            "attributes_missing_mapping": 0,
         }
 
         # Кэш для оптимизации поиска
@@ -1251,6 +1277,318 @@ class VariantImportProcessor:
     def get_stats(self) -> dict[str, int]:
         """Возвращает статистику импорта"""
         return self.stats.copy()
+
+    # ========================================================================
+    # Migrated methods from ProductDataProcessor (Story 27.1)
+    # ========================================================================
+
+    def process_price_types(self, price_types_data: Sequence[PriceTypeData]) -> int:
+        """
+        Создание/обновление справочника PriceType
+
+        Args:
+            price_types_data: Последовательность PriceTypeData
+
+        Returns:
+            Количество обработанных типов цен
+        """
+        from apps.products.models import PriceType
+
+        count = 0
+        for price_type_data in price_types_data:
+            try:
+                PriceType.objects.update_or_create(
+                    onec_id=price_type_data["onec_id"],
+                    defaults={
+                        "onec_name": price_type_data["onec_name"],
+                        "product_field": price_type_data["product_field"],
+                        "is_active": True,
+                    },
+                )
+                count += 1
+            except Exception as e:
+                logger.error(f"Error processing price type: {e}")
+                self.stats["errors"] += 1
+
+        return count
+
+    def process_categories(self, categories_data: list[CategoryData]) -> dict[str, int]:
+        """
+        Обработка категорий с иерархией (Story 3.1.2)
+
+        Двухпроходный алгоритм:
+        1. Создаём все категории без родительских связей
+        2. Устанавливаем родительские связи с валидацией циклов
+
+        Args:
+            categories_data: Список данных категорий с полями id, name, description, parent_id
+
+        Returns:
+            dict с количеством created, updated, errors, cycles_detected
+        """
+        from apps.products.models import Category
+
+        result = {
+            "created": 0,
+            "updated": 0,
+            "errors": 0,
+            "cycles_detected": 0,
+        }
+        category_map: dict[str, Category] = {}
+
+        # ШАГ 1: Создаём/обновляем все категории без parent
+        for category_data in categories_data:
+            try:
+                onec_id = category_data.get("id")
+                name = category_data.get("name")
+                description = category_data.get("description", "")
+
+                if not onec_id or not name:
+                    result["errors"] += 1
+                    continue
+
+                category, created = Category.objects.update_or_create(
+                    onec_id=onec_id,
+                    defaults={
+                        "name": name,
+                        "description": description,
+                        "is_active": True,
+                    },
+                )
+
+                category_map[onec_id] = category
+
+                if created:
+                    result["created"] += 1
+                else:
+                    result["updated"] += 1
+
+            except Exception as e:
+                logger.error(f"Error processing category {category_data}: {e}")
+                result["errors"] += 1
+
+        # ШАГ 2: Устанавливаем родительские связи с валидацией циклов
+        for category_data in categories_data:
+            try:
+                onec_id = category_data.get("id")
+                parent_id = category_data.get("parent_id")
+
+                if not parent_id or not onec_id:
+                    continue  # Корневая категория или ошибка
+
+                category = category_map.get(onec_id)
+                parent = category_map.get(parent_id)
+
+                if not category:
+                    continue
+
+                if not parent:
+                    continue
+
+                # Валидация циклических ссылок
+                if self._has_circular_reference(category, parent, category_map):
+                    result["cycles_detected"] += 1
+                    continue
+
+                # Устанавливаем parent
+                category.parent = parent
+                category.save(update_fields=["parent"])
+
+            except Exception:
+                result["errors"] += 1
+
+        logger.info(
+            f"Categories processed: {result['created']} created, "
+            f"{result['updated']} updated, {result['errors']} errors, "
+            f"{result['cycles_detected']} cycles detected"
+        )
+        return result
+
+    def _has_circular_reference(
+        self,
+        category: Any,
+        proposed_parent: Any,
+        category_map: dict[str, Any],
+    ) -> bool:
+        """
+        Проверка циклических ссылок в иерархии категорий
+
+        Обходим родителей proposed_parent и проверяем что category
+        не встречается в цепочке (Story 3.1.2)
+
+        Args:
+            category: Категория для проверки
+            proposed_parent: Предлагаемый родитель
+            category_map: Словарь onec_id -> Category
+
+        Returns:
+            True если обнаружен цикл, False иначе
+        """
+        visited: set[int] = set()
+        current = proposed_parent
+
+        while current:
+            # Если мы вернулись к исходной категории - цикл обнаружен
+            if current.pk == category.pk:
+                return True
+
+            # Защита от бесконечного цикла
+            if current.pk in visited:
+                return True
+
+            visited.add(current.pk)
+
+            # Переходим к parent
+            current = current.parent
+
+        return False
+
+    def process_brands(self, brands_data: Sequence[BrandData]) -> dict[str, int]:
+        """
+        Обработка брендов из propertiesGoods.xml с дедупликацией по normalized_name
+
+        Args:
+            brands_data: Список брендов с полями id и name
+
+        Returns:
+            dict с количеством brands_created, mappings_created, mappings_updated
+        """
+        from apps.products.models import Brand, Brand1CMapping
+        from apps.products.utils.brands import normalize_brand_name
+
+        result = {
+            "brands_created": 0,
+            "mappings_created": 0,
+            "mappings_updated": 0,
+        }
+
+        for brand_data in brands_data:
+            try:
+                onec_id = brand_data.get("id")
+                onec_name = brand_data.get("name")
+
+                if not onec_id or not onec_name:
+                    logger.warning(
+                        f"Skipping brand with missing id or name: {brand_data}"
+                    )
+                    continue
+
+                # Нормализуем название для поиска дубликатов
+                normalized = normalize_brand_name(onec_name)
+
+                # Проверяем существующий маппинг для этого onec_id
+                existing_mapping = Brand1CMapping.objects.filter(
+                    onec_id=onec_id
+                ).first()
+
+                if existing_mapping:
+                    # Маппинг уже существует - обновляем onec_name если изменилось
+                    if existing_mapping.onec_name != onec_name:
+                        existing_mapping.onec_name = onec_name
+                        existing_mapping.save(update_fields=["onec_name"])
+                        result["mappings_updated"] += 1
+                        logger.debug(
+                            "Brand mapping updated",
+                            extra={
+                                "onec_id": onec_id,
+                                "brand_id": existing_mapping.brand.id,
+                                "operation": "update",
+                                "import_session_id": self.session_id,
+                            },
+                        )
+                    else:
+                        result["mappings_updated"] += 1
+                    continue
+
+                # Ищем существующий бренд по normalized_name
+                existing_brand = Brand.objects.filter(
+                    normalized_name=normalized
+                ).first()
+
+                if existing_brand:
+                    # Бренд существует - создаём только маппинг (объединение дубликатов)
+                    Brand1CMapping.objects.create(
+                        brand=existing_brand,
+                        onec_id=onec_id,
+                        onec_name=onec_name,
+                    )
+                    result["mappings_created"] += 1
+
+                    logger.info(
+                        "Brand mapping created - duplicate merged",
+                        extra={
+                            "onec_id": onec_id,
+                            "onec_name": onec_name,
+                            "brand_id": existing_brand.id,
+                            "brand_name": existing_brand.name,
+                            "normalized_name": existing_brand.normalized_name,
+                            "slug": existing_brand.slug,
+                            "operation": "merge",
+                            "import_session_id": self.session_id,
+                        },
+                    )
+                else:
+                    # Бренд не найден - создаём новый бренд + маппинг
+                    # Генерируем уникальный slug
+                    try:
+                        from transliterate import translit
+
+                        transliterated = translit(onec_name, "ru", reversed=True)
+                        base_slug = slugify(transliterated)
+                    except (RuntimeError, ImportError):
+                        base_slug = slugify(onec_name)
+
+                    if not base_slug:
+                        base_slug = f"brand-{onec_id[:8]}"
+
+                    # Обеспечиваем уникальность slug
+                    unique_slug = base_slug
+                    counter = 2
+                    while Brand.objects.filter(slug=unique_slug).exists():
+                        unique_slug = f"{base_slug}-{counter}"
+                        counter += 1
+
+                    # Создаём бренд (normalized_name установится автоматически в save())
+                    brand = Brand.objects.create(
+                        name=onec_name,
+                        slug=unique_slug,
+                        is_active=True,
+                    )
+
+                    # Создаём маппинг
+                    Brand1CMapping.objects.create(
+                        brand=brand,
+                        onec_id=onec_id,
+                        onec_name=onec_name,
+                    )
+
+                    result["brands_created"] += 1
+                    result["mappings_created"] += 1
+
+                    logger.info(
+                        "Brand created with mapping",
+                        extra={
+                            "onec_id": onec_id,
+                            "onec_name": onec_name,
+                            "brand_id": brand.id,
+                            "brand_name": brand.name,
+                            "normalized_name": brand.normalized_name,
+                            "slug": brand.slug,
+                            "operation": "create",
+                            "import_session_id": self.session_id,
+                        },
+                    )
+
+            except Exception as e:
+                logger.error(f"Error processing brand {brand_data}: {e}")
+                self.stats["errors"] += 1
+
+        logger.info(
+            f"Brands processed: {result['brands_created']} brands created, "
+            f"{result['mappings_created']} mappings created, "
+            f"{result['mappings_updated']} mappings updated"
+        )
+        return result
 
     def finalize_session(self, status: str, error_message: str = "") -> None:
         """Завершение сессии импорта"""

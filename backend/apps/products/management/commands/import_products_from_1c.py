@@ -23,7 +23,6 @@ from tqdm import tqdm
 
 from apps.products.models import Brand, Category, ImportSession, Product, ProductVariant
 from apps.products.services.parser import XMLDataParser
-from apps.products.services.processor import ProductDataProcessor
 from apps.products.services.variant_import import VariantImportProcessor
 
 
@@ -37,7 +36,7 @@ class Command(BaseCommand):
         python manage.py import_products_from_1c --data-dir /path --batch-size=500
         python manage.py import_products_from_1c --data-dir /path --file-type=goods
         python manage.py import_products_from_1c --data-dir /path --clear-existing
-        python manage.py import_products_from_1c --data-dir /path --legacy-mode
+        python manage.py import_products_from_1c --data-dir /path --variants-only
     """
 
     help = "Импорт каталога товаров из файлов 1С (CommerceML 3.1) с поддержкой ProductVariant"
@@ -95,11 +94,6 @@ class Command(BaseCommand):
             help="Пропустить импорт изображений товаров (только метаданные)",
         )
         parser.add_argument(
-            "--legacy-mode",
-            action="store_true",
-            help="Использовать старый режим импорта (без ProductVariant)",
-        )
-        parser.add_argument(
             "--skip-default-variants",
             action="store_true",
             help="Пропустить создание default variants для товаров без вариантов",
@@ -138,7 +132,6 @@ class Command(BaseCommand):
         clear_existing = options.get("clear_existing", False)
         skip_backup = options.get("skip_backup", False)
         skip_images = options.get("skip_images", False)
-        legacy_mode = options.get("legacy_mode", False)
         skip_default_variants = options.get("skip_default_variants", False)
         variants_only = options.get("variants_only", False)
         celery_task_id = options.get("celery_task_id", None)
@@ -179,14 +172,7 @@ class Command(BaseCommand):
             )
             return self._dry_run_import(data_dir)
 
-        # Legacy mode - использовать старый импорт
-        if legacy_mode:
-            self.stdout.write(
-                self.style.WARNING(
-                    "⚠️ LEGACY MODE: Использование старого импорта без ProductVariant"
-                )
-            )
-            return self._legacy_import(data_dir, options)
+
 
         # Автоматический backup перед полным импортом
         if not dry_run and file_type == "all" and not skip_backup:
@@ -262,17 +248,11 @@ class Command(BaseCommand):
         session_id = cast(int, session.pk)
 
         try:
-            # Инициализация парсера и процессоров
+            # Инициализация парсера и процессора
             parser = XMLDataParser()
 
-            # Старый процессор для категорий и брендов
-            legacy_processor = ProductDataProcessor(
-                session_id=session_id,
-                skip_validation=skip_validation,
-                chunk_size=batch_size,
-            )
-
-            # Новый процессор для Product + ProductVariant
+            # VariantImportProcessor для Product + ProductVariant + Categories + Brands + PriceTypes
+            # (методы process_categories, process_brands, process_price_types мигрированы в Story 27.1)
             variant_processor = VariantImportProcessor(
                 session_id=session_id,
                 batch_size=batch_size,
@@ -281,15 +261,15 @@ class Command(BaseCommand):
 
             # ШАГ 0.5: Загрузка категорий из groups.xml
             if file_type in ["all", "goods"]:
-                self._import_categories(data_dir, parser, legacy_processor)
+                self._import_categories(data_dir, parser, variant_processor)
 
             # ШАГ 0.6: Загрузка брендов из propertiesGoods.xml
             if file_type in ["all", "goods"]:
-                self._import_brands(data_dir, parser, legacy_processor)
+                self._import_brands(data_dir, parser, variant_processor)
 
             # ШАГ 1: Загрузка типов цен из priceLists*.xml
             if file_type in ["all", "prices"]:
-                self._import_price_types(data_dir, parser, legacy_processor)
+                self._import_price_types(data_dir, parser, variant_processor)
 
             # ШАГ 2: Парсинг goods.xml → Product (базовая информация)
             if file_type in ["all", "goods"]:
@@ -331,7 +311,7 @@ class Command(BaseCommand):
             raise CommandError(f"Импорт завершился с ошибкой: {e}")
 
     def _import_categories(
-        self, data_dir: str, parser: XMLDataParser, processor: ProductDataProcessor
+        self, data_dir: str, parser: XMLDataParser, processor: VariantImportProcessor
     ):
         """Импорт категорий из groups.xml"""
         self.stdout.write("\n📁 Шаг 0.5: Загрузка категорий...")
@@ -363,7 +343,7 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING("   ⚠️ Файлы groups.xml не найдены"))
 
     def _import_brands(
-        self, data_dir: str, parser: XMLDataParser, processor: ProductDataProcessor
+        self, data_dir: str, parser: XMLDataParser, processor: VariantImportProcessor
     ):
         """Импорт брендов из propertiesGoods.xml"""
         self.stdout.write("\n🏷️  Шаг 0.6: Загрузка брендов...")
@@ -394,7 +374,7 @@ class Command(BaseCommand):
             )
 
     def _import_price_types(
-        self, data_dir: str, parser: XMLDataParser, processor: ProductDataProcessor
+        self, data_dir: str, parser: XMLDataParser, processor: VariantImportProcessor
     ):
         """Импорт типов цен из priceLists.xml"""
         self.stdout.write("\n📋 Шаг 1: Загрузка типов цен...")
@@ -711,11 +691,4 @@ class Command(BaseCommand):
         )
         self.stdout.write("=" * 60)
 
-    def _legacy_import(self, data_dir: str, options: dict) -> None:
-        """Запуск старого импорта через import_catalog_from_1c"""
-        from apps.products.management.commands.import_catalog_from_1c import (
-            Command as LegacyCommand,
-        )
 
-        legacy_cmd = LegacyCommand()
-        legacy_cmd.handle(**options)

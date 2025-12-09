@@ -88,7 +88,7 @@ try {
 
     $importCommand = @(
         "docker", "compose", "-f", $ComposeFile, "run", "--rm", "backend",
-        "python", "manage.py", "import_catalog_from_1c",
+        "python", "manage.py", "import_products_from_1c",
         "--data-dir", $DataDir,
         "--chunk-size", $ChunkSize,
         "--skip-backup"

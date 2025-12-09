@@ -126,6 +126,23 @@ freesport/
 └── Структура категорий товара.md  # Категории товаров
 ```
 
+## 📦 Import Data from 1C
+
+To import product catalog from 1C:
+
+```bash
+# Run full import
+python manage.py import_products_from_1c
+
+# Or with Docker
+docker compose -f docker/docker-compose.yml exec backend python manage.py import_products_from_1c
+```
+
+For detailed import options, see:
+
+- `python manage.py import_products_from_1c --help`
+- `docs/architecture/import-architecture.md`
+
 ## 🚀 Быстрый старт
 
 ### Требования
@@ -164,11 +181,13 @@ npm run dev
 Проект использует гибридный подход с двумя типами окружений:
 
 #### Docker окружение (основное)
+
 - Полная изоляция и воспроизводимость
 - Интеграция с PostgreSQL и Redis
 - Соответствие production среде
 
 #### Локальное venv (утилиты)
+
 - Быстрые утилиты разработки
 - Code formatting и линтинг
 - Стандартная структура `backend/venv/Scripts/`
@@ -258,6 +277,7 @@ curl -fsSL https://raw.githubusercontent.com/AlexMobiCraft/FREESPORT/main/script
 - [API Views Documentation](docs/api-views-documentation.md) - 📋 Подробная документация Django Views и endpoints
 - [Test Catalog API](docs/test-catalog-api.md) - 🧪 Структура и организация тестов API
 - [User Stories](docs/stories/) - Этапы разработки
+- [Import Commands Migration](docs/migration/import-commands-migration.md) - ⚠️ Миграция с `import_catalog_from_1c` на `import_products_from_1c`
 
 ### API Views Documentation
 

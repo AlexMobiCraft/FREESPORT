@@ -622,15 +622,17 @@ class TestIntegrationVerification(TestCase):
     """Тесты Integration Verification (IV1, IV2, IV3)"""
 
     def test_iv1_brands_categories_unchanged(self):
-        """IV1: Импорт брендов и категорий работает без изменений"""
-        from apps.products.services.processor import ProductDataProcessor
-
+        """IV1: Импорт брендов и категорий работает без изменений
+        
+        Note: Методы process_categories и process_brands перенесены 
+        в VariantImportProcessor в Story 27.1
+        """
         session = ImportSession.objects.create(
             import_type=ImportSession.ImportType.CATALOG,
             status=ImportSession.ImportStatus.STARTED,
         )
 
-        processor = ProductDataProcessor(session_id=session.pk)
+        processor = VariantImportProcessor(session_id=session.pk)
 
         # Тест категорий
         categories_data = [

@@ -111,7 +111,7 @@ class TestExecuteImportType:
 
     @patch("apps.integrations.tasks.call_command")
     def test_catalog_import_calls_correct_command(self, mock_call_command):
-        """Тест вызова правильной команды для импорта каталога"""
+        """Тест вызова правильной команды для импорта каталога (AC1, AC2)"""
         # Arrange
         task_id = "test-task-123"
 
@@ -122,14 +122,16 @@ class TestExecuteImportType:
         assert result["type"] == "catalog"
         assert result["message"] == "Каталог импортирован"
         mock_call_command.assert_called_once_with(
-            "import_catalog_from_1c",
+            "import_products_from_1c",
             "--file-type",
             "all",
+            "--celery-task-id",
+            task_id,
         )
 
     @patch("apps.integrations.tasks.call_command")
     def test_stocks_import_calls_rests_command(self, mock_call_command):
-        """Тест запуска команды импорта остатков"""
+        """Тест запуска команды импорта остатков (AC1, AC2)"""
         # Arrange
         task_id = "test-task-123"
 
@@ -140,14 +142,16 @@ class TestExecuteImportType:
         assert result["type"] == "stocks"
         assert result["message"] == "Остатки обновлены"
         mock_call_command.assert_called_once_with(
-            "import_catalog_from_1c",
+            "import_products_from_1c",
             "--file-type",
             "rests",
+            "--celery-task-id",
+            task_id,
         )
 
     @patch("apps.integrations.tasks.call_command")
     def test_prices_import_calls_correct_command(self, mock_call_command):
-        """Тест вызова правильной команды для импорта цен"""
+        """Тест вызова правильной команды для импорта цен (AC1, AC2)"""
         # Arrange
         task_id = "test-task-123"
 
@@ -158,10 +162,23 @@ class TestExecuteImportType:
         assert result["type"] == "prices"
         assert result["message"] == "Цены обновлены"
         mock_call_command.assert_called_once_with(
-            "import_catalog_from_1c",
+            "import_products_from_1c",
             "--file-type",
             "prices",
+            "--celery-task-id",
+            task_id,
         )
+
+    @patch("apps.integrations.tasks.call_command")
+    def test_celery_task_id_passed_correctly(self, mock_call_command):
+        """AC2: celery-task-id передаётся корректно"""
+        task_id = "abc-123-def-456"
+        _execute_import_type("catalog", task_id)
+
+        call_args = mock_call_command.call_args
+        # Проверяем что task_id передан в аргументах
+        assert "--celery-task-id" in call_args[0]
+        assert task_id in call_args[0]
 
     @patch("apps.integrations.tasks.call_command")
     def test_customers_import_finds_contragents_file(self, mock_call_command):

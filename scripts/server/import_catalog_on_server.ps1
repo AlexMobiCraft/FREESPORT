@@ -134,7 +134,7 @@ function Import-RemoteCatalog {
     
     Write-Host "⬇️ Запуск импорта каталога на сервере..." -ForegroundColor Yellow
     
-    $importCommand = "cd '$ProjectPath' && python manage.py import_catalog_from_1c --data-dir '$DataPath' --chunk-size $ChunkSize"
+    $importCommand = "cd '$ProjectPath' && python manage.py import_products_from_1c --data-dir '$DataPath' --chunk-size $ChunkSize"
     
     if ($DryRun) {
         $importCommand += " --dry-run"

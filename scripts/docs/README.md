@@ -109,7 +109,7 @@ pwsh .\scripts\run_catalog_import_with_backup.ps1 `
 - **ChunkSize** — размер пакета для bulk-операций команды импорта.
 - **BackupOutput** — путь к файлу резервной копии (если не указан, используется стандартный каталог `backend/backup_db`).
 - **SkipMigrate / SkipBackup / SkipImport** — переключатели для пропуска соответствующих шагов.
-- **ImportArgs** — дополнительный массив аргументов, который передаётся команде `import_catalog_from_1c` (например, `@("--file-type", "goods")`).
+- **ImportArgs** — дополнительный массив аргументов, который передаётся команде `import_products_from_1c` (например, `@("--file-type", "goods")`).
 
 **Последовательность действий:**
 

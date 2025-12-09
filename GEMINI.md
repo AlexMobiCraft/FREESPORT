@@ -159,6 +159,14 @@ npm run test:coverage       # Generate a coverage report
 
 ## **Integrations**
 
-- **ERP (1C):** Two-way data synchronization for products, orders, and stock levels via Celery tasks.  
+- **ERP (1C):** Two-way data synchronization for products, orders, and stock levels via Celery tasks.
+  - **Primary Import Command:** `import_products_from_1c`
+    - `python manage.py import_products_from_1c --file-type=all`
+    - Supports selective import: `--file-type=goods` (products), `--file-type=prices` (prices), `--file-type=rests` (stock)
+  - **Architecture:**
+    - Processing: `VariantImportProcessor` (new generation)
+    - Parsing: `XMLDataParser`
+  - Architecture details: `docs/architecture/import-architecture.md`
+  - Real test data available in `data/import_1c/`
 - **Payment Gateways:** YuKassa for online payments.  
 - **Shipping Services:** CDEK and Boxberry for delivery cost calculation and logistics.

@@ -234,6 +234,10 @@ MEDIA_ROOT = BASE_DIR / "media"
 FILE_UPLOAD_PERMISSIONS = 0o644
 FILE_UPLOAD_DIRECTORY_PERMISSIONS = 0o755
 
+# Лимит POST/GET параметров для Django Admin с большими inline формами
+# Увеличен для поддержки атрибутов с большим количеством значений (напр. "Размер" с 466+ значениями)
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 5000
+
 # Интеграция с 1С
 # Путь к директории с данными импорта из 1С
 # Поддерживает переменную окружения ONEC_DATA_DIR

@@ -9,7 +9,7 @@
 ```
 Сервер (5.35.124.149)
 /home/freesport/freesport/data/import_1c/*.xml
-         ↓ (Django manage.py import_catalog_from_1c)
+         ↓ (Django manage.py import_products_from_1c)
 База данных PostgreSQL на сервере
 ```
 
@@ -116,7 +116,7 @@ ssh root@5.35.124.149 "find /home/freesport/freesport/data/import_1c -name '*.xm
 ### Ошибка импорта
 Проверьте логи Django на сервере:
 ```powershell
-ssh root@5.35.124.149 "cd /home/freesport/freesport && python manage.py import_catalog_from_1c --help"
+ssh root@5.35.124.149 "cd /home/freesport/freesport && python manage.py import_products_from_1c --help"
 ```
 
 ## Мониторинг прогресса

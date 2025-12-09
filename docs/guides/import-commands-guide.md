@@ -6,7 +6,7 @@
 
 ## Содержание
 
-- [Команда import_catalog_from_1c](#команда-import_catalog_from_1c)
+- [Команда import_products_from_1c](#команда-import_products_from_1c)
 - [Команда load_product_stocks](#команда-load_product_stocks)
 - [Команда backup_db](#команда-backup_db)
 - [Команда restore_db](#команда-restore_db)
@@ -16,7 +16,7 @@
 
 ---
 
-## Команда import_catalog_from_1c
+## Команда import_products_from_1c
 
 ### Описание
 
@@ -25,7 +25,7 @@
 ### Синтаксис
 
 ```bash
-python manage.py import_catalog_from_1c --data-dir=<path> [OPTIONS]
+python manage.py import_products_from_1c --data-dir=<path> [OPTIONS]
 ```
 
 ### Обязательные параметры
@@ -78,13 +78,13 @@ data-dir/
 #### Базовый импорт
 
 ```bash
-python manage.py import_catalog_from_1c --data-dir=/var/data/1c/export/
+python manage.py import_products_from_1c --data-dir=/var/data/1c/export/
 ```
 
 #### Импорт с увеличенным chunk-size для больших каталогов
 
 ```bash
-python manage.py import_catalog_from_1c \
+python manage.py import_products_from_1c \
     --data-dir=/var/data/1c/export/ \
     --chunk-size=2000
 ```
@@ -92,7 +92,7 @@ python manage.py import_catalog_from_1c \
 #### Быстрый импорт без валидации
 
 ```bash
-python manage.py import_catalog_from_1c \
+python manage.py import_products_from_1c \
     --data-dir=/var/data/1c/export/ \
     --skip-validation
 ```
@@ -100,7 +100,7 @@ python manage.py import_catalog_from_1c \
 #### Импорт только цен
 
 ```bash
-python manage.py import_catalog_from_1c \
+python manage.py import_products_from_1c \
     --data-dir=/var/data/1c/export/ \
     --file-type=prices
 ```
@@ -108,7 +108,7 @@ python manage.py import_catalog_from_1c \
 #### Полная перезагрузка каталога
 
 ```bash
-python manage.py import_catalog_from_1c \
+python manage.py import_products_from_1c \
     --data-dir=/var/data/1c/export/ \
     --clear-existing
 ```
@@ -116,7 +116,7 @@ python manage.py import_catalog_from_1c \
 #### Тестовый запуск (dry-run)
 
 ```bash
-python manage.py import_catalog_from_1c \
+python manage.py import_products_from_1c \
     --data-dir=/var/data/1c/export/ \
     --dry-run
 ```
@@ -141,7 +141,7 @@ python manage.py import_catalog_from_1c \
 
 ### Описание
 
-Обновляет только остатки товаров из файла `rests.xml`. Эта команда является легковесной альтернативой `import_catalog_from_1c --file-type=rests` и рекомендуется для частых запусков (например, через cron).
+Обновляет только остатки товаров из файла `rests.xml`. Эта команда является легковесной альтернативой `import_products_from_1c --file-type=rests` и рекомендуется для частых запусков (например, через cron).
 
 ### Синтаксис
 
@@ -370,7 +370,7 @@ python manage.py rotate_backups --dry-run
 
 ```bash
 # 1. Создать backup перед импортом (автоматически)
-python manage.py import_catalog_from_1c --data-dir=/var/data/1c/export/
+python manage.py import_products_from_1c --data-dir=/var/data/1c/export/
 
 # 2. Если что-то пошло не так, восстановить из backup
 python manage.py restore_db --backup-file=/path/to/backup_2025-10-19_143000.sql
@@ -383,7 +383,7 @@ python manage.py rotate_backups --keep=3
 
 ```bash
 # Импорт каталога каждый день в 3:00
-0 3 * * * cd /app && python manage.py import_catalog_from_1c --data-dir=/var/data/1c/export/ >> /var/log/import.log 2>&1
+0 3 * * * cd /app && python manage.py import_products_from_1c --data-dir=/var/data/1c/export/ >> /var/log/import.log 2>&1
 
 # Ротация backup файлов каждый день в 4:00
 0 4 * * * cd /app && python manage.py rotate_backups --keep=5 >> /var/log/backup.log 2>&1
@@ -393,7 +393,7 @@ python manage.py rotate_backups --keep=3
 
 ```bash
 # Запуск с логированием
-python manage.py import_catalog_from_1c \
+python manage.py import_products_from_1c \
     --data-dir=/var/data/1c/export/ \
     2>&1 | tee /var/log/import_$(date +%Y%m%d_%H%M%S).log
 
@@ -464,7 +464,7 @@ IMPORT_MAX_FILE_SIZE = 200  # MB
 
 ```bash
 # Использовать меньший chunk-size
-python manage.py import_catalog_from_1c \
+python manage.py import_products_from_1c \
     --data-dir=/path \
     --chunk-size=500
 
@@ -472,7 +472,7 @@ python manage.py import_catalog_from_1c \
 tail -f /var/log/freesport/import.log
 
 # Проверить процессы
-ps aux | grep import_catalog
+ps aux | grep import_products
 ```
 
 ### Дубликаты товаров после импорта
