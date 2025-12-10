@@ -2,6 +2,9 @@
 Views для аутентификации пользователей
 """
 
+from django.contrib.auth import get_user_model
+from django.utils.encoding import force_bytes, force_str
+from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from drf_spectacular.utils import OpenApiExample, OpenApiResponse, extend_schema
 from rest_framework import permissions, status
 from rest_framework.response import Response
@@ -9,7 +12,16 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
 # User model is used in the code
-from ..serializers import UserLoginSerializer, UserRegistrationSerializer
+from ..serializers import (
+    PasswordResetConfirmSerializer,
+    PasswordResetRequestSerializer,
+    UserLoginSerializer,
+    UserRegistrationSerializer,
+    ValidateTokenSerializer,
+)
+from ..tokens import password_reset_token
+
+User = get_user_model()
 
 
 class UserRegistrationView(APIView):
@@ -156,5 +168,225 @@ class UserLoginView(APIView):
                 },
                 status=status.HTTP_200_OK,
             )
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class PasswordResetRequestView(APIView):
+    """
+    Запрос на сброс пароля
+    """
+
+    permission_classes = [permissions.AllowAny]
+
+    @extend_schema(
+        summary="Запрос на сброс пароля",
+        description=(
+            "Отправка email с ссылкой для сброса пароля. "
+            "Всегда возвращает 200 OK (security best practice)."
+        ),
+        request=PasswordResetRequestSerializer,
+        responses={
+            200: OpenApiResponse(
+                description="Email отправлен (если пользователь существует)",
+                examples=[
+                    OpenApiExample(
+                        name="success",
+                        value={"detail": "Password reset email sent."},
+                    )
+                ],
+            ),
+        },
+        tags=["Authentication"],
+    )
+    def post(self, request, *args, **kwargs) -> Response:
+        """Обработка запроса на сброс пароля"""
+        serializer = PasswordResetRequestSerializer(data=request.data)
+
+        if serializer.is_valid():
+            email = serializer.validated_data["email"]
+
+            # Ищем пользователя (без раскрытия существования)
+            try:
+                user = User.objects.get(email=email, is_active=True)
+
+                # Генерируем uid и token
+                uid = urlsafe_base64_encode(force_bytes(user.pk))
+                token = password_reset_token.make_token(user)
+
+                # TODO: В production здесь должна быть отправка email
+                # Для разработки - логируем в консоль
+                reset_url = (
+                    f"http://localhost:3000/password-reset/confirm/{uid}/{token}/"
+                )
+                print(f"Password reset URL for {email}: {reset_url}")
+
+            except User.DoesNotExist:
+                # Не раскрываем информацию о существовании пользователя
+                pass
+
+            # Всегда возвращаем успех (security best practice)
+            return Response(
+                {"detail": "Password reset email sent."}, status=status.HTTP_200_OK
+            )
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ValidateTokenView(APIView):
+    """
+    Валидация токена сброса пароля
+    """
+
+    permission_classes = [permissions.AllowAny]
+
+    @extend_schema(
+        summary="Валидация токена сброса пароля",
+        description="Проверка валидности токена перед сбросом пароля",
+        request=ValidateTokenSerializer,
+        responses={
+            200: OpenApiResponse(
+                description="Токен валиден",
+                examples=[
+                    OpenApiExample(
+                        name="valid_token",
+                        value={"valid": True},
+                    )
+                ],
+            ),
+            404: OpenApiResponse(
+                description="Токен не найден",
+                examples=[
+                    OpenApiExample(
+                        name="invalid_token",
+                        value={"detail": "Invalid token"},
+                    )
+                ],
+            ),
+            410: OpenApiResponse(
+                description="Токен истёк",
+                examples=[
+                    OpenApiExample(
+                        name="expired_token",
+                        value={"detail": "Token expired"},
+                    )
+                ],
+            ),
+        },
+        tags=["Authentication"],
+    )
+    def post(self, request, *args, **kwargs) -> Response:
+        """Валидация токена"""
+        serializer = ValidateTokenSerializer(data=request.data)
+
+        if serializer.is_valid():
+            uid = serializer.validated_data["uid"]
+            token = serializer.validated_data["token"]
+
+            try:
+                # Декодируем uid
+                user_id = force_str(urlsafe_base64_decode(uid))
+                user = User.objects.get(pk=user_id, is_active=True)
+
+                # Проверяем токен
+                if password_reset_token.check_token(user, token):
+                    return Response({"valid": True}, status=status.HTTP_200_OK)
+                else:
+                    return Response(
+                        {"detail": "Token expired"}, status=status.HTTP_410_GONE
+                    )
+
+            except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+                return Response(
+                    {"detail": "Invalid token"}, status=status.HTTP_404_NOT_FOUND
+                )
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class PasswordResetConfirmView(APIView):
+    """
+    Подтверждение сброса пароля
+    """
+
+    permission_classes = [permissions.AllowAny]
+
+    @extend_schema(
+        summary="Подтверждение сброса пароля",
+        description="Установка нового пароля после валидации токена",
+        request=PasswordResetConfirmSerializer,
+        responses={
+            200: OpenApiResponse(
+                description="Пароль успешно изменён",
+                examples=[
+                    OpenApiExample(
+                        name="success",
+                        value={"detail": "Password has been reset successfully."},
+                    )
+                ],
+            ),
+            400: OpenApiResponse(
+                description="Ошибки валидации",
+                examples=[
+                    OpenApiExample(
+                        name="validation_error",
+                        value={"new_password": ["Password is too weak"]},
+                    )
+                ],
+            ),
+            404: OpenApiResponse(
+                description="Токен не найден",
+                examples=[
+                    OpenApiExample(
+                        name="invalid_token",
+                        value={"detail": "Invalid token"},
+                    )
+                ],
+            ),
+            410: OpenApiResponse(
+                description="Токен истёк",
+                examples=[
+                    OpenApiExample(
+                        name="expired_token",
+                        value={"detail": "Token expired"},
+                    )
+                ],
+            ),
+        },
+        tags=["Authentication"],
+    )
+    def post(self, request, *args, **kwargs) -> Response:
+        """Подтверждение сброса пароля"""
+        serializer = PasswordResetConfirmSerializer(data=request.data)
+
+        if serializer.is_valid():
+            uid = serializer.validated_data["uid"]
+            token = serializer.validated_data["token"]
+            new_password = serializer.validated_data["new_password"]
+
+            try:
+                # Декодируем uid
+                user_id = force_str(urlsafe_base64_decode(uid))
+                user = User.objects.get(pk=user_id, is_active=True)
+
+                # Проверяем токен
+                if not password_reset_token.check_token(user, token):
+                    return Response(
+                        {"detail": "Token expired"}, status=status.HTTP_410_GONE
+                    )
+
+                # Устанавливаем новый пароль
+                user.set_password(new_password)
+                user.save(update_fields=["password"])
+
+                return Response(
+                    {"detail": "Password has been reset successfully."},
+                    status=status.HTTP_200_OK,
+                )
+
+            except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+                return Response(
+                    {"detail": "Invalid token"}, status=status.HTTP_404_NOT_FOUND
+                )
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

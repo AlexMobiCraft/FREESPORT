@@ -169,6 +169,34 @@ export interface RefreshTokenResponse {
   access: string;
 }
 
+// Password Reset Types (Story 28.3)
+export interface PasswordResetRequest {
+  email: string;
+}
+
+export interface PasswordResetResponse {
+  detail: string;
+}
+
+export interface ValidateTokenRequest {
+  uid: string;
+  token: string;
+}
+
+export interface ValidateTokenResponse {
+  valid: boolean;
+}
+
+export interface PasswordResetConfirmRequest {
+  uid: string;
+  token: string;
+  new_password: string;
+}
+
+export interface PasswordResetConfirmResponse {
+  detail: string;
+}
+
 export interface ApiError {
   detail?: string;
   message?: string;

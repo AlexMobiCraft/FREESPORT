@@ -16,10 +16,7 @@ import { validateINN, validateOGRN } from '@/utils/validators/b2b-validators';
  * AC 3: Email format validation, password min 8 chars, 1 digit, 1 uppercase
  */
 export const loginSchema = z.object({
-  email: z
-    .string()
-    .min(1, 'Email обязателен')
-    .email('Неверный формат email'),
+  email: z.string().min(1, 'Email обязателен').email('Неверный формат email'),
   password: z
     .string()
     .min(8, 'Пароль должен содержать минимум 8 символов')
@@ -40,10 +37,7 @@ export const registerSchema = z
       .string()
       .min(1, 'Имя обязательно')
       .max(150, 'Имя не должно превышать 150 символов'),
-    email: z
-      .string()
-      .min(1, 'Email обязателен')
-      .email('Неверный формат email'),
+    email: z.string().min(1, 'Email обязателен').email('Неверный формат email'),
     password: z
       .string()
       .min(8, 'Пароль должен содержать минимум 8 символов')
@@ -73,10 +67,7 @@ export const b2bRegisterSchema = z
       .string()
       .min(1, 'Фамилия обязательна')
       .max(150, 'Фамилия не должна превышать 150 символов'),
-    email: z
-      .string()
-      .min(1, 'Email обязателен')
-      .email('Неверный формат email'),
+    email: z.string().min(1, 'Email обязателен').email('Неверный формат email'),
     phone: z
       .string()
       .min(1, 'Телефон обязателен')
@@ -95,18 +86,12 @@ export const b2bRegisterSchema = z
       .string()
       .min(1, 'Название компании обязательно')
       .max(255, 'Название компании не должно превышать 255 символов'),
-    tax_id: z
-      .string()
-      .min(1, 'ИНН обязателен')
-      .refine(validateINN, {
-        message: 'ИНН должен содержать 10 цифр (юр. лицо) или 12 цифр (ИП)',
-      }),
-    ogrn: z
-      .string()
-      .min(1, 'ОГРН обязателен')
-      .refine(validateOGRN, {
-        message: 'ОГРН должен содержать 13 цифр (юр. лицо) или 15 цифр (ОГРНИП)',
-      }),
+    tax_id: z.string().min(1, 'ИНН обязателен').refine(validateINN, {
+      message: 'ИНН должен содержать 10 цифр (юр. лицо) или 12 цифр (ИП)',
+    }),
+    ogrn: z.string().min(1, 'ОГРН обязателен').refine(validateOGRN, {
+      message: 'ОГРН должен содержать 13 цифр (юр. лицо) или 15 цифр (ОГРНИП)',
+    }),
     legal_address: z
       .string()
       .min(1, 'Юридический адрес обязателен')
@@ -114,8 +99,45 @@ export const b2bRegisterSchema = z
 
     // Роль B2B (опционально, может задаваться при выборе)
     role: z
-      .enum(['wholesale_level1', 'wholesale_level2', 'wholesale_level3', 'trainer', 'federation_rep'])
+      .enum([
+        'wholesale_level1',
+        'wholesale_level2',
+        'wholesale_level3',
+        'trainer',
+        'federation_rep',
+      ])
       .default('wholesale_level1'),
+  })
+  .refine(data => data.password === data.confirmPassword, {
+    message: 'Пароли не совпадают',
+    path: ['confirmPassword'],
+  });
+
+/**
+ * Password Reset Request Schema
+ * Story 28.3 - Восстановление пароля
+ *
+ * AC 1, 4: Email validation для запроса сброса пароля
+ */
+export const passwordResetRequestSchema = z.object({
+  email: z.string().min(1, 'Email обязателен').email('Введите корректный email'),
+});
+
+/**
+ * Password Reset Confirm Schema
+ * Story 28.3 - Восстановление пароля
+ *
+ * AC 2, 4: Валидация нового пароля и подтверждения
+ * Password strength requirements: минимум 8 символов, 1 цифра, 1 заглавная буква
+ */
+export const passwordResetConfirmSchema = z
+  .object({
+    password: z
+      .string()
+      .min(8, 'Пароль должен содержать минимум 8 символов')
+      .regex(/[0-9]/, 'Пароль должен содержать хотя бы 1 цифру')
+      .regex(/[A-Z]/, 'Пароль должен содержать хотя бы 1 заглавную букву'),
+    confirmPassword: z.string().min(1, 'Подтверждение пароля обязательно'),
   })
   .refine(data => data.password === data.confirmPassword, {
     message: 'Пароли не совпадают',
@@ -128,3 +150,5 @@ export const b2bRegisterSchema = z
 export type LoginFormData = z.infer<typeof loginSchema>;
 export type RegisterFormData = z.infer<typeof registerSchema>;
 export type B2BRegisterFormData = z.infer<typeof b2bRegisterSchema>;
+export type PasswordResetRequestFormData = z.infer<typeof passwordResetRequestSchema>;
+export type PasswordResetConfirmFormData = z.infer<typeof passwordResetConfirmSchema>;

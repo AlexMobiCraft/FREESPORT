@@ -10,10 +10,13 @@ from .views import (
     AddressViewSet,
     FavoriteViewSet,
     OrderHistoryView,
+    PasswordResetConfirmView,
+    PasswordResetRequestView,
     UserDashboardView,
     UserLoginView,
     UserProfileView,
     UserRegistrationView,
+    ValidateTokenView,
     user_roles_view,
 )
 
@@ -29,6 +32,22 @@ urlpatterns = [
     path("auth/register/", UserRegistrationView.as_view(), name="register"),
     path("auth/login/", UserLoginView.as_view(), name="login"),
     path("auth/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
+    # Password Reset
+    path(
+        "auth/password-reset/",
+        PasswordResetRequestView.as_view(),
+        name="password_reset_request",
+    ),
+    path(
+        "auth/password-reset/validate-token/",
+        ValidateTokenView.as_view(),
+        name="password_reset_validate_token",
+    ),
+    path(
+        "auth/password-reset/confirm/",
+        PasswordResetConfirmView.as_view(),
+        name="password_reset_confirm",
+    ),
     # Профиль пользователя
     path("users/profile/", UserProfileView.as_view(), name="profile"),
     # Личный кабинет

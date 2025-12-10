@@ -10,9 +10,15 @@ import { useAuthStore } from '@/stores/authStore';
 import type {
   LoginRequest,
   LoginResponse,
+  PasswordResetConfirmRequest,
+  PasswordResetConfirmResponse,
+  PasswordResetRequest,
+  PasswordResetResponse,
+  RefreshTokenResponse,
   RegisterRequest,
   RegisterResponse,
-  RefreshTokenResponse,
+  ValidateTokenRequest,
+  ValidateTokenResponse,
 } from '@/types/api';
 
 class AuthService {
@@ -97,6 +103,68 @@ class AuthService {
 
     // Обновить access token в store
     useAuthStore.getState().setTokens(access, refreshToken);
+
+    return response.data;
+  }
+
+  /**
+   * Запрос на сброс пароля
+   * Story 28.3 - AC 1, 6: Отправка email для сброса пароля
+   *
+   * @param email - email пользователя
+   * @returns Promise с сообщением о результате
+   *
+   * Security Note: Всегда возвращает 200 OK, даже если email не существует
+   */
+  async requestPasswordReset(email: string): Promise<PasswordResetResponse> {
+    const response = await apiClient.post<PasswordResetResponse>('/auth/password-reset/', {
+      email,
+    } as PasswordResetRequest);
+
+    return response.data;
+  }
+
+  /**
+   * Валидация токена сброса пароля
+   * Story 28.3 - AC 3: Проверка валидности токена перед сбросом
+   *
+   * @param uid - base64 encoded user ID
+   * @param token - одноразовый токен
+   * @returns Promise с результатом валидации
+   * @throws {Error} 404 - Invalid token, 410 - Token expired
+   */
+  async validateResetToken(uid: string, token: string): Promise<ValidateTokenResponse> {
+    const response = await apiClient.post<ValidateTokenResponse>(
+      '/auth/password-reset/validate-token/',
+      { uid, token } as ValidateTokenRequest
+    );
+
+    return response.data;
+  }
+
+  /**
+   * Подтверждение сброса пароля с новым паролем
+   * Story 28.3 - AC 2, 6: Установка нового пароля
+   *
+   * @param uid - base64 encoded user ID
+   * @param token - одноразовый токен
+   * @param password - новый пароль
+   * @returns Promise с сообщением об успешном сбросе
+   * @throws {Error} 400 - Validation errors, 404 - Invalid token, 410 - Token expired
+   */
+  async confirmPasswordReset(
+    uid: string,
+    token: string,
+    password: string
+  ): Promise<PasswordResetConfirmResponse> {
+    const response = await apiClient.post<PasswordResetConfirmResponse>(
+      '/auth/password-reset/confirm/',
+      {
+        uid,
+        token,
+        new_password: password,
+      } as PasswordResetConfirmRequest
+    );
 
     return response.data;
   }

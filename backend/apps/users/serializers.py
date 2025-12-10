@@ -426,3 +426,42 @@ class OrderHistorySerializer(serializers.ModelSerializer):
     def get_items_count(self, obj: Order) -> int:
         """Получение количества товаров в заказе"""
         return int(obj.total_items)
+
+
+class PasswordResetRequestSerializer(serializers.Serializer):
+    """
+    Serializer для запроса на сброс пароля
+    """
+
+    email = serializers.EmailField()
+
+    def validate_email(self, value: str) -> str:
+        """Нормализация email"""
+        return value.lower()
+
+
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    """
+    Serializer для подтверждения сброса пароля
+    """
+
+    uid = serializers.CharField()
+    token = serializers.CharField()
+    new_password = serializers.CharField(
+        write_only=True,
+        validators=[validate_password],
+        style={"input_type": "password"},
+    )
+
+    def validate_new_password(self, value: str) -> str:
+        """Валидация нового пароля"""
+        return value
+
+
+class ValidateTokenSerializer(serializers.Serializer):
+    """
+    Serializer для валидации токена сброса пароля
+    """
+
+    uid = serializers.CharField()
+    token = serializers.CharField()

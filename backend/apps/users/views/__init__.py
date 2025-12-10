@@ -4,7 +4,13 @@ Views для API управления пользователями
 """
 
 # Импорты для совместимости с существующими URL patterns
-from .authentication import UserLoginView, UserRegistrationView
+from .authentication import (
+    PasswordResetConfirmView,
+    PasswordResetRequestView,
+    UserLoginView,
+    UserRegistrationView,
+    ValidateTokenView,
+)
 from .misc import user_roles_view
 from .personal_cabinet import (
     AddressViewSet,
@@ -23,4 +29,7 @@ __all__ = [
     "AddressViewSet",
     "FavoriteViewSet",
     "OrderHistoryView",
+    "PasswordResetRequestView",
+    "PasswordResetConfirmView",
+    "ValidateTokenView",
 ]
