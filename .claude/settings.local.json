@@ -62,7 +62,9 @@
       "Bash(make test-fast:*)",
       "Bash(npx markdownlint-cli2-fix:*)",
       "Bash(npm run dev:*)",
-      "Bash(timeout /t 5 /nobreak)"
+      "Bash(timeout /t 5 /nobreak)",
+      "Bash(npx markdownlint-cli2:*)",
+      "Bash(if not exist \"frontend\\src\\app\\(auth)\\b2b-register\" mkdir \"frontend\\src\\app\\(auth)\\b2b-register\")"
     ],
     "deny": [],
     "ask": [],

@@ -54,6 +54,12 @@ services:
       - ../data/prod/media:/app/media
       - ${ONEC_DATA_DIR}:/app/data/import_1c
     user: "1000:1000"
+    healthcheck:
+      test: [ "CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health/')" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     depends_on:
       - db
       - redis
@@ -76,8 +82,15 @@ services:
       - NEXT_PUBLIC_MEDIA_URL=${NEXT_PUBLIC_MEDIA_URL}
       - NEXT_PUBLIC_MEDIA_URL_INTERNAL=http://nginx
       - INTERNAL_API_URL=http://backend:8000
+    healthcheck:
+      test: [ "CMD", "node", "-e", "require('http').get('http://localhost:3000/', (r) => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     networks:
       - freesport-network
     restart: unless-stopped
@@ -95,8 +108,10 @@ services:
       - "80:80"
       - "443:443"
     depends_on:
-      - backend
-      - frontend
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
     networks:
       - freesport-network
     restart: unless-stopped
@@ -160,4 +175,5 @@ volumes:
 
 networks:
   freesport-network:
-    driver: bridge
+    name: docker_freesport-network
+    external: true

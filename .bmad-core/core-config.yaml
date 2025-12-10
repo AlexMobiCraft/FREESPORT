@@ -27,8 +27,9 @@ prd:
     - 24
     - 25
     - 26
+    - 27
   activeEpics:
-    - 27  # Import Modules Refactoring
+    - 28  # Authentication System Implementation
 architecture:
   architectureFile: docs/architecture.md
   architectureVersion: v4

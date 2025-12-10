@@ -388,9 +388,81 @@ const mockCategories: Category[] = [
 ];
 
 /**
+ * Auth Handlers - Story 28.1
+ * Mock handlers для тестирования аутентификации
+ */
+export const authHandlers = [
+  // Successful login
+  http.post(`${API_BASE_URL}/auth/login/`, async ({ request }) => {
+    const body = (await request.json()) as { email: string; password: string };
+
+    // Simulate 401 for specific test credentials
+    if (body.email === 'wrong@example.com' || body.password === 'WrongPassword') {
+      return HttpResponse.json(
+        { detail: 'Invalid credentials' },
+        { status: 401 }
+      );
+    }
+
+    return HttpResponse.json({
+      access: 'mock-access-token',
+      refresh: 'mock-refresh-token',
+      user: {
+        id: 1,
+        email: body.email,
+        first_name: 'Test',
+        last_name: 'User',
+        phone: '',
+        role: 'retail' as const,
+        is_verified: true,
+      },
+    });
+  }),
+
+  // Successful registration
+  http.post(`${API_BASE_URL}/auth/register/`, async ({ request }) => {
+    const body = (await request.json()) as { email: string; password: string; first_name: string };
+
+    // Simulate 409 conflict for existing email
+    if (body.email === 'existing@example.com') {
+      return HttpResponse.json(
+        { email: ['User with this email already exists'] },
+        { status: 409 }
+      );
+    }
+
+    // Simulate 400 for weak password
+    if (body.password === 'weak') {
+      return HttpResponse.json(
+        { password: ['Password is too weak'] },
+        { status: 400 }
+      );
+    }
+
+    return HttpResponse.json(
+      {
+        access: 'mock-access-token',
+        refresh: 'mock-refresh-token',
+        user: {
+          id: 2,
+          email: body.email,
+          first_name: body.first_name,
+          last_name: '',
+          phone: '',
+          role: 'retail' as const,
+          is_verified: false,
+        },
+      },
+      { status: 201 }
+    );
+  }),
+];
+
+/**
  * MSW Handlers
  */
 export const handlers = [
+  ...authHandlers,
   // Хиты продаж (AC 1)
   http.get(`${API_BASE_URL}/products/`, ({ request }) => {
     const url = new URL(request.url);
