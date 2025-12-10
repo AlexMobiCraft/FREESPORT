@@ -67,29 +67,32 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
 
       // AC 2: Редирект на главную после успешной регистрации
       router.push('/');
-    } catch (error: any) {
+    } catch (error: unknown) {
       // AC 4: Обработка ошибок API
-      if (error.response?.status === 409) {
+      const err = error as {
+        response?: {
+          status?: number;
+          data?: { email?: string[]; password?: string[]; detail?: string };
+        };
+      };
+      if (err.response?.status === 409) {
         // Конфликт - пользователь уже существует
-        const emailError = error.response?.data?.email?.[0];
+        const emailError = err.response?.data?.email?.[0];
         setApiError(emailError || 'Пользователь с таким email уже существует');
-      } else if (error.response?.status === 400) {
+      } else if (err.response?.status === 400) {
         // Ошибки валидации
-        const passwordError = error.response?.data?.password?.[0];
+        const passwordError = err.response?.data?.password?.[0];
         setApiError(passwordError || 'Ошибка валидации данных');
-      } else if (error.response?.status === 500) {
+      } else if (err.response?.status === 500) {
         setApiError('Ошибка сервера. Попробуйте позже');
       } else {
-        setApiError(error.response?.data?.detail || 'Произошла ошибка при регистрации');
+        setApiError(err.response?.data?.detail || 'Произошла ошибка при регистрации');
       }
     }
   };
 
   return (
-    <form
-      onSubmit={handleSubmit(onSubmit)}
-      className="w-full max-w-md mx-auto p-6 space-y-4"
-    >
+    <form onSubmit={handleSubmit(onSubmit)} className="w-full max-w-md mx-auto p-6 space-y-4">
       {/* AC 4: Отображение API ошибок */}
       {apiError && (
         <div
@@ -146,12 +149,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
 
       {/* AC 6: Использование Button компонента */}
       {/* AC 4: Loading state с блокировкой кнопки */}
-      <Button
-        type="submit"
-        loading={isSubmitting}
-        disabled={isSubmitting}
-        className="w-full"
-      >
+      <Button type="submit" loading={isSubmitting} disabled={isSubmitting} className="w-full">
         Зарегистрироваться
       </Button>
     </form>

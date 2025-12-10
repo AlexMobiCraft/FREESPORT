@@ -10,8 +10,6 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { http, HttpResponse } from 'msw';
-import { server } from '@/__mocks__/api/server';
 import { LoginForm } from '../LoginForm';
 import authService from '@/services/authService';
 
@@ -29,8 +27,6 @@ vi.mock('@/services/authService', () => ({
     login: vi.fn(),
   },
 }));
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api/v1';
 
 describe('LoginForm', () => {
   beforeEach(() => {
@@ -69,7 +65,7 @@ describe('LoginForm', () => {
       const submitButton = screen.getByRole('button', { name: /войти/i });
 
       // Use a format that passes browser validation but might fail Zod
-      // Note: browser type="email" blocks 'invalid-email', so we verify 
+      // Note: browser type="email" blocks 'invalid-email', so we verify
       // the form doesn't submit (authService not called) with invalid email via browser validation
       await user.type(emailInput, 'invalid-email');
       await user.type(passwordInput, 'SecurePass123');
