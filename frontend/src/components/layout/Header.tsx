@@ -154,12 +154,12 @@ const Header: React.FC = () => {
                 </>
               ) : (
                 <>
-                  <Link href="/auth/register">
+                  <Link href="/register">
                     <Button variant="secondary" size="small">
                       Регистрация
                     </Button>
                   </Link>
-                  <Link href="/auth/login">
+                  <Link href="/login">
                     <Button variant="primary" size="small">
                       Войти
                     </Button>
@@ -247,12 +247,12 @@ const Header: React.FC = () => {
                   </>
                 ) : (
                   <>
-                    <Link href="/auth/register" onClick={() => setIsMobileMenuOpen(false)}>
+                    <Link href="/register" onClick={() => setIsMobileMenuOpen(false)}>
                       <Button variant="secondary" size="small" className="w-full">
                         Регистрация
                       </Button>
                     </Link>
-                    <Link href="/auth/login" onClick={() => setIsMobileMenuOpen(false)}>
+                    <Link href="/login" onClick={() => setIsMobileMenuOpen(false)}>
                       <Button variant="primary" size="small" className="w-full">
                         Войти
                       </Button>

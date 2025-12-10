@@ -99,6 +99,60 @@ describe('Header', () => {
     });
   });
 
+  describe('Authentication Links', () => {
+    beforeEach(() => {
+      vi.mocked(authSelectors.useIsAuthenticated).mockReturnValue(false);
+      vi.mocked(authSelectors.useUser).mockReturnValue(null);
+      vi.mocked(authSelectors.useIsB2BUser).mockReturnValue(false);
+    });
+
+    it('should have correct href for login button (desktop)', () => {
+      render(<Header />);
+
+      const loginButtons = screen.getAllByRole('link', { name: 'Войти' });
+      const desktopLoginButton = loginButtons[0]; // First one is desktop
+
+      expect(desktopLoginButton).toHaveAttribute('href', '/login');
+    });
+
+    it('should have correct href for register button (desktop)', () => {
+      render(<Header />);
+
+      const registerButtons = screen.getAllByRole('link', { name: 'Регистрация' });
+      const desktopRegisterButton = registerButtons[0]; // First one is desktop
+
+      expect(desktopRegisterButton).toHaveAttribute('href', '/register');
+    });
+
+    it('should have correct href for login button (mobile)', async () => {
+      const user = userEvent.setup();
+      render(<Header />);
+
+      // Open mobile menu
+      const menuButton = screen.getByRole('button', { name: 'Открыть меню' });
+      await user.click(menuButton);
+
+      const loginButtons = screen.getAllByRole('link', { name: 'Войти' });
+      const mobileLoginButton = loginButtons[1]; // Second one is mobile
+
+      expect(mobileLoginButton).toHaveAttribute('href', '/login');
+    });
+
+    it('should have correct href for register button (mobile)', async () => {
+      const user = userEvent.setup();
+      render(<Header />);
+
+      // Open mobile menu
+      const menuButton = screen.getByRole('button', { name: 'Открыть меню' });
+      await user.click(menuButton);
+
+      const registerButtons = screen.getAllByRole('link', { name: 'Регистрация' });
+      const mobileRegisterButton = registerButtons[1]; // Second one is mobile
+
+      expect(mobileRegisterButton).toHaveAttribute('href', '/register');
+    });
+  });
+
   describe('Rendering - Authenticated State (B2C User)', () => {
     beforeEach(() => {
       vi.mocked(authSelectors.useIsAuthenticated).mockReturnValue(true);

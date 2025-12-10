@@ -1,10 +1,11 @@
 /**
  * Login Page
  * Story 28.1 - Базовая аутентификация и регистрация B2C
+ * Story 28.4 - Защищенные маршруты и управление сессиями
  *
  * Страница входа в систему
  *
- * AC 1: Login Flow с поддержкой ?redirect= query параметра
+ * AC 1: Login Flow с поддержкой ?next= и ?redirect= query параметров
  */
 
 'use client';
@@ -21,7 +22,8 @@ import { Spinner } from '@/components/ui/Spinner/Spinner';
  */
 function LoginPageContent() {
   const searchParams = useSearchParams();
-  const redirectUrl = searchParams.get('redirect') || undefined;
+  // Поддержка обоих параметров: 'next' (middleware) и 'redirect' (legacy)
+  const redirectUrl = searchParams.get('next') || searchParams.get('redirect') || undefined;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[var(--color-neutral-100)] py-12 px-4 sm:px-6 lg:px-8">
