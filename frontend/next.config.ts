@@ -3,7 +3,7 @@ import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   // Настройки для Docker deployment
-  output: 'standalone', // Включаем standalone для безопасной production сборки
+  // output: 'standalone', // Отключено: вызывает проблемы с next start
 
   // Experimental features
   experimental: {
