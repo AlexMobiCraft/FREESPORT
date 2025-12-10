@@ -6,6 +6,7 @@
  * @see docs/stories/epic-13/13.5b.productoptions-api-integration.md
  */
 
+import { AxiosError } from 'axios';
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { cookies } from 'next/headers';
@@ -123,7 +124,12 @@ export default async function ProductPage({ params }: ProductPageProps) {
       getUserRole(),
     ]);
   } catch (error) {
-    console.error('Error loading product:', error);
+    console.error(`[SSR Error] Failed to fetch product ${slug}:`);
+    console.error(error);
+    if (error instanceof AxiosError && error.response) {
+      console.error('Response status:', error.response.status);
+      console.error('Response data:', error.response.data);
+    }
     notFound();
   }
 
