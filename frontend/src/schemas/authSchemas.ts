@@ -98,15 +98,13 @@ export const b2bRegisterSchema = z
       .max(500, 'Юридический адрес не должен превышать 500 символов'),
 
     // Роль B2B (опционально, может задаваться при выборе)
-    role: z
-      .enum([
-        'wholesale_level1',
-        'wholesale_level2',
-        'wholesale_level3',
-        'trainer',
-        'federation_rep',
-      ])
-      .default('wholesale_level1'),
+    role: z.enum([
+      'wholesale_level1',
+      'wholesale_level2',
+      'wholesale_level3',
+      'trainer',
+      'federation_rep',
+    ]),
   })
   .refine(data => data.password === data.confirmPassword, {
     message: 'Пароли не совпадают',

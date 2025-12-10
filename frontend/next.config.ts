@@ -134,7 +134,7 @@ const nextConfig: NextConfig = {
   // Настройки TypeScript
   typescript: {
     // Не останавливать сборку при ошибках TypeScript в разработке
-    ignoreBuildErrors: true, // Временно для emergency security deploy
+    ignoreBuildErrors: false,
   },
 
   // ESLint настройки
