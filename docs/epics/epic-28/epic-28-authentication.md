@@ -32,6 +32,10 @@
 - **Design System:** `frontend/docs/design-system.json` (Input, Button, Modal, InfoPanel)
 - **API Spec:** `docs/api-spec.yaml` (/auth/* endpoints)
 - **UX Spec:** `docs/front-end-spec.md` (B2B Client Verification, Registration, Onboarding)
+- **Testing Standards:**
+  - Backend/General: `docs/architecture/10-testing-strategy.md`
+  - Frontend Testing: `docs/frontend/testing-standards.md`
+  - Frontend TypeScript: `docs/frontend/testing-typescript-recommendations.md`
 
 ### Tech Stack
 
