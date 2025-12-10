@@ -58,14 +58,15 @@ export const LoginForm: React.FC<LoginFormProps> = ({ redirectUrl, onSuccess }) 
       // Редирект на указанный URL или на главную
       const targetUrl = redirectUrl || '/';
       router.push(targetUrl);
-    } catch (error: any) {
+    } catch (error: unknown) {
       // AC 4: Обработка ошибок API
-      if (error.response?.status === 401) {
+      const err = error as { response?: { status?: number; data?: { detail?: string } } };
+      if (err.response?.status === 401) {
         setApiError('Неверные учетные данные');
-      } else if (error.response?.status === 500) {
+      } else if (err.response?.status === 500) {
         setApiError('Ошибка сервера. Попробуйте позже');
       } else {
-        setApiError(error.response?.data?.detail || 'Произошла ошибка');
+        setApiError(err.response?.data?.detail || 'Произошла ошибка');
       }
     }
   };
