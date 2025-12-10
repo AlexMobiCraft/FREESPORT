@@ -107,7 +107,7 @@ const nextConfig: NextConfig = {
   // Настройки компиляции
   compiler: {
     // Удаление console.log в продакшене
-    removeConsole: false,
+    removeConsole: process.env.NODE_ENV === 'production',
   },
 
   // Оптимизация бандла
