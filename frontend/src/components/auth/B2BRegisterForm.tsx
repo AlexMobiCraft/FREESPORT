@@ -53,6 +53,7 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess }) =
       const registerData: RegisterRequest = {
         email: data.email,
         password: data.password,
+        password_confirm: data.confirmPassword,
         first_name: data.first_name,
         last_name: data.last_name,
         phone: data.phone,
