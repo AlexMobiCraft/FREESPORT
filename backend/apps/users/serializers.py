@@ -41,7 +41,6 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             "email": {"required": True},
             "first_name": {"required": True},
-            "last_name": {"required": True},
         }
 
     def validate_email(self, value):

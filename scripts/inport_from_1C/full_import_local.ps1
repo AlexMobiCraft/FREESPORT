@@ -1,11 +1,5 @@
 # =============================================================================
-# FREESPORT: Полный импорт данных из 1С (локальный Docker на Windows)
-# =============================================================================
-# Использование:
-#   .\full_import_local.ps1                    # Полный импорт
-#   .\full_import_local.ps1 -DryRun            # Тестовый запуск
-#   .\full_import_local.ps1 -SkipBackup        # Без backup
-#   .\full_import_local.ps1 -SkipImages        # Без изображений
+# FREESPORT: Full Import from 1C (Local Docker on Windows)
 # =============================================================================
 
 param(
@@ -21,37 +15,22 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-# =============================================================================
-# Справка
-# =============================================================================
-
 if ($Help) {
-    Write-Host @"
-=== FREESPORT: Локальный импорт данных из 1С ===
-
-Использование: .\full_import_local.ps1 [опции]
-
-Опции:
-  -DryRun         Тестовый запуск без записи в БД
-  -SkipBackup     Пропустить создание backup
-  -SkipImages     Пропустить импорт изображений
-  -SkipCustomers  Пропустить импорт клиентов
-  -ClearExisting  Очистить данные перед импортом (ОСТОРОЖНО!)
-  -ComposeFile    Путь к docker-compose файлу (по умолчанию: docker/docker-compose.yml)
-  -DataDir        Путь к данным внутри контейнера (по умолчанию: /app/data/import_1c)
-  -Help           Показать эту справку
-
-Примеры:
-  .\full_import_local.ps1                              # Полный импорт
-  .\full_import_local.ps1 -DryRun                      # Тестовый прогон
-  .\full_import_local.ps1 -SkipBackup -SkipImages      # Быстрый импорт
-"@
+    Write-Host "=== FREESPORT: Local Import from 1C ==="
+    Write-Host ""
+    Write-Host "Usage: .\full_import_local.ps1 [options]"
+    Write-Host ""
+    Write-Host "Options:"
+    Write-Host "  -DryRun         Test run without DB changes"
+    Write-Host "  -SkipBackup     Skip creating backup"
+    Write-Host "  -SkipImages     Skip importing images"
+    Write-Host "  -SkipCustomers  Skip importing customers"
+    Write-Host "  -ClearExisting  Clear data before import (WARNING!)"
+    Write-Host "  -ComposeFile    Path to docker-compose file (default: docker/docker-compose.yml)"
+    Write-Host "  -DataDir        Path to data inside container (default: /app/data/import_1c)"
+    Write-Host "  -Help           Show this help"
     exit 0
 }
-
-# =============================================================================
-# Вспомогательные функции
-# =============================================================================
 
 function Write-Info($msg) { Write-Host "[INFO] $msg" -ForegroundColor Blue }
 function Write-Success($msg) { Write-Host "[SUCCESS] $msg" -ForegroundColor Green }
@@ -60,13 +39,13 @@ function Write-Err($msg) { Write-Host "[ERROR] $msg" -ForegroundColor Red }
 
 function Invoke-DockerCommand {
     param([string]$Command)
-    Write-Info "Выполнение: $Command"
+    Write-Info "Executing: $Command"
     
     $fullCommand = "docker compose -f $ComposeFile exec -T backend $Command"
     Invoke-Expression $fullCommand
     
     if ($LASTEXITCODE -ne 0) {
-        Write-Err "Команда завершилась с ошибкой: $LASTEXITCODE"
+        Write-Err "Command failed with error code: $LASTEXITCODE"
         exit $LASTEXITCODE
     }
 }
@@ -76,170 +55,168 @@ function Invoke-DjangoCommand {
     Invoke-DockerCommand "python manage.py $ManageCommand"
 }
 
-# =============================================================================
-# Определение корня проекта
-# =============================================================================
-
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ProjectRoot = Split-Path -Parent (Split-Path -Parent $ScriptDir)
 
-# Переходим в корень проекта
 Push-Location $ProjectRoot
 
-try {
-    # =============================================================================
-    # Начало скрипта
-    # =============================================================================
+# =============================================================================
+# Script Start
+# =============================================================================
 
-    Write-Host ""
-    Write-Host "============================================================" -ForegroundColor Cyan
-    Write-Host "  FREESPORT: Полный импорт данных из 1С (Local Docker)" -ForegroundColor Green
-    Write-Host "============================================================" -ForegroundColor Cyan
-    Write-Host ""
+Write-Host ""
+Write-Host "============================================================" -ForegroundColor Cyan
+Write-Host "  FREESPORT: Full Import from 1C (Local Docker)" -ForegroundColor Green
+Write-Host "============================================================" -ForegroundColor Cyan
+Write-Host ""
 
-    # Формирование аргументов
-    $DryRunArg = if ($DryRun) { "--dry-run" } else { "" }
-    $SkipBackupArg = if ($SkipBackup) { "--skip-backup" } else { "" }
-    $SkipImagesArg = if ($SkipImages) { "--skip-images" } else { "" }
-    $ClearExistingArg = if ($ClearExisting) { "--clear-existing" } else { "" }
+# Arg construction
+$DryRunArg = ""
+if ($DryRun) { $DryRunArg = "--dry-run" }
 
-    # Вывод параметров
-    Write-Info "Параметры импорта:"
-    Write-Host "   - Compose файл: $ComposeFile"
-    Write-Host "   - Директория данных: $DataDir"
-    Write-Host "   - Dry run: $($DryRun.ToString())"
-    Write-Host "   - Skip backup: $($SkipBackup.ToString())"
-    Write-Host "   - Skip images: $($SkipImages.ToString())"
-    Write-Host "   - Skip customers: $($SkipCustomers.ToString())"
-    Write-Host "   - Clear existing: $($ClearExisting.ToString())"
-    Write-Host ""
+$SkipBackupArg = ""
+if ($SkipBackup) { $SkipBackupArg = "--skip-backup" }
 
-    # Подтверждение для реального импорта
-    if (-not $DryRun) {
-        Write-Warn "Это РЕАЛЬНЫЙ импорт! Данные будут изменены."
-        $confirm = Read-Host "Продолжить? (yes/no)"
-        if ($confirm -ne "yes") {
-            Write-Info "Импорт отменён"
-            exit 0
-        }
+$SkipImagesArg = ""
+if ($SkipImages) { $SkipImagesArg = "--skip-images" }
+
+$ClearExistingArg = ""
+if ($ClearExisting) { $ClearExistingArg = "--clear-existing" }
+
+# Print parameters
+Write-Info "Import Parameters:"
+Write-Host "   - Compose file: $ComposeFile"
+Write-Host "   - Data directory: $DataDir"
+Write-Host "   - Dry run: $DryRun"
+Write-Host "   - Skip backup: $SkipBackup"
+Write-Host "   - Skip images: $SkipImages"
+Write-Host "   - Skip customers: $SkipCustomers"
+Write-Host "   - Clear existing: $ClearExisting"
+Write-Host ""
+
+# Confirmation for real import
+if ($DryRun -eq $false) {
+    Write-Warn "This is a REAL import! Data will be changed."
+    $confirm = Read-Host "Continue? (yes/no)"
+    if ($confirm -ne "yes") {
+        Write-Info "Import cancelled"
+        Pop-Location
+        exit 0
     }
-
-    $StartTime = Get-Date
-
-    # =============================================================================
-    # Проверка Docker
-    # =============================================================================
-
-    Write-Info "Проверка Docker..."
-
-    # Проверяем наличие docker
-    $dockerCmd = Get-Command docker -ErrorAction SilentlyContinue
-    if (-not $dockerCmd) {
-        Write-Err "Docker не найден в PATH"
-        Write-Info "Установите Docker Desktop: https://www.docker.com/products/docker-desktop"
-        exit 1
-    }
-
-    # Проверяем, запущен ли Docker daemon
-    $dockerInfo = docker info 2>&1
-    if ($LASTEXITCODE -ne 0) {
-        Write-Err "Docker daemon не запущен"
-        Write-Info "Запустите Docker Desktop и дождитесь инициализации"
-        exit 1
-    }
-    Write-Success "Docker работает"
-
-    # Проверка compose файла
-    if (-not (Test-Path $ComposeFile)) {
-        Write-Err "Compose файл не найден: $ComposeFile"
-        exit 1
-    }
-    Write-Success "Compose файл найден: $ComposeFile"
-
-    # Проверка Docker контейнеров
-    Write-Info "Проверка Docker контейнеров..."
-    $backendContainer = docker compose -f $ComposeFile ps --format "{{.Name}}" 2>&1 | Where-Object { $_ -match "backend" }
-    
-    if (-not $backendContainer) {
-        Write-Warn "Backend контейнер не запущен. Запускаем..."
-        docker compose -f $ComposeFile up -d --wait
-        if ($LASTEXITCODE -ne 0) {
-            Write-Err "Не удалось запустить контейнеры"
-            exit 1
-        }
-        Write-Success "Контейнеры запущены"
-    } else {
-        Write-Success "Backend контейнер работает: $backendContainer"
-    }
-
-    # =============================================================================
-    # ШАГ 1: Импорт атрибутов
-    # =============================================================================
-
-    Write-Host ""
-    Write-Host "============================================================" -ForegroundColor Cyan
-    Write-Info "ШАГ 1/3: Импорт атрибутов товаров..."
-    Write-Host "============================================================" -ForegroundColor Cyan
-
-    $AttrArgs = "--data-dir $DataDir $DryRunArg".Trim() -replace '\s+', ' '
-    Invoke-DjangoCommand "import_attributes $AttrArgs"
-    Write-Success "Атрибуты импортированы"
-
-    # =============================================================================
-    # ШАГ 2: Импорт каталога
-    # =============================================================================
-
-    Write-Host ""
-    Write-Host "============================================================" -ForegroundColor Cyan
-    Write-Info "ШАГ 2/3: Импорт каталога товаров..."
-    Write-Host "============================================================" -ForegroundColor Cyan
-
-    $CatalogArgs = "--data-dir $DataDir $DryRunArg $SkipBackupArg $SkipImagesArg $ClearExistingArg".Trim() -replace '\s+', ' '
-    Invoke-DjangoCommand "import_products_from_1c $CatalogArgs"
-    Write-Success "Каталог импортирован"
-
-    # =============================================================================
-    # ШАГ 3: Импорт клиентов
-    # =============================================================================
-
-    if (-not $SkipCustomers) {
-        Write-Host ""
-        Write-Host "============================================================" -ForegroundColor Cyan
-        Write-Info "ШАГ 3/3: Импорт клиентов..."
-        Write-Host "============================================================" -ForegroundColor Cyan
-        
-        $CustomerArgs = "--data-dir $DataDir $DryRunArg".Trim() -replace '\s+', ' '
-        Invoke-DjangoCommand "import_customers_from_1c $CustomerArgs"
-        Write-Success "Клиенты импортированы"
-    } else {
-        Write-Info "ШАГ 3/3: Импорт клиентов пропущен (-SkipCustomers)"
-    }
-
-    # =============================================================================
-    # Завершение
-    # =============================================================================
-
-    $EndTime = Get-Date
-    $Duration = $EndTime - $StartTime
-    $Minutes = [math]::Floor($Duration.TotalMinutes)
-    $Seconds = $Duration.Seconds
-
-    Write-Host ""
-    Write-Host "============================================================" -ForegroundColor Cyan
-    Write-Success "ИМПОРТ ЗАВЕРШЁН УСПЕШНО!"
-    Write-Host "============================================================" -ForegroundColor Cyan
-    Write-Host ""
-    Write-Host "   Время выполнения: ${Minutes}м ${Seconds}с"
-    Write-Host ""
-
-    if ($DryRun) {
-        Write-Warn "Это был тестовый запуск. Данные НЕ были изменены."
-        Write-Info "Для реального импорта запустите без -DryRun"
-    }
-
-    Write-Host ""
-
-} finally {
-    # Возвращаемся в исходную директорию
-    Pop-Location
 }
+
+$StartTime = Get-Date
+
+# =============================================================================
+# Check Docker
+# =============================================================================
+
+Write-Info "Checking Docker..."
+
+$dockerCmd = Get-Command docker -ErrorAction SilentlyContinue
+if (-not $dockerCmd) {
+    Write-Err "Docker not found in PATH"
+    exit 1
+}
+
+    # Temporarily allow stderr for docker info warnings
+    $oldPreference = $ErrorActionPreference
+    $ErrorActionPreference = "Continue" 
+    $dockerInfo = docker info 2>&1
+    $ErrorActionPreference = $oldPreference
+
+    if ($LASTEXITCODE -ne 0) {
+    Write-Err "Docker daemon is not running"
+    exit 1
+}
+Write-Success "Docker is running"
+
+if (-not (Test-Path $ComposeFile)) {
+    Write-Err "Compose file not found: $ComposeFile"
+    exit 1
+}
+Write-Success "Compose file found: $ComposeFile"
+
+Write-Info "Checking Docker containers..."
+$backendContainer = docker compose -f $ComposeFile ps --format '{{.Name}}' 2>&1 | Where-Object { $_ -match "backend" }
+
+if (-not $backendContainer) {
+    Write-Warn "Backend container not running. Starting..."
+    docker compose -f $ComposeFile up -d --wait
+    if ($LASTEXITCODE -ne 0) {
+        Write-Err "Failed to start containers"
+        exit 1
+    }
+    Write-Success "Containers started"
+} else {
+    Write-Success "Backend container is running: $backendContainer"
+}
+
+# =============================================================================
+# STEP 1: Import Attributes
+# =============================================================================
+
+Write-Host ""
+Write-Host "============================================================" -ForegroundColor Cyan
+Write-Info "STEP 1/3: Importing product attributes..."
+Write-Host "============================================================" -ForegroundColor Cyan
+
+$AttrArgs = "--data-dir $DataDir $DryRunArg".Trim() -replace '\s+', ' '
+Invoke-DjangoCommand "import_attributes $AttrArgs"
+Write-Success "Attributes imported"
+
+# =============================================================================
+# STEP 2: Import Catalog
+# =============================================================================
+
+Write-Host ""
+Write-Host "============================================================" -ForegroundColor Cyan
+Write-Info "STEP 2/3: Importing product catalog..."
+Write-Host "============================================================" -ForegroundColor Cyan
+
+$CatalogArgs = "--data-dir $DataDir $DryRunArg $SkipBackupArg $SkipImagesArg $ClearExistingArg".Trim() -replace '\s+', ' '
+Invoke-DjangoCommand "import_products_from_1c $CatalogArgs"
+Write-Success "Catalog imported"
+
+# =============================================================================
+# STEP 3: Import Customers
+# =============================================================================
+
+if ($SkipCustomers -eq $false) {
+    Write-Host ""
+    Write-Host "============================================================" -ForegroundColor Cyan
+    Write-Info "STEP 3/3: Importing customers..."
+    Write-Host "============================================================" -ForegroundColor Cyan
+    
+    $CustomerArgs = "--data-dir $DataDir $DryRunArg".Trim() -replace '\s+', ' '
+    Invoke-DjangoCommand "import_customers_from_1c $CustomerArgs"
+    Write-Success "Customers imported"
+} else {
+    Write-Info "STEP 3/3: Customer import skipped (-SkipCustomers)"
+}
+
+# =============================================================================
+# Completion
+# =============================================================================
+
+$EndTime = Get-Date
+$Duration = $EndTime - $StartTime
+$Minutes = [math]::Floor($Duration.TotalMinutes)
+$Seconds = $Duration.Seconds
+
+Write-Host ""
+Write-Host "============================================================" -ForegroundColor Cyan
+Write-Success "IMPORT COMPLETED SUCCESSFULLY!"
+Write-Host "============================================================" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "   Execution time: ${Minutes}m ${Seconds}s"
+Write-Host ""
+
+if ($DryRun) {
+    Write-Warn "This was a DRY RUN. Data was NOT changed."
+    Write-Info "For real import, run without -DryRun"
+}
+
+Write-Host ""
+
+Pop-Location

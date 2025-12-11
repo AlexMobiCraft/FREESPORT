@@ -51,6 +51,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
       const registerData: RegisterRequest = {
         email: data.email,
         password: data.password,
+        password_confirm: data.confirmPassword,
         first_name: data.first_name,
         last_name: '', // B2C registration может не требовать фамилию
         phone: '', // B2C может не требовать телефон при регистрации
@@ -66,13 +67,13 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
       }
 
       // AC 2: Редирект на главную после успешной регистрации
-      router.push('/');
+      router.push('/test');
     } catch (error: unknown) {
       // AC 4: Обработка ошибок API
       const err = error as {
         response?: {
           status?: number;
-          data?: { email?: string[]; password?: string[]; detail?: string };
+          data?: Record<string, string[] | string>;
         };
       };
       if (err.response?.status === 409) {
@@ -81,12 +82,17 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
         setApiError(emailError || 'Пользователь с таким email уже существует');
       } else if (err.response?.status === 400) {
         // Ошибки валидации
-        const passwordError = err.response?.data?.password?.[0];
-        setApiError(passwordError || 'Ошибка валидации данных');
+        const data = err.response?.data || {};
+        // Ищем первую ошибку в ответе
+        const firstErrorKey = Object.keys(data).find(key => key !== 'detail');
+        const firstError = firstErrorKey ? data[firstErrorKey] : null;
+        const errorMessage = Array.isArray(firstError) ? firstError[0] : firstError;
+
+        setApiError(errorMessage || 'Ошибка валидации данных');
       } else if (err.response?.status === 500) {
         setApiError('Ошибка сервера. Попробуйте позже');
       } else {
-        setApiError(err.response?.data?.detail || 'Произошла ошибка при регистрации');
+        setApiError((err.response?.data?.detail as string) || 'Произошла ошибка при регистрации');
       }
     }
   };

@@ -11,6 +11,7 @@ import { axe } from 'vitest-axe';
 import Header from '../Header';
 import { useCartStore } from '@/stores/cartStore';
 import { authSelectors } from '@/stores/authStore';
+import type { CartItem } from '@/types/cart';
 
 // Mock Next.js router
 vi.mock('next/navigation', () => ({
@@ -31,14 +32,83 @@ vi.mock('@/stores/cartStore', () => ({
   useCartStore: vi.fn(selector =>
     selector({
       items: [],
-      totalAmount: 0,
+      totalItems: 0,
+      totalPrice: 0,
+      isLoading: false,
+      error: null,
+      promoCode: null,
+      discountType: null,
+      discountValue: 0,
       addItem: vi.fn(),
       removeItem: vi.fn(),
       updateQuantity: vi.fn(),
       clearCart: vi.fn(),
+      fetchCart: vi.fn(),
+      applyPromo: vi.fn(),
+      clearPromo: vi.fn(),
+      getPromoDiscount: vi.fn(() => 0),
+      getTotalItems: vi.fn(() => 0),
+      setItems: vi.fn(),
+      setError: vi.fn(),
+      setLoading: vi.fn(),
     })
   ),
 }));
+
+// Helper для создания валидных CartItem моков (Epic 26 types)
+function createMockCartItem(overrides: Partial<CartItem> = {}): CartItem {
+  return {
+    id: 1,
+    variant_id: 1,
+    product: {
+      id: 1,
+      name: 'Product',
+      slug: 'product',
+      image: null,
+    },
+    variant: {
+      sku: 'TEST-SKU',
+      color_name: null,
+      size_value: null,
+    },
+    quantity: 1,
+    unit_price: '100.00',
+    total_price: '100.00',
+    added_at: '2024-01-01T00:00:00Z',
+    ...overrides,
+  };
+}
+
+// Helper для создания CartStore mock с items
+function createMockCartStore(
+  items: CartItem[] = [],
+  overrides: Partial<ReturnType<typeof useCartStore.getState>> = {}
+) {
+  const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
+  return {
+    items,
+    totalItems,
+    totalPrice: 0,
+    isLoading: false,
+    error: null,
+    promoCode: null,
+    discountType: null,
+    discountValue: 0,
+    addItem: vi.fn(),
+    removeItem: vi.fn(),
+    updateQuantity: vi.fn(),
+    clearCart: vi.fn(),
+    fetchCart: vi.fn(),
+    applyPromo: vi.fn(),
+    clearPromo: vi.fn(),
+    getPromoDiscount: vi.fn(() => 0),
+    getTotalItems: vi.fn(() => totalItems),
+    setItems: vi.fn(),
+    setError: vi.fn(),
+    setLoading: vi.fn(),
+    ...overrides,
+  };
+}
 
 describe('Header', () => {
   beforeEach(() => {
@@ -241,16 +311,7 @@ describe('Header', () => {
 
   describe('Cart Badge', () => {
     it('should NOT display cart badge when cart is empty', () => {
-      vi.mocked(useCartStore).mockImplementation(selector =>
-        selector({
-          items: [],
-          totalAmount: 0,
-          addItem: vi.fn(),
-          removeItem: vi.fn(),
-          updateQuantity: vi.fn(),
-          clearCart: vi.fn(),
-        })
-      );
+      vi.mocked(useCartStore).mockImplementation(selector => selector(createMockCartStore()));
 
       render(<Header />);
 
@@ -261,53 +322,24 @@ describe('Header', () => {
     });
 
     it('should display cart badge with correct count when cart has items', () => {
-      vi.mocked(useCartStore).mockImplementation(selector =>
-        selector({
-          items: [
-            {
-              id: 1,
-              product: {
-                id: 1,
-                name: 'Product 1',
-                slug: 'product-1',
-                retail_price: 100,
-                is_in_stock: true,
-              },
-              quantity: 1,
-              price: 100,
-            },
-            {
-              id: 2,
-              product: {
-                id: 2,
-                name: 'Product 2',
-                slug: 'product-2',
-                retail_price: 200,
-                is_in_stock: true,
-              },
-              quantity: 2,
-              price: 200,
-            },
-            {
-              id: 3,
-              product: {
-                id: 3,
-                name: 'Product 3',
-                slug: 'product-3',
-                retail_price: 300,
-                is_in_stock: true,
-              },
-              quantity: 1,
-              price: 300,
-            },
-          ],
-          totalAmount: 600,
-          addItem: vi.fn(),
-          removeItem: vi.fn(),
-          updateQuantity: vi.fn(),
-          clearCart: vi.fn(),
-        })
-      );
+      const items = [
+        createMockCartItem({
+          id: 1,
+          product: { id: 1, name: 'Product 1', slug: 'product-1', image: null },
+          quantity: 1,
+        }),
+        createMockCartItem({
+          id: 2,
+          product: { id: 2, name: 'Product 2', slug: 'product-2', image: null },
+          quantity: 2,
+        }),
+        createMockCartItem({
+          id: 3,
+          product: { id: 3, name: 'Product 3', slug: 'product-3', image: null },
+          quantity: 1,
+        }),
+      ];
+      vi.mocked(useCartStore).mockImplementation(selector => selector(createMockCartStore(items)));
 
       render(<Header />);
 
@@ -316,29 +348,14 @@ describe('Header', () => {
     });
 
     it('should display "99+" when cart has more than 99 items', () => {
-      const items = Array.from({ length: 100 }, (_, i) => ({
-        id: i + 1,
-        product: {
+      const items = Array.from({ length: 100 }, (_, i) =>
+        createMockCartItem({
           id: i + 1,
-          name: `Product ${i + 1}`,
-          slug: `product-${i + 1}`,
-          retail_price: 100,
-          is_in_stock: true,
-        },
-        quantity: 1,
-        price: 100,
-      }));
-
-      vi.mocked(useCartStore).mockImplementation(selector =>
-        selector({
-          items,
-          totalAmount: 10000,
-          addItem: vi.fn(),
-          removeItem: vi.fn(),
-          updateQuantity: vi.fn(),
-          clearCart: vi.fn(),
+          product: { id: i + 1, name: `Product ${i + 1}`, slug: `product-${i + 1}`, image: null },
+          quantity: 1,
         })
       );
+      vi.mocked(useCartStore).mockImplementation(selector => selector(createMockCartStore(items)));
 
       render(<Header />);
 
@@ -347,41 +364,19 @@ describe('Header', () => {
     });
 
     it('should have correct aria-label with item count', () => {
-      vi.mocked(useCartStore).mockImplementation(selector =>
-        selector({
-          items: [
-            {
-              id: 1,
-              product: {
-                id: 1,
-                name: 'Product 1',
-                slug: 'product-1',
-                retail_price: 100,
-                is_in_stock: true,
-              },
-              quantity: 1,
-              price: 100,
-            },
-            {
-              id: 2,
-              product: {
-                id: 2,
-                name: 'Product 2',
-                slug: 'product-2',
-                retail_price: 200,
-                is_in_stock: true,
-              },
-              quantity: 2,
-              price: 200,
-            },
-          ],
-          totalAmount: 300,
-          addItem: vi.fn(),
-          removeItem: vi.fn(),
-          updateQuantity: vi.fn(),
-          clearCart: vi.fn(),
-        })
-      );
+      const items = [
+        createMockCartItem({
+          id: 1,
+          product: { id: 1, name: 'Product 1', slug: 'product-1', image: null },
+          quantity: 1,
+        }),
+        createMockCartItem({
+          id: 2,
+          product: { id: 2, name: 'Product 2', slug: 'product-2', image: null },
+          quantity: 2,
+        }),
+      ];
+      vi.mocked(useCartStore).mockImplementation(selector => selector(createMockCartStore(items)));
 
       render(<Header />);
 
@@ -514,29 +509,8 @@ describe('Header', () => {
     });
 
     it('should apply correct Cart Badge colors', () => {
-      vi.mocked(useCartStore).mockImplementation(selector =>
-        selector({
-          items: [
-            {
-              id: 1,
-              product: {
-                id: 1,
-                name: 'Product',
-                slug: 'product',
-                retail_price: 100,
-                is_in_stock: true,
-              },
-              quantity: 1,
-              price: 100,
-            },
-          ],
-          totalAmount: 100,
-          addItem: vi.fn(),
-          removeItem: vi.fn(),
-          updateQuantity: vi.fn(),
-          clearCart: vi.fn(),
-        })
-      );
+      const items = [createMockCartItem({ quantity: 1 })];
+      vi.mocked(useCartStore).mockImplementation(selector => selector(createMockCartStore(items)));
 
       render(<Header />);
 
@@ -605,41 +579,19 @@ describe('Header', () => {
     });
 
     it('should have no accessibility violations with cart items', async () => {
-      vi.mocked(useCartStore).mockImplementation(selector =>
-        selector({
-          items: [
-            {
-              id: 1,
-              product: {
-                id: 1,
-                name: 'Product 1',
-                slug: 'product-1',
-                retail_price: 100,
-                is_in_stock: true,
-              },
-              quantity: 1,
-              price: 100,
-            },
-            {
-              id: 2,
-              product: {
-                id: 2,
-                name: 'Product 2',
-                slug: 'product-2',
-                retail_price: 200,
-                is_in_stock: true,
-              },
-              quantity: 2,
-              price: 200,
-            },
-          ],
-          totalAmount: 300,
-          addItem: vi.fn(),
-          removeItem: vi.fn(),
-          updateQuantity: vi.fn(),
-          clearCart: vi.fn(),
-        })
-      );
+      const items = [
+        createMockCartItem({
+          id: 1,
+          product: { id: 1, name: 'Product 1', slug: 'product-1', image: null },
+          quantity: 1,
+        }),
+        createMockCartItem({
+          id: 2,
+          product: { id: 2, name: 'Product 2', slug: 'product-2', image: null },
+          quantity: 2,
+        }),
+      ];
+      vi.mocked(useCartStore).mockImplementation(selector => selector(createMockCartStore(items)));
 
       const { container } = render(<Header />);
       const results = await axe(container);
@@ -659,29 +611,8 @@ describe('Header', () => {
     });
 
     it('should verify color contrast for Cart Badge (#A63232 on #F9E1E1)', async () => {
-      vi.mocked(useCartStore).mockImplementation(selector =>
-        selector({
-          items: [
-            {
-              id: 1,
-              product: {
-                id: 1,
-                name: 'Product',
-                slug: 'product',
-                retail_price: 100,
-                is_in_stock: true,
-              },
-              quantity: 1,
-              price: 100,
-            },
-          ],
-          totalAmount: 100,
-          addItem: vi.fn(),
-          removeItem: vi.fn(),
-          updateQuantity: vi.fn(),
-          clearCart: vi.fn(),
-        })
-      );
+      const items = [createMockCartItem({ quantity: 1 })];
+      vi.mocked(useCartStore).mockImplementation(selector => selector(createMockCartStore(items)));
 
       const { container } = render(<Header />);
       const results = await axe(container, {

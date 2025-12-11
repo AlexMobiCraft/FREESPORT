@@ -60,7 +60,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       for (let attempt = 0; attempt < retries; attempt++) {
         try {
           // AC 2.2: Вызов /auth/me/ для получения user данных
-          const response = await apiClient.get<User>('/auth/me/');
+          const response = await apiClient.get<User>('/users/profile/');
 
           // AC 2.3: Обновляем authStore при успехе
           setUser(response.data);
