@@ -26,7 +26,7 @@ This is a full-stack e-commerce platform for selling sporting goods, designed as
 
 **Frontend:**
 
-- **Framework:** Next.js 15.4.6 with TypeScript 5.0+  
+- **Framework:** Next.js 15.5.7 with TypeScript 5.0+  
 - **UI Library:** React 19.1.0  
 - **State Management:** Zustand 4.5.7 (state management)  
 - **Styling:** Tailwind CSS 4.0  
