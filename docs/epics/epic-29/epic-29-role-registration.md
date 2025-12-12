@@ -6,6 +6,9 @@
 |------|---------|-------------|--------|
 | 2025-12-11 | 1.0 | Initial Epic Draft | John (PM) |
 | 2025-12-12 | 1.1 | Синхронизация с Risk Analysis: SMTP rate limits, API Spec requirements, Monitoring examples | Sarah (PO) |
+| 2025-12-12 | 1.2 | Синхронизация с кодом модели User: точные ссылки на существующие поля, подтверждение что миграция НЕ требуется | Sarah (PO) |
+| 2025-12-12 | 1.3 | PO Checklist Should-Fix: Accessibility, API Spec task, Feature Flags | Sarah (PO) |
+| 2025-12-12 | 1.4 | PO Master Checklist: ссылки на существующий код, README task в DoD | Sarah (PO) |
 
 ---
 
@@ -95,6 +98,11 @@
 - Добавить условный `InfoPanel` с предупреждением для не-розничных ролей
 - UI должен следовать Design System из `docs/frontend/design-system.json`
 
+**Existing Code Reference:**
+
+> [!NOTE]
+> Текущий [RegisterForm.tsx](file:///c:/Users/tkachenko/DEV/FREESPORT/frontend/src/components/auth/RegisterForm.tsx) хардкодит `role: 'retail'` (L57). Необходимо добавить Role Selector и динамическую установку роли.
+
 **Acceptance Criteria:**
 
 1. Поле "Роль" присутствует и имеет 4 опции
@@ -104,12 +112,26 @@
    - "Доступ к порталу будет открыт после проверки администратором"
    - "Вы получите уведомление на email"
 4. Форма передает выбранную роль в backend API
+5. **Accessibility:** Role Selector доступен с клавиатуры (Tab, Enter, Arrow keys)
+6. **Accessibility:** InfoPanel имеет role="alert" для screen readers
+
+**Accessibility Requirements:**
+
+> [!NOTE]
+> Обязательные требования доступности для Role Selector UI
+
+- Role Selector: `<select>` или custom dropdown с `role="listbox"` + `aria-activedescendant`
+- InfoPanel (предупреждение): `role="alert"` + `aria-live="polite"`
+- Keyboard navigation: Tab для перехода, Enter/Space для выбора
+- Focus visible: явный outline для активного элемента
+- Цветовой контраст: warning panel ≥ 4.5:1 (WCAG AA)
 
 **Testing:**
 
 - Unit-тесты для компонента формы
 - Проверка валидации роли
 - Визуальное тестирование условных предупреждений
+- **Accessibility тестирование:** keyboard navigation, screen reader (VoiceOver/NVDA)
 
 ---
 
@@ -121,12 +143,23 @@
 
 **Scope:**
 
-- Расширить модель `User` (добавить поле `verification_status` или использовать `is_active`)
+> [!NOTE]
+> **Миграция БД НЕ требуется!** Все необходимые поля уже существуют в модели `User`.
+
+- Использовать существующие поля модели `User` ([apps/users/models.py](file:///c:/Users/tkachenko/DEV/FREESPORT/backend/apps/users/models.py)):
+  - `verification_status` (L190-196) — choices: `unverified`, `verified`, `pending`
+  - `is_active` — унаследовано от `AbstractUser`
+  - `role` (L87-92) — 7 ролей
 - Обновить `RegisterView` для обработки роли:
-  - Если `role='retail'` → `is_active=True`
-  - Иначе → `verification_status='pending'`, `is_active=False` (или любой флаг блокировки)
+  - Если `role='retail'` → `is_active=True`, `verification_status='verified'`
+  - Иначе → `is_active=False`, `verification_status='pending'`
 - Обновить JWT Login endpoint для проверки статуса верификации
 - Frontend: обрабатывать 403/специальную ошибку "Account pending verification"
+
+**Existing Code Reference:**
+
+> [!NOTE]
+> [UserRegistrationSerializer.create()](file:///c:/Users/tkachenko/DEV/FREESPORT/backend/apps/users/serializers.py) уже содержит частичную логику B2B верификации (`if user.role != 'retail': user.is_verified = False`). Необходимо расширить для установки `verification_status='pending'` и `is_active=False`.
 
 **Acceptance Criteria:**
 
@@ -137,15 +170,47 @@
 
 **Technical Notes:**
 
-- **ВАЖНО:** Использовать существующее поле `verification_status` из модели User (уже содержит choices: 'unverified', 'verified', 'pending')
-- Для розничных покупателей: `role='retail'`, `is_active=True`, `verification_status='verified'`
-- Для бизнес-партнеров: `role='trainer|wholesale_level1|federation_rep'`, `is_active=False`, `verification_status='pending'`
-- Миграция данных НЕ требуется - поле уже существует в `apps/users/models.py:190-196`
+**Существующие поля модели User (миграция НЕ требуется):**
+
+| Поле | Расположение | Значения |
+|------|--------------|----------|
+| `role` | [L87-92](file:///c:/Users/tkachenko/DEV/FREESPORT/backend/apps/users/models.py#L87-L92) | `retail`, `wholesale_level1`, `trainer`, `federation_rep`, ... |
+| `verification_status` | [L190-196](file:///c:/Users/tkachenko/DEV/FREESPORT/backend/apps/users/models.py#L190-L196) | `unverified` (default), `verified`, `pending` |
+| `is_active` | AbstractUser | `True`/`False` (Django built-in) |
+| `is_verified` | [L118-122](file:///c:/Users/tkachenko/DEV/FREESPORT/backend/apps/users/models.py#L118-L122) | `BooleanField` (legacy, не использовать) |
+
+**Логика установки статусов при регистрации:**
+
+```python
+# В RegisterView.perform_create() или serializer.create()
+if validated_data.get('role') == 'retail':
+    user.is_active = True
+    user.verification_status = 'verified'
+else:
+    user.is_active = False
+    user.verification_status = 'pending'
+```
+
+**Логика проверки при входе (JWT):**
+
+```python
+# В TokenObtainPairSerializer или кастомном view
+if user.verification_status == 'pending':
+    raise AuthenticationFailed(
+        detail="Ваша учетная запись находится на проверке",
+        code="account_pending_verification"
+    )
+```
+
 
 **API SPEC UPDATE REQUIRED:**
 
 > [!IMPORTANT]
-> Обновить `docs/api-spec.yaml` (OpenAPI/Swagger):
+> **Обязательный deliverable:** Обновить `docs/api-spec.yaml` (OpenAPI/Swagger)
+
+**Task:** Добавить в Acceptance Criteria или Tasks:
+- [ ] Обновить `docs/api-spec.yaml` с новым параметром `role` для `/api/auth/register/`
+- [ ] Добавить новый error response `403 account_pending_verification`
 
 ```yaml
 # POST /api/auth/register/
@@ -160,6 +225,22 @@ requestBody:
             enum: [retail, trainer, wholesale_level1, federation_rep]
             default: retail
             description: "Роль пользователя. Для B2B ролей требуется верификация."
+
+# POST /api/auth/token/ (Login)
+responses:
+  403:
+    description: Account pending verification
+    content:
+      application/json:
+        schema:
+          type: object
+          properties:
+            detail:
+              type: string
+              example: "Ваша учетная запись находится на проверке"
+            code:
+              type: string
+              example: "account_pending_verification"
 ```
 
 **Testing:**
@@ -514,6 +595,39 @@ CELERY_BEAT_SCHEDULE = {
 - Убрать Role Selector из UI
 - Backend продолжит работать с дефолтной ролью `retail`
 
+**Feature Flags (рекомендация):**
+
+> [!TIP]
+> Для быстрого отката без деплоя рекомендуется использовать feature flags
+
+**Опция 1: Django Waffle (рекомендуется)**
+
+```python
+# pip install django-waffle
+# settings.py
+INSTALLED_APPS += ['waffle']
+
+# В RegisterForm.tsx
+const showRoleSelector = featureFlags.isEnabled('role_based_registration');
+
+# Django Admin → Waffle → Flags → role_based_registration = False для отката
+```
+
+**Опция 2: Environment Variable (простой вариант)**
+
+```python
+# settings.py
+FEATURE_ROLE_BASED_REGISTRATION = config('FEATURE_ROLE_BASED_REGISTRATION', default=True, cast=bool)
+
+# .env для отката
+FEATURE_ROLE_BASED_REGISTRATION=False
+```
+
+**Преимущества feature flags:**
+- Мгновенный откат без деплоя
+- A/B тестирование для части пользователей
+- Постепенный rollout (10% → 50% → 100%)
+
 ---
 
 ## Definition of Done
@@ -523,5 +637,8 @@ CELERY_BEAT_SCHEDULE = {
 - [ ] Пользователи со статусом `pending` не могут войти
 - [ ] Email отправляются админам и пользователям
 - [ ] Unit и Integration тесты покрывают оба потока
-- [ ] Документация обновлена (`README.md`, `GEMINI.md`)
+- [ ] Документация обновлена:
+  - [ ] `README.md` — секция "Registration" с описанием ролевой регистрации
+  - [ ] `GEMINI.md` — обновление Project Overview если требуется
+  - [ ] `docs/architecture/03-api-specification.md` — endpoint `/auth/register/` с параметром `role`
 - [ ] Нет регрессии в существующей функциональности регистрации

@@ -30,49 +30,74 @@ erDiagram
 
 - *Модели управления пользователями*
 
+> [!NOTE]
+> Эта документация синхронизирована с `apps/users/models.py` (2025-12-12)
+
 ```python
 class User(AbstractUser):
     """
     Расширенная модель пользователя с поддержкой B2B/B2C и интеграции с 1С
     """
     # Основные поля
-    email = models.EmailField(unique=True)  # Primary identifier
-    phone = models.CharField(max_length=20, blank=True)
+    email = models.EmailField(unique=True)  # Primary identifier, USERNAME_FIELD
+    phone = models.CharField(max_length=255, blank=True)  # Формат: +79001234567
     
-    # B2B поля
-    company_name = models.CharField(max_length=255, blank=True)
-    tax_id = models.CharField(max_length=20, blank=True)
-    legal_address = models.TextField(blank=True)
-    contact_person = models.CharField(max_length=100, blank=True)
+    # B2B поля (базовые, расширенные данные в модели Company)
+    company_name = models.CharField(max_length=200, blank=True)
+    tax_id = models.CharField(max_length=12, blank=True)  # ИНН
     
     # Статус и верификация
-    is_verified_b2b = models.BooleanField(default=False)
+    is_verified = models.BooleanField(
+        default=False,
+        help_text="B2B пользователи требуют верификации администратором"
+    )
     verification_status = models.CharField(
         max_length=20,
-        choices=[('pending', 'На проверке'), ('verified', 'Верифицирован'), ('rejected', 'Отклонен')],
-        default='pending'
+        choices=[
+            ('unverified', 'Не верифицирован'),  # default для новых пользователей
+            ('verified', 'Верифицирован'),
+            ('pending', 'Ожидает верификации'),  # для B2B регистраций
+        ],
+        default='unverified'
     )
     
     # Интеграция с 1С
-    onec_id = models.CharField(max_length=50, blank=True, unique=True, null=True)
+    onec_id = models.CharField(max_length=100, blank=True, unique=True, null=True)
     onec_guid = models.UUIDField(blank=True, null=True, unique=True)
-    created_in_1c = models.BooleanField(default=False)  # True если клиент импортирован из 1С
+    created_in_1c = models.BooleanField(default=False)
     last_sync_from_1c = models.DateTimeField(blank=True, null=True)
-    last_sync_to_1c = models.DateTimeField(blank=True, null=True)
-    sync_conflicts = models.JSONField(default=dict, blank=True)  # Храним конфликты синхронизации
+    last_sync_at = models.DateTimeField(blank=True, null=True)  # Последняя синхронизация
+    sync_status = models.CharField(
+        max_length=20,
+        choices=[('pending', 'Ожидает'), ('synced', 'Синхронизирован'), ('error', 'Ошибка'), ('conflict', 'Конфликт')],
+        default='pending'
+    )
+    sync_error_message = models.TextField(blank=True)
+    needs_1c_export = models.BooleanField(default=False)
     
-    # Роль пользователя
+    # Роль пользователя (7 ролей)
     role = models.CharField(
         max_length=20,
         choices=[
             ('retail', 'Розничный покупатель'),
-            ('wholesale_level1', 'Мелкий опт'),        ('wholesale_level2', 'Средний опт'),        ('wholesale_level3', 'Крупный опт'),        ('trainer', 'Тренер'),        ('federation_rep', 'Представитель федерации'),        ('admin', 'Администратор'),
+            ('wholesale_level1', 'Оптовик уровень 1'),
+            ('wholesale_level2', 'Оптовик уровень 2'),
+            ('wholesale_level3', 'Оптовик уровень 3'),
+            ('trainer', 'Тренер/Фитнес-клуб'),
+            ('federation_rep', 'Представитель федерации'),
+            ('admin', 'Администратор'),
         ],
         default='retail'
     )
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    
+    # Computed properties
+    @property
+    def is_b2b_user(self) -> bool:
+        """Является ли пользователь B2B клиентом"""
+        return self.role in ['wholesale_level1', 'wholesale_level2', 'wholesale_level3', 'trainer', 'federation_rep']
 ```
 
 ### Модели каталога товаров
