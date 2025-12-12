@@ -5,6 +5,7 @@
 | Date | Version | Description | Author |
 |------|---------|-------------|--------|
 | 2025-12-11 | 1.0 | Initial Epic Draft | John (PM) |
+| 2025-12-12 | 1.1 | Синхронизация с Risk Analysis: SMTP rate limits, API Spec requirements, Monitoring examples | Sarah (PO) |
 
 ---
 
@@ -141,6 +142,26 @@
 - Для бизнес-партнеров: `role='trainer|wholesale_level1|federation_rep'`, `is_active=False`, `verification_status='pending'`
 - Миграция данных НЕ требуется - поле уже существует в `apps/users/models.py:190-196`
 
+**API SPEC UPDATE REQUIRED:**
+
+> [!IMPORTANT]
+> Обновить `docs/api-spec.yaml` (OpenAPI/Swagger):
+
+```yaml
+# POST /api/auth/register/
+requestBody:
+  content:
+    application/json:
+      schema:
+        type: object
+        properties:
+          role:
+            type: string
+            enum: [retail, trainer, wholesale_level1, federation_rep]
+            default: retail
+            description: "Роль пользователя. Для B2B ролей требуется верификация."
+```
+
 **Testing:**
 
 - Unit-тесты для регистрации с разными ролями
@@ -258,6 +279,29 @@
   ]
   ```
 
+**EMAIL RATE LIMITS:**
+
+> [!WARNING]
+> Учитывать лимиты SMTP провайдеров:
+
+| Provider | Лимит | Рекомендация |
+|----------|-------|--------------|
+| Gmail | 500 emails/день | Только для development |
+| Yandex Mail | 100-500/день* | Уточнить с провайдером |
+| SendGrid Free | 100/день | Альтернатива для production |
+| SendGrid Paid | 40,000+/месяц | Рекомендуется для scale |
+
+*Для freesport.ru domain рекомендуется Yandex Mail для домена или SendGrid.
+
+**Rate Limiting (опционально):**
+
+```python
+# apps/users/tasks.py
+@shared_task(rate_limit='10/m')  # max 10 emails/minute
+def send_verification_email(user_id):
+    ...
+  ```
+
 **Testing:**
 
 - Manual: отправить тестовое письмо через Django shell:
@@ -345,6 +389,88 @@
   - Tracking: считать Users с `verification_status='pending'` и `created_at` за последние 24ч
   - Alert threshold: если count > 10 → отправить warning админам
   - Реализация: опционально через Celery Beat periodic task
+
+**MONITORING IMPLEMENTATION EXAMPLES:**
+
+```python
+# apps/users/tasks.py
+import logging
+from smtplib import SMTPException
+from celery import shared_task
+from django.utils import timezone
+from datetime import timedelta
+
+logger = logging.getLogger(__name__)
+
+@shared_task(
+    bind=True,
+    max_retries=3,
+    autoretry_for=(SMTPException,),
+)
+def send_admin_verification_email(self, user_id):
+    try:
+        user = User.objects.get(id=user_id)
+        # Send email logic...
+        logger.info(
+            f"✅ Verification email sent successfully",
+            extra={
+                'user_id': user_id,
+                'user_email': user.email,
+                'role': user.role,
+                'timestamp': timezone.now().isoformat()
+            }
+        )
+    except SMTPException as exc:
+        logger.error(
+            f"❌ Failed to send verification email for user {user_id}",
+            extra={
+                'user_id': user_id,
+                'exception': str(exc),
+                'retry_count': self.request.retries
+            }
+        )
+        raise self.retry(exc=exc)
+
+
+# Optional: Celery Beat scheduled task for pending queue monitoring
+@shared_task
+def monitor_pending_verification_queue():
+    """Check if pending verification queue is too high"""
+    threshold = 10
+    time_window = timezone.now() - timedelta(hours=24)
+    
+    pending_count = User.objects.filter(
+        verification_status='pending',
+        created_at__gte=time_window
+    ).count()
+    
+    if pending_count > threshold:
+        logger.warning(
+            f"⚠️ High pending verification queue: {pending_count} users",
+            extra={'pending_count': pending_count, 'threshold': threshold}
+        )
+        # Send alert email to admins
+        from django.core.mail import send_mail
+        from django.conf import settings
+        send_mail(
+            subject=f'⚠️ Alert: {pending_count} pending B2B verifications',
+            message=f'There are {pending_count} pending in last 24h.',
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[admin[1] for admin in settings.ADMINS],
+        )
+```
+
+```python
+# settings/base.py - Celery Beat Schedule (optional)
+from celery.schedules import crontab
+
+CELERY_BEAT_SCHEDULE = {
+    'monitor-pending-verification-queue': {
+        'task': 'apps.users.tasks.monitor_pending_verification_queue',
+        'schedule': crontab(hour='9,17', minute=0),  # 9am and 5pm daily
+    },
+}
+```
 
 **Testing:**
 
