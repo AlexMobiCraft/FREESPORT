@@ -28,7 +28,7 @@ prd:
     - 25
     - 26
     - 27
-  
+    - 28
   activeEpics:
     - 29  # Role Registration & Verification
 architecture:
