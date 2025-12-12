@@ -28,8 +28,9 @@ prd:
     - 25
     - 26
     - 27
+  
   activeEpics:
-    - 28  # Authentication System Implementation
+    - 29  # Role Registration & Verification
 architecture:
   architectureFile: docs/architecture.md
   architectureVersion: v4

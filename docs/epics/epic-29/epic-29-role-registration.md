@@ -78,6 +78,9 @@
 
 ## Stories
 
+> [!NOTE]
+> Stories переупорядочены для правильной последовательности зависимостей
+
 ### Story 29.1: Role Selection UI & Warnings
 
 **As a** Guest User  
@@ -133,17 +136,153 @@
 
 **Technical Notes:**
 
-- Миграция для добавления `verification_status` (CharField с choices: `pending`, `approved`, `rejected`)
-- Или переиспользовать `is_active=False` + дополнительное поле
+- **ВАЖНО:** Использовать существующее поле `verification_status` из модели User (уже содержит choices: 'unverified', 'verified', 'pending')
+- Для розничных покупателей: `role='retail'`, `is_active=True`, `verification_status='verified'`
+- Для бизнес-партнеров: `role='trainer|wholesale_level1|federation_rep'`, `is_active=False`, `verification_status='pending'`
+- Миграция данных НЕ требуется - поле уже существует в `apps/users/models.py:190-196`
 
 **Testing:**
 
 - Unit-тесты для регистрации с разными ролями
 - Integration-тесты для блокировки входа pending пользователей
 
+**REGRESSION TESTS (Epic 28):**
+
+> [!IMPORTANT]
+> Критически важно проверить, что изменения не ломают существующую функциональность Epic 28
+
+- [ ] Retail registration через `/register` работает (redirect на `/`)
+- [ ] Retail login работает (JWT токены получены корректно)
+- [ ] Password reset flow работает для всех ролей
+- [ ] B2B registration из Epic 28 продолжает работать
+- [ ] Создать отдельный test suite: `tests/regression/test_epic_28_intact.py`
+
 ---
 
-### Story 29.3: Email Notification System
+### Story 29.3: Email Server Configuration
+
+> [!IMPORTANT]
+> **BLOCKING DEPENDENCY:** Эта история должна быть завершена ПЕРЕД Story 29.4 (Email Notification System), так как Celery tasks требуют настроенного SMTP сервера.
+
+**As a** Developer  
+**I want** to configure email server settings  
+**so that** the system can send notifications to admins and users
+
+**Scope:**
+
+- Настроить SMTP сервер для отправки email
+- Обновить Django settings (`EMAIL_BACKEND`, `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USE_TLS`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`)
+- Создать `.env` переменные для production
+- Настроить `settings.ADMINS` список
+- Тестирование отправки email на dev и prod окружениях
+
+**User Actions:**
+
+> [!NOTE]
+> Перед началом разработки, пользователь (или DevOps) должен создать SMTP аккаунт
+
+1. **Выбрать SMTP provider:**
+   - **Development:** Gmail (бесплатно, лимит 500 писем/день)
+   - **Production:** Yandex Mail для домена freesport.ru (или альтернативы: SendGrid, Mailgun)
+
+2. **Создать аккаунт и получить credentials:**
+   - **Gmail App Password:**
+     - Перейти: <https://support.google.com/accounts/answer/185833>
+     - Включить 2-Step Verification для аккаунта
+     - Создать App Password для "Mail"
+     - Скопировать 16-значный пароль (без пробелов)
+
+   - **Yandex Mail для домена:**
+     - Перейти: <https://connect.yandex.ru/portal/admin>
+     - Создать почтовый ящик для домена (например, `noreply@freesport.ru`)
+     - Использовать обычный пароль или настроить App Password
+     - SMTP параметры: `smtp.yandex.ru`, порт `587`, TLS
+
+3. **Настроить .env файл:**
+
+   ```bash
+   # Development (Gmail)
+   EMAIL_HOST=smtp.gmail.com
+   EMAIL_PORT=587
+   EMAIL_USE_TLS=True
+   EMAIL_HOST_USER=your-dev-email@gmail.com
+   EMAIL_HOST_PASSWORD=your-16-digit-app-password
+   
+   # Production (Yandex)
+   EMAIL_HOST=smtp.yandex.ru
+   EMAIL_PORT=587
+   EMAIL_USE_TLS=True
+   EMAIL_HOST_USER=noreply@freesport.ru
+   EMAIL_HOST_PASSWORD=your-yandex-password
+   
+   # Admin emails (через запятую)
+   ADMIN_EMAILS=admin1@freesport.ru,admin2@freesport.ru
+   ```
+
+**Acceptance Criteria:**
+
+1. В `settings/base.py` или `settings/production.py` настроены email параметры
+2. Email credentials хранятся в `.env` файле (не в коде)
+3. В development режиме используется Console Backend или Mailhog для тестирования
+4. В production используется реальный SMTP (Yandex для freesport.ru или Gmail)
+5. `settings.ADMINS` настроены через переменную окружения `ADMIN_EMAILS`
+6. Тестовое письмо успешно отправляется и доставляется
+
+**Technical Notes:**
+
+- **Development:** использовать `django.core.mail.backends.console.EmailBackend` или Mailhog
+- **Production:** настроить SMTP (рекомендуется Yandex для freesport.ru, Gmail для dev)
+- Добавить в `.env.example`:
+
+  ```text
+  # === НАСТРОЙКИ EMAIL ===
+  EMAIL_HOST=smtp.yandex.ru  # или smtp.gmail.com для dev
+  EMAIL_PORT=587
+  EMAIL_USE_TLS=True
+  EMAIL_HOST_USER=noreply@freesport.ru
+  EMAIL_HOST_PASSWORD=your-password
+  DEFAULT_FROM_EMAIL=noreply@freesport.ru
+  
+  # Список email администраторов для уведомлений (через запятую)
+  ADMIN_EMAILS=admin1@freesport.ru,admin2@freesport.ru
+  ```
+
+- Обновить `settings/production.py`:
+
+  ```python
+  # Parse ADMIN_EMAILS from environment
+  ADMINS = [
+      ('Admin', email.strip()) 
+      for email in config('ADMIN_EMAILS', default='').split(',') 
+      if email.strip()
+  ]
+  ```
+
+**Testing:**
+
+- Manual: отправить тестовое письмо через Django shell:
+
+  ```python
+  python manage.py shell
+  >>> from django.core.mail import send_mail
+  >>> send_mail(
+  ...     'Test Email',
+  ...     'This is a test message.',
+  ...     'noreply@freesport.ru',
+  ...     ['admin@freesport.ru'],
+  ...     fail_silently=False,
+  ... )
+  ```
+
+- Проверить доставку на реальный email
+- Проверить логи Celery при отправке асинхронных писем (после Story 29.4)
+
+---
+
+### Story 29.4: Email Notification System
+
+> [!IMPORTANT]
+> **DEPENDENCY:** Требует завершения Story 29.3 (Email Server Configuration)
 
 **As an** Administrator  
 **I want** to receive an email when a new Partner registers  
@@ -171,61 +310,57 @@
 
 **Technical Notes:**
 
-- Использовать `settings.ADMINS` для получения списка email администраторов
+- Использовать `settings.ADMINS` (настроено в Story 29.3) для получения списка email администраторов
 - Email должны отправляться асинхронно через Celery
-- Настроить retry логику для отказоустойчивости
+- Настроить retry логику для отказоустойчивости:
 
-**Testing:**
-
-- Unit-тесты для Celery tasks (mock email sending)
-- Integration-тесты для проверки вызова задач
-- Manual verification: проверить получение email на тестовом почтовом сервере
-
----
-
-### Story 29.4: Email Server Configuration
-
-**As a** Developer  
-**I want** to configure email server settings  
-**so that** the system can send notifications to admins and users
-
-**Scope:**
-
-- Настроить SMTP сервер для отправки email
-- Обновить Django settings (`EMAIL_BACKEND`, `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USE_TLS`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`)
-- Создать `.env` переменные для production
-- Настроить `settings.ADMINS` список
-- Тестирование отправки email на dev и prod окружениях
-
-**Acceptance Criteria:**
-
-1. В `settings/base.py` или `settings/production.py` настроены email параметры
-2. Email credentials хранятся в `.env` файле (не в коде)
-3. В development режиме используется Console Backend или Mailhog для тестирования
-4. В production используется реальный SMTP (например, Gmail, SendGrid, или собственный сервер)
-5. `ADMINS` содержит актуальные email администраторов
-6. Тестовое письмо успешно отправляется и доставляется
-
-**Technical Notes:**
-
-- **Development:** использовать `django.core.mail.backends.console.EmailBackend` или Mailhog
-- **Production:** настроить SMTP (рекомендуется SendGrid, Mailgun или Gmail SMTP)
-- Добавить в `.env.example`:
-
-  ```text
-  EMAIL_HOST=smtp.gmail.com
-  EMAIL_PORT=587
-  EMAIL_USE_TLS=True
-  EMAIL_HOST_USER=your-email@gmail.com
-  EMAIL_HOST_PASSWORD=your-app-password
-  ADMIN_EMAILS=admin1@freesport.ru,admin2@freesport.ru
+  ```python
+  @shared_task(
+      bind=True,
+      max_retries=3,
+      default_retry_delay=60,  # 1 минута
+      autoretry_for=(SMTPException,),
+      retry_backoff=True,
+      retry_backoff_max=600,  # 10 минут
+  )
+  def send_admin_verification_email(self, user_id):
+      # ...
   ```
 
+**MONITORING:**
+
+> [!NOTE]
+> Критически важно мониторить доставку email для бизнес-процесса верификации
+
+- [ ] **Celery task failure rate tracked:**
+  - Логировать все failed tasks в Celery
+  - Пример: `logger.error(f"Failed to send email for user {user_id}: {exc}")`
+
+- [ ] **Email delivery success/failure logged:**
+  - SUCCESS: `logger.info(f"Email sent successfully to {user.email}")`
+  - FAILURE: `logger.error(f"Email delivery failed: {exception}")`
+  - Сохранять метаданные: timestamp, recipient, template, retry attempt
+
+- [ ] **Alert если pending verification queue > 10 за 24 часа:**
+  - Tracking: считать Users с `verification_status='pending'` и `created_at` за последние 24ч
+  - Alert threshold: если count > 10 → отправить warning админам
+  - Реализация: опционально через Celery Beat periodic task
+
 **Testing:**
 
-- Manual: отправить тестовое письмо через Django shell: `python manage.py shell` → `send_mail(...)`
-- Проверить доставку на реальный email
-- Проверить логи Celery при отправке асинхронных писем
+- Unit-тесты для Celery tasks (mock email sending):
+
+  ```python
+  @patch('apps.users.tasks.send_mail')
+  def test_send_admin_verification_email(self, mock_send_mail):
+      user = UserFactory(role='wholesale_level1')
+      send_admin_verification_email.apply(args=[user.id])
+      mock_send_mail.assert_called_once()
+  ```
+
+- Integration-тесты для проверки вызова задач из RegisterView
+- Manual verification: проверить получение email на тестовом почтовом сервере (Mailhog или real SMTP)
+- Performance test: отправить 50 параллельных регистраций, проверить все emails доставлены
 
 ---
 
