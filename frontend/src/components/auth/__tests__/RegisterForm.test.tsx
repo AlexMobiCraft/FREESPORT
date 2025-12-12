@@ -198,10 +198,13 @@ describe('RegisterForm', () => {
         expect(mockRegister).toHaveBeenCalledWith({
           email: 'newuser@example.com',
           password: 'SecurePass123',
+          password_confirm: 'SecurePass123',
           first_name: 'Новый',
           last_name: '',
           phone: '',
           role: 'retail',
+          company_name: undefined,
+          tax_id: undefined,
         });
       });
 
@@ -486,6 +489,157 @@ describe('RegisterForm', () => {
 
       const alert = await screen.findByRole('alert');
       expect(alert).toBeInTheDocument();
+    });
+  });
+
+  // Story 29.1: Role Selection UI & Warnings Tests
+  describe('Role Selection (Story 29.1)', () => {
+    // AC 1, 2: Role field with 4 options and retail default
+    test('should have role selector with retail selected by default', () => {
+      render(<RegisterForm />);
+
+      const roleSelect = screen.getByLabelText(/тип аккаунта/i) as HTMLSelectElement;
+      expect(roleSelect).toBeInTheDocument();
+      expect(roleSelect.value).toBe('retail');
+
+      // AC 1: Should have all 4 role options
+      const options = Array.from(roleSelect.options).map(opt => opt.value);
+      expect(options).toContain('retail');
+      expect(options).toContain('trainer');
+      expect(options).toContain('wholesale_level1');
+      expect(options).toContain('federation_rep');
+    });
+
+    // AC 3: InfoPanel appears when B2B role is selected
+    test('should show InfoPanel when B2B role is selected', async () => {
+      const user = userEvent.setup();
+      render(<RegisterForm />);
+
+      const roleSelect = screen.getByLabelText(/тип аккаунта/i);
+
+      // Initially retail, InfoPanel should not be visible
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+
+      // Select trainer (B2B role)
+      await user.selectOptions(roleSelect, 'trainer');
+
+      // InfoPanel should now be visible
+      const infoPanels = screen.getAllByRole('alert');
+      const infoPanel = infoPanels.find(el =>
+        el.textContent?.includes('заполнить дополнительные данные')
+      );
+      expect(infoPanel).toBeInTheDocument();
+      expect(screen.getByText(/после проверки администратором/i)).toBeInTheDocument();
+    });
+
+    // AC 8: company_name field appears for B2B roles
+    test('should show company_name field for B2B roles', async () => {
+      const user = userEvent.setup();
+      render(<RegisterForm />);
+
+      const roleSelect = screen.getByLabelText(/тип аккаунта/i);
+
+      // Initially retail, company_name should not be visible
+      expect(screen.queryByLabelText(/название компании/i)).not.toBeInTheDocument();
+
+      // Select wholesale (B2B role)
+      await user.selectOptions(roleSelect, 'wholesale_level1');
+
+      // company_name should now be visible
+      expect(screen.getByLabelText(/название компании/i)).toBeInTheDocument();
+    });
+
+    // AC 8: tax_id field appears for wholesale and federation_rep
+    test('should show tax_id field for wholesale and federation roles', async () => {
+      const user = userEvent.setup();
+      render(<RegisterForm />);
+
+      const roleSelect = screen.getByLabelText(/тип аккаунта/i);
+
+      // Initially retail, tax_id should not be visible
+      expect(screen.queryByLabelText(/инн/i)).not.toBeInTheDocument();
+
+      // Select wholesale_level1
+      await user.selectOptions(roleSelect, 'wholesale_level1');
+      expect(screen.getByLabelText(/инн/i)).toBeInTheDocument();
+
+      // Select federation_rep
+      await user.selectOptions(roleSelect, 'federation_rep');
+      expect(screen.getByLabelText(/инн/i)).toBeInTheDocument();
+
+      // Select trainer - tax_id should NOT be visible
+      await user.selectOptions(roleSelect, 'trainer');
+      expect(screen.queryByLabelText(/инн/i)).not.toBeInTheDocument();
+    });
+
+    // AC 4: Form submits with selected role
+    test('should submit form with selected role', async () => {
+      const user = userEvent.setup();
+      const mockRegister = vi.mocked(authService.register);
+      mockRegister.mockResolvedValue({
+        access: 'mock-token',
+        refresh: 'mock-refresh',
+        user: {
+          id: 2,
+          email: 'trainer@example.com',
+          first_name: 'Тренер',
+          last_name: '',
+          phone: '',
+          role: 'trainer',
+          company_name: 'Спортклуб',
+          is_verified: false,
+        },
+      });
+
+      render(<RegisterForm />);
+
+      const roleSelect = screen.getByLabelText(/тип аккаунта/i);
+      const nameInput = screen.getByLabelText(/имя/i);
+      const emailInput = screen.getByLabelText(/^email$/i);
+      const passwordInput = screen.getByLabelText(/^пароль$/i);
+      const confirmInput = screen.getByLabelText(/подтверждение пароля/i);
+      const submitButton = screen.getByRole('button', { name: /зарегистрироваться/i });
+
+      await user.selectOptions(roleSelect, 'trainer');
+
+      // Fill company_name (appears for B2B roles)
+      const companyInput = await screen.findByLabelText(/название компании/i);
+      await user.type(companyInput, 'Спортклуб');
+
+      await user.type(nameInput, 'Тренер');
+      await user.type(emailInput, 'trainer@example.com');
+      await user.type(passwordInput, 'SecurePass123');
+      await user.type(confirmInput, 'SecurePass123');
+      await user.click(submitButton);
+
+      await waitFor(() => {
+        expect(mockRegister).toHaveBeenCalledWith(
+          expect.objectContaining({
+            role: 'trainer',
+            company_name: 'Спортклуб',
+          })
+        );
+      });
+    });
+
+    // AC 8: Validation for required B2B fields (covered by submit test above + Zod schema tests)
+
+    // AC 5: Role selector keyboard navigation
+    test('should support keyboard navigation for role selector', async () => {
+      const user = userEvent.setup();
+      render(<RegisterForm />);
+
+      const roleSelect = screen.getByLabelText(/тип аккаунта/i);
+
+      // Focus on select
+      await user.tab(); // Skip to first input (name)
+      await user.tab(); // Skip to email
+      await user.tab(); // Skip to role select
+      expect(roleSelect).toHaveFocus();
+
+      // Use arrow keys to change selection (browser default behavior)
+      // This is natively supported by <select>, just verify it's focusable
+      expect(roleSelect).toBeEnabled();
     });
   });
 });

@@ -1,16 +1,24 @@
 /**
  * RegisterForm Component
  * Story 28.1 - Базовая аутентификация и регистрация B2C
+ * Story 29.1 - Role Selection UI & Warnings
  *
- * Форма регистрации B2C пользователей с валидацией
+ * Форма регистрации с выбором роли и условными B2B полями
  *
- * AC 2: B2C Registration Flow с автологином
- * AC 3: Client-side валидация (Zod)
- * AC 4: Error Handling и Loading States
- * AC 5: Интеграция с authService
- * AC 6: Использование UI компонентов
- * AC 7: Responsive Design
- * AC 10: Accessibility
+ * Story 28.1 AC 2: B2C Registration Flow с автологином
+ * Story 28.1 AC 3: Client-side валидация (Zod)
+ * Story 28.1 AC 4: Error Handling и Loading States
+ * Story 28.1 AC 5: Интеграция с authService
+ * Story 28.1 AC 6: Использование UI компонентов
+ * Story 28.1 AC 7: Responsive Design
+ * Story 28.1 AC 10: Accessibility
+ *
+ * Story 29.1 AC 1: Поле выбора роли с 4 опциями
+ * Story 29.1 AC 2: Retail выбран по умолчанию
+ * Story 29.1 AC 3: InfoPanel для B2B ролей
+ * Story 29.1 AC 4: Передача роли в API
+ * Story 29.1 AC 5, 6: Accessibility
+ * Story 29.1 AC 8: Условные B2B поля
  */
 
 'use client';
@@ -21,9 +29,18 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/Input/Input';
 import { Button } from '@/components/ui/Button/Button';
+import { RoleInfoPanel } from '@/components/auth/RoleInfoPanel';
 import authService from '@/services/authService';
 import { registerSchema, type RegisterFormData } from '@/schemas/authSchemas';
 import type { RegisterRequest } from '@/types/api';
+
+// Story 29.1 AC 1: Константа с опциями ролей
+const ROLE_OPTIONS = [
+  { value: 'retail' as const, label: 'Розничный покупатель' },
+  { value: 'trainer' as const, label: 'Тренер / Спортивный клуб' },
+  { value: 'wholesale_level1' as const, label: 'Оптовик' },
+  { value: 'federation_rep' as const, label: 'Представитель спортивной федерации' },
+] as const;
 
 export interface RegisterFormProps {
   /** Callback после успешной регистрации (optional) */
@@ -37,17 +54,25 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
+    // Story 29.1 AC 2: Retail роль по умолчанию
+    defaultValues: {
+      role: 'retail',
+    },
   });
+
+  // Story 29.1: Отслеживаем выбранную роль для условной логики
+  const selectedRole = watch('role');
 
   const onSubmit = async (data: RegisterFormData) => {
     try {
       setApiError(null);
 
-      // AC 5: Используем authService.register()
-      // Note: confirmPassword не отправляется на backend (только клиентская валидация)
+      // Story 28.1 AC 5: Используем authService.register()
+      // Story 29.1 AC 4: Передаём выбранную роль и условные B2B поля
       const registerData: RegisterRequest = {
         email: data.email,
         password: data.password,
@@ -55,7 +80,10 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
         first_name: data.first_name,
         last_name: '', // B2C registration может не требовать фамилию
         phone: '', // B2C может не требовать телефон при регистрации
-        role: 'retail', // По умолчанию для B2C
+        role: data.role, // Story 29.1 AC 4: Используем выбранную роль
+        // Story 29.1 AC 8: Условные B2B поля
+        company_name: data.company_name,
+        tax_id: data.tax_id,
       };
 
       // AC 2: Автоматический вход после регистрации
@@ -66,8 +94,8 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
         onSuccess();
       }
 
-      // AC 2: Редирект на главную после успешной регистрации
-      router.push('/test');
+      // Story 28.1 AC 2: Редирект на главную после успешной регистрации
+      router.push('/');
     } catch (error: unknown) {
       // AC 4: Обработка ошибок API
       const err = error as {
@@ -97,9 +125,14 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
     }
   };
 
+  // Story 29.1 AC 3: Проверяем, выбрана ли B2B роль
+  const isB2BRole = selectedRole !== 'retail';
+  // Story 29.1 AC 8: Определяем, нужно ли поле ИНН
+  const requiresTaxId = selectedRole === 'wholesale_level1' || selectedRole === 'federation_rep';
+
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="w-full max-w-md mx-auto p-6 space-y-4">
-      {/* AC 4: Отображение API ошибок */}
+      {/* Story 28.1 AC 4: Отображение API ошибок */}
       {apiError && (
         <div
           className="p-4 rounded-md bg-[var(--color-accent-danger)]/10 border border-[var(--color-accent-danger)]"
@@ -110,8 +143,8 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
         </div>
       )}
 
-      {/* AC 6: Использование Input компонента */}
-      {/* AC 10: Label с htmlFor, aria-describedby */}
+      {/* Story 28.1 AC 6: Использование Input компонента */}
+      {/* Story 28.1 AC 10: Label с htmlFor, aria-describedby */}
       <Input
         label="Имя"
         type="text"
@@ -131,6 +164,62 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
         autoComplete="email"
         placeholder="user@example.com"
       />
+
+      {/* Story 29.1 AC 1, 2, 5: Role Selector с accessibility */}
+      <div className="space-y-2">
+        <label htmlFor="role-select" className="block text-body-s font-medium text-gray-700">
+          Тип аккаунта
+        </label>
+        <select
+          id="role-select"
+          {...register('role')}
+          disabled={isSubmitting}
+          aria-label="Выберите тип аккаунта"
+          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-[var(--color-primary-500)] focus:ring-offset-2 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {ROLE_OPTIONS.map(option => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+        {errors.role?.message && (
+          <p className="text-body-xs text-[var(--color-accent-danger)]" role="alert">
+            {errors.role.message}
+          </p>
+        )}
+      </div>
+
+      {/* Story 29.1 AC 3, 6: RoleInfoPanel для B2B ролей */}
+      <RoleInfoPanel visible={isB2BRole} />
+
+      {/* Story 29.1 AC 8: Условные B2B поля - company_name */}
+      {isB2BRole && (
+        <Input
+          label="Название компании"
+          type="text"
+          {...register('company_name')}
+          error={errors.company_name?.message}
+          disabled={isSubmitting}
+          autoComplete="organization"
+          placeholder="ООО «Спортмастер»"
+          required
+        />
+      )}
+
+      {/* Story 29.1 AC 8: Условные B2B поля - tax_id для wholesale и federation_rep */}
+      {requiresTaxId && (
+        <Input
+          label="ИНН"
+          type="text"
+          {...register('tax_id')}
+          error={errors.tax_id?.message}
+          disabled={isSubmitting}
+          placeholder="1234567890 или 123456789012"
+          helper="10 цифр для юр. лица или 12 цифр для ИП"
+          required
+        />
+      )}
 
       <Input
         label="Пароль"

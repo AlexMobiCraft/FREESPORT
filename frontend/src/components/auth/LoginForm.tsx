@@ -60,8 +60,19 @@ export const LoginForm: React.FC<LoginFormProps> = ({ redirectUrl, onSuccess }) 
       router.push(targetUrl);
     } catch (error: unknown) {
       // AC 4: Обработка ошибок API
-      const err = error as { response?: { status?: number; data?: { detail?: string } } };
-      if (err.response?.status === 401) {
+      const err = error as {
+        response?: { status?: number; data?: { detail?: string; code?: string } };
+      };
+
+      // Epic 29.2: Обработка ошибки pending verification
+      if (
+        err.response?.status === 403 &&
+        err.response?.data?.code === 'account_pending_verification'
+      ) {
+        setApiError(
+          'Ваша учетная запись находится на проверке. Мы свяжемся с вами после завершения верификации.'
+        );
+      } else if (err.response?.status === 401) {
         setApiError('Неверные учетные данные');
       } else if (err.response?.status === 500) {
         setApiError('Ошибка сервера. Попробуйте позже');

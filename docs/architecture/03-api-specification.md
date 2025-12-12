@@ -56,6 +56,21 @@ paths:
                     type: string
                   user:
                     $ref: '#/components/schemas/User'
+        '401':
+          description: Invalid credentials
+        '403':
+          description: Account pending verification (Epic 29.2)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+                    example: "Ваша учетная запись находится на проверке"
+                  code:
+                    type: string
+                    example: "account_pending_verification"
 
   /auth/refresh/:
     post:

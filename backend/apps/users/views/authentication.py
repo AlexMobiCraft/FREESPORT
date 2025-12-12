@@ -2,14 +2,19 @@
 Views для аутентификации пользователей
 """
 
+import logging
+
 from django.contrib.auth import get_user_model
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from drf_spectacular.utils import OpenApiExample, OpenApiResponse, extend_schema
 from rest_framework import permissions, status
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
+
+logger = logging.getLogger("apps.users.auth")
 
 # User model is used in the code
 from ..serializers import (
@@ -139,6 +144,18 @@ class UserLoginView(APIView):
                     )
                 ],
             ),
+            403: OpenApiResponse(
+                description="Аккаунт ожидает верификации",
+                examples=[
+                    OpenApiExample(
+                        name="account_pending_verification",
+                        value={
+                            "detail": "Ваша учетная запись находится на проверке",
+                            "code": "account_pending_verification",
+                        },
+                    )
+                ],
+            ),
         },
         tags=["Authentication"],
     )
@@ -149,9 +166,37 @@ class UserLoginView(APIView):
         if serializer.is_valid():
             user = serializer.validated_data["user"]
 
+            # Проверка статуса верификации (Epic 29.2)
+            if user.verification_status == "pending":
+                logger.warning(
+                    "Login blocked: account pending verification",
+                    extra={
+                        "user_id": user.id,
+                        "user_email": user.email,
+                        "role": user.role,
+                        "ip_address": request.META.get("REMOTE_ADDR"),
+                    },
+                )
+                raise PermissionDenied(
+                    detail="Ваша учетная запись находится на проверке",
+                    code="account_pending_verification",
+                )
+
             # Создаем JWT токены
             refresh = RefreshToken.for_user(user)
             access_token = str(refresh.access_token)  # type: ignore[attr-defined]
+
+            # Логируем успешный вход
+            logger.info(
+                "Login successful",
+                extra={
+                    "user_id": user.id,
+                    "user_email": user.email,
+                    "role": user.role,
+                    "verification_status": user.verification_status,
+                    "ip_address": request.META.get("REMOTE_ADDR"),
+                },
+            )
 
             return Response(
                 {

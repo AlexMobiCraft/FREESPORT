@@ -97,10 +97,19 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         # Создаем пользователя
         user = User.objects.create_user(password=password, **validated_data)
 
-        # B2B пользователи требуют верификации
-        if user.role != "retail":
+        # Устанавливаем статусы на основе роли
+        if user.role == "retail":
+            # Розничные покупатели получают немедленный доступ
+            user.is_active = True
+            user.verification_status = "verified"
+            user.is_verified = True
+        else:
+            # B2B пользователи требуют верификации
+            user.is_active = False
+            user.verification_status = "pending"
             user.is_verified = False
-            user.save()
+
+        user.save()
 
         return user
 
@@ -115,28 +124,32 @@ class UserLoginSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         """Валидация данных для входа"""
+        from django.contrib.auth import get_user_model
+
+        User = get_user_model()
         email = attrs.get("email")
         password = attrs.get("password")
 
         if email and password:
-            # Аутентификация пользователя
-            user = authenticate(
-                request=self.context.get("request"),
-                username=email,
-                password=password,
-            )
-
-            if not user:
+            # Epic 29.2: Получаем пользователя напрямую (включая неактивных)
+            # для проверки verification_status в UserLoginView
+            try:
+                user = User.objects.get(email=email)
+            except User.DoesNotExist:
                 raise serializers.ValidationError(
                     "Неверный email или пароль.",
                     code="authorization",
                 )
 
-            if not user.is_active:
+            # Проверяем пароль
+            if not user.check_password(password):
                 raise serializers.ValidationError(
-                    "Аккаунт пользователя деактивирован.",
+                    "Неверный email или пароль.",
                     code="authorization",
                 )
+
+            # Примечание: Проверка is_active и verification_status выполняется в UserLoginView
+            # для обеспечения правильной обработки ошибок (403 для pending verification)
 
             attrs["user"] = user
             return attrs

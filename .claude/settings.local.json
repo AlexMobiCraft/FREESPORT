@@ -66,7 +66,9 @@
       "Bash(npx markdownlint-cli2:*)",
       "Bash(if not exist \"frontend\\src\\app\\(auth)\\b2b-register\" mkdir \"frontend\\src\\app\\(auth)\\b2b-register\")",
       "Bash(if not exist \"frontend\\src\\app\\(auth)\\password-reset\" mkdir \"frontend\\src\\app\\(auth)\\password-reset\")",
-      "Bash(npm ls:*)"
+      "Bash(npm ls:*)",
+      "Bash(Select-String -Pattern \"(PASS|FAIL|passed|failed|Test Files|Tests )\")",
+      "Bash(git checkout:*)"
     ],
     "deny": [],
     "ask": [],

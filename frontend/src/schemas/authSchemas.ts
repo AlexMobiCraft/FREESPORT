@@ -28,8 +28,8 @@ export const loginSchema = z.object({
  * Register Schema
  * Валидация формы регистрации
  *
- * AC 2, 3: Name, Email, Password, Confirm Password validation
- * AC 3: Password strength requirements
+ * Story 28.1: AC 2, 3 - Name, Email, Password, Confirm Password validation
+ * Story 29.1: AC 1, 8 - Role selection с условными B2B полями
  */
 export const registerSchema = z
   .object({
@@ -44,11 +44,45 @@ export const registerSchema = z
       .regex(/[0-9]/, 'Пароль должен содержать хотя бы 1 цифру')
       .regex(/[A-Z]/, 'Пароль должен содержать хотя бы 1 заглавную букву'),
     confirmPassword: z.string().min(1, 'Подтверждение пароля обязательно'),
+    // Story 29.1: Role selection
+    role: z.enum(['retail', 'trainer', 'wholesale_level1', 'federation_rep']).default('retail'),
+    // Story 29.1: Условные B2B поля
+    company_name: z.string().optional(),
+    tax_id: z.string().optional(),
   })
   .refine(data => data.password === data.confirmPassword, {
     message: 'Пароли не совпадают',
     path: ['confirmPassword'],
-  });
+  })
+  .refine(
+    data => {
+      // Story 29.1: AC 8 - company_name обязательно для всех B2B ролей
+      if (data.role !== 'retail' && (!data.company_name || data.company_name.trim() === '')) {
+        return false;
+      }
+      return true;
+    },
+    {
+      message: 'Название компании обязательно для B2B регистрации',
+      path: ['company_name'],
+    }
+  )
+  .refine(
+    data => {
+      // Story 29.1: AC 8 - tax_id обязательно для wholesale и federation_rep
+      if (
+        (data.role === 'wholesale_level1' || data.role === 'federation_rep') &&
+        (!data.tax_id || data.tax_id.trim() === '')
+      ) {
+        return false;
+      }
+      return true;
+    },
+    {
+      message: 'ИНН обязателен для оптовиков и представителей федераций',
+      path: ['tax_id'],
+    }
+  );
 
 /**
  * B2B Register Schema
