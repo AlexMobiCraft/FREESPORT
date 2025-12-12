@@ -61,6 +61,19 @@ SECURE_HSTS_SECONDS = 0
 SECURE_HSTS_INCLUDE_SUBDOMAINS = False
 SECURE_HSTS_PRELOAD = False
 
+# ============================================================================
+# Email Configuration для разработки (Story 29.3)
+# ============================================================================
+# В development используем console backend для отображения писем в консоли
+# Для тестирования с Mailhog, установите через .env:
+# EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
+# EMAIL_HOST=mailhog (или localhost)
+# EMAIL_PORT=1025
+EMAIL_BACKEND = os.environ.get(
+    "EMAIL_BACKEND",
+    "django.core.mail.backends.console.EmailBackend"
+)
+
 # Логирование для разработки
 LOGGING = {
     "version": 1,

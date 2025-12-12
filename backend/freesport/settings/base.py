@@ -8,7 +8,7 @@ import sys
 from datetime import timedelta
 from pathlib import Path
 
-from decouple import config
+from decouple import config, Csv
 
 # Временно отключаем патч для исправления проблем с кодировкой psycopg2 на Windows
 # try:
@@ -214,6 +214,14 @@ CELERY_RESULT_BACKEND = config(
     default=CELERY_BROKER_URL,
 )
 
+# Celery Beat Schedule (Story 29.4 - мониторинг pending верификаций)
+CELERY_BEAT_SCHEDULE = {
+    "monitor-pending-verification-queue": {
+        "task": "apps.users.tasks.monitor_pending_verification_queue",
+        "schedule": 60 * 60 * 8,  # Каждые 8 часов (9:00, 17:00 при запуске в 9:00)
+    },
+}
+
 # Интернационализация
 LANGUAGE_CODE = "ru-ru"
 TIME_ZONE = "Europe/Moscow"
@@ -327,6 +335,47 @@ CONFLICT_NOTIFICATION_EMAIL = config(
 )
 
 # ============================================================================
+# Email Configuration (Story 29.3)
+# ============================================================================
+
+# Email backend: console для development, smtp для production
+# В development это переопределяется в development.py на console backend
+EMAIL_BACKEND = config(
+    "EMAIL_BACKEND",
+    default="django.core.mail.backends.smtp.EmailBackend"
+)
+
+# SMTP сервер настройки
+EMAIL_HOST = config("EMAIL_HOST", default="smtp.yandex.ru")
+EMAIL_PORT = config("EMAIL_PORT", default=587, cast=int)
+EMAIL_USE_TLS = config("EMAIL_USE_TLS", default=True, cast=bool)
+EMAIL_USE_SSL = config("EMAIL_USE_SSL", default=False, cast=bool)
+
+# Credentials для SMTP (из .env файла)
+EMAIL_HOST_USER = config("EMAIL_HOST_USER", default="")
+EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD", default="")
+
+# Адрес отправителя по умолчанию
+DEFAULT_FROM_EMAIL = config(
+    "DEFAULT_FROM_EMAIL",
+    default="noreply@freesport.ru"
+)
+SERVER_EMAIL = config("SERVER_EMAIL", default=DEFAULT_FROM_EMAIL)
+
+# Парсинг списка администраторов из ADMIN_EMAILS
+# Формат: "Admin Name <admin@example.com>,Another Admin <admin2@example.com>"
+# или просто: "admin@example.com,admin2@example.com"
+_admin_emails_raw = config("ADMIN_EMAILS", default="", cast=Csv())
+ADMINS = [
+    ("Admin", email.strip())
+    for email in _admin_emails_raw
+    if email.strip()
+]
+
+# Менеджеры получают уведомления о битых ссылках (404)
+MANAGERS = ADMINS
+
+# ============================================================================
 # Logging Configuration (Story 13.2 - NFR8)
 # ============================================================================
 
@@ -412,7 +461,17 @@ LOGGING = {
     },
 }
 
+# ============================================================================
+# Site URL Configuration (Story 29.4)
+# ============================================================================
+
+# URL сайта для использования в email templates и ссылках
+SITE_URL = config("SITE_URL", default="http://localhost:3000")
+
+# ============================================================================
 # Настройки безопасности (переопределяются в продакшене)
+# ============================================================================
+
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = "DENY"

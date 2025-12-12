@@ -9,6 +9,7 @@ from rest_framework import serializers
 from apps.orders.models import Order
 
 from .models import Address, Company, Favorite, User
+from .tasks import send_admin_verification_email, send_user_pending_email
 
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
@@ -110,6 +111,11 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             user.is_verified = False
 
         user.save()
+
+        # Асинхронная отправка email уведомлений для B2B (Story 29.4)
+        if user.role != "retail":
+            send_admin_verification_email.delay(user.id)
+            send_user_pending_email.delay(user.id)
 
         return user
 
