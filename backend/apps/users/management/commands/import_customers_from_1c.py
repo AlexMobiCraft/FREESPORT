@@ -134,7 +134,8 @@ class Command(BaseCommand):
             for idx, file_path in enumerate(contragents_files, 1):
                 self.stdout.write(
                     self.style.SUCCESS(
-                        f"\n[{idx}/{len(contragents_files)}] Обработка файла: {file_path.name}"
+                        f"\n[{idx}/{len(contragents_files)}] "
+                        f"Обработка файла: {file_path.name}"
                     )
                 )
 
@@ -196,9 +197,9 @@ class Command(BaseCommand):
                 # Итоговая статистика
                 self.stdout.write(
                     self.style.SUCCESS(
-                        f"\n{'='*60}\n"
+                        f"\n{'=' * 60}\n"
                         f"✅ Импорт успешно завершен!\n"
-                        f"{'='*60}\n"
+                        f"{'=' * 60}\n"
                         f"Обработано файлов: {len(contragents_files)}\n"
                         f"Сессия импорта: #{session.pk}\n"
                         f"\nИтоговая статистика:\n"
@@ -207,7 +208,7 @@ class Command(BaseCommand):
                         f"  Обновлено: {total_stats['updated']}\n"
                         f"  Пропущено: {total_stats['skipped']}\n"
                         f"  Ошибок: {total_stats['errors']}\n"
-                        f"{'='*60}"
+                        f"{'=' * 60}"
                     )
                 )
 

@@ -115,7 +115,9 @@ class TestProductVariantSerializer:
         assert data["current_price"] == str(variant.retail_price)
 
     def test_get_current_price_without_request_context(self, variant):
-        """Тест: current_price работает без request в context (fallback на retail_price)"""
+        """
+        Тест: current_price работает без request в context (fallback на retail_price)
+        """
         serializer = ProductVariantSerializer(variant, context={})
         data = serializer.data
 
@@ -245,7 +247,9 @@ class TestProductVariantSerializer:
         assert data["current_price"] == "700.00"
 
     def test_serializer_with_federation_user(self, variant, api_factory, db):
-        """Тест: current_price возвращает federation_price для federation_rep пользователя"""
+        """
+        Тест: current_price возвращает federation_price для federation_rep пользователя
+        """
         federation_user = User.objects.create_user(
             email="federation@test.com",
             password="testpass123",

@@ -11,7 +11,10 @@ class MergeBrandsActionForm(forms.Form):
     target_brand = forms.ModelChoiceField(
         queryset=Brand.objects.all().order_by("name"),
         label="Целевой бренд",
-        help_text="Выберите бренд, в который будут объединены выбранные бренды. Исходные бренды будут удалены.",
+        help_text=(
+            "Выберите бренд, в который будут объединены выбранные бренды. "
+            "Исходные бренды будут удалены."
+        ),
         required=True,
     )
 

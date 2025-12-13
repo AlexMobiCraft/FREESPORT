@@ -205,7 +205,8 @@ class TestProductRetrieveWithVariants:
 
         assert red_variant["color_hex"] == "#FF0000"
         assert blue_variant["color_hex"] == "#0000FF"
-        # Черный может иметь ColorMapping из других тестов или fixture - проверяем что поле есть
+        # Черный может иметь ColorMapping из других тестов или fixture -
+        # проверяем что поле есть
         assert "color_hex" in black_variant
 
     def test_is_in_stock_reflects_stock_quantity(
@@ -352,7 +353,10 @@ class TestProductAPIPerformance:
 
         assert (
             time_100 <= time_10 * 15
-        ), f"Performance не масштабируется линейно: 10v={time_10:.2f}ms, 100v={time_100:.2f}ms"
+        ), (
+            f"Performance не масштабируется линейно: 10v={time_10:.2f}ms, "
+            f"100v={time_100:.2f}ms"
+        )
 
 
 @pytest.mark.django_db

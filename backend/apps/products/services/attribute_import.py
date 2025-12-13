@@ -292,8 +292,8 @@ class AttributeImportService:
                         attribute = existing_attr
                         self.stats["attributes_deduplicated"] += 1
                         logger.info(
-                            f"Attribute deduplicated: '{onec_name}' → '{attribute.name}' "
-                            f"(normalized: '{normalized}')"
+                            f"Attribute deduplicated: '{onec_name}' → "
+                            f"'{attribute.name}' (normalized: '{normalized}')"
                         )
                     else:
                         # Шаг 3: Создаем новый атрибут (is_active=False)
@@ -304,7 +304,8 @@ class AttributeImportService:
                         )
                         self.stats["attributes_created"] += 1
                         logger.debug(
-                            f"Created new attribute: {attribute.name} (id={attribute.id})"
+                            f"Created new attribute: {attribute.name} "
+                            f"(id={attribute.id})"
                         )
 
                     # Шаг 4: Создаем маппинг 1С ID → Attribute

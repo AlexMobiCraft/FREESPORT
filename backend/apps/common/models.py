@@ -180,7 +180,8 @@ class CustomerSyncLog(TimeStampedModel):
         ]
 
     def __str__(self) -> str:
-        return f"{self.operation_type} - {self.customer} ({self.created_at.strftime('%Y-%m-%d %H:%M')})"
+        date_str = self.created_at.strftime("%Y-%m-%d %H:%M")
+        return f"{self.operation_type} - {self.customer} ({date_str})"
 
     def get_duration_display(self) -> str:
         """Отображение длительности в человекочитаемом формате."""
@@ -272,7 +273,8 @@ class SyncConflict(TimeStampedModel):
         ]
 
     def __str__(self) -> str:
-        return f"{self.conflict_type} - {self.customer} ({self.created_at.strftime('%Y-%m-%d %H:%M')})"
+        date_str = self.created_at.strftime("%Y-%m-%d %H:%M")
+        return f"{self.conflict_type} - {self.customer} ({date_str})"
 
 
 class AuditLog(TimeStampedModel):
@@ -331,7 +333,8 @@ class AuditLog(TimeStampedModel):
         ]
 
     def __str__(self) -> str:
-        return f"{self.user} - {self.action} {self.resource_type} ({self.created_at.strftime('%Y-%m-%d %H:%M')})"
+        date_str = self.created_at.strftime("%Y-%m-%d %H:%M")
+        return f"{self.user} - {self.action} {self.resource_type} ({date_str})"
 
 
 class Category(models.Model):

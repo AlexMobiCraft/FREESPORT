@@ -28,7 +28,8 @@ def run_selective_import_task(
     selected_types: list[str],
     data_dir: (
         str | None
-    ) = None,  # Этот аргумент больше не используется, но оставлен для обратной совместимости
+        # Этот аргумент больше не используется, но оставлен для обратной совместимости
+    ) = None,
 ) -> dict[str, Any]:
     """
     Асинхронная задача для выборочного импорта данных из 1С.
@@ -76,7 +77,8 @@ def run_selective_import_task(
                 result = _execute_import_type(import_type, task_id)
                 results.append(result)
                 logger.info(
-                    f"[Task {task_id}] Импорт {import_type} завершен: {result['message']}"
+                    f"[Task {task_id}] Импорт {import_type} завершен: "
+                    f"{result['message']}"
                 )
             except Exception as e:
                 error_msg = f"Ошибка импорта {import_type}: {e}"
@@ -328,8 +330,9 @@ def _run_image_import(task_id: str) -> dict[str, str]:
                 # Обновление прогресса каждые 50 товаров
                 if processed % 50 == 0:
                     logger.info(
-                        f"[Task {task_id}] Прогресс: {processed}/{total_products} товаров. "
-                        f"Copied: {total_copied}, Skipped: {total_skipped}, Errors: {total_errors}"
+                        f"[Task {task_id}] Прогресс: {processed}/{total_products} "
+                        f"товаров. Copied: {total_copied}, Skipped: {total_skipped}, "
+                        f"Errors: {total_errors}"
                     )
 
                     if session:
@@ -378,7 +381,8 @@ def _run_image_import(task_id: str) -> dict[str, str]:
         return {
             "type": "images",
             "message": f"Обработано {processed} товаров. "
-            f"Скопировано: {total_copied}, Пропущено: {total_skipped}, Ошибок: {total_errors}",
+            f"Скопировано: {total_copied}, Пропущено: {total_skipped}, "
+            f"Ошибок: {total_errors}",
         }
 
     except Exception as e:

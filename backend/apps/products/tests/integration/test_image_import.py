@@ -133,7 +133,9 @@ class TestImageImportWithNormalization:
     def test_import_variant_images_with_import_files_prefix(
         self, processor, variant, temp_import_dir
     ):
-        """Импорт variant images с путём import_files/xx/test1.jpg - путь нормализуется"""
+        """
+        Импорт variant images с путём import_files/xx/test1.jpg - путь нормализуется
+        """
         image_paths = ["import_files/xx/test1.jpg"]
 
         # Проверяем что нормализованный путь корректен

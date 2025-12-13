@@ -837,14 +837,20 @@ class TestAttributeImportServiceValidation:
     """Тесты валидации и обработки ошибок в AttributeImportService"""
 
     def test_import_from_directory_raises_on_nonexistent(self) -> None:
-        """Тест что import_from_directory выбрасывает исключение для несуществующей директории"""
+        """
+        Тест что import_from_directory выбрасывает исключение
+        для несуществующей директории
+        """
         service = AttributeImportService(source="goods", dry_run=False)
 
         with pytest.raises(FileNotFoundError, match="Directory not found"):
             service.import_from_directory("/nonexistent/path")
 
     def test_import_from_directory_raises_on_file_not_dir(self, tmp_path: Path) -> None:
-        """Тест что import_from_directory выбрасывает исключение если путь - файл, а не директория"""
+        """
+        Тест что import_from_directory выбрасывает исключение
+        если путь - файл, а не директория
+        """
         # Создаем временный файл
         temp_file = tmp_path / "test.txt"
         temp_file.write_text("test")
@@ -904,7 +910,10 @@ class TestAttributeImportServiceValidation:
     def test_import_from_directory_continues_on_file_error(
         self, tmp_path: Path
     ) -> None:
-        """Тест что import_from_directory продолжает обработку после ошибки в одном файле"""
+        """
+        Тест что import_from_directory продолжает обработку
+        после ошибки в одном файле
+        """
         # Создаем директорию с двумя файлами - один с ошибкой парсинга
         test_dir = tmp_path / "test"
         test_dir.mkdir()

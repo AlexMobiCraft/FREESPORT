@@ -32,7 +32,7 @@ class Command(BaseCommand):
 
         self.stdout.write(
             self.style.WARNING(
-                f"\n⚠️  ВНИМАНИЕ: Будут удалены все атрибуты и значения атрибутов!"
+                "\n⚠️  ВНИМАНИЕ: Будут удалены все атрибуты и значения атрибутов!"
             )
         )
         self.stdout.write(f"   Атрибутов: {attr_count}")
@@ -74,7 +74,8 @@ class Command(BaseCommand):
                 else:
                     self.stdout.write(
                         self.style.ERROR(
-                            f"\n⚠️  Остались записи: атрибутов={remaining_attrs}, значений={remaining_values}"
+                            f"\n⚠️  Остались записи: атрибутов={remaining_attrs}, "
+                            f"значений={remaining_values}"
                         )
                     )
 

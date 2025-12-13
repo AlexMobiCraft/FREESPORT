@@ -301,7 +301,7 @@ class Command(BaseCommand):
                 f"\n{'=' * 60}\n" f"  ✅ Импорт изображений завершён\n" f"{'=' * 60}\n"
             )
         )
-        self.stdout.write(f"📊 Статистика:")
+        self.stdout.write("📊 Статистика:")
         self.stdout.write(f"   • Всего товаров: {result['total_products']}")
         self.stdout.write(f"   • Обработано: {result['processed']}")
         self.stdout.write(

@@ -268,7 +268,8 @@ class ProductFilter(django_filters.FilterSet):
     def filter_min_price(self, queryset, name, value):
         """
         Фильтр по минимальной цене с учетом роли пользователя.
-        Оптимизировано: использует Exists subquery вместо JOIN для избежания декартова произведения.
+        Оптимизировано: использует Exists subquery вместо JOIN для избежания
+        декартова произведения.
         """
         from django.db.models import Exists, OuterRef
 

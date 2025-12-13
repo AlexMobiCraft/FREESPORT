@@ -174,7 +174,8 @@ class ImportSessionAdmin(admin.ModelAdmin):
             icon, color, label = status_map.get(state, ("❓", "black", state))
 
             return format_html(
-                '<span style="color: {}; font-weight: bold;" title="Task ID: {}">{} {}</span>',
+                '<span style="color: {}; font-weight: bold;" title="Task ID: {}">'
+                "{} {}</span>",
                 color,
                 obj.celery_task_id,
                 icon,

@@ -270,7 +270,8 @@ class Command(BaseCommand):
             self.stdout.write(
                 f"✨ Атрибуты:\n"
                 f"   • Создано новых: {stats['attributes_created']}\n"
-                f"   • Дедуплицировано (объединено): {stats['attributes_deduplicated']}\n"
+                f"   • Дедуплицировано (объединено): "
+                f"{stats['attributes_deduplicated']}\n"
                 f"   • Создано маппингов 1С: {stats['mappings_created']}\n"
                 f"\n"
                 f"🎯 Значения атрибутов:\n"
@@ -288,14 +289,16 @@ class Command(BaseCommand):
                 dedup_rate = stats["attributes_deduplicated"] / total_attrs * 100
                 self.stdout.write(
                     f"📈 Эффективность дедупликации атрибутов: "
-                    f"{dedup_rate:.1f}% ({stats['attributes_deduplicated']}/{total_attrs})\n"
+                    f"{dedup_rate:.1f}% ({stats['attributes_deduplicated']}/"
+                    f"{total_attrs})\n"
                 )
 
             if total_values > 0:
                 value_dedup_rate = stats["values_deduplicated"] / total_values * 100
                 self.stdout.write(
                     f"📈 Эффективность дедупликации значений: "
-                    f"{value_dedup_rate:.1f}% ({stats['values_deduplicated']}/{total_values})\n"
+                    f"{value_dedup_rate:.1f}% ({stats['values_deduplicated']}/"
+                    f"{total_values})\n"
                 )
 
             self.stdout.write("\n")
@@ -309,8 +312,8 @@ class Command(BaseCommand):
             if stats["attributes_created"] > 0:
                 self.stdout.write(
                     self.style.WARNING(
-                        f"\n⚠️  Новые атрибуты созданы с is_active=False\n"
-                        f"   Для отображения в каталоге активируйте их в Django Admin\n"
+                        "\n⚠️  Новые атрибуты созданы с is_active=False\n"
+                        "   Для отображения в каталоге активируйте их в Django Admin\n"
                     )
                 )
 

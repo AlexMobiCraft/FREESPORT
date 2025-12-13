@@ -42,7 +42,10 @@ class Command(BaseCommand):
         --skip-interactive: Пропустить интерактивное подтверждение (для CI/CD)
     """
 
-    help = "Очистка товаров и вариантов перед миграцией (сохраняет ColorMapping, бренды, категории)"
+    help = (
+        "Очистка товаров и вариантов перед миграцией "
+        "(сохраняет ColorMapping, бренды, категории)"
+    )
 
     def add_arguments(self, parser: ArgumentParser) -> None:
         """Добавление аргументов командной строки."""

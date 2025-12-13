@@ -147,11 +147,8 @@ class CartItemCreateSerializer(serializers.ModelSerializer):
 
         # Проверяем наличие на складе
         if quantity > variant.stock_quantity:
-            raise serializers.ValidationError(
-                {
-                    "quantity": f"Недостаточно товара на складе. Доступно: {variant.stock_quantity}"
-                }
-            )
+            msg = f"Недостаточно товара на складе. Доступно: {variant.stock_quantity}"
+            raise serializers.ValidationError({"quantity": msg})
 
         return attrs
 

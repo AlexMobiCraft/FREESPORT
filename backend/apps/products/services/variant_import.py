@@ -1320,7 +1320,8 @@ class VariantImportProcessor:
         2. Устанавливаем родительские связи с валидацией циклов
 
         Args:
-            categories_data: Список данных категорий с полями id, name, description, parent_id
+            categories_data: Список данных категорий с полями
+                             id, name, description, parent_id
 
         Returns:
             dict с количеством created, updated, errors, cycles_detected

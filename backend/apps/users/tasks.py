@@ -76,7 +76,10 @@ def send_admin_verification_email(self, user_id: int) -> bool:
 
         # Отправляем email
         send_mail(
-            subject=f"[FREESPORT] Новая заявка: {user.get_role_display()} - {user.company_name}",
+            subject=(
+                f"[FREESPORT] Новая заявка: {user.get_role_display()} - "
+                f"{user.company_name}"
+            ),
             message=plain_message,
             from_email=None,  # Uses DEFAULT_FROM_EMAIL
             recipient_list=admin_emails,
@@ -223,7 +226,9 @@ def monitor_pending_verification_queue() -> dict:
         admin_emails = [email for name, email in settings.ADMINS]
         if admin_emails:
             send_mail(
-                subject=f"⚠️ [FREESPORT] Alert: {pending_count} заявок ожидают верификации",
+                subject=(
+                    f"⚠️ [FREESPORT] Alert: {pending_count} заявок ожидают верификации"
+                ),
                 message=f"За последние 24 часа поступило {pending_count} заявок "
                 f"на верификацию B2B партнеров.\n\n"
                 f"Пороговое значение: {threshold}\n\n"

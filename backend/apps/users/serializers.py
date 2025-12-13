@@ -154,8 +154,8 @@ class UserLoginSerializer(serializers.Serializer):
                     code="authorization",
                 )
 
-            # Примечание: Проверка is_active и verification_status выполняется в UserLoginView
-            # для обеспечения правильной обработки ошибок (403 для pending verification)
+            # Примечание: Проверка is_active и verification_status выполняется
+            # в UserLoginView для обеспечения правильной обработк (403 для pending)
 
             attrs["user"] = user
             return attrs
@@ -362,7 +362,8 @@ class FavoriteSerializer(serializers.ModelSerializer):
     def get_product_image(self, obj) -> str | None:
         """
         Получить изображение товара из ProductVariant или Product.base_images.
-        Epic 13/14: изображения хранятся в ProductVariant.main_image с fallback на Product.base_images.
+        Epic 13/14: изображения хранятся в ProductVariant.main_image
+        с fallback на Product.base_images.
         """
         product = obj.product
         # Пробуем получить изображение из первого активного варианта

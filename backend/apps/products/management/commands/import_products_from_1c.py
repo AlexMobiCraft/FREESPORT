@@ -40,7 +40,10 @@ class Command(BaseCommand):
         python manage.py import_products_from_1c --data-dir /path --variants-only
     """
 
-    help = "Импорт каталога товаров из файлов 1С (CommerceML 3.1) с поддержкой ProductVariant"
+    help = (
+        "Импорт каталога товаров из файлов 1С (CommerceML 3.1) "
+        "с поддержкой ProductVariant"
+    )
 
     def add_arguments(self, parser):
         """Добавление аргументов команды"""
@@ -114,7 +117,8 @@ class Command(BaseCommand):
             default=None,
             help=(
                 "ID Celery задачи для связи с существующей сессией импорта. "
-                "Если указан, команда использует существующую сессию вместо создания новой."
+                "Если указан, команда использует существующую сессию вместо "
+                "создания новой."
             ),
         )
 
@@ -164,7 +168,8 @@ class Command(BaseCommand):
                 subdir_path = os.path.join(data_dir, subdir)
                 if not os.path.exists(subdir_path):
                     raise CommandError(
-                        f"Отсутствует обязательная поддиректория для импорта вариантов: {subdir}"
+                        f"Отсутствует обязательная поддиректория для "
+                        f"импорта вариантов: {subdir}"
                     )
 
         if dry_run:
@@ -230,7 +235,8 @@ class Command(BaseCommand):
             except ImportSession.DoesNotExist:
                 self.stdout.write(
                     self.style.WARNING(
-                        f"\n⚠️ Сессия с celery_task_id={celery_task_id} не найдена, создаём новую"
+                        f"\n⚠️ Сессия с celery_task_id={celery_task_id} не найдена, "
+                        f"создаём новую"
                     )
                 )
 
@@ -250,8 +256,10 @@ class Command(BaseCommand):
             # Инициализация парсера и процессора
             parser = XMLDataParser()
 
-            # VariantImportProcessor для Product + ProductVariant + Categories + Brands + PriceTypes
-            # (методы process_categories, process_brands, process_price_types мигрированы в Story 27.1)
+            # VariantImportProcessor для Product + ProductVariant
+            # + Categories + Brands + PriceTypes
+            # (методы process_categories, process_brands, process_price_types
+            # мигрированы в Story 27.1)
             variant_processor = VariantImportProcessor(
                 session_id=session_id,
                 batch_size=batch_size,
@@ -329,7 +337,8 @@ class Command(BaseCommand):
                 if result["cycles_detected"] > 0:
                     self.stdout.write(
                         self.style.WARNING(
-                            f"   ⚠️ Обнаружено циклических ссылок: {result['cycles_detected']}"
+                            f"   ⚠️ Обнаружено циклических ссылок: "
+                            f"{result['cycles_detected']}"
                         )
                     )
 
@@ -434,7 +443,8 @@ class Command(BaseCommand):
         stats = processor.get_stats()
         self.stdout.write(
             self.style.SUCCESS(
-                f"   ✅ Создано: {stats['products_created']}, обновлено: {stats['products_updated']}"
+                f"   ✅ Создано: {stats['products_created']}, "
+                f"обновлено: {stats['products_updated']}"
             )
         )
 
@@ -552,7 +562,8 @@ class Command(BaseCommand):
         """Очистка существующих данных"""
         self.stdout.write(
             self.style.WARNING(
-                "\n⚠️ ВНИМАНИЕ: Удаление всех существующих товаров, вариантов, категорий и брендов..."
+                "\n⚠️ ВНИМАНИЕ: Удаление всех существующих товаров, вариантов, "
+                "категорий и брендов..."
             )
         )
         confirm = input("Вы уверены? Введите 'yes' для подтверждения: ")

@@ -254,7 +254,9 @@ class TestProductVariant:
 
     # TEST-GAP-2: Price fallback логика
     def test_get_price_for_user_opt1_price_null_fallback_retail(self, variant, db):
-        """TEST-GAP-2: get_price_for_user fallback на retail_price когда opt1_price=None"""
+        """
+        TEST-GAP-2: get_price_for_user fallback на retail_price когда opt1_price=None
+        """
         variant.opt1_price = None
         variant.save()
         user = User.objects.create_user(
@@ -456,7 +458,9 @@ class TestProductRefactoring:
             _ = product.retail_price
 
     def test_accessing_removed_stock_field_raises_attribute_error(self, product):
-        """TEST-GAP-3: Попытка доступа к удалённому полю stock_quantity → AttributeError"""
+        """
+        TEST-GAP-3: Попытка доступа к удалённому полю stock_quantity → AttributeError
+        """
         with pytest.raises(AttributeError):
             _ = product.stock_quantity
 

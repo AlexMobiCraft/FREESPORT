@@ -46,9 +46,11 @@ class Command(BaseCommand):
 
         if verbose:
             self.stdout.write(f"EMAIL_HOST_USER: {settings.EMAIL_HOST_USER}")
-            self.stdout.write(
-                f"EMAIL_HOST_PASSWORD: {'*' * len(settings.EMAIL_HOST_PASSWORD) if settings.EMAIL_HOST_PASSWORD else '(not set)'}"
-            )
+            if settings.EMAIL_HOST_PASSWORD:
+                masked_password = "*" * len(settings.EMAIL_HOST_PASSWORD)
+            else:
+                masked_password = "(not set)"
+            self.stdout.write(f"EMAIL_HOST_PASSWORD: {masked_password}")
             self.stdout.write(f"ADMINS: {settings.ADMINS}")
 
         self.stdout.write(self.style.NOTICE("==========================="))

@@ -90,14 +90,16 @@ class BrandAdmin(admin.ModelAdmin):
                                     onec_id=mapping.onec_id
                                 ).exists():
                                     logger.warning(
-                                        f"Duplicate mapping for brand {target_brand}: {mapping.onec_id}. Skipping transfer."
+                                        f"Duplicate mapping for brand {target_brand}: "
+                                        f"{mapping.onec_id}. Skipping transfer."
                                     )
                                     continue  # Mapping will be deleted with source_brand
                                 mapping.brand = target_brand
                                 mapping.save()
 
                             # Перенос продуктов
-                            # У продуктов brand PROTECT, поэтому их НАДО перенести перед удалением бренда
+                            # У продуктов brand PROTECT
+                            # поэтому их НАДО перенести перед удалением бренда
                             source_brand.products.update(brand=target_brand)
 
                             source_brand.delete()
@@ -124,7 +126,8 @@ class BrandAdmin(admin.ModelAdmin):
                 "form": form,
                 "title": "Объединение брендов",
                 "opts": self.model._meta,
-                "action_checkbox_name": admin.helpers.ACTION_CHECKBOX_NAME,  # type: ignore
+                # type: ignore
+                "action_checkbox_name": admin.helpers.ACTION_CHECKBOX_NAME,
             },
         )
 
@@ -158,7 +161,8 @@ class Brand1CMappingAdmin(admin.ModelAdmin):
                                 onec_id=mapping.onec_id
                             ).exists():
                                 logger.warning(
-                                    f"Mapping {mapping.onec_id} already exists in {target_brand}. Skipping."
+                                    f"Mapping {mapping.onec_id} already exists in "
+                                    f"{target_brand}. Skipping."
                                 )
                                 continue
                             mapping.brand = target_brand
@@ -184,7 +188,8 @@ class Brand1CMappingAdmin(admin.ModelAdmin):
                 "form": form,
                 "title": "Перенос маппингов",
                 "opts": self.model._meta,
-                "action_checkbox_name": admin.helpers.ACTION_CHECKBOX_NAME,  # type: ignore
+                # type: ignore
+                "action_checkbox_name": admin.helpers.ACTION_CHECKBOX_NAME,
             },
         )
 
@@ -264,7 +269,10 @@ class ProductAdmin(admin.ModelAdmin):
             "Изображения (Hybrid подход - Story 13.1)",
             {
                 "fields": ("base_images",),
-                "description": "Общие изображения товара из 1С. Используются как fallback для вариантов.",
+                "description": (
+                    "Общие изображения товара из 1С. "
+                    "Используются как fallback для вариантов."
+                ),
             },
         ),
         (
@@ -467,7 +475,10 @@ class ProductVariantAdmin(admin.ModelAdmin):
                     "main_image",
                     "gallery_images",
                 ),
-                "description": "Собственные изображения варианта. Если не заданы, используются Product.base_images.",
+                "description": (
+                    "Собственные изображения варианта. "
+                    "Если не заданы, используются Product.base_images."
+                ),
             },
         ),
         (
@@ -636,8 +647,9 @@ class AttributeAdmin(admin.ModelAdmin):
                                     onec_id=mapping.onec_id
                                 ).exists():
                                     logger.warning(
-                                        f"Duplicate mapping for attribute {target_attribute}: "
-                                        f"{mapping.onec_id}. Skipping transfer."
+                                        f"Duplicate mapping for attribute "
+                                        f"{target_attribute}: {mapping.onec_id}. "
+                                        f"Skipping transfer."
                                     )
                                     continue
                                 mapping.attribute = target_attribute
@@ -667,7 +679,8 @@ class AttributeAdmin(admin.ModelAdmin):
                                     value.save()
                                     values_transferred += 1
 
-                            # 3. Удаляем исходный атрибут (CASCADE удалит оставшиеся связи)
+                            # 3. Удаляем исходный атрибут
+                            # (CASCADE удалит оставшиеся связи)
                             source_attribute.delete()
                             merged_count += 1
 
@@ -688,7 +701,8 @@ class AttributeAdmin(admin.ModelAdmin):
 
                     self.message_user(
                         request,
-                        f"Успешно объединено {merged_count} атрибутов в '{target_attribute}'. "
+                        f"Успешно объединено {merged_count} атрибутов в "
+                        f"'{target_attribute}'. "
                         f"Перенесено маппингов: {mappings_transferred}, "
                         f"значений: {values_transferred}.",
                         messages.SUCCESS,
@@ -736,7 +750,8 @@ class AttributeAdmin(admin.ModelAdmin):
                 "form": form,
                 "title": "Объединение атрибутов",
                 "opts": self.model._meta,
-                "action_checkbox_name": admin.helpers.ACTION_CHECKBOX_NAME,  # type: ignore
+                # type: ignore
+                "action_checkbox_name": admin.helpers.ACTION_CHECKBOX_NAME,
             },
         )
 
