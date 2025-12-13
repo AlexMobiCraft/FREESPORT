@@ -146,9 +146,7 @@ class Command(BaseCommand):
             self.stdout.write(self.style.ERROR(f"\n❌ Ошибка импорта: {e}\n"))
             raise CommandError(f"Импорт прерван: {e}")
 
-    def _import_properties_goods(
-        self, data_dir: Path, dry_run: bool
-    ) -> dict[str, int]:
+    def _import_properties_goods(self, data_dir: Path, dry_run: bool) -> dict[str, int]:
         """Импорт свойств товаров (propertiesGoods)"""
         properties_goods_dir = data_dir / "propertiesGoods"
 
@@ -283,24 +281,18 @@ class Command(BaseCommand):
             )
 
             # Вывод эффективности дедупликации
-            total_attrs = (
-                stats["attributes_created"] + stats["attributes_deduplicated"]
-            )
+            total_attrs = stats["attributes_created"] + stats["attributes_deduplicated"]
             total_values = stats["values_created"] + stats["values_deduplicated"]
 
             if total_attrs > 0:
-                dedup_rate = (
-                    stats["attributes_deduplicated"] / total_attrs * 100
-                )
+                dedup_rate = stats["attributes_deduplicated"] / total_attrs * 100
                 self.stdout.write(
                     f"📈 Эффективность дедупликации атрибутов: "
                     f"{dedup_rate:.1f}% ({stats['attributes_deduplicated']}/{total_attrs})\n"
                 )
 
             if total_values > 0:
-                value_dedup_rate = (
-                    stats["values_deduplicated"] / total_values * 100
-                )
+                value_dedup_rate = stats["values_deduplicated"] / total_values * 100
                 self.stdout.write(
                     f"📈 Эффективность дедупликации значений: "
                     f"{value_dedup_rate:.1f}% ({stats['values_deduplicated']}/{total_values})\n"

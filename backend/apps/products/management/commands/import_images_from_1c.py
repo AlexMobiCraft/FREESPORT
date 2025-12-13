@@ -129,9 +129,7 @@ class Command(BaseCommand):
                 session.status = ImportSession.ImportStatus.FAILED
                 session.finished_at = timezone.now()
                 session.error_message = str(e)
-                session.save(
-                    update_fields=["status", "finished_at", "error_message"]
-                )
+                session.save(update_fields=["status", "finished_at", "error_message"])
 
             raise CommandError(f"Ошибка импорта: {e}")
 
@@ -178,9 +176,7 @@ class Command(BaseCommand):
             }
 
         # Создаём процессор
-        processor = VariantImportProcessor(
-            session_id=session.id if session else 0
-        )
+        processor = VariantImportProcessor(session_id=session.id if session else 0)
 
         processed = 0
         total_copied = 0
@@ -234,9 +230,7 @@ class Command(BaseCommand):
                 except Exception as e:
                     if verbose:
                         self.stdout.write(
-                            self.style.ERROR(
-                                f"  ❌ Ошибка [{product.onec_id}]: {e}"
-                            )
+                            self.style.ERROR(f"  ❌ Ошибка [{product.onec_id}]: {e}")
                         )
                     logger.error(
                         f"Ошибка обработки товара {product.id} "
@@ -304,9 +298,7 @@ class Command(BaseCommand):
         """Вывод итоговой статистики."""
         self.stdout.write(
             self.style.SUCCESS(
-                f"\n{'=' * 60}\n"
-                f"  ✅ Импорт изображений завершён\n"
-                f"{'=' * 60}\n"
+                f"\n{'=' * 60}\n" f"  ✅ Импорт изображений завершён\n" f"{'=' * 60}\n"
             )
         )
         self.stdout.write(f"📊 Статистика:")
@@ -318,9 +310,7 @@ class Command(BaseCommand):
         self.stdout.write(f"   • Пропущено (без изображений): {result['skipped']}")
 
         if result["errors"] > 0:
-            self.stdout.write(
-                self.style.ERROR(f"   • Ошибок: {result['errors']}")
-            )
+            self.stdout.write(self.style.ERROR(f"   • Ошибок: {result['errors']}"))
         else:
             self.stdout.write(f"   • Ошибок: {result['errors']}")
 

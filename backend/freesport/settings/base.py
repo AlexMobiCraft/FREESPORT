@@ -53,6 +53,7 @@ DJANGO_APPS = [
 THIRD_PARTY_APPS = [
     "rest_framework",
     "rest_framework_simplejwt",
+    "rest_framework_simplejwt.token_blacklist",  # Story 30.1: JWT Token Blacklist
     "corsheaders",
     "django_redis",
     "drf_spectacular",
@@ -167,12 +168,19 @@ REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
 
-# Конфигурация JWT согласно Story 1.3
+# ============================================================================
+# JWT Authentication Configuration (Story 1.3, Story 30.1)
+# ============================================================================
+# Story 30.1: JWT Token Blacklist Setup
+# - ROTATE_REFRESH_TOKENS: создаёт новый refresh токен при каждом обновлении
+# - BLACKLIST_AFTER_ROTATION: автоматически добавляет старый токен в blacklist
+# - Требует приложение 'rest_framework_simplejwt.token_blacklist' в INSTALLED_APPS
+# - Таблицы: token_blacklist_outstandingtoken, token_blacklist_blacklistedtoken
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
-    "ROTATE_REFRESH_TOKENS": True,
-    "BLACKLIST_AFTER_ROTATION": True,
+    "ROTATE_REFRESH_TOKENS": True,  # Story 30.1: Ротация refresh токенов
+    "BLACKLIST_AFTER_ROTATION": True,  # Story 30.1: Автоматический blacklist
     "UPDATE_LAST_LOGIN": True,
     "ALGORITHM": "HS256",
     "SIGNING_KEY": SECRET_KEY,

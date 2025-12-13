@@ -68,7 +68,8 @@
       "Bash(if not exist \"frontend\\src\\app\\(auth)\\password-reset\" mkdir \"frontend\\src\\app\\(auth)\\password-reset\")",
       "Bash(npm ls:*)",
       "Bash(Select-String -Pattern \"(PASS|FAIL|passed|failed|Test Files|Tests )\")",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(move \"docs\\epics\\epic-30-backend-logout.md\" \"docs\\epics\\epic-30\"\" && move \"docsepicsepic-31-frontend-logout.md\" \"docsepicsepic-31\"\")"
     ],
     "deny": [],
     "ask": [],

@@ -55,7 +55,15 @@ def run_selective_import_task(
             raise ValueError(error_msg)
 
     results: list[dict[str, str]] = []
-    import_order = ["catalog", "attributes", "variants", "stocks", "prices", "customers", "images"]
+    import_order = [
+        "catalog",
+        "attributes",
+        "variants",
+        "stocks",
+        "prices",
+        "customers",
+        "images",
+    ]
 
     try:
         for import_type in import_order:
@@ -114,8 +122,10 @@ def _execute_import_type(import_type: str, task_id: str) -> dict[str, str]:
         logger.info(f"[Task {task_id}] Запуск import_products_from_1c --file-type=all")
         call_command(
             "import_products_from_1c",
-            "--file-type", "all",
-            "--celery-task-id", task_id,
+            "--file-type",
+            "all",
+            "--celery-task-id",
+            task_id,
         )
         return {"type": "catalog", "message": "Каталог импортирован"}
 
@@ -128,11 +138,15 @@ def _execute_import_type(import_type: str, task_id: str) -> dict[str, str]:
         }
 
     elif import_type == "stocks":
-        logger.info(f"[Task {task_id}] Запуск import_products_from_1c --file-type=rests")
+        logger.info(
+            f"[Task {task_id}] Запуск import_products_from_1c --file-type=rests"
+        )
         call_command(
             "import_products_from_1c",
-            "--file-type", "rests",
-            "--celery-task-id", task_id,
+            "--file-type",
+            "rests",
+            "--celery-task-id",
+            task_id,
         )
         return {"type": "stocks", "message": "Остатки обновлены"}
 
@@ -142,8 +156,10 @@ def _execute_import_type(import_type: str, task_id: str) -> dict[str, str]:
         )
         call_command(
             "import_products_from_1c",
-            "--file-type", "prices",
-            "--celery-task-id", task_id,
+            "--file-type",
+            "prices",
+            "--celery-task-id",
+            task_id,
         )
         return {"type": "prices", "message": "Цены обновлены"}
 
@@ -162,7 +178,8 @@ def _execute_import_type(import_type: str, task_id: str) -> dict[str, str]:
         call_command(
             "import_products_from_1c",
             "--variants-only",
-            "--celery-task-id", task_id,
+            "--celery-task-id",
+            task_id,
         )
         return {"type": "variants", "message": "Варианты товаров импортированы"}
 

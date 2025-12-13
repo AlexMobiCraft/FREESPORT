@@ -162,7 +162,7 @@ docs/
 
 **Local Development:**
 
-docker compose -f docker/docker-compose.yml
+docker compose --env-file .env -f docker/docker-compose.yml
 
 **Production:**
 
@@ -179,13 +179,13 @@ docker compose --env-file .env.prod -f docker/docker-compose.prod.yml
 cd docker && docker compose up \-d \--build
 
 \# ИЛИ из корневой директории:
-docker compose -f docker/docker-compose.yml up -d --build
+docker compose --env-file .env -f docker/docker-compose.yml up -d --build
 
 \# Остановка и удаление всех сервисов
 cd docker && docker compose down
 
 \# ИЛИ из корневой директории:
-docker compose -f docker/docker-compose.yml down
+docker compose --env-file .env -f docker/docker-compose.yml down
 
 Будут запущены следующие сервисы:
 
@@ -393,13 +393,6 @@ cd docker && docker-compose exec backend python manage.py import_customers_from_
 * **Pytest настройки**: `--create-db --nomigrations` для быстрой изоляции
 
 **Обязательные правила для разработчиков:** см. детальные примеры в `backend/docs/testing-standards.md` разделе 8.5
-
-**Результат внедрения:**
-
-* 🚀 100% стабильность тестов без flaky failures
-* ⚡ Высокая производительность через оптимизированную очистку
-* 🔄 Поддержка параллельного выполнения без конфликтов
-* 📊 Улучшение с 49 failed/256 passed до стабильных результатов
 
 ## **Настройки и конфигурация**
 
@@ -672,17 +665,6 @@ make test                   # Все тесты
 
 **ВАЖНО:** Нарушение стандартов типизации блокирует merge в develop/main ветки.
 
-## **Текущее состояние проекта (обновлено 2025-11-18)**
-
-### **Завершенные Epic:**
-
-* **Epic 1:** Фундамент проекта (Git, Docker, CI/CD)
-* **Epic 2:** Backend API (Users, Products, Orders, Cart, Pages)
-* **Epic 3:** Интеграция с 1С (импорт товаров, контрагентов, синхронизация)
-* **Epic 9:** Личный кабинет пользователя
-* **Epic 10:** Каталог товаров и фильтрация
-* **Epic 11:** Динамические блоки и подписка (в процессе завершения)
-
 ### **Технические достижения:**
 
 ✅ **Backend:**
@@ -696,7 +678,7 @@ make test                   # Все тесты
 
 ✅ **Frontend:**
 
-* Next.js 15.4.6 с App Router
+* Next.js 15.5.7 с App Router
 * React 19.1.0 Server Components
 * Tailwind CSS 4.0 для стилизации
 * Vitest для unit/integration тестирования
@@ -711,20 +693,14 @@ make test                   # Все тесты
 * Автоматизированное тестирование
 * Система документации с валидацией
 
-### **Активная разработка:**
-
-🚧 Story 11.3: Форма подписки с валидацией
-🚧 Оптимизация производительности frontend
-🚧 Расширение coverage тестами
-
 ### **Команды для проверки качества кода:**
 
 ```bash
 # === ОБЯЗАТЕЛЬНЫЕ проверки перед коммитом ===
-docker-compose -f docker-compose.test.yml run --rm backend pytest --no-cov -q  # Быстрые тесты
-docker-compose -f docker-compose.test.yml run --rm backend mypy apps/           # Проверка типов
-docker-compose -f docker-compose.test.yml run --rm backend black --check apps/ # Форматирование
-docker-compose -f docker-compose.test.yml run --rm backend flake8 apps/         # Линтинг
+docker compose --env-file .env -f docker/docker-compose.test.yml run --rm backend pytest --no-cov -q  # Быстрые тесты
+docker compose --env-file .env -f docker/docker-compose.test.yml run --rm backend mypy apps/           # Проверка типов
+docker compose --env-file .env -f docker/docker-compose.test.yml run --rm backend black --check apps/ # Форматирование
+docker compose --env-file .env -f docker/docker-compose.test.yml run --rm backend flake8 apps/         # Линтинг
 
 # === ПОЛНАЯ проверка качества ===
 make test                    # Все тесты с покрытием
@@ -732,8 +708,8 @@ make lint                    # Все проверки стиля кода
 make type-check             # Полная проверка типов
 
 # === Исправление проблем ===  
-docker-compose -f docker-compose.test.yml run --rm backend black apps/         # Автоформатирование
-docker-compose -f docker-compose.test.yml run --rm backend isort apps/         # Сортировка импортов
+docker compose --env-file .env -f docker/docker-compose.test.yml run --rm backend black apps/         # Автоформатирование
+docker compose --env-file .env -f docker/docker-compose.test.yml run --rm backend isort apps/         # Сортировка импортов
 ```
 
 ### **Pre-commit хуки (рекомендуется):**

@@ -81,12 +81,12 @@ class Command(BaseCommand):
 
         except Exception as e:
             self.stdout.write(self.style.ERROR(f"\n❌ Ошибка отправки: {e}"))
-            self.stdout.write(
-                self.style.NOTICE("\nВозможные причины:")
-            )
+            self.stdout.write(self.style.NOTICE("\nВозможные причины:"))
             self.stdout.write("  - Неверные EMAIL_HOST_USER или EMAIL_HOST_PASSWORD")
             self.stdout.write("  - EMAIL_HOST или EMAIL_PORT недоступны")
-            self.stdout.write("  - Для Gmail: нужен App Password вместо обычного пароля")
+            self.stdout.write(
+                "  - Для Gmail: нужен App Password вместо обычного пароля"
+            )
             self.stdout.write("  - Firewall блокирует исходящие соединения на порт 587")
             raise
 

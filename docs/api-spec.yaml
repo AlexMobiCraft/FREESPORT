@@ -179,6 +179,66 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /auth/logout/:
+    post:
+      tags: [Authentication]
+      summary: Logout пользователя
+      description: |
+        Инвалидация refresh токена через blacklist механизм.
+        После logout токен не может использоваться для получения новых access tokens.
+
+        **Механизм работы:**
+        1. Клиент отправляет refresh token в теле запроса
+        2. Backend проверяет валидность токена
+        3. Токен добавляется в blacklist таблицу
+        4. Последующие попытки использовать токен будут отклонены
+
+        **Требования:**
+        - Пользователь должен быть аутентифицирован (Bearer token в заголовке)
+        - Refresh token должен быть валидным и не истекшим
+
+      security:
+        - BearerAuth: []
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh]
+              properties:
+                refresh:
+                  type: string
+                  description: Refresh token для инвалидации
+                  example: "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6MTcwNzg0OTYwMCwiaWF0IjoxNzA1MjU3NjAwLCJqdGkiOiJhYmNkZWYxMjM0NTYiLCJ1c2VyX2lkIjoxfQ.xyz123"
+
+      responses:
+        '204':
+          description: Токен успешно инвалидирован. Пользователь разлогинен.
+
+        '400':
+          description: Невалидный, истекший или уже инвалидированный токен
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Invalid or expired token"
+
+        '401':
+          description: Пользователь не аутентифицирован
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+                    example: "Authentication credentials were not provided."
+
   # =============================================================================
   # USER MANAGEMENT
   # =============================================================================

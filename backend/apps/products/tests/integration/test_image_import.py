@@ -5,18 +5,17 @@ Tests that both path formats ('import_files/xx/file.jpg' and 'xx/file.jpg')
 produce the same result in media storage.
 """
 
-import pytest
-from pathlib import Path
-from unittest.mock import patch, MagicMock
 from decimal import Decimal
+from pathlib import Path
+from unittest.mock import MagicMock, patch
 
+import pytest
 from django.test import override_settings
 
-from apps.products.models import Product, ProductVariant, Brand, Category, ImportSession
-from apps.products.services.variant_import import (
-    VariantImportProcessor,
-    normalize_image_path,
-)
+from apps.products.models import (Brand, Category, ImportSession, Product,
+                                  ProductVariant)
+from apps.products.services.variant_import import (VariantImportProcessor,
+                                                   normalize_image_path)
 
 
 @pytest.fixture

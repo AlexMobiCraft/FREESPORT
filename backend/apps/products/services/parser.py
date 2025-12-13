@@ -271,10 +271,12 @@ class XMLDataParser:
                         and value_id
                         and value_id != "00000000-0000-0000-0000-000000000000"
                     ):
-                        property_values_list.append({
-                            "property_id": property_id,
-                            "value_id": value_id,
-                        })
+                        property_values_list.append(
+                            {
+                                "property_id": property_id,
+                                "value_id": value_id,
+                            }
+                        )
 
             if property_values_list:
                 goods_data["property_values"] = property_values_list

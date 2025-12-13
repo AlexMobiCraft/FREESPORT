@@ -22,21 +22,17 @@ class BrandPageNumberPagination(CustomPageNumberPagination):
     max_page_size = 500
 
 
-from django.db.models import Count, Exists, OuterRef, Prefetch, Q, Min, Sum
+from django.db.models import Count, Exists, Min, OuterRef, Prefetch, Q, Sum
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 
 from .filters import ProductFilter
-from .models import Attribute, AttributeValue, Brand, Category, Product, ProductVariant
-from .serializers import (
-    AttributeFilterSerializer,
-    BrandSerializer,
-    CategorySerializer,
-    CategoryTreeSerializer,
-    ProductDetailSerializer,
-    ProductListSerializer,
-)
+from .models import (Attribute, AttributeValue, Brand, Category, Product,
+                     ProductVariant)
+from .serializers import (AttributeFilterSerializer, BrandSerializer,
+                          CategorySerializer, CategoryTreeSerializer,
+                          ProductDetailSerializer, ProductListSerializer)
 from .services.facets import AttributeFacetService
 
 
@@ -79,8 +75,7 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
                 total_stock=Sum("variants__stock_quantity"),
                 has_stock=Exists(
                     ProductVariant.objects.filter(
-                        product=OuterRef("pk"),
-                        stock_quantity__gt=0
+                        product=OuterRef("pk"), stock_quantity__gt=0
                     )
                 ),
             )

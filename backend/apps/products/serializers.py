@@ -10,16 +10,8 @@ from typing import TYPE_CHECKING, Any
 from django.db.models import Count, Q
 from rest_framework import serializers
 
-from .models import (
-    Attribute,
-    AttributeValue,
-    Brand,
-    Category,
-    ColorMapping,
-    Product,
-    ProductImage,
-    ProductVariant,
-)
+from .models import (Attribute, AttributeValue, Brand, Category, ColorMapping,
+                     Product, ProductImage, ProductVariant)
 
 
 class AttributeValueSerializer(serializers.ModelSerializer):
@@ -142,7 +134,9 @@ class ProductVariantSerializer(serializers.ModelSerializer):
             # Добавляем /media/ префикс если путь относительный
             if img_url.startswith("/products/"):
                 result.append(f"/media{img_url}")
-            elif not img_url.startswith("/media/") and not img_url.startswith(("http://", "https://")):
+            elif not img_url.startswith("/media/") and not img_url.startswith(
+                ("http://", "https://")
+            ):
                 result.append(f"/media/{img_url.lstrip('/')}")
             else:
                 result.append(img_url)
@@ -477,7 +471,7 @@ class ProductListSerializer(serializers.ModelSerializer):
     def get_main_image(self, obj: Product) -> str | None:
         """
         Получить основное изображение из первого варианта или base_images
-        
+
         Возвращает относительный URL с /media/ префиксом
         """
         variant = self._get_first_variant(obj)
@@ -490,7 +484,9 @@ class ProductListSerializer(serializers.ModelSerializer):
             # Добавляем /media/ префикс если путь начинается с /products/
             if img_url.startswith("/products/"):
                 return f"/media{img_url}"
-            elif not img_url.startswith("/media/") and not img_url.startswith(("http://", "https://")):
+            elif not img_url.startswith("/media/") and not img_url.startswith(
+                ("http://", "https://")
+            ):
                 return f"/media/{img_url.lstrip('/')}"
             return img_url
         return None
@@ -548,7 +544,7 @@ class ProductDetailSerializer(ProductListSerializer):
 
         Product использует base_images (JSONField) - список URL изображений из 1С.
         Первое изображение считается основным.
-        
+
         Пути в base_images хранятся как относительные от /media/:
         - /products/base/... → /media/products/base/...
         """
@@ -559,7 +555,7 @@ class ProductDetailSerializer(ProductListSerializer):
         if obj.base_images and isinstance(obj.base_images, list):
             for idx, img_url in enumerate(obj.base_images):
                 url = img_url
-                
+
                 # Формируем абсолютный URL от корня сервера
                 if not img_url.startswith(("http://", "https://")):
                     # Добавляем /media/ префикс если путь начинается с /products/
@@ -567,7 +563,7 @@ class ProductDetailSerializer(ProductListSerializer):
                         img_url = f"/media{img_url}"
                     elif not img_url.startswith("/media/"):
                         img_url = f"/media/{img_url.lstrip('/')}"
-                    
+
                     # Строим абсолютный URL от корня
                     if request and hasattr(request, "build_absolute_uri"):
                         url = request.build_absolute_uri(img_url)

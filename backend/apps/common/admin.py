@@ -13,7 +13,8 @@ from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
 from django.utils import timezone
 
-from .models import AuditLog, CustomerSyncLog, News, Newsletter, SyncConflict, SyncLog
+from .models import (AuditLog, CustomerSyncLog, News, Newsletter, SyncConflict,
+                     SyncLog)
 from .services import CustomerSyncMonitor
 
 

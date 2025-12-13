@@ -21,7 +21,8 @@ from django.core.management import call_command
 from django.core.management.base import BaseCommand, CommandError
 from tqdm import tqdm
 
-from apps.products.models import Brand, Category, ImportSession, Product, ProductVariant
+from apps.products.models import (Brand, Category, ImportSession, Product,
+                                  ProductVariant)
 from apps.products.services.parser import XMLDataParser
 from apps.products.services.variant_import import VariantImportProcessor
 
@@ -171,8 +172,6 @@ class Command(BaseCommand):
                 self.style.WARNING("🔍 DRY RUN MODE: Изменения не будут сохранены в БД")
             )
             return self._dry_run_import(data_dir)
-
-
 
         # Автоматический backup перед полным импортом
         if not dry_run and file_type == "all" and not skip_backup:
@@ -690,5 +689,3 @@ class Command(BaseCommand):
             self.style.SUCCESS("✅ DRY RUN ЗАВЕРШЕН: Структура файлов корректна")
         )
         self.stdout.write("=" * 60)
-
-

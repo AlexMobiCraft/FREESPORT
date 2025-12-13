@@ -5,9 +5,9 @@
 BREAKING CHANGE: Очищает все существующие корзины перед миграцией.
 """
 
-from django.db import migrations, models
 import django.core.validators
 import django.db.models.deletion
+from django.db import migrations, models
 
 
 def clear_all_carts(apps, schema_editor):
@@ -17,7 +17,6 @@ def clear_all_carts(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("cart", "0004_cart_cart_must_have_user_or_session"),
         ("products", "0033_alter_attributevalue_normalized_value"),

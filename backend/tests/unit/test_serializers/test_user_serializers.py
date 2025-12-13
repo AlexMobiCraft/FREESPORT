@@ -8,6 +8,7 @@ from django.contrib.auth import get_user_model
 from apps.users.serializers import (
     AddressSerializer,
     FavoriteSerializer,
+    LogoutSerializer,
     OrderHistorySerializer,
     UserDashboardSerializer,
     UserLoginSerializer,
@@ -427,3 +428,51 @@ class TestOrderHistorySerializer:
         ]
 
         assert set(readonly_fields) == set(expected_fields)
+
+
+@pytest.mark.unit
+class TestLogoutSerializer:
+    """Unit-тесты для LogoutSerializer - Story 30.2"""
+
+    def test_valid_refresh_token(self):
+        """Валидный refresh token проходит валидацию"""
+        data = {"refresh": "valid-token-string-here"}
+        serializer = LogoutSerializer(data=data)
+
+        assert serializer.is_valid()
+        assert serializer.validated_data["refresh"] == "valid-token-string-here"
+
+    def test_missing_refresh_token(self):
+        """Отсутствие refresh токена вызывает ошибку"""
+        data = {}
+        serializer = LogoutSerializer(data=data)
+
+        assert not serializer.is_valid()
+        assert "refresh" in serializer.errors
+
+    def test_empty_refresh_token(self):
+        """Пустой refresh токен вызывает ошибку"""
+        data = {"refresh": ""}
+        serializer = LogoutSerializer(data=data)
+
+        assert not serializer.is_valid()
+        assert "refresh" in serializer.errors
+
+    def test_none_refresh_token(self):
+        """None в качестве refresh токена вызывает ошибку"""
+        data = {"refresh": None}
+        serializer = LogoutSerializer(data=data)
+
+        assert not serializer.is_valid()
+        assert "refresh" in serializer.errors
+
+    def test_whitespace_only_refresh_token(self):
+        """Токен из пробелов проходит базовую валидацию CharField"""
+        # CharField считает пробелы валидным значением
+        # Реальная валидация токена произойдёт в view при создании RefreshToken
+        data = {"refresh": "   "}
+        serializer = LogoutSerializer(data=data)
+
+        # CharField не отклонит пробелы, но custom validator должен
+        assert not serializer.is_valid()
+        assert "refresh" in serializer.errors

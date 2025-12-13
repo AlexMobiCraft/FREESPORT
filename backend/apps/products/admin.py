@@ -8,28 +8,18 @@ import logging
 from typing import Any
 
 from django.contrib import admin, messages
+from django.contrib.admin.models import CHANGE, LogEntry
+from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
 from django.db.models import Count, QuerySet
 from django.http import HttpRequest, HttpResponseRedirect
 from django.shortcuts import render
 
-from django.contrib.admin.models import CHANGE, LogEntry
-from django.contrib.contenttypes.models import ContentType
-
-from .forms import MergeAttributesActionForm, MergeBrandsActionForm, TransferMappingsActionForm
-from .models import (
-    Attribute,
-    Attribute1CMapping,
-    AttributeValue,
-    AttributeValue1CMapping,
-    Brand,
-    Brand1CMapping,
-    Category,
-    ColorMapping,
-    Product,
-    ProductImage,
-    ProductVariant,
-)
+from .forms import (MergeAttributesActionForm, MergeBrandsActionForm,
+                    TransferMappingsActionForm)
+from .models import (Attribute, Attribute1CMapping, AttributeValue,
+                     AttributeValue1CMapping, Brand, Brand1CMapping, Category,
+                     ColorMapping, Product, ProductImage, ProductVariant)
 
 logger = logging.getLogger(__name__)
 
@@ -749,6 +739,7 @@ class AttributeAdmin(admin.ModelAdmin):
                 "action_checkbox_name": admin.helpers.ACTION_CHECKBOX_NAME,  # type: ignore
             },
         )
+
 
 class AttributeValue1CMappingInline(admin.TabularInline):
     """Inline для отображения маппингов 1С в карточке AttributeValue"""

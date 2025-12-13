@@ -483,3 +483,21 @@ class ValidateTokenSerializer(serializers.Serializer):
 
     uid = serializers.CharField()
     token = serializers.CharField()
+
+
+class LogoutSerializer(serializers.Serializer):
+    """
+    Serializer для logout endpoint.
+
+    Валидирует refresh token для его инвалидации через blacklist механизм.
+    """
+
+    refresh = serializers.CharField(
+        required=True, help_text="Refresh token для инвалидации"
+    )
+
+    def validate_refresh(self, value: str) -> str:
+        """Валидация refresh токена"""
+        if not value:
+            raise serializers.ValidationError("Refresh token не может быть пустым")
+        return value

@@ -5,25 +5,25 @@ Views для аутентификации пользователей
 import logging
 
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
-from drf_spectacular.utils import OpenApiExample, OpenApiResponse, extend_schema
+from drf_spectacular.utils import (OpenApiExample, OpenApiResponse,
+                                   extend_schema)
 from rest_framework import permissions, status
 from rest_framework.exceptions import PermissionDenied
+from rest_framework.generics import GenericAPIView
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 
 logger = logging.getLogger("apps.users.auth")
 
 # User model is used in the code
-from ..serializers import (
-    PasswordResetConfirmSerializer,
-    PasswordResetRequestSerializer,
-    UserLoginSerializer,
-    UserRegistrationSerializer,
-    ValidateTokenSerializer,
-)
+from ..serializers import (LogoutSerializer, PasswordResetConfirmSerializer,
+                           PasswordResetRequestSerializer, UserLoginSerializer,
+                           UserRegistrationSerializer, ValidateTokenSerializer)
 from ..tokens import password_reset_token
 
 User = get_user_model()
@@ -435,3 +435,127 @@ class PasswordResetConfirmView(APIView):
                 )
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+def get_client_ip(request) -> str:
+    """
+    Получить IP адрес клиента с учетом proxy серверов.
+
+    Проверяет заголовок X-Forwarded-For для случаев, когда запрос
+    проходит через reverse proxy (Nginx, load balancer).
+
+    Args:
+        request: Django/DRF request object
+
+    Returns:
+        str: IP адрес клиента
+    """
+    x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
+    if x_forwarded_for:
+        ip = x_forwarded_for.split(",")[0].strip()
+    else:
+        ip = request.META.get("REMOTE_ADDR", "unknown")
+    return ip
+
+
+class LogoutView(GenericAPIView):
+    """
+    Выход пользователя из системы через blacklisting refresh токена.
+
+    Использует simplejwt token blacklist механизм для инвалидации
+    refresh токена, что предотвращает получение новых access токенов.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = LogoutSerializer
+
+    @extend_schema(
+        summary="Logout пользователя",
+        description=(
+            "Инвалидация refresh токена через blacklist механизм.\n\n"
+            "После успешного logout refresh токен больше не может быть использован "
+            "для получения новых access токенов. Access токен остаётся валидным "
+            "до истечения срока действия (short-lived).\n\n"
+            "Все события logout логируются с audit trail информацией: "
+            "user_id, username, timestamp (ISO 8601), IP address."
+        ),
+        request=LogoutSerializer,
+        responses={
+            204: OpenApiResponse(
+                description="Logout успешен, токен добавлен в blacklist",
+                examples=[
+                    OpenApiExample(
+                        name="successful_logout",
+                        value={},
+                        response_only=True,
+                    )
+                ],
+            ),
+            400: OpenApiResponse(
+                description="Невалидный или истёкший refresh токен",
+                examples=[
+                    OpenApiExample(
+                        name="invalid_token",
+                        value={"error": "Invalid or expired token"},
+                    )
+                ],
+            ),
+            401: OpenApiResponse(
+                description="Пользователь не аутентифицирован",
+                examples=[
+                    OpenApiExample(
+                        name="unauthenticated",
+                        value={
+                            "detail": "Authentication credentials were not provided."
+                        },
+                    )
+                ],
+            ),
+        },
+        tags=["Authentication"],
+    )
+    def post(self, request, *args, **kwargs) -> Response:
+        """
+        Обработка logout запроса с blacklisting токена.
+
+        Returns:
+            Response: 204 No Content при успехе, 400 Bad Request при ошибке
+        """
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            # Создаём объект токена из validated refresh string
+            token = RefreshToken(serializer.validated_data["refresh"])
+
+            # Добавляем токен в blacklist
+            token.blacklist()
+
+            # Audit logging - успешный logout
+            logger.info(
+                f"[AUDIT] User logout successful | "
+                f"user_id={request.user.id} | "
+                f"username={request.user.username} | "
+                f"timestamp={timezone.now().isoformat()} | "
+                f"ip={get_client_ip(request)}"
+            )
+
+            return Response(status=status.HTTP_204_NO_CONTENT)
+
+        except TokenError as e:
+            # Audit logging - неуспешная попытка logout
+            user_id_value = (
+                request.user.id if request.user.is_authenticated else "anonymous"
+            )
+            logger.warning(
+                f"[AUDIT] User logout failed | "
+                f"user_id={user_id_value} | "
+                f"error={str(e)} | "
+                f"timestamp={timezone.now().isoformat()} | "
+                f"ip={get_client_ip(request)}"
+            )
+
+            return Response(
+                {"error": "Invalid or expired token"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )

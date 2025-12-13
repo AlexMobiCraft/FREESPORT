@@ -79,7 +79,5 @@ class Command(BaseCommand):
                     )
 
         except Exception as e:
-            self.stdout.write(
-                self.style.ERROR(f"\n❌ Ошибка при удалении: {str(e)}")
-            )
+            self.stdout.write(self.style.ERROR(f"\n❌ Ошибка при удалении: {str(e)}"))
             raise

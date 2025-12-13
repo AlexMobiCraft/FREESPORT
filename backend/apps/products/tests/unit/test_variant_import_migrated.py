@@ -13,19 +13,11 @@ from __future__ import annotations
 import pytest
 from django.db import IntegrityError
 
-from apps.products.models import (
-    Brand,
-    Brand1CMapping,
-    Category,
-    ImportSession,
-    PriceType,
-)
-from apps.products.services.variant_import import (
-    BrandData,
-    CategoryData,
-    PriceTypeData,
-    VariantImportProcessor,
-)
+from apps.products.models import (Brand, Brand1CMapping, Category,
+                                  ImportSession, PriceType)
+from apps.products.services.variant_import import (BrandData, CategoryData,
+                                                   PriceTypeData,
+                                                   VariantImportProcessor)
 
 # Маркировка для всего модуля
 pytestmark = [pytest.mark.django_db, pytest.mark.unit]
@@ -152,9 +144,7 @@ class TestProcessPriceTypes:
 
         # Assert
         assert count == 3
-        assert PriceType.objects.filter(
-            onec_id__startswith=f"pt_{suffix}"
-        ).count() == 3
+        assert PriceType.objects.filter(onec_id__startswith=f"pt_{suffix}").count() == 3
 
 
 # ============================================================================
@@ -529,9 +519,7 @@ class TestProcessBrands:
         assert result["brands_created"] == 1
 
         # Новый бренд должен получить уникальный slug (с суффиксом)
-        new_brand = Brand.objects.filter(
-            name=f"Reebok {suffix}"
-        ).first()
+        new_brand = Brand.objects.filter(name=f"Reebok {suffix}").first()
         assert new_brand is not None
         # Slug должен отличаться от существующего
         assert new_brand.slug != f"reebok-{suffix}"

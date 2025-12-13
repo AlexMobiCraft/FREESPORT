@@ -12,17 +12,11 @@ from pathlib import Path
 import pytest
 from django.db import IntegrityError
 
-from apps.products.models import (
-    Attribute,
-    Attribute1CMapping,
-    AttributeValue,
-    AttributeValue1CMapping,
-)
+from apps.products.models import (Attribute, Attribute1CMapping,
+                                  AttributeValue, AttributeValue1CMapping)
 from apps.products.services.attribute_import import AttributeImportService
-from apps.products.utils.attributes import (
-    normalize_attribute_name,
-    normalize_attribute_value,
-)
+from apps.products.utils.attributes import (normalize_attribute_name,
+                                            normalize_attribute_value)
 
 # Глобальный счетчик для обеспечения уникальности в тестах
 _unique_counter = 0
@@ -375,9 +369,12 @@ class TestAttributeValueModelUpdates:
 
         # Оба значения должны существовать
         assert value1.normalized_value == value2.normalized_value
-        assert AttributeValue.objects.filter(
-            normalized_value=value1.normalized_value
-        ).count() == 2
+        assert (
+            AttributeValue.objects.filter(
+                normalized_value=value1.normalized_value
+            ).count()
+            == 2
+        )
 
 
 @pytest.mark.integration
@@ -539,7 +536,8 @@ class TestAttributeImportServiceDeduplication:
 
     def test_deduplication_by_normalized_name(self) -> None:
         """Тест дедупликации атрибутов по normalized_name"""
-        from apps.products.services.attribute_import import AttributeImportService
+        from apps.products.services.attribute_import import \
+            AttributeImportService
         from tests.conftest import get_unique_suffix
 
         suffix = get_unique_suffix()
@@ -564,14 +562,20 @@ class TestAttributeImportServiceDeduplication:
         service._save_properties(properties)
 
         # Должен быть создан только 1 атрибут
-        assert Attribute.objects.filter(
-            normalized_name=normalize_attribute_name(f"Размер-{suffix}")
-        ).count() == 1
+        assert (
+            Attribute.objects.filter(
+                normalized_name=normalize_attribute_name(f"Размер-{suffix}")
+            ).count()
+            == 1
+        )
 
         # Должно быть создано 2 маппинга
-        assert Attribute1CMapping.objects.filter(
-            onec_id__in=[f"attr1-{suffix}", f"attr2-{suffix}"]
-        ).count() == 2
+        assert (
+            Attribute1CMapping.objects.filter(
+                onec_id__in=[f"attr1-{suffix}", f"attr2-{suffix}"]
+            ).count()
+            == 2
+        )
 
         # Проверяем статистику
         stats = service.get_stats()
@@ -581,7 +585,8 @@ class TestAttributeImportServiceDeduplication:
 
     def test_value_deduplication_within_attribute(self) -> None:
         """Тест дедупликации значений атрибута"""
-        from apps.products.services.attribute_import import AttributeImportService
+        from apps.products.services.attribute_import import \
+            AttributeImportService
         from tests.conftest import get_unique_suffix
 
         suffix = get_unique_suffix()
@@ -594,8 +599,14 @@ class TestAttributeImportServiceDeduplication:
                 "type": "Справочник",
                 "values": [
                     {"onec_id": f"val1-{suffix}", "value": f"Красный-{suffix}"},
-                    {"onec_id": f"val2-{suffix}", "value": f"красный-{suffix}"},  # Дубликат
-                    {"onec_id": f"val3-{suffix}", "value": f"КРАСНЫЙ-{suffix}"},  # Дубликат
+                    {
+                        "onec_id": f"val2-{suffix}",
+                        "value": f"красный-{suffix}",
+                    },  # Дубликат
+                    {
+                        "onec_id": f"val3-{suffix}",
+                        "value": f"КРАСНЫЙ-{suffix}",
+                    },  # Дубликат
                 ],
             },
         ]
@@ -610,9 +621,12 @@ class TestAttributeImportServiceDeduplication:
         assert attribute.values.count() == 1
 
         # Должно быть создано 3 маппинга значений
-        assert AttributeValue1CMapping.objects.filter(
-            onec_id__in=[f"val1-{suffix}", f"val2-{suffix}", f"val3-{suffix}"]
-        ).count() == 3
+        assert (
+            AttributeValue1CMapping.objects.filter(
+                onec_id__in=[f"val1-{suffix}", f"val2-{suffix}", f"val3-{suffix}"]
+            ).count()
+            == 3
+        )
 
         # Проверяем статистику
         stats = service.get_stats()
@@ -622,7 +636,8 @@ class TestAttributeImportServiceDeduplication:
 
     def test_different_sources_create_separate_mappings(self) -> None:
         """Тест что разные источники создают отдельные маппинги"""
-        from apps.products.services.attribute_import import AttributeImportService
+        from apps.products.services.attribute_import import \
+            AttributeImportService
         from tests.conftest import get_unique_suffix
 
         suffix = get_unique_suffix()
@@ -659,7 +674,8 @@ class TestAttributeImportServiceDeduplication:
 
     def test_dry_run_mode_does_not_save(self) -> None:
         """Тест что dry_run режим не сохраняет данные"""
-        from apps.products.services.attribute_import import AttributeImportService
+        from apps.products.services.attribute_import import \
+            AttributeImportService
         from tests.conftest import get_unique_suffix
 
         suffix = get_unique_suffix()
@@ -691,7 +707,8 @@ class TestAttributeImportServiceDeduplication:
 
     def test_new_attributes_created_with_is_active_false(self) -> None:
         """Тест что новые атрибуты создаются с is_active=False"""
-        from apps.products.services.attribute_import import AttributeImportService
+        from apps.products.services.attribute_import import \
+            AttributeImportService
         from tests.conftest import get_unique_suffix
 
         suffix = get_unique_suffix()
@@ -716,7 +733,8 @@ class TestAttributeImportServiceDeduplication:
 
     def test_existing_mapping_reuses_attribute(self) -> None:
         """Тест что существующий маппинг переиспользует атрибут"""
-        from apps.products.services.attribute_import import AttributeImportService
+        from apps.products.services.attribute_import import \
+            AttributeImportService
         from tests.conftest import get_unique_suffix
 
         suffix = get_unique_suffix()
@@ -754,7 +772,8 @@ class TestAttributeImportServiceDeduplication:
 
     def test_complex_import_scenario(self) -> None:
         """Комплексный тест импорта с множественной дедупликацией"""
-        from apps.products.services.attribute_import import AttributeImportService
+        from apps.products.services.attribute_import import \
+            AttributeImportService
         from tests.conftest import get_unique_suffix
 
         suffix = get_unique_suffix()
@@ -775,7 +794,10 @@ class TestAttributeImportServiceDeduplication:
                 "name": f"РАЗМЕР-{suffix}",  # Дубликат атрибута
                 "type": "Справочник",
                 "values": [
-                    {"onec_id": f"xl3-{suffix}", "value": f"XL-{suffix}"},  # Дубликат значения
+                    {
+                        "onec_id": f"xl3-{suffix}",
+                        "value": f"XL-{suffix}",
+                    },  # Дубликат значения
                     {"onec_id": f"l1-{suffix}", "value": f"L-{suffix}"},
                 ],
             },
@@ -785,9 +807,12 @@ class TestAttributeImportServiceDeduplication:
         service._save_properties(properties)
 
         # Должен быть создан 1 атрибут
-        assert Attribute.objects.filter(
-            normalized_name=normalize_attribute_name(f"Размер-{suffix}")
-        ).count() == 1
+        assert (
+            Attribute.objects.filter(
+                normalized_name=normalize_attribute_name(f"Размер-{suffix}")
+            ).count()
+            == 1
+        )
 
         attribute = Attribute.objects.get(
             normalized_name=normalize_attribute_name(f"Размер-{suffix}")
@@ -818,9 +843,7 @@ class TestAttributeImportServiceValidation:
         with pytest.raises(FileNotFoundError, match="Directory not found"):
             service.import_from_directory("/nonexistent/path")
 
-    def test_import_from_directory_raises_on_file_not_dir(
-        self, tmp_path: Path
-    ) -> None:
+    def test_import_from_directory_raises_on_file_not_dir(self, tmp_path: Path) -> None:
         """Тест что import_from_directory выбрасывает исключение если путь - файл, а не директория"""
         # Создаем временный файл
         temp_file = tmp_path / "test.txt"
