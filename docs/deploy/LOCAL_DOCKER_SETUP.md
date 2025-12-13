@@ -31,16 +31,17 @@ cp .env.example .env
 .\scripts\server\create-ssl-certs.ps1
 
 # 4. Запуск всех сервисов
-docker compose -f docker/docker-compose.yml up -d
+docker compose --env-file .env -f docker/docker-compose.yml up -d
 
 # 5. Проверка статуса
-docker compose -f docker/docker-compose.yml ps
+docker compose --env-file .env -f docker/docker-compose.yml ps
 ```
 
 После выполнения этих команд платформа будет доступна по адресу:
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:8001/api/v1
-- Nginx (прокси): https://localhost (с самоподписанным сертификатом)
+
+- Frontend: <http://localhost:3000>
+- Backend API: <http://localhost:8001/api/v1>
+- Nginx (прокси): <https://localhost> (с самоподписанным сертификатом)
 
 ## 📋 Подробная пошаговая инструкция
 
@@ -83,22 +84,26 @@ Nginx настроен на работу с HTTPS, поэтому необход
 1. **Создайте самоподписанные SSL сертификаты:**
 
 **Для Linux/macOS:**
+
 ```bash
 # Из корневой директории проекта выполните:
 ./scripts/server/create-ssl-certs.sh
 ```
 
 **Для Windows:**
+
 ```powershell
 # Из корневой директории проекта выполните в PowerShell:
 .\scripts\server\create-ssl-certs.ps1
 ```
 
 **Требования для Windows:**
+
 - Установленный OpenSSL (входит в состав Git for Windows)
 - PowerShell 5.1 или новее
 
 Эти скрипты создадут самоподписанные сертификаты в директории `docker/nginx/ssl/`:
+
 - `cert.pem` - сертификат
 - `key.pem` - приватный ключ
 
@@ -126,17 +131,17 @@ cd docker
 
 ```bash
 # Запуск всех сервисов в фоновом режиме
-docker compose -f docker/docker-compose.yml up -d
+docker compose --env-file .env -f docker/docker-compose.yml up -d
 
 # Или для просмотра логов в реальном времени
-docker compose -f docker/docker-compose.yml up
+docker compose --env-file .env -f docker/docker-compose.yml up
 ```
 
 4. **Дождитесь запуска всех сервисов (может занять несколько минут при первом запуске):**
 
 ```bash
 # Проверка статуса всех контейнеров
-docker compose -f docker/docker-compose.yml ps
+docker compose --env-file .env -f docker/docker-compose.yml ps
 ```
 
 Ожидаемый результат:
@@ -157,19 +162,19 @@ freesport-celery-beat backend                "celery -A freesport…"   celery-b
 1. **Выполните миграции базы данных:**
 
 ```bash
-docker compose -f docker/docker-compose.yml exec backend python manage.py migrate
+docker compose --env-file .env -f docker/docker-compose.yml exec backend python manage.py migrate
 ```
 
 2. **Создайте суперпользователя (опционально):**
 
 ```bash
-docker compose -f docker/docker-compose.yml exec backend python manage.py createsuperuser
+docker compose --env-file .env -f docker/docker-compose.yml exec backend python manage.py createsuperuser
 ```
 
 3. **Соберите статические файлы:**
 
 ```bash
-docker compose -f docker/docker-compose.yml exec backend python manage.py collectstatic --no-input
+docker compose --env-file .env -f docker/docker-compose.yml exec backend python manage.py collectstatic --no-input
 ```
 
 ### Шаг 4: Проверка работоспособности
@@ -205,19 +210,19 @@ docker compose logs db
 
 ```bash
 # Запуск всех сервисов
-docker compose -f docker/docker-compose.yml up -d
+docker compose --env-file .env -f docker/docker-compose.yml up -d
 
 # Остановка всех сервисов
-docker compose -f docker/docker-compose.yml down
+docker compose --env-file .env -f docker/docker-compose.yml down
 
 # Перезапуск всех сервисов
-docker compose -f docker/docker-compose.yml restart
+docker compose --env-file .env -f docker/docker-compose.yml restart
 
 # Перезапуск конкретного сервиса
-docker compose -f docker/docker-compose.yml restart backend
+docker compose --env-file .env -f docker/docker-compose.yml restart backend
 
 # Просмотр статуса
-docker compose -f docker/docker-compose.yml ps
+docker compose --env-file .env -f docker/docker-compose.yml ps
 
 # Просмотр логов
 docker compose logs -f  # с отслеживанием в реальном времени
@@ -228,52 +233,52 @@ docker compose logs backend  # конкретного сервиса
 
 ```bash
 # Подключение к PostgreSQL
-docker compose -f docker/docker-compose.yml exec db psql -U postgres -d freesport
+docker compose --env-file .env -f docker/docker-compose.yml exec db psql -U postgres -d freesport
 
 # Создание резервной копии БД
-docker compose -f docker/docker-compose.yml exec db pg_dump -U postgres freesport > backup.sql
+docker compose --env-file .env -f docker/docker-compose.yml exec db pg_dump -U postgres freesport > backup.sql
 
 # Восстановление из резервной копии
-docker compose -f docker/docker-compose.yml exec -T db psql -U postgres freesport < backup.sql
+docker compose --env-file .env -f docker/docker-compose.yml exec -T db psql -U postgres freesport < backup.sql
 ```
 
 ### Работа с Redis
 
 ```bash
 # Подключение к Redis CLI
-docker compose -f docker/docker-compose.yml exec redis redis-cli -a redis123
+docker compose --env-file .env -f docker/docker-compose.yml exec redis redis-cli -a redis123
 
 # Проверка состояния Redis
-docker compose -f docker/docker-compose.yml exec redis redis-cli -a redis123 ping
+docker compose --env-file .env -f docker/docker-compose.yml exec redis redis-cli -a redis123 ping
 ```
 
 ### Работа с Django
 
 ```bash
 # Выполнение миграций
-docker compose -f docker/docker-compose.yml exec backend python manage.py migrate
+docker compose --env-file .env -f docker/docker-compose.yml exec backend python manage.py migrate
 
 # Создание суперпользователя
-docker compose -f docker/docker-compose.yml exec backend python manage.py createsuperuser
+docker compose --env-file .env -f docker/docker-compose.yml exec backend python manage.py createsuperuser
 
 # Сбор статических файлов
-docker compose -f docker/docker-compose.yml exec backend python manage.py collectstatic --no-input
+docker compose --env-file .env -f docker/docker-compose.yml exec backend python manage.py collectstatic --no-input
 
 # Запуск shell Django
-docker compose -f docker/docker-compose.yml exec backend python manage.py shell
+docker compose --env-file .env -f docker/docker-compose.yml exec backend python manage.py shell
 
 # Проверка состояния Django
-docker compose -f docker/docker-compose.yml exec backend python manage.py check
+docker compose --env-file .env -f docker/docker-compose.yml exec backend python manage.py check
 ```
 
 ### Работа с Celery
 
 ```bash
 # Просмотр активных задач Celery
-docker compose -f docker/docker-compose.yml exec celery celery -A freesport inspect active
+docker compose --env-file .env -f docker/docker-compose.yml exec celery celery -A freesport inspect active
 
 # Просмотр статистики Celery
-docker compose -f docker/docker-compose.yml exec celery celery -A freesport inspect stats
+docker compose --env-file .env -f docker/docker-compose.yml exec celery celery -A freesport inspect stats
 ```
 
 ## 🔧 Разработка с Docker
@@ -291,23 +296,23 @@ docker compose -f docker/docker-compose.yml exec celery celery -A freesport insp
 
 ```bash
 # Пересборка всех образов
-docker compose -f docker/docker-compose.yml build --no-cache
+docker compose --env-file .env -f docker/docker-compose.yml build --no-cache
 
 # Пересборка конкретного образа
-docker compose -f docker/docker-compose.yml build backend
+docker compose --env-file .env -f docker/docker-compose.yml build backend
 ```
 
 ### Отладка
 
 ```bash
 # Вход в контейнер backend
-docker compose -f docker/docker-compose.yml exec backend bash
+docker compose --env-file .env -f docker/docker-compose.yml exec backend bash
 
 # Вход в контейнер frontend
-docker compose -f docker/docker-compose.yml exec frontend sh
+docker compose --env-file .env -f docker/docker-compose.yml exec frontend sh
 
 # Вход в контейнер базы данных
-docker compose -f docker/docker-compose.yml exec db bash
+docker compose --env-file .env -f docker/docker-compose.yml exec db bash
 ```
 
 ## 📊 Мониторинг
@@ -316,17 +321,17 @@ docker compose -f docker/docker-compose.yml exec db bash
 
 ```bash
 # Проверка здоровья всех контейнеров
-docker compose -f docker/docker-compose.yml ps
+docker compose --env-file .env -f docker/docker-compose.yml ps
 
 # Детальная информация о контейнере
-docker compose -f docker/docker-compose.yml inspect backend
+docker compose --env-file .env -f docker/docker-compose.yml inspect backend
 ```
 
 ### Просмотр использования ресурсов
 
 ```bash
 # Просмотр использования ресурсов контейнерами
-docker compose -f docker/docker-compose.yml stats
+docker compose --env-file .env -f docker/docker-compose.yml stats
 
 # Просмотр использования дискового пространства
 docker system df
@@ -346,22 +351,22 @@ git pull origin main
 mkdir -p data/import_1c/{goods,offers,prices,rests,contragents,priceLists,storages,units}
 
 # 3. Пересборка образов
-docker compose -f docker/docker-compose.yml build --no-cache
+docker compose --env-file .env -f docker/docker-compose.yml build --no-cache
 
 # 4. Перезапуск сервисов
-docker compose -f docker/docker-compose.yml up -d
+docker compose --env-file .env -f docker/docker-compose.yml up -d
 
 # 5. Выполнение миграций
-docker compose -f docker/docker-compose.yml exec backend python manage.py migrate
+docker compose --env-file .env -f docker/docker-compose.yml exec backend python manage.py migrate
 
 # 6. Сбор статических файлов
-docker compose -f docker/docker-compose.yml exec backend python manage.py collectstatic --no-input
+docker compose --env-file .env -f docker/docker-compose.yml exec backend python manage.py collectstatic --no-input
 
 # 7. Создание суперпользователя (опционально)
-docker compose -f docker/docker-compose.yml exec backend python manage.py createsuperuser
+docker compose --env-file .env -f docker/docker-compose.yml exec backend python manage.py createsuperuser
 
 # 8. Пересборка образа фронтенд-контейнера
-docker compose -f docker/docker-compose.yml build --no-cache frontend
+docker compose --env-file .env -f docker/docker-compose.yml build --no-cache frontend
 ```
 
 ## 🧹 Очистка
@@ -370,10 +375,10 @@ docker compose -f docker/docker-compose.yml build --no-cache frontend
 
 ```bash
 # Остановка и удаление контейнеров, сетей и томов
-docker compose -f docker/docker-compose.yml down -v
+docker compose --env-file .env -f docker/docker-compose.yml down -v
 
 # Удаление всех образов проекта
-docker compose -f docker/docker-compose.yml down --rmi all
+docker compose --env-file .env -f docker/docker-compose.yml down --rmi all
 
 # Полная очистка Docker (осторожно!)
 docker system prune -a --volumes
@@ -385,19 +390,21 @@ docker system prune -a --volumes
 
 ```bash
 # Очистка каталога с подтверждением
-docker compose -f docker/docker-compose.yml exec backend python manage.py clear_catalog --confirm
+docker compose --env-file .env -f docker/docker-compose.yml exec backend python manage.py clear_catalog --confirm
 
 # Или через скрипт (рекомендуется)
 ./scripts/inport_from_1C/clear_catalog.ps1
 ```
 
 **⚠️ Важно:**
+
 - Команда удаляет все товары, бренды, категории и связанные данные
 - Операция необратима - данные невозможно восстановить
 - Перед очисткой рекомендуется создать бэкап базы данных
 - Используйте флаг `--confirm` для подтверждения удаления
 
 **Сценарии использования:**
+
 - Перед повторным импортом данных из 1С
 - При проблемах с целостностью данных (например, отсутствуют связи товаров с брендами)
 - Для сброса тестовых данных
@@ -411,13 +418,13 @@ docker compose -f docker/docker-compose.yml exec backend python manage.py clear_
 
 ```bash
 # 1. Остановка и удаление всех контейнеров проекта
-docker compose -f docker/docker-compose.yml down -v
+docker compose --env-file .env -f docker/docker-compose.yml down -v
 
 # 2. Удаление оставшихся контейнеров с теми же именами
 docker rm -f freesport-db freesport-redis freesport-backend freesport-frontend freesport-nginx freesport-celery freesport-celery-beat
 
 # 3. Повторный запуск
-docker compose -f docker/docker-compose.yml up -d
+docker compose --env-file .env -f docker/docker-compose.yml up -d
 ```
 
 ### Проблема: Отсутствуют SSL сертификаты
@@ -425,24 +432,26 @@ docker compose -f docker/docker-compose.yml up -d
 Если вы видите ошибку вида `cannot load certificate "/etc/nginx/ssl/cert.pem": No such file or directory`:
 
 **Для Linux/macOS:**
+
 ```bash
 # 1. Создайте самоподписанные SSL сертификаты
 ./scripts/server/create-ssl-certs.sh
 
 # 2. Перезапустите Nginx
-docker compose -f docker/docker-compose.yml restart nginx
+docker compose --env-file .env -f docker/docker-compose.yml restart nginx
 
 # 3. Проверьте, что сертификаты созданы
 ls -la docker/nginx/ssl/
 ```
 
 **Для Windows:**
+
 ```powershell
 # 1. Создайте самоподписанные SSL сертификаты
 .\scripts\server\create-ssl-certs.ps1
 
 # 2. Перезапустите Nginx
-docker compose -f docker/docker-compose.yml restart nginx
+docker compose --env-file .env -f docker/docker-compose.yml restart nginx
 
 # 3. Проверьте, что сертификаты созданы
 dir docker\nginx\ssl
@@ -452,13 +461,13 @@ dir docker\nginx\ssl
 
 ```bash
 # Проверка логов
-docker compose -f docker/docker-compose.yml logs
+docker compose --env-file .env -f docker/docker-compose.yml logs
 
 # Проверка конфигурации
-docker compose -f docker/docker-compose.yml config
+docker compose --env-file .env -f docker/docker-compose.yml config
 
 # Пересборка с очисткой кэша
-docker compose -f docker/docker-compose.yml build --no-cache
+docker compose --env-file .env -f docker/docker-compose.yml build --no-cache
 ```
 
 ### Проблема: Порт уже занят
@@ -485,10 +494,10 @@ netstat -tulpn | grep :80
 
 ```bash
 # 1. Проверка логов Nginx для определения ошибки
-docker compose -f docker/docker-compose.yml logs nginx
+docker compose --env-file .env -f docker/docker-compose.yml logs nginx
 
 # 2. Проверка конфигурации Nginx
-docker compose -f docker/docker-compose.yml exec nginx nginx -t
+docker compose --env-file .env -f docker/docker-compose.yml exec nginx nginx -t
 
 # 3. Если есть ошибки в конфигурации, проверьте файлы:
 #    - docker/nginx/nginx.conf
@@ -499,7 +508,7 @@ curl http://localhost:8001/api/v1/
 curl http://localhost:3000
 
 # 5. Если проблема в зависимостях, перезапустите их:
-docker compose -f docker/docker-compose.yml restart backend frontend
+docker compose --env-file .env -f docker/docker-compose.yml restart backend frontend
 ```
 
 ### Проблема: База данных не инициализируется
@@ -515,6 +524,7 @@ docker compose up -d
 Если вы видите ошибки аутентификации к базе данных или Redis:
 
 1. **Проверьте .env файл:**
+
 ```bash
 cat .env | grep -E "(DB_PASSWORD|REDIS_PASSWORD)"
 ```
@@ -524,6 +534,7 @@ cat .env | grep -E "(DB_PASSWORD|REDIS_PASSWORD)"
    - `REDIS_PASSWORD` в .env должен соответствовать паролю Redis
 
 3. **Пересоздайте контейнеры с новыми паролями:**
+
 ```bash
 # Остановка и удаление контейнеров
 docker compose down -v
@@ -540,17 +551,20 @@ docker compose up -d
 Если контейнеры не могут найти друг друга по именам (db, redis):
 
 1. **Проверьте сеть Docker:**
+
 ```bash
 docker network ls | grep freesport
 ```
 
 2. **Пересоздайте сеть:**
+
 ```bash
 docker network rm freesport-network
 docker compose up -d
 ```
 
 3. **Убедитесь, что все сервисы используют одну сеть:**
+
 ```bash
 docker compose ps
 docker network inspect freesport-network
@@ -564,19 +578,23 @@ docker network inspect freesport-network
 **Причина:** Docker создает только корневую директорию при монтировании тома, но не создает вложенные поддиректории.
 
 **Решение:**
+
 1. **Создайте необходимые поддиректории на хост-машине:**
+
 ```bash
 mkdir -p data/import_1c/{goods,offers,prices,rests,contragents,priceLists,storages,units}
 ```
 
 2. **Перезапустите контейнер бэкенда:**
+
 ```bash
-docker compose -f docker/docker-compose.yml restart backend
+docker compose --env-file .env -f docker/docker-compose.yml restart backend
 ```
 
 3. **Проверьте наличие поддиректорий внутри контейнера:**
+
 ```bash
-docker compose -f docker/docker-compose.yml exec backend ls -la /app/data/import_1c/
+docker compose --env-file .env -f docker/docker-compose.yml exec backend ls -la /app/data/import_1c/
 ```
 
 **Предотвращение:** Всегда выполняйте шаг 2 из раздела "Обновление проекта" при обновлении проекта, чтобы избежать этой проблемы.
