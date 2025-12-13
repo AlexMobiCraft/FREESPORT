@@ -12,7 +12,7 @@ The recommended way to run the project is with Docker Compose.
 **Local Development:**
 
 ```bash
-docker compose -f docker/docker-compose.yml
+docker compose --env-file .env -f docker/docker-compose.yml
 ```
 
 **Production:**

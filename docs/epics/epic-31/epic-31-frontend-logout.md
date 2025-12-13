@@ -24,7 +24,7 @@ Epic 28 реализовал систему аутентификации с ре
 - **Previous Epics:**
   - `docs/epics/epic-28/epic-28-authentication.md` (Epic 28 - Authentication)
   - `docs/epics/epic-30-backend-logout.md` (Epic 30 - Backend Logout)
-- **Design System:** `frontend/docs/design-system.json` (Button component)
+- **Design System:** `docs/frontend/design-system.json` (Button component)
 - **API Spec:** `docs/api-spec.yaml` (/auth/logout/ endpoint)
 - **Testing Standards:**
   - `docs/frontend/testing-standards.md`
