@@ -53,21 +53,27 @@ services:
     container_name: freesport-backend
     environment:
       - DJANGO_SETTINGS_MODULE=freesport.settings.development
-      - SECRET_KEY=development-secret-key-change-in-production
+      - SECRET_KEY=${SECRET_KEY}
       - DB_NAME=freesport
       - DB_USER=postgres
-      - DB_PASSWORD=password123
+      - DB_PASSWORD=${DB_PASSWORD}
       - DB_HOST=db
       - DB_PORT=5432
-      - REDIS_URL=redis://:redis123@redis:6379/0
+      - REDIS_URL=${REDIS_URL}
+      - CELERY_BROKER_URL=${CELERY_BROKER_URL}
       - DEBUG=1
       - ONEC_DATA_DIR=/app/data/import_1c
-      # Email settings for Mailhog (Story 29.3)
-      - EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
-      - EMAIL_HOST=mailhog
-      - EMAIL_PORT=1025
-      - EMAIL_USE_TLS=False
-      - DEFAULT_FROM_EMAIL=noreply@freesport.local
+      # Email settings (Load from environment)
+      - EMAIL_BACKEND=${EMAIL_BACKEND:-django.core.mail.backends.smtp.EmailBackend}
+      - EMAIL_HOST=${EMAIL_HOST:-mailhog}
+      - EMAIL_PORT=${EMAIL_PORT:-1025}
+      - EMAIL_USE_TLS=${EMAIL_USE_TLS:-False}
+      - EMAIL_HOST_USER=${EMAIL_HOST_USER}
+      - EMAIL_HOST_PASSWORD=${EMAIL_HOST_PASSWORD}
+      - DEFAULT_FROM_EMAIL=${DEFAULT_FROM_EMAIL:-noreply@freesport.local}
+      - SERVER_EMAIL=${SERVER_EMAIL:-noreply@freesport.local}
+      - ADMIN_EMAILS=${ADMIN_EMAILS}
+      - SITE_URL=${SITE_URL:-http://localhost:3000}
     volumes:
       - ../backend:/app
       - ../data:/app/data
@@ -103,11 +109,11 @@ services:
     container_name: freesport-frontend
     environment:
       - NODE_ENV=development
-      - NEXT_PUBLIC_API_URL=http://localhost:8001/api/v1
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8001/api/v1}
       - NEXT_PUBLIC_API_URL_INTERNAL=http://backend:8000/api/v1
       - INTERNAL_API_URL=http://backend:8000
       - NEXT_PUBLIC_API_TIMEOUT=30000
-      - NEXT_PUBLIC_APP_URL=http://localhost:3000
+      - NEXT_PUBLIC_APP_URL=${SITE_URL:-http://localhost:3000}
       - NEXT_PUBLIC_MEDIA_URL=http://localhost
       - NEXT_PUBLIC_MEDIA_URL_INTERNAL=http://nginx
     command: >-
@@ -151,8 +157,8 @@ services:
     image: mailhog/mailhog:latest
     container_name: freesport-mailhog
     ports:
-      - "1025:1025"   # SMTP server
-      - "8025:8025"   # Web UI
+      - "1025:1025" # SMTP server
+      - "8025:8025" # Web UI
     networks:
       - freesport-network
     restart: unless-stopped
@@ -171,21 +177,27 @@ services:
       - backend_media:/app/media
     environment:
       - DJANGO_SETTINGS_MODULE=freesport.settings.development
-      - SECRET_KEY=development-secret-key-change-in-production
+      - SECRET_KEY=${SECRET_KEY}
       - DB_NAME=freesport
       - DB_USER=postgres
-      - DB_PASSWORD=password123
+      - DB_PASSWORD=${DB_PASSWORD}
       - DB_HOST=db
       - DB_PORT=5432
-      - REDIS_URL=redis://:redis123@redis:6379/0
+      - REDIS_URL=${REDIS_URL}
+      - CELERY_BROKER_URL=${CELERY_BROKER_URL}
       - DEBUG=1
       - ONEC_DATA_DIR=/app/data/import_1c
-      # Email settings for Mailhog (Story 29.3)
-      - EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
-      - EMAIL_HOST=mailhog
-      - EMAIL_PORT=1025
-      - EMAIL_USE_TLS=False
-      - DEFAULT_FROM_EMAIL=noreply@freesport.local
+      # Email settings (Load from environment)
+      - EMAIL_BACKEND=${EMAIL_BACKEND:-django.core.mail.backends.smtp.EmailBackend}
+      - EMAIL_HOST=${EMAIL_HOST:-mailhog}
+      - EMAIL_PORT=${EMAIL_PORT:-1025}
+      - EMAIL_USE_TLS=${EMAIL_USE_TLS:-False}
+      - EMAIL_HOST_USER=${EMAIL_HOST_USER}
+      - EMAIL_HOST_PASSWORD=${EMAIL_HOST_PASSWORD}
+      - DEFAULT_FROM_EMAIL=${DEFAULT_FROM_EMAIL:-noreply@freesport.local}
+      - SERVER_EMAIL=${SERVER_EMAIL:-noreply@freesport.local}
+      - ADMIN_EMAILS=${ADMIN_EMAILS}
+      - SITE_URL=${SITE_URL:-http://localhost:3000}
     depends_on:
       db:
         condition: service_healthy
@@ -207,13 +219,14 @@ services:
       - ../backend/logs:/app/logs
     environment:
       - DJANGO_SETTINGS_MODULE=freesport.settings.development
-      - SECRET_KEY=development-secret-key-change-in-production
+      - SECRET_KEY=${SECRET_KEY}
       - DB_NAME=freesport
       - DB_USER=postgres
-      - DB_PASSWORD=password123
+      - DB_PASSWORD=${DB_PASSWORD}
       - DB_HOST=db
       - DB_PORT=5432
-      - REDIS_URL=redis://:redis123@redis:6379/0
+      - REDIS_URL=${REDIS_URL}
+      - CELERY_BROKER_URL=${CELERY_BROKER_URL}
       - DEBUG=1
     depends_on:
       db:
