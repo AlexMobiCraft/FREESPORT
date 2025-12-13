@@ -262,16 +262,16 @@ PYTEST_CURRENT_TEST=1
 
 ```bash
 # Логи всех сервисов
-docker-compose logs -f
+docker compose logs -f
 
 # Логи конкретного сервиса
-docker-compose logs -f backend
+docker compose logs -f backend
 
 # Shell в контейнере
-docker-compose exec backend bash
+docker compose exec backend bash
 
 # Подключение к БД
-docker-compose exec db psql -U postgres -d freesport
+docker compose exec db psql -U postgres -d freesport
 ```
 
 ### Volumes и данные
@@ -281,10 +281,10 @@ docker-compose exec db psql -U postgres -d freesport
 docker volume ls | grep freesport
 
 # Очистка тестовых данных
-docker-compose -f docker-compose.test.yml down --volumes
+docker compose --env-file .env -f docker-compose.test.yml down --volumes
 
 # Бэкап БД (для разработки)
-docker-compose exec db pg_dump -U postgres freesport > backup.sql
+docker compose exec db pg_dump -U postgres freesport > backup.sql
 ```
 
 ## Производительность и оптимизация
@@ -373,15 +373,15 @@ chmod -R 755 scripts/
 
 ```bash
 # Проверить health check БД
-docker-compose ps
-docker-compose exec db pg_isready -U postgres
+docker compose ps
+docker compose exec db pg_isready -U postgres
 ```
 
 **4. Проблемы с Redis**
 
 ```bash
 # Проверить Redis подключение  
-docker-compose exec redis redis-cli -a redis123 ping
+docker compose exec redis redis-cli -a redis123 ping
 ```
 
 ## Дополнительные ресурсы
