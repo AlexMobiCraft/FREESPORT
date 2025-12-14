@@ -4,23 +4,28 @@
  */
 
 /**
- * Статус заказа
+ * Статус заказа (backend использует эти значения)
  */
-export type OrderStatus = 'new' | 'paid' | 'shipped' | 'delivered' | 'cancelled';
+export type OrderStatus =
+  | 'pending' // Ожидает обработки ("Новый" в UI)
+  | 'confirmed' // Подтвержден
+  | 'processing' // В обработке
+  | 'shipped' // Отправлен
+  | 'delivered' // Доставлен
+  | 'cancelled' // Отменен
+  | 'refunded'; // Возвращен
 
 /**
- * Способ доставки
+ * Способ доставки (backend возвращает строку-код)
+ * pickup | courier | post | transport
  */
-export interface DeliveryMethod {
-  id: string;
-  name: string;
-  description?: string;
-}
+export type DeliveryMethodCode = 'pickup' | 'courier' | 'post' | 'transport';
 
 /**
- * Адрес доставки
+ * Адрес доставки (backend возвращает как строку)
+ * Frontend хранит структуру для формы, но API возвращает текст
  */
-export interface DeliveryAddress {
+export interface DeliveryAddressInput {
   city: string;
   street: string;
   house: string;
@@ -29,43 +34,54 @@ export interface DeliveryAddress {
 }
 
 /**
- * Элемент заказа
+ * Элемент заказа (контракт backend OrderItemSerializer)
  */
 export interface OrderItem {
-  variant_id: number;
-  product_id: number;
+  id: number;
+  product: number; // product ID
   product_name: string;
+  product_sku: string;
   quantity: number;
-  price: number;
-  total: number;
+  unit_price: string; // Decimal как строка
+  total_price: string; // Decimal как строка
 }
 
 /**
- * Полный заказ (ответ API)
+ * Полный заказ (контракт backend OrderDetailSerializer)
  */
 export interface Order {
-  id: string;
+  id: number;
   order_number: string;
+  user: number | null;
+  customer_display_name: string;
+  customer_name: string;
+  customer_email: string;
+  customer_phone: string;
   status: OrderStatus;
-  total_amount: number;
+  total_amount: string; // Decimal как строка
+  discount_amount: string;
+  delivery_cost: string;
+  delivery_address: string; // Текстовое поле
+  delivery_method: DeliveryMethodCode;
+  delivery_date: string | null;
+  tracking_number: string;
+  payment_method: string;
+  payment_status: string;
+  payment_id: string;
+  notes: string;
   created_at: string;
-  delivery_address?: DeliveryAddress;
-  delivery_method?: DeliveryMethod;
-  items?: OrderItem[];
+  updated_at: string;
+  items: OrderItem[];
+  subtotal: string;
+  total_items: number;
+  calculated_total: string;
+  can_be_cancelled: boolean;
 }
 
 /**
- * Ответ при создании заказа
+ * Ответ при создании заказа (тот же OrderDetailSerializer)
  */
-export interface CreateOrderResponse {
-  id: string;
-  order_number: string;
-  status: OrderStatus;
-  total_amount: number;
-  created_at: string;
-  delivery_method?: DeliveryMethod;
-  items?: OrderItem[];
-}
+export type CreateOrderResponse = Order;
 
 /**
  * Payload для создания заказа

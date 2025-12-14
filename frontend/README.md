@@ -95,6 +95,50 @@ npm run test:ui       # Vitest UI для визуальной отладки
 
 **Подробнее:** См. [docs/testing-standards.md](docs/testing-standards.md) и [docs/vitest-troubleshooting.md](docs/vitest-troubleshooting.md)
 
+### E2E Тестирование (Playwright)
+
+```bash
+npm run test:e2e              # Запуск всех E2E тестов
+npm run test:e2e:headed       # С визуальным браузером
+npm run test:e2e:debug        # Режим отладки (шаг за шагом)
+npm run test:e2e:report       # Открыть HTML отчёт
+```
+
+**Технологии E2E:**
+
+- Playwright - современный фреймворк для E2E тестирования
+- Chromium - основной браузер для тестов
+- Page Object Model - паттерн для организации тестов
+
+**Структура E2E тестов:**
+
+```plaintext
+tests/
+└── e2e/
+    ├── checkout.spec.ts      # E2E тесты checkout флоу
+    └── pages/
+        └── CheckoutPage.ts   # Page Object для checkout
+```
+
+**Запуск конкретного теста:**
+
+```bash
+npm run test:e2e -- --grep "complete checkout flow"
+npm run test:e2e -- tests/e2e/checkout.spec.ts
+```
+
+**Отладка тестов:**
+
+```bash
+# Режим отладки с Playwright Inspector
+npm run test:e2e:debug
+
+# Запуск с трассировкой
+npm run test:e2e -- --trace on
+```
+
+**CI/CD:** E2E тесты автоматически запускаются через GitHub Actions при push/PR в develop и main. См. `.github/workflows/e2e-tests.yml`.
+
 ## Переменные окружения
 
 Создайте файл `.env.local` на основе `.env.example`:

@@ -14,7 +14,7 @@ import { useOrderStore } from '@/stores/orderStore';
 import { useCartStore } from '@/stores/cartStore';
 import { ContactSection } from './ContactSection';
 import { AddressSection } from './AddressSection';
-import { DeliveryOptionsPlaceholder } from './DeliveryOptionsPlaceholder';
+import { DeliveryOptions } from './DeliveryOptions';
 import { OrderCommentSection } from './OrderCommentSection';
 import { OrderSummary } from './OrderSummary';
 import { InfoPanel } from '@/components/ui';
@@ -56,7 +56,7 @@ export interface CheckoutFormProps {
  * Секции:
  * 1. ContactSection - контактные данные
  * 2. AddressSection - адрес доставки
- * 3. DeliveryOptionsPlaceholder - способ доставки (placeholder для Story 15.3)
+ * 3. DeliveryOptions - способ доставки (Story 15.3b)
  * 4. OrderCommentSection - комментарий к заказу
  * 5. OrderSummary - сводка заказа (sticky sidebar на desktop)
  */
@@ -182,8 +182,8 @@ export function CheckoutForm({ user }: CheckoutFormProps) {
           {/* 2. Адрес доставки */}
           <AddressSection form={form} />
 
-          {/* 3. Способ доставки (placeholder) */}
-          <DeliveryOptionsPlaceholder form={form} />
+          {/* 3. Способ доставки */}
+          <DeliveryOptions form={form} />
 
           {/* 4. Комментарий к заказу */}
           <OrderCommentSection form={form} />

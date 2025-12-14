@@ -15,6 +15,10 @@
     "test:watch": "cross-env VITEST=true vitest",
     "test:coverage": "cross-env VITEST=true vitest run --coverage",
     "test:ui": "cross-env VITEST=true vitest --ui",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:debug": "playwright test --debug",
+    "test:e2e:report": "playwright show-report",
     "generate:types": "openapi-typescript ../docs/api-spec.yaml -o ./src/types/api.generated.ts",
     "postinstall": "node scripts/install-lightningcss.js"
   },
@@ -36,6 +40,7 @@
     "zustand": "^4.5.7"
   },
   "devDependencies": {
+    "@playwright/test": "^1.57.0",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^6.1.4",
     "@testing-library/react": "^16.3.0",
