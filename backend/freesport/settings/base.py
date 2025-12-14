@@ -70,6 +70,7 @@ LOCAL_APPS = [
     "apps.pages",
     "apps.common",
     "apps.integrations.apps.IntegrationsConfig",
+    "apps.delivery",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
