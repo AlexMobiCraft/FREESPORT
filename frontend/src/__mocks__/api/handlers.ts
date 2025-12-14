@@ -474,11 +474,15 @@ export const authHandlers = [
   }),
 ];
 
+// Import ordersHandlers from separate file
+import { ordersHandlers } from '../handlers/ordersHandlers';
+
 /**
  * MSW Handlers
  */
 export const handlers = [
   ...authHandlers,
+  ...ordersHandlers,
   // Хиты продаж (AC 1)
   http.get(`${API_BASE_URL}/products/`, ({ request }) => {
     const url = new URL(request.url);

@@ -1,0 +1,63 @@
+schema: 1
+story: '15.1'
+story_title: 'Checkout страница и упрощённая форма'
+gate: PASS
+status_reason: >
+  Все 43 unit-теста проходят. Реализация соответствует всем 7 Acceptance Criteria.
+  Код качественный, правильная архитектура, accessibility соблюдена.
+reviewer: 'Quinn (Test Architect)'
+updated: '2025-12-14T15:32:00+01:00'
+
+top_issues: []
+
+waiver:
+  active: false
+
+quality_score: 95
+expires: '2025-12-28T15:32:00+01:00'
+
+evidence:
+  tests_reviewed: 43
+  tests_passed: 43
+  tests_failed: 0
+  risks_identified: 0
+  trace:
+    ac_covered: [1, 2, 3, 4, 5, 6, 7]
+    ac_gaps: []
+
+nfr_validation:
+  security:
+    status: PASS
+    notes: 'Правильная валидация через Zod, нет XSS уязвимостей, noindex для checkout'
+  performance:
+    status: PASS
+    notes: 'SSR оптимизация, mode:onBlur минимизирует ререндеры'
+  reliability:
+    status: PASS
+    notes: 'Все 43 теста проходят, coverage адекватный'
+  maintainability:
+    status: PASS
+    notes: 'Чистый код, JSDoc комментарии, правильная структура'
+
+test_summary:
+  files:
+    - name: 'CheckoutForm.test.tsx'
+      tests: 10
+      status: PASS
+    - name: 'ContactSection.test.tsx'
+      tests: 12
+      status: PASS
+    - name: 'AddressSection.test.tsx'
+      tests: 13
+      status: PASS
+    - name: 'page.test.tsx'
+      tests: 8
+      status: PASS
+
+recommendations:
+  immediate: []
+  future:
+    - action: 'Рассмотреть создание общего файла с mock данными для переиспользования'
+      refs: ['frontend/src/__mocks__/']
+    - action: 'Добавить интеграционные тесты для OrderSummary.test.tsx'
+      refs: ['frontend/src/components/checkout/__tests__/']

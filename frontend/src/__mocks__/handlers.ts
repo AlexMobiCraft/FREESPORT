@@ -157,5 +157,11 @@ export const passwordResetHandlers = [
   }),
 ];
 
+/**
+ * Orders Handlers
+ * Story 15.2: Интеграция с Orders API
+ */
+import { ordersHandlers } from './handlers/ordersHandlers';
+
 // Export all handlers
-export const handlers = [...authHandlers, ...passwordResetHandlers];
+export const handlers = [...authHandlers, ...passwordResetHandlers, ...ordersHandlers];
