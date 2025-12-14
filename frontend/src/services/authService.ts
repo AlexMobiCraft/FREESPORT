@@ -78,10 +78,27 @@ class AuthService {
   }
 
   /**
-   * Выход из системы
+   * Выход из системы (локальный)
+   * @deprecated Используйте logoutFromServer() + authStore.logout()
    */
   logout(): void {
     useAuthStore.getState().logout();
+  }
+
+  /**
+   * Инвалидация refresh токена на сервере
+   * Story 31.2 - AC 1-4, 7: Отправка POST на /auth/logout/ для инвалидации токена
+   *
+   * @param refreshToken - refresh token для инвалидации
+   * @returns Promise<void> - resolves даже при ошибках (fail-safe)
+   */
+  async logoutFromServer(refreshToken: string): Promise<void> {
+    try {
+      await apiClient.post('/auth/logout/', { refresh: refreshToken });
+    } catch (error) {
+      // Fail-safe: логируем, но не прерываем локальный logout
+      console.error('Logout API request failed:', error);
+    }
   }
 
   /**

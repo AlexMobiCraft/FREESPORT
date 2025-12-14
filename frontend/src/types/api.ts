@@ -170,6 +170,11 @@ export interface RefreshTokenResponse {
   access: string;
 }
 
+// Logout Types (Story 31.2)
+export interface LogoutRequest {
+  refresh: string;
+}
+
 // Password Reset Types (Story 28.3)
 export interface PasswordResetRequest {
   email: string;

@@ -15,6 +15,7 @@ import { AuthProvider, useAuth } from '../AuthProvider';
 import { useAuthStore } from '@/stores/authStore';
 import { server } from '@/__mocks__/server';
 import { http, HttpResponse } from 'msw';
+import { handlers as baseHandlers } from '@/__mocks__/handlers';
 
 // Mock localStorage
 const localStorageMock = (() => {
@@ -39,15 +40,19 @@ Object.defineProperty(window, 'localStorage', {
 });
 
 // Setup MSW server
-beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
+// Story 31.2: Изменено на 'warn' т.к. logout теперь async и делает API call
+beforeAll(() => server.listen({ onUnhandledRequest: 'warn' }));
 afterAll(() => server.close());
 
 describe('AuthProvider - Session Initialization', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     // Clear localStorage и authStore перед каждым тестом
     localStorageMock.clear();
-    useAuthStore.getState().logout();
     server.resetHandlers();
+    // Возвращаем базовые handlers (включая /users/profile/, /auth/logout/, /auth/refresh/)
+    server.use(...baseHandlers);
+    // Story 31.2: logout теперь async
+    await useAuthStore.getState().logout();
     vi.clearAllMocks();
   });
 
@@ -115,13 +120,13 @@ describe('AuthProvider - Session Initialization', () => {
   test('logs out on expired refresh token (401)', async () => {
     localStorageMock.setItem('refreshToken', 'expired-token');
 
-    // Mock /auth/me/ с 401 ошибкой
+    // Mock /users/profile/ с 401 ошибкой
     server.use(
-      http.get('http://localhost:8001/api/v1/auth/me/', () => {
+      http.get('*/users/profile/', () => {
         return HttpResponse.json({ detail: 'Invalid token' }, { status: 401 });
       }),
       // ВАЖНО: api-client interceptor попытается refresh при 401, нужно обработать
-      http.post('http://localhost:8001/api/v1/auth/refresh/', () => {
+      http.post('*/auth/refresh/', () => {
         return HttpResponse.json({ detail: 'Invalid refresh token' }, { status: 401 });
       })
     );
@@ -145,9 +150,9 @@ describe('AuthProvider - Session Initialization', () => {
   test('logs out on forbidden token (403)', async () => {
     localStorageMock.setItem('refreshToken', 'forbidden-token');
 
-    // Mock /auth/me/ с 403 ошибкой
+    // Mock /users/profile/ с 403 ошибкой
     server.use(
-      http.get('http://localhost:8001/api/v1/auth/me/', () => {
+      http.get('*/users/profile/', () => {
         return HttpResponse.json({ detail: 'Token expired' }, { status: 403 });
       })
     );
@@ -170,9 +175,9 @@ describe('AuthProvider - Session Initialization', () => {
   test('shows loading state during initialization', async () => {
     localStorageMock.setItem('refreshToken', 'valid-token');
 
-    // Mock /auth/me/ с задержкой
+    // Mock /users/profile/ с задержкой
     server.use(
-      http.get('http://localhost:8001/api/v1/auth/me/', async () => {
+      http.get('*/users/profile/', async () => {
         await new Promise(resolve => setTimeout(resolve, 100));
         return HttpResponse.json({
           id: 1,
@@ -204,9 +209,9 @@ describe('AuthProvider - Session Initialization', () => {
 
     let attempt = 0;
 
-    // Mock /auth/me/ - первый вызов failит, второй succeeds
+    // Mock /users/profile/ - первый вызов failит, второй succeeds
     server.use(
-      http.get('http://localhost:8001/api/v1/auth/me/', () => {
+      http.get('*/users/profile/', () => {
         attempt++;
         if (attempt === 1) {
           // Первая попытка - network error
@@ -243,9 +248,9 @@ describe('AuthProvider - Session Initialization', () => {
   test('logs out after all retry attempts fail', async () => {
     localStorageMock.setItem('refreshToken', 'valid-token');
 
-    // Mock /auth/me/ - все вызовы failят
+    // Mock /users/profile/ - все вызовы failят
     server.use(
-      http.get('http://localhost:8001/api/v1/auth/me/', () => {
+      http.get('*/users/profile/', () => {
         return HttpResponse.error();
       })
     );

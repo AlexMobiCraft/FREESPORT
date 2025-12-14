@@ -14,17 +14,31 @@ import { authSelectors } from '@/stores/authStore';
 import type { CartItem } from '@/types/cart';
 
 // Mock Next.js router
+const mockPush = vi.fn();
 vi.mock('next/navigation', () => ({
   usePathname: vi.fn(() => '/'),
+  useRouter: vi.fn(() => ({ push: mockPush })),
 }));
 
 // Mock authStore
+const mockLogout = vi.fn().mockResolvedValue(undefined);
 vi.mock('@/stores/authStore', () => ({
   authSelectors: {
     useIsAuthenticated: vi.fn(() => false),
     useUser: vi.fn(() => null),
     useIsB2BUser: vi.fn(() => false),
   },
+  useAuthStore: vi.fn(selector =>
+    selector({
+      logout: mockLogout,
+      accessToken: null,
+      user: null,
+      isAuthenticated: false,
+      setTokens: vi.fn(),
+      setUser: vi.fn(),
+      getRefreshToken: vi.fn(),
+    })
+  ),
 }));
 
 // Mock cartStore
@@ -113,6 +127,8 @@ function createMockCartStore(
 describe('Header', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockPush.mockClear();
+    mockLogout.mockClear();
   });
 
   describe('Rendering - Unauthenticated State', () => {
@@ -124,7 +140,7 @@ describe('Header', () => {
 
     it('should render logo', () => {
       render(<Header />);
-      expect(screen.getByText('FREESPORT')).toBeInTheDocument();
+      expect(screen.getByAltText('FREESPORT')).toBeInTheDocument();
     });
 
     it('should render navigation items', () => {
@@ -343,7 +359,7 @@ describe('Header', () => {
 
       render(<Header />);
 
-      const badges = screen.getAllByText('3');
+      const badges = screen.getAllByText('4');
       expect(badges.length).toBeGreaterThan(0);
     });
 
@@ -380,7 +396,7 @@ describe('Header', () => {
 
       render(<Header />);
 
-      const desktopCartLink = screen.getByRole('link', { name: 'Корзина (2 товаров)' });
+      const desktopCartLink = screen.getByRole('link', { name: 'Корзина (3 товаров)' });
       expect(desktopCartLink).toBeInTheDocument();
     });
   });
@@ -515,7 +531,7 @@ describe('Header', () => {
       render(<Header />);
 
       const badge = screen.getAllByText('1')[0];
-      expect(badge).toHaveClass('bg-[#F9E1E1]', 'text-[#A63232]');
+      expect(badge).toHaveClass('bg-accent-danger-bg', 'text-accent-danger');
     });
 
     it('should apply correct B2B badge colors', () => {
@@ -523,7 +539,115 @@ describe('Header', () => {
       render(<Header />);
 
       const b2bBadge = screen.getByText('B2B');
-      expect(b2bBadge).toHaveClass('bg-[#F9E1E1]', 'text-[#A63232]');
+      expect(b2bBadge).toHaveClass('bg-accent-danger-bg', 'text-accent-danger');
+    });
+  });
+
+  describe('Logout Button', () => {
+    describe('Authenticated User', () => {
+      beforeEach(() => {
+        vi.mocked(authSelectors.useIsAuthenticated).mockReturnValue(true);
+        vi.mocked(authSelectors.useUser).mockReturnValue({
+          id: 1,
+          email: 'user@example.com',
+          first_name: 'Иван',
+          last_name: 'Иванов',
+          phone: '+79001234567',
+          role: 'retail',
+        });
+        vi.mocked(authSelectors.useIsB2BUser).mockReturnValue(false);
+      });
+
+      it('should display logout button for authenticated users (desktop)', () => {
+        render(<Header />);
+
+        const logoutButton = screen.getByTestId('logout-button');
+        expect(logoutButton).toBeInTheDocument();
+        expect(logoutButton).toHaveTextContent('Выйти');
+        expect(logoutButton).toHaveAttribute('aria-label', 'Выйти из аккаунта');
+      });
+
+      it('should display logout button for authenticated users (mobile)', async () => {
+        const user = userEvent.setup();
+        render(<Header />);
+
+        // Open mobile menu
+        const menuButton = screen.getByRole('button', { name: 'Открыть меню' });
+        await user.click(menuButton);
+
+        const logoutButtonMobile = screen.getByTestId('logout-button-mobile');
+        expect(logoutButtonMobile).toBeInTheDocument();
+        expect(logoutButtonMobile).toHaveTextContent('Выйти');
+        expect(logoutButtonMobile).toHaveAttribute('aria-label', 'Выйти из аккаунта');
+      });
+
+      it('should call authStore.logout() on desktop button click', async () => {
+        const user = userEvent.setup();
+        render(<Header />);
+
+        const logoutButton = screen.getByTestId('logout-button');
+        await user.click(logoutButton);
+
+        expect(mockLogout).toHaveBeenCalled();
+      });
+
+      it('should redirect to home page after logout (desktop)', async () => {
+        const user = userEvent.setup();
+        render(<Header />);
+
+        const logoutButton = screen.getByTestId('logout-button');
+        await user.click(logoutButton);
+
+        expect(mockPush).toHaveBeenCalledWith('/');
+      });
+
+      it('should call authStore.logout() and redirect on mobile button click', async () => {
+        const user = userEvent.setup();
+        render(<Header />);
+
+        // Open mobile menu
+        const menuButton = screen.getByRole('button', { name: 'Открыть меню' });
+        await user.click(menuButton);
+
+        // Click logout button in mobile menu
+        const logoutButtonMobile = screen.getByTestId('logout-button-mobile');
+        await user.click(logoutButtonMobile);
+
+        // Check that logout was called
+        expect(mockLogout).toHaveBeenCalled();
+        expect(mockPush).toHaveBeenCalledWith('/');
+      });
+
+      it('should close mobile menu after logout', async () => {
+        const user = userEvent.setup();
+        render(<Header />);
+
+        // Open mobile menu
+        const menuButton = screen.getByRole('button', { name: 'Открыть меню' });
+        await user.click(menuButton);
+
+        // Click logout button in mobile menu
+        const logoutButtonMobile = screen.getByTestId('logout-button-mobile');
+        await user.click(logoutButtonMobile);
+
+        // Check that mobile menu is closed (logout button no longer visible)
+        expect(screen.queryByTestId('logout-button-mobile')).not.toBeInTheDocument();
+      });
+    });
+
+    describe('Unauthenticated User', () => {
+      beforeEach(() => {
+        vi.mocked(authSelectors.useIsAuthenticated).mockReturnValue(false);
+        vi.mocked(authSelectors.useUser).mockReturnValue(null);
+        vi.mocked(authSelectors.useIsB2BUser).mockReturnValue(false);
+      });
+
+      it('should NOT display logout button for unauthenticated users', () => {
+        render(<Header />);
+
+        expect(screen.queryByTestId('logout-button')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('logout-button-mobile')).not.toBeInTheDocument();
+      });
     });
   });
 

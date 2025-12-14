@@ -13,10 +13,38 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8
 /**
  * Auth Handlers - Session Management
  * Story 28.4 - AC 2: MSW моки для /auth/me/
+ * Story 31.2: Logout endpoint
  */
 export const authHandlers = [
+  // Story 31.2: POST /auth/logout/ - Logout endpoint
+  http.post('*/auth/logout/', async ({ request }) => {
+    const body = (await request.json()) as { refresh?: string };
+
+    if (!body.refresh) {
+      return HttpResponse.json({ error: 'Refresh token is required' }, { status: 400 });
+    }
+
+    if (body.refresh === 'invalid-refresh-token') {
+      return HttpResponse.json({ error: 'Invalid or expired token' }, { status: 400 });
+    }
+
+    if (body.refresh === 'missing-auth') {
+      return HttpResponse.json(
+        { detail: 'Authentication credentials were not provided.' },
+        { status: 401 }
+      );
+    }
+
+    if (body.refresh === 'network-error') {
+      return HttpResponse.error();
+    }
+
+    // Успешный logout - 204 No Content
+    return new HttpResponse(null, { status: 204 });
+  }),
+
   // GET /auth/me/ - Get current authenticated user
-  http.get(`${API_BASE_URL}/auth/me/`, ({ request }) => {
+  http.get('*/auth/me/', ({ request }) => {
     const authHeader = request.headers.get('Authorization');
 
     // Проверка наличия Bearer token
@@ -25,6 +53,37 @@ export const authHandlers = [
     }
 
     // Mock: всегда возвращаем test user
+    return HttpResponse.json({
+      id: 1,
+      email: 'test@example.com',
+      first_name: 'Test',
+      last_name: 'User',
+      role: 'retail',
+      is_verified: true,
+      company_name: null,
+    });
+  }),
+
+  // POST /auth/refresh/ - Refresh endpoint (used by axios interceptor)
+  http.post('*/auth/refresh/', async ({ request }) => {
+    const body = (await request.json()) as { refresh?: string };
+
+    if (!body.refresh) {
+      return HttpResponse.json({ detail: 'Missing refresh token' }, { status: 400 });
+    }
+
+    // Возвращаем новый access token
+    return HttpResponse.json({ access: 'mock-access-token' });
+  }),
+
+  // GET /users/profile/ - Profile endpoint (AuthProvider)
+  http.get('*/users/profile/', ({ request }) => {
+    const authHeader = request.headers.get('Authorization');
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return HttpResponse.json({ detail: 'Invalid token' }, { status: 401 });
+    }
+
     return HttpResponse.json({
       id: 1,
       email: 'test@example.com',

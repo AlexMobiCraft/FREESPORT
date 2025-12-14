@@ -30,9 +30,11 @@ prd:
     - 27
     - 28
     - 29  # Role Registration & Verification
-  activeEpics:
     - 30  # Backend Logout Endpoint Implementation
     - 31  # Frontend Logout UI Integration 
+  activeEpics:
+    - 15
+
 architecture:
   architectureFile: docs/architecture.md
   architectureVersion: v4

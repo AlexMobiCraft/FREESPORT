@@ -8,19 +8,30 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Search, Heart, ShoppingCart, Menu, X } from 'lucide-react';
-import { authSelectors } from '@/stores/authStore';
+import { authSelectors, useAuthStore } from '@/stores/authStore';
 import { useCartStore } from '@/stores/cartStore';
 import { Button } from '@/components/ui/Button';
 
 const Header: React.FC = () => {
   const pathname = usePathname();
+  const router = useRouter();
   const isAuthenticated = authSelectors.useIsAuthenticated();
   const user = authSelectors.useUser();
   const isB2BUser = authSelectors.useIsB2BUser();
+  const logout = useAuthStore(state => state.logout);
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  /**
+   * Обработчик выхода из аккаунта
+   * Вызывает API logout, очищает токены и редиректит на главную
+   */
+  const handleLogout = async () => {
+    await logout();
+    router.push('/');
+  };
 
   // Получаем количество товаров из корзины
   const cartItemsCount = useCartStore(state => state.totalItems);
@@ -151,6 +162,15 @@ const Header: React.FC = () => {
                       Профиль
                     </Button>
                   </Link>
+                  <Button
+                    variant="secondary"
+                    size="small"
+                    onClick={handleLogout}
+                    data-testid="logout-button"
+                    aria-label="Выйти из аккаунта"
+                  >
+                    Выйти
+                  </Button>
                 </>
               ) : (
                 <>
@@ -244,6 +264,19 @@ const Header: React.FC = () => {
                         Профиль
                       </Button>
                     </Link>
+                    <Button
+                      variant="secondary"
+                      size="small"
+                      className="w-full"
+                      onClick={() => {
+                        handleLogout();
+                        setIsMobileMenuOpen(false);
+                      }}
+                      data-testid="logout-button-mobile"
+                      aria-label="Выйти из аккаунта"
+                    >
+                      Выйти
+                    </Button>
                   </>
                 ) : (
                   <>

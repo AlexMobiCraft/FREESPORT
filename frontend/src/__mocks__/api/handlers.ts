@@ -388,20 +388,42 @@ const mockCategories: Category[] = [
 ];
 
 /**
- * Auth Handlers - Story 28.1
+ * Auth Handlers - Story 28.1, 31.2
  * Mock handlers для тестирования аутентификации
  */
 export const authHandlers = [
+  // Story 31.2: Logout endpoint
+  http.post(`${API_BASE_URL}/auth/logout/`, async ({ request }) => {
+    const body = (await request.json()) as { refresh?: string };
+
+    // AC 2: Проверка наличия refresh token
+    if (!body.refresh) {
+      return HttpResponse.json({ error: 'Refresh token is required' }, { status: 400 });
+    }
+
+    // Mock: "invalid-refresh-token" считается невалидным
+    if (body.refresh === 'invalid-refresh-token') {
+      return HttpResponse.json({ error: 'Invalid or expired token' }, { status: 400 });
+    }
+
+    if (body.refresh === 'missing-auth') {
+      return HttpResponse.json(
+        { detail: 'Authentication credentials were not provided.' },
+        { status: 401 }
+      );
+    }
+
+    // AC 3: Успешный logout - 204 No Content
+    return new HttpResponse(null, { status: 204 });
+  }),
+
   // Successful login
   http.post(`${API_BASE_URL}/auth/login/`, async ({ request }) => {
     const body = (await request.json()) as { email: string; password: string };
 
     // Simulate 401 for specific test credentials
     if (body.email === 'wrong@example.com' || body.password === 'WrongPassword') {
-      return HttpResponse.json(
-        { detail: 'Invalid credentials' },
-        { status: 401 }
-      );
+      return HttpResponse.json({ detail: 'Invalid credentials' }, { status: 401 });
     }
 
     return HttpResponse.json({
@@ -425,18 +447,12 @@ export const authHandlers = [
 
     // Simulate 409 conflict for existing email
     if (body.email === 'existing@example.com') {
-      return HttpResponse.json(
-        { email: ['User with this email already exists'] },
-        { status: 409 }
-      );
+      return HttpResponse.json({ email: ['User with this email already exists'] }, { status: 409 });
     }
 
     // Simulate 400 for weak password
     if (body.password === 'weak') {
-      return HttpResponse.json(
-        { password: ['Password is too weak'] },
-        { status: 400 }
-      );
+      return HttpResponse.json({ password: ['Password is too weak'] }, { status: 400 });
     }
 
     return HttpResponse.json(

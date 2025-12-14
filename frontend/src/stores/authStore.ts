@@ -35,7 +35,7 @@ interface AuthState {
   // Actions
   setTokens: (access: string, refresh: string) => void;
   setUser: (user: User) => void;
-  logout: () => void;
+  logout: () => Promise<void>;
   getRefreshToken: () => string | null;
 }
 
@@ -80,14 +80,30 @@ export const useAuthStore = create<AuthState>()(
         set({ user });
       },
 
-      logout: () => {
-        // Очистить refresh token из localStorage
+      /**
+       * Выход из системы с инвалидацией токена на сервере
+       * Story 31.2 - AC 5, 6: Async logout с вызовом backend API
+       *
+       * Fail-safe: Локальная очистка ВСЕГДА происходит, даже при ошибке API
+       */
+      logout: async () => {
+        const refreshToken = localStorage.getItem('refreshToken');
+
+        // Попытка инвалидировать токен на сервере
+        if (refreshToken) {
+          try {
+            // Динамический импорт для избежания circular dependency
+            const { default: authService } = await import('../services/authService');
+            await authService.logoutFromServer(refreshToken);
+          } catch (error) {
+            // Fail-safe: логируем ошибку, но продолжаем локальную очистку
+            console.error('Server logout failed, proceeding with local cleanup:', error);
+          }
+        }
+
+        // Локальная очистка ВСЕГДА выполняется (fail-safe)
         localStorage.removeItem('refreshToken');
-
-        // Очистить cookie
         deleteCookie('refreshToken');
-
-        // Очистить state
         set({
           accessToken: null,
           user: null,
