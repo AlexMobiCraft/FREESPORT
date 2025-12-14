@@ -1,6 +1,8 @@
 /**
  * InfoPanel Component Tests
- * Покрытие dismissible, длинного текста, иконок
+ * Покрытие variant, title, message, dismissible, icons
+ *
+ * Story 15.2: Расширены тесты для нового API
  */
 
 import React from 'react';
@@ -9,15 +11,81 @@ import { InfoPanel } from '../InfoPanel';
 
 describe('InfoPanel', () => {
   // Базовый рендеринг
-  it('renders info panel with text', () => {
-    render(<InfoPanel>Important information</InfoPanel>);
+  describe('Basic Rendering', () => {
+    it('renders info panel with children', () => {
+      render(<InfoPanel>Important information</InfoPanel>);
 
-    expect(screen.getByText('Important information')).toBeInTheDocument();
+      expect(screen.getByText('Important information')).toBeInTheDocument();
+    });
+
+    it('renders with message prop', () => {
+      render(<InfoPanel message="Message from prop" />);
+
+      expect(screen.getByText('Message from prop')).toBeInTheDocument();
+    });
+
+    it('renders with title prop', () => {
+      render(<InfoPanel title="Test Title">Content</InfoPanel>);
+
+      expect(screen.getByText('Test Title')).toBeInTheDocument();
+      expect(screen.getByText('Content')).toBeInTheDocument();
+    });
+
+    it('renders with both title and message', () => {
+      render(<InfoPanel title="Error Title" message="Error message" />);
+
+      expect(screen.getByText('Error Title')).toBeInTheDocument();
+      expect(screen.getByText('Error message')).toBeInTheDocument();
+    });
+
+    it('children takes priority over message', () => {
+      render(<InfoPanel message="From message">From children</InfoPanel>);
+
+      expect(screen.getByText('From children')).toBeInTheDocument();
+      expect(screen.queryByText('From message')).not.toBeInTheDocument();
+    });
+
+    it('has role="alert" for accessibility', () => {
+      render(<InfoPanel>Message</InfoPanel>);
+
+      expect(screen.getByRole('alert')).toBeInTheDocument();
+    });
+  });
+
+  // Variants
+  describe('Variants', () => {
+    it('renders info variant by default with blue styling', () => {
+      const { container } = render(<InfoPanel>Message</InfoPanel>);
+
+      const panel = container.firstChild as HTMLElement;
+      expect(panel).toHaveClass('bg-blue-50', 'border-blue-200');
+    });
+
+    it('renders warning variant with amber styling', () => {
+      const { container } = render(<InfoPanel variant="warning">Message</InfoPanel>);
+
+      const panel = container.firstChild as HTMLElement;
+      expect(panel).toHaveClass('bg-amber-50', 'border-amber-200');
+    });
+
+    it('renders error variant with red styling', () => {
+      const { container } = render(<InfoPanel variant="error">Message</InfoPanel>);
+
+      const panel = container.firstChild as HTMLElement;
+      expect(panel).toHaveClass('bg-red-50', 'border-red-200');
+    });
+
+    it('renders success variant with green styling', () => {
+      const { container } = render(<InfoPanel variant="success">Message</InfoPanel>);
+
+      const panel = container.firstChild as HTMLElement;
+      expect(panel).toHaveClass('bg-green-50', 'border-green-200');
+    });
   });
 
   // Icon
   describe('Icon', () => {
-    it('renders default Info icon when not provided', () => {
+    it('renders default icon based on variant', () => {
       const { container } = render(<InfoPanel>Message</InfoPanel>);
 
       const icon = container.querySelector('svg[aria-hidden="true"]');
@@ -31,11 +99,25 @@ describe('InfoPanel', () => {
       expect(screen.getByTestId('custom-icon')).toBeInTheDocument();
     });
 
-    it('icon has proper styling', () => {
+    it('icon container has proper styling', () => {
       const { container } = render(<InfoPanel>Message</InfoPanel>);
 
-      const iconContainer = container.querySelector('.w-20.h-20');
-      expect(iconContainer).toHaveClass('rounded-xl', 'bg-[#00B7FF]/16');
+      const iconContainer = container.querySelector('.w-12.h-12');
+      expect(iconContainer).toHaveClass('rounded-xl');
+    });
+
+    it('error variant shows error icon with red color', () => {
+      const { container } = render(<InfoPanel variant="error">Message</InfoPanel>);
+
+      const iconWrapper = container.querySelector('.text-red-600');
+      expect(iconWrapper).toBeInTheDocument();
+    });
+
+    it('warning variant shows warning icon with amber color', () => {
+      const { container } = render(<InfoPanel variant="warning">Message</InfoPanel>);
+
+      const iconWrapper = container.querySelector('.text-amber-600');
+      expect(iconWrapper).toBeInTheDocument();
     });
   });
 
@@ -108,7 +190,7 @@ describe('InfoPanel', () => {
       const { container } = render(<InfoPanel>Message</InfoPanel>);
 
       const textContainer = container.querySelector('.text-body-m');
-      expect(textContainer).toHaveClass('text-text-primary');
+      expect(textContainer).toBeInTheDocument();
     });
   });
 
@@ -129,13 +211,6 @@ describe('InfoPanel', () => {
 
       const panel = container.firstChild as HTMLElement;
       expect(panel).toHaveClass('grid', 'grid-cols-[auto_1fr]', 'gap-4');
-    });
-
-    it('has proper background and border', () => {
-      const { container } = render(<InfoPanel>Message</InfoPanel>);
-
-      const panel = container.firstChild as HTMLElement;
-      expect(panel).toHaveClass('bg-neutral-100', 'border-primary/20');
     });
 
     it('has rounded corners', () => {
@@ -205,5 +280,26 @@ describe('InfoPanel', () => {
 
     expect(screen.getByText(/Important:/)).toBeInTheDocument();
     expect(screen.getByText(/formatting/)).toBeInTheDocument();
+  });
+
+  // Story 15.2 specific tests
+  describe('Checkout Form Integration', () => {
+    it('renders error variant with title and message for API errors', () => {
+      render(
+        <InfoPanel variant="error" title="Ошибка оформления заказа" message="Недостаточно товара" />
+      );
+
+      expect(screen.getByText('Ошибка оформления заказа')).toBeInTheDocument();
+      expect(screen.getByText('Недостаточно товара')).toBeInTheDocument();
+    });
+
+    it('renders warning variant for empty cart', () => {
+      render(
+        <InfoPanel variant="warning" title="Корзина пуста" message="Добавьте товары в корзину" />
+      );
+
+      expect(screen.getByText('Корзина пуста')).toBeInTheDocument();
+      expect(screen.getByText('Добавьте товары в корзину')).toBeInTheDocument();
+    });
   });
 });

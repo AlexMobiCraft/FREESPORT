@@ -3,23 +3,77 @@
  * Информационный баннер с иконкой
  *
  * @see frontend/docs/design-system.json#components.InfoPanel
+ *
+ * Story 15.2: Расширен API для поддержки variant, title, message props
  */
 
 import React, { useState } from 'react';
-import { Info, X } from 'lucide-react';
+import { Info, AlertCircle, AlertTriangle, CheckCircle, X } from 'lucide-react';
 import { cn } from '@/utils/cn';
 
+/** Варианты отображения InfoPanel */
+export type InfoPanelVariant = 'info' | 'warning' | 'error' | 'success';
+
 export interface InfoPanelProps extends React.HTMLAttributes<HTMLDivElement> {
-  /** Текст сообщения */
-  children: React.ReactNode;
-  /** Иконка (по умолчанию Info) */
+  /** Текст сообщения (можно использовать вместо message) */
+  children?: React.ReactNode;
+  /** Вариант отображения: info (default), warning, error, success */
+  variant?: InfoPanelVariant;
+  /** Заголовок панели (опционально) */
+  title?: string;
+  /** Текст сообщения (альтернатива children) */
+  message?: React.ReactNode;
+  /** Кастомная иконка (переопределяет иконку варианта) */
   icon?: React.ReactNode;
-  /** Можно ли закрыть панель */
+  /** Callback для закрытия панели */
   onDismiss?: () => void;
 }
 
+/**
+ * Конфигурация стилей для каждого варианта
+ */
+const variantConfig: Record<
+  InfoPanelVariant,
+  {
+    bgColor: string;
+    borderColor: string;
+    iconBgColor: string;
+    iconColor: string;
+    Icon: React.ElementType;
+  }
+> = {
+  info: {
+    bgColor: 'bg-blue-50',
+    borderColor: 'border-blue-200',
+    iconBgColor: 'bg-blue-100',
+    iconColor: 'text-blue-600',
+    Icon: Info,
+  },
+  warning: {
+    bgColor: 'bg-amber-50',
+    borderColor: 'border-amber-200',
+    iconBgColor: 'bg-amber-100',
+    iconColor: 'text-amber-600',
+    Icon: AlertTriangle,
+  },
+  error: {
+    bgColor: 'bg-red-50',
+    borderColor: 'border-red-200',
+    iconBgColor: 'bg-red-100',
+    iconColor: 'text-red-600',
+    Icon: AlertCircle,
+  },
+  success: {
+    bgColor: 'bg-green-50',
+    borderColor: 'border-green-200',
+    iconBgColor: 'bg-green-100',
+    iconColor: 'text-green-600',
+    Icon: CheckCircle,
+  },
+};
+
 export const InfoPanel = React.forwardRef<HTMLDivElement, InfoPanelProps>(
-  ({ children, icon, onDismiss, className, ...props }, ref) => {
+  ({ children, variant = 'info', title, message, icon, onDismiss, className, ...props }, ref) => {
     const [isVisible, setIsVisible] = useState(true);
 
     const handleDismiss = () => {
@@ -29,20 +83,28 @@ export const InfoPanel = React.forwardRef<HTMLDivElement, InfoPanelProps>(
 
     if (!isVisible) return null;
 
+    const config = variantConfig[variant];
+    const IconComponent = config.Icon;
+
+    // Контент: children имеет приоритет над message
+    const content = children ?? message;
+
     return (
       <div
         ref={ref}
+        role="alert"
         className={cn(
           // Базовые стили
           'relative',
           'grid grid-cols-[auto_1fr] gap-4',
           'p-5 rounded-md',
-          'bg-neutral-100',
-          'border border-primary/20',
+          // Динамические стили на основе variant
+          config.bgColor,
+          'border',
+          config.borderColor,
           // Edge Case: fade-out анимация при закрытии
           'transition-opacity duration-[200ms]',
           !isVisible && 'opacity-0',
-
           className
         )}
         {...props}
@@ -51,22 +113,26 @@ export const InfoPanel = React.forwardRef<HTMLDivElement, InfoPanelProps>(
         <div
           className={cn(
             'flex items-start justify-center',
-            'w-20 h-20 rounded-xl',
-            'bg-[#00B7FF]/16'
+            'w-12 h-12 rounded-xl',
+            config.iconBgColor
           )}
         >
-          <div className="w-12 h-12 text-[#00B7FF] flex items-center justify-center mt-1">
-            {/* Edge Case: Иконка по умолчанию если не указана */}
-            {icon || <Info className="w-full h-full" aria-hidden="true" />}
+          <div className={cn('w-6 h-6 flex items-center justify-center mt-3', config.iconColor)}>
+            {/* Кастомная иконка или иконка варианта */}
+            {icon || <IconComponent className="w-full h-full" aria-hidden="true" />}
           </div>
         </div>
 
         {/* Text Content */}
         <div className="flex-1">
-          {/* Edge Case: Текст автоматически переносится на несколько строк */}
-          <div className="text-body-m text-text-primary whitespace-normal break-words pr-8">
-            {children}
-          </div>
+          {/* Заголовок (если указан) */}
+          {title && <div className="text-body-m font-semibold text-text-primary mb-1">{title}</div>}
+          {/* Основной контент */}
+          {content && (
+            <div className="text-body-m text-text-secondary whitespace-normal break-words pr-8">
+              {content}
+            </div>
+          )}
         </div>
 
         {/* Edge Case: Кнопка закрытия (dismissible) */}

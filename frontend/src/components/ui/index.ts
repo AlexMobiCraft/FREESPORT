@@ -65,7 +65,7 @@ export type { SpinnerProps, SpinnerSize } from './Spinner/Spinner';
 
 // Information Panels
 export { InfoPanel } from './InfoPanel/InfoPanel';
-export type { InfoPanelProps } from './InfoPanel/InfoPanel';
+export type { InfoPanelProps, InfoPanelVariant } from './InfoPanel/InfoPanel';
 
 export { SupportPanel } from './SupportPanel/SupportPanel';
 export type { SupportPanelProps, SupportPanelVariant } from './SupportPanel/SupportPanel';

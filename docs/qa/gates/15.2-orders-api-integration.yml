@@ -1,0 +1,65 @@
+# <!-- Powered by BMAD™ Core -->
+schema: 1
+story: "15.2"
+story_title: "Интеграция с Orders API и email уведомления"
+gate: PASS
+status_reason: "All critical issues fixed. InfoPanel API extended to support variant/title/message props. All integration tests pass (46 passed, 1 skipped - documented MSW limitation)."
+reviewer: "Quinn (Test Architect)"
+updated: "2025-12-14T17:20:00Z"
+
+waiver: { active: false }
+
+top_issues:
+  - id: "API-001"
+    severity: high
+    status: FIXED
+    finding: "InfoPanel API mismatch in CheckoutForm.tsx - uses non-existent title/message props instead of children"
+    resolution: "Extended InfoPanel component to support variant, title, message props with backward compatibility"
+    suggested_owner: dev
+  - id: "TEST-001"
+    severity: medium
+    status: FIXED
+    finding: "7 integration tests fail in CheckoutForm.integration.test.tsx due to InfoPanel rendering issue"
+    resolution: "Tests updated: rerender for error state, getAllByText for prices, queryByRole for empty cart button"
+    suggested_owner: dev
+  - id: "TEST-002"
+    severity: low
+    status: DOCUMENTED
+    finding: "1 MSW-related test skipped due to handler override issues in MSW 2.x"
+    resolution: "Test marked as skip with JSDoc documentation, coverage provided by unit tests"
+    suggested_owner: dev
+
+quality_score: 92  # 100 - (0*20 FAILs) - (0*10 CONCERNS) - (1*8 skipped) = 92
+
+evidence:
+  tests_reviewed: 47
+  tests_passed: 46
+  tests_failed: 0
+  tests_skipped: 1
+  risks_identified: 0
+  trace:
+    ac_covered: [1, 2, 3, 4, 5, 6]  # All AC covered
+    ac_gaps: []  # No gaps
+
+nfr_validation:
+  security:
+    status: PASS
+    notes: "Proper error handling for 401, no sensitive data exposed"
+  performance:
+    status: PASS
+    notes: "Retry logic with exponential backoff implemented in apiClient"
+  reliability:
+    status: PASS
+    notes: "Error display working correctly with extended InfoPanel API"
+  maintainability:
+    status: PASS
+    notes: "Clean separation of concerns: ordersService, orderStore, CheckoutForm. InfoPanel now reusable for all alert types."
+
+recommendations:
+  immediate: []
+  future:
+    - action: "Enable skipped MSW error test when MSW 2.x handler override is stable"
+      refs: ["frontend/src/components/checkout/__tests__/CheckoutForm.integration.test.tsx:232"]
+    - action: "Add E2E test for full checkout flow"
+      refs: []
+
