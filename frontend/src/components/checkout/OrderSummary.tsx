@@ -112,9 +112,10 @@ export function OrderSummary({ isSubmitting, submitError, isCartEmpty }: OrderSu
       <Button
         type="submit"
         variant="primary"
-        size="lg"
-        className="mt-4 w-full"
-        disabled={isSubmitting || isEmpty}
+        size="large"
+        className="mt-4 w-full text-white"
+        loading={isSubmitting}
+        disabled={isEmpty}
         aria-busy={isSubmitting}
       >
         {isSubmitting ? 'Оформление...' : 'Оформить заказ'}

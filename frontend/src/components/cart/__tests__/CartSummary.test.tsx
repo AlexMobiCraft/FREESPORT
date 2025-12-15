@@ -225,9 +225,9 @@ describe('CartSummary', () => {
       });
     });
 
-    it('displays "🛒 Оформить заказ" text', () => {
+    it('displays "Перейти к оформлению" text', () => {
       render(<CartSummary />);
-      expect(screen.getByText(/Оформить заказ/)).toBeInTheDocument();
+      expect(screen.getByText(/Перейти к оформлению/)).toBeInTheDocument();
     });
   });
 

@@ -28,13 +28,21 @@ class OrderItemSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "product",
+            "variant",
             "product_name",
             "product_sku",
+            "variant_info",
             "quantity",
             "unit_price",
             "total_price",
         ]
-        read_only_fields = ["id", "product_name", "product_sku", "total_price"]
+        read_only_fields = [
+            "id",
+            "product_name",
+            "product_sku",
+            "variant_info",
+            "total_price",
+        ]
         depth = 1
 
 
@@ -235,15 +243,25 @@ class OrderCreateSerializer(serializers.ModelSerializer):
             item_total = user_price * cart_item.quantity
             total_amount += item_total
 
+            # Формируем информацию о варианте (размер, цвет)
+            variant_info_parts = []
+            if variant.size_value:
+                variant_info_parts.append(f"Размер: {variant.size_value}")
+            if variant.color_name:
+                variant_info_parts.append(f"Цвет: {variant.color_name}")
+            variant_info_str = ", ".join(variant_info_parts)
+
             order_items.append(
                 OrderItem(
                     order=order,
                     product=product,
+                    variant=variant,
                     quantity=cart_item.quantity,
                     unit_price=user_price,
                     total_price=item_total,
                     product_name=product.name,
                     product_sku=variant.sku,
+                    variant_info=variant_info_str,
                 )
             )
 

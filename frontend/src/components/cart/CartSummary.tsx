@@ -103,27 +103,27 @@ export const CartSummary = () => {
           disabled
           className={cn(
             'w-full h-14 flex items-center justify-center',
-            'bg-[var(--color-primary)] text-[var(--color-text-inverse)]',
-            'rounded-[var(--radius-md)] text-body-l font-medium',
+            'bg-[var(--color-primary)]',
+            'rounded-[var(--radius-md)] text-body-l font-medium text-[var(--color-text-inverse)]',
             'opacity-50 cursor-not-allowed'
           )}
           data-testid="checkout-button"
           aria-disabled="true"
         >
-          🛒 Оформить заказ
+          Перейти к оформлению
         </button>
       ) : (
         <Link
           href="/checkout"
           className={cn(
             'w-full h-14 flex items-center justify-center',
-            'bg-[var(--color-primary)] text-[var(--color-text-inverse)]',
-            'rounded-[var(--radius-md)] text-body-l font-medium',
+            'bg-[var(--color-primary)]',
+            'rounded-[var(--radius-md)] text-body-l font-medium text-[var(--color-text-inverse)]',
             'hover:bg-[var(--color-primary-hover)] transition-colors'
           )}
           data-testid="checkout-button"
         >
-          🛒 Оформить заказ
+          Перейти к оформлению
         </Link>
       )}
     </div>

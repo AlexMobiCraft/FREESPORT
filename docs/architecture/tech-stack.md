@@ -204,7 +204,7 @@ Redis >= 7.0
 ### Node.js экосистема  
 ```
 Node.js >= 18 LTS
-Next.js >= 15.4
+Next.js >= 15.5.7
 React >= 19.1
 TypeScript >= 5.0
 ```
