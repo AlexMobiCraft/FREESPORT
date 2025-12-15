@@ -62,6 +62,8 @@ graph TD
     - **`/src/components`**: Переиспользуемые React-компоненты.
     - **`/src/services`**: Логика взаимодействия с API.
     - **`/src/stores`**: Управление состоянием с помощью Zustand.
+    - **`/src/providers`**: React Context провайдеры для управления глобальным состоянием и сессиями (например, AuthProvider).
+    - **`/src/schemas`**: Схемы валидации данных с использованием Zod для форм и API-ответов.
     - **`package.json`**: Зависимости JavaScript/TypeScript.
     - **`__tests__`**: Тесты для компонентов и утилит (Jest, Testing Library). Юнит-тесты для компонентов находятся рядом с ними (например, `src/components/__tests__`), а интеграционные тесты - в этой директории.
 - **`/docker`**: Конфигурационные файлы Docker и Docker Compose.
