@@ -13,7 +13,7 @@ from django.db.models.manager import BaseManager
 from rest_framework import serializers
 
 from apps.cart.models import Cart
-from apps.products.models import Product
+from apps.products.models import Product, ProductVariant
 
 from .models import Order, OrderItem
 
@@ -129,23 +129,29 @@ class OrderCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Корзина пуста")
 
         # Проверяем наличие товаров
-        for item in cart.items.select_related("product"):
-            product = item.product
-            if not product.is_active:
+        for item in cart.items.select_related("variant__product"):
+            variant = item.variant
+            product = variant.product if variant else None
+
+            if not product or not product.is_active:
                 raise serializers.ValidationError(
-                    f"Товар '{product.name}' больше недоступен"
+                    f"Товар '{product.name if product else 'неизвестен'}' больше недоступен"
                 )
-            if item.quantity > product.stock_quantity:
+
+            if not variant or not variant.is_active:
+                raise serializers.ValidationError(
+                    f"Вариант товара '{product.name}' больше недоступен"
+                )
+
+            available_stock = variant.stock_quantity
+            if item.quantity > available_stock:
                 raise serializers.ValidationError(
                     f"Недостаточно товара '{product.name}' на складе. "
-                    f"Доступно: {product.stock_quantity} штук, "
+                    f"Доступно: {available_stock} штук, "
                     f"запрошено: {item.quantity} штук"
                 )
-            if item.quantity < product.min_order_quantity:
-                raise serializers.ValidationError(
-                    f"Минимальное количество для заказа '{product.name}': "
-                    f"{product.min_order_quantity}"
-                )
+
+            # Минимальное количество товара не контролируется на уровне Product
 
         # Валидация способов доставки и оплаты
         payment_method = attrs.get("payment_method")
@@ -213,9 +219,19 @@ class OrderCreateSerializer(serializers.ModelSerializer):
         total_amount = 0
         order_items = []
 
-        for cart_item in cart.items.select_related("product"):
-            product = cart_item.product
-            user_price = product.get_price_for_user(user)
+        variant_updates: list[tuple[int, int]] = []
+
+        for cart_item in cart.items.select_related("variant__product"):
+            variant = cart_item.variant
+            product = variant.product if variant else None
+
+            # Если по какой-то причине вариант потерян, валимся с понятной ошибкой
+            if not variant or not product:
+                raise serializers.ValidationError(
+                    "Некорректный товар в корзине. Обновите корзину и попробуйте снова."
+                )
+
+            user_price = variant.get_price_for_user(user)
             item_total = user_price * cart_item.quantity
             total_amount += item_total
 
@@ -227,9 +243,12 @@ class OrderCreateSerializer(serializers.ModelSerializer):
                     unit_price=user_price,
                     total_price=item_total,
                     product_name=product.name,
-                    product_sku=product.sku,
+                    product_sku=variant.sku,
                 )
             )
+
+            # Накопим данные для списания остатков по варианта
+            variant_updates.append((variant.pk, cart_item.quantity))
 
         order.total_amount = total_amount + Decimal(delivery_cost)
         order.save()
@@ -239,12 +258,11 @@ class OrderCreateSerializer(serializers.ModelSerializer):
         order_item_manager.bulk_create(order_items)
 
         # Списываем физические остатки со склада
-        product_manager = cast(BaseManager[Product], getattr(Product, "objects"))
-        for item in order_items:
-            if item.product:
-                product_manager.filter(pk=item.product.pk).update(
-                    stock_quantity=F("stock_quantity") - item.quantity
-                )
+        variant_manager = cast(BaseManager[ProductVariant], getattr(ProductVariant, "objects"))
+        for variant_pk, quantity in variant_updates:
+            variant_manager.filter(pk=variant_pk).update(
+                stock_quantity=F("stock_quantity") - quantity
+            )
 
         # Очищаем корзину (это вызовет сигнал для уменьшения reserved_quantity)
         cart.clear()
