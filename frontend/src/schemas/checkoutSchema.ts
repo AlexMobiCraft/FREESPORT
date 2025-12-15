@@ -36,6 +36,9 @@ export const checkoutSchema = z.object({
   // Placeholder для Story 15.3 - полная реализация будет позже
   deliveryMethod: z.string().min(1, 'Выберите способ доставки'),
 
+  // ========== Способ оплаты ==========
+  paymentMethod: z.string().default('payment_on_delivery'),
+
   // ========== Комментарий к заказу ==========
   comment: z.string().max(500, 'Максимум 500 символов').optional().default(''),
 });
@@ -61,5 +64,6 @@ export const defaultCheckoutFormValues: CheckoutFormData = {
   apartment: '',
   postalCode: '',
   deliveryMethod: '',
+  paymentMethod: 'payment_on_delivery',
   comment: '',
 };

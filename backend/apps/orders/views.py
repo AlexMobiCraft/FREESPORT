@@ -19,7 +19,15 @@ class OrderViewSet(viewsets.ModelViewSet):
     ViewSet для управления заказами
     """
 
-    permission_classes = [permissions.IsAuthenticated]
+    def get_permissions(self):
+        """
+        Настройка прав доступа:
+        - create: Доступно всем (включая гостей)
+        - остальные: Только авторизованные пользователи
+        """
+        if self.action == "create":
+            return [permissions.AllowAny()]
+        return [permissions.IsAuthenticated()]
 
     def get_serializer_class(self):
         """Выбор сериализатора в зависимости от действия"""

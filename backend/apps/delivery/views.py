@@ -41,3 +41,5 @@ class DeliveryMethodViewSet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self) -> QuerySet[DeliveryMethod]:
         """Возвращает только доступные способы доставки."""
         return DeliveryMethod.objects.filter(is_available=True)
+
+    pagination_class = None  # Возвращаем простой список, без пагинации

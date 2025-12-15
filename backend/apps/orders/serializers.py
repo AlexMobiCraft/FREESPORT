@@ -110,6 +110,9 @@ class OrderCreateSerializer(serializers.ModelSerializer):
             "delivery_date",
             "payment_method",
             "notes",
+            "customer_name",
+            "customer_email",
+            "customer_phone",
         ]
 
     def validate(self, attrs):
@@ -198,9 +201,9 @@ class OrderCreateSerializer(serializers.ModelSerializer):
             if request and hasattr(request, "data"):
                 order_data.update(
                     {
-                        "customer_name": request.data.get("customer_name", ""),
-                        "customer_email": request.data.get("customer_email", ""),
-                        "customer_phone": request.data.get("customer_phone", ""),
+                        "customer_name": validated_data.get("customer_name", ""),
+                        "customer_email": validated_data.get("customer_email", ""),
+                        "customer_phone": validated_data.get("customer_phone", ""),
                     }
                 )
 
@@ -254,7 +257,7 @@ class OrderCreateSerializer(serializers.ModelSerializer):
             "pickup": 0,
             "courier": 500,
             "post": 300,
-            "transport": 1000,
+            "transport_company": 1000,
         }
         return delivery_costs.get(delivery_method, 0)
 

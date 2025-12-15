@@ -16,6 +16,7 @@ import type {
   CreateOrderPayload,
   CreateOrderResponse,
   OrderValidationError,
+  OrderAuthError,
 } from '@/types/order';
 import type { PaginatedResponse } from '@/types/api';
 import { AxiosError } from 'axios';
@@ -41,14 +42,11 @@ function mapFormDataToPayload(
     phone: formData.phone,
     first_name: formData.firstName,
     last_name: formData.lastName,
-    delivery_address: {
-      city: formData.city,
-      street: formData.street,
-      house: formData.house,
-      apartment: formData.apartment || undefined,
-      postal_code: formData.postalCode,
-    },
-    delivery_method_id: formData.deliveryMethod,
+    delivery_address: `${formData.postalCode}, г. ${formData.city}, ул. ${formData.street}, д. ${formData.house}${
+      formData.apartment ? `, кв. ${formData.apartment}` : ''
+    }`,
+    delivery_method: formData.deliveryMethod,
+    payment_method: formData.paymentMethod,
     items: cartItems.map(item => ({
       variant_id: item.variant_id,
       quantity: item.quantity,
@@ -61,22 +59,43 @@ function mapFormDataToPayload(
  * Парсинг ошибки API в читаемое сообщение
  */
 function parseApiError(
-  error: AxiosError<OrderValidationError | { error?: string; message?: string }>
+  error: AxiosError<
+    OrderValidationError | OrderAuthError | { error?: string; message?: string; detail?: string }
+  >
 ): string {
   const status = error.response?.status;
   const data = error.response?.data;
 
   // 400 Bad Request - валидационные ошибки
   if (status === 400) {
-    const validationError = data as OrderValidationError;
-    // Пытаемся получить конкретное сообщение об ошибке
-    if (validationError.details?.items?.[0]) {
-      return validationError.details.items[0];
+    console.error('API Validation Error:', JSON.stringify(data, null, 2));
+
+    // 1. Проверяем на стандартные типы ошибок
+    if (data && 'error' in data && typeof data.error === 'string') {
+      return data.error;
     }
-    if (validationError.error) {
-      return validationError.error;
+
+    // 2. Ошибка с detail (DRF standard)
+    if (data && 'detail' in data && typeof data.detail === 'string') {
+      return data.detail;
     }
-    return 'Ошибка валидации данных заказа';
+
+    // 3. Стандартная DRF структура { field: ["error"] }
+    // Ищем первую ошибку из полей
+    if (data && typeof data === 'object') {
+      const firstErrorKey = Object.keys(data)[0];
+      if (firstErrorKey) {
+        const messages = (data as Record<string, unknown>)[firstErrorKey];
+        if (Array.isArray(messages) && messages.length > 0 && typeof messages[0] === 'string') {
+          return `${firstErrorKey}: ${messages[0]}`;
+        }
+        if (typeof messages === 'string') {
+          return `${firstErrorKey}: ${messages}`;
+        }
+      }
+    }
+
+    return `Ошибка валидации: ${JSON.stringify(data)}`;
   }
 
   // 401 Unauthorized - сессия истекла
@@ -119,15 +138,7 @@ class OrdersService {
       const response = await apiClient.post<CreateOrderResponse>('/orders/', payload);
 
       // Маппинг ответа в Order
-      return {
-        id: response.data.id,
-        order_number: response.data.order_number,
-        status: response.data.status,
-        total_amount: response.data.total_amount,
-        created_at: response.data.created_at,
-        delivery_method: response.data.delivery_method,
-        items: response.data.items,
-      };
+      return response.data;
     } catch (error) {
       const axiosError = error as AxiosError<OrderValidationError>;
       const message = parseApiError(axiosError);

@@ -19,7 +19,7 @@ export type OrderStatus =
  * Способ доставки (backend возвращает строку-код)
  * pickup | courier | post | transport
  */
-export type DeliveryMethodCode = 'pickup' | 'courier' | 'post' | 'transport';
+export type DeliveryMethodCode = 'pickup' | 'courier' | 'post' | 'transport_company';
 
 /**
  * Адрес доставки (backend возвращает как строку)
@@ -95,16 +95,13 @@ export interface CreateOrderPayload {
   last_name: string;
 
   // Адрес доставки
-  delivery_address: {
-    city: string;
-    street: string;
-    house: string;
-    apartment?: string;
-    postal_code: string;
-  };
+  delivery_address: string;
 
   // Способ доставки
-  delivery_method_id: string;
+  delivery_method: string;
+
+  // Способ оплаты
+  payment_method: string;
 
   // Товары из корзины (используем variant_id из cartStore)
   items: Array<{
