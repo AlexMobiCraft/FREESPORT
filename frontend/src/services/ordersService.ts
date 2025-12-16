@@ -23,10 +23,12 @@ import { AxiosError } from 'axios';
 
 /**
  * Фильтры для списка заказов
+ * Story 16.2: Расширены для поддержки фильтрации по статусу
  */
-interface OrderFilters {
+export interface OrderFilters {
   page?: number;
-  limit?: number;
+  page_size?: number;
+  status?: string; // pending | processing | shipped | delivered | cancelled
 }
 
 /**
@@ -70,18 +72,14 @@ function parseApiError(
   if (status === 400) {
     console.error('API Validation Error:', JSON.stringify(data, null, 2));
 
-    // 1. Проверяем на стандартные типы ошибок
     if (data && 'error' in data && typeof data.error === 'string') {
       return data.error;
     }
 
-    // 2. Ошибка с detail (DRF standard)
     if (data && 'detail' in data && typeof data.detail === 'string') {
       return data.detail;
     }
 
-    // 3. Стандартная DRF структура { field: ["error"] }
-    // Ищем первую ошибку из полей
     if (data && typeof data === 'object') {
       const firstErrorKey = Object.keys(data)[0];
       if (firstErrorKey) {
@@ -98,36 +96,26 @@ function parseApiError(
     return `Ошибка валидации: ${JSON.stringify(data)}`;
   }
 
-  // 401 Unauthorized - сессия истекла
   if (status === 401) {
     return 'Сессия истекла. Войдите заново.';
   }
 
-  // 500+ Server errors
   if (status && status >= 500) {
     return 'Ошибка сервера. Попробуйте позже.';
   }
 
-  // Network errors
   if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
     return 'Ошибка сети. Проверьте подключение к интернету.';
   }
 
-  // Fallback
   return 'Ошибка создания заказа. Попробуйте снова.';
 }
 
 class OrdersService {
   /**
    * Создать новый заказ
-   *
-   * @param formData - данные формы checkout
-   * @param cartItems - товары из корзины
-   * @returns Order - созданный заказ
-   * @throws Error - с локализованным сообщением об ошибке
    */
   async createOrder(formData: CheckoutFormData, cartItems: CartItem[]): Promise<Order> {
-    // Проверка на пустую корзину
     if (!cartItems || cartItems.length === 0) {
       throw new Error('Корзина пуста, невозможно оформить заказ');
     }
@@ -136,8 +124,6 @@ class OrdersService {
 
     try {
       const response = await apiClient.post<CreateOrderResponse>('/orders/', payload);
-
-      // Маппинг ответа в Order
       return response.data;
     } catch (error) {
       const axiosError = error as AxiosError<OrderValidationError>;
@@ -158,7 +144,6 @@ class OrdersService {
 
   /**
    * Получить заказ по ID
-   * Используется для страницы success (Story 15.4)
    */
   async getById(orderId: string): Promise<Order> {
     const response = await apiClient.get<Order>(`/orders/${orderId}/`);
@@ -169,5 +154,4 @@ class OrdersService {
 const ordersService = new OrdersService();
 export default ordersService;
 
-// Export для тестирования
 export { mapFormDataToPayload, parseApiError };

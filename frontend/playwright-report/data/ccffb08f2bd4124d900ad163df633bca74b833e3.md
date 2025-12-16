@@ -1,0 +1,128 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+    - button "Open Next.js Dev Tools" [ref=e7] [cursor=pointer]:
+        - img [ref=e8]
+    - alert [ref=e11]
+    - generic [ref=e12]:
+        - banner [ref=e13]:
+            - generic [ref=e15]:
+                - link "FREESPORT" [ref=e17] [cursor=pointer]:
+                    - /url: /
+                    - img "FREESPORT" [ref=e18]
+                - navigation "Основная навигация" [ref=e19]:
+                    - link "Главная" [ref=e20] [cursor=pointer]:
+                        - /url: /
+                    - link "Каталог" [ref=e21] [cursor=pointer]:
+                        - /url: /catalog
+                    - link "Бренды" [ref=e22] [cursor=pointer]:
+                        - /url: /brands
+                    - link "Новости" [ref=e23] [cursor=pointer]:
+                        - /url: /news
+                    - link "Акции" [ref=e24] [cursor=pointer]:
+                        - /url: /promotions
+                - generic [ref=e25]:
+                    - generic [ref=e26]:
+                        - button "Поиск" [ref=e27]:
+                            - img [ref=e28]
+                        - link "Избранное" [ref=e31] [cursor=pointer]:
+                            - /url: /favorites
+                            - img [ref=e32]
+                        - link "Корзина (0 товаров)" [ref=e34] [cursor=pointer]:
+                            - /url: /cart
+                            - img [ref=e35]
+                    - generic [ref=e39]:
+                        - link "Регистрация" [ref=e40] [cursor=pointer]:
+                            - /url: /register
+                            - button "Регистрация" [ref=e41]
+                        - link "Войти" [ref=e42] [cursor=pointer]:
+                            - /url: /login
+                            - button "Войти" [ref=e43]
+        - main [ref=e44]:
+            - generic [ref=e46]:
+                - generic [ref=e47]:
+                    - heading "Вход в FREESPORT" [level=1] [ref=e48]
+                    - paragraph [ref=e49]: Войдите в свой аккаунт для доступа к платформе
+                - generic [ref=e50]:
+                    - generic [ref=e51]:
+                        - generic [ref=e52]:
+                            - generic [ref=e53]: Email
+                            - textbox "Email" [ref=e55]:
+                                - /placeholder: user@example.com
+                        - generic [ref=e56]:
+                            - generic [ref=e57]: Пароль
+                            - textbox "Пароль" [ref=e59]:
+                                - /placeholder: ••••••••
+                        - button "Войти" [ref=e60]
+                    - paragraph [ref=e62]:
+                        - text: Нет аккаунта?
+                        - link "Зарегистрироваться" [ref=e63] [cursor=pointer]:
+                            - /url: /register
+        - contentinfo [ref=e64]:
+            - generic [ref=e65]:
+                - generic [ref=e66]:
+                    - generic [ref=e67]:
+                        - heading "О компании" [level=3] [ref=e68]
+                        - list [ref=e69]:
+                            - listitem [ref=e70]:
+                                - link "О нас" [ref=e71] [cursor=pointer]:
+                                    - /url: /about
+                            - listitem [ref=e72]:
+                                - link "Контакты" [ref=e73] [cursor=pointer]:
+                                    - /url: /contacts
+                            - listitem [ref=e74]:
+                                - link "Вакансии" [ref=e75] [cursor=pointer]:
+                                    - /url: /careers
+                    - generic [ref=e76]:
+                        - heading "Каталог" [level=3] [ref=e77]
+                        - list [ref=e78]:
+                            - listitem [ref=e79]:
+                                - link "Спортивные игры" [ref=e80] [cursor=pointer]:
+                                    - /url: /catalog/sports-games
+                            - listitem [ref=e81]:
+                                - link "Единоборства" [ref=e82] [cursor=pointer]:
+                                    - /url: /catalog/martial-arts
+                            - listitem [ref=e83]:
+                                - link "Фитнес" [ref=e84] [cursor=pointer]:
+                                    - /url: /catalog/fitness
+                            - listitem [ref=e85]:
+                                - link "Детский транспорт" [ref=e86] [cursor=pointer]:
+                                    - /url: /catalog/kids-transport
+                    - generic [ref=e87]:
+                        - heading "Помощь" [level=3] [ref=e88]
+                        - list [ref=e89]:
+                            - listitem [ref=e90]:
+                                - link "Доставка" [ref=e91] [cursor=pointer]:
+                                    - /url: /delivery
+                            - listitem [ref=e92]:
+                                - link "Возврат" [ref=e93] [cursor=pointer]:
+                                    - /url: /returns
+                            - listitem [ref=e94]:
+                                - link "FAQ" [ref=e95] [cursor=pointer]:
+                                    - /url: /faq
+                    - generic [ref=e96]:
+                        - heading "Контакты" [level=3] [ref=e97]
+                        - list [ref=e98]:
+                            - listitem [ref=e99]:
+                                - link "+7 (495) 123-45-67" [ref=e100] [cursor=pointer]:
+                                    - /url: tel:+74951234567
+                            - listitem [ref=e101]:
+                                - link "info@freesport.ru" [ref=e102] [cursor=pointer]:
+                                    - /url: mailto:info@freesport.ru
+                            - listitem [ref=e103]:
+                                - link "Москва, ул. Примерная, д. 1" [ref=e104] [cursor=pointer]:
+                                    - /url: '#'
+                - generic [ref=e105]:
+                    - generic [ref=e106]:
+                        - link "VK" [ref=e107] [cursor=pointer]:
+                            - /url: https://vk.com/freesport
+                            - img [ref=e108]
+                        - link "Telegram" [ref=e110] [cursor=pointer]:
+                            - /url: https://t.me/freesport
+                            - img [ref=e111]
+                        - link "YouTube" [ref=e113] [cursor=pointer]:
+                            - /url: https://youtube.com/@freesport
+                            - img [ref=e114]
+                    - paragraph [ref=e116]: © 2025 FREESPORT. Все права защищены.
+```

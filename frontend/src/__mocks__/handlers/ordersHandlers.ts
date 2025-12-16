@@ -1,38 +1,90 @@
 /**
  * MSW Handlers для Orders API
  * Story 15.2: Интеграция с Orders API
+ * Story 16.2: История заказов с функцией повторного заказа
  */
 
 import { http, HttpResponse } from 'msw';
 
-// Используем wildcard для матчинга любых URL
-// MSW 2.x поддерживает wildcard patterns
-
 /**
- * Mock данные успешного заказа
+ * Mock данные успешного заказа (полный формат для Story 16.2)
  */
 export const mockSuccessOrder = {
-  id: '550e8400-e29b-41d4-a716-446655440000',
+  id: 1,
   order_number: 'ORD-2025-001',
-  status: 'new' as const,
-  total_amount: 5000.0,
-  created_at: '2025-12-14T12:00:00Z',
-  delivery_method: {
-    id: 'courier',
-    name: 'Курьер',
-    description: 'Доставка курьером до двери',
-  },
+  user: 1,
+  customer_display_name: 'Тест Пользователь',
+  customer_name: 'Тест Пользователь',
+  customer_email: 'test@example.com',
+  customer_phone: '+79001234567',
+  status: 'pending' as const,
+  total_amount: '15500',
+  discount_amount: '500',
+  delivery_cost: '500',
+  delivery_address: 'г. Москва, ул. Тестовая, д. 1, кв. 10',
+  delivery_method: 'courier',
+  delivery_date: null,
+  tracking_number: '',
+  payment_method: 'card',
+  payment_status: 'pending',
+  payment_id: '',
+  notes: '',
+  created_at: '2025-01-15T10:30:00Z',
+  updated_at: '2025-01-15T10:30:00Z',
   items: [
     {
-      variant_id: 123,
-      product_id: 1,
-      product_name: 'Футбольный мяч Nike',
+      id: 1,
+      product: 101,
+      product_name: 'Кроссовки Nike Air Max',
+      product_sku: 'NIKE-AM-001',
       quantity: 2,
-      price: 2500,
-      total: 5000,
+      unit_price: '5000',
+      total_price: '10000',
+    },
+    {
+      id: 2,
+      product: 102,
+      product_name: 'Футболка Adidas',
+      product_sku: 'ADIDAS-TS-002',
+      quantity: 1,
+      unit_price: '5500',
+      total_price: '5500',
     },
   ],
+  subtotal: '15500',
+  total_items: 3,
+  calculated_total: '15500',
+  can_be_cancelled: true,
 };
+
+/**
+ * Mock данные для списка заказов (Story 16.2)
+ */
+export const mockOrdersList = [
+  mockSuccessOrder,
+  {
+    ...mockSuccessOrder,
+    id: 2,
+    order_number: 'ORD-2025-002',
+    status: 'delivered' as const,
+    total_amount: '25000',
+    payment_status: 'paid',
+    created_at: '2025-01-10T14:00:00Z',
+    tracking_number: 'TRK-123456',
+    total_items: 5,
+  },
+  {
+    ...mockSuccessOrder,
+    id: 3,
+    order_number: 'ORD-2025-003',
+    status: 'shipped' as const,
+    total_amount: '8000',
+    payment_status: 'paid',
+    created_at: '2025-01-12T09:15:00Z',
+    tracking_number: 'TRK-789012',
+    total_items: 2,
+  },
+];
 
 /**
  * Orders API Handlers
@@ -57,7 +109,6 @@ export const ordersHandlers = [
       comment?: string;
     };
 
-    // Проверка на пустые items
     if (!body.items || body.items.length === 0) {
       return HttpResponse.json(
         {
@@ -70,7 +121,6 @@ export const ordersHandlers = [
       );
     }
 
-    // Проверка на "недоступный" товар (для тестов)
     const unavailableItem = body.items.find(item => item.variant_id === 999);
     if (unavailableItem) {
       return HttpResponse.json(
@@ -84,17 +134,30 @@ export const ordersHandlers = [
       );
     }
 
-    // Успешный ответ
     return HttpResponse.json(mockSuccessOrder, { status: 201 });
   }),
 
-  // GET /orders/ - Список заказов
-  http.get('*/orders/', () => {
+  // GET /orders/ - Список заказов (Story 16.2)
+  http.get('*/orders/', ({ request }) => {
+    const url = new URL(request.url);
+    const status = url.searchParams.get('status');
+    const page = parseInt(url.searchParams.get('page') || '1', 10);
+    const pageSize = parseInt(url.searchParams.get('page_size') || '20', 10);
+
+    let filteredOrders = [...mockOrdersList];
+    if (status) {
+      filteredOrders = filteredOrders.filter(order => order.status === status);
+    }
+
+    const start = (page - 1) * pageSize;
+    const end = start + pageSize;
+    const paginatedOrders = filteredOrders.slice(start, end);
+
     return HttpResponse.json({
-      count: 1,
-      next: null,
-      previous: null,
-      results: [mockSuccessOrder],
+      count: filteredOrders.length,
+      next: end < filteredOrders.length ? `?page=${page + 1}` : null,
+      previous: page > 1 ? `?page=${page - 1}` : null,
+      results: paginatedOrders,
     });
   }),
 
@@ -102,7 +165,6 @@ export const ordersHandlers = [
   http.get('*/orders/:id/', ({ params }) => {
     const { id } = params;
 
-    // 404 для несуществующего заказа
     if (id === 'not-found' || id === '00000000-0000-0000-0000-000000000000') {
       return HttpResponse.json({ detail: 'Not found' }, { status: 404 });
     }
@@ -118,7 +180,6 @@ export const ordersHandlers = [
  * Handlers для тестирования ошибок
  */
 export const ordersErrorHandlers = {
-  // 400 Bad Request - валидационная ошибка
   validation400: http.post('*/orders/', () => {
     return HttpResponse.json(
       {
@@ -131,7 +192,6 @@ export const ordersErrorHandlers = {
     );
   }),
 
-  // 401 Unauthorized
   unauthorized401: http.post('*/orders/', () => {
     return HttpResponse.json(
       {
@@ -142,7 +202,6 @@ export const ordersErrorHandlers = {
     );
   }),
 
-  // 500 Server Error
   serverError500: http.post('*/orders/', () => {
     return HttpResponse.json(
       {
@@ -153,7 +212,6 @@ export const ordersErrorHandlers = {
     );
   }),
 
-  // Network error
   networkError: http.post('*/orders/', () => {
     return HttpResponse.error();
   }),

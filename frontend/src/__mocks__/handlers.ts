@@ -89,9 +89,45 @@ export const authHandlers = [
       email: 'test@example.com',
       first_name: 'Test',
       last_name: 'User',
+      phone: '+79001234567',
       role: 'retail',
       is_verified: true,
       company_name: null,
+      tax_id: null,
+    });
+  }),
+
+  // PUT /users/profile/ - Update profile endpoint (Story 16.1)
+  http.put('*/users/profile/', async ({ request }) => {
+    const authHeader = request.headers.get('Authorization');
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return HttpResponse.json({ detail: 'Invalid token' }, { status: 401 });
+    }
+
+    const body = (await request.json()) as Record<string, unknown>;
+
+    // Валидация phone
+    if (body.phone && typeof body.phone === 'string') {
+      if (!/^\+7\d{10}$/.test(body.phone)) {
+        return HttpResponse.json(
+          { phone: ['Телефон должен быть в формате +79001234567'] },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Возвращаем обновлённые данные
+    return HttpResponse.json({
+      id: 1,
+      email: 'test@example.com',
+      first_name: body.first_name || 'Test',
+      last_name: body.last_name || 'User',
+      phone: body.phone || '+79001234567',
+      role: 'retail',
+      is_verified: true,
+      company_name: body.company_name || null,
+      tax_id: body.tax_id || null,
     });
   }),
 ];

@@ -1,0 +1,65 @@
+# Quality Gate: Story 16.2
+schema: 1
+story: "16.2"
+story_title: "История заказов с функцией повторного заказа"
+gate: PASS
+status_reason: "Все 7 Acceptance Criteria выполнены. Предыдущие замечания QA (CART-001, AC6-001, E2E-001) исправлены: repeat-order использует variant.id, PDF export реализован через jsPDF, E2E стабилизированы с API mocking."
+reviewer: "Quinn (Test Architect)"
+updated: "2025-12-16T19:31:00+01:00"
+
+waiver: { active: false }
+
+top_issues: []
+
+risk_summary:
+  totals: { critical: 0, high: 0, medium: 0, low: 1 }
+  recommendations:
+    must_fix: []
+    monitor:
+      - "CSR вместо SSR для первичной загрузки (не блокер, влияет на perceived performance)"
+
+quality_score: 95
+expires: "2025-12-30T00:00:00Z"
+
+evidence:
+  tests_reviewed: 15
+  risks_identified: 0
+  trace:
+    ac_covered: [1, 2, 3, 4, 5, 6, 7]
+    ac_gaps: []
+
+nfr_validation:
+  security:
+    status: PASS
+    notes: "Обработка 403/404, authSelectors.useIsB2BUser() для PDF export, валидация ID"
+  performance:
+    status: PASS
+    notes: "Серверная пагинация (20/page), optimistic UI в cartStore, loading states"
+  reliability:
+    status: PASS
+    notes: "Repeat-order корректно использует variant.id, проверка is_active, E2E с API mocking"
+  maintainability:
+    status: PASS
+    notes: "Компоненты декомпозированы, TypeScript типизация, unit-тесты для всех компонентов"
+
+recommendations:
+  immediate: []
+  future:
+    - action: "Обновить mockOrder в OrderDetail.test.tsx с полем variant для соответствия типу OrderItem"
+      refs:
+        - "frontend/src/components/business/OrderDetail/OrderDetail.test.tsx"
+    - action: "Рассмотреть SSR для первичной загрузки данных (сейчас CSR)"
+      refs:
+        - "frontend/src/app/(profile)/orders/page.tsx"
+        - "frontend/src/app/(profile)/orders/[id]/page.tsx"
+
+history:
+  - at: "2025-12-16T17:00:00+01:00"
+    gate: FAIL
+    note: "Файлы пустые (0 bytes)"
+  - at: "2025-12-16T19:16:00+01:00"
+    gate: FAIL
+    note: "AC4/AC6 не выполнены, E2E нестабильный"
+  - at: "2025-12-16T19:31:00+01:00"
+    gate: PASS
+    note: "Все AC выполнены после QA fixes"

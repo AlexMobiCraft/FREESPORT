@@ -34,13 +34,26 @@ export interface DeliveryAddressInput {
 }
 
 /**
+ * Информация о варианте товара в заказе
+ */
+export interface OrderItemVariant {
+  id: number;
+  sku: string;
+  color_name: string | null;
+  size_value: string | null;
+  is_active: boolean;
+}
+
+/**
  * Элемент заказа (контракт backend OrderItemSerializer)
  */
 export interface OrderItem {
   id: number;
   product: number; // product ID
+  variant: OrderItemVariant | null; // variant object (depth=1 в сериализаторе)
   product_name: string;
   product_sku: string;
+  variant_info: string; // "Размер: XL, Цвет: Красный"
   quantity: number;
   unit_price: string; // Decimal как строка
   total_price: string; // Decimal как строка
