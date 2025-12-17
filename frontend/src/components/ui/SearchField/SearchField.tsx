@@ -5,6 +5,8 @@
  * @see frontend/docs/design-system.json#components.SearchField
  */
 
+'use client';
+
 import React, { useState, useRef, useEffect, useId } from 'react';
 import { Search, X } from 'lucide-react';
 import { cn } from '@/utils/cn';

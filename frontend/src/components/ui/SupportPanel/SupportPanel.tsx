@@ -5,6 +5,8 @@
  * @see frontend/docs/design-system.json#components.SupportPanel
  */
 
+'use client';
+
 import React, { useState } from 'react';
 import { Truck, CheckCircle2, X } from 'lucide-react';
 import { cn } from '@/utils/cn';
