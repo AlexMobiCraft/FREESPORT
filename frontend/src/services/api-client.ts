@@ -22,10 +22,9 @@ import { useAuthStore } from '@/stores/authStore';
 // NEXT_PUBLIC_API_URL - клиентская переменная, встраивается при сборке
 const isServer = typeof window === 'undefined';
 const API_URL_PUBLIC = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api/v1';
-const API_URL_INTERNAL =
-  process.env.INTERNAL_API_URL
-    ? `${process.env.INTERNAL_API_URL}/api/v1`
-    : process.env.NEXT_PUBLIC_API_URL_INTERNAL || 'http://backend:8000/api/v1';
+const API_URL_INTERNAL = process.env.INTERNAL_API_URL
+  ? `${process.env.INTERNAL_API_URL}/api/v1`
+  : process.env.NEXT_PUBLIC_API_URL_INTERNAL || 'http://backend:8000/api/v1';
 const API_URL = isServer ? API_URL_INTERNAL : API_URL_PUBLIC;
 const API_TIMEOUT = parseInt(process.env.NEXT_PUBLIC_API_TIMEOUT || '30000');
 
@@ -142,15 +141,28 @@ apiClient.interceptors.response.use(
       }
 
       try {
-        // Call refresh endpoint
-        const response = await axios.post<{ access: string }>(`${API_URL}/auth/refresh/`, {
-          refresh: refreshToken,
+        // Call refresh endpoint (используем apiClient для корректного baseURL)
+        // ВАЖНО: используем новый axios instance БЕЗ interceptors для избежания recursion
+        const refreshAxios = axios.create({
+          baseURL: API_URL,
+          timeout: API_TIMEOUT,
         });
+        const response = await refreshAxios.post<{ access: string; refresh?: string }>(
+          '/auth/refresh/',
+          {
+            refresh: refreshToken,
+          }
+        );
 
-        const { access } = response.data;
+        const { access, refresh: newRefreshToken } = response.data;
+
+        // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Backend использует ROTATE_REFRESH_TOKENS=True
+        // Это означает что каждый refresh создаёт НОВЫЙ refresh token,
+        // а старый попадает в blacklist. Мы ОБЯЗАНЫ сохранить новый refresh token!
+        const tokenToStore = newRefreshToken || refreshToken;
 
         // Update access token in store
-        useAuthStore.getState().setTokens(access, refreshToken);
+        useAuthStore.getState().setTokens(access, tokenToStore);
 
         // Process queued requests
         processQueue(null, access);

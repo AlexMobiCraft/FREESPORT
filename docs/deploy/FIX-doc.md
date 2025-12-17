@@ -1,52 +1,60 @@
 Проанализировал Docker конфигурацию проекта с учетом локальной и продакшен сред. Выявил и исправил критические проблемы, которые вызывали ошибки запуска контейнеров.
 
-## Основные проблемы и решения:
+## Основные проблемы и решения
 
 ### 1. **Несоответствие паролей в конфигурациях**
+
 - Исправил `docker-compose.yml` для использования переменных из `.env` файла
 - Добавил значения по умолчанию с `${DB_PASSWORD:-password123}` и `${REDIS_PASSWORD:-redis123}`
 
 ### 2. **Проблемы с healthcheck и запуском сервисов**
+
 - Добавил `start_period: 60s` для всех healthcheck
 - Увеличил таймауты с 10s до 30s
 - Увеличил количество попыток с 5 до 10
 
 ### 3. **Настройки Redis в базовой конфигурации**
+
 - Исправил `base.py` для использования пароля Redis по умолчанию
 - Обновил URL Redis: `redis://:redis123@redis:6379/0`
 
 ### 4. **Документация**
+
 - Обновил `LOCAL_DOCKER_SETUP.md` с учетом использования `.env` файлов
 - Добавил разделы по устранению проблем с паролями и сетью
 - Создал новый файл `ENVIRONMENT_CONFIGURATION.md` с полным описанием конфигураций
 
-## Структура конфигураций теперь корректна:
+## Структура конфигураций теперь корректна
 
 **Локальная разработка:**
+
 - `.env` - переменные окружения
 - `docker-compose.yml` - локальные контейнеры
 - `development.py` - настройки Django для разработки
 
 **Продакшен:**
+
 - `.env.prod` - образы для продакшена
 - `docker-compose.prod.yml` - продакшен контейнеры
 - `production.py` - настройки Django для продакшена
 - Серверные переменные окружения для паролей и секретов
 
-## Рекомендуемые шаги для запуска:
+## Рекомендуемые шаги для запуска
 
 1. **Настройка .env файла:**
+
 ```bash
 cp .env.example .env
 # Отредактировать пароли при необходимости
 ```
 
 2. **Очистка и перезапуск:**
+
 ```bash
-docker compose -f docker/docker-compose.yml down -v
+docker compose --env-file .env -f docker/docker-compose.yml down -v
 docker network rm freesport-network
-docker compose -f docker/docker-compose.yml build --no-cache
-docker compose -f docker/docker-compose.yml up -d
+docker compose --env-file .env -f docker/docker-compose.yml build --no-cache
+docker compose --env-file .env -f docker/docker-compose.yml up -d
 ```
 
 Эти изменения решат проблемы с разрешением имен хостов и обеспечат стабильный запуск всех контейнеров как в локальной, так и в продакшен среде.

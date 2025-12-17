@@ -65,18 +65,24 @@ The recommended way to run the project is with Docker Compose.
 **Local Development:**
 
 ```bash
-docker compose  --env-file .env -f docker/docker-compose.yml
+docker compose --env-file .env -f docker/docker-compose.yml up -d
 ```
 
 **Production:**
 
 ```bash
-docker compose --env-file .env.prod -f docker/docker-compose.prod.yml
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml up -d
 ```
 
-# Stop and remove all services  
+**Stop and remove all services:**
 
-docker-compose down
+```bash
+# Local
+docker compose --env-file .env -f docker/docker-compose.yml down
+
+# Production  
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml down
+```
 
 The following services will be started:
 

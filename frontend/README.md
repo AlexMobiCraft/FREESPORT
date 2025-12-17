@@ -27,7 +27,7 @@ Next.js 15.4.6 фронтенд для платформы FREESPORT, постр�
 ```bash
 # Из корня проекта
 cd ..
-docker compose -f docker/docker-compose.yml up frontend
+docker compose --env-file .env -f docker/docker-compose.yml up frontend
 ```
 
 Фронтенд будет доступен на `http://localhost:3000`.
@@ -204,13 +204,13 @@ frontend/
 
 ```bash
 # Запуск frontend сервиса
-docker compose -f docker/docker-compose.yml up frontend
+docker compose --env-file .env -f docker/docker-compose.yml up frontend
 
 # Просмотр логов
-docker compose -f docker/docker-compose.yml logs -f frontend
+docker compose --env-file .env -f docker/docker-compose.yml logs -f frontend
 
 # Остановка
-docker compose -f docker/docker-compose.yml down
+docker compose --env-file .env -f docker/docker-compose.yml down
 ```
 
 ### Production
@@ -263,7 +263,7 @@ npm install
 docker system prune -a
 
 # Пересборка без кеша
-docker compose -f docker/docker-compose.yml build --no-cache frontend
+docker compose --env-file .env -f docker/docker-compose.yml build --no-cache frontend
 ```
 
 ## CI/CD
