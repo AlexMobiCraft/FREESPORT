@@ -8,6 +8,7 @@ import { User } from '@/types/api';
 import {
   checkoutSchema,
   CheckoutFormData,
+  CheckoutFormInput,
   defaultCheckoutFormValues,
 } from '@/schemas/checkoutSchema';
 import { useOrderStore } from '@/stores/orderStore';
@@ -73,7 +74,7 @@ export function CheckoutForm({ user }: CheckoutFormProps) {
   const userWithAddresses = user as UserWithAddresses | null;
 
   // Инициализация React Hook Form с автозаполнением
-  const form = useForm<CheckoutFormData>({
+  const form = useForm<CheckoutFormInput, unknown, CheckoutFormData>({
     resolver: zodResolver(checkoutSchema),
     mode: 'onBlur', // Валидация при потере фокуса для лучшего UX
     reValidateMode: 'onChange', // Ре-валидация при изменении
@@ -95,6 +96,7 @@ export function CheckoutForm({ user }: CheckoutFormProps) {
 
       // Остальные поля
       deliveryMethod: defaultCheckoutFormValues.deliveryMethod,
+      paymentMethod: defaultCheckoutFormValues.paymentMethod,
       comment: defaultCheckoutFormValues.comment,
     },
   });

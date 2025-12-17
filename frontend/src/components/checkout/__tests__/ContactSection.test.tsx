@@ -3,11 +3,11 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ContactSection } from '../ContactSection';
-import { checkoutSchema, CheckoutFormData } from '@/schemas/checkoutSchema';
+import { checkoutSchema, CheckoutFormData, CheckoutFormInput } from '@/schemas/checkoutSchema';
 
 // Wrapper компонент для тестирования ContactSection
-function ContactSectionWrapper({ defaultValues }: { defaultValues?: Partial<CheckoutFormData> }) {
-  const form = useForm<CheckoutFormData>({
+function ContactSectionWrapper({ defaultValues }: { defaultValues?: Partial<CheckoutFormInput> }) {
+  const form = useForm<CheckoutFormInput, unknown, CheckoutFormData>({
     resolver: zodResolver(checkoutSchema),
     mode: 'onBlur',
     defaultValues: {

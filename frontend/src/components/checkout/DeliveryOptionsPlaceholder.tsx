@@ -1,10 +1,10 @@
 'use client';
 
 import { UseFormReturn } from 'react-hook-form';
-import { CheckoutFormData } from '@/schemas/checkoutSchema';
+import { CheckoutFormData, CheckoutFormInput } from '@/schemas/checkoutSchema';
 
 export interface DeliveryOptionsPlaceholderProps {
-  form: UseFormReturn<CheckoutFormData>;
+  form: UseFormReturn<CheckoutFormInput, unknown, CheckoutFormData>;
 }
 
 /**

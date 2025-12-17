@@ -47,6 +47,7 @@ export const checkoutSchema = z.object({
  * TypeScript тип, автоматически выведенный из Zod схемы
  * Используется для типизации данных формы
  */
+export type CheckoutFormInput = z.input<typeof checkoutSchema>;
 export type CheckoutFormData = z.infer<typeof checkoutSchema>;
 
 /**
