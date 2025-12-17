@@ -35,7 +35,7 @@ interface AuthState {
   // Actions
   setTokens: (access: string, refresh: string) => void;
   setUser: (user: User) => void;
-  logout: () => Promise<void>;
+  logout: (skipServerLogout?: boolean) => Promise<void>;
   getRefreshToken: () => string | null;
 }
 
@@ -84,13 +84,17 @@ export const useAuthStore = create<AuthState>()(
        * Выход из системы с инвалидацией токена на сервере
        * Story 31.2 - AC 5, 6: Async logout с вызовом backend API
        *
+       * @param skipServerLogout - Если true, пропускает попытку выхода на сервере.
+       * Используется когда известно, что токены уже невалидны (например, при ответе 401),
+       * чтобы избежать бесконечного цикла запросов.
+       *
        * Fail-safe: Локальная очистка ВСЕГДА происходит, даже при ошибке API
        */
-      logout: async () => {
+      logout: async (skipServerLogout?: boolean) => {
         const refreshToken = localStorage.getItem('refreshToken');
 
         // Попытка инвалидировать токен на сервере
-        if (refreshToken) {
+        if (refreshToken && !skipServerLogout) {
           try {
             // Динамический импорт для избежания circular dependency
             const { default: authService } = await import('../services/authService');

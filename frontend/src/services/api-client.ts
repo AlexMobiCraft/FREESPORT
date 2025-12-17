@@ -134,8 +134,8 @@ apiClient.interceptors.response.use(
       const refreshToken = useAuthStore.getState().getRefreshToken();
 
       if (!refreshToken) {
-        // No refresh token - logout
-        useAuthStore.getState().logout();
+        // No refresh token - logout (skip server logout)
+        useAuthStore.getState().logout(true);
         processQueue(error, null);
         isRefreshing = false;
         return Promise.reject(error);
@@ -162,9 +162,9 @@ apiClient.interceptors.response.use(
         isRefreshing = false;
         return apiClient(originalRequest);
       } catch (refreshError) {
-        // Refresh failed - logout
+        // Refresh failed - logout (skip server logout to prevent loop)
         processQueue(refreshError, null);
-        useAuthStore.getState().logout();
+        useAuthStore.getState().logout(true);
         isRefreshing = false;
         return Promise.reject(refreshError);
       }
