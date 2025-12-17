@@ -9,8 +9,9 @@
 import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import axios from 'axios';
 import { Loader2 } from 'lucide-react';
+
+import apiClient from '@/services/api-client';
 
 import { useAuthStore, authSelectors } from '@/stores/authStore';
 import { useToast } from '@/components/ui/Toast/ToastProvider';
@@ -82,7 +83,7 @@ const ProfileForm: React.FC = () => {
     const fetchProfile = async () => {
       try {
         setIsFetching(true);
-        const response = await axios.get<User>('/api/v1/users/profile/');
+        const response = await apiClient.get<User>('/users/profile/');
         const profileData = response.data;
 
         // Обновляем форму данными с сервера
@@ -128,7 +129,7 @@ const ProfileForm: React.FC = () => {
         updateData.tax_id = data.tax_id;
       }
 
-      const response = await axios.put<User>('/api/v1/users/profile/', updateData);
+      const response = await apiClient.put<User>('/users/profile/', updateData);
 
       // Обновляем user в authStore
       setUser(response.data);
@@ -312,10 +313,9 @@ const ProfileForm: React.FC = () => {
           className={`
             w-full sm:w-auto h-10 px-6 rounded-md text-body-m font-medium
             transition-colors duration-150
-            ${
-              isLoading || !isDirty
-                ? 'bg-neutral-400 text-neutral-100 cursor-not-allowed'
-                : 'bg-primary text-white hover:bg-primary-hover active:bg-primary-active'
+            ${isLoading || !isDirty
+              ? 'bg-neutral-400 text-neutral-100 cursor-not-allowed'
+              : 'bg-primary text-white hover:bg-primary-hover active:bg-primary-active'
             }
           `}
         >
