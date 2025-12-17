@@ -30,7 +30,7 @@ const Header: React.FC = () => {
    */
   const handleLogout = async () => {
     await logout();
-    router.push('/');
+    router.push('/test');
   };
 
   // Получаем количество товаров из корзины
@@ -61,7 +61,7 @@ const Header: React.FC = () => {
         <div className="flex justify-between items-center h-[60px]">
           {/* Логотип */}
           <div className="flex-shrink-0">
-            <Link href="/" className="flex items-center gap-2">
+            <Link href="/test" className="flex items-center gap-2">
               <Image
                 src="/Freesport_logo.svg"
                 alt="FREESPORT"
