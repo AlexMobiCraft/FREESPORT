@@ -13,6 +13,19 @@ import ProductSummary, { validateOptions } from '../ProductSummary';
 import ProductImageGallery from '../ProductImageGallery';
 import type { ProductVariant } from '../ProductOptions';
 import type { ProductDetailWithVariants } from '../ProductSummary';
+// Mock useToast using vi.hoisted to avoid reference errors
+const { mockToast } = vi.hoisted(() => {
+  return {
+    mockToast: {
+      success: vi.fn(),
+      error: vi.fn(),
+    },
+  };
+});
+
+vi.mock('@/components/ui/Toast', () => ({
+  useToast: () => mockToast,
+}));
 
 /**
  * Mock данные для интеграционных тестов
@@ -155,11 +168,13 @@ describe('ProductOptions Integration (Story 13.5b)', () => {
   });
 
   describe('ProductSummary Integration (AC: 4, 5, IV3)', () => {
-    it('отображает "Выберите вариант" когда опции не выбраны', () => {
+    it('автоматически выбирает вариант по умолчанию', () => {
       render(<ProductSummary product={mockProduct} userRole="retail" />);
 
-      expect(screen.getByTestId('add-to-cart-button')).toHaveTextContent('Выберите вариант');
-      expect(screen.getByTestId('add-to-cart-button')).toBeDisabled();
+      // Должен автоматически выбрать первый вариант
+      expect(screen.getByTestId('add-to-cart-button')).toHaveTextContent('Добавить в корзину');
+      expect(screen.getByTestId('add-to-cart-button')).not.toBeDisabled();
+      expect(screen.getByTestId('selected-variant-info')).toBeInTheDocument();
     });
 
     it('обновляет цену при выборе варианта', async () => {
@@ -197,37 +212,25 @@ describe('ProductOptions Integration (Story 13.5b)', () => {
       });
     });
 
-    it('показывает ошибку валидации при попытке добавить в корзину без выбора опций', async () => {
-      const user = userEvent.setup();
-      const onAddToCart = vi.fn();
+    // Тест удален так как авто-выбор предотвращает состояние "ничего не выбрано" при загрузке
+    // для товаров с валидными вариантами.
+    // it('показывает ошибку валидации при попытке добавить в корзину без выбора опций', ...
 
-      render(<ProductSummary product={mockProduct} userRole="retail" onAddToCart={onAddToCart} />);
-
-      // Пытаемся добавить в корзину без выбора опций
-      const addButton = screen.getByTestId('add-to-cart-button');
-      await user.click(addButton);
-
-      // Проверяем что callback не вызван (кнопка disabled)
-      expect(onAddToCart).not.toHaveBeenCalled();
-    });
-
-    it('разблокирует кнопку "Добавить в корзину" после выбора всех опций', async () => {
+    it('кнопка "Добавить в корзину" активна сразу (из-за авто-выбора)', async () => {
       const user = userEvent.setup();
       render(<ProductSummary product={mockProduct} userRole="retail" />);
 
-      // Изначально кнопка disabled
-      expect(screen.getByTestId('add-to-cart-button')).toBeDisabled();
+      // Изначально кнопка enabled из-за авто-выбора
+      expect(screen.getByTestId('add-to-cart-button')).not.toBeDisabled();
+      expect(screen.getByTestId('add-to-cart-button')).toHaveTextContent('Добавить в корзину');
 
-      // Выбираем опции
-      await user.click(screen.getByRole('radio', { name: /Размер: 42/i }));
-      await user.click(screen.getByRole('radio', { name: /Цвет: Красный/i }));
+      // Можем изменить выбор
+      await user.click(screen.getByRole('radio', { name: /Цвет: Синий/i }));
 
-      // Кнопка должна стать enabled
+      // Кнопка все еще enabled
       await waitFor(() => {
         expect(screen.getByTestId('add-to-cart-button')).not.toBeDisabled();
       });
-
-      expect(screen.getByTestId('add-to-cart-button')).toHaveTextContent('Добавить в корзину');
     });
 
     it('вызывает onVariantChange при изменении выбора', async () => {
@@ -416,6 +419,34 @@ describe('ProductOptions Integration (Story 13.5b)', () => {
       // Должен показать только main_image
       // Thumbnails не должны отображаться если только 1 изображение
       expect(screen.queryByTestId('image-thumbnails')).not.toBeInTheDocument();
+    });
+
+    it('автоматически выбирает вариант если у вариантов нет опций (размер/цвет)', () => {
+      const variantsWithoutOptions: ProductVariant[] = [
+        {
+          id: 1,
+          sku: 'SIMPLE-VARIANT',
+          current_price: '1000.00',
+          stock_quantity: 10,
+          is_in_stock: true,
+          available_quantity: 10,
+          // size_value and color_name are undefined/null
+        },
+      ];
+      const productWithSimpleVariant = {
+        ...mockProduct,
+        variants: variantsWithoutOptions,
+      };
+
+      render(<ProductSummary product={productWithSimpleVariant} userRole="retail" />);
+
+      // Кнопка должна быть enabled и "Добавить в корзину"
+      const button = screen.getByTestId('add-to-cart-button');
+      expect(button).not.toBeDisabled();
+      expect(button).toHaveTextContent('Добавить в корзину');
+
+      // Должен отображаться артикул выбранного варианта
+      expect(screen.getByText('SIMPLE-VARIANT')).toBeInTheDocument();
     });
   });
 });

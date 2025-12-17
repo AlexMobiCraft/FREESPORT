@@ -5,6 +5,8 @@
  * @see docs/stories/epic-12/12.5.story.md#AC1
  */
 
+'use client';
+
 import React, { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { cn } from '@/utils/cn';

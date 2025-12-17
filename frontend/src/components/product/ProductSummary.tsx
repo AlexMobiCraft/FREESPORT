@@ -168,8 +168,15 @@ export default function ProductSummary({
   const selectedVariant = useMemo((): ProductVariant | null => {
     if (variants.length === 0) return null;
 
-    // Если ничего не выбрано, возвращаем null
-    if (!selectedOptions.size && !selectedOptions.color) return null;
+    // Если есть опции для выбора, но ничего не выбрано - возвращаем null
+    // Если опций нет (простой товар с вариантом), пропускаем эту проверку
+    if (
+      (sizes.length > 0 || colors.length > 0) &&
+      !selectedOptions.size &&
+      !selectedOptions.color
+    ) {
+      return null;
+    }
 
     // Ищем вариант, соответствующий выбранным опциям
     return (
@@ -179,7 +186,7 @@ export default function ProductSummary({
         return sizeMatch && colorMatch;
       }) || null
     );
-  }, [variants, selectedOptions]);
+  }, [variants, selectedOptions, sizes.length, colors.length]);
 
   /**
    * Обработчик изменения выбора опций
