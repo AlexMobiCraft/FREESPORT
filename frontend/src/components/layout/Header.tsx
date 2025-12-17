@@ -38,7 +38,7 @@ const Header: React.FC = () => {
 
   // Навигационные элементы
   const navigationItems = [
-    { href: '/', label: 'Главная' },
+    { href: '/test', label: 'Главная' },
     { href: '/catalog', label: 'Каталог' },
     { href: '/brands', label: 'Бренды' },
     { href: '/news', label: 'Новости' },
@@ -48,7 +48,7 @@ const Header: React.FC = () => {
   // B2B навигация (дополнительные элементы для бизнес-пользователей)
   const b2bNavigationItems = [
     { href: '/wholesale', label: 'Оптовые цены' },
-    { href: '/orders', label: 'Заказы' },
+    { href: '/profile/orders', label: 'Заказы' },
   ];
 
   const isActivePage = (href: string) => {
@@ -125,7 +125,7 @@ const Header: React.FC = () => {
 
               {/* Избранное */}
               <Link
-                href="/favorites"
+                href="/profile/favorites"
                 aria-label="Избранное"
                 className="p-2 text-text-primary hover:text-text-secondary transition-colors duration-short focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-sm"
               >
@@ -229,7 +229,7 @@ const Header: React.FC = () => {
                   <Search className="w-6 h-6" />
                 </button>
                 <Link
-                  href="/favorites"
+                  href="/profile/favorites"
                   aria-label="Избранное"
                   className="p-2 text-text-primary hover:text-text-secondary transition-colors"
                 >

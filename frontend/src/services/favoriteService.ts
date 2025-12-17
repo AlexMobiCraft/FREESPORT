@@ -3,9 +3,9 @@
  * Story 16.3: Управление избранными товарами
  *
  * Endpoints:
- * - GET /api/v1/favorites/ - получить все избранные товары пользователя
- * - POST /api/v1/favorites/ - добавить товар в избранное
- * - DELETE /api/v1/favorites/{id}/ - удалить из избранного
+ * - GET /api/v1/users/favorites/ - получить все избранные товары пользователя
+ * - POST /api/v1/users/favorites/ - добавить товар в избранное
+ * - DELETE /api/v1/users/favorites/{id}/ - удалить из избранного
  */
 
 import apiClient from './api-client';
@@ -26,12 +26,30 @@ export class FavoriteValidationError extends Error {
 }
 
 /**
+ * Интерфейс пагинированного ответа от DRF
+ */
+interface PaginatedResponse<T> {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
+}
+
+/**
  * Получить все избранные товары текущего пользователя
  */
 export async function getFavorites(): Promise<Favorite[]> {
   try {
-    const response = await apiClient.get<Favorite[]>('/favorites/');
-    return response.data;
+    const response = await apiClient.get<PaginatedResponse<Favorite> | Favorite[]>(
+      '/users/favorites/'
+    );
+    // Поддержка как пагинированного, так и простого ответа
+    const data = response.data;
+    if (Array.isArray(data)) {
+      return data;
+    }
+    // Пагинированный ответ - извлекаем results
+    return data.results || [];
   } catch (error) {
     if (error instanceof AxiosError) {
       if (error.response?.status === 401) {
@@ -48,7 +66,7 @@ export async function getFavorites(): Promise<Favorite[]> {
 export async function addFavorite(productId: number): Promise<Favorite> {
   try {
     const data: AddFavoriteData = { product: productId };
-    const response = await apiClient.post<Favorite>('/favorites/', data);
+    const response = await apiClient.post<Favorite>('/users/favorites/', data);
     return response.data;
   } catch (error) {
     if (error instanceof AxiosError && error.response) {
@@ -73,7 +91,7 @@ export async function addFavorite(productId: number): Promise<Favorite> {
  */
 export async function removeFavorite(id: number): Promise<void> {
   try {
-    await apiClient.delete(`/favorites/${id}/`);
+    await apiClient.delete(`/users/favorites/${id}/`);
   } catch (error) {
     if (error instanceof AxiosError && error.response) {
       if (error.response.status === 401) {
