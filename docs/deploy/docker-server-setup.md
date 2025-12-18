@@ -618,6 +618,8 @@ docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec backe
 docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec backend python manage.py createsuperuser
 
 docker compose --env-file .env.prod -f docker/docker-compose.prod.yml restart
+
+docker compose --env-file .env.pro  d -f docker/docker-compose.prod.yml up -d nginx
 ```
 
 ## Возможные проблемы и их решение
