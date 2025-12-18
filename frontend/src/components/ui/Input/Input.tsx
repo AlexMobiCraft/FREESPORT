@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * Input Component
  * Текстовое поле с поддержкой label, helper, error/success состояний
