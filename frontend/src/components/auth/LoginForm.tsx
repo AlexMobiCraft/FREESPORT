@@ -19,6 +19,7 @@ import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Input } from '@/components/ui/Input/Input';
 import { Button } from '@/components/ui/Button/Button';
 import authService from '@/services/authService';
@@ -116,6 +117,15 @@ export const LoginForm: React.FC<LoginFormProps> = ({ redirectUrl, onSuccess }) 
         autoComplete="current-password"
         placeholder="••••••••"
       />
+
+      <div className="flex justify-end">
+        <Link
+          href="/password-reset"
+          className="text-sm text-blue-600 hover:text-blue-500 hover:underline"
+        >
+          Забыли пароль?
+        </Link>
+      </div>
 
       {/* AC 6: Использование Button компонента */}
       {/* AC 4: Loading state с блокировкой кнопки */}

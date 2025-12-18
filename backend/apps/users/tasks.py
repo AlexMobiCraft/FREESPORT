@@ -246,4 +246,73 @@ def monitor_pending_verification_queue() -> dict:
                 },
             )
 
+
     return {"pending_count": pending_count, "alert_sent": alert_sent}
+
+
+@shared_task(
+    bind=True,
+    max_retries=3,
+    autoretry_for=(SMTPException, ConnectionError),
+    retry_backoff=True,
+    retry_backoff_max=600,
+)
+def send_password_reset_email(self, user_id: int, reset_url: str) -> bool:
+    """
+    Отправить email для сброса пароля.
+
+    Args:
+        user_id: ID пользователя
+        reset_url: Ссылка для сброса пароля
+
+    Returns:
+        True если email отправлен успешно
+    """
+    try:
+        user = User.objects.get(id=user_id)
+
+        context = {
+            "reset_url": reset_url,
+        }
+
+        html_message = render_to_string("emails/password_reset.html", context)
+        plain_message = render_to_string("emails/password_reset.txt", context)
+
+        send_mail(
+            subject="[FREESPORT] Сброс пароля",
+            message=plain_message,
+            from_email=None,
+            recipient_list=[user.email],
+            html_message=html_message,
+            fail_silently=False,
+        )
+
+        logger.info(
+            "Password reset email sent",
+            extra={
+                "user_id": user_id,
+                "user_email": user.email,
+                "template": "password_reset",
+                "timestamp": timezone.now().isoformat(),
+            },
+        )
+        return True
+
+    except User.DoesNotExist:
+        logger.error(
+            "User not found for password reset email",
+            extra={"user_id": user_id, "action": "password_reset_email"},
+        )
+        return False
+
+    except SMTPException as exc:
+        logger.error(
+            "Failed to send password reset email",
+            extra={
+                "user_id": user_id,
+                "exception": str(exc),
+                "retry_count": self.request.retries,
+                "action": "password_reset_email",
+            },
+        )
+        raise self.retry(exc=exc)

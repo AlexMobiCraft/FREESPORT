@@ -23,6 +23,7 @@ prd:
     - 13  # Product Variant System (Stories 13.1, 13.3, 13.5a завершены)
     - 14  # Cart API & UI extensions (все истории эпика 14 завершены)
     - 15  # Checkout (Оформление заказа)
+    - 16  # Личный кабинет
     - 22
     - 23
     - 24
@@ -34,7 +35,7 @@ prd:
     - 30  # Backend Logout Endpoint Implementation
     - 31  # Frontend Logout UI Integration 
   activeEpics:
-    - 16
+    
 
 architecture:
   architectureFile: docs/architecture.md

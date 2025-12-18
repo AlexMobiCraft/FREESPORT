@@ -24,6 +24,7 @@ logger = logging.getLogger("apps.users.auth")
 from ..serializers import (LogoutSerializer, PasswordResetConfirmSerializer,
                            PasswordResetRequestSerializer, UserLoginSerializer,
                            UserRegistrationSerializer, ValidateTokenSerializer)
+from ..tasks import send_password_reset_email
 from ..tokens import password_reset_token
 
 User = get_user_model()
@@ -259,12 +260,19 @@ class PasswordResetRequestView(APIView):
                 uid = urlsafe_base64_encode(force_bytes(user.pk))
                 token = password_reset_token.make_token(user)
 
-                # TODO: В production здесь должна быть отправка email
-                # Для разработки - логируем в консоль
+                # Используем Celery task для отправки email
+                # В development (если configured console backend) это тоже сработает
                 reset_url = (
                     f"http://localhost:3000/password-reset/confirm/{uid}/{token}/"
                 )
-                print(f"Password reset URL for {email}: {reset_url}")
+                
+                # Запускаем задачу асинхронно
+                send_password_reset_email.delay(user.id, reset_url)
+                
+                logger.info(
+                    "Password reset requested",
+                    extra={"user_id": user.id, "email": email}
+                )
 
             except User.DoesNotExist:
                 # Не раскрываем информацию о существовании пользователя
