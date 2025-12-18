@@ -26,7 +26,7 @@ export default function ProductBreadcrumbs({
       >
         {/* Главная страница */}
         <li itemProp="itemListElement" itemScope itemType="https://schema.org/ListItem">
-          <Link href="/" className="hover:text-primary-600 transition-colors" itemProp="item">
+          <Link href="/test" className="hover:text-primary-600 transition-colors" itemProp="item">
             <span itemProp="name">Главная</span>
           </Link>
           <meta itemProp="position" content="1" />

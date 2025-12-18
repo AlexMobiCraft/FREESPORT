@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { UseFormReturn } from 'react-hook-form';
-import { CheckoutFormData } from '@/schemas/checkoutSchema';
+import { CheckoutFormData, CheckoutFormInput } from '@/schemas/checkoutSchema';
 import deliveryService from '@/services/deliveryService';
 import type { DeliveryMethod } from '@/types/delivery';
 
 export interface DeliveryOptionsProps {
-  form: UseFormReturn<CheckoutFormData>;
+  form: UseFormReturn<CheckoutFormInput, unknown, CheckoutFormData>;
 }
 
 /**

@@ -6,6 +6,8 @@
  * @see docs/frontend/design-system.json#components.ConfirmDialog
  */
 
+'use client';
+
 import React, { useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { Modal } from '../Modal';

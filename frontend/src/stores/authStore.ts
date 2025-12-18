@@ -147,6 +147,9 @@ export const authSelectors = {
   useIsB2BUser: () =>
     useAuthStore(state => {
       const role = state.user?.role;
-      return role ? B2B_ROLES.includes(role) : false;
+      const isVerified = state.user?.is_verified;
+      // Story 29.2: Неверифицированные B2B пользователи считаются розничными
+      // B2B функционал доступен только при is_verified=true
+      return role && B2B_ROLES.includes(role) && isVerified === true;
     }),
 };

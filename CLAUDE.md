@@ -722,19 +722,19 @@ repos:
     hooks:
       - id: pytest-fast
         name: Fast tests
-        entry: docker-compose -f docker-compose.test.yml run --rm backend pytest --no-cov -x
+        entry: docker compose --env-file .env -f docker/docker-compose.test.yml run --rm backend pytest --no-cov -x
         language: system
         pass_filenames: false
         
       - id: mypy
         name: mypy type check
-        entry: docker-compose -f docker-compose.test.yml run --rm backend mypy apps/
+        entry: docker compose --env-file .env -f docker/docker-compose.test.yml run --rm backend mypy apps/
         language: system
         pass_filenames: false
         
       - id: black
         name: black code formatting  
-        entry: docker-compose -f docker-compose.test.yml run --rm backend black --check apps/
+        entry: docker compose --env-file .env -f docker/docker-compose.test.yml run --rm backend black --check apps/
         language: system
         pass_filenames: false
 ```

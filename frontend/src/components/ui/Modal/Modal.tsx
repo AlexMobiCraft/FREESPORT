@@ -6,6 +6,8 @@
  * @see docs/frontend/design-system.json#components.Modal
  */
 
+'use client';
+
 import React, { useEffect, useRef, useId } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';

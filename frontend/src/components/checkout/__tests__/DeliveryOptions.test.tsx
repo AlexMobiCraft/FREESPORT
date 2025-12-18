@@ -8,7 +8,7 @@ import userEvent from '@testing-library/user-event';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { DeliveryOptions } from '../DeliveryOptions';
-import { checkoutSchema, CheckoutFormData } from '@/schemas/checkoutSchema';
+import { checkoutSchema, CheckoutFormData, CheckoutFormInput } from '@/schemas/checkoutSchema';
 import deliveryService from '@/services/deliveryService';
 
 // Mock deliveryService with Vitest
@@ -44,7 +44,7 @@ function DeliveryOptionsWrapper({
 }: {
   defaultDeliveryMethod?: string;
 }) {
-  const form = useForm<CheckoutFormData>({
+  const form = useForm<CheckoutFormInput, unknown, CheckoutFormData>({
     resolver: zodResolver(checkoutSchema),
     mode: 'onBlur',
     defaultValues: {

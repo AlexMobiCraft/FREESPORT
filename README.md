@@ -135,7 +135,7 @@ To import product catalog from 1C:
 python manage.py import_products_from_1c
 
 # Or with Docker
-docker compose -f docker/docker-compose.yml exec backend python manage.py import_products_from_1c
+docker compose --env-file .env -f docker/docker-compose.yml exec backend python manage.py import_products_from_1c
 ```
 
 For detailed import options, see:

@@ -65,7 +65,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
   });
 
   // Story 29.1: Отслеживаем выбранную роль для условной логики
-  const selectedRole = watch('role');
+  const selectedRole = watch('role') ?? 'retail';
 
   const onSubmit = async (data: RegisterFormData) => {
     try {
@@ -80,7 +80,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
         first_name: data.first_name,
         last_name: '', // B2C registration может не требовать фамилию
         phone: '', // B2C может не требовать телефон при регистрации
-        role: data.role, // Story 29.1 AC 4: Используем выбранную роль
+        role: data.role ?? 'retail', // Story 29.1 AC 4: Используем выбранную роль
         // Story 29.1 AC 8: Условные B2B поля
         company_name: data.company_name,
         tax_id: data.tax_id,
@@ -95,7 +95,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
       }
 
       // Story 28.1 AC 2: Редирект на главную после успешной регистрации
-      router.push('/');
+      router.push('/test');
     } catch (error: unknown) {
       // AC 4: Обработка ошибок API
       const err = error as {

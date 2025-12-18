@@ -65,6 +65,10 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess }) =
       // AC 4: Отправка через authService.registerB2B()
       const response = await authService.registerB2B(registerData);
 
+      // CRITICAL FIX: Force token refresh immediately to ensure valid session
+      // Initial access token from registration might be restricted/invalid until refresh
+      await authService.refreshToken();
+
       // AC 6: Обработка статуса "На рассмотрении" (is_verified: false)
       if (response.user.is_verified === false) {
         setIsPending(true);
@@ -75,19 +79,19 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess }) =
         }
 
         // Редирект на главную если верифицирован сразу (редкий случай)
-        router.push('/');
+        router.push('/test');
       }
     } catch (error: unknown) {
       // AC 5: Обработка ошибок API
-      const err = error as { response?: { status?: number; data?: Record<string, string[]> & { detail?: string } } };
+      const err = error as {
+        response?: { status?: number; data?: Record<string, string[]> & { detail?: string } };
+      };
 
       if (err.response?.status === 409) {
         // AC 5: Специфичная обработка "Компания уже зарегистрирована"
         const companyError = err.response?.data?.company_name?.[0];
         const emailError = err.response?.data?.email?.[0];
-        setApiError(
-          companyError || emailError || 'Компания или email уже зарегистрированы'
-        );
+        setApiError(companyError || emailError || 'Компания или email уже зарегистрированы');
       } else if (err.response?.status === 400) {
         // Ошибки валидации
         const taxIdError = err.response?.data?.tax_id?.[0];
@@ -126,9 +130,7 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess }) =
               />
             </svg>
             <div>
-              <h3 className="text-lg font-semibold text-blue-900 mb-2">
-                Заявка на рассмотрении
-              </h3>
+              <h3 className="text-lg font-semibold text-blue-900 mb-2">Заявка на рассмотрении</h3>
               <p className="text-body-m text-blue-800 mb-3">
                 Ваша заявка на регистрацию в качестве бизнес-партнера успешно отправлена.
               </p>
@@ -142,7 +144,7 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess }) =
 
         <Button
           type="button"
-          onClick={() => router.push('/')}
+          onClick={() => router.push('/test')}
           variant="secondary"
           className="w-full"
         >
@@ -153,10 +155,7 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess }) =
   }
 
   return (
-    <form
-      onSubmit={handleSubmit(onSubmit)}
-      className="w-full max-w-md mx-auto p-6 space-y-4"
-    >
+    <form onSubmit={handleSubmit(onSubmit)} className="w-full max-w-md mx-auto p-6 space-y-4">
       {/* AC 5: Отображение API ошибок */}
       {apiError && (
         <div
@@ -170,9 +169,7 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess }) =
 
       {/* AC 3: Информационная панель о B2B регистрации */}
       <div className="p-4 rounded-md bg-blue-50 border border-blue-200 mb-6">
-        <p className="text-body-s text-blue-900 font-medium">
-          📊 Регистрация для бизнес-партнеров
-        </p>
+        <p className="text-body-s text-blue-900 font-medium">📊 Регистрация для бизнес-партнеров</p>
         <p className="text-body-xs text-blue-700 mt-1">
           После проверки реквизитов вы получите доступ к оптовым ценам
         </p>
@@ -294,12 +291,7 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess }) =
       </div>
 
       {/* Submit Button */}
-      <Button
-        type="submit"
-        loading={isSubmitting}
-        disabled={isSubmitting}
-        className="w-full mt-6"
-      >
+      <Button type="submit" loading={isSubmitting} disabled={isSubmitting} className="w-full mt-6">
         Отправить заявку
       </Button>
     </form>

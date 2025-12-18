@@ -3,11 +3,11 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { AddressSection } from '../AddressSection';
-import { checkoutSchema, CheckoutFormData } from '@/schemas/checkoutSchema';
+import { checkoutSchema, CheckoutFormData, CheckoutFormInput } from '@/schemas/checkoutSchema';
 
 // Wrapper компонент для тестирования AddressSection
-function AddressSectionWrapper({ defaultValues }: { defaultValues?: Partial<CheckoutFormData> }) {
-  const form = useForm<CheckoutFormData>({
+function AddressSectionWrapper({ defaultValues }: { defaultValues?: Partial<CheckoutFormInput> }) {
+  const form = useForm<CheckoutFormInput, unknown, CheckoutFormData>({
     resolver: zodResolver(checkoutSchema),
     mode: 'onBlur',
     defaultValues: {

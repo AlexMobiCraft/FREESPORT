@@ -7,6 +7,8 @@
  * Story 15.2: Расширен API для поддержки variant, title, message props
  */
 
+'use client';
+
 import React, { useState } from 'react';
 import { Info, AlertCircle, AlertTriangle, CheckCircle, X } from 'lucide-react';
 import { cn } from '@/utils/cn';

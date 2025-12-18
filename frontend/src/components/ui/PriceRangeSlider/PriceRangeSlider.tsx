@@ -5,6 +5,8 @@
  * @see docs/stories/epic-12/12.5.story.md#AC6
  */
 
+'use client';
+
 import React, { useState, useRef, useCallback } from 'react';
 import { cn } from '@/utils/cn';
 

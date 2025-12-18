@@ -1,11 +1,11 @@
 'use client';
 
 import { UseFormReturn } from 'react-hook-form';
-import { CheckoutFormData } from '@/schemas/checkoutSchema';
+import { CheckoutFormData, CheckoutFormInput } from '@/schemas/checkoutSchema';
 import { Input } from '@/components/ui';
 
 export interface AddressSectionProps {
-  form: UseFormReturn<CheckoutFormData>;
+  form: UseFormReturn<CheckoutFormInput, unknown, CheckoutFormData>;
 }
 
 /**

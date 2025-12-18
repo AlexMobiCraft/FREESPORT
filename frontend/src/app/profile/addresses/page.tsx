@@ -18,8 +18,7 @@ import { AddressList } from '@/components/business/AddressList';
 import { AddressModal } from '@/components/business/AddressModal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog/ConfirmDialog';
 import { addressService, AddressValidationError } from '@/services/addressService';
-import type { Address } from '@/types/address';
-import type { AddressSchemaType } from '@/schemas/addressSchema';
+import type { Address, AddressFormData } from '@/types/address';
 
 /**
  * Страница управления адресами доставки
@@ -89,7 +88,7 @@ export default function AddressesPage() {
   /**
    * Создать новый адрес (AC: 1)
    */
-  const handleCreate = async (data: AddressSchemaType) => {
+  const handleCreate = async (data: AddressFormData) => {
     setIsSaving(true);
     try {
       const newAddress = await addressService.createAddress(data);
@@ -115,7 +114,7 @@ export default function AddressesPage() {
   /**
    * Обновить адрес (AC: 2)
    */
-  const handleUpdate = async (id: number, data: AddressSchemaType) => {
+  const handleUpdate = async (id: number, data: AddressFormData) => {
     setIsSaving(true);
     // Сохраняем старый адрес для отката
     const oldAddress = addresses.find(a => a.id === id);

@@ -6,6 +6,8 @@
  * @see docs/frontend/design-system.json#components.Toast
  */
 
+'use client';
+
 import React, { useEffect, useState, useCallback } from 'react';
 import { CheckCircle, XCircle, AlertTriangle, Info, X } from 'lucide-react';
 import { cn } from '@/utils/cn';

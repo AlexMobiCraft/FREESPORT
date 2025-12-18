@@ -27,12 +27,30 @@ export class AddressValidationError extends Error {
 }
 
 /**
+ * Интерфейс пагинированного ответа от DRF
+ */
+interface PaginatedResponse<T> {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
+}
+
+/**
  * Получить все адреса текущего пользователя
  */
 export async function getAddresses(): Promise<Address[]> {
   try {
-    const response = await apiClient.get<Address[]>('/addresses/');
-    return response.data;
+    const response = await apiClient.get<PaginatedResponse<Address> | Address[]>(
+      '/users/addresses/'
+    );
+    // Поддержка как пагинированного, так и простого ответа
+    const data = response.data;
+    if (Array.isArray(data)) {
+      return data;
+    }
+    // Пагинированный ответ - извлекаем results
+    return data.results || [];
   } catch (error) {
     if (error instanceof AxiosError) {
       if (error.response?.status === 401) {
@@ -48,7 +66,7 @@ export async function getAddresses(): Promise<Address[]> {
  */
 export async function createAddress(data: AddressFormData): Promise<Address> {
   try {
-    const response = await apiClient.post<Address>('/addresses/', data);
+    const response = await apiClient.post<Address>('/users/addresses/', data);
     return response.data;
   } catch (error) {
     if (error instanceof AxiosError && error.response) {
@@ -71,7 +89,7 @@ export async function createAddress(data: AddressFormData): Promise<Address> {
  */
 export async function updateAddress(id: number, data: AddressFormData): Promise<Address> {
   try {
-    const response = await apiClient.put<Address>(`/addresses/${id}/`, data);
+    const response = await apiClient.put<Address>(`/users/addresses/${id}/`, data);
     return response.data;
   } catch (error) {
     if (error instanceof AxiosError && error.response) {
@@ -97,7 +115,7 @@ export async function updateAddress(id: number, data: AddressFormData): Promise<
  */
 export async function deleteAddress(id: number): Promise<void> {
   try {
-    await apiClient.delete(`/addresses/${id}/`);
+    await apiClient.delete(`/users/addresses/${id}/`);
   } catch (error) {
     if (error instanceof AxiosError && error.response) {
       if (error.response.status === 401) {

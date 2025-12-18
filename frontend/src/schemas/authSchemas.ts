@@ -180,7 +180,7 @@ export const passwordResetConfirmSchema = z
  * TypeScript Types (инференция из Zod schemas)
  */
 export type LoginFormData = z.infer<typeof loginSchema>;
-export type RegisterFormData = z.infer<typeof registerSchema>;
+export type RegisterFormData = z.input<typeof registerSchema>;
 export type B2BRegisterFormData = z.infer<typeof b2bRegisterSchema>;
 export type PasswordResetRequestFormData = z.infer<typeof passwordResetRequestSchema>;
 export type PasswordResetConfirmFormData = z.infer<typeof passwordResetConfirmSchema>;

@@ -5,6 +5,8 @@
  * @see frontend/docs/design-system.json#components.Tabs
  */
 
+'use client';
+
 import React, { useRef, useState } from 'react';
 import { cn } from '@/utils/cn';
 
