@@ -7,6 +7,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import Button from '@/components/ui/Button';
 import { Grid2x2, List } from 'lucide-react';
 import { ProductCard as BusinessProductCard } from '@/components/business/ProductCard/ProductCard';
@@ -359,10 +360,27 @@ const CatalogContent: React.FC = () => {
   }, [categoryTree, activeCategoryId]);
 
   const breadcrumbSegments = useMemo(() => {
+    const base = [
+      { label: 'Главная', href: '/test' },
+      { label: 'Каталог', href: '/catalog' },
+    ];
+
     if (activePathNodes.length > 0) {
-      return ['Главная', 'Каталог', ...activePathNodes.map(node => node.label)];
+      const categorySegments = activePathNodes.map(node => ({
+        label: node.label,
+        href: `/catalog?category=${node.slug}`,
+      }));
+      return [...base, ...categorySegments];
     }
-    return ['Главная', 'Каталог', activeCategoryLabel];
+
+    // Если активной категории нет или она не найдена в дереве, но есть activeCategoryLabel (например "Спорт")
+    // хотя в текущей логике activeCategoryLabel обновляется из activePathNodes,
+    // но на всякий случай оставим fallback, но без ссылки, так как slug неизвестен
+    if (activeCategoryLabel && activeCategoryLabel !== DEFAULT_CATEGORY_LABEL) {
+      return [...base, { label: activeCategoryLabel, href: null }];
+    }
+
+    return base;
   }, [activePathNodes, activeCategoryLabel]);
 
   useEffect(() => {
@@ -676,21 +694,27 @@ const CatalogContent: React.FC = () => {
     <div className="bg-[#F5F7FB] min-h-screen">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <nav
-          className="text-sm text-gray-500 flex gap-2 flex-wrap"
+          className="text-sm text-gray-500 flex gap-2 flex-wrap items-center"
           aria-label="Хлебные крошки каталога"
         >
-          {breadcrumbSegments.map((segment, index) => (
-            <React.Fragment key={`${segment}-${index}`}>
-              {index !== 0 && <span>/</span>}
-              <span
-                className={
-                  index === breadcrumbSegments.length - 1 ? 'text-gray-900' : 'text-gray-500'
-                }
-              >
-                {segment}
-              </span>
-            </React.Fragment>
-          ))}
+          {breadcrumbSegments.map((segment, index) => {
+            const isLast = index === breadcrumbSegments.length - 1;
+
+            return (
+              <React.Fragment key={`${segment.label}-${index}`}>
+                {index !== 0 && <span className="text-gray-400">/</span>}
+                {segment.href && !isLast ? (
+                  <Link href={segment.href} className="hover:text-blue-600 transition-colors">
+                    {segment.label}
+                  </Link>
+                ) : (
+                  <span className={isLast ? 'text-gray-900 font-medium' : 'text-gray-500'}>
+                    {segment.label}
+                  </span>
+                )}
+              </React.Fragment>
+            );
+          })}
         </nav>
 
         <h1 className="text-4xl font-semibold text-gray-900 mt-3">{activeCategoryLabel}</h1>
