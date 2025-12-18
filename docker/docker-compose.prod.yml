@@ -55,7 +55,7 @@ services:
       - ${ONEC_DATA_DIR}:/app/data/import_1c
     user: "1000:1000"
     healthcheck:
-      test: [ "CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health/')" ]
+      test: [ "CMD", "python", "-c", "import urllib.request; req=urllib.request.Request('http://localhost:8000/api/v1/health/', headers={'X-Forwarded-Proto': 'https'}); urllib.request.urlopen(req)" ]
       interval: 10s
       timeout: 5s
       retries: 5
