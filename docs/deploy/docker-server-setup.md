@@ -609,7 +609,7 @@ docker stats
 ```bash
 git pull
 
-docker compose --env-file .env.prod -f docker/docker-compose.prod.yml down -v
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml down -v # УДАЛЯЕТ ВСЕ
 
 docker compose --env-file .env.prod -f docker/docker-compose.prod.yml up -d --build --force-recreate backend nginx
 
