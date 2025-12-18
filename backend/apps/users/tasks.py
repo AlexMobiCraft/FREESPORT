@@ -316,3 +316,72 @@ def send_password_reset_email(self, user_id: int, reset_url: str) -> bool:
             },
         )
         raise self.retry(exc=exc)
+
+
+@shared_task(
+    bind=True,
+    max_retries=3,
+    autoretry_for=(SMTPException, ConnectionError),
+    retry_backoff=True,
+    retry_backoff_max=600,
+)
+def send_user_verified_email(self, user_id: int) -> bool:
+    """
+    Отправить email пользователю о том, что его аккаунт верифицирован.
+
+    Args:
+        user_id: ID пользователя
+
+    Returns:
+        True если email отправлен успешно
+    """
+    try:
+        user = User.objects.get(id=user_id)
+
+        context = {
+            "first_name": user.first_name,
+            "role_display": user.get_role_display(),
+            "site_url": settings.SITE_URL,
+        }
+
+        html_message = render_to_string("emails/account_verified.html", context)
+        plain_message = render_to_string("emails/account_verified.txt", context)
+
+        send_mail(
+            subject="[FREESPORT] Ваша заявка одобрена! Аккаунт верифицирован",
+            message=plain_message,
+            from_email=None,
+            recipient_list=[user.email],
+            html_message=html_message,
+            fail_silently=False,
+        )
+
+        logger.info(
+            "Account verified email sent",
+            extra={
+                "user_id": user_id,
+                "user_email": user.email,
+                "template": "account_verified",
+                "timestamp": timezone.now().isoformat(),
+            },
+        )
+        return True
+
+    except User.DoesNotExist:
+        logger.error(
+            "User not found for verified email",
+            extra={"user_id": user_id, "action": "user_verified_email"},
+        )
+        return False
+
+    except SMTPException as exc:
+        logger.error(
+            "Failed to send verified email",
+            extra={
+                "user_id": user_id,
+                "exception": str(exc),
+                "retry_count": self.request.retries,
+                "action": "user_verified_email",
+            },
+        )
+        raise self.retry(exc=exc)
