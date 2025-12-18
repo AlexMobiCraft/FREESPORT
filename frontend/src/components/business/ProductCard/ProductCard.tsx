@@ -210,7 +210,7 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
 
     // Compact layout
     if (layout === 'compact') {
-      return (
+      const cardContent = (
         <div
           ref={ref}
           className={cn(
@@ -219,15 +219,7 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
             'focus-within:ring-2 focus-within:ring-[var(--color-primary)] focus-within:ring-offset-2',
             className
           )}
-          onClick={onClick}
-          onKeyDown={e => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              onClick?.();
-            }
-          }}
           role="article"
-          tabIndex={0}
           aria-label={`Товар: ${product.name}`}
         >
           {/* Изображение */}
@@ -316,6 +308,31 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
             </div>
           </div>
         </div>
+      );
+
+      // Если передан onClick — используем его, иначе оборачиваем в Link
+      if (onClick) {
+        return (
+          <div
+            onClick={onClick}
+            onKeyDown={e => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onClick?.();
+              }
+            }}
+            tabIndex={0}
+            role="button"
+          >
+            {cardContent}
+          </div>
+        );
+      }
+
+      return (
+        <Link href={`/product/${product.slug}`} className="block">
+          {cardContent}
+        </Link>
       );
     }
 
