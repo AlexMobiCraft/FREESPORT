@@ -2,10 +2,11 @@
  * CategoriesSection Component
  *
  * Блок "Категории" на главной странице (Story 12.7).
- * Отображает 5 основных категорий в grid layout согласно Design System v2.0.
+ * Отображает категории в горизонтальной карусели с навигацией.
  *
  * Features:
- * - Grid layout: 5 колонок на desktop, 2-3 на tablet, 1 на mobile
+ * - Горизонтальная карусель с scroll-snap
+ * - Кнопки навигации prev/next
  * - Использует CategoryCard компонент
  * - Mock данные для development
  *
@@ -17,7 +18,8 @@
 
 'use client';
 
-import React from 'react';
+import React, { useRef, useState, useEffect } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { CategoryCard } from './CategoryCard';
 import { MOCK_CATEGORIES } from '@/__mocks__/categories';
 
@@ -25,9 +27,52 @@ import { MOCK_CATEGORIES } from '@/__mocks__/categories';
  * Компонент блока "Категории"
  */
 export const CategoriesSection: React.FC = () => {
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const updateScrollButtons = () => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const { scrollLeft, scrollWidth, clientWidth } = container;
+    setCanScrollLeft(scrollLeft > 4);
+    setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 4);
+  };
+
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    updateScrollButtons();
+
+    const handleResize = () => updateScrollButtons();
+    container.addEventListener('scroll', updateScrollButtons);
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      container.removeEventListener('scroll', updateScrollButtons);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
+
+  const scroll = (direction: 'left' | 'right') => {
+    if (!scrollContainerRef.current) return;
+
+    const container = scrollContainerRef.current;
+    const scrollAmount = container.clientWidth * 0.8;
+    const targetScroll =
+      container.scrollLeft + (direction === 'right' ? scrollAmount : -scrollAmount);
+
+    container.scrollTo({
+      left: targetScroll,
+      behavior: 'smooth',
+    });
+  };
+
   return (
     <section
-      className="max-w-[1280px] mx-auto px-3 md:px-4 lg:px-6"
+      className="max-w-[1280px] mx-auto px-3 md:px-4 lg:px-6 relative"
       aria-labelledby="categories-heading"
     >
       {/* Заголовок секции - headline-l */}
@@ -35,18 +80,54 @@ export const CategoriesSection: React.FC = () => {
         Категории
       </h2>
 
-      {/* Grid категорий: 5 колонок на desktop, 3 на tablet, 2 на mobile */}
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
+      {/* Кнопки навигации */}
+      {canScrollLeft && (
+        <button
+          onClick={() => scroll('left')}
+          className="absolute left-1 top-1/2 -translate-y-1/2 z-10 hidden lg:flex items-center justify-center w-12 h-12 bg-transparent text-primary transition-opacity focus:outline-none"
+          aria-label="Предыдущие категории"
+        >
+          <ChevronLeft className="w-7 h-7" />
+        </button>
+      )}
+
+      {canScrollRight && (
+        <button
+          onClick={() => scroll('right')}
+          className="absolute right-1 top-1/2 -translate-y-1/2 z-10 hidden lg:flex items-center justify-center w-12 h-12 bg-transparent text-primary transition-opacity focus:outline-none"
+          aria-label="Следующие категории"
+        >
+          <ChevronRight className="w-7 h-7" />
+        </button>
+      )}
+
+      {/* Горизонтальная карусель категорий */}
+      <div
+        ref={scrollContainerRef}
+        className="flex gap-4 overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-3"
+        role="list"
+      >
         {MOCK_CATEGORIES.map(category => (
-          <CategoryCard
-            key={category.id}
-            name={category.name}
-            image={category.image}
-            href={category.href}
-            alt={category.alt}
-          />
+          <div key={category.id} className="flex-shrink-0 w-[200px] snap-start" role="listitem">
+            <CategoryCard
+              name={category.name}
+              image={category.image}
+              href={category.href}
+              alt={category.alt}
+            />
+          </div>
         ))}
       </div>
+
+      <style jsx>{`
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+        }
+        .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+      `}</style>
     </section>
   );
 };
