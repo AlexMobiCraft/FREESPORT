@@ -5,8 +5,8 @@
  * @see frontend/docs/design-system.json#components.Input
  */
 
-import React from 'react';
-import { AlertCircle, CheckCircle2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { AlertCircle, CheckCircle2, Eye, EyeOff } from 'lucide-react';
 import { cn } from '@/utils/cn';
 
 export interface InputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'size'> {
@@ -31,7 +31,16 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
     const hasError = Boolean(error);
     const hasSuccess = Boolean(success) && !hasError;
 
+    // State for password visibility toggle
+    const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+    const isPasswordType = type === 'password';
+    const currentType = isPasswordType ? (isPasswordVisible ? 'text' : 'password') : type;
+
     const inputId = id || `input-${label.toLowerCase().replace(/\s+/g, '-')}`;
+
+    const togglePasswordVisibility = () => {
+      setIsPasswordVisible(prev => !prev);
+    };
 
     return (
       <div className="w-full">
@@ -51,7 +60,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
         <div className="relative">
           {/* Icon (если передан) */}
           {icon && (
-            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-neutral-600)] w-5 h-5 flex items-center justify-center">
+            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-neutral-600)] w-5 h-5 flex items-center justify-center pointer-events-none">
               {icon}
             </div>
           )}
@@ -60,7 +69,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
           <input
             ref={ref}
             id={inputId}
-            type={type}
+            type={currentType}
             className={cn(
               // Базовые стили
               'w-full h-10 px-4 rounded-sm',
@@ -73,6 +82,9 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
 
               // Edge Case: Иконка слева - добавляем отступ
               icon && 'pl-10',
+
+              // Edge Case: Иконка справа (статус или пароль) - добавляем отступ
+              (hasError || hasSuccess || isPasswordType) && 'pr-10',
 
               // Состояния
               hasError && [
@@ -98,23 +110,50 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             {...props}
           />
 
-          {/* Error/Success Icons (справа) */}
-          {(hasError || hasSuccess) && (
-            <div className="absolute right-3 top-1/2 -translate-y-1/2">
-              {hasError && (
-                <AlertCircle
-                  className="w-5 h-5 text-[var(--color-accent-danger)]"
-                  aria-hidden="true"
-                />
-              )}
-              {hasSuccess && (
-                <CheckCircle2
-                  className="w-5 h-5 text-[var(--color-accent-success)]"
-                  aria-hidden="true"
-                />
-              )}
-            </div>
-          )}
+          {/* Right Icon Container */}
+          <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center">
+            {/* Password Toggle Button */}
+            {isPasswordType && !disabled && (
+              <button
+                type="button"
+                onClick={togglePasswordVisibility}
+                className="text-[var(--color-neutral-600)] hover:text-[var(--color-text-primary)] focus:outline-none focus:text-[var(--color-text-primary)]"
+                aria-label={isPasswordVisible ? 'Скрыть пароль' : 'Показать пароль'}
+                tabIndex={-1} // Skip tab focus for better AX flow usually, or 0 if explicit nav needed
+              >
+                {isPasswordVisible ? (
+                  <EyeOff className="w-5 h-5" aria-hidden="true" />
+                ) : (
+                  <Eye className="w-5 h-5" aria-hidden="true" />
+                )}
+              </button>
+            )}
+
+            {/* Error/Success Icons (только если не поле пароля, чтобы не перекрывать глаз) */}
+            {/* Если нужно и то и то, то нужно двигать глаз левее или статус убирать. 
+                Обычно статус важнее, но в пароле важнее глаз. 
+                Решение: Если это пароль, не показываем иконки статуса внутри поля, 
+                или показываем их, но смещаем глаз. 
+                В данном дизайне просто скроем статус иконки для пароля, 
+                так как подсветка рамки и текст ошибки уже есть.
+            */}
+            {!isPasswordType && (hasError || hasSuccess) && (
+              <>
+                {hasError && (
+                  <AlertCircle
+                    className="w-5 h-5 text-[var(--color-accent-danger)]"
+                    aria-hidden="true"
+                  />
+                )}
+                {hasSuccess && (
+                  <CheckCircle2
+                    className="w-5 h-5 text-[var(--color-accent-success)]"
+                    aria-hidden="true"
+                  />
+                )}
+              </>
+            )}
+          </div>
         </div>
 
         {/* Helper/Error/Success Text */}
