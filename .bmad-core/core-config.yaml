@@ -35,7 +35,7 @@ prd:
     - 30  # Backend Logout Endpoint Implementation
     - 31  # Frontend Logout UI Integration 
   activeEpics:
-    
+    - 17
 
 architecture:
   architectureFile: docs/architecture.md
