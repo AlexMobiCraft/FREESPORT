@@ -74,7 +74,7 @@ FREESPORT - это API-First E-commerce платформа для B2B/B2C про
 ## Frontend технологии
 
 ### Core Framework
-- **Next.js 15.4.6** - React фреймворк с поддержкой:
+- **Next.js 15.5.7** - React фреймворк с поддержкой:
   - SSG (Static Site Generation) для статических страниц
   - SSR (Server-Side Rendering) для динамических страниц  
   - ISR (Incremental Static Regeneration) для каталогов
