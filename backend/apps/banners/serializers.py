@@ -38,15 +38,17 @@ class BannerSerializer(serializers.ModelSerializer):
 
     def get_image_url(self, obj: Banner) -> str:
         """
-        Получить полный URL изображения баннера
+        Получить URL изображения баннера
+
+        Возвращает относительный путь для совместимости с SSR
+        (избегаем проблем с internal Docker hostnames)
 
         Args:
             obj: Объект баннера
 
         Returns:
-            Полный URL изображения или пустая строка
+            Относительный URL изображения или пустая строка
         """
-        request: HttpRequest | None = self.context.get("request")
-        if obj.image and request:
-            return request.build_absolute_uri(obj.image.url)
+        if obj.image:
+            return obj.image.url  # Returns /media/banners/...
         return ""
