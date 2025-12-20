@@ -70,7 +70,12 @@
       "Bash(Select-String -Pattern \"(PASS|FAIL|passed|failed|Test Files|Tests )\")",
       "Bash(git checkout:*)",
       "Bash(move \"docs\\epics\\epic-30-backend-logout.md\" \"docs\\epics\\epic-30\"\" && move \"docsepicsepic-31-frontend-logout.md\" \"docsepicsepic-31\"\")",
-      "Bash(if not exist \"docs\\stories\\epic-15\" mkdir \"docs\\stories\\epic-15\")"
+      "Bash(if not exist \"docs\\stories\\epic-15\" mkdir \"docs\\stories\\epic-15\")",
+      "Bash(python manage.py startapp:*)",
+      "Bash(docker ps:*)",
+      "Bash(python manage.py:*)",
+      "Bash(python -m isort:*)",
+      "Bash(python -m flake8:*)"
     ],
     "deny": [],
     "ask": [],

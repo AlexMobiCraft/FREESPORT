@@ -199,5 +199,31 @@ export const passwordResetHandlers = [
  */
 import { ordersHandlers } from './handlers/ordersHandlers';
 
+/**
+ * Banners Handlers
+ * Story 17.3: Frontend интеграция с API баннеров
+ */
+export const bannersHandlers = [
+  // GET /api/v1/banners/ - Get active banners
+  http.get(`${API_BASE_URL}/banners/`, () => {
+    return HttpResponse.json([
+      {
+        id: 1,
+        title: 'Test Banner',
+        subtitle: 'Test Subtitle',
+        image_url: '/media/banners/test.jpg',
+        image_alt: 'Test banner',
+        cta_text: 'Click here',
+        cta_link: '/test',
+      },
+    ]);
+  }),
+];
+
 // Export all handlers
-export const handlers = [...authHandlers, ...passwordResetHandlers, ...ordersHandlers];
+export const handlers = [
+  ...authHandlers,
+  ...passwordResetHandlers,
+  ...ordersHandlers,
+  ...bannersHandlers,
+];

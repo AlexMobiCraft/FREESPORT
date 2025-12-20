@@ -271,7 +271,9 @@ class LinkChecker:
                 relative_path = link["file"].relative_to(self.docs_dir)
 
                 print(f"{i}. {Colors.BOLD}{relative_path}:{link['line']}{Colors.RESET}")
-                print(f"   Ссылка: [{link['text']}]({link['url']})")
+                link_text = link.get('text', 'N/A')
+                link_url = link.get('url', 'N/A')
+                print(f"   Ссылка: [{link_text}]({link_url})")
                 print(f"   {Colors.RED}Ошибка: {error['message']}{Colors.RESET}\n")
 
             if len(self.errors) > 20:
@@ -286,7 +288,9 @@ class LinkChecker:
                 relative_path = link["file"].relative_to(self.docs_dir)
 
                 print(f"{i}. {Colors.BOLD}{relative_path}:{link['line']}{Colors.RESET}")
-                print(f"   Ссылка: [{link['text']}]({link['url']})")
+                link_text = link.get('text', 'N/A')
+                link_url = link.get('url', 'N/A')
+                print(f"   Ссылка: [{link_text}]({link_url})")
                 print(f"   {Colors.YELLOW}{warning['message']}{Colors.RESET}")
 
                 if "available_anchors" in warning:
@@ -376,7 +380,7 @@ def main():
 
     # Определяем пути
     script_dir = Path(__file__).parent
-    project_root = script_dir.parent
+    project_root = script_dir.parent.parent
     docs_dir = project_root / "docs"
 
     if not docs_dir.exists():

@@ -44,6 +44,7 @@ This is a full-stack e-commerce platform for selling sporting goods, designed as
 
 The project uses a modular Django apps architecture:
 
+- apps/banners/: Управление баннерами Hero-секции с таргетингом по группам пользователей (гости, авторизованные, тренеры, оптовики, федералы).
 - apps/users/: Manages users and a role-based system (7 roles: retail, wholesale_level1-3, trainer, federation_rep, admin).  
 - apps/products/: Handles the product catalog, brands, and categories with multi-level pricing.  
 - apps/orders/: Contains the order system supporting both B2B/B2C processes.  
@@ -122,26 +123,52 @@ The following services will be started:
 
 ### **Testing Strategy**
 
-The project follows the classic testing pyramid model.
+The project follows the classic testing pyramid model, prioritizing fast feedback and reliability.
 
-- **Testing Pyramid:** E2E Tests (Playwright) > Integration Tests (Pytest) > Unit Tests (Pytest, Jest).  
-- **Backend Structure:** Tests are organized into unit, integration, and legacy directories.  
-- **Pytest Markers:** Tests are marked with `@pytest.mark.unit` and `@pytest.mark.integration` for targeted execution.  
-- **Data Generation:** Factory Boy is mandatory for creating realistic test data.  
-- **Coverage Requirements:** Overall coverage must be >= 70%; critical modules (auth, orders) must be >= 90%.
+- **Testing Pyramid:** E2E Tests (Playwright) > Integration Tests (Pytest + APIClient) > Unit Tests (Pytest, Jest).
+- **Technology Stack:**
+  - **Backend:** `pytest`, `pytest-django`, `Factory Boy` (data generation), `pytest-mock`.
+  - **Frontend:** `Vitest`/`Jest`, `React Testing Library`, `MSW` (API mocking).
+
+**Test Organization:**
+
+- **Backend** (`backend/tests/`):
+  - `unit/`: Isolated tests (models, services). No DB.
+  - `integration/`: Full API/DB interaction tests.
+  - `performance/`: Critical path benchmarks.
+  - `legacy/`: Deprecated tests (ignored in CI).
+- **Frontend**: Tests are co-located with source files (e.g., `Component.test.tsx`).
+
+**Coverage Requirements:**
+
+- **Overall:** >= 70%
+- **Critical Modules** (Auth, Orders, 1C Sync): >= 90%
+- **Integration Modules:** >= 85%
 
 **Backend Test Commands**
 
-pytest                # Run all tests  
-pytest -m unit        # Run unit tests only  
-pytest -m integration # Run integration tests only  
-pytest --cov=apps     # Generate a coverage report
+> [!TIP]
+> **Recommended:** Run tests via Docker to ensure environment consistency.
+
+```bash
+# Run all tests (standard command ignores legacy)
+docker compose exec backend pytest --ignore=tests/legacy
+
+# Run unit or integration tests only
+docker compose exec backend pytest -m unit
+docker compose exec backend pytest -m integration
+
+# Generate coverage report
+docker compose exec backend pytest --cov=apps
+```
 
 **Frontend Test Commands**
 
-npm test                    # Run all tests  
-npm test --watch            # Run tests in watch mode  
+```bash
+npm test                    # Run all tests
+npm test --watch            # Run tests in watch mode
 npm run test:coverage       # Generate a coverage report
+```
 
 ### **Code Style**
 

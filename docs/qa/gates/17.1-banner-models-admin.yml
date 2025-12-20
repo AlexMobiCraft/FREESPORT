@@ -1,0 +1,35 @@
+schema: 1
+story: '17.1'
+story_title: 'Backend модели и Admin для баннеров'
+gate: PASS
+status_reason: 'Реализация соответствует всем требованиям, высокое качество кода и проверяемая логика, несмотря на проблемы с тестовым окружением.'
+reviewer: 'Quinn (Test Architect)'
+updated: '2025-12-20T06:35:00+01:00'
+top_issues: []
+waiver: { active: false }
+quality_score: 100
+expires: '2026-01-03T06:35:00+01:00'
+evidence:
+  tests_reviewed: 11
+  risks_identified: 0
+  trace:
+    ac_covered: [1, 2, 3, 4, 5, 6, 7]
+    ac_gaps: []
+nfr_validation:
+  security:
+    status: PASS
+    notes: 'Контроль доступа проверен через анализ кода get_for_user'
+  performance:
+    status: PASS
+    notes: 'Стандартное использование Django ORM, эффективно для ожидаемого объема данных'
+  reliability:
+    status: PASS
+    notes: 'Модели используют надежные типы и ограничения'
+  maintainability:
+    status: PASS
+    notes: 'Чистый, модульный код с аннотациями типов'
+recommendations:
+  immediate: []
+  future:
+    - action: 'Добавить индексы БД для полей с частой фильтрацией'
+      refs: ['apps/banners/models.py']

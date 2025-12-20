@@ -76,3 +76,6 @@ export interface RegisterFormData {
   companyName?: string;
   taxId?: string;
 }
+
+// Экспорт типов баннеров
+export type { Banner } from './banners';

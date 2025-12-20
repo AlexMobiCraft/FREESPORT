@@ -3,14 +3,18 @@
  *
  * Hero-секция главной страницы с динамическими баннерами
  * адаптированными под роль пользователя (B2B/B2C/Guest)
+ * Загрузка баннеров из API с fallback на статические данные
  */
 
 'use client';
 
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useAuthStore } from '@/stores/authStore';
 import { Button } from '@/components/ui/Button/Button';
+import bannersService from '@/services/bannersService';
+import type { Banner } from '@/types/banners';
 
 interface BannerContent {
   title: string;
@@ -21,54 +25,186 @@ interface BannerContent {
   };
 }
 
+// Статические баннеры для fallback
+const STATIC_BANNERS: BannerContent[] = [
+  {
+    title: 'Оптовые поставки спортивных товаров',
+    subtitle: 'Специальные цены для бизнеса. Персональный менеджер и гибкие условия.',
+    cta: {
+      text: 'Узнать оптовые условия',
+      link: '/wholesale',
+    },
+  },
+  {
+    title: 'Новая коллекция 2025',
+    subtitle: 'Стиль и качество для вашего спорта. Эксклюзивные новинки уже в продаже.',
+    cta: {
+      text: 'Перейти в каталог',
+      link: '/catalog',
+    },
+  },
+  {
+    title: 'FREESPORT - Спортивные товары для профессионалов и любителей',
+    subtitle: '5 брендов. 1000+ товаров. Доставка по всей России.',
+    cta: {
+      text: 'Начать покупки',
+      link: '/catalog',
+    },
+  },
+];
+
 const HeroSection = () => {
   const { user } = useAuthStore();
+  const [banners, setBanners] = useState<Banner[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
 
-  // Определение контента баннера на основе роли пользователя
-  const getBannerContent = (): BannerContent => {
+  // Загрузка баннеров из API
+  useEffect(() => {
+    const loadBanners = async () => {
+      try {
+        setIsLoading(true);
+        const data = await bannersService.getActive();
+        setBanners(data);
+        setError(null);
+      } catch (err) {
+        console.error('Failed to load banners:', err);
+        setError(err instanceof Error ? err : new Error('Unknown error'));
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadBanners();
+  }, []);
+
+  // Автопрокрутка карусели (только если баннеров > 1)
+  useEffect(() => {
+    if (banners.length <= 1 || isPaused) return;
+
+    const interval = setInterval(() => {
+      setCurrentIndex(prevIndex => (prevIndex + 1) % banners.length);
+    }, 5000); // 5 секунд
+
+    return () => clearInterval(interval);
+  }, [banners.length, isPaused]);
+
+  // Определение контента баннера на основе роли пользователя (fallback)
+  const getStaticBannerContent = (): BannerContent => {
     // B2B пользователи (wholesale)
     if (
       user?.role === 'wholesale_level1' ||
       user?.role === 'wholesale_level2' ||
       user?.role === 'wholesale_level3'
     ) {
-      return {
-        title: 'Оптовые поставки спортивных товаров',
-        subtitle: 'Специальные цены для бизнеса. Персональный менеджер и гибкие условия.',
-        cta: {
-          text: 'Узнать оптовые условия',
-          link: '/wholesale',
-        },
-      };
+      return STATIC_BANNERS[0];
     }
 
     // B2C пользователи (retail)
     if (user?.role === 'retail') {
-      return {
-        title: 'Новая коллекция 2025',
-        subtitle: 'Стиль и качество для вашего спорта. Эксклюзивные новинки уже в продаже.',
-        cta: {
-          text: 'Перейти в каталог',
-          link: '/catalog',
-        },
-      };
+      return STATIC_BANNERS[1];
     }
 
     // Неавторизованные пользователи (универсальный баннер)
-    return {
-      title: 'FREESPORT - Спортивные товары для профессионалов и любителей',
-      subtitle: '5 брендов. 1000+ товаров. Доставка по всей России.',
-      cta: {
-        text: 'Начать покупки',
-        link: '/catalog',
-      },
-    };
+    return STATIC_BANNERS[2];
   };
 
-  const bannerContent = getBannerContent();
+  // Skeleton loader
+  if (isLoading) {
+    return (
+      <section
+        className="relative overflow-hidden text-white py-16"
+        aria-label="Hero section loading"
+        data-testid="hero-skeleton"
+      >
+        <div
+          className="absolute inset-0 bg-gradient-to-br from-[#111827] to-[#1f2937]"
+          aria-hidden="true"
+        />
+        <div className="relative mx-auto px-3 md:px-4 lg:px-6 max-w-[1280px] flex flex-col-reverse gap-10 md:flex-row md:items-center">
+          <div className="text-center md:text-left max-w-2xl space-y-6">
+            {/* Skeleton title */}
+            <div className="h-12 bg-gray-700 rounded-lg animate-pulse w-3/4 mx-auto md:mx-0" />
+            {/* Skeleton subtitle */}
+            <div className="h-6 bg-gray-700 rounded-lg animate-pulse w-full" />
+            <div className="h-6 bg-gray-700 rounded-lg animate-pulse w-5/6 mx-auto md:mx-0" />
+            {/* Skeleton button */}
+            <div className="flex justify-center md:justify-start">
+              <div className="h-14 w-48 bg-gray-700 rounded-2xl animate-pulse" />
+            </div>
+          </div>
+          <div className="flex w-full items-center justify-center md:justify-end">
+            <div className="relative w-full max-w-[480px]">
+              <div className="h-[450px] bg-gray-700 rounded-[32px] animate-pulse" />
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  // Fallback на статические баннеры при ошибке или пустом ответе
+  const shouldUseFallback = error || banners.length === 0;
+
+  if (shouldUseFallback) {
+    const bannerContent = getStaticBannerContent();
+
+    return (
+      <section className="relative overflow-hidden text-white py-16" aria-label="Hero section">
+        <div
+          className="absolute inset-0 bg-gradient-to-br from-[#111827] to-[#1f2937]"
+          aria-hidden="true"
+        />
+
+        <div className="relative mx-auto px-3 md:px-4 lg:px-6 max-w-[1280px] flex flex-col-reverse gap-10 md:flex-row md:items-center">
+          <div className="text-center md:text-left max-w-2xl">
+            <h1 className="text-5xl font-bold mb-6 text-white">{bannerContent.title}</h1>
+            <p className="text-lg font-medium mb-8 mx-auto md:mx-0 text-[#E5E7EB] max-w-3xl">
+              {bannerContent.subtitle}
+            </p>
+            <div className="flex justify-center md:justify-start">
+              <Link href={bannerContent.cta.link}>
+                <Button
+                  variant="primary"
+                  size="large"
+                  className="h-14 rounded-2xl shadow-[0_0_30px_rgba(8,145,178,0.35)]"
+                >
+                  {bannerContent.cta.text}
+                </Button>
+              </Link>
+            </div>
+          </div>
+
+          <div className="flex w-full items-center justify-center md:justify-end">
+            <div className="relative w-full max-w-[480px]">
+              <Image
+                src="/og-image.jpg"
+                alt="FREESPORT — подборка спортивных товаров"
+                width={960}
+                height={900}
+                className="h-auto w-full rounded-[32px] object-cover shadow-[0_35px_120px_rgba(0,0,0,0.35)]"
+                priority
+              />
+              <div className="pointer-events-none absolute inset-0 rounded-[32px] ring-1 ring-white/10" />
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  // Отображение баннера из API
+  const currentBanner = banners[currentIndex];
 
   return (
-    <section className="relative overflow-hidden text-white py-16" aria-label="Hero section">
+    <section
+      className="relative overflow-hidden text-white py-16"
+      aria-label="Hero section"
+      onMouseEnter={() => setIsPaused(true)}
+      onMouseLeave={() => setIsPaused(false)}
+    >
       <div
         className="absolute inset-0 bg-gradient-to-br from-[#111827] to-[#1f2937]"
         aria-hidden="true"
@@ -76,23 +212,18 @@ const HeroSection = () => {
 
       <div className="relative mx-auto px-3 md:px-4 lg:px-6 max-w-[1280px] flex flex-col-reverse gap-10 md:flex-row md:items-center">
         <div className="text-center md:text-left max-w-2xl">
-          {/* Hero заголовок - typography.display-l */}
-          <h1 className="text-5xl font-bold mb-6 text-white">{bannerContent.title}</h1>
-
-          {/* Подзаголовок - typography.body-l */}
+          <h1 className="text-5xl font-bold mb-6 text-white">{currentBanner.title}</h1>
           <p className="text-lg font-medium mb-8 mx-auto md:mx-0 text-[#E5E7EB] max-w-3xl">
-            {bannerContent.subtitle}
+            {currentBanner.subtitle}
           </p>
-
-          {/* CTA кнопка - height 56px, radius 16px */}
           <div className="flex justify-center md:justify-start">
-            <Link href={bannerContent.cta.link}>
+            <Link href={currentBanner.cta_link}>
               <Button
                 variant="primary"
                 size="large"
                 className="h-14 rounded-2xl shadow-[0_0_30px_rgba(8,145,178,0.35)]"
               >
-                {bannerContent.cta.text}
+                {currentBanner.cta_text}
               </Button>
             </Link>
           </div>
@@ -101,17 +232,34 @@ const HeroSection = () => {
         <div className="flex w-full items-center justify-center md:justify-end">
           <div className="relative w-full max-w-[480px]">
             <Image
-              src="/og-image.jpg"
-              alt="FREESPORT — подборка спортивных товаров"
+              src={currentBanner.image_url}
+              alt={currentBanner.image_alt}
               width={960}
               height={900}
               className="h-auto w-full rounded-[32px] object-cover shadow-[0_35px_120px_rgba(0,0,0,0.35)]"
               priority
+              unoptimized
             />
             <div className="pointer-events-none absolute inset-0 rounded-[32px] ring-1 ring-white/10" />
           </div>
         </div>
       </div>
+
+      {/* Индикаторы карусели (dots) - только если баннеров > 1 */}
+      {banners.length > 1 && (
+        <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 flex gap-2">
+          {banners.map((_, index) => (
+            <button
+              key={index}
+              onClick={() => setCurrentIndex(index)}
+              className={`w-2 h-2 rounded-full transition-all ${
+                index === currentIndex ? 'bg-white w-8' : 'bg-white/50'
+              }`}
+              aria-label={`Go to banner ${index + 1}`}
+            />
+          ))}
+        </div>
+      )}
     </section>
   );
 };

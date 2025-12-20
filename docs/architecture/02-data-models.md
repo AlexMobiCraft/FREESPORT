@@ -24,6 +24,27 @@ erDiagram
     
     ImportLog ||--o{ CustomerSyncLog : tracks
     SyncConflict }|--|| CustomerSyncLog : resolves
+
+    Banner {
+        int id PK
+        string title
+        string subtitle
+        string image
+        string image_alt
+        string cta_text
+        string cta_link
+        boolean show_to_guests
+        boolean show_to_authenticated
+        boolean show_to_trainers
+        boolean show_to_wholesale
+        boolean show_to_federation
+        boolean is_active
+        int priority
+        datetime start_date
+        datetime end_date
+        datetime created_at
+        datetime updated_at
+    }
 ```
 
 ### user-model
@@ -270,10 +291,48 @@ class OrderItem(models.Model):
     product_specifications = models.JSONField(default=dict)
     
     # Количество и цены
-    quantity = models.PositiveIntegerField()
     unit_price = models.DecimalField(max_digits=10, decimal_places=2)
     # Интеграция с 1С
     onec_product_id = models.CharField(max_length=50, blank=True)
+
+### Banner Model
+
+```python
+class Banner(models.Model):
+    """
+    Модель баннера для Hero-секции главной страницы.
+    Поддерживает таргетинг по группам пользователей.
+    """
+    # Контент
+    title = models.CharField("Заголовок", max_length=200)
+    subtitle = models.CharField("Подзаголовок", max_length=500, blank=True)
+    image = models.ImageField("Изображение", upload_to="banners/%Y/%m/")
+    image_alt = models.CharField("Alt-текст", max_length=255, blank=True)
+    cta_text = models.CharField("Текст кнопки", max_length=50)
+    cta_link = models.CharField("Ссылка кнопки", max_length=200)
+    
+    # Таргетинг по группам
+    show_to_guests = models.BooleanField("Показывать гостям", default=False)
+    show_to_authenticated = models.BooleanField("Показывать авторизованным", default=False)
+    show_to_trainers = models.BooleanField("Показывать тренерам", default=False)
+    show_to_wholesale = models.BooleanField("Показывать оптовикам", default=False)
+    show_to_federation = models.BooleanField("Показывать федералам", default=False)
+    
+    # Управление
+    is_active = models.BooleanField("Активен", default=True)
+    priority = models.IntegerField("Приоритет", default=0)
+    start_date = models.DateTimeField("Дата начала показа", null=True, blank=True)
+    end_date = models.DateTimeField("Дата окончания показа", null=True, blank=True)
+    
+    # Метаданные
+    created_at = models.DateTimeField("Дата создания", auto_now_add=True)
+    updated_at = models.DateTimeField("Дата обновления", auto_now=True)
+    
+    class Meta:
+        db_table = "banners"
+        ordering = ["-priority", "-created_at"]
+```
+
 ```
 
 ### Модели атрибутов и дедупликации (Story 14.3)
@@ -487,4 +546,3 @@ erDiagram
     Attribute ||--o{ Attribute1CMapping : "1C mappings"
     AttributeValue ||--o{ AttributeValue1CMapping : "1C mappings"
 ```
-

@@ -188,6 +188,25 @@ paths:
                 items:
                   $ref: '#/components/schemas/AttributeFilter'
 
+  # Banners API
+  /banners/active/:
+    get:
+      tags: [Banners]
+      summary: Получить активные баннеры для текущего пользователя
+      description: |
+        Возвращает список активных баннеров, отфильтрованных по роли пользователя.
+        Для неавторизованных пользователей возвращаются баннеры с show_to_guests=true.
+      security: []  # Опциональная авторизация
+      responses:
+        '200':
+          description: Список баннеров
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Banner'
+
   # Cart Management
   /cart/:
     get:
@@ -1106,7 +1125,6 @@ components:
 
 ## Особенности API интеграции с 1С
 
-
 ### Аутентификация
 
 - **JWT Bearer Token**: Для пользовательских операций
@@ -1146,14 +1164,17 @@ components:
 - **500 Internal Server Error**: Внутренняя ошибка сервера
 
 #### Pagination
+
 Все endpoints с множественными результатами поддерживают pagination:
+
 - `page`: номер страницы (по умолчанию 1)
 - `page_size`: размер страницы (по умолчанию 20, максимум 200)
 
 #### Фильтрация
+
 Поддерживается фильтрация по:
+
 - Времени модификации (`modified_since`, `created_since`)
 - Статусу синхронизации (`sync_status`, `export_status`)
 - Типу операции (`operation_type`, `conflict_type`)
 - Статусу разрешения (`is_resolved`)
-

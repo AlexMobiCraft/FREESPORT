@@ -479,12 +479,34 @@ import { ordersHandlers } from '../handlers/ordersHandlers';
 import { deliveryHandlers } from '../handlers/deliveryHandlers';
 
 /**
+ * Banners Handlers
+ * Story 17.3: Frontend интеграция с API баннеров
+ */
+const bannersHandlersLocal = [
+  // GET /banners/ - Get active banners
+  http.get(`${API_BASE_URL}/banners/`, () => {
+    return HttpResponse.json([
+      {
+        id: 1,
+        title: 'Test Banner',
+        subtitle: 'Test Subtitle',
+        image_url: '/media/banners/test.jpg',
+        image_alt: 'Test banner',
+        cta_text: 'Click here',
+        cta_link: '/test',
+      },
+    ]);
+  }),
+];
+
+/**
  * MSW Handlers
  */
 export const handlers = [
   ...authHandlers,
   ...ordersHandlers,
   ...deliveryHandlers,
+  ...bannersHandlersLocal,
   // Хиты продаж (AC 1)
   http.get(`${API_BASE_URL}/products/`, ({ request }) => {
     const url = new URL(request.url);

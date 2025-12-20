@@ -51,6 +51,8 @@ tags:
     description: Фильтры каталога и атрибуты товаров (Story 14.3)
   - name: Pages
     description: Статические страницы и контент
+  - name: Banners
+    description: Управление баннерами Hero-секции
 
 paths:
   # =============================================================================
@@ -626,6 +628,27 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/AttributeFilter'
+
+  # =============================================================================
+  # BANNERS
+  # =============================================================================
+  /banners/active/:
+    get:
+      tags: [Banners]
+      summary: Получить активные баннеры для текущего пользователя
+      description: |
+        Возвращает список активных баннеров, отфильтрованных по роли пользователя.
+        Для неавторизованных пользователей возвращаются баннеры с show_to_guests=true.
+      security: []  # Опциональная авторизация
+      responses:
+        '200':
+          description: Список баннеров
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Banner'
 
   # =============================================================================
   # PAGES
@@ -1410,6 +1433,27 @@ components:
                   <li>Гарантия качества</li>
                   <li>Быстрая доставка</li>
                 </ul>
+
+    # Banner Schemas
+    Banner:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        subtitle:
+          type: string
+        image_url:
+          type: string
+          format: uri
+        image_alt:
+          type: string
+          description: Alt-текст для accessibility
+        cta_text:
+          type: string
+        cta_link:
+          type: string
 
     PaginatedResponse:
       type: object

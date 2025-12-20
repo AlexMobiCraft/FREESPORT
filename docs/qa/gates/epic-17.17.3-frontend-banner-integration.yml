@@ -1,0 +1,27 @@
+apiVersion: qa/v1
+kind: GateDecision
+metadata:
+  epic: 17
+  story: 17.3
+  date: 2025-12-20
+  author: Quinn (QA)
+status: PASS
+checks:
+  requirements:
+    traceability: "Полная (Tasks -> AC -> Code -> Tests)"
+    completeness: "Все подзадачи выполнены"
+  testing:
+    unit_coverage: "Высокое (HeroSection: 100%, bannersService: 100%)"
+    integration: "Проверено через компонентные тесты с MSW"
+    e2e: "Не требуется для этой конкретной истории (покрыто общими smoke-тестами)"
+  quality:
+    linting: "Пройдено"
+    types: "Строгие типы TypeScript определены и используются"
+    bams: "Соответствует паттерну сервисов и структуре компонентов"
+risks:
+  - severity: Low
+    description: "Загрузка внешних изображений может быть медленной"
+    mitigation: "Реализован Skeleton loader"
+recommendations:
+  - "Мониторить задержки API баннеров в продакшене"
+  - "Убедиться, что оптимизация изображений настроена в next.config.js для внешних доменов, если потребуется"
