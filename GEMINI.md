@@ -2,6 +2,13 @@
 
 - Communicate in Russian.
 
+# Command Validation Rules
+
+- **CRITICAL**: Before executing any terminal command via `run_command`, verify that the `CommandLine` parameter:
+  1. Starts with a valid command name (e.g., `docker`, `npm`, `python`, `git`) using only **Latin characters**
+  2. Contains **NO Cyrillic characters** (like `с`, `а`, `о`, `е` which look similar to Latin `c`, `a`, `o`, `e`)
+  3. Has **NO leading special characters or whitespace** before the command
+
 # **Project Overview**
 
 This is a full-stack e-commerce platform for selling sporting goods, designed as an API-first solution for both B2B and B2C sales. The project is a monorepo with a Django backend and a Next.js frontend.
