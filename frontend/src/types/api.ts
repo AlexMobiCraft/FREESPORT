@@ -267,11 +267,17 @@ export interface ProductPrice {
   currency: string;
 }
 
+export interface CategoryBreadcrumb {
+  id: number;
+  name: string;
+  slug: string;
+}
+
 export interface ProductCategory {
   id: number;
   name: string;
   slug: string;
-  breadcrumbs: string[];
+  breadcrumbs: CategoryBreadcrumb[];
 }
 
 /**

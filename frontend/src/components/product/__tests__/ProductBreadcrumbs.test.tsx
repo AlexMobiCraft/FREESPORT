@@ -7,7 +7,11 @@ import { render, screen } from '@testing-library/react';
 import ProductBreadcrumbs from '../ProductBreadcrumbs';
 
 describe('ProductBreadcrumbs', () => {
-  const mockBreadcrumbs = ['Главная', 'Обувь', 'Зал', 'ASICS'];
+  const mockBreadcrumbs = [
+    { id: 1, name: 'Обувь', slug: 'obuv' },
+    { id: 2, name: 'Зал', slug: 'zal' },
+    { id: 3, name: 'ASICS', slug: 'asics' },
+  ];
   const mockProductName = 'ASICS Gel-Blast FF';
 
   it('рендерит все breadcrumbs', () => {
@@ -28,6 +32,19 @@ describe('ProductBreadcrumbs', () => {
     expect(homeLink).toHaveAttribute('href', '/');
   });
 
+  it('рендерит ссылки на категории с корректными href', () => {
+    render(<ProductBreadcrumbs breadcrumbs={mockBreadcrumbs} productName={mockProductName} />);
+
+    const obuvLink = screen.getByText('Обувь').closest('a');
+    expect(obuvLink).toHaveAttribute('href', '/catalog?category=obuv');
+
+    const zalLink = screen.getByText('Зал').closest('a');
+    expect(zalLink).toHaveAttribute('href', '/catalog?category=zal');
+
+    const asicsLink = screen.getByText('ASICS').closest('a');
+    expect(asicsLink).toHaveAttribute('href', '/catalog?category=asics');
+  });
+
   it('отображает текущий товар с aria-current', () => {
     render(<ProductBreadcrumbs breadcrumbs={mockBreadcrumbs} productName={mockProductName} />);
 
@@ -46,7 +63,7 @@ describe('ProductBreadcrumbs', () => {
     expect(breadcrumbList).toBeInTheDocument();
 
     const listItems = container.querySelectorAll('[itemType="https://schema.org/ListItem"]');
-    // Главная + категории (кроме первой "Главная") + товар = 5 элементов
+    // Главная + 3 категории + товар = 5 элементов
     expect(listItems).toHaveLength(5);
   });
 
@@ -55,7 +72,7 @@ describe('ProductBreadcrumbs', () => {
       <ProductBreadcrumbs breadcrumbs={mockBreadcrumbs} productName={mockProductName} />
     );
 
-    const positions = container.querySelectorAll('meta[itemProp="position"]');
+    const positions = container.querySelectorAll('meta[itemprop="position"]');
     expect(positions).toHaveLength(5);
 
     // Проверяем значения позиций
@@ -75,7 +92,7 @@ describe('ProductBreadcrumbs', () => {
   });
 
   it('корректно работает с минимальным набором breadcrumbs', () => {
-    const minimalBreadcrumbs = ['Главная', 'Товары'];
+    const minimalBreadcrumbs = [{ id: 1, name: 'Товары', slug: 'tovary' }];
     render(<ProductBreadcrumbs breadcrumbs={minimalBreadcrumbs} productName="Тестовый товар" />);
 
     expect(screen.getByText('Главная')).toBeInTheDocument();

@@ -5,9 +5,10 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { CategoryBreadcrumb } from '@/types/api';
 
 interface ProductBreadcrumbsProps {
-  breadcrumbs: string[];
+  breadcrumbs: CategoryBreadcrumb[];
   productName: string;
 }
 
@@ -20,22 +21,22 @@ export default function ProductBreadcrumbs({
   return (
     <nav aria-label="Breadcrumb" className="mb-6">
       <ol
-        className="flex items-center gap-2 text-sm text-neutral-700"
+        className="flex items-center gap-2 text-sm text-neutral-700 flex-wrap"
         itemScope
         itemType="https://schema.org/BreadcrumbList"
       >
         {/* Главная страница */}
         <li itemProp="itemListElement" itemScope itemType="https://schema.org/ListItem">
-          <Link href="/test" className="hover:text-primary-600 transition-colors" itemProp="item">
+          <Link href="/" className="hover:text-primary-600 transition-colors" itemProp="item">
             <span itemProp="name">Главная</span>
           </Link>
           <meta itemProp="position" content="1" />
         </li>
 
-        {/* Категории из breadcrumbs */}
-        {safeBreadcrumbs.slice(1).map((crumb, index) => (
+        {/* Категории из breadcrumbs - с активными ссылками */}
+        {safeBreadcrumbs.map((crumb, index) => (
           <li
-            key={index}
+            key={crumb.id || index}
             className="flex items-center gap-2"
             itemProp="itemListElement"
             itemScope
@@ -50,9 +51,13 @@ export default function ProductBreadcrumbs({
             >
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
-            <span className="text-neutral-700" itemProp="name">
-              {crumb}
-            </span>
+            <Link
+              href={`/catalog?category=${crumb.slug}`}
+              className="text-neutral-700 hover:text-primary-600 transition-colors"
+              itemProp="item"
+            >
+              <span itemProp="name">{crumb.name}</span>
+            </Link>
             <meta itemProp="position" content={String(index + 2)} />
           </li>
         ))}
@@ -77,7 +82,7 @@ export default function ProductBreadcrumbs({
           <span className="text-neutral-900 font-medium" itemProp="name">
             {productName}
           </span>
-          <meta itemProp="position" content={String(safeBreadcrumbs.length + 1)} />
+          <meta itemProp="position" content={String(safeBreadcrumbs.length + 2)} />
         </li>
       </ol>
     </nav>
