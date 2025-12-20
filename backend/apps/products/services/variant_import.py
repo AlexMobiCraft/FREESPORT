@@ -520,7 +520,17 @@ class VariantImportProcessor:
         if not image_paths:
             return
 
-        base_images: list[str] = list(product.base_images or [])
+        # Дедупликация существующих base_images по filename (исправление бага дублей)
+        existing_images = product.base_images or []
+        seen_filenames: set[str] = set()
+        base_images: list[str] = []
+        
+        for img_path in existing_images:
+            filename = Path(img_path).name if img_path else ""
+            if filename and filename not in seen_filenames:
+                base_images.append(img_path)
+                seen_filenames.add(filename)
+        
         seen_paths: set[str] = set(base_images)
 
         for image_path in image_paths:
@@ -529,12 +539,18 @@ class VariantImportProcessor:
                 normalized_path = normalize_image_path(image_path)
                 source_path = Path(base_dir) / normalized_path
                 saved_path = self._save_image_if_not_exists(
-                    source_path, image_path, "base"
+                    source_path, normalized_path, "base"
                 )
 
-                if saved_path and saved_path not in seen_paths:
-                    base_images.append(saved_path)
-                    seen_paths.add(saved_path)
+                if saved_path:
+                    saved_filename = Path(saved_path).name
+                    # Проверяем и по пути, и по filename
+                    if saved_filename in seen_filenames:
+                        continue
+                    if saved_path not in seen_paths:
+                        base_images.append(saved_path)
+                        seen_paths.add(saved_path)
+                        seen_filenames.add(saved_filename)
 
             except Exception as e:
                 logger.error(f"Error copying image {image_path}: {e}")
@@ -787,7 +803,24 @@ class VariantImportProcessor:
             return
 
         main_image_set = bool(variant.main_image)
-        gallery_images: list[str] = list(variant.gallery_images or [])
+        
+        # Дедупликация существующих gallery_images по filename (исправление бага дублей)
+        existing_gallery = variant.gallery_images or []
+        seen_filenames: set[str] = set()
+        gallery_images: list[str] = []
+        
+        # Добавляем main_image filename в seen_filenames
+        if variant.main_image:
+            main_filename = Path(variant.main_image).name
+            if main_filename:
+                seen_filenames.add(main_filename)
+        
+        for img_path in existing_gallery:
+            filename = Path(img_path).name if img_path else ""
+            if filename and filename not in seen_filenames:
+                gallery_images.append(img_path)
+                seen_filenames.add(filename)
+        
         seen_paths: set[str] = set(gallery_images)
 
         for image_path in image_paths:
@@ -796,16 +829,23 @@ class VariantImportProcessor:
                 normalized_path = normalize_image_path(image_path)
                 source_path = Path(base_dir) / normalized_path
                 saved_path = self._save_image_if_not_exists(
-                    source_path, image_path, "variants"
+                    source_path, normalized_path, "variants"
                 )
 
                 if saved_path:
+                    saved_filename = Path(saved_path).name
+                    # Проверяем и по пути, и по filename
+                    if saved_filename in seen_filenames:
+                        continue
+                        
                     if not main_image_set:
                         variant.main_image = saved_path
                         main_image_set = True
+                        seen_filenames.add(saved_filename)
                     elif saved_path not in seen_paths:
                         gallery_images.append(saved_path)
                         seen_paths.add(saved_path)
+                        seen_filenames.add(saved_filename)
 
             except Exception as e:
                 logger.error(f"Error copying variant image {image_path}: {e}")
