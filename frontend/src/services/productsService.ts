@@ -3,7 +3,13 @@
  */
 
 import apiClient from './api-client';
-import type { Product, PaginatedResponse, ProductDetail, ProductImage } from '@/types/api';
+import type {
+  Product,
+  PaginatedResponse,
+  ProductDetail,
+  ProductImage,
+  CategoryBreadcrumb,
+} from '@/types/api';
 import { normalizeImageUrl } from '@/utils/media';
 
 /**
@@ -91,9 +97,9 @@ function adaptProductToDetail(apiProduct: ApiProductDetailResponse): ProductDeta
     }
   }
 
-  // Извлекаем breadcrumbs из category_breadcrumbs
-  const breadcrumbs = (apiProduct.category_breadcrumbs || []).map(b => b.name);
-  const categoryFromBreadcrumbs = apiProduct.category_breadcrumbs?.slice(-1)[0];
+  // Извлекаем breadcrumbs из category_breadcrumbs (сохраняем полную структуру для ссылок)
+  const breadcrumbs: CategoryBreadcrumb[] = apiProduct.category_breadcrumbs || [];
+  const categoryFromBreadcrumbs = breadcrumbs.slice(-1)[0];
 
   return {
     id: apiProduct.id,
@@ -119,7 +125,7 @@ function adaptProductToDetail(apiProduct: ApiProductDetailResponse): ProductDeta
       id: categoryFromBreadcrumbs?.id || 0,
       name: categoryFromBreadcrumbs?.name || String(apiProduct.category || ''),
       slug: categoryFromBreadcrumbs?.slug || '',
-      breadcrumbs: breadcrumbs.length > 0 ? breadcrumbs : [String(apiProduct.category || '')],
+      breadcrumbs: breadcrumbs.length > 0 ? breadcrumbs : [],
     },
     is_in_stock: apiProduct.is_in_stock,
     can_be_ordered: apiProduct.can_be_ordered,
