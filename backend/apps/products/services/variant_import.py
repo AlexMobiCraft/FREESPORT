@@ -290,6 +290,9 @@ class VariantImportProcessor:
     # Helper methods
     # ========================================================================
 
+    # Минимальный размер изображения в байтах (100KB)
+    MIN_IMAGE_SIZE_BYTES = 100 * 1024
+
     def _save_image_if_not_exists(
         self,
         source_path: Path,
@@ -305,7 +308,7 @@ class VariantImportProcessor:
             destination_prefix: Префикс директории назначения ('base' или 'variants')
 
         Returns:
-            Путь к сохраненному файлу или None если файл не найден/ошибка
+            Путь к сохраненному файлу или None если файл не найден/ошибка/слишком мал
         """
         from django.conf import settings
         from django.core.files.base import ContentFile
@@ -314,6 +317,17 @@ class VariantImportProcessor:
         if not source_path.exists():
             logger.warning(f"Image not found: {source_path}")
             self.stats["images_errors"] += 1
+            return None
+
+        # Проверка минимального размера файла (100KB)
+        file_size = source_path.stat().st_size
+        if file_size < self.MIN_IMAGE_SIZE_BYTES:
+            size_kb = file_size / 1024
+            logger.debug(
+                f"Image too small, skipping: {source_path} "
+                f"({size_kb:.1f}KB < {self.MIN_IMAGE_SIZE_BYTES // 1024}KB)"
+            )
+            self.stats["images_skipped"] += 1
             return None
 
         # Сохранение структуры директорий
