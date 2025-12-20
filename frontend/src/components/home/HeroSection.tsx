@@ -115,7 +115,7 @@ const HeroSection = () => {
   if (isLoading) {
     return (
       <section
-        className="relative overflow-hidden text-white py-16"
+        className="relative overflow-hidden text-white md:min-h-[400px]"
         aria-label="Hero section loading"
         data-testid="hero-skeleton"
       >
@@ -123,7 +123,7 @@ const HeroSection = () => {
           className="absolute inset-0 bg-gradient-to-br from-[#111827] to-[#1f2937]"
           aria-hidden="true"
         />
-        <div className="relative mx-auto px-3 md:px-4 lg:px-6 max-w-[1280px] flex flex-col-reverse gap-10 md:flex-row md:items-center">
+        <div className="relative mx-auto px-3 md:px-4 lg:px-6 max-w-[1280px] h-full flex flex-col-reverse gap-6 py-8 md:py-12 md:flex-row md:items-center">
           <div className="text-center md:text-left max-w-2xl space-y-6">
             {/* Skeleton title */}
             <div className="h-12 bg-gray-700 rounded-lg animate-pulse w-3/4 mx-auto md:mx-0" />
@@ -135,9 +135,9 @@ const HeroSection = () => {
               <div className="h-14 w-48 bg-gray-700 rounded-2xl animate-pulse" />
             </div>
           </div>
-          <div className="flex w-full items-center justify-center md:justify-end">
-            <div className="relative w-full max-w-[480px]">
-              <div className="h-[450px] bg-gray-700 rounded-[32px] animate-pulse" />
+          <div className="flex w-full md:w-[480px] items-center justify-center md:justify-end md:self-center md:flex-shrink-0">
+            <div className="relative w-full max-w-[480px] aspect-[7/4]">
+              <div className="h-full min-h-[300px] bg-gray-700 rounded-[32px] animate-pulse" />
             </div>
           </div>
         </div>
@@ -152,16 +152,21 @@ const HeroSection = () => {
     const bannerContent = getStaticBannerContent();
 
     return (
-      <section className="relative overflow-hidden text-white py-16" aria-label="Hero section">
+      <section
+        className="relative overflow-hidden text-white md:min-h-[400px]"
+        aria-label="Hero section"
+      >
         <div
           className="absolute inset-0 bg-gradient-to-br from-[#111827] to-[#1f2937]"
           aria-hidden="true"
         />
 
-        <div className="relative mx-auto px-3 md:px-4 lg:px-6 max-w-[1280px] flex flex-col-reverse gap-10 md:flex-row md:items-center">
-          <div className="text-center md:text-left max-w-2xl">
-            <h1 className="text-5xl font-bold mb-6 text-white">{bannerContent.title}</h1>
-            <p className="text-lg font-medium mb-8 mx-auto md:mx-0 text-[#E5E7EB] max-w-3xl">
+        <div className="relative mx-auto px-3 md:px-4 lg:px-6 max-w-[1280px] h-full flex flex-col-reverse gap-6 py-8 md:py-12 md:flex-row md:items-center">
+          <div className="text-center md:text-left md:flex-1 md:pr-8">
+            <h1 className="text-3xl md:text-4xl font-bold mb-4 text-white">
+              {bannerContent.title}
+            </h1>
+            <p className="text-base font-medium mb-6 mx-auto md:mx-0 text-[#E5E7EB] max-w-3xl">
               {bannerContent.subtitle}
             </p>
             <div className="flex justify-center md:justify-start">
@@ -177,14 +182,13 @@ const HeroSection = () => {
             </div>
           </div>
 
-          <div className="flex w-full items-center justify-center md:justify-end">
-            <div className="relative w-full max-w-[480px]">
+          <div className="flex w-full md:w-[480px] items-center justify-center md:justify-end md:self-center md:flex-shrink-0">
+            <div className="relative w-full max-w-[480px] aspect-[7/4]">
               <Image
                 src="/og-image.jpg"
                 alt="FREESPORT — подборка спортивных товаров"
-                width={960}
-                height={900}
-                className="h-auto w-full rounded-[32px] object-cover shadow-[0_35px_120px_rgba(0,0,0,0.35)]"
+                fill
+                className="rounded-[32px] object-cover shadow-[0_35px_120px_rgba(0,0,0,0.35)]"
                 priority
               />
               <div className="pointer-events-none absolute inset-0 rounded-[32px] ring-1 ring-white/10" />
@@ -200,7 +204,7 @@ const HeroSection = () => {
 
   return (
     <section
-      className="relative overflow-hidden text-white py-16"
+      className="relative overflow-hidden text-white md:min-h-[400px]"
       aria-label="Hero section"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
@@ -210,13 +214,17 @@ const HeroSection = () => {
         aria-hidden="true"
       />
 
-      <div className="relative mx-auto px-3 md:px-4 lg:px-6 max-w-[1280px] flex flex-col-reverse gap-10 md:flex-row md:items-center">
-        <div className="text-center md:text-left max-w-2xl">
-          <h1 className="text-5xl font-bold mb-6 text-white">{currentBanner.title}</h1>
-          <p className="text-lg font-medium mb-8 mx-auto md:mx-0 text-[#E5E7EB] max-w-3xl">
-            {currentBanner.subtitle}
-          </p>
-          <div className="flex justify-center md:justify-start">
+      <div className="relative mx-auto px-3 md:px-4 lg:px-6 max-w-[1280px] h-full flex flex-col-reverse gap-6 py-8 md:py-12 md:flex-row md:items-center">
+        <div className="text-center md:text-left md:flex-1 md:pr-8 md:self-stretch md:flex md:flex-col md:justify-center">
+          <div>
+            <h1 className="text-3xl md:text-4xl font-bold mb-4 text-white">
+              {currentBanner.title}
+            </h1>
+            <p className="text-base font-medium mb-6 mx-auto md:mx-0 text-[#E5E7EB] max-w-3xl">
+              {currentBanner.subtitle}
+            </p>
+          </div>
+          <div className="flex justify-center md:justify-start md:mt-auto">
             <Link href={currentBanner.cta_link}>
               <Button
                 variant="primary"
@@ -229,14 +237,13 @@ const HeroSection = () => {
           </div>
         </div>
 
-        <div className="flex w-full items-center justify-center md:justify-end">
-          <div className="relative w-full max-w-[480px]">
+        <div className="flex w-full md:w-[480px] items-center justify-center md:justify-end md:self-center md:flex-shrink-0">
+          <div className="relative w-full max-w-[480px] aspect-[7/4]">
             <Image
               src={currentBanner.image_url}
               alt={currentBanner.image_alt}
-              width={960}
-              height={900}
-              className="h-auto w-full rounded-[32px] object-cover shadow-[0_35px_120px_rgba(0,0,0,0.35)]"
+              fill
+              className="rounded-[32px] object-cover shadow-[0_35px_120px_rgba(0,0,0,0.35)]"
               priority
               unoptimized
             />
