@@ -254,7 +254,7 @@ const HeroSection = () => {
 
       {/* Индикаторы карусели (dots) - только если баннеров > 1 */}
       {banners.length > 1 && (
-        <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 flex gap-2">
+        <div className="relative mt-4 md:mt-0 md:absolute md:bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2 justify-center pb-4 md:pb-0">
           {banners.map((_, index) => (
             <button
               key={index}
