@@ -841,8 +841,8 @@ const CatalogContent: React.FC = () => {
                     className="appearance-none border border-gray-200 rounded-full py-2 pl-4 pr-10 text-sm text-gray-700"
                   >
                     <option value="-created_at">По новизне</option>
-                    <option value="retail_price">По цене (возр.)</option>
-                    <option value="-retail_price">По цене (убыв.)</option>
+                    <option value="min_retail_price">По цене (возр.)</option>
+                    <option value="-min_retail_price">По цене (убыв.)</option>
                     <option value="name">По названию (А→Я)</option>
                     <option value="-name">По названию (Я→А)</option>
                   </select>

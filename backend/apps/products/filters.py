@@ -384,7 +384,6 @@ class ProductFilter(django_filters.FilterSet):
         if hasattr(self, "_variant_filters") and self._variant_filters:
             variant_subquery = ProductVariant.objects.filter(
                 product=OuterRef("pk"),
-                **{k: v for k, v in []},  # placeholder
             ).filter(self._variant_filters)
 
             queryset = queryset.filter(Exists(variant_subquery))

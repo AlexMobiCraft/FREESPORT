@@ -45,7 +45,9 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
     lookup_field = "slug"
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
     filterset_class = ProductFilter
-    ordering_fields = ["name", "retail_price", "created_at", "stock_quantity"]
+    # После Epic 13: retail_price и stock_quantity перенесены в ProductVariant
+    # Используем аннотации: min_retail_price (мин. цена варианта), total_stock (сумма остатков)
+    ordering_fields = ["name", "min_retail_price", "created_at", "total_stock"]
     ordering = ["-created_at"]  # Сортировка по умолчанию (override при search)
 
     pagination_class = CustomPageNumberPagination
@@ -72,8 +74,13 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
                 ),
             )
             .annotate(
-                # Аннотации для использования в ProductListSerializer
+                # Аннотации для использования в ProductListSerializer и сортировки
                 total_stock=Sum("variants__stock_quantity"),
+                # Min retail_price для сортировки по цене (после Epic 13)
+                min_retail_price=Min(
+                    "variants__retail_price",
+                    filter=Q(variants__retail_price__gt=0),
+                ),
                 has_stock=Exists(
                     ProductVariant.objects.filter(
                         product=OuterRef("pk"), stock_quantity__gt=0
