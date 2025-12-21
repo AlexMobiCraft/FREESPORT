@@ -568,6 +568,19 @@ const CatalogContent: React.FC = () => {
     }
   }, [fetchProducts, activeCategoryId]);
 
+  // Ref для поля поиска
+  const searchInputRef = React.useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    // Если перешли с параметром focusSearch=true, фокусируемся на поле поиска
+    if (searchParams.get('focusSearch') === 'true') {
+      // Небольшая задержка чтобы убедиться что компонент смонтирован и анимации прошли
+      setTimeout(() => {
+        searchInputRef.current?.focus();
+      }, 100);
+    }
+  }, [searchParams]);
+
   const handleToggle = (key: string) => {
     setExpandedKeys(prev => {
       const next = new Set(prev);
@@ -780,6 +793,7 @@ const CatalogContent: React.FC = () => {
 
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
             <SearchField
+              ref={searchInputRef}
               placeholder="Поиск в каталоге..."
               onSearch={handleSearchChange}
               minLength={2}

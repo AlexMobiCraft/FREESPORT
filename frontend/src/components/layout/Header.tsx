@@ -9,11 +9,10 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
-import { Heart, ShoppingCart, Menu, X } from 'lucide-react';
+import { Heart, ShoppingCart, Menu, X, Search } from 'lucide-react';
 import { authSelectors, useAuthStore } from '@/stores/authStore';
 import { useCartStore } from '@/stores/cartStore';
 import { Button } from '@/components/ui/Button';
-import { SearchAutocomplete } from '@/components/business/SearchAutocomplete';
 
 const Header: React.FC = () => {
   const pathname = usePathname();
@@ -41,15 +40,8 @@ const Header: React.FC = () => {
   const navigationItems = [
     { href: '/test', label: 'Главная' },
     { href: '/catalog', label: 'Каталог' },
-    { href: '/brands', label: 'Бренды' },
     { href: '/news', label: 'Новости' },
     { href: '/promotions', label: 'Акции' },
-  ];
-
-  // B2B навигация (дополнительные элементы для бизнес-пользователей)
-  const b2bNavigationItems = [
-    { href: '/wholesale', label: 'Оптовые цены' },
-    { href: '/profile/orders', label: 'Заказы' },
   ];
 
   const isActivePage = (href: string) => {
@@ -94,30 +86,20 @@ const Header: React.FC = () => {
                 {item.label}
               </Link>
             ))}
-
-            {/* B2B дополнительная навигация */}
-            {isB2BUser &&
-              b2bNavigationItems.map(item => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`text-body-m font-medium transition-colors duration-short ${
-                    isActivePage(item.href)
-                      ? 'text-text-primary'
-                      : 'text-text-primary hover:text-text-secondary'
-                  }`}
-                >
-                  {item.label}
-                </Link>
-              ))}
           </nav>
 
           {/* Правая часть - иконки действий и аутентификация */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 flex-shrink-0">
             {/* Action Icons (desktop) */}
             <div className="hidden md:flex items-center gap-4">
               {/* Поиск */}
-              <SearchAutocomplete placeholder="Поиск товаров..." className="hidden lg:block" />
+              <Link
+                href="/catalog?focusSearch=true"
+                aria-label="Поиск"
+                className="p-2 text-text-primary hover:text-text-secondary transition-colors duration-short focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-sm"
+              >
+                <Search className="w-6 h-6" />
+              </Link>
 
               {/* Избранное */}
               <Link
@@ -201,7 +183,7 @@ const Header: React.FC = () => {
           <div className="md:hidden py-4 border-t border-neutral-300">
             <nav aria-label="Мобильная навигация" className="flex flex-col space-y-2">
               {/* Основная навигация */}
-              {[...navigationItems, ...(isB2BUser ? b2bNavigationItems : [])].map(item => (
+              {navigationItems.map(item => (
                 <Link
                   key={item.href}
                   href={item.href}
@@ -218,15 +200,15 @@ const Header: React.FC = () => {
 
               {/* Мобильные иконки действий */}
               <div className="flex flex-col gap-4 px-3 py-2 border-t border-neutral-300 mt-2 pt-4">
-                {/* Поиск (мобильный) */}
-                <SearchAutocomplete
-                  isMobile
-                  placeholder="Поиск товаров..."
-                  onNavigate={() => setIsMobileMenuOpen(false)}
-                />
-
                 {/* Действия */}
                 <div className="flex items-center gap-4">
+                  <Link
+                    href="/catalog?focusSearch=true"
+                    aria-label="Поиск"
+                    className="p-2 text-text-primary hover:text-text-secondary transition-colors"
+                  >
+                    <Search className="w-6 h-6" />
+                  </Link>
                   <Link
                     href="/profile/favorites"
                     aria-label="Избранное"
