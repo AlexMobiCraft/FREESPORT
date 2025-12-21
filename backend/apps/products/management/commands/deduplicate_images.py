@@ -14,6 +14,10 @@ Management команда для удаления дублированных и 
     
     Эта команда удаляет дубликаты, оставляя только первый путь для каждого уникального filename.
     Также удаляет изображения меньше указанного размера (по умолчанию 100KB).
+    
+    Дополнительно проверяется размер main_image у вариантов товара:
+    - Если main_image меньше минимального размера И в gallery_images есть файл >= min_size,
+      то main_image заменяется на первый подходящий файл из галереи.
 """
 
 import logging
@@ -23,6 +27,7 @@ from pathlib import Path
 from django.conf import settings
 from django.core.files.storage import default_storage
 from django.core.management.base import BaseCommand
+from django.db import models
 from tqdm import tqdm
 
 from apps.products.models import Product, ProductVariant
@@ -254,20 +259,23 @@ class Command(BaseCommand):
         Returns:
             Dict со статистикой
         """
-        self.stdout.write("\n🎨 Обработка ProductVariant.gallery_images...")
+        self.stdout.write("\n🎨 Обработка ProductVariant.gallery_images и main_image...")
 
-        variants = ProductVariant.objects.exclude(
-            gallery_images__isnull=True
-        ).exclude(gallery_images=[])
+        # Выбираем варианты с галереей ИЛИ с main_image (для проверки размера)
+        variants = ProductVariant.objects.filter(
+            models.Q(gallery_images__isnull=False) & ~models.Q(gallery_images=[]) |
+            models.Q(main_image__isnull=False) & ~models.Q(main_image="")
+        ).distinct()
         total = variants.count()
 
         if total == 0:
-            self.stdout.write("   Нет вариантов с галереей изображений")
-            return {"total": 0, "with_duplicates": 0, "removed": 0, "small_removed": 0}
+            self.stdout.write("   Нет вариантов с изображениями")
+            return {"total": 0, "with_duplicates": 0, "removed": 0, "small_removed": 0, "main_image_replaced": 0}
 
         with_duplicates = 0
         total_removed = 0
         small_removed = 0
+        main_image_replaced = 0
 
         with tqdm(
             total=total,
@@ -277,30 +285,65 @@ class Command(BaseCommand):
         ) as pbar:
             for variant in variants.iterator(chunk_size=100):
                 original_images = variant.gallery_images or []
+                variant_modified = False
+                new_main_image = None
+                old_main_image_path = None
+                main_image_replacement_info = None
+                
+                # Шаг 0: Проверка размера main_image
+                if not skip_size_check and variant.main_image:
+                    main_image_path = str(variant.main_image)
+                    if main_image_path:
+                        main_size_kb = self._get_file_size_kb(main_image_path)
+                        
+                        if main_size_kb is not None and main_size_kb < min_size_kb:
+                            # main_image маленький - ищем замену в gallery_images
+                            if original_images and len(original_images) > 0:
+                                for gallery_img in original_images:
+                                    gallery_size_kb = self._get_file_size_kb(gallery_img)
+                                    if gallery_size_kb is not None and gallery_size_kb >= min_size_kb:
+                                        # Нашли подходящую замену
+                                        new_main_image = gallery_img
+                                        old_main_image_path = main_image_path
+                                        main_image_replacement_info = (
+                                            main_image_path, main_size_kb,
+                                            gallery_img, gallery_size_kb
+                                        )
+                                        variant_modified = True
+                                        main_image_replaced += 1
+                                        break
                 
                 # Шаг 1: Фильтрация по размеру
                 filtered_images = original_images
                 small_files = []
                 
+                # Если мы нашли замену для main_image, удаляем её из списка галереи
+                if new_main_image:
+                    filtered_images = [img for img in original_images if img != new_main_image]
+                    original_images = filtered_images  # Обновляем для подсчёта removed_count
+                
                 if not skip_size_check:
-                    filtered_images = []
-                    for img_path in original_images:
+                    temp_filtered = []
+                    for img_path in filtered_images:
                         size_kb = self._get_file_size_kb(img_path)
                         if size_kb is not None and size_kb < min_size_kb:
                             small_files.append((img_path, size_kb))
                         else:
-                            filtered_images.append(img_path)
+                            temp_filtered.append(img_path)
+                    filtered_images = temp_filtered
                     
                     # Если после фильтрации не осталось изображений,
                     # оставляем первое (даже маленькое)
-                    if len(filtered_images) == 0 and len(original_images) > 0:
-                        # Возвращаем первое изображение
-                        filtered_images = [original_images[0]]
-                        # Убираем его из списка мелких
-                        small_files = [
-                            (p, s) for p, s in small_files 
-                            if p != original_images[0]
-                        ]
+                    if len(filtered_images) == 0 and len(variant.gallery_images or []) > 0:
+                        # Возвращаем первое изображение (если не использовано как main_image)
+                        fallback_images = [img for img in (variant.gallery_images or []) if img != new_main_image]
+                        if fallback_images:
+                            filtered_images = [fallback_images[0]]
+                            # Убираем его из списка мелких
+                            small_files = [
+                                (p, s) for p, s in small_files 
+                                if p != fallback_images[0]
+                            ]
                     
                     small_removed += len(small_files)
                 
@@ -308,31 +351,45 @@ class Command(BaseCommand):
                 main_image = variant.main_image
                 seen_filenames = set()
                 
-                if main_image:
-                    # main_image может быть ImageFieldFile, преобразуем в строку
-                    main_image_str = str(main_image) if main_image else ""
-                    if main_image_str:
-                        main_filename = Path(main_image_str).name
-                        if main_filename:
-                            seen_filenames.add(main_filename)
+                # Используем новый main_image если есть замена, иначе текущий
+                effective_main_image = new_main_image if new_main_image else (str(main_image) if main_image else "")
+                if effective_main_image:
+                    main_filename = Path(effective_main_image).name
+                    if main_filename:
+                        seen_filenames.add(main_filename)
                 
                 deduplicated = self._deduplicate_list(
                     filtered_images, prefer_new_path, seen_filenames
                 )
 
-                removed_count = len(original_images) - len(deduplicated)
+                # Сравниваем с оригинальными gallery_images (без перемещённого в main_image)
+                compare_original = [img for img in (variant.gallery_images or []) if img != new_main_image]
+                removed_count = len(compare_original) - len(deduplicated)
 
-                if removed_count > 0:
-                    with_duplicates += 1
-                    total_removed += removed_count
+                if removed_count > 0 or variant_modified:
+                    if removed_count > 0:
+                        with_duplicates += 1
+                        total_removed += removed_count
 
                     if verbose:
                         self.stdout.write(
                             f"\n   [{variant.onec_id}] SKU: {variant.sku}:"
                         )
-                        self.stdout.write(f"      Было: {len(original_images)}")
-                        self.stdout.write(f"      Стало: {len(deduplicated)}")
-                        self.stdout.write(f"      Удалено: {removed_count}")
+                        
+                        # Показать замену main_image
+                        if main_image_replacement_info:
+                            old_path, old_size, new_path, new_size = main_image_replacement_info
+                            self.stdout.write(
+                                self.style.WARNING(
+                                    f"      🔄 main_image заменён: {Path(old_path).name} "
+                                    f"({old_size:.1f}KB) → {Path(new_path).name} ({new_size:.1f}KB)"
+                                )
+                            )
+                        
+                        if removed_count > 0:
+                            self.stdout.write(f"      Галерея было: {len(compare_original)}")
+                            self.stdout.write(f"      Галерея стало: {len(deduplicated)}")
+                            self.stdout.write(f"      Удалено: {removed_count}")
 
                         # Показать удалённые мелкие файлы
                         for img_path, size_kb in small_files:
@@ -343,8 +400,15 @@ class Command(BaseCommand):
                             )
 
                     if not dry_run:
-                        variant.gallery_images = deduplicated
-                        variant.save(update_fields=["gallery_images"])
+                        update_fields = []
+                        if new_main_image:
+                            variant.main_image = new_main_image
+                            update_fields.append("main_image")
+                        if removed_count > 0 or new_main_image:
+                            variant.gallery_images = deduplicated
+                            update_fields.append("gallery_images")
+                        if update_fields:
+                            variant.save(update_fields=update_fields)
 
                 pbar.update(1)
 
@@ -353,6 +417,7 @@ class Command(BaseCommand):
             "with_duplicates": with_duplicates,
             "removed": total_removed,
             "small_removed": small_removed,
+            "main_image_replaced": main_image_replaced,
         }
 
     def _deduplicate_list(
@@ -441,20 +506,26 @@ class Command(BaseCommand):
                 )
             )
 
-        self.stdout.write("\n📊 Статистика ProductVariant.gallery_images:")
-        self.stdout.write(f"   • Всего вариантов с галереей: {variants_result['total']}")
+        self.stdout.write("\n📊 Статистика ProductVariant.gallery_images и main_image:")
+        self.stdout.write(f"   • Всего вариантов с изображениями: {variants_result['total']}")
         self.stdout.write(f"   • Вариантов с дублями/мелкими: {variants_result['with_duplicates']}")
         self.stdout.write(
             self.style.SUCCESS(
-                f"   • Удалено записей: {variants_result['removed']}"
+                f"   • Удалено записей из галереи: {variants_result['removed']}"
             )
             if variants_result["removed"] > 0
-            else f"   • Удалено записей: 0"
+            else f"   • Удалено записей из галереи: 0"
         )
         if variants_result.get("small_removed", 0) > 0:
             self.stdout.write(
                 self.style.ERROR(
                     f"   • Из них мелких файлов: {variants_result['small_removed']}"
+                )
+            )
+        if variants_result.get("main_image_replaced", 0) > 0:
+            self.stdout.write(
+                self.style.WARNING(
+                    f"   • Заменено main_image: {variants_result['main_image_replaced']}"
                 )
             )
 
