@@ -48,9 +48,9 @@ export default function ProductPageClient({ product, userRole }: ProductPageClie
   }, []);
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
-      {/* Left Column: Image Gallery (2/3) */}
-      <div className="lg:col-span-2">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
+      {/* Left Column: Image Gallery (1/2) */}
+      <div className="lg:col-span-1">
         {/* Product Images with Zoom/Lightbox - интегрировано с selectedVariant */}
         <ProductImageGallery
           images={product.images}
