@@ -149,6 +149,7 @@ export interface ProductFilters {
   is_sale?: boolean;
   is_promo?: boolean;
   is_premium?: boolean;
+  search?: string;
 }
 
 class ProductsService {

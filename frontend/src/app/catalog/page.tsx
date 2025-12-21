@@ -6,9 +6,10 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useState, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import Button from '@/components/ui/Button';
+import { SearchField } from '@/components/ui/SearchField/SearchField';
 import { Grid2x2, List } from 'lucide-react';
 import { ProductCard as BusinessProductCard } from '@/components/business/ProductCard/ProductCard';
 import productsService, { type ProductFilters } from '@/services/productsService';
@@ -326,6 +327,8 @@ const CategoryTree: React.FC<{
 
 const CatalogContent: React.FC = () => {
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
   const [categoryTree, setCategoryTree] = useState<CategoryNode[]>([]);
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
   const [activeCategoryId, setActiveCategoryId] = useState<number | null>(null);
@@ -339,6 +342,7 @@ const CatalogContent: React.FC = () => {
   const [brandsError, setBrandsError] = useState<string | null>(null);
 
   const [priceRange, setPriceRange] = useState<PriceRange>(DEFAULT_PRICE_RANGE);
+  const [searchQuery, setSearchQuery] = useState('');
   const [products, setProducts] = useState<Product[]>([]);
   const [totalProducts, setTotalProducts] = useState(0);
   const [page, setPage] = useState(1);
@@ -430,6 +434,14 @@ const CatalogContent: React.FC = () => {
     };
   }, [searchParams]);
 
+  // Чтение параметра search из URL при инициализации
+  useEffect(() => {
+    const searchFromUrl = searchParams.get('search');
+    if (searchFromUrl) {
+      setSearchQuery(searchFromUrl);
+    }
+  }, [searchParams]);
+
   useEffect(() => {
     let isMounted = true;
 
@@ -470,6 +482,33 @@ const CatalogContent: React.FC = () => {
     setActiveCategoryLabel(pathNodes[pathNodes.length - 1]?.label ?? DEFAULT_CATEGORY_LABEL);
   }, [activeCategoryId, categoryTree]);
 
+  // Функция для обновления URL параметров без перезагрузки страницы
+  const updateSearchParams = useCallback(
+    (key: string, value: string | null) => {
+      const params = new URLSearchParams(searchParams.toString());
+
+      if (value === null || value === '') {
+        params.delete(key);
+      } else {
+        params.set(key, value);
+      }
+
+      const newUrl = params.toString() ? `${pathname}?${params.toString()}` : pathname;
+      router.push(newUrl, { scroll: false });
+    },
+    [pathname, router, searchParams]
+  );
+
+  // Обработчик изменения поискового запроса
+  const handleSearchChange = useCallback(
+    (query: string) => {
+      setSearchQuery(query);
+      updateSearchParams('search', query || null);
+      setPage(1);
+    },
+    [updateSearchParams]
+  );
+
   const fetchProducts = useCallback(async () => {
     try {
       setIsProductsLoading(true);
@@ -496,6 +535,11 @@ const CatalogContent: React.FC = () => {
         filters.in_stock = true;
       }
 
+      // Добавляем поисковый запрос
+      if (searchQuery.trim().length >= 2) {
+        filters.search = searchQuery.trim();
+      }
+
       const response = await productsService.getAll(filters);
       setProducts(response.results);
       setTotalProducts(response.count);
@@ -505,7 +549,16 @@ const CatalogContent: React.FC = () => {
     } finally {
       setIsProductsLoading(false);
     }
-  }, [activeCategoryId, ordering, page, priceRange.max, priceRange.min, selectedBrandIds, inStock]);
+  }, [
+    activeCategoryId,
+    ordering,
+    page,
+    priceRange.max,
+    priceRange.min,
+    selectedBrandIds,
+    inStock,
+    searchQuery,
+  ]);
 
   useEffect(() => {
     // Ждём пока категория будет установлена перед запросом товаров
@@ -561,7 +614,11 @@ const CatalogContent: React.FC = () => {
     setPriceRange(DEFAULT_PRICE_RANGE);
     setOrdering(DEFAULT_ORDERING);
     setInStock(true); // Сбрасываем фильтр "В наличии" в true
+    setSearchQuery(''); // Сбрасываем поисковый запрос
     setPage(1);
+
+    // Очищаем параметр search из URL
+    updateSearchParams('search', null);
 
     if (categoryTree.length) {
       const fallbackCategory =
@@ -717,7 +774,34 @@ const CatalogContent: React.FC = () => {
           })}
         </nav>
 
-        <h1 className="text-4xl font-semibold text-gray-900 mt-3">{activeCategoryLabel}</h1>
+        {/* Заголовок и поиск выровнены по сетке основного контента */}
+        <div className="mt-6 grid gap-8 lg:grid-cols-[280px_1fr] items-center">
+          <h1 className="text-4xl font-semibold text-gray-900">{activeCategoryLabel}</h1>
+
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <SearchField
+              placeholder="Поиск в каталоге..."
+              onSearch={handleSearchChange}
+              minLength={2}
+              debounceMs={300}
+              className="w-full sm:max-w-md"
+              aria-label="Поиск товаров в каталоге"
+            />
+
+            {/* Индикатор результатов поиска */}
+            {searchQuery.trim().length >= 2 && (
+              <span
+                className="text-sm text-gray-600 whitespace-nowrap"
+                aria-live="polite"
+                role="status"
+              >
+                Найдено {totalProducts}{' '}
+                {totalProducts === 1 ? 'товар' : totalProducts < 5 ? 'товара' : 'товаров'} по
+                запросу «{searchQuery}»
+              </span>
+            )}
+          </div>
+        </div>
 
         <div className="mt-8 grid gap-8 lg:grid-cols-[280px_1fr]">
           <aside className="space-y-8">

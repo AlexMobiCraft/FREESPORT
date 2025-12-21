@@ -403,30 +403,39 @@ class ProductFilter(django_filters.FilterSet):
         if len(search_query) < 2:
             return queryset
 
+        # Импортируем необходимые модели
+        from django.db.models import Exists, OuterRef
+
+        from .models import ProductVariant
+
         # Проверяем тип базы данных
         from django.db import connection
 
+        # Subquery для поиска по SKU в вариантах
+        sku_subquery = ProductVariant.objects.filter(
+            product=OuterRef("pk"),
+            sku__icontains=search_query,
+        )
+
         if connection.vendor == "postgresql":
             # PostgreSQL full-text search с русскоязычной конфигурацией
+            # Примечание: sku теперь в ProductVariant, не в Product
             search_vector = (
                 SearchVector("name", weight="A", config="russian")
                 + SearchVector("short_description", weight="B", config="russian")
                 + SearchVector("description", weight="C", config="russian")
-                + SearchVector("sku", weight="A", config="russian")
             )
 
             search_query_obj = SearchQuery(search_query, config="russian")
 
-            # Добавляем Q-объект для поиска по SKU через icontains
-            sku_q = Q(sku__icontains=search_query)
-
             # Возвращаем результаты с ранжированием по релевантности
+            # Поиск по SKU выполняется через Exists subquery к ProductVariant
             return (
                 queryset.annotate(
                     search=search_vector,
                     rank=SearchRank(search_vector, search_query_obj),
                 )
-                .filter(Q(search=search_query_obj) | sku_q)
+                .filter(Q(search=search_query_obj) | Exists(sku_subquery))
                 .order_by("-rank", "-created_at")
             )
         else:
@@ -441,8 +450,9 @@ class ProductFilter(django_filters.FilterSet):
 
             # Поиск частичного совпадения с приоритизацией
             # по полям (регистронезависимый)
+            # Примечание: sku теперь в ProductVariant, используем Exists
             name_match = Q(name__icontains=search_query)
-            sku_match = Q(sku__icontains=search_query)
+            sku_match = Exists(sku_subquery)
             desc_match = Q(short_description__icontains=search_query) | Q(
                 description__icontains=search_query
             )
@@ -451,14 +461,20 @@ class ProductFilter(django_filters.FilterSet):
             results = queryset.filter(name_match | sku_match | desc_match)
 
             # Добавляем аннотацию для приоритизации и сортируем
+            # Для sku_match используем простую проверку через Case
             prioritized_results = results.annotate(
+                has_sku_match=Exists(sku_subquery),
                 priority=Case(
-                    When(name_match, then=Value(1)),
-                    When(sku_match, then=Value(2)),
-                    When(desc_match, then=Value(3)),
+                    When(name__icontains=search_query, then=Value(1)),
+                    When(has_sku_match=True, then=Value(2)),
+                    When(
+                        Q(short_description__icontains=search_query)
+                        | Q(description__icontains=search_query),
+                        then=Value(3),
+                    ),
                     default=Value(4),
                     output_field=IntegerField(),
-                )
+                ),
             ).order_by("priority", "-created_at")
 
             return prioritized_results

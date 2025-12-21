@@ -1,0 +1,46 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+    - button "Open Next.js Dev Tools" [ref=e7] [cursor=pointer]:
+        - img [ref=e8]
+    - alert [ref=e11]
+    - main [ref=e12]:
+        - generic [ref=e13]:
+            - region "Notifications alt+T"
+            - generic [ref=e17]:
+                - heading "FREESPORT.RU" [level=1] [ref=e19]
+                - generic [ref=e21]:
+                    - heading "МЫ СКОРО ВЕРНЕМСЯ" [level=2] [ref=e22]
+                    - paragraph [ref=e23]:
+                        - text: Платформа для оптовых и розничных
+                        - text: продаж спортивных товаров
+                    - generic [ref=e24]:
+                        - generic [ref=e25]:
+                            - img [ref=e27]
+                            - heading "B2C Магазин" [level=3] [ref=e31]
+                            - paragraph [ref=e32]: Розничные продажи для всех
+                        - generic [ref=e33]:
+                            - img [ref=e35]
+                            - heading "B2B Решения" [level=3] [ref=e40]
+                            - paragraph [ref=e41]: Оптовые поставки для бизнеса
+                        - generic [ref=e42]:
+                            - img [ref=e44]
+                            - heading "Лучшие цены" [level=3] [ref=e47]
+                            - paragraph [ref=e48]: Конкурентные предложения
+                    - generic [ref=e50]:
+                        - generic [ref=e51]: РАЗРАБОТКА ИДЕТ ПО ПЛАНУ!
+                        - generic [ref=e52]: 65%
+                    - generic [ref=e55]:
+                        - paragraph [ref=e56]: Узнайте первым о нашем запуске
+                        - generic [ref=e57]:
+                            - generic [ref=e58]:
+                                - img [ref=e59]
+                                - textbox "Ваш email" [ref=e62]
+                            - button "Подписаться" [ref=e63]:
+                                - generic [ref=e64]: Подписаться
+                                - img [ref=e65]
+                - generic [ref=e67]:
+                    - paragraph [ref=e68]: © 2025-2026 FREESPORT.RU — Все права защищены
+                    - paragraph [ref=e69]: 'По вопросам сотрудничества: info@freesport.ru'
+```

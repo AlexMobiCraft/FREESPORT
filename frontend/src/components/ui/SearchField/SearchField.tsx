@@ -23,6 +23,10 @@ export interface SearchFieldProps
   products?: Array<{ id: number; name: string; price: number }>;
   /** Debounce delay в миллисекундах */
   debounceMs?: number;
+  /** Callback при клике по товару в dropdown */
+  onProductClick?: (productId: number) => void;
+  /** Показывать loading skeleton */
+  isLoading?: boolean;
 }
 
 export const SearchField = React.forwardRef<HTMLInputElement, SearchFieldProps>(
@@ -36,6 +40,8 @@ export const SearchField = React.forwardRef<HTMLInputElement, SearchFieldProps>(
       products = [],
       debounceMs = 300,
       onChange,
+      onProductClick,
+      isLoading = false,
       ...props
     },
     ref
@@ -44,9 +50,21 @@ export const SearchField = React.forwardRef<HTMLInputElement, SearchFieldProps>(
     const [showWarning, setShowWarning] = useState(false);
     const [isOpen, setIsOpen] = useState(false);
     const [debouncedValue, setDebouncedValue] = useState('');
+    const [activeIndex, setActiveIndex] = useState(-1);
     const containerRef = useRef<HTMLDivElement>(null);
     const timeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
     const listboxId = useId();
+
+    // Общий список элементов для keyboard navigation
+    const allItems = [
+      ...suggestions.map((s, i) => ({ type: 'suggestion' as const, value: s, index: i })),
+      ...products.map((p, i) => ({
+        type: 'product' as const,
+        value: p,
+        index: suggestions.length + i,
+      })),
+    ];
+    const totalItems = allItems.length;
 
     // Debounce effect
     useEffect(() => {
@@ -115,6 +133,66 @@ export const SearchField = React.forwardRef<HTMLInputElement, SearchFieldProps>(
     const hasResults =
       (suggestions.length > 0 || products.length > 0) && debouncedValue.length >= minLength;
 
+    // Reset activeIndex when dropdown closes or items change
+    useEffect(() => {
+      if (!isOpen) {
+        setActiveIndex(-1);
+      }
+    }, [isOpen]);
+
+    useEffect(() => {
+      setActiveIndex(-1);
+    }, [suggestions.length, products.length]);
+
+    /**
+     * Keyboard navigation handler for Arrow Up/Down, Enter, Escape
+     */
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (!isOpen || !hasResults) {
+        // Если dropdown закрыт, передаём событие дальше
+        props.onKeyDown?.(e);
+        return;
+      }
+
+      switch (e.key) {
+        case 'ArrowDown':
+          e.preventDefault();
+          setActiveIndex(prev => (prev + 1) % totalItems);
+          break;
+        case 'ArrowUp':
+          e.preventDefault();
+          setActiveIndex(prev => (prev <= 0 ? totalItems - 1 : prev - 1));
+          break;
+        case 'Enter':
+          e.preventDefault();
+          if (activeIndex >= 0 && activeIndex < totalItems) {
+            const item = allItems[activeIndex];
+            if (item.type === 'suggestion') {
+              setLocalValue(item.value as string);
+              setIsOpen(false);
+              if (onSearch) {
+                onSearch(item.value as string);
+              }
+            } else {
+              const product = item.value as { id: number; name: string; price: number };
+              onProductClick?.(product.id);
+              setIsOpen(false);
+            }
+          } else {
+            // Если ничего не выбрано, передаём событие дальше
+            props.onKeyDown?.(e);
+          }
+          break;
+        case 'Escape':
+          e.preventDefault();
+          setIsOpen(false);
+          setActiveIndex(-1);
+          break;
+        default:
+          props.onKeyDown?.(e);
+      }
+    };
+
     return (
       <div ref={containerRef} className="w-full relative">
         <div className="relative">
@@ -150,7 +228,11 @@ export const SearchField = React.forwardRef<HTMLInputElement, SearchFieldProps>(
             value={localValue}
             onChange={handleChange}
             aria-label="Поиск"
+            aria-activedescendant={
+              activeIndex >= 0 ? `${listboxId}-option-${activeIndex}` : undefined
+            }
             {...props}
+            onKeyDown={handleKeyDown}
           />
 
           {/* Clear Button - Design System v2.0 */}
@@ -174,8 +256,29 @@ export const SearchField = React.forwardRef<HTMLInputElement, SearchFieldProps>(
           )}
         </div>
 
+        {/* Loading Skeleton - Design System v2.0 */}
+        {isOpen && isLoading && (
+          <div
+            className={cn(
+              'absolute top-full left-0 right-0 mt-1 z-50',
+              'bg-white rounded-md',
+              'border border-[#E3E8F2]',
+              'shadow-lg',
+              'p-4'
+            )}
+            role="status"
+            aria-label="Загрузка результатов"
+          >
+            <div className="space-y-3 animate-pulse">
+              <div className="h-4 bg-[#E3E8F2] rounded w-3/4"></div>
+              <div className="h-4 bg-[#E3E8F2] rounded w-1/2"></div>
+              <div className="h-4 bg-[#E3E8F2] rounded w-2/3"></div>
+            </div>
+          </div>
+        )}
+
         {/* Autocomplete Dropdown - Design System v2.0 */}
-        {isOpen && hasResults && (
+        {isOpen && hasResults && !isLoading && (
           <div
             role="listbox"
             id={listboxId}
@@ -204,9 +307,10 @@ export const SearchField = React.forwardRef<HTMLInputElement, SearchFieldProps>(
                 {suggestions.map((suggestion, index) => (
                   <button
                     key={index}
+                    id={`${listboxId}-option-${index}`}
                     type="button"
                     role="option"
-                    aria-selected={localValue === suggestion}
+                    aria-selected={activeIndex === index}
                     onClick={() => {
                       setLocalValue(suggestion);
                       setIsOpen(false);
@@ -219,7 +323,8 @@ export const SearchField = React.forwardRef<HTMLInputElement, SearchFieldProps>(
                       'flex items-center gap-2',
                       'text-body-m text-text-primary',
                       'hover:bg-[#F5F7FA]',
-                      'transition-colors duration-[120ms]'
+                      'transition-colors duration-[120ms]',
+                      activeIndex === index && 'bg-[#F5F7FA]'
                     )}
                   >
                     <Search className="w-4 h-4 text-[#7A7A7A]" />
@@ -233,30 +338,35 @@ export const SearchField = React.forwardRef<HTMLInputElement, SearchFieldProps>(
             {products.length > 0 && (
               <div className="py-2 border-t border-[#E3E8F2]">
                 <div className="px-4 py-1 text-caption text-text-muted font-medium">Товары</div>
-                {products.map(product => (
-                  <button
-                    key={product.id}
-                    type="button"
-                    role="option"
-                    aria-selected={localValue === product.name}
-                    onClick={() => {
-                      // Handle product selection
-                      setIsOpen(false);
-                    }}
-                    className={cn(
-                      'w-full px-4 py-2 text-left',
-                      'flex items-center justify-between gap-2',
-                      'text-body-m',
-                      'hover:bg-[#F5F7FA]',
-                      'transition-colors duration-[120ms]'
-                    )}
-                  >
-                    <span className="truncate text-text-primary">{product.name}</span>
-                    <span className="text-text-secondary font-medium flex-shrink-0">
-                      {product.price.toLocaleString('ru-RU')} ₽
-                    </span>
-                  </button>
-                ))}
+                {products.map((product, index) => {
+                  const itemIndex = suggestions.length + index;
+                  return (
+                    <button
+                      key={product.id}
+                      id={`${listboxId}-option-${itemIndex}`}
+                      type="button"
+                      role="option"
+                      aria-selected={activeIndex === itemIndex}
+                      onClick={() => {
+                        onProductClick?.(product.id);
+                        setIsOpen(false);
+                      }}
+                      className={cn(
+                        'w-full px-4 py-2 text-left',
+                        'flex items-center justify-between gap-2',
+                        'text-body-m',
+                        'hover:bg-[#F5F7FA]',
+                        'transition-colors duration-[120ms]',
+                        activeIndex === itemIndex && 'bg-[#F5F7FA]'
+                      )}
+                    >
+                      <span className="truncate text-text-primary">{product.name}</span>
+                      <span className="text-text-secondary font-medium flex-shrink-0">
+                        {product.price.toLocaleString('ru-RU')} ₽
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>

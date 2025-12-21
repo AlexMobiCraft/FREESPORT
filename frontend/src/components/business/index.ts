@@ -47,3 +47,21 @@ export type { FavoriteProductCardProps } from './FavoriteProductCard';
 
 export { FavoritesList } from './FavoritesList';
 export type { FavoritesListProps } from './FavoritesList';
+
+// Story 18.1: Search components
+export { SearchAutocomplete } from './SearchAutocomplete';
+export type { SearchAutocompleteProps } from './SearchAutocomplete';
+
+// Story 18.3: Search History components
+export { SearchHistory } from './SearchHistory';
+export type { SearchHistoryProps } from './SearchHistory';
+
+// Story 18.2: Search Page components
+export { SearchPageClient } from './SearchPageClient';
+export type { SearchPageClientProps } from './SearchPageClient';
+
+export { SearchResults } from './SearchResults';
+export type { SearchResultsProps } from './SearchResults';
+
+export { EmptySearchResults } from './EmptySearchResults';
+export type { EmptySearchResultsProps } from './EmptySearchResults';

@@ -9,10 +9,11 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
-import { Search, Heart, ShoppingCart, Menu, X } from 'lucide-react';
+import { Heart, ShoppingCart, Menu, X } from 'lucide-react';
 import { authSelectors, useAuthStore } from '@/stores/authStore';
 import { useCartStore } from '@/stores/cartStore';
 import { Button } from '@/components/ui/Button';
+import { SearchAutocomplete } from '@/components/business/SearchAutocomplete';
 
 const Header: React.FC = () => {
   const pathname = usePathname();
@@ -116,12 +117,7 @@ const Header: React.FC = () => {
             {/* Action Icons (desktop) */}
             <div className="hidden md:flex items-center gap-4">
               {/* Поиск */}
-              <button
-                aria-label="Поиск"
-                className="p-2 text-text-primary hover:text-text-secondary transition-colors duration-short focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-sm"
-              >
-                <Search className="w-6 h-6" />
-              </button>
+              <SearchAutocomplete placeholder="Поиск товаров..." className="hidden lg:block" />
 
               {/* Избранное */}
               <Link
@@ -221,35 +217,39 @@ const Header: React.FC = () => {
               ))}
 
               {/* Мобильные иконки действий */}
-              <div className="flex items-center gap-4 px-3 py-2 border-t border-neutral-300 mt-2 pt-4">
-                <button
-                  aria-label="Поиск"
-                  className="p-2 text-text-primary hover:text-text-secondary transition-colors"
-                >
-                  <Search className="w-6 h-6" />
-                </button>
-                <Link
-                  href="/profile/favorites"
-                  aria-label="Избранное"
-                  className="p-2 text-text-primary hover:text-text-secondary transition-colors"
-                >
-                  <Heart className="w-6 h-6" />
-                </Link>
-                <Link
-                  href="/cart"
-                  aria-label="Корзина"
-                  className="relative p-2 text-text-primary hover:text-text-secondary transition-colors"
-                >
-                  <ShoppingCart className="w-6 h-6" />
-                  {cartItemsCount > 0 && (
-                    <span
-                      data-testid="cart-count"
-                      className="absolute top-0 right-0 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold bg-accent-danger-bg text-accent-danger rounded-full"
-                    >
-                      {cartItemsCount > 99 ? '99+' : cartItemsCount}
-                    </span>
-                  )}
-                </Link>
+              <div className="flex flex-col gap-4 px-3 py-2 border-t border-neutral-300 mt-2 pt-4">
+                {/* Поиск (мобильный) */}
+                <SearchAutocomplete
+                  isMobile
+                  placeholder="Поиск товаров..."
+                  onNavigate={() => setIsMobileMenuOpen(false)}
+                />
+
+                {/* Действия */}
+                <div className="flex items-center gap-4">
+                  <Link
+                    href="/profile/favorites"
+                    aria-label="Избранное"
+                    className="p-2 text-text-primary hover:text-text-secondary transition-colors"
+                  >
+                    <Heart className="w-6 h-6" />
+                  </Link>
+                  <Link
+                    href="/cart"
+                    aria-label="Корзина"
+                    className="relative p-2 text-text-primary hover:text-text-secondary transition-colors"
+                  >
+                    <ShoppingCart className="w-6 h-6" />
+                    {cartItemsCount > 0 && (
+                      <span
+                        data-testid="cart-count"
+                        className="absolute top-0 right-0 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold bg-accent-danger-bg text-accent-danger rounded-full"
+                      >
+                        {cartItemsCount > 99 ? '99+' : cartItemsCount}
+                      </span>
+                    )}
+                  </Link>
+                </div>
               </div>
 
               {/* Авторизация (mobile) */}
