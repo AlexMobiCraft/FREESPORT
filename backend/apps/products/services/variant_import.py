@@ -137,7 +137,11 @@ def parse_characteristics(characteristics: list[dict[str, str]]) -> dict[str, st
 
     # Маппинг названий характеристик из 1С на наши поля
     color_names = {"цвет", "color", "окраска"}
-    size_names = {"размер", "size", "размерtd", "детский размер"}
+    # Убран "детский размер" — это булевый флаг, не размер
+    size_names = {"размер", "size", "размерtd"}
+    
+    # Невалидные значения для размера (булевые флаги)
+    invalid_size_values = {"да", "нет", "yes", "no", "true", "false", "-"}
 
     for char in characteristics:
         name = char.get("name", "").lower().strip()
@@ -148,10 +152,13 @@ def parse_characteristics(characteristics: list[dict[str, str]]) -> dict[str, st
 
         if name in color_names:
             result["color_name"] = value
-        elif name in size_names:
-            result["size_value"] = value
+        elif name in size_names or name.startswith("размер_"):
+            # Фильтруем невалидные булевые значения
+            if value.lower() not in invalid_size_values:
+                result["size_value"] = value
 
     return result
+
 
 
 def extract_size_from_name(name: str) -> str:
