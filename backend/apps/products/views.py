@@ -64,9 +64,10 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
                     to_attr="prefetched_attributes",
                 ),
                 # Prefetch первого варианта для получения цен (для списка)
+                # Фильтруем варианты с ценой > 0, чтобы избежать отображения цены 0
                 Prefetch(
                     "variants",
-                    queryset=ProductVariant.objects.order_by("retail_price"),
+                    queryset=ProductVariant.objects.filter(retail_price__gt=0).order_by("retail_price"),
                     to_attr="first_variant_list",
                 ),
             )

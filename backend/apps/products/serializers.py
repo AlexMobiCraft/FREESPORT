@@ -411,12 +411,14 @@ class ProductListSerializer(serializers.ModelSerializer):
         ]
 
     def _get_first_variant(self, obj: Product) -> "ProductVariant | None":
-        """Получить первый вариант товара (кэшированный или из БД)"""
-        # Используем prefetched данные если доступны
+        """Получить первый вариант товара с ценой > 0 (кэшированный или из БД)"""
+        # Используем prefetched данные, фильтруя варианты с ценой > 0
         if hasattr(obj, "first_variant_list") and obj.first_variant_list:
-            return obj.first_variant_list[0]
-        # Fallback на прямой запрос
-        return obj.variants.order_by("retail_price").first()
+            valid_variants = [v for v in obj.first_variant_list if v.retail_price > 0]
+            if valid_variants:
+                return valid_variants[0]
+        # Fallback на прямой запрос с фильтрацией
+        return obj.variants.filter(retail_price__gt=0).order_by("retail_price").first()
 
     def get_retail_price(self, obj: Product) -> float:
         """Получить розничную цену из первого варианта"""
