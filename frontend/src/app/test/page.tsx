@@ -4,7 +4,13 @@
 
 import type { Metadata } from 'next';
 import HeroSection from '@/components/home/HeroSection';
-import { HitsSection, NewArrivalsSection, CategoriesSection } from '@/components/home';
+import {
+  HitsSection,
+  NewArrivalsSection,
+  SaleSection,
+  PromoSection,
+  CategoriesSection,
+} from '@/components/home';
 import { NewsSection } from '@/components/home/NewsSection';
 import { SubscribeNewsSection } from '@/components/home/SubscribeNewsSection';
 
@@ -62,6 +68,14 @@ export default function HomePage() {
       {/* Section spacing: 48px (py-12) для остальных секций */}
       <section className="py-12" aria-label="Новинки">
         <NewArrivalsSection />
+      </section>
+
+      <section className="py-12" aria-label="Акция">
+        <PromoSection />
+      </section>
+
+      <section className="py-12" aria-label="Распродажа">
+        <SaleSection />
       </section>
 
       <section className="py-12" aria-label="Категории товаров">

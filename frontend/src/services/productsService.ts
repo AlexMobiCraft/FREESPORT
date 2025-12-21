@@ -222,6 +222,40 @@ class ProductsService {
   }
 
   /**
+   * Получить товары на распродаже
+   * GET /products?is_sale=true&ordering=-created_at&page_size=8
+   */
+  async getSale(params?: Partial<ProductFilters>): Promise<Product[]> {
+    const response = await apiClient.get<PaginatedResponse<Product>>('/products/', {
+      params: {
+        is_sale: true,
+        ordering: '-created_at',
+        page_size: 8,
+        in_stock: true,
+        ...params,
+      },
+    });
+    return response.data.results;
+  }
+
+  /**
+   * Получить акционные товары
+   * GET /products?is_promo=true&ordering=-created_at&page_size=8
+   */
+  async getPromo(params?: Partial<ProductFilters>): Promise<Product[]> {
+    const response = await apiClient.get<PaginatedResponse<Product>>('/products/', {
+      params: {
+        is_promo: true,
+        ordering: '-created_at',
+        page_size: 8,
+        in_stock: true,
+        ...params,
+      },
+    });
+    return response.data.results;
+  }
+
+  /**
    * Получить детальную информацию о товаре по slug (Story 12.1)
    * GET /products/{slug}/
    * Адаптирует данные из формата API в формат ProductDetail
