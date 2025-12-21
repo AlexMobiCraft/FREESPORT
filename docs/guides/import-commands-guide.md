@@ -8,6 +8,7 @@
 
 - [Команда import_products_from_1c](#команда-import_products_from_1c)
 - [Команда load_product_stocks](#команда-load_product_stocks)
+- [Команда fix_variant_sizes](#команда-fix_variant_sizes)
 - [Команда backup_db](#команда-backup_db)
 - [Команда restore_db](#команда-restore_db)
 - [Команда rotate_backups](#команда-rotate_backups)
@@ -179,6 +180,105 @@ python manage.py load_product_stocks --file=/var/data/1c/export/rests.xml --dry-
 ```bash
 */15 * * * * cd /app && python manage.py load_product_stocks --file=/var/data/1c/export/rests.xml >> /var/log/stocks_import.log 2>&1
 ```
+
+---
+
+## Команда fix_variant_sizes
+
+### Описание
+
+Очищает некорректные значения `size_value` в модели `ProductVariant`. Эта команда используется для исправления данных, когда поле размера содержит булевые значения вместо реального размера (например, "Да" вместо "42").
+
+**Причина проблемы**: При импорте из 1С поле "Детский размер" (булевый флаг с значением "Да"/"Нет") ошибочно записывалось в `size_value` вместо реального размера из поля "Размер_...".
+
+### Синтаксис
+
+```bash
+python manage.py fix_variant_sizes [OPTIONS]
+```
+
+### Опциональные параметры
+
+| Параметр | Тип | По умолчанию | Описание |
+|----------|-----|--------------|----------|
+| `--dry-run` | flag | false | Тестовый запуск без записи в БД |
+
+### Невалидные значения, которые очищаются
+
+- `Да`, `да`
+- `Нет`, `нет`  
+- `Yes`, `yes`
+- `No`, `no`
+- `True`, `true`
+- `False`, `false`
+- `-`
+
+### Примеры использования
+
+#### Тестовый запуск (рекомендуется всегда начинать с него)
+
+```bash
+python manage.py fix_variant_sizes --dry-run
+```
+
+Вывод:
+
+```
+=== ТЕСТОВЫЙ ЗАПУСК (dry-run) ===
+
+Найдено вариантов с невалидным size_value: 742
+
+Будет очищено: 742 вариантов
+```
+
+#### Применение очистки
+
+```bash
+python manage.py fix_variant_sizes
+```
+
+Вывод:
+
+```
+Найдено вариантов с невалидным size_value: 742
+
+Очищено вариантов: 742
+
+Теперь запустите повторный импорт:
+  python manage.py import_products_from_1c --file-type=offers --data-dir=data/import_1c
+```
+
+### Рабочий процесс исправления данных
+
+После очистки некорректных значений необходимо повторно импортировать данные из `offers.xml`, чтобы правильно заполнить поле `size_value`:
+
+```bash
+# 1. Очистка невалидных значений
+python manage.py fix_variant_sizes
+
+# 2. Повторный импорт из offers.xml
+python manage.py import_products_from_1c --file-type=offers --data-dir=data/import_1c
+```
+
+### Docker команды
+
+```bash
+# Локальное окружение
+docker compose --env-file .env -f docker/docker-compose.yml exec backend python manage.py fix_variant_sizes --dry-run
+docker compose --env-file .env -f docker/docker-compose.yml exec backend python manage.py fix_variant_sizes
+
+# Production
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec backend python manage.py fix_variant_sizes --dry-run
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec backend python manage.py fix_variant_sizes
+```
+
+### Связанные исправления в коде
+
+Вместе с этой командой было исправлено в `variant_import.py`:
+
+1. Удалён "детский размер" из списка `size_names` (это булевый флаг, не размер)
+2. Добавлен паттерн `name.startswith("размер_")` для полей вроде "Размер_Обувь для гимнастики..."
+3. Добавлена фильтрация невалидных булевых значений ("да", "нет", etc.)
 
 ---
 
