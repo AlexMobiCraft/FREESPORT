@@ -82,7 +82,10 @@ export const HitsSection: React.FC = () => {
     if (!scrollContainerRef.current) return;
 
     const container = scrollContainerRef.current;
-    const scrollAmount = container.clientWidth * 0.8;
+    // Ширина карточки (200px) + gap (8px = gap-2)
+    const cardWidth = 200;
+    const gap = 8;
+    const scrollAmount = cardWidth + gap;
     const targetScroll =
       container.scrollLeft + (direction === 'right' ? scrollAmount : -scrollAmount);
 
@@ -98,7 +101,7 @@ export const HitsSection: React.FC = () => {
 
   return (
     <section
-      className="max-w-[1280px] mx-auto px-3 md:px-4 lg:px-6 relative"
+      className="max-w-[1316px] mx-auto px-3 md:px-4 lg:px-6 relative"
       aria-labelledby="hits-heading"
     >
       {/* Заголовок секции - headline-l */}
@@ -110,7 +113,7 @@ export const HitsSection: React.FC = () => {
       {canScrollLeft && (
         <button
           onClick={() => scroll('left')}
-          className="absolute left-1 top-1/2 -translate-y-1/2 z-10 hidden lg:flex items-center justify-center w-12 h-12 bg-transparent text-primary focus:outline-none"
+          className="absolute left-0 top-1/2 -translate-y-1/2 z-10 hidden lg:flex items-center justify-center w-12 h-12 bg-transparent text-primary focus:outline-none"
           aria-label="Предыдущие товары"
         >
           <ChevronLeft className="w-7 h-7" />
@@ -120,7 +123,7 @@ export const HitsSection: React.FC = () => {
       {canScrollRight && (
         <button
           onClick={() => scroll('right')}
-          className="absolute right-1 top-1/2 -translate-y-1/2 z-10 hidden lg:flex items-center justify-center w-12 h-12 bg-transparent text-primary focus:outline-none"
+          className="absolute right-0 top-1/2 -translate-y-1/2 z-10 hidden lg:flex items-center justify-center w-12 h-12 bg-transparent text-primary focus:outline-none"
           aria-label="Следующие товары"
         >
           <ChevronRight className="w-7 h-7" />
@@ -132,7 +135,7 @@ export const HitsSection: React.FC = () => {
         <div
           role="status"
           aria-label="Загрузка хитов продаж"
-          className="flex gap-2 overflow-hidden pb-3"
+          className="flex gap-4 overflow-hidden py-2 px-2"
         >
           {Array.from({ length: 4 }).map((_, index) => (
             <div
@@ -165,7 +168,7 @@ export const HitsSection: React.FC = () => {
       {!isLoading && !error && products.length > 0 && (
         <div
           ref={scrollContainerRef}
-          className="flex gap-2 overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-3"
+          className="flex gap-2 overflow-x-auto snap-x snap-mandatory scrollbar-hide py-2 lg:mx-4"
           role="list"
         >
           {products.map(product => (
