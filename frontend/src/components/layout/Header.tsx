@@ -5,7 +5,7 @@
  */
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
@@ -23,6 +23,28 @@ const Header: React.FC = () => {
   const logout = useAuthStore(state => state.logout);
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Закрытие меню при клике вне его области
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        isMobileMenuOpen &&
+        mobileMenuRef.current &&
+        menuButtonRef.current &&
+        !mobileMenuRef.current.contains(event.target as Node) &&
+        !menuButtonRef.current.contains(event.target as Node)
+      ) {
+        setIsMobileMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isMobileMenuOpen]);
 
   /**
    * Обработчик выхода из аккаунта
@@ -49,7 +71,7 @@ const Header: React.FC = () => {
   };
 
   return (
-    <header className="bg-white sticky top-0 z-50 shadow-[0_6px_16px_rgba(31,42,68,0.05)]">
+    <header className="bg-white sticky top-0 z-50 isolate shadow-[0_6px_16px_rgba(31,42,68,0.05)]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-[60px]">
           {/* Логотип */}
@@ -168,6 +190,7 @@ const Header: React.FC = () => {
 
             {/* Мобильное меню - кнопка */}
             <button
+              ref={menuButtonRef}
               className="md:hidden p-2 text-text-primary hover:text-text-secondary transition-colors duration-short focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-sm"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               aria-label={isMobileMenuOpen ? 'Закрыть меню' : 'Открыть меню'}
@@ -180,7 +203,7 @@ const Header: React.FC = () => {
 
         {/* Мобильная навигация */}
         {isMobileMenuOpen && (
-          <div className="md:hidden py-4 border-t border-neutral-300">
+          <div ref={mobileMenuRef} className="md:hidden py-4 border-t border-neutral-300">
             <nav aria-label="Мобильная навигация" className="flex flex-col space-y-2">
               {/* Основная навигация */}
               {navigationItems.map(item => (
