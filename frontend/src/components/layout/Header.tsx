@@ -9,7 +9,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
-import { Heart, ShoppingCart, Menu, X, Search } from 'lucide-react';
+import { Heart, ShoppingCart, Menu, X, Search, User, LogOut } from 'lucide-react';
 import { authSelectors, useAuthStore } from '@/stores/authStore';
 import { useCartStore } from '@/stores/cartStore';
 import { Button } from '@/components/ui/Button';
@@ -77,11 +77,10 @@ const Header: React.FC = () => {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`text-body-m font-medium transition-colors duration-short ${
-                  isActivePage(item.href)
+                className={`text-body-m font-medium transition-colors duration-short ${isActivePage(item.href)
                     ? 'text-text-primary'
                     : 'text-text-primary hover:text-text-secondary'
-                }`}
+                  }`}
               >
                 {item.label}
               </Link>
@@ -135,20 +134,21 @@ const Header: React.FC = () => {
                   <span className="text-body-s text-text-secondary">
                     Привет, {user.first_name}!
                   </span>
-                  <Link href="/profile">
-                    <Button variant="secondary" size="small">
-                      Профиль
-                    </Button>
+                  <Link
+                    href="/profile"
+                    aria-label="Профиль"
+                    className="p-2 text-text-primary hover:text-text-secondary transition-colors duration-short focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-sm"
+                  >
+                    <User className="w-6 h-6" />
                   </Link>
-                  <Button
-                    variant="secondary"
-                    size="small"
+                  <button
                     onClick={handleLogout}
                     data-testid="logout-button"
                     aria-label="Выйти из аккаунта"
+                    className="p-2 text-text-primary hover:text-text-secondary transition-colors duration-short focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-sm"
                   >
-                    Выйти
-                  </Button>
+                    <LogOut className="w-6 h-6" />
+                  </button>
                 </>
               ) : (
                 <>
@@ -187,11 +187,10 @@ const Header: React.FC = () => {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`block px-3 py-2 text-body-m font-medium rounded-sm transition-colors duration-short ${
-                    isActivePage(item.href)
+                  className={`block px-3 py-2 text-body-m font-medium rounded-sm transition-colors duration-short ${isActivePage(item.href)
                       ? 'text-text-primary bg-neutral-200'
                       : 'text-text-primary hover:text-text-secondary hover:bg-neutral-200'
-                  }`}
+                    }`}
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   {item.label}
@@ -241,24 +240,27 @@ const Header: React.FC = () => {
                     <span className="text-body-s text-text-secondary mb-2">
                       Привет, {user.first_name}!
                     </span>
-                    <Link href="/profile" onClick={() => setIsMobileMenuOpen(false)}>
-                      <Button variant="secondary" size="small" className="w-full">
-                        Профиль
-                      </Button>
-                    </Link>
-                    <Button
-                      variant="secondary"
-                      size="small"
-                      className="w-full"
-                      onClick={() => {
-                        handleLogout();
-                        setIsMobileMenuOpen(false);
-                      }}
-                      data-testid="logout-button-mobile"
-                      aria-label="Выйти из аккаунта"
-                    >
-                      Выйти
-                    </Button>
+                    <div className="flex items-center gap-4">
+                      <Link
+                        href="/profile"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                        aria-label="Профиль"
+                        className="p-2 text-text-primary hover:text-text-secondary transition-colors"
+                      >
+                        <User className="w-6 h-6" />
+                      </Link>
+                      <button
+                        onClick={() => {
+                          handleLogout();
+                          setIsMobileMenuOpen(false);
+                        }}
+                        data-testid="logout-button-mobile"
+                        aria-label="Выйти из аккаунта"
+                        className="p-2 text-text-primary hover:text-text-secondary transition-colors"
+                      >
+                        <LogOut className="w-6 h-6" />
+                      </button>
+                    </div>
                   </>
                 ) : (
                   <>
