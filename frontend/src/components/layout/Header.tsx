@@ -209,6 +209,7 @@ const Header: React.FC = () => {
                     <div className="flex items-center gap-4">
                       <Link
                         href="/catalog?focusSearch=true"
+                        onClick={() => setIsMobileMenuOpen(false)}
                         aria-label="Поиск"
                         className="p-2 text-text-primary hover:text-text-secondary transition-colors"
                       >
@@ -216,6 +217,7 @@ const Header: React.FC = () => {
                       </Link>
                       <Link
                         href="/profile/favorites"
+                        onClick={() => setIsMobileMenuOpen(false)}
                         aria-label="Избранное"
                         className="p-2 text-text-primary hover:text-text-secondary transition-colors"
                       >
@@ -223,6 +225,7 @@ const Header: React.FC = () => {
                       </Link>
                       <Link
                         href="/cart"
+                        onClick={() => setIsMobileMenuOpen(false)}
                         aria-label="Корзина"
                         className="relative p-2 text-text-primary hover:text-text-secondary transition-colors"
                       >
@@ -263,6 +266,7 @@ const Header: React.FC = () => {
                     <div className="flex items-center gap-4 mb-4">
                       <Link
                         href="/catalog?focusSearch=true"
+                        onClick={() => setIsMobileMenuOpen(false)}
                         aria-label="Поиск"
                         className="p-2 text-text-primary hover:text-text-secondary transition-colors"
                       >
@@ -270,6 +274,7 @@ const Header: React.FC = () => {
                       </Link>
                       <Link
                         href="/profile/favorites"
+                        onClick={() => setIsMobileMenuOpen(false)}
                         aria-label="Избранное"
                         className="p-2 text-text-primary hover:text-text-secondary transition-colors"
                       >
@@ -277,6 +282,7 @@ const Header: React.FC = () => {
                       </Link>
                       <Link
                         href="/cart"
+                        onClick={() => setIsMobileMenuOpen(false)}
                         aria-label="Корзина"
                         className="relative p-2 text-text-primary hover:text-text-secondary transition-colors"
                       >
