@@ -78,8 +78,8 @@ const Header: React.FC = () => {
                 key={item.href}
                 href={item.href}
                 className={`text-body-m font-medium transition-colors duration-short ${isActivePage(item.href)
-                    ? 'text-text-primary'
-                    : 'text-text-primary hover:text-text-secondary'
+                  ? 'text-text-primary'
+                  : 'text-text-primary hover:text-text-secondary'
                   }`}
               >
                 {item.label}
@@ -188,8 +188,8 @@ const Header: React.FC = () => {
                   key={item.href}
                   href={item.href}
                   className={`block px-3 py-2 text-body-m font-medium rounded-sm transition-colors duration-short ${isActivePage(item.href)
-                      ? 'text-text-primary bg-neutral-200'
-                      : 'text-text-primary hover:text-text-secondary hover:bg-neutral-200'
+                    ? 'text-text-primary bg-neutral-200'
+                    : 'text-text-primary hover:text-text-secondary hover:bg-neutral-200'
                     }`}
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
@@ -197,50 +197,45 @@ const Header: React.FC = () => {
                 </Link>
               ))}
 
-              {/* Мобильные иконки действий */}
-              <div className="flex flex-col gap-4 px-3 py-2 border-t border-neutral-300 mt-2 pt-4">
-                {/* Действия */}
-                <div className="flex items-center gap-4">
-                  <Link
-                    href="/catalog?focusSearch=true"
-                    aria-label="Поиск"
-                    className="p-2 text-text-primary hover:text-text-secondary transition-colors"
-                  >
-                    <Search className="w-6 h-6" />
-                  </Link>
-                  <Link
-                    href="/profile/favorites"
-                    aria-label="Избранное"
-                    className="p-2 text-text-primary hover:text-text-secondary transition-colors"
-                  >
-                    <Heart className="w-6 h-6" />
-                  </Link>
-                  <Link
-                    href="/cart"
-                    aria-label="Корзина"
-                    className="relative p-2 text-text-primary hover:text-text-secondary transition-colors"
-                  >
-                    <ShoppingCart className="w-6 h-6" />
-                    {cartItemsCount > 0 && (
-                      <span
-                        data-testid="cart-count"
-                        className="absolute top-0 right-0 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold bg-accent-danger-bg text-accent-danger rounded-full"
-                      >
-                        {cartItemsCount > 99 ? '99+' : cartItemsCount}
-                      </span>
-                    )}
-                  </Link>
-                </div>
-              </div>
-
-              {/* Авторизация (mobile) */}
+              {/* Мобильные иконки действий и авторизация */}
               <div className="flex flex-col gap-2 px-3 py-2 border-t border-neutral-300 mt-2 pt-4">
                 {isAuthenticated && user ? (
                   <>
+                    {/* Приветствие сверху */}
                     <span className="text-body-s text-text-secondary mb-2">
                       Привет, {user.first_name}!
                     </span>
+                    {/* Все иконки в одном ряду */}
                     <div className="flex items-center gap-4">
+                      <Link
+                        href="/catalog?focusSearch=true"
+                        aria-label="Поиск"
+                        className="p-2 text-text-primary hover:text-text-secondary transition-colors"
+                      >
+                        <Search className="w-6 h-6" />
+                      </Link>
+                      <Link
+                        href="/profile/favorites"
+                        aria-label="Избранное"
+                        className="p-2 text-text-primary hover:text-text-secondary transition-colors"
+                      >
+                        <Heart className="w-6 h-6" />
+                      </Link>
+                      <Link
+                        href="/cart"
+                        aria-label="Корзина"
+                        className="relative p-2 text-text-primary hover:text-text-secondary transition-colors"
+                      >
+                        <ShoppingCart className="w-6 h-6" />
+                        {cartItemsCount > 0 && (
+                          <span
+                            data-testid="cart-count"
+                            className="absolute top-0 right-0 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold bg-accent-danger-bg text-accent-danger rounded-full"
+                          >
+                            {cartItemsCount > 99 ? '99+' : cartItemsCount}
+                          </span>
+                        )}
+                      </Link>
                       <Link
                         href="/profile"
                         onClick={() => setIsMobileMenuOpen(false)}
@@ -264,6 +259,39 @@ const Header: React.FC = () => {
                   </>
                 ) : (
                   <>
+                    {/* Иконки для неавторизованных */}
+                    <div className="flex items-center gap-4 mb-4">
+                      <Link
+                        href="/catalog?focusSearch=true"
+                        aria-label="Поиск"
+                        className="p-2 text-text-primary hover:text-text-secondary transition-colors"
+                      >
+                        <Search className="w-6 h-6" />
+                      </Link>
+                      <Link
+                        href="/profile/favorites"
+                        aria-label="Избранное"
+                        className="p-2 text-text-primary hover:text-text-secondary transition-colors"
+                      >
+                        <Heart className="w-6 h-6" />
+                      </Link>
+                      <Link
+                        href="/cart"
+                        aria-label="Корзина"
+                        className="relative p-2 text-text-primary hover:text-text-secondary transition-colors"
+                      >
+                        <ShoppingCart className="w-6 h-6" />
+                        {cartItemsCount > 0 && (
+                          <span
+                            data-testid="cart-count"
+                            className="absolute top-0 right-0 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold bg-accent-danger-bg text-accent-danger rounded-full"
+                          >
+                            {cartItemsCount > 99 ? '99+' : cartItemsCount}
+                          </span>
+                        )}
+                      </Link>
+                    </div>
+                    {/* Кнопки авторизации */}
                     <Link href="/register" onClick={() => setIsMobileMenuOpen(false)}>
                       <Button variant="secondary" size="small" className="w-full">
                         Регистрация
