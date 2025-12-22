@@ -21,7 +21,7 @@ export default function LayoutWrapper({
   return (
     <div className="min-h-screen flex flex-col">
       {header}
-      <main className="flex-grow">{children}</main>
+      <main className="flex-grow relative z-0">{children}</main>
       {footer}
     </div>
   );
