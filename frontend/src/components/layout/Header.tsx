@@ -71,7 +71,7 @@ const Header: React.FC = () => {
   };
 
   return (
-    <header className="bg-white sticky top-0 z-50 isolate shadow-[0_6px_16px_rgba(31,42,68,0.05)]">
+    <header className="bg-white sticky top-0 left-0 right-0 z-50 shadow-[0_6px_16px_rgba(31,42,68,0.05)]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-[60px]">
           {/* Логотип */}
