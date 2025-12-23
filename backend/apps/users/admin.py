@@ -21,6 +21,7 @@ class CompanyInline(admin.StackedInline):
     can_delete = False
     verbose_name = "Информация о компании"
     verbose_name_plural = "Информация о компании"
+    classes = ["collapse"]  # Скрыт по умолчанию
 
     fieldsets = (
         (
