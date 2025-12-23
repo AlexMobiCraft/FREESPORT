@@ -6,7 +6,7 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenRefreshView
 
-from .views import (AddressViewSet, FavoriteViewSet, LogoutView,
+from .views import (AddressViewSet, CompanyView, FavoriteViewSet, LogoutView,
                     OrderHistoryView, PasswordResetConfirmView,
                     PasswordResetRequestView, UserDashboardView, UserLoginView,
                     UserProfileView, UserRegistrationView, ValidateTokenView,
@@ -49,6 +49,7 @@ urlpatterns = [
         UserDashboardView.as_view(),
         name="dashboard",
     ),
+    path("users/company/", CompanyView.as_view(), name="company"),
     path("users/orders/", OrderHistoryView.as_view(), name="orders"),
     # Системная информация
     path("users/roles/", user_roles_view, name="roles"),

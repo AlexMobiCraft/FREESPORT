@@ -680,6 +680,36 @@ components:
           type: string
           format: date-time
 
+    Company:
+      type: object
+      description: Реквизиты компании для B2B пользователей
+      properties:
+        id:
+          type: integer
+        legal_name:
+          type: string
+          description: Юридическое название
+        tax_id:
+          type: string
+          description: ИНН
+        kpp:
+          type: string
+          description: КПП
+        legal_address:
+          type: string
+          description: Юридический адрес
+        bank_name:
+          type: string
+          description: Название банка
+        bank_bik:
+          type: string
+          description: БИК банка
+        account_number:
+          type: string
+          description: Расчётный счёт
+        created_at:
+          type: string
+
     Product:
       type: object
       properties:

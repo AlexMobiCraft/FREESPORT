@@ -223,8 +223,8 @@ class UserAdmin(BaseUserAdmin):
         ),
     )
 
-    # Inlines (CompanyInline убран, т.к. B2B данные хранятся в полях User)
-    inlines = [AddressInline]
+    # Inlines
+    inlines = [CompanyInline, AddressInline]
 
     # Admin actions
     actions = [

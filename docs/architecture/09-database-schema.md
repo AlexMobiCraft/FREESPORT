@@ -26,6 +26,23 @@ CREATE INDEX idx_users_email ON users_user(email);
 CREATE INDEX idx_users_role ON users_user(role);
 CREATE INDEX idx_users_company ON users_user(company_name) WHERE company_name IS NOT NULL;
 
+-- Company (B2B requisites)
+CREATE TABLE users_company (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER UNIQUE NOT NULL REFERENCES users_user(id) ON DELETE CASCADE,
+    legal_name VARCHAR(255),
+    tax_id VARCHAR(12),
+    kpp VARCHAR(9),
+    legal_address TEXT,
+    bank_name VARCHAR(200),
+    bank_bik VARCHAR(9),
+    account_number VARCHAR(20),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX idx_company_user ON users_company(user_id);
+
 -- Brands
 CREATE TABLE products_brand (
     id SERIAL PRIMARY KEY,

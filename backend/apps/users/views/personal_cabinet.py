@@ -218,3 +218,101 @@ class OrderHistoryView(APIView):
             {"count": orders.count(), "results": serializer.data},
             status=status.HTTP_200_OK,
         )
+
+
+class CompanyView(APIView):
+    """
+    View для получения и редактирования реквизитов компании B2B пользователя.
+    
+    GET: Получение реквизитов компании
+    PUT: Обновление реквизитов компании
+    
+    Доступ: только для B2B пользователей (is_b2b_user=True)
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def _check_b2b_access(self, user: User) -> Response | None:
+        """Проверка доступа для B2B пользователей"""
+        if not user.is_b2b_user:
+            return Response(
+                {"detail": "Доступ только для B2B пользователей"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        return None
+
+    def _get_or_create_company(self, user: User):
+        """Получить или создать Company для пользователя"""
+        from ..models import Company
+        
+        company, created = Company.objects.get_or_create(
+            user=user,
+            defaults={
+                "legal_name": user.company_name or "",
+                "tax_id": user.tax_id or "",
+            }
+        )
+        return company
+
+    @extend_schema(
+        summary="Получение реквизитов компании",
+        description="Возвращает реквизиты компании для B2B пользователя",
+        responses={
+            200: "CompanySerializer",
+            403: "Доступ только для B2B пользователей",
+            401: "Пользователь не авторизован",
+        },
+        tags=["Users"],
+    )
+    def get(self, request):
+        """Получение реквизитов компании"""
+        user = request.user
+        
+        # Проверка B2B доступа
+        error_response = self._check_b2b_access(user)
+        if error_response:
+            return error_response
+        
+        company = self._get_or_create_company(user)
+        
+        from ..serializers import CompanySerializer
+        serializer = CompanySerializer(company)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @extend_schema(
+        summary="Обновление реквизитов компании",
+        description="Обновляет реквизиты компании для B2B пользователя",
+        request="CompanySerializer",
+        responses={
+            200: "CompanySerializer",
+            400: "Ошибка валидации",
+            403: "Доступ только для B2B пользователей",
+            401: "Пользователь не авторизован",
+        },
+        tags=["Users"],
+    )
+    def put(self, request):
+        """Обновление реквизитов компании"""
+        user = request.user
+        
+        # Проверка B2B доступа
+        error_response = self._check_b2b_access(user)
+        if error_response:
+            return error_response
+        
+        company = self._get_or_create_company(user)
+        
+        from ..serializers import CompanySerializer
+        serializer = CompanySerializer(company, data=request.data, partial=True)
+        
+        if serializer.is_valid():
+            serializer.save()
+            
+            # Синхронизируем company_name и tax_id в User
+            user.company_name = serializer.validated_data.get("legal_name", user.company_name)
+            user.tax_id = serializer.validated_data.get("tax_id", user.tax_id)
+            user.save(update_fields=["company_name", "tax_id"])
+            
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

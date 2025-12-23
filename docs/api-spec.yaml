@@ -286,6 +286,56 @@ paths:
   # =============================================================================
   # PRODUCTS CATALOG
   # =============================================================================
+
+  # =============================================================================
+  # COMPANY MANAGEMENT (B2B)
+  # =============================================================================
+  /users/company/:
+    get:
+      tags: [Users]
+      summary: Получить реквизиты компании
+      description: |
+        Возвращает юридические и банковские реквизиты компании для B2B пользователя.
+        Доступен только для B2B ролей (wholesale_level1-3, trainer, federation_rep).
+        Если Company не существует — автоматически создаётся.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Реквизиты компании
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Company'
+        '403':
+          description: Доступ запрещён (не B2B пользователь)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      tags: [Users]
+      summary: Обновить реквизиты компании
+      description: |
+        Обновляет юридические и банковские реквизиты компании B2B пользователя.
+        При обновлении legal_name и tax_id синхронизируются с User.company_name и User.tax_id.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyUpdate'
+      responses:
+        '200':
+          description: Реквизиты успешно обновлены
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Company'
+        '403':
+          description: Доступ запрещён (не B2B пользователь)
   /products/:
     get:
       tags: [Products]
@@ -844,6 +894,66 @@ components:
         company_name:
           type: string
           maxLength: 200
+
+    # Company Schemas (B2B)
+    Company:
+      type: object
+      description: Реквизиты компании для B2B пользователей
+      properties:
+        id:
+          type: integer
+        legal_name:
+          type: string
+          description: Юридическое название
+        tax_id:
+          type: string
+          description: ИНН (12 символов)
+        kpp:
+          type: string
+          description: КПП (9 символов)
+        legal_address:
+          type: string
+          description: Юридический адрес
+        bank_name:
+          type: string
+          description: Название банка
+        bank_bik:
+          type: string
+          description: БИК банка (9 символов)
+        account_number:
+          type: string
+          description: Расчётный счёт (20 символов)
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CompanyUpdate:
+      type: object
+      description: Данные для обновления реквизитов компании
+      properties:
+        legal_name:
+          type: string
+          maxLength: 255
+        tax_id:
+          type: string
+          maxLength: 12
+        kpp:
+          type: string
+          maxLength: 9
+        legal_address:
+          type: string
+        bank_name:
+          type: string
+          maxLength: 200
+        bank_bik:
+          type: string
+          maxLength: 9
+        account_number:
+          type: string
+          maxLength: 20
 
     # Product Schemas
     ProductList:

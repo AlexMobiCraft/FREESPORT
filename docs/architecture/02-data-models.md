@@ -121,6 +121,42 @@ class User(AbstractUser):
         return self.role in ['wholesale_level1', 'wholesale_level2', 'wholesale_level3', 'trainer', 'federation_rep']
 ```
 
+### Company Model
+
+> [!NOTE]
+> Модель Company хранит расширенные реквизиты юр.лица для B2B пользователей
+
+```python
+class Company(models.Model):
+    """
+    Модель компании для B2B пользователей
+    Содержит юридические и банковские реквизиты
+    """
+    user = models.OneToOneField(
+        User, on_delete=models.CASCADE, related_name="company"
+    )
+    
+    # Юридические данные
+    legal_name = models.CharField("Юридическое название", max_length=255, blank=True)
+    tax_id = models.CharField("ИНН", max_length=12, blank=True)
+    kpp = models.CharField("КПП", max_length=9, blank=True)
+    legal_address = models.TextField("Юридический адрес", blank=True)
+    
+    # Банковские реквизиты
+    bank_name = models.CharField("Название банка", max_length=200, blank=True)
+    bank_bik = models.CharField("БИК банка", max_length=9, blank=True)
+    account_number = models.CharField("Расчетный счет", max_length=20, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+```
+
+**Связь User ↔ Company:**
+
+- OneToOne связь через `user.company`
+- Company создаётся автоматически при первом обращении к API `/users/company/`
+- Данные `company_name` и `tax_id` в User синхронизируются с Company.legal_name/tax_id
+
 ### Модели каталога товаров
 
 ```python

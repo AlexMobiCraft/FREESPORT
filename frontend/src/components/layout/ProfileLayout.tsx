@@ -9,7 +9,8 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { User, ShoppingBag, MapPin, Heart } from 'lucide-react';
+import { User, ShoppingBag, MapPin, Heart, Building } from 'lucide-react';
+import { authSelectors } from '@/stores/authStore';
 
 /**
  * Элемент навигации профиля
@@ -18,6 +19,7 @@ interface NavigationItem {
   label: string;
   href: string;
   icon: React.ElementType;
+  b2bOnly?: boolean;
 }
 
 /**
@@ -35,6 +37,7 @@ const navigationItems: NavigationItem[] = [
   { label: 'Заказы', href: '/profile/orders', icon: ShoppingBag },
   { label: 'Адреса', href: '/profile/addresses', icon: MapPin },
   { label: 'Избранное', href: '/profile/favorites', icon: Heart },
+  { label: 'Реквизиты', href: '/profile/requisites', icon: Building, b2bOnly: true },
 ];
 
 /**
@@ -51,9 +54,10 @@ const SidebarNavItem: React.FC<{ item: NavigationItem; isActive: boolean }> = ({
       href={item.href}
       className={`
         flex items-center gap-3 px-4 py-3 rounded-lg transition-colors duration-150
-        ${isActive
-          ? 'bg-primary-subtle text-primary font-semibold'
-          : 'text-neutral-700 hover:bg-neutral-200 hover:text-neutral-900'
+        ${
+          isActive
+            ? 'bg-primary-subtle text-primary font-semibold'
+            : 'text-neutral-700 hover:bg-neutral-200 hover:text-neutral-900'
         }
       `}
     >
@@ -78,9 +82,10 @@ const MobileTabItem: React.FC<{ item: NavigationItem; isActive: boolean }> = ({
       className={`
         flex flex-col items-center justify-center gap-1 px-4 py-2 min-w-[80px]
         border-b-2 transition-colors duration-150 snap-start
-        ${isActive
-          ? 'border-primary text-primary'
-          : 'border-transparent text-neutral-600 hover:text-neutral-900'
+        ${
+          isActive
+            ? 'border-primary text-primary'
+            : 'border-transparent text-neutral-600 hover:text-neutral-900'
         }
       `}
     >
@@ -97,6 +102,7 @@ const MobileTabItem: React.FC<{ item: NavigationItem; isActive: boolean }> = ({
  */
 const ProfileLayout: React.FC<ProfileLayoutProps> = ({ children }) => {
   const pathname = usePathname();
+  const isB2B = authSelectors.useIsB2BUser();
 
   /**
    * Определяет, является ли путь активным
@@ -109,12 +115,15 @@ const ProfileLayout: React.FC<ProfileLayoutProps> = ({ children }) => {
     return pathname.startsWith(href);
   };
 
+  // Фильтруем навигацию: B2B-only пункты показываем только для B2B пользователей
+  const filteredNavItems = navigationItems.filter(item => !item.b2bOnly || isB2B);
+
   return (
     <div className="min-h-screen bg-canvas">
       {/* Mobile/Tablet Tabs - видны до lg breakpoint */}
       <nav className="lg:hidden sticky top-[60px] left-0 right-0 z-40 bg-white border-b border-neutral-300">
         <div className="flex overflow-x-auto scroll-snap-x-mandatory scrollbar-hide">
-          {navigationItems.map(item => (
+          {filteredNavItems.map(item => (
             <MobileTabItem key={item.href} item={item} isActive={isActiveRoute(item.href)} />
           ))}
         </div>
@@ -129,7 +138,7 @@ const ProfileLayout: React.FC<ProfileLayoutProps> = ({ children }) => {
               <nav className="bg-panel rounded-2xl p-4 shadow-default">
                 <h2 className="text-title-m text-neutral-900 mb-4 px-4">Личный кабинет</h2>
                 <div className="flex flex-col gap-1">
-                  {navigationItems.map(item => (
+                  {filteredNavItems.map(item => (
                     <SidebarNavItem
                       key={item.href}
                       item={item}
