@@ -70,6 +70,7 @@ export const AddressModal: React.FC<AddressModalProps> = ({
           city: address.city,
           street: address.street,
           building: address.building,
+          building_section: address.building_section || '',
           apartment: address.apartment || '',
           postal_code: address.postal_code,
           is_default: address.is_default,
@@ -217,8 +218,8 @@ export const AddressModal: React.FC<AddressModalProps> = ({
           )}
         />
 
-        {/* Дом и Квартира */}
-        <div className="grid grid-cols-2 gap-4">
+        {/* Дом, Корпус и Квартира */}
+        <div className="grid grid-cols-3 gap-4">
           <Controller
             name="building"
             control={control}
@@ -227,11 +228,23 @@ export const AddressModal: React.FC<AddressModalProps> = ({
             )}
           />
           <Controller
+            name="building_section"
+            control={control}
+            render={({ field }) => (
+              <Input
+                label="Корпус"
+                placeholder="А"
+                error={errors.building_section?.message}
+                {...field}
+              />
+            )}
+          />
+          <Controller
             name="apartment"
             control={control}
             render={({ field }) => (
               <Input
-                label="Квартира/офис"
+                label="Кв./офис"
                 placeholder="45"
                 error={errors.apartment?.message}
                 {...field}

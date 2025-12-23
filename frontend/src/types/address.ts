@@ -17,6 +17,7 @@ export interface Address {
   city: string;
   street: string;
   building: string;
+  building_section: string;
   apartment: string;
   postal_code: string;
   is_default: boolean;
@@ -35,6 +36,7 @@ export interface AddressFormData {
   city: string;
   street: string;
   building: string;
+  building_section?: string;
   apartment?: string;
   postal_code: string;
   is_default?: boolean;
@@ -50,6 +52,7 @@ export interface AddressValidationErrors {
   city?: string[];
   street?: string[];
   building?: string[];
+  building_section?: string[];
   apartment?: string[];
   postal_code?: string[];
   is_default?: string[];

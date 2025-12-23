@@ -305,6 +305,7 @@ class Address(models.Model):
     city = models.CharField("Город", max_length=100)
     street = models.CharField("Улица", max_length=200)
     building = models.CharField("Дом", max_length=10)
+    building_section = models.CharField("Корпус/строение", max_length=20, blank=True)
     apartment = models.CharField("Квартира/офис", max_length=10, blank=True)
     postal_code = models.CharField("Почтовый индекс", max_length=6)
 
@@ -343,6 +344,8 @@ class Address(models.Model):
     def full_address(self) -> str:
         """Полный адрес строкой"""
         parts = [self.postal_code, self.city, self.street, self.building]
+        if self.building_section:
+            parts.append(f"корп. {self.building_section}")
         if self.apartment:
             parts.append(f"кв. {self.apartment}")
         return ", ".join(parts)

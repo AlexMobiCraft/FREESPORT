@@ -17,6 +17,7 @@ const mockAddress: Address = {
   city: 'Москва',
   street: 'Тверская',
   building: '12',
+  building_section: '',
   apartment: '45',
   postal_code: '123456',
   is_default: true,

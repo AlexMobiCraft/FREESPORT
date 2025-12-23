@@ -27,6 +27,11 @@ export const addressSchema = z.object({
     .min(2, 'Название улицы должно содержать минимум 2 символа')
     .max(255, 'Название улицы слишком длинное'),
   building: z.string().min(1, 'Номер дома обязателен').max(20, 'Номер дома слишком длинный'),
+  building_section: z
+    .string()
+    .max(20, 'Корпус/строение слишком длинное')
+    .optional()
+    .or(z.literal('')),
   apartment: z.string().max(20, 'Номер квартиры слишком длинный').optional().or(z.literal('')),
   postal_code: z.string().regex(/^\d{6}$/, 'Почтовый индекс должен содержать 6 цифр'),
   is_default: z.boolean().default(false),
@@ -44,6 +49,7 @@ export const defaultAddressFormValues: AddressSchemaType = {
   city: '',
   street: '',
   building: '',
+  building_section: '',
   apartment: '',
   postal_code: '',
   is_default: false,

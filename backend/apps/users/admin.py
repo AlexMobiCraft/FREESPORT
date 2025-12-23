@@ -60,6 +60,8 @@ class AddressInline(admin.TabularInline):
         "city",
         "street",
         "building",
+        "building_section",
+        "apartment",
         "is_default",
     )
     readonly_fields = ("created_at",)

@@ -18,6 +18,7 @@ function AddressSectionWrapper({ defaultValues }: { defaultValues?: Partial<Chec
       city: defaultValues?.city || '',
       street: defaultValues?.street || '',
       house: defaultValues?.house || '',
+      buildingSection: defaultValues?.buildingSection || '',
       apartment: defaultValues?.apartment || '',
       postalCode: defaultValues?.postalCode || '',
       deliveryMethod: '',
@@ -40,7 +41,8 @@ describe('AddressSection', () => {
       expect(screen.getByLabelText('Город')).toBeInTheDocument();
       expect(screen.getByLabelText('Улица')).toBeInTheDocument();
       expect(screen.getByLabelText('Дом')).toBeInTheDocument();
-      expect(screen.getByLabelText('Квартира (необязательно)')).toBeInTheDocument();
+      expect(screen.getByLabelText('Корпус')).toBeInTheDocument();
+      expect(screen.getByLabelText('Кв./офис')).toBeInTheDocument();
       expect(screen.getByLabelText('Почтовый индекс')).toBeInTheDocument();
     });
 
@@ -157,24 +159,24 @@ describe('AddressSection', () => {
     });
   });
 
-  describe('Необязательное поле квартиры', () => {
+  describe('Необязательные поля', () => {
     it('квартира должна быть необязательной', () => {
       render(<AddressSectionWrapper />);
 
-      const apartmentInput = screen.getByLabelText('Квартира (необязательно)');
+      const apartmentInput = screen.getByLabelText('Кв./офис');
       expect(apartmentInput).not.toHaveAttribute('aria-required', 'true');
     });
 
     it('не должен показывать ошибку для пустой квартиры', async () => {
       render(<AddressSectionWrapper />);
 
-      const apartmentInput = screen.getByLabelText('Квартира (необязательно)');
+      const apartmentInput = screen.getByLabelText('Кв./офис');
       fireEvent.focus(apartmentInput);
       fireEvent.blur(apartmentInput);
 
       await waitFor(() => {
         // Проверяем, что нет ошибок
-        const apartmentLabel = screen.getByText('Квартира (необязательно)');
+        const apartmentLabel = screen.getByText('Кв./офис');
         expect(apartmentLabel.closest('div')).not.toHaveClass('error');
       });
     });

@@ -28,6 +28,7 @@ const mockAddresses: Address[] = [
     city: 'Москва',
     street: 'Тверская',
     building: '12',
+    building_section: '',
     apartment: '45',
     postal_code: '123456',
     is_default: true,
@@ -107,6 +108,7 @@ describe('addressService', () => {
         full_address: '191186, Санкт-Петербург, Невский 1, кв. 10',
         created_at: '2025-01-02T00:00:00Z',
         updated_at: '2025-01-02T00:00:00Z',
+        building_section: mockFormData.building_section || '',
         apartment: mockFormData.apartment || '',
         is_default: mockFormData.is_default || false,
       };

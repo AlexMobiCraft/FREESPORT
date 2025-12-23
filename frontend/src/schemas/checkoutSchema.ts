@@ -26,6 +26,8 @@ export const checkoutSchema = z.object({
 
   house: z.string().min(1, 'Обязательное поле').max(20, 'Максимум 20 символов'),
 
+  buildingSection: z.string().max(20, 'Максимум 20 символов').optional(),
+
   apartment: z.string().max(20, 'Максимум 20 символов').optional(),
 
   postalCode: z
@@ -62,6 +64,7 @@ export const defaultCheckoutFormValues: CheckoutFormData = {
   city: '',
   street: '',
   house: '',
+  buildingSection: '',
   apartment: '',
   postalCode: '',
   deliveryMethod: '',

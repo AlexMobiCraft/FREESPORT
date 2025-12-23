@@ -45,8 +45,8 @@ function mapFormDataToPayload(
     first_name: formData.firstName,
     last_name: formData.lastName,
     delivery_address: `${formData.postalCode}, г. ${formData.city}, ул. ${formData.street}, д. ${formData.house}${
-      formData.apartment ? `, кв. ${formData.apartment}` : ''
-    }`,
+      formData.buildingSection ? `, корп. ${formData.buildingSection}` : ''
+    }${formData.apartment ? `, кв. ${formData.apartment}` : ''}`,
     delivery_method: formData.deliveryMethod,
     payment_method: formData.paymentMethod,
     items: cartItems.map(item => ({

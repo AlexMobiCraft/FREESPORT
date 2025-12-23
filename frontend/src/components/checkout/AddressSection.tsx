@@ -76,8 +76,8 @@ export function AddressSection({ form }: AddressSectionProps) {
           )}
         </div>
 
-        {/* Дом и Квартира в одной строке на desktop */}
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        {/* Дом, Корпус и Квартира в одной строке на desktop */}
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           {/* Дом */}
           <div>
             <Input
@@ -98,11 +98,29 @@ export function AddressSection({ form }: AddressSectionProps) {
             )}
           </div>
 
+          {/* Корпус */}
+          <div>
+            <Input
+              {...register('buildingSection')}
+              label="Корпус"
+              type="text"
+              placeholder="А"
+              error={errors.buildingSection?.message}
+              aria-invalid={!!errors.buildingSection}
+              aria-describedby={errors.buildingSection ? 'buildingSection-error' : undefined}
+            />
+            {errors.buildingSection && (
+              <p id="buildingSection-error" className="sr-only">
+                {errors.buildingSection.message}
+              </p>
+            )}
+          </div>
+
           {/* Квартира */}
           <div>
             <Input
               {...register('apartment')}
-              label="Квартира (необязательно)"
+              label="Кв./офис"
               type="text"
               placeholder="25"
               error={errors.apartment?.message}
