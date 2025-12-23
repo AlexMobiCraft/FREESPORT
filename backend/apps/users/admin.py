@@ -80,6 +80,9 @@ class UserAdmin(BaseUserAdmin):
     # Оптимизация N+1 queries
     list_select_related = ["company"]
 
+    # Удобный выбор групп и разрешений (two-panel selector)
+    filter_horizontal = ("groups", "user_permissions")
+
     # Отображение в списке
     list_display = [
         "email",
@@ -159,6 +162,18 @@ class UserAdmin(BaseUserAdmin):
                     "is_staff",
                     "is_superuser",
                 )
+            },
+        ),
+        (
+            "Права доступа",
+            {
+                "fields": (
+                    "groups",
+                    "user_permissions",
+                ),
+                "classes": ("collapse",),
+                "description": "Группы определяют набор прав для пользователя. "
+                "Пользователь получает все права, назначенные каждой из его групп.",
             },
         ),
         (
