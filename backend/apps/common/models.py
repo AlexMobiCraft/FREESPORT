@@ -105,6 +105,30 @@ class SyncLog(TimeStampedModel):
 class CustomerSyncLog(TimeStampedModel):
     """Лог синхронизации конкретного клиента."""
 
+    class OperationType(models.TextChoices):
+        """Типы операций синхронизации."""
+        CREATED = "created", _("Создан")
+        UPDATED = "updated", _("Обновлен")
+        SKIPPED = "skipped", _("Пропущен")
+        ERROR = "error", _("Ошибка")
+        IMPORT_FROM_1C = "import_from_1c", _("Импорт из 1С")
+        EXPORT_TO_1C = "export_to_1c", _("Экспорт в 1С")
+        CUSTOMER_IDENTIFICATION = "customer_identification", _("Идентификация клиента")
+        CONFLICT_RESOLUTION = "conflict_resolution", _("Разрешение конфликта")
+        SYNC_CHANGES = "sync_changes", _("Синхронизация изменений")
+        BATCH_OPERATION = "batch_operation", _("Пакетная операция")
+        DATA_VALIDATION = "data_validation", _("Валидация данных")
+        NOTIFICATION_FAILED = "notification_failed", _("Ошибка уведомления")
+
+    class StatusType(models.TextChoices):
+        """Статусы операций синхронизации."""
+        SUCCESS = "success", _("Успешно")
+        FAILED = "failed", _("Ошибка")
+        ERROR = "error", _("Ошибка")
+        WARNING = "warning", _("Предупреждение")
+        SKIPPED = "skipped", _("Пропущено")
+        PENDING = "pending", _("Ожидание")
+
     customer = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,

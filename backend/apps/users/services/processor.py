@@ -92,8 +92,8 @@ class CustomerDataProcessor:
                         self._log_operation(
                             user=None,
                             onec_id=onec_id,
-                            operation_type=CustomerSyncLog.OperationType.ERROR,
-                            status=CustomerSyncLog.StatusType.FAILED,
+                            operation_type="error",
+                            status="failed",
                             error_message=f"Невалидный формат email: {email}",
                         )
                         return None
@@ -111,8 +111,8 @@ class CustomerDataProcessor:
                     self._log_operation(
                         user=user,
                         onec_id=onec_id,
-                        operation_type=CustomerSyncLog.OperationType.UPDATED,
-                        status=CustomerSyncLog.StatusType.SUCCESS,
+                        operation_type="updated",
+                        status="success",
                         details={
                             "previous_role": existing_user.role,
                             "new_role": role,
@@ -124,8 +124,8 @@ class CustomerDataProcessor:
                     self._log_operation(
                         user=user,
                         onec_id=onec_id,
-                        operation_type=CustomerSyncLog.OperationType.CREATED,
-                        status=CustomerSyncLog.StatusType.SUCCESS,
+                        operation_type="created",
+                        status="success",
                         details={
                             "role": role,
                             "has_email": bool(email),
@@ -138,8 +138,8 @@ class CustomerDataProcessor:
                         self._log_operation(
                             user=user,
                             onec_id=onec_id,
-                            operation_type=CustomerSyncLog.OperationType.CREATED,
-                            status=CustomerSyncLog.StatusType.WARNING,
+                            operation_type="created",
+                            status="warning",
                             details={"notes": "Клиент создан без email адреса"},
                         )
 
@@ -150,8 +150,8 @@ class CustomerDataProcessor:
             self._log_operation(
                 user=None,
                 onec_id=onec_id,
-                operation_type=CustomerSyncLog.OperationType.ERROR,
-                status=CustomerSyncLog.StatusType.FAILED,
+                operation_type="error",
+                status="failed",
                 error_message=str(e),
             )
             return None
@@ -197,9 +197,9 @@ class CustomerDataProcessor:
             else:
                 # Проверяем логи на наличие записи с типом SKIPPED
                 skipped_log = CustomerSyncLog.objects.filter(
-                    session=self.session,
+                    session=str(self.session.pk),
                     onec_id=onec_id,
-                    operation_type=CustomerSyncLog.OperationType.SKIPPED,
+                    operation_type="skipped",
                 ).exists()
 
                 if skipped_log:
@@ -407,12 +407,16 @@ class CustomerDataProcessor:
             error_message: Сообщение об ошибке
             details: Дополнительные детали операции
         """
+        import uuid
+
         CustomerSyncLog.objects.create(
-            session=self.session,
-            user=user,
+            session=str(self.session.pk),  # CharField - преобразуем ID в строку
+            customer=user,  # Поле называется customer, не user
             onec_id=onec_id,
             operation_type=operation_type,
             status=status,
             error_message=error_message,
             details=details or {},
+            correlation_id=uuid.uuid4(),  # Обязательное поле UUID
         )
+

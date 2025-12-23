@@ -166,8 +166,12 @@ def _execute_import_type(import_type: str, task_id: str) -> dict[str, str]:
         return {"type": "prices", "message": "Цены обновлены"}
 
     elif import_type == "customers":
-        logger.info(f"[Task {task_id}] Запуск import_customers_from_1c")
-        call_command("import_customers_from_1c")
+        # Получаем директорию из settings для команды import_customers_from_1c
+        onec_data_dir = getattr(settings, "ONEC_DATA_DIR", None)
+        if not onec_data_dir:
+            raise ValueError("Настройка ONEC_DATA_DIR не найдена в settings")
+        logger.info(f"[Task {task_id}] Запуск import_customers_from_1c --data-dir={onec_data_dir}")
+        call_command("import_customers_from_1c", "--data-dir", onec_data_dir)
         return {"type": "customers", "message": "Клиенты импортированы"}
 
     elif import_type == "images":
