@@ -257,10 +257,10 @@ class Company(models.Model):
         verbose_name="Пользователь",
     )
 
-    legal_name = models.CharField("Юридическое название", max_length=255)
-    tax_id = models.CharField("ИНН", max_length=12, unique=True)
+    legal_name = models.CharField("Юридическое название", max_length=255, blank=True)
+    tax_id = models.CharField("ИНН", max_length=12, blank=True)
     kpp = models.CharField("КПП", max_length=9, blank=True)
-    legal_address = models.TextField("Юридический адрес")
+    legal_address = models.TextField("Юридический адрес", blank=True)
 
     # Банковские реквизиты
     bank_name = models.CharField("Название банка", max_length=200, blank=True)
