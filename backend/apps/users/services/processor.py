@@ -15,6 +15,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.common.models import CustomerSyncLog
+from apps.users.models import Company
 
 if TYPE_CHECKING:
     from apps.products.models import ImportSession
@@ -347,6 +348,11 @@ class CustomerDataProcessor:
             last_sync_at=timezone.now(),
         )
 
+        # Создаем объект Company для B2B клиентов (юр.лиц и ИП)
+        customer_type = customer_data.get("customer_type", "")
+        if customer_type in ["legal_entity", "individual_entrepreneur"]:
+            self._create_or_update_company(user, customer_data)
+
         logger.info(f"Создан новый пользователь: {user.email or onec_id} (role={role})")
         return user
 
@@ -381,6 +387,11 @@ class CustomerDataProcessor:
         user.last_sync_at = timezone.now()
 
         user.save()
+
+        # Создаем/обновляем объект Company для B2B клиентов
+        customer_type = customer_data.get("customer_type", "")
+        if customer_type in ["legal_entity", "individual_entrepreneur"]:
+            self._create_or_update_company(user, customer_data)
 
         logger.info(
             f"Обновлен пользователь: {user.email or user.onec_id} (role={role})"
@@ -420,3 +431,46 @@ class CustomerDataProcessor:
             correlation_id=uuid.uuid4(),  # Обязательное поле UUID
         )
 
+    def _create_or_update_company(
+        self, user: User, customer_data: dict[str, Any]
+    ) -> Company:
+        """
+        Создает или обновляет объект Company для B2B клиента.
+
+        Args:
+            user: Пользователь-владелец компании
+            customer_data: Словарь с данными клиента из парсера
+
+        Returns:
+            Company: Созданный или обновленный объект компании
+        """
+        # Получаем данные компании из customer_data
+        legal_name = customer_data.get("full_name", "") or customer_data.get("name", "")
+        tax_id = customer_data.get("tax_id", "").strip()
+        kpp = customer_data.get("kpp", "").strip()
+        legal_address = customer_data.get("address", "").strip()
+
+        # Пытаемся найти существующую компанию
+        try:
+            company = Company.objects.get(user=user)
+            # Обновляем данные компании
+            company.legal_name = legal_name
+            company.tax_id = tax_id
+            company.kpp = kpp
+            company.legal_address = legal_address
+            company.save()
+            logger.debug(f"Обновлена компания для пользователя {user.onec_id}")
+        except Company.DoesNotExist:
+            # Создаем новую компанию
+            company = Company.objects.create(
+                user=user,
+                legal_name=legal_name,
+                tax_id=tax_id,
+                kpp=kpp,
+                legal_address=legal_address,
+            )
+            logger.info(
+                f"Создана компания '{legal_name}' для пользователя {user.onec_id}"
+            )
+
+        return company
