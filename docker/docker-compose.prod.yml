@@ -57,6 +57,9 @@ services:
       - EMAIL_HOST_PASSWORD=${EMAIL_HOST_PASSWORD}
       - DEFAULT_FROM_EMAIL=${DEFAULT_FROM_EMAIL}
       - SERVER_EMAIL=${SERVER_EMAIL}
+      - ADMIN_EMAILS=${ADMIN_EMAILS}
+      - SITE_URL=${SITE_URL}
+      - EMAIL_USE_SSL=${EMAIL_USE_SSL:-False}
     volumes:
       - ../backend/logs:/app/logs
       - ../data/prod/static:/app/staticfiles
@@ -150,6 +153,9 @@ services:
       - EMAIL_HOST_PASSWORD=${EMAIL_HOST_PASSWORD}
       - DEFAULT_FROM_EMAIL=${DEFAULT_FROM_EMAIL}
       - SERVER_EMAIL=${SERVER_EMAIL}
+      - ADMIN_EMAILS=${ADMIN_EMAILS}
+      - SITE_URL=${SITE_URL}
+      - EMAIL_USE_SSL=${EMAIL_USE_SSL:-False}
     volumes:
       - ../backend/logs:/app/logs
       - ${ONEC_DATA_DIR}:/app/data/import_1c
@@ -186,6 +192,9 @@ services:
       - EMAIL_HOST_PASSWORD=${EMAIL_HOST_PASSWORD}
       - DEFAULT_FROM_EMAIL=${DEFAULT_FROM_EMAIL}
       - SERVER_EMAIL=${SERVER_EMAIL}
+      - ADMIN_EMAILS=${ADMIN_EMAILS}
+      - SITE_URL=${SITE_URL}
+      - EMAIL_USE_SSL=${EMAIL_USE_SSL:-False}
     volumes:
       - ../backend/logs:/app/logs
     depends_on:
