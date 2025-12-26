@@ -79,7 +79,7 @@ export const DeliveryTeaser: React.FC = () => {
         {/* CTA */}
         <div className="text-center">
           <Link href="/delivery">
-            <Button size="lg" variant="primary">
+            <Button size="large" variant="primary">
               Подробнее о доставке
             </Button>
           </Link>

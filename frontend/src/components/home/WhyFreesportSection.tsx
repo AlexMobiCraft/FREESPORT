@@ -65,7 +65,7 @@ export const WhyFreesportSection: React.FC = () => {
         {/* CTA */}
         <div className="text-center">
           <Link href="/partners">
-            <Button size="lg" variant="primary">
+            <Button size="large" variant="primary">
               Стать партнёром
             </Button>
           </Link>
