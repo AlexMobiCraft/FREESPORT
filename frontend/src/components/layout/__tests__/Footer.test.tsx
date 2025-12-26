@@ -20,10 +20,10 @@ describe('Footer', () => {
       expect(footer).toBeInTheDocument();
     });
 
-    it('renders with dark background color (#1F1F1F)', () => {
+    it('renders with dark background color (#111827)', () => {
       render(<Footer />);
       const footer = screen.getByRole('contentinfo');
-      expect(footer).toHaveClass('bg-[#1F1F1F]', 'text-white');
+      expect(footer).toHaveClass('bg-[#111827]', 'text-white');
     });
 
     it('renders with correct padding (py-12)', () => {
@@ -41,53 +41,32 @@ describe('Footer', () => {
   });
 
   describe('Rendering - Columns', () => {
-    it('renders all 4 default column titles', () => {
+    it('renders all 3 default column titles', () => {
       render(<Footer />);
 
       const headings = screen.getAllByRole('heading', { level: 3 });
       const headingTexts = headings.map(h => h.textContent);
 
-      expect(headingTexts).toContain('О компании');
       expect(headingTexts).toContain('Каталог');
-      expect(headingTexts).toContain('Помощь');
+      expect(headingTexts).toContain('Информация');
       expect(headingTexts).toContain('Контакты');
+      expect(headings.length).toBe(3);
     });
 
-    it('renders О компании column links', () => {
+    it('renders Information section links', () => {
       render(<Footer />);
 
-      expect(screen.getByRole('link', { name: 'О нас' })).toHaveAttribute('href', '/about');
-      expect(screen.getByRole('link', { name: 'Контакты' })).toHaveAttribute('href', '/contacts');
-      expect(screen.getByRole('link', { name: 'Вакансии' })).toHaveAttribute('href', '/careers');
+      expect(screen.getByRole('link', { name: 'О компании' })).toHaveAttribute('href', '/about');
+      expect(screen.getByRole('link', { name: 'Партнёрам' })).toHaveAttribute('href', '/partners');
+      expect(screen.getByRole('link', { name: 'Доставка' })).toHaveAttribute('href', '/delivery');
     });
 
     it('renders Каталог column links', () => {
       render(<Footer />);
 
-      expect(screen.getByRole('link', { name: 'Спортивные игры' })).toHaveAttribute(
-        'href',
-        '/catalog/sports-games'
-      );
-      expect(screen.getByRole('link', { name: 'Единоборства' })).toHaveAttribute(
-        'href',
-        '/catalog/martial-arts'
-      );
-      expect(screen.getByRole('link', { name: 'Фитнес' })).toHaveAttribute(
-        'href',
-        '/catalog/fitness'
-      );
-      expect(screen.getByRole('link', { name: 'Детский транспорт' })).toHaveAttribute(
-        'href',
-        '/catalog/kids-transport'
-      );
-    });
-
-    it('renders Помощь column links', () => {
-      render(<Footer />);
-
-      expect(screen.getByRole('link', { name: 'Доставка' })).toHaveAttribute('href', '/delivery');
-      expect(screen.getByRole('link', { name: 'Возврат' })).toHaveAttribute('href', '/returns');
-      expect(screen.getByRole('link', { name: 'FAQ' })).toHaveAttribute('href', '/faq');
+      expect(screen.getByRole('link', { name: 'Товары' })).toHaveAttribute('href', '/catalog');
+      expect(screen.getByRole('link', { name: 'Бренды' })).toHaveAttribute('href', '/brands');
+      expect(screen.getByRole('link', { name: 'Акции' })).toHaveAttribute('href', '/promotions');
     });
 
     it('renders Контакты column with tel: and mailto: links', () => {
@@ -127,8 +106,8 @@ describe('Footer', () => {
     it('applies hover styles to column links', () => {
       render(<Footer />);
 
-      const link = screen.getByRole('link', { name: 'О нас' });
-      expect(link).toHaveClass('hover:opacity-80', 'transition-opacity');
+      const link = screen.getByRole('link', { name: 'Товары' });
+      expect(link).toHaveClass('hover:text-white', 'transition-colors');
     });
   });
 
@@ -226,13 +205,13 @@ describe('Footer', () => {
   });
 
   describe('Responsive Layout', () => {
-    it('renders grid with responsive columns (1/2/4)', () => {
+    it('renders grid with responsive columns (1/2/3)', () => {
       render(<Footer />);
 
       const footer = screen.getByRole('contentinfo');
       const grid = footer.querySelector('.grid');
 
-      expect(grid).toHaveClass('grid-cols-1', 'md:grid-cols-2', 'lg:grid-cols-4');
+      expect(grid).toHaveClass('grid-cols-1', 'md:grid-cols-2', 'lg:grid-cols-3');
     });
 
     it('renders responsive padding (px-3 md:px-4 lg:px-6)', () => {
@@ -289,7 +268,7 @@ describe('Footer', () => {
       const footer = screen.getByRole('contentinfo');
       const headings = footer.querySelectorAll('h3');
 
-      expect(headings.length).toBe(4); // 4 default columns
+      expect(headings.length).toBe(3); // 3 default columns
     });
 
     it('all navigation links are keyboard accessible', () => {
@@ -305,11 +284,11 @@ describe('Footer', () => {
   });
 
   describe('Design System v2.0 Compliance', () => {
-    it('uses correct primary color (#1F1F1F) for background', () => {
+    it('uses correct primary color (#111827) for background', () => {
       render(<Footer />);
 
       const footer = screen.getByRole('contentinfo');
-      expect(footer).toHaveClass('bg-[#1F1F1F]');
+      expect(footer).toHaveClass('bg-[#111827]');
     });
 
     it('uses inverse text color (white) for content', () => {
@@ -340,8 +319,8 @@ describe('Footer', () => {
     it('applies transition effects for hover states', () => {
       render(<Footer />);
 
-      const link = screen.getByRole('link', { name: 'О нас' });
-      expect(link).toHaveClass('transition-opacity');
+      const link = screen.getByRole('link', { name: 'Товары' });
+      expect(link).toHaveClass('transition-colors');
     });
   });
 

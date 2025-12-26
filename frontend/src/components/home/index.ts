@@ -1,7 +1,11 @@
 /**
- * Home Components exports (Story 12.7)
+ * Home Components exports (Story 12.7, 19.2)
  */
 
+// Main Page
+export { HomePage } from './HomePage';
+
+// Sections
 export { default as HeroSection } from './HeroSection';
 export { HitsSection } from './HitsSection';
 export { NewArrivalsSection } from './NewArrivalsSection';
@@ -13,3 +17,8 @@ export { NewsSection } from './NewsSection';
 export { BlogSection } from './BlogSection';
 export { BlogPostCard } from './BlogPostCard';
 export { SubscribeNewsSection } from './SubscribeNewsSection';
+
+// Teasers (Story 19.2)
+export { WhyFreesportSection } from './WhyFreesportSection';
+export { DeliveryTeaser } from './DeliveryTeaser';
+export { AboutTeaser } from './AboutTeaser';

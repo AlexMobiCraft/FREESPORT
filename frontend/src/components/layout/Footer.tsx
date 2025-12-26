@@ -24,28 +24,19 @@ export interface FooterProps {
 
 const DEFAULT_COLUMNS: FooterColumn[] = [
   {
-    title: 'О компании',
-    links: [
-      { label: 'О нас', href: '/about' },
-      { label: 'Контакты', href: '/contacts' },
-      { label: 'Вакансии', href: '/careers' },
-    ],
-  },
-  {
     title: 'Каталог',
     links: [
-      { label: 'Спортивные игры', href: '/catalog/sports-games' },
-      { label: 'Единоборства', href: '/catalog/martial-arts' },
-      { label: 'Фитнес', href: '/catalog/fitness' },
-      { label: 'Детский транспорт', href: '/catalog/kids-transport' },
+      { label: 'Товары', href: '/catalog' },
+      { label: 'Бренды', href: '/brands' },
+      { label: 'Акции', href: '/promotions' },
     ],
   },
   {
-    title: 'Помощь',
+    title: 'Информация',
     links: [
+      { label: 'О компании', href: '/about' },
+      { label: 'Партнёрам', href: '/partners' },
       { label: 'Доставка', href: '/delivery' },
-      { label: 'Возврат', href: '/returns' },
-      { label: 'FAQ', href: '/faq' },
     ],
   },
   {
@@ -97,7 +88,7 @@ export const Footer: React.FC<FooterProps> = ({
     <footer className="bg-[#111827] text-white py-12" role="contentinfo">
       <div className="max-w-[1280px] mx-auto px-3 md:px-4 lg:px-6">
         {/* Колонки */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-8">
           {columns.map((column, index) => (
             <div key={index}>
               <h3 className="font-semibold mb-4">{column.title}</h3>

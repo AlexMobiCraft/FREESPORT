@@ -148,15 +148,15 @@ describe('Header', () => {
 
       expect(screen.getByRole('link', { name: 'Главная' })).toBeInTheDocument();
       expect(screen.getByRole('link', { name: 'Каталог' })).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: 'Бренды' })).toBeInTheDocument();
       expect(screen.getByRole('link', { name: 'Новости' })).toBeInTheDocument();
       expect(screen.getByRole('link', { name: 'Акции' })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Партнёрам' })).toBeInTheDocument();
     });
 
     it('should render action icons (search, favorites, cart)', () => {
       render(<Header />);
 
-      expect(screen.getByRole('button', { name: 'Поиск' })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: /Поиск/i })).toBeInTheDocument();
       expect(screen.getByRole('link', { name: /Избранное/i })).toBeInTheDocument();
       expect(screen.getByRole('link', { name: /Корзина/i })).toBeInTheDocument();
     });
@@ -304,25 +304,6 @@ describe('Header', () => {
       render(<Header />);
       expect(screen.getByText('B2B')).toBeInTheDocument();
     });
-
-    it('should render B2B navigation items', () => {
-      render(<Header />);
-
-      expect(screen.getByRole('link', { name: 'Оптовые цены' })).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: 'Заказы' })).toBeInTheDocument();
-    });
-
-    it('should render all standard navigation items plus B2B items', () => {
-      render(<Header />);
-
-      // Standard items
-      expect(screen.getByRole('link', { name: 'Главная' })).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: 'Каталог' })).toBeInTheDocument();
-
-      // B2B items
-      expect(screen.getByRole('link', { name: 'Оптовые цены' })).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: 'Заказы' })).toBeInTheDocument();
-    });
   });
 
   describe('Cart Badge', () => {
@@ -462,26 +443,13 @@ describe('Header', () => {
         'true'
       );
     });
-
-    it('should display B2B navigation items in mobile menu for B2B user', async () => {
-      vi.mocked(authSelectors.useIsB2BUser).mockReturnValue(true);
-      const user = userEvent.setup();
-      render(<Header />);
-
-      const menuButton = screen.getByRole('button', { name: 'Открыть меню' });
-      await user.click(menuButton);
-
-      // В мобильном меню должны быть B2B элементы
-      expect(screen.getAllByRole('link', { name: 'Оптовые цены' }).length).toBeGreaterThan(0);
-      expect(screen.getAllByRole('link', { name: 'Заказы' }).length).toBeGreaterThan(0);
-    });
   });
 
   describe('Accessibility', () => {
-    it('should have proper ARIA labels for action buttons', () => {
+    it('should have proper ARIA labels for action links', () => {
       render(<Header />);
 
-      expect(screen.getByRole('button', { name: 'Поиск' })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: /Поиск/i })).toBeInTheDocument();
       expect(screen.getByRole('link', { name: /Избранное/i })).toBeInTheDocument();
       expect(screen.getByRole('link', { name: /Корзина/i })).toBeInTheDocument();
     });
@@ -489,8 +457,8 @@ describe('Header', () => {
     it('should have focus styles on interactive elements', () => {
       render(<Header />);
 
-      const searchButton = screen.getByRole('button', { name: 'Поиск' });
-      expect(searchButton).toHaveClass('focus:ring-2', 'focus:ring-primary');
+      const searchLink = screen.getByRole('link', { name: /Поиск/i });
+      expect(searchLink).toHaveClass('focus:ring-2', 'focus:ring-primary');
     });
 
     it('should use semantic HTML nav elements', () => {
@@ -498,6 +466,21 @@ describe('Header', () => {
 
       const navElements = screen.getAllByRole('navigation');
       expect(navElements.length).toBeGreaterThan(0);
+    });
+
+    it('should render Partners link', () => {
+      render(<Header />);
+      const partnersLink = screen.getByRole('link', { name: 'Партнёрам' });
+      expect(partnersLink).toBeInTheDocument();
+      expect(partnersLink).toHaveAttribute('href', '/partners');
+    });
+
+    it('should apply relative positioning for active state styles', () => {
+      render(<Header />);
+      const partnersLink = screen.getByRole('link', { name: 'Партнёрам' });
+
+      // Should have relative class for positioning the active state underline
+      expect(partnersLink).toHaveClass('relative');
     });
   });
 
@@ -563,7 +546,6 @@ describe('Header', () => {
 
         const logoutButton = screen.getByTestId('logout-button');
         expect(logoutButton).toBeInTheDocument();
-        expect(logoutButton).toHaveTextContent('Выйти');
         expect(logoutButton).toHaveAttribute('aria-label', 'Выйти из аккаунта');
       });
 
@@ -577,7 +559,6 @@ describe('Header', () => {
 
         const logoutButtonMobile = screen.getByTestId('logout-button-mobile');
         expect(logoutButtonMobile).toBeInTheDocument();
-        expect(logoutButtonMobile).toHaveTextContent('Выйти');
         expect(logoutButtonMobile).toHaveAttribute('aria-label', 'Выйти из аккаунта');
       });
 

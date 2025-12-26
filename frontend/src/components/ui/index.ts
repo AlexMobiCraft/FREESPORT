@@ -86,3 +86,16 @@ export type { ConfirmDialogProps } from './ConfirmDialog';
 // Loading Components
 export { Skeleton } from './Skeleton';
 export type { SkeletonProps } from './Skeleton';
+
+// Info Page Components (Story 19.1)
+export { FeatureCard } from './FeatureCard';
+export type { FeatureCardProps } from './FeatureCard';
+
+export { StatCounter } from './StatCounter';
+export type { StatCounterProps } from './StatCounter';
+
+export { ProcessSteps } from './ProcessSteps';
+export type { ProcessStepsProps, ProcessStep } from './ProcessSteps';
+
+export { Accordion, AccordionItem } from './Accordion';
+export type { AccordionProps, AccordionItemData, AccordionItemProps } from './Accordion';
