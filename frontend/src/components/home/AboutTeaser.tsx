@@ -50,7 +50,7 @@ export const AboutTeaser: React.FC = () => {
             {/* CTA Button */}
             <div className="pt-4">
               <Link href="/about">
-                <Button size="lg" variant="primary">
+                <Button size="large" variant="primary">
                   Узнать больше о нас
                 </Button>
               </Link>
