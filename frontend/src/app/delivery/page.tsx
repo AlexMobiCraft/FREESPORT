@@ -55,7 +55,7 @@ const MapEmbed: React.FC = () => {
   return (
     <div className="w-full h-[300px] rounded-lg overflow-hidden shadow-default">
       <iframe
-        src="https://yandex.ru/map-widget/v1/?ll=41.977485%2C45.018893&z=17&pt=41.977485,45.018893,pm2rdm"
+        src="https://yandex.ru/map-widget/v1/?ll=41.976389%2C45.099722&z=17&pt=41.976389,45.099722,pm2rdm"
         width="100%"
         height="300"
         loading="lazy"
