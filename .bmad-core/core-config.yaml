@@ -26,6 +26,7 @@ prd:
     - 16  # Личный кабинет
     - 17  # Баннеры
     - 18  # Интеграция поиска в Header
+    - 19  # About Page
     - 22
     - 23
     - 24
@@ -37,7 +38,7 @@ prd:
     - 30  # Backend Logout Endpoint Implementation
     - 31  # Frontend Logout UI Integration 
   activeEpics:
-    - 19
+    - 20 # News Page
 
 architecture:
   architectureFile: docs/architecture.md
