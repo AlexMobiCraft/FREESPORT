@@ -5,12 +5,12 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { Factory, Truck, Handshake, Package } from 'lucide-react';
+import { Factory, Truck, Handshake, Package, LucideIcon } from 'lucide-react';
 import { FeatureCard } from '@/components/ui';
 import { Button } from '@/components/ui';
 
 interface Advantage {
-  icon: React.ComponentType<{ className?: string }>;
+  icon: LucideIcon;
   title: string;
   description: string;
 }
