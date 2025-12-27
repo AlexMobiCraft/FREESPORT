@@ -73,7 +73,8 @@
       "Bash(docker ps:*)",
       "Bash(python manage.py:*)",
       "Bash(python -m isort:*)",
-      "Bash(python -m flake8:*)"
+      "Bash(python -m flake8:*)",
+      "Bash(if not exist \"backend\\\\tests\\\\unit\\\\apps\\\\common\" mkdir \"backend\\\\tests\\\\unit\\\\apps\\\\common\")"
     ],
     "deny": [],
     "ask": [],

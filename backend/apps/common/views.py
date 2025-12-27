@@ -9,7 +9,8 @@ from django.utils import timezone
 from drf_spectacular.utils import (OpenApiExample, OpenApiParameter,
                                    OpenApiResponse, extend_schema)
 from rest_framework import generics, status
-from rest_framework.decorators import api_view, permission_classes, throttle_classes
+from rest_framework.decorators import (api_view, permission_classes,
+                                       throttle_classes)
 from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -571,3 +572,79 @@ class NewsListView(generics.ListAPIView):
             is_published=True,
             published_at__lte=timezone.now(),
         ).order_by("-published_at")
+
+
+@extend_schema(
+    summary="Получить детальную информацию о новости",
+    description="""
+    Возвращает детальную информацию о новости по её slug.
+
+    Доступны только опубликованные новости (is_published=True)
+    с датой публикации <= текущего момента.
+
+    Возвращает 404, если новость не найдена или не опубликована.
+    """,
+    responses={
+        200: OpenApiResponse(
+            description="Детальная информация о новости",
+            examples=[
+                OpenApiExample(
+                    name="Успешный ответ",
+                    value={
+                        "id": 42,
+                        "title": "Новый релиз FREESPORT",
+                        "slug": "release-2025",
+                        "excerpt": "Краткое описание новости",
+                        "content": "<p>Полное содержание...</p>",
+                        "image": (
+                            "https://example.com/media/news/images/2025/12/26/cover.jpg"
+                        ),
+                        "published_at": "2025-12-26T09:00:00Z",
+                        "created_at": "2025-12-25T18:00:00Z",
+                        "updated_at": "2025-12-25T18:30:00Z",
+                        "author": "Редакция FREESPORT",
+                        "category": {
+                            "id": 3,
+                            "name": "Анонсы",
+                            "slug": "announcements",
+                        },
+                    },
+                    response_only=True,
+                )
+            ],
+        ),
+        404: OpenApiResponse(
+            description="Новость не найдена или не опубликована",
+            examples=[
+                OpenApiExample(
+                    name="Новость не найдена",
+                    value={"detail": "Not found."},
+                    response_only=True,
+                )
+            ],
+        ),
+    },
+    tags=["News"],
+)
+class NewsDetailView(generics.RetrieveAPIView):
+    """
+    API endpoint для получения детальной информации о новости.
+
+    Возвращает только опубликованные новости (is_published=True)
+    с датой публикации <= текущего момента.
+    Поиск осуществляется по slug.
+    """
+
+    serializer_class = NewsSerializer
+    permission_classes = [AllowAny]
+    lookup_field = "slug"
+
+    def get_queryset(self):
+        """
+        Возвращает только опубликованные новости.
+        Фильтрует по дате публикации (только прошедшие/текущие).
+        """
+        return News.objects.filter(
+            is_published=True,
+            published_at__lte=timezone.now(),
+        )
