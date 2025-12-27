@@ -264,6 +264,63 @@ paths:
         '404':
           description: News not found
 
+  # Blog API
+  /blog/:
+    get:
+      tags: [Blog]
+      summary: Get list of published blog posts
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: Blog posts list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: integer
+                  next:
+                    type: string
+                    nullable: true
+                  previous:
+                    type: string
+                    nullable: true
+                  results:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/BlogPost'
+
+  /blog/{slug}/:
+    get:
+      tags: [Blog]
+      summary: Get blog post details by slug
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Blog post details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BlogPostDetail'
+        '404':
+          description: Blog post not found
+
   # Cart Management
   /cart/:
     get:
@@ -883,6 +940,57 @@ components:
           properties:
             content:
               type: string
+
+    # Blog Schemas
+    BlogPost:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        slug:
+          type: string
+        subtitle:
+          type: string
+        excerpt:
+          type: string
+        image:
+          type: string
+          format: uri
+        author:
+          type: string
+        category:
+          type: object
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+            slug:
+              type: string
+          nullable: true
+        published_at:
+          type: string
+          format: date-time
+
+    BlogPostDetail:
+      allOf:
+        - $ref: '#/components/schemas/BlogPost'
+        - type: object
+          properties:
+            content:
+              type: string
+            meta_title:
+              type: string
+            meta_description:
+              type: string
+            created_at:
+              type: string
+              format: date-time
+            updated_at:
+              type: string
+              format: date-time
 
     # 1C Integration Schemas
     Customer1C:

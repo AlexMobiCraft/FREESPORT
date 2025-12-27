@@ -56,7 +56,7 @@ The project uses a modular Django apps architecture:
 - apps/products/: Handles the product catalog, brands, and categories with multi-level pricing.  
 - apps/orders/: Contains the order system supporting both B2B/B2C processes.  
 - apps/cart/: Manages the shopping cart for both authenticated and guest users.  
-- apps/common/: Includes shared utilities, components, and auditing tools.
+- apps/common/: Общие утилиты, аудит, а также управление контентом: новости, блог и подписки на рассылку.
 
 ## **Key Data Models**
 
@@ -123,7 +123,10 @@ The following services will be started:
 
 - `/news` — Список новостей с пагинацией.
 - `/news/[slug]` — Детальная страница новости.
-- `services/newsService.ts` — Сервис для работы с News API.
+- `/blog` — Список статей блога.
+- `/blog/[slug]` — Детальная страница статьи блога.
+- `services/newsService.ts` — Сервис для News API.
+- `services/blogService.ts` — Сервис для Blog API.
 
 ## **Development Conventions**
 

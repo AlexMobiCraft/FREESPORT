@@ -25,6 +25,10 @@ erDiagram
     ImportLog ||--o{ CustomerSyncLog : tracks
     SyncConflict }|--|| CustomerSyncLog : resolves
 
+    Category ||--o{ News : contains
+    Category ||--o{ BlogPost : contains
+    User ||--o{ Newsletter : "can have"
+
     Banner {
         int id PK
         string title
@@ -551,6 +555,59 @@ class SyncConflict(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 ```
 
+### Модели контента (News, Blog, Newsletter)
+
+#### Категории контента
+```python
+class Category(models.Model):
+    name = models.CharField("Название", max_length=100, unique=True)
+    slug = models.SlugField("URL-идентификатор", max_length=100, unique=True)
+    description = models.TextField("Описание", blank=True)
+    parent = models.ForeignKey("self", on_delete=models.CASCADE, null=True, blank=True)
+    is_active = models.BooleanField("Активна", default=True)
+```
+
+#### Подписка на рассылку
+```python
+class Newsletter(models.Model):
+    email = models.EmailField("Email", unique=True)
+    is_active = models.BooleanField("Активна", default=True)
+    subscribed_at = models.DateTimeField("Дата подписки", auto_now_add=True)
+    unsubscribed_at = models.DateTimeField("Дата отписки", null=True, blank=True)
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+```
+
+#### Новости
+```python
+class News(models.Model):
+    title = models.CharField("Заголовок", max_length=200)
+    slug = models.SlugField("URL-идентификатор", max_length=200, unique=True)
+    excerpt = models.TextField("Краткое описание", blank=True)
+    content = models.TextField("Содержание")
+    image = models.ImageField("Изображение", upload_to="news/images/%Y/%m/%d/", blank=True, null=True)
+    author = models.CharField("Автор", max_length=100, blank=True)
+    category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name="news", null=True, blank=True)
+    is_published = models.BooleanField("Опубликовано", default=False)
+    published_at = models.DateTimeField("Дата публикации", null=True, blank=True)
+```
+
+#### Блог
+```python
+class BlogPost(models.Model):
+    title = models.CharField("Заголовок", max_length=200)
+    slug = models.SlugField("URL-идентификатор", max_length=200, unique=True)
+    subtitle = models.CharField("Подзаголовок", max_length=200, blank=True)
+    excerpt = models.TextField("Краткое описание", blank=True)
+    content = models.TextField("Содержание")
+    image = models.ImageField("Изображение", upload_to="blog/images/%Y/%m/%d/", blank=True, null=True)
+    author = models.CharField("Автор", max_length=100, blank=True)
+    category = models.ForeignKey(Category, on_delete=models.SET_NULL, related_name="blog_posts", null=True, blank=True)
+    is_published = models.BooleanField("Опубликовано", default=False)
+    published_at = models.DateTimeField("Дата публикации", null=True, blank=True)
+    meta_title = models.CharField("SEO заголовок", max_length=200, blank=True)
+    meta_description = models.TextField("SEO описание", blank=True)
+```
+
 ### Обновленная диаграмма связей
 
 Диаграмма связей обновлена для включения новых моделей интеграции с 1С и дедупликации атрибутов:
@@ -581,4 +638,8 @@ erDiagram
     Attribute ||--o{ AttributeValue : has_values
     Attribute ||--o{ Attribute1CMapping : "1C mappings"
     AttributeValue ||--o{ AttributeValue1CMapping : "1C mappings"
+
+    Category ||--o{ News : contains
+    Category ||--o{ BlogPost : contains
+    User ||--o{ Newsletter : "can have"
 ```
