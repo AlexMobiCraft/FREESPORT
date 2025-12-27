@@ -6,16 +6,19 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { NewsCard } from './NewsCard';
 import { newsService } from '@/services/newsService';
 import type { NewsItem } from '@/types/api';
 import { NewsSkeletonLoader } from '@/components/common/NewsSkeletonLoader';
 import { NewsFallback } from '@/components/common/NewsFallback';
 import { STATIC_NEWS_ITEMS } from '@/__mocks__/news';
+import { Button } from '@/components/ui';
 
 interface NewsCardData {
   id: number;
   title: string;
+  slug: string;
   excerpt: string;
   image: string;
   publishedAt: string;
@@ -30,6 +33,7 @@ const getFallbackImage = (index: number): string => {
 const mapNewsItem = (item: NewsItem, index: number): NewsCardData => ({
   id: item.id,
   title: item.title,
+  slug: item.slug,
   excerpt: item.excerpt,
   image: item.image || getFallbackImage(index),
   publishedAt: item.published_at,
@@ -38,6 +42,7 @@ const mapNewsItem = (item: NewsItem, index: number): NewsCardData => ({
 const mapStaticItem = (item: (typeof STATIC_NEWS_ITEMS)[number]): NewsCardData => ({
   id: item.id,
   title: item.title,
+  slug: item.slug,
   excerpt: item.excerpt,
   image: item.image,
   publishedAt: item.published_at,
@@ -83,9 +88,17 @@ export const NewsSection: React.FC = () => {
 
   return (
     <section className="max-w-[1280px] mx-auto px-3 md:px-4 lg:px-6" aria-labelledby="news-heading">
-      <h2 id="news-heading" className="text-3xl font-bold mb-8 text-text-primary">
-        Новости
-      </h2>
+      {/* Header с заголовком и кнопкой */}
+      <div className="flex items-center justify-between mb-8">
+        <h2 id="news-heading" className="text-3xl font-bold text-text-primary">
+          Новости
+        </h2>
+        <Link href="/news">
+          <Button variant="primary" size="large">
+            Все новости
+          </Button>
+        </Link>
+      </div>
 
       {isLoading && <NewsSkeletonLoader />}
 
@@ -97,6 +110,7 @@ export const NewsSection: React.FC = () => {
             <NewsCard
               key={item.id}
               title={item.title}
+              slug={item.slug}
               excerpt={item.excerpt}
               image={item.image}
               publishedAt={item.publishedAt}

@@ -74,7 +74,9 @@
       "Bash(python manage.py:*)",
       "Bash(python -m isort:*)",
       "Bash(python -m flake8:*)",
-      "Bash(if not exist \"backend\\\\tests\\\\unit\\\\apps\\\\common\" mkdir \"backend\\\\tests\\\\unit\\\\apps\\\\common\")"
+      "Bash(if not exist \"backend\\\\tests\\\\unit\\\\apps\\\\common\" mkdir \"backend\\\\tests\\\\unit\\\\apps\\\\common\")",
+      "Bash(Select-String -Pattern \"PASS|FAIL|×|✓|Error\")",
+      "Bash(if not exist \"frontend\\\\src\\\\components\\\\home\\\\__tests__\" mkdir \"frontend\\\\src\\\\components\\\\home\\\\__tests__\")"
     ],
     "deny": [],
     "ask": [],

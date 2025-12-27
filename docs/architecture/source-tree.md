@@ -40,6 +40,8 @@ freesport/
 │   ├── public/                 # Статические файлы
 │   ├── src/                    # Исходный код фронтенда
 │   │   ├── app/                # Страницы (Next.js App Router)
+│   │   │   ├── news/           # Список новостей
+│   │   │   │   └── [slug]/     # Детальная страница новости
 │   │   ├── components/         # React компоненты
 │   │   ├── hooks/              # Кастомные React хуки
 │   │   ├── services/           # Сервисы для работы с API
@@ -192,6 +194,7 @@ freesport/
 - **`src/app/`**: Страницы приложения (Next.js App Router).
 - **`src/components/`**: Переиспользуемые UI-компоненты (кнопки, формы, карточки товаров).
 - **`src/services/`**: Сервисы для работы с API.
+  - `newsService.ts` — сервис для получения списка новостей и деталей.
 - **`src/stores/`**: Хранилища состояния (state management).
 - **`src/types/`**: TypeScript типы и интерфейсы.
 - **`src/hooks/`**: Кастомные React хуки.

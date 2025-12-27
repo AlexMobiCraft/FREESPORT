@@ -618,3 +618,114 @@ class News(models.Model):
         from django.urls import reverse
 
         return reverse("common:news-detail", kwargs={"slug": self.slug})
+
+
+class BlogPost(models.Model):
+    """
+    Модель статьи блога для системы управления контентом.
+    Поддерживает категории, автора, изображение, публикацию и SEO-оптимизацию.
+    """
+
+    title: models.CharField = models.CharField(
+        "Заголовок",
+        max_length=200,
+        db_index=True,
+        help_text="Заголовок статьи (отображается в списке и заголовке страницы)",
+    )
+    slug: models.SlugField = models.SlugField(
+        "URL-идентификатор",
+        max_length=200,
+        unique=True,
+        db_index=True,
+        help_text="Уникальный идентификатор для URL (генерируется из заголовка)",
+    )
+    subtitle: models.CharField = models.CharField(
+        "Подзаголовок",
+        max_length=200,
+        blank=True,
+        help_text="Подзаголовок статьи (опционально)",
+    )
+    excerpt: models.TextField = models.TextField(
+        "Краткое описание",
+        blank=True,
+        help_text="Краткое описание статьи для превью (до 200 символов)",
+    )
+    content: models.TextField = models.TextField(
+        "Содержание",
+        help_text="Полное содержимое статьи (HTML или Markdown)",
+    )
+    image: models.ImageField = models.ImageField(
+        "Изображение",
+        upload_to="blog/images/%Y/%m/%d/",
+        blank=True,
+        null=True,
+        help_text="Изображение для статьи (опционально)",
+    )
+    author: models.CharField = models.CharField(
+        "Автор",
+        max_length=100,
+        blank=True,
+        help_text="Имя автора (опционально)",
+    )
+    category: models.ForeignKey = models.ForeignKey(
+        Category,
+        on_delete=models.SET_NULL,
+        related_name="blog_posts",
+        verbose_name="Категория",
+        help_text="Категория статьи (выбор из существующих)",
+        null=True,
+        blank=True,
+        db_index=True,
+    )
+    is_published: models.BooleanField = models.BooleanField(
+        "Опубликовано",
+        default=False,
+        db_index=True,
+        help_text="Флаг публикации статьи",
+    )
+    published_at: models.DateTimeField = models.DateTimeField(
+        "Дата публикации",
+        null=True,
+        blank=True,
+        help_text="Дата и время публикации статьи",
+    )
+    meta_title: models.CharField = models.CharField(
+        "SEO заголовок",
+        max_length=200,
+        blank=True,
+        help_text="SEO заголовок для поисковых систем (опционально)",
+    )
+    meta_description: models.TextField = models.TextField(
+        "SEO описание",
+        blank=True,
+        help_text="SEO описание для поисковых систем (опционально)",
+    )
+    created_at: models.DateTimeField = models.DateTimeField(
+        "Дата создания",
+        auto_now_add=True,
+        help_text="Дата и время создания записи",
+    )
+    updated_at: models.DateTimeField = models.DateTimeField(
+        "Дата обновления",
+        auto_now=True,
+        help_text="Дата и время последнего обновления записи",
+    )
+
+    class Meta:
+        verbose_name = _("Статья блога")
+        verbose_name_plural = _("Статьи блога")
+        ordering = ["-published_at"]
+        indexes = [
+            models.Index(fields=["is_published", "published_at"]),
+            models.Index(fields=["category", "published_at"]),
+        ]
+
+    def __str__(self) -> str:
+        return self.title
+
+    def get_absolute_url(self) -> str:
+        """Возвращает абсолютный URL статьи блога."""
+        from django.conf import settings
+        from django.urls import reverse
+
+        return reverse("blog-detail", kwargs={"slug": self.slug})

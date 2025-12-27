@@ -119,6 +119,12 @@ The following services will be started:
 2. Install dependencies: npm install  
 3. Run the development server: npm run dev
 
+## **Project Structure (Frontend)**
+
+- `/news` — Список новостей с пагинацией.
+- `/news/[slug]` — Детальная страница новости.
+- `services/newsService.ts` — Сервис для работы с News API.
+
 ## **Development Conventions**
 
 ### **Git Workflow**

@@ -87,6 +87,7 @@ frontend/src/
 │   ├── (auth)/        # Группа маршрутов авторизации
 │   ├── catalog/       # Страницы каталога
 │   ├── api/           # API routes (BFF layer)
+│   ├── news/          # Список и детали новостей
 │   └── __tests__/     # Тесты страниц
 ├── components/        # React компоненты
 │   ├── common/        # Общие компоненты

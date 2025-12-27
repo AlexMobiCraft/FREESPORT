@@ -161,6 +161,31 @@
 
 ---
 
+### Story 21.4: Обновление документации
+
+**Цель:** Актуализировать проектную документацию с информацией о модуле Blog.
+
+**Задачи:**
+
+- Обновить `docs/architecture/source-tree.md` — добавить информацию о компонентах Blog
+- Обновить `docs/architecture/03-api-specification.md` — добавить endpoints `/api/v1/blog/`
+- Обновить `docs/architecture/02-data-models.md` — добавить модель BlogPost
+- Обновить `GEMINI.md` и `CLAUDE.md` с информацией о Blog модуле
+- Проверить и обновить при необходимости `docs/index.md`
+
+**Документы для обновления:**
+
+| Документ | Изменения |
+|----------|-----------|
+| source-tree.md | Добавить BlogPost в apps/common/, blogService.ts в frontend/services/ |
+| 03-api-specification.md | Добавить GET /api/v1/blog/, GET /api/v1/blog/{slug}/ |
+| 02-data-models.md | Добавить описание модели BlogPost |
+| GEMINI.md / CLAUDE.md | Добавить краткое описание Blog модуля |
+
+**Estimated effort:** 0.25 дня
+
+---
+
 ## Compatibility Requirements
 
 - [x] Существующие APIs остаются без изменений
@@ -207,3 +232,4 @@
 | Date       | Version | Description                      | Author       |
 |------------|---------|----------------------------------|--------------|
 | 2025-12-27 | 1.0     | Initial epic draft               | John (PM)    |
+| 2025-12-27 | 1.1     | Added Story 21.4: Documentation Update | Bob (SM) |

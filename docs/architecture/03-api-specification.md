@@ -207,6 +207,63 @@ paths:
                 items:
                   $ref: '#/components/schemas/Banner'
 
+  # News API
+  /news/:
+    get:
+      tags: [News]
+      summary: Get list of published news
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: News list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: integer
+                  next:
+                    type: string
+                    nullable: true
+                  previous:
+                    type: string
+                    nullable: true
+                  results:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/News'
+
+  /news/{slug}/:
+    get:
+      tags: [News]
+      summary: Get news details by slug
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: News details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NewsDetail'
+        '404':
+          description: News not found
+
   # Cart Management
   /cart/:
     get:
@@ -799,6 +856,33 @@ components:
         slug:
           type: string
           description: URL-совместимый идентификатор значения
+
+    # News Schemas
+    News:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        slug:
+          type: string
+        short_description:
+          type: string
+        image:
+          type: string
+          format: uri
+        published_at:
+          type: string
+          format: date-time
+
+    NewsDetail:
+      allOf:
+        - $ref: '#/components/schemas/News'
+        - type: object
+          properties:
+            content:
+              type: string
 
     # 1C Integration Schemas
     Customer1C:
