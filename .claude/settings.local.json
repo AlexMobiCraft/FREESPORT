@@ -76,7 +76,12 @@
       "Bash(python -m flake8:*)",
       "Bash(if not exist \"backend\\\\tests\\\\unit\\\\apps\\\\common\" mkdir \"backend\\\\tests\\\\unit\\\\apps\\\\common\")",
       "Bash(Select-String -Pattern \"PASS|FAIL|×|✓|Error\")",
-      "Bash(if not exist \"frontend\\\\src\\\\components\\\\home\\\\__tests__\" mkdir \"frontend\\\\src\\\\components\\\\home\\\\__tests__\")"
+      "Bash(if not exist \"frontend\\\\src\\\\components\\\\home\\\\__tests__\" mkdir \"frontend\\\\src\\\\components\\\\home\\\\__tests__\")",
+      "Bash(if [ -f \"frontend/src/app/news/loading.tsx\" ])",
+      "Bash(then cat \"frontend/src/app/news/loading.tsx\")",
+      "Bash(else echo \"File not found\")",
+      "Bash(Select-String -Pattern \"blogService|blog/page|blog/\\\\[slug\\\\]|All files\" -Context 0,1)",
+      "Bash(npm run lint:*)"
     ],
     "deny": [],
     "ask": [],

@@ -247,6 +247,31 @@ export interface NewsList {
   results: NewsItem[];
 }
 
+// Blog Types
+export interface BlogItem {
+  id: number;
+  title: string;
+  slug: string;
+  subtitle?: string;
+  excerpt: string;
+  content?: string;
+  image: string | null;
+  author?: string;
+  category?: string;
+  published_at: string;
+  created_at: string;
+  updated_at: string;
+  meta_title?: string;
+  meta_description?: string;
+}
+
+export interface BlogList {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: BlogItem[];
+}
+
 // Product Detail Types (Story 12.1)
 export interface ProductImage {
   id?: number;

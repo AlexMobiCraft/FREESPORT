@@ -63,6 +63,7 @@ const Header: React.FC = () => {
     { href: '/test', label: 'Главная' },
     { href: '/catalog', label: 'Каталог' },
     { href: '/news', label: 'Новости' },
+    { href: '/blog', label: 'Блог' },
     { href: '/partners', label: 'Партнёрам' },
   ];
 
