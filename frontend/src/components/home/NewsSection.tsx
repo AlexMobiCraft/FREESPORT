@@ -6,14 +6,12 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import Link from 'next/link';
 import { NewsCard } from './NewsCard';
 import { newsService } from '@/services/newsService';
 import type { NewsItem } from '@/types/api';
 import { NewsSkeletonLoader } from '@/components/common/NewsSkeletonLoader';
 import { NewsFallback } from '@/components/common/NewsFallback';
 import { STATIC_NEWS_ITEMS } from '@/__mocks__/news';
-import { Button } from '@/components/ui';
 
 interface NewsCardData {
   id: number;
@@ -88,17 +86,10 @@ export const NewsSection: React.FC = () => {
 
   return (
     <section className="max-w-[1280px] mx-auto px-3 md:px-4 lg:px-6" aria-labelledby="news-heading">
-      {/* Header с заголовком и кнопкой */}
-      <div className="flex items-center justify-between mb-8">
-        <h2 id="news-heading" className="text-3xl font-bold text-text-primary">
-          Новости
-        </h2>
-        <Link href="/news">
-          <Button variant="primary" size="large">
-            Все новости
-          </Button>
-        </Link>
-      </div>
+      {/* Header */}
+      <h2 id="news-heading" className="text-3xl font-bold text-text-primary mb-8">
+        Новости
+      </h2>
 
       {isLoading && <NewsSkeletonLoader />}
 
