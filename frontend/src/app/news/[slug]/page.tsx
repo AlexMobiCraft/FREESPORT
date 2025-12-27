@@ -68,7 +68,7 @@ export default async function NewsDetailPage({ params }: NewsDetailPageProps) {
   }
 
   const breadcrumbItems = [
-    { label: 'Главная', href: '/' },
+    { label: 'Главная', href: '/test' },
     { label: 'Новости', href: '/news' },
     { label: news.title },
   ];

@@ -68,7 +68,7 @@ export default async function BlogDetailPage({ params }: BlogDetailPageProps) {
   }
 
   const breadcrumbItems = [
-    { label: 'Главная', href: '/' },
+    { label: 'Главная', href: '/test' },
     { label: 'Блог', href: '/blog' },
     { label: post.title },
   ];

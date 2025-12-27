@@ -29,7 +29,7 @@ interface BlogPageProps {
 export default async function BlogPage({ searchParams }: BlogPageProps) {
   const params = await searchParams;
   const currentPage = Number(params.page) || 1;
-  const breadcrumbItems = [{ label: 'Главная', href: '/' }, { label: 'Блог' }];
+  const breadcrumbItems = [{ label: 'Главная', href: '/test' }, { label: 'Блог' }];
 
   // Fetch blog data
   let blogData;

@@ -1,38 +1,122 @@
 /**
  * BlogSection Component
- * Отображает статический блок "Наш блог" на главной странице
+ * Загружает статьи блога из API /blog и показывает fallback при недоступности
  */
 
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { BlogPostCard } from './BlogPostCard';
+import { blogService } from '@/services/blogService';
+import type { BlogItem } from '@/types/api';
+import { NewsSkeletonLoader } from '@/components/common/NewsSkeletonLoader';
+import { NewsFallback } from '@/components/common/NewsFallback';
 import { MOCK_BLOG_POSTS } from '@/__mocks__/blogPosts';
+import { Button } from '@/components/ui';
+
+interface BlogCardData {
+  id: string;
+  title: string;
+  slug: string;
+  excerpt: string;
+  image: string;
+  date: string;
+}
+
+const getFallbackImage = (index: number): string => {
+  return MOCK_BLOG_POSTS[index % MOCK_BLOG_POSTS.length]?.image || '/images/new/running-shoes.jpg';
+};
+
+const mapBlogItem = (item: BlogItem, index: number): BlogCardData => ({
+  id: String(item.id),
+  title: item.title,
+  slug: item.slug,
+  excerpt: item.excerpt,
+  image: item.image || getFallbackImage(index),
+  date: item.published_at,
+});
+
+const mapStaticItem = (item: (typeof MOCK_BLOG_POSTS)[number]): BlogCardData => ({
+  id: item.id,
+  title: item.title,
+  slug: item.slug,
+  excerpt: item.excerpt,
+  image: item.image,
+  date: item.date,
+});
 
 export const BlogSection: React.FC = () => {
-  if (!MOCK_BLOG_POSTS || MOCK_BLOG_POSTS.length === 0) {
-    return null;
-  }
+  const [blogItems, setBlogItems] = useState<BlogCardData[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchBlog = async () => {
+      try {
+        setIsLoading(true);
+        const data = await blogService.getBlogPosts({ page_size: 3 });
+
+        if (!isMounted) return;
+
+        if (data && data.results && data.results.length > 0) {
+          setBlogItems(data.results.slice(0, 3).map(mapBlogItem));
+        } else {
+          setBlogItems(MOCK_BLOG_POSTS.map(mapStaticItem));
+        }
+      } catch {
+        if (!isMounted) return;
+        setBlogItems(MOCK_BLOG_POSTS.map(mapStaticItem));
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    fetchBlog();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const hasPosts = blogItems.length > 0;
 
   return (
-    <section className="w-full" aria-labelledby="blog-heading">
-      <h2 id="blog-heading" className="text-3xl font-bold mb-8 text-text-primary">
-        Наш блог
-      </h2>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {MOCK_BLOG_POSTS.map(post => (
-          <BlogPostCard
-            key={post.id}
-            id={post.id}
-            title={post.title}
-            excerpt={post.excerpt}
-            image={post.image}
-            date={post.date}
-            slug={post.slug}
-          />
-        ))}
+    <section className="max-w-[1280px] mx-auto px-3 md:px-4 lg:px-6" aria-labelledby="blog-heading">
+      {/* Header с заголовком и кнопкой */}
+      <div className="flex items-center justify-between mb-8">
+        <h2 id="blog-heading" className="text-3xl font-bold text-text-primary">
+          Наш блог
+        </h2>
+        <Link href="/blog">
+          <Button variant="primary" size="large">
+            Все статьи
+          </Button>
+        </Link>
       </div>
+
+      {isLoading && <NewsSkeletonLoader />}
+
+      {!isLoading && !hasPosts && <NewsFallback />}
+
+      {!isLoading && hasPosts && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {blogItems.map(item => (
+            <BlogPostCard
+              key={item.id}
+              id={item.id}
+              title={item.title}
+              slug={item.slug}
+              excerpt={item.excerpt}
+              image={item.image}
+              date={item.date}
+            />
+          ))}
+        </div>
+      )}
     </section>
   );
 };
