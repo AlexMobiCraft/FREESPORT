@@ -66,15 +66,15 @@ export default async function NewsPage({ searchParams }: NewsPageProps) {
           {hasNews ? (
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
-                {newsData.results.map((news) => (
-                  <Link key={news.id} href={`/news/${news.slug}`}>
-                    <NewsCard
-                      title={news.title}
-                      excerpt={news.excerpt}
-                      image={news.image || '/images/new/running-shoes.jpg'}
-                      publishedAt={news.published_at}
-                    />
-                  </Link>
+                {newsData.results.map(news => (
+                  <NewsCard
+                    key={news.id}
+                    title={news.title}
+                    excerpt={news.excerpt}
+                    image={news.image || '/images/new/running-shoes.jpg'}
+                    publishedAt={news.published_at}
+                    slug={news.slug}
+                  />
                 ))}
               </div>
 
@@ -97,7 +97,7 @@ export default async function NewsPage({ searchParams }: NewsPageProps) {
 
                   {/* Page Numbers */}
                   <div className="flex gap-2">
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
                       <Link
                         key={page}
                         href={`/news?page=${page}`}

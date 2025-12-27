@@ -3,6 +3,7 @@
 import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { normalizeImageUrl } from '@/utils/media';
 
 /**
  * Карточка новости для ленты /news
@@ -30,7 +31,7 @@ export const NewsCard: React.FC<NewsCardProps> = ({ title, excerpt, image, publi
     });
   };
 
-  const safeImage = image || '/images/new/running-shoes.jpg';
+  const safeImage = normalizeImageUrl(image) || '/images/new/running-shoes.jpg';
 
   return (
     <Link

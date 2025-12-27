@@ -5,6 +5,7 @@
 import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { normalizeImageUrl } from '@/utils/media';
 
 export interface BlogPostCardProps {
   id: string;
@@ -39,7 +40,7 @@ export const BlogPostCard: React.FC<BlogPostCardProps> = ({
       {/* Изображение */}
       <div className="relative aspect-video overflow-hidden">
         <Image
-          src={image}
+          src={normalizeImageUrl(image)}
           alt={title}
           fill
           className="object-cover group-hover:scale-105 transition-transform duration-[180ms] ease-in-out"

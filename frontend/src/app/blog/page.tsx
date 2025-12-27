@@ -10,7 +10,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { BookOpen } from 'lucide-react';
 import { Breadcrumb } from '@/components/ui';
-import { NewsCard } from '@/components/home/NewsCard';
+import { BlogPostCard } from '@/components/home/BlogPostCard';
 import { blogService } from '@/services/blogService';
 
 export const metadata: Metadata = {
@@ -66,16 +66,16 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
           {hasPosts ? (
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
-                {blogData.results.map((post) => (
-                  <Link key={post.id} href={`/blog/${post.slug}`}>
-                    <NewsCard
-                      title={post.title}
-                      excerpt={post.excerpt}
-                      image={post.image || '/images/new/running-shoes.jpg'}
-                      publishedAt={post.published_at}
-                      slug={post.slug}
-                    />
-                  </Link>
+                {blogData.results.map(post => (
+                  <BlogPostCard
+                    key={post.id}
+                    id={String(post.id)}
+                    title={post.title}
+                    excerpt={post.excerpt}
+                    image={post.image || '/images/new/running-shoes.jpg'}
+                    date={post.published_at}
+                    slug={post.slug}
+                  />
                 ))}
               </div>
 
@@ -98,7 +98,7 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
 
                   {/* Page Numbers */}
                   <div className="flex gap-2">
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
                       <Link
                         key={page}
                         href={`/blog?page=${page}`}

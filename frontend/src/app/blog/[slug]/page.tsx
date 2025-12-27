@@ -13,6 +13,7 @@ import { notFound } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { Breadcrumb } from '@/components/ui';
 import { blogService } from '@/services/blogService';
+import { normalizeImageUrl } from '@/utils/media';
 
 interface BlogDetailPageProps {
   params: Promise<{ slug: string }>;
@@ -86,7 +87,7 @@ export default async function BlogDetailPage({ params }: BlogDetailPageProps) {
           {post.image && (
             <div className="relative aspect-video w-full mb-8 rounded-xl overflow-hidden">
               <Image
-                src={post.image}
+                src={normalizeImageUrl(post.image)}
                 alt={post.title}
                 fill
                 className="object-cover"
@@ -119,9 +120,7 @@ export default async function BlogDetailPage({ params }: BlogDetailPageProps) {
           </h1>
 
           {/* Subtitle */}
-          {post.subtitle && (
-            <p className="text-xl text-text-secondary mb-8">{post.subtitle}</p>
-          )}
+          {post.subtitle && <p className="text-xl text-text-secondary mb-8">{post.subtitle}</p>}
 
           {/* Content */}
           <div

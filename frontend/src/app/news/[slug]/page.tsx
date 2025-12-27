@@ -13,6 +13,7 @@ import { notFound } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { Breadcrumb } from '@/components/ui';
 import { newsService } from '@/services/newsService';
+import { normalizeImageUrl } from '@/utils/media';
 
 interface NewsDetailPageProps {
   params: Promise<{ slug: string }>;
@@ -86,7 +87,7 @@ export default async function NewsDetailPage({ params }: NewsDetailPageProps) {
           {news.image && (
             <div className="relative aspect-video w-full mb-8 rounded-xl overflow-hidden">
               <Image
-                src={news.image}
+                src={normalizeImageUrl(news.image)}
                 alt={news.title}
                 fill
                 className="object-cover"
