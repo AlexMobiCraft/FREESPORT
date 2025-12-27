@@ -24,4 +24,7 @@ urlpatterns = [
     path("unsubscribe/", views.unsubscribe, name="unsubscribe"),
     path("news/", views.NewsListView.as_view(), name="news-list"),
     path("news/<slug:slug>/", views.NewsDetailView.as_view(), name="news-detail"),
+    # Blog endpoints
+    path("blog/", views.BlogPostListView.as_view(), name="blog-list"),
+    path("blog/<slug:slug>/", views.BlogPostDetailView.as_view(), name="blog-detail"),
 ]

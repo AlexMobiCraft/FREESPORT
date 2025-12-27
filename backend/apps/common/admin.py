@@ -13,8 +13,8 @@ from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
 from django.utils import timezone
 
-from .models import (AuditLog, CustomerSyncLog, News, Newsletter, SyncConflict,
-                     SyncLog)
+from .models import (AuditLog, BlogPost, CustomerSyncLog, News, Newsletter,
+                     SyncConflict, SyncLog)
 from .services import CustomerSyncMonitor
 
 
@@ -353,6 +353,100 @@ class NewsAdmin(admin.ModelAdmin):
                     "excerpt",
                     "content",
                     "image",
+                )
+            },
+        ),
+        (
+            "Публикация",
+            {
+                "fields": (
+                    "is_published",
+                    "published_at",
+                )
+            },
+        ),
+        (
+            "Метаданные",
+            {
+                "fields": (
+                    "created_at",
+                    "updated_at",
+                ),
+                "classes": ("collapse",),
+            },
+        ),
+    )
+
+
+@admin.register(BlogPost)
+class BlogPostAdmin(admin.ModelAdmin):
+    """Admin интерфейс для статей блога."""
+
+    list_display = [
+        "title",
+        "category",
+        "is_published",
+        "published_at",
+        "created_at",
+    ]
+    list_filter = [
+        "is_published",
+        "category",
+        "published_at",
+    ]
+    search_fields = [
+        "title",
+        "subtitle",
+        "excerpt",
+        "content",
+        "category__name",
+        "meta_description",
+    ]
+    prepopulated_fields = {
+        "slug": ("title",),
+    }
+    readonly_fields = [
+        "created_at",
+        "updated_at",
+    ]
+    date_hierarchy = "published_at"
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        """Настройка отображения поля category для удобного выбора категорий"""
+        if db_field.name == "category":
+            kwargs["queryset"] = db_field.related_model.objects.filter(is_active=True)
+            kwargs["empty_label"] = "Выберите категорию"
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+    fieldsets = (
+        (
+            "Основная информация",
+            {
+                "fields": (
+                    "title",
+                    "slug",
+                    "subtitle",
+                    "category",
+                    "author",
+                )
+            },
+        ),
+        (
+            "Контент",
+            {
+                "fields": (
+                    "excerpt",
+                    "content",
+                    "image",
+                )
+            },
+        ),
+        (
+            "SEO",
+            {
+                "fields": (
+                    "meta_title",
+                    "meta_description",
                 )
             },
         ),

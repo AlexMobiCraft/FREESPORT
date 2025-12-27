@@ -9,7 +9,7 @@ from typing import Any
 
 from rest_framework import serializers
 
-from .models import News, Newsletter
+from .models import BlogPost, News, Newsletter
 
 
 class SubscribeSerializer(serializers.Serializer):
@@ -188,5 +188,115 @@ class NewsSerializer(serializers.ModelSerializer):
                 "name": instance.category.name,
                 "slug": instance.category.slug,
             }
+
+        return data
+
+
+class BlogPostListSerializer(serializers.ModelSerializer):
+    """
+    Сериализатор статьи блога для списка (компактный формат).
+    Используется в BlogPostListView для отображения превью статей.
+    """
+
+    class Meta:
+        model = BlogPost
+        fields = [
+            "id",
+            "title",
+            "slug",
+            "subtitle",
+            "excerpt",
+            "image",
+            "author",
+            "category",
+            "published_at",
+        ]
+        read_only_fields = [
+            "id",
+            "slug",
+        ]
+
+    def to_representation(self, instance: BlogPost) -> dict[str, Any]:
+        """
+        Кастомизация вывода.
+        Преобразуем image в полный URL и category в детальную информацию.
+        """
+        data = super().to_representation(instance)
+
+        # Преобразуем image в полный URL
+        request = self.context.get("request")
+        if instance.image and request:
+            data["image"] = request.build_absolute_uri(instance.image.url)
+        elif not instance.image:
+            data["image"] = None
+
+        # Добавляем детальную информацию о категории
+        if instance.category:
+            data["category"] = {
+                "id": instance.category.id,
+                "name": instance.category.name,
+                "slug": instance.category.slug,
+            }
+        else:
+            data["category"] = None
+
+        return data
+
+
+class BlogPostDetailSerializer(serializers.ModelSerializer):
+    """
+    Сериализатор статьи блога для детальной страницы (полный формат).
+    Используется в BlogPostDetailView для отображения полной статьи.
+    Включает все поля, включая content и SEO meta-данные.
+    """
+
+    class Meta:
+        model = BlogPost
+        fields = [
+            "id",
+            "title",
+            "slug",
+            "subtitle",
+            "excerpt",
+            "content",
+            "image",
+            "author",
+            "category",
+            "published_at",
+            "meta_title",
+            "meta_description",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "id",
+            "slug",
+            "created_at",
+            "updated_at",
+        ]
+
+    def to_representation(self, instance: BlogPost) -> dict[str, Any]:
+        """
+        Кастомизация вывода.
+        Преобразуем image в полный URL и category в детальную информацию.
+        """
+        data = super().to_representation(instance)
+
+        # Преобразуем image в полный URL
+        request = self.context.get("request")
+        if instance.image and request:
+            data["image"] = request.build_absolute_uri(instance.image.url)
+        elif not instance.image:
+            data["image"] = None
+
+        # Добавляем детальную информацию о категории
+        if instance.category:
+            data["category"] = {
+                "id": instance.category.id,
+                "name": instance.category.name,
+                "slug": instance.category.slug,
+            }
+        else:
+            data["category"] = None
 
         return data

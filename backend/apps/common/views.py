@@ -15,8 +15,9 @@ from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 
-from apps.common.models import News
-from apps.common.serializers import (NewsSerializer,
+from apps.common.models import BlogPost, News
+from apps.common.serializers import (BlogPostDetailSerializer,
+                                     BlogPostListSerializer, NewsSerializer,
                                      SubscribeResponseSerializer,
                                      SubscribeSerializer,
                                      UnsubscribeResponseSerializer,
@@ -645,6 +646,178 @@ class NewsDetailView(generics.RetrieveAPIView):
         Фильтрует по дате публикации (только прошедшие/текущие).
         """
         return News.objects.filter(
+            is_published=True,
+            published_at__lte=timezone.now(),
+        )
+
+
+# ============================================================================
+# Blog Views
+# ============================================================================
+
+
+@extend_schema(
+    summary="Получить список статей блога",
+    description=(
+        "Возвращает список опубликованных статей блога с пагинацией. "
+        "Статьи отсортированы по дате публикации (новые первые)."
+    ),
+    parameters=[
+        OpenApiParameter(
+            name="page_size",
+            type=int,
+            location=OpenApiParameter.QUERY,
+            description="Количество статей на странице (по умолчанию: 10, макс: 100)",
+            required=False,
+        ),
+        OpenApiParameter(
+            name="page",
+            type=int,
+            location=OpenApiParameter.QUERY,
+            description="Номер страницы (по умолчанию: 1)",
+            required=False,
+        ),
+    ],
+    responses={
+        200: OpenApiResponse(
+            description="Список статей блога успешно получен",
+            examples=[
+                OpenApiExample(
+                    name="success_response",
+                    value={
+                        "count": 25,
+                        "next": "http://api.example.com/api/v1/blog?page=2",
+                        "previous": None,
+                        "results": [
+                            {
+                                "id": 1,
+                                "title": "Как выбрать спортивную экипировку",
+                                "slug": "how-to-choose-sports-equipment",
+                                "subtitle": "Полное руководство для начинающих",
+                                "excerpt": (
+                                    "В этой статье мы расскажем о ключевых "
+                                    "критериях выбора..."
+                                ),
+                                "image": (
+                                    "http://api.example.com/media/blog/images/"
+                                    "2025/12/27/equipment.jpg"
+                                ),
+                                "author": "Иван Петров",
+                                "category": {
+                                    "id": 1,
+                                    "name": "Руководства",
+                                    "slug": "guides",
+                                },
+                                "published_at": "2025-12-27T10:00:00Z",
+                            },
+                        ],
+                    },
+                    response_only=True,
+                )
+            ],
+        ),
+    },
+    tags=["Blog"],
+)
+class BlogPostListView(generics.ListAPIView):
+    """
+    API endpoint для получения списка статей блога.
+
+    Возвращает только опубликованные статьи (is_published=True)
+    с датой публикации <= текущего момента.
+    Поддерживает пагинацию и сортировку по дате публикации.
+    """
+
+    serializer_class = BlogPostListSerializer
+    permission_classes = [AllowAny]
+
+    def get_queryset(self):
+        """
+        Возвращает только опубликованные статьи блога.
+        Фильтрует по дате публикации (только прошедшие/текущие).
+        """
+        return BlogPost.objects.filter(
+            is_published=True,
+            published_at__lte=timezone.now(),
+        ).order_by("-published_at")
+
+
+@extend_schema(
+    summary="Получить детальную информацию о статье блога",
+    description="""
+    Возвращает детальную информацию о статье блога по её slug.
+
+    Доступны только опубликованные статьи (is_published=True)
+    с датой публикации <= текущего момента.
+
+    Возвращает 404, если статья не найдена или не опубликована.
+    """,
+    responses={
+        200: OpenApiResponse(
+            description="Детальная информация о статье блога",
+            examples=[
+                OpenApiExample(
+                    name="Успешный ответ",
+                    value={
+                        "id": 1,
+                        "title": "Как выбрать спортивную экипировку",
+                        "slug": "how-to-choose-sports-equipment",
+                        "subtitle": "Полное руководство для начинающих",
+                        "excerpt": "В этой статье мы расскажем о ключевых критериях...",
+                        "content": "<p>Полное содержимое статьи...</p>",
+                        "image": (
+                            "https://example.com/media/blog/images/2025/12/27/equipment.jpg"
+                        ),
+                        "author": "Иван Петров",
+                        "category": {
+                            "id": 1,
+                            "name": "Руководства",
+                            "slug": "guides",
+                        },
+                        "published_at": "2025-12-27T10:00:00Z",
+                        "meta_title": "Как выбрать спортивную экипировку | FREESPORT",
+                        "meta_description": (
+                            "Узнайте как правильно выбрать спортивную экипировку"
+                        ),
+                        "created_at": "2025-12-26T15:00:00Z",
+                        "updated_at": "2025-12-26T18:30:00Z",
+                    },
+                    response_only=True,
+                )
+            ],
+        ),
+        404: OpenApiResponse(
+            description="Статья не найдена или не опубликована",
+            examples=[
+                OpenApiExample(
+                    name="Статья не найдена",
+                    value={"detail": "Not found."},
+                    response_only=True,
+                )
+            ],
+        ),
+    },
+    tags=["Blog"],
+)
+class BlogPostDetailView(generics.RetrieveAPIView):
+    """
+    API endpoint для получения детальной информации о статье блога.
+
+    Возвращает только опубликованные статьи (is_published=True)
+    с датой публикации <= текущего момента.
+    Поиск осуществляется по slug.
+    """
+
+    serializer_class = BlogPostDetailSerializer
+    permission_classes = [AllowAny]
+    lookup_field = "slug"
+
+    def get_queryset(self):
+        """
+        Возвращает только опубликованные статьи блога.
+        Фильтрует по дате публикации (только прошедшие/текущие).
+        """
+        return BlogPost.objects.filter(
             is_published=True,
             published_at__lte=timezone.now(),
         )
