@@ -1,0 +1,131 @@
+{
+  "system_meta": {
+    "project_name": "FREESPORT E-Commerce",
+    "version": "2.0.0 (Final Production)",
+    "design_philosophy": "Digital Brutalism & Kinetic Energy",
+    "core_concept": "A high-contrast interface where aggressive geometry (-12deg) meets functional rigidity (rectangular inputs). The design implies speed, movement, and technical precision."
+  },
+  "global_tokens": {
+    "palette": {
+      "primary": {
+        "hex": "#FF6B00",
+        "name": "Electric Orange",
+        "usage": "CTAs, Active States, Hover Borders, Slider Thumbs"
+      },
+      "background": {
+        "body": "#0F0F0F",
+        "card": "#1A1A1A",
+        "input": "transparent"
+      },
+      "text": {
+        "primary": "#FFFFFF",
+        "secondary": "#A0A0A0",
+        "inverse": "#000000"
+      },
+      "border": {
+        "subtle": "#333333",
+        "active": "#FF6B00"
+      }
+    },
+    "typography": {
+      "font_family": {
+        "display": "'Roboto Condensed', sans-serif",
+        "body": "'Inter', sans-serif"
+      },
+      "weights": {
+        "body_regular": 400,
+        "display_bold": 700,
+        "display_black": 900
+      },
+      "styles": {
+        "italic": "italic (Used strictly for Display fonts)"
+      }
+    },
+    "geometry": {
+      "skew_angle": "-12deg",
+      "counter_skew": "12deg",
+      "border_radius": "0px (Strictly sharp corners everywhere)"
+    },
+    "spacing": {
+      "container_max_width": "1440px",
+      "grid_gap": "30px",
+      "section_padding": "40px"
+    },
+    "animation": {
+      "default_curve": "cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+      "duration": "0.3s"
+    }
+  },
+  "rules_engine": {
+    "typography_usage": {
+      "headers": "Roboto Condensed, Black Italic, Uppercase, Skewed -12deg.",
+      "body": "Inter, Regular, Normal Style, No Skew.",
+      "price_tags": "Roboto Condensed, Bold Italic, Skewed -12deg, Primary Color."
+    },
+    "shape_logic": {
+      "interactive_actions": "Skewed -12deg (Buttons, Badges, Checkboxes, Slider Tracks).",
+      "data_entry": "Strictly Rectangular 0deg (Text Inputs, Price Inputs, Newsletter Form).",
+      "images": "Rectangular containers, Zoom interaction on hover."
+    }
+  },
+  "components": {
+    "buttons": {
+      "structure": "Container skewed -12deg, Text span counter-skewed 12deg.",
+      "variants": {
+        "primary": "Background Orange, Text Black, No Border.",
+        "outline": "Background Transparent, Border 2px White, Text White. Hover: Border Orange, Text Orange."
+      }
+    },
+    "inputs_text": {
+      "shape": "Rectangular (0deg)",
+      "style": "Transparent background, 1px Solid Border #333, White Text.",
+      "focus_state": "Border color becomes Primary Orange.",
+      "typography": "Inter (Body font) for readability."
+    },
+    "inputs_selection": {
+      "checkbox": {
+        "container": "Skewed -12deg box (20x20px).",
+        "check_mark": "Counter-skewed 12deg inside the box.",
+        "label": "Inter font, Straight (0deg), White/Gray."
+      },
+      "range_slider": {
+        "track": "Dark Gray (#333), Skewed -12deg, Height 6px.",
+        "thumb": "Square shape, Orange background, Black border, Skewed -12deg to match track."
+      }
+    },
+    "newsletter_form": {
+      "type": "Compact Joined",
+      "shape": "Rectangular (0deg) - Exception to the 'Action' rule to maintain input contrast.",
+      "layout": "Input field + Icon Button (No gap).",
+      "button_style": "Square aspect ratio, Orange background, Rectangular (0deg)."
+    },
+    "cards": {
+      "category_card": {
+        "structure": "Strictly Square (Aspect Ratio 1:1). No fixed height.",
+        "purpose": "Navigation & Atmosphere",
+        "visuals": "Grayscale image becomes Color on hover. Flash effect overlay.",
+        "typography": "Large Skewed Titles over image.",
+        "interaction": "Scale Up + Flash."
+      },
+      "product_card": {
+        "purpose": "Direct Commerce",
+        "visuals": "Square 1:1 Image Container (Strict), Vertical Layout.",
+        "image_fit": "Object-fit: Cover.",
+        "typography": "Readable Inter title + Large Skewed Price.",
+        "interaction": "Physical Lift (-5px translateY), Shadow.",
+        "actions": "Always visible (No hover hide)."
+      },
+      "news_card": {
+        "purpose": "Content Consumption",
+        "visuals": "Horizontal image (16:9 aspect ratio).",
+        "typography": "Hybrid: Skewed Date Badge, Straight Body Text.",
+        "interaction": "Subtle Lift, Border Highlight."
+      }
+    },
+    "sidebar_filter": {
+      "headers": "Skewed -12deg, Uppercase, Underlined.",
+      "layout": "Vertical stack.",
+      "price_row": "Two rectangular inputs (From/To) + One skewed range slider below."
+    }
+  }
+}

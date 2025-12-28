@@ -80,6 +80,10 @@ const nextConfig: NextConfig = {
           ? `${process.env.NEXT_PUBLIC_MEDIA_URL_INTERNAL}/media/:path*`
           : 'http://backend:8000/media/:path*',
       },
+      {
+        source: '/electric-orange',
+        destination: '/electric-orange/index.html',
+      },
     ];
   },
 
