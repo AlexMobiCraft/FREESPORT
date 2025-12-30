@@ -3,15 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>FREESPORT Design System | Final v2.2</title>
+    <title>FREESPORT Design System | Final v2.1</title>
     <base href="/electric-orange/" />
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Roboto+Condensed:wght@400;700;900&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Roboto+Condensed:ital,wght@1,700;1,900&display=swap"
       rel="stylesheet"
     />
+
     <style>
       /* =========================================
            1. DESIGN TOKENS
@@ -65,12 +66,9 @@
       .h-display {
         font-family: var(--font-display);
         font-weight: 900;
-
-        /* ИСПРАВЛЕНИЕ: Убираем italic, оставляем только механический наклон */
-        font-style: normal;
-        transform: skewX(var(--skew-deg));
-
+        font-style: italic;
         text-transform: uppercase;
+        transform: skewX(var(--skew-deg));
         letter-spacing: 1px;
         line-height: 1;
       }
@@ -81,31 +79,19 @@
         border-left: 4px solid var(--primary);
         padding-left: 20px;
         display: inline-block;
-        /* Наклон наследуется от h-display, который добавлен в HTML */
       }
 
       .section-label {
         color: var(--text-muted);
         font-family: var(--font-display);
         text-transform: uppercase;
-
-        /* ИСПРАВЛЕНИЕ: normal вместо italic */
-        font-style: normal;
-        /* Если нужен наклон метки, раскомментируйте: transform: skewX(var(--skew-deg)); */
-        /* В данном дизайне метки обычно прямые или наклонные. Если наклонные - то через transform */
-        font-style: italic; /* Оставляем italic только если здесь НЕТ transform. Если хотим строгий -12deg, то ставим normal + transform */
-        /* ДЛЯ СТРОГОГО СООТВЕТСТВИЯ СЕТКЕ ДЕЛАЕМ ТАК: */
-        font-style: normal;
-        transform: skewX(var(--skew-deg));
-
+        font-style: italic;
         margin-bottom: 30px;
         font-size: 0.9rem;
         letter-spacing: 1px;
         display: block;
         margin-top: 80px;
-        transform-origin: left; /* Чтобы текст не уезжал при наклоне */
       }
-
       section:first-child .section-label {
         margin-top: 0;
       }
@@ -121,23 +107,16 @@
         padding: 12px 15px;
         font-family: var(--font-display);
         font-weight: 700;
-
-        /* ИСПРАВЛЕНИЕ: normal вместо italic */
-        font-style: normal;
-
+        font-style: italic;
         text-transform: uppercase;
         font-size: 1rem;
         cursor: pointer;
         border: none;
         transition: var(--transition);
-
-        /* Наклон контейнера кнопки */
         transform: skewX(var(--skew-deg));
         white-space: nowrap;
       }
-
       .btn span {
-        /* Текст внутри кнопки выпрямляем обратно */
         transform: skewX(var(--unskew-deg));
       }
 
@@ -168,10 +147,7 @@
         padding: 4px 12px;
         font-family: var(--font-display);
         font-weight: 700;
-
-        /* ИСПРАВЛЕНИЕ */
-        font-style: normal;
-
+        font-style: italic;
         font-size: 0.8rem;
         text-transform: uppercase;
         transform: skewX(var(--skew-deg));
@@ -307,12 +283,6 @@
         padding-bottom: 10px;
         display: block;
         width: 100%;
-
-        /* Добавляем наклон к заголовкам фильтров */
-        font-family: var(--font-display);
-        font-weight: 900;
-        transform: skewX(var(--skew-deg));
-        text-transform: uppercase;
       }
       .checkbox-row {
         display: flex;
@@ -380,15 +350,15 @@
 
       /* --- FEATURES (Design System Updated) --- */
       .features {
-        background: var(--bg-main);
-        padding: 80px 0;
+        background: var(--bg-main); /* #0f0f0f */
+        padding: 80px 0; /* Увеличил отступы для "воздуха" */
         border-top: 1px solid var(--border);
         border-bottom: 1px solid var(--border);
       }
 
       .features-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); /* Адаптивность */
         gap: 40px;
         text-align: center;
       }
@@ -400,27 +370,29 @@
       }
 
       .feat-item h3 {
-        font-family: var(--font-display);
-        font-weight: 900;
-
-        /* ИСПРАВЛЕНИЕ: normal вместо italic */
-        font-style: normal;
-
+        font-family: var(--font-display); /* Roboto Condensed */
+        font-weight: 900; /* Жирный */
+        font-style: italic; /* Курсив */
         text-transform: uppercase;
-        color: var(--primary);
+        color: var(--primary); /* Оранжевый #FF6B00 */
         margin-bottom: 15px;
         font-size: 1.5rem;
         letter-spacing: 1px;
+
+        /* Ключевой элемент стиля: Наклон */
         transform: skewX(var(--skew-deg));
       }
 
       .feat-item p {
-        font-family: var(--font-body);
-        color: var(--text-muted);
+        font-family: var(--font-body); /* Inter */
+        color: var(--text-muted); /* Серый текст */
         font-size: 1rem;
         line-height: 1.5;
-        max-width: 320px;
+        max-width: 320px; /* Ограничение ширины для удобства чтения */
         margin: 0 auto;
+
+        /* Текст описания оставляем прямым (0deg) для читаемости,
+           согласно правилам design.json */
       }
 
       /* =========================================
@@ -485,12 +457,6 @@
         font-size: 1.8rem;
         margin-bottom: 5px;
         text-shadow: 2px 2px 0 #000;
-        /* Наследование стилей от h-display, но уточняем */
-        font-family: var(--font-display);
-        font-weight: 900;
-        font-style: normal; /* ИСПРАВЛЕНИЕ */
-        text-transform: uppercase;
-        transform: skewX(var(--skew-deg));
       }
 
       /* Product Card */
@@ -521,10 +487,7 @@
       .prod-price {
         font-family: var(--font-display);
         font-weight: 700;
-
-        /* ИСПРАВЛЕНИЕ */
-        font-style: normal;
-
+        font-style: italic;
         font-size: 1.5rem;
         color: var(--primary);
         transform: skewX(var(--skew-deg));
@@ -535,6 +498,7 @@
       /* PRODUCT ACTIONS (ALWAYS VISIBLE) */
       .prod-actions {
         margin-top: auto;
+        /* Removed opacity: 0 and transform for permanent visibility */
         display: flex;
         gap: 10px;
       }
@@ -542,7 +506,7 @@
       .prod-actions .btn {
         flex: 1;
         font-size: 0.9rem;
-        padding: 12px 5px;
+        padding: 12px 5px; /* Compact padding for small cards */
       }
 
       .prod-card:hover {
@@ -593,10 +557,7 @@
         color: var(--primary);
         font-family: var(--font-display);
         font-weight: 700;
-
-        /* ИСПРАВЛЕНИЕ */
-        font-style: normal;
-
+        font-style: italic;
         text-transform: uppercase;
         transform: skewX(var(--skew-deg));
         margin-top: auto;
@@ -628,12 +589,13 @@
         grid-template-columns: repeat(4, 1fr);
         gap: 20px;
       }
-      /* Адаптивность */
+      /* Адаптивность: На планшетах делаем 2 колонки */
       @media (max-width: 1100px) {
         .cards-grid {
           grid-template-columns: repeat(2, 1fr);
         }
       }
+      /* Адаптивность: На телефонах 1 колонка */
       @media (max-width: 600px) {
         .cards-grid {
           grid-template-columns: 1fr;
@@ -679,7 +641,7 @@
 
     <main class="container">
       <section>
-        <span class="section-label">Design System v2.2</span>
+        <span class="section-label">Design System v2.1</span>
         <h2 class="h-display section-title">UI КОМПОНЕНТЫ</h2>
 
         <div class="ui-demo-grid">
