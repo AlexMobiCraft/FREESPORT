@@ -1,0 +1,124 @@
+{
+  "system_meta": {
+    "project_name": "FREESPORT E-Commerce",
+    "version": "2.3.0 (Corrected Detail)",
+    "design_philosophy": "Digital Brutalism & Kinetic Energy",
+    "core_concept": "Geometric alignment is priority. Fonts are mechanically skewed (-12deg) rather than using native italics to ensure perfect parallel alignment with UI shapes."
+  },
+  "global_tokens": {
+    "palette": {
+      "primary": {
+        "hex": "#FF6B00",
+        "name": "Electric Orange",
+        "usage": "CTAs, Active States, Hover Borders, Slider Thumbs"
+      },
+      "background": {
+        "body": "#0F0F0F",
+        "card": "#1A1A1A",
+        "input": "transparent"
+      },
+      "text": {
+        "primary": "#FFFFFF",
+        "secondary": "#A0A0A0",
+        "inverse": "#000000"
+      },
+      "border": {
+        "subtle": "#333333",
+        "active": "#FF6B00"
+      }
+    },
+    "typography": {
+      "font_family": {
+        "display": "'Roboto Condensed', sans-serif",
+        "body": "'Inter', sans-serif"
+      },
+      "weights": {
+        "body_regular": 400,
+        "display_bold": 700,
+        "display_black": 900
+      },
+      "styles": {
+        "display_style": "Normal (Not Italic). Skew is strictly achieved via CSS transform: skewX(-12deg)."
+      }
+    },
+    "geometry": {
+      "skew_angle": "-12deg",
+      "counter_skew": "12deg",
+      "border_radius": "0px"
+    },
+    "spacing": {
+      "container_max_width": "1200px",
+      "grid_gap": "20px",
+      "section_padding": "20px",
+      "block_margin": "80px"
+    },
+    "animation": {
+      "default_curve": "cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+      "duration": "0.3s"
+    }
+  },
+  "rules_engine": {
+    "typography_usage": {
+      "headers": "Roboto Condensed, Black, Uppercase. Style: Normal. Transform: SkewX(-12deg).",
+      "body": "Inter, Regular, Normal Style, No Skew.",
+      "price_tags": "Roboto Condensed, Bold. Style: Normal. Transform: SkewX(-12deg). Color: Primary."
+    },
+    "shape_logic": {
+      "interactive_actions": "Skewed -12deg (Buttons, Badges, Checkboxes, Slider Tracks).",
+      "data_entry": "Strictly Rectangular 0deg (Text Inputs, Price Inputs, Newsletter Form).",
+      "images": "Strictly Square 1:1 containers, Object-fit: Cover."
+    }
+  },
+  "components": {
+    "buttons": {
+      "structure": "Container skewed -12deg. Text inside must be counter-skewed (12deg) to appear upright. Font-style: Normal.",
+      "variants": {
+        "primary": "Background Orange (#FF6B00), Text Black, No Border.",
+        "outline": "Background Transparent, Border 2px White, Text White. Hover: Border Orange, Text Orange."
+      }
+    },
+    "inputs_text": {
+      "shape": "Rectangular (0deg)",
+      "style": "Transparent background, 1px Solid Border #333, White Text.",
+      "typography": "Inter (Body font) for readability."
+    },
+    "inputs_selection": {
+      "checkbox": {
+        "container": "Skewed -12deg box (20x20px).",
+        "check_mark": "Counter-skewed 12deg inside the box.",
+        "label": "Inter font, Straight (0deg)."
+      },
+      "range_slider": {
+        "track": "Dark Gray (#333), Skewed -12deg, Height 6px.",
+        "thumb": "Square shape, Orange background, Black border, Skewed -12deg to match track."
+      }
+    },
+    "newsletter_form": {
+      "type": "Compact Joined",
+      "shape": "Rectangular (0deg).",
+      "layout": "Input field + Icon Button (No gap)."
+    },
+    "cards": {
+      "category_card": {
+        "structure": "Strictly Square (Aspect Ratio 1:1).",
+        "typography": "Compact Titles (1.8rem). Normal Style + Skew Transform.",
+        "visuals": "Grayscale image becomes Color on hover. Flash effect overlay on hover."
+      },
+      "product_card": {
+        "visuals": "Square 1:1 Image Container (Strict), Vertical Layout.",
+        "image_fit": "Object-fit: Cover.",
+        "typography": "Readable Inter title + Large Skewed Price (Normal style + Transform).",
+        "actions": "Always visible row (Flexbox): 1. [Primary Btn: Add to Cart] + 2. [Outline Btn: Wishlist]."
+      },
+      "news_card": {
+        "structure": "Horizontal Layout (Aspect Ratio 16:9 for image).",
+        "typography": "Hybrid: Skewed Badges, Straight Body Text."
+      },
+      "sidebar_filter": {
+        "headers": "Skewed -12deg via Transform, Uppercase, Underlined.",
+        "layout": "Vertical stack.",
+        "price_row": "Two rectangular inputs (From/To) + One skewed range slider below."
+      }
+    }
+  }
+}
