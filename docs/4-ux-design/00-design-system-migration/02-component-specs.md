@@ -599,6 +599,259 @@ const buttonStyles = {
 
 ---
 
+## 🗄️ Sidebar Widget
+
+### Структура
+
+```
+┌─────────────────────────────────────┐
+│ Sidebar Panel (bg: #1A1A1A)         │
+│                                     │
+│ ╱════════════════════╲              │
+│ │ КАТЕГОРИИ          │ ← Skewed -12°│
+│ ╲════════════════════╱              │
+│ ───────────────────────             │
+│                                     │
+│ ╱──╲                                │
+│ │✓ │ Кроссфит         ← Checkbox    │
+│ ╲──╱                                │
+│ ╱──╲                                │
+│ │  │ Фитнес                         │
+│ ╲──╱                                │
+│                                     │
+│ ╱════════════════════╲              │
+│ │ БРЕНД              │              │
+│ ╲════════════════════╱              │
+│ ───────────────────────             │
+│                                     │
+│ ╱──╲                                │
+│ │✓ │ Nike                           │
+│ ╲──╱                                │
+│ ╱──╲                                │
+│ │  │ Adidas                         │
+│ ╲──╱                                │
+│                                     │
+│ ╱════════════════════╲              │
+│ │ ЦЕНА (₽)           │              │
+│ ╲════════════════════╱              │
+│ ───────────────────────             │
+│                                     │
+│ ┌──────────┐ ┌──────────┐           │
+│ │   1000   │ │  50000   │ Price     │
+│ └──────────┘ └──────────┘           │
+│                                     │
+│ ╱══════════●══════════╲             │
+│     Range Slider (skewed)           │
+│                                     │
+│ ╱─────────────────────╲             │
+│ │     ПРИМЕНИТЬ       │ CTA Button  │
+│ ╲─────────────────────╱             │
+└─────────────────────────────────────┘
+```
+
+### Filter Title Styles
+
+```css
+.filter-title {
+  font-family: 'Roboto Condensed', sans-serif;
+  font-weight: 900;
+  font-size: 1.2rem;
+  text-transform: uppercase;
+  color: #FFFFFF;
+  
+  /* Skewed -12deg */
+  transform: skewX(-12deg);
+  transform-origin: left;
+  
+  display: block;
+  width: 100%;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #333333;
+}
+
+.filter-title-text {
+  transform: skewX(12deg);
+  display: inline-block;
+}
+```
+
+### Checkbox Row Styles
+
+```css
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.checkbox-row input {
+  display: none;
+}
+
+/* Skewed Checkbox */
+.custom-check {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #555555;
+  margin-right: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  transform: skewX(-12deg);
+}
+
+.checkbox-row input:checked + .custom-check {
+  background-color: #FF6B00;
+  border-color: #FF6B00;
+}
+
+.checkbox-row input:checked + .custom-check::after {
+  content: '✓';
+  color: #000000;
+  font-weight: 900;
+  font-size: 14px;
+  transform: skewX(12deg);
+}
+
+.checkbox-row:hover .custom-check {
+  border-color: #FF6B00;
+}
+
+.checkbox-text {
+  font-family: 'Inter', sans-serif;
+  color: #A0A0A0;
+  font-size: 0.95rem;
+  transition: color 0.15s ease;
+}
+
+.checkbox-row:hover .checkbox-text {
+  color: #FFFFFF;
+}
+```
+
+### Price Range Styles
+
+```css
+.price-inputs-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.price-input {
+  width: 50%;
+  background: transparent;
+  border: 1px solid #333333;
+  padding: 8px;
+  color: #FFFFFF;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.9rem;
+}
+
+.price-input:focus {
+  border-color: #FF6B00;
+  outline: none;
+}
+
+/* Skewed Range Slider */
+.range-container {
+  width: 100%;
+  margin: 20px 0;
+  transform: skewX(-12deg);
+}
+
+input[type='range']::-webkit-slider-thumb {
+  height: 18px;
+  width: 18px;
+  background: #FF6B00;
+  border: 2px solid #000000;
+  cursor: pointer;
+}
+
+input[type='range']::-webkit-slider-thumb:hover {
+  background: #FFFFFF;
+}
+```
+
+### React Component
+
+```tsx
+interface FilterOption {
+  id: string;
+  label: string;
+  count?: number;
+}
+
+interface FilterGroup {
+  id: string;
+  title: string;
+  options: FilterOption[];
+  type: 'checkbox' | 'price';
+}
+
+interface PriceRange {
+  min: number;
+  max: number;
+}
+
+interface ElectricSidebarProps {
+  filterGroups: FilterGroup[];
+  selectedFilters?: Record<string, string[]>;
+  priceRange?: PriceRange;
+  currentPrice?: PriceRange;
+  onFilterChange?: (groupId: string, optionId: string, checked: boolean) => void;
+  onPriceChange?: (range: PriceRange) => void;
+  onApply?: () => void;
+  className?: string;
+}
+
+// Usage Example
+<ElectricSidebar
+  filterGroups={[
+    {
+      id: 'categories',
+      title: 'КАТЕГОРИИ',
+      type: 'checkbox',
+      options: [
+        { id: 'crossfit', label: 'Кроссфит', count: 24 },
+        { id: 'fitness', label: 'Фитнес', count: 156 },
+      ],
+    },
+    {
+      id: 'brands',
+      title: 'БРЕНД',
+      type: 'checkbox',
+      options: [
+        { id: 'nike', label: 'Nike', count: 45 },
+        { id: 'adidas', label: 'Adidas', count: 38 },
+      ],
+    },
+    {
+      id: 'price',
+      title: 'ЦЕНА (₽)',
+      type: 'price',
+      options: [],
+    },
+  ]}
+  priceRange={{ min: 1000, max: 50000 }}
+  onApply={() => console.log('Apply filters')}
+/>
+```
+
+### Component File Location
+
+```
+frontend/src/components/ui/Sidebar/
+├── ElectricSidebar.tsx    # Main component
+└── index.ts               # Exports
+```
+
+---
+
 ## 🧭 Header
 
 ### Структура
