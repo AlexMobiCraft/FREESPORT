@@ -1,0 +1,333 @@
+# WDS Project Outline
+# SINGLE SOURCE OF TRUTH for all WDS agents
+# Created by: Saga WDS Analyst Agent
+# Last Updated: 2026-01-02
+
+project:
+  name: "FREESPORT E-Commerce Platform"
+  description: |
+    Редизайн существующего B2B/B2C интернет-портала спортивных товаров.
+    Платформа объединяет 5 торговых марок с единым каталогом,
+    специализированным B2B-функционалом и интеграцией с 1С.
+  wds_version: "6.0"
+  created: "2026-01-02"
+  path: "redesign" # Редизайн существующего сайта
+
+# Methodology Configuration
+methodology:
+  type: "wds-v6"
+  custom_instructions_file: null
+
+# Active Phases Configuration
+phases:
+  phase_1_project_brief:
+    active: true
+    required: true
+    name: "Project Brief"
+    folder: "1-project-brief"
+    brief_level: "complete"
+    agent: "saga-analyst"
+    status: "complete"
+    started_date: "2025-08-01"
+    completed_date: "2025-08-01"
+    completed_by: "Initial Documentation"
+    intent: |
+      Существующий бриф проекта определяет видение, цели и критерии успеха.
+      Документ: docs/Brief.md
+      
+      Ключевые элементы:
+      - B2B/B2C платформа для 5 торговых марок
+      - API-First (Headless) архитектура
+      - Интеграция с 1С, ЮКасса
+      - Django + Next.js стек
+    artifacts:
+      - "docs/Brief.md"
+
+  phase_2_trigger_mapping:
+    active: true
+    required: true
+    name: "Trigger Mapping"
+    folder: "2-trigger-mapping"
+    agent: "saga-analyst"
+    status: "in_progress"
+    started_date: null
+    completed_date: null
+    completed_by: null
+    intent: |
+      Анализ психологии B2B и B2C пользователей.
+      Необходимо формализовать персоны и триггеры для редизайна.
+      
+      Целевые группы (из Brief.md):
+      - Оптовые покупатели (3 уровня)
+      - Тренеры (фитнес-клубы)
+      - Представители федераций
+      - Розничные покупатели (B2C)
+    skip_reason: ""
+    artifacts: []
+
+  phase_3_prd_platform:
+    active: true
+    required: true
+    name: "PRD Platform"
+    folder: "3-prd-platform"
+    agent: "idunn-pm"
+    status: "complete"
+    started_date: "2025-08-01"
+    completed_date: "2025-12-01"
+    completed_by: "Development Team"
+    intent: |
+      Использовать текущую реализацию платформы.
+      Техническая архитектура уже реализована:
+      - Django 4.2 LTS + DRF
+      - Next.js 15 + TypeScript
+      - PostgreSQL, Redis, Celery
+      - Интеграция с 1С работает
+      
+      Документация: docs/PRD.md, docs/architecture/
+    artifacts:
+      - "docs/PRD.md"
+      - "docs/architecture/*"
+      - "GEMINI.md"
+
+  phase_4_ux_design:
+    active: true
+    required: true
+    name: "UX Design"
+    folder: "4-ux-design"
+    agent: "freya-designer"
+    status: "in_progress"
+    started_date: "2025-11-19"
+    completed_date: null
+    completed_by: null
+    intent: |
+      РЕДИЗАЙН существующих страниц на новую дизайн-систему Electric Orange.
+      Сохранение содержания, обновление визуального оформления.
+      
+      Источники:
+      - Текущий UX Design: docs/front-end-spec.md (v2.1)
+      - Дизайн-система: frontend/public/electric-orange/design_v2.3.0.json
+      
+      Задача редизайна:
+      - Миграция страниц на Electric Orange стиль
+      - Digital Brutalism & Kinetic Energy
+      - Skewed typography (-12deg)
+      - Dark theme (#0F0F0F background)
+      - Primary accent: Electric Orange (#FF6B00)
+    
+    scenarios:
+      - id: "00-design-system-migration"
+        name: "Design System Migration Plan"
+        status: "in_progress"
+        pages_planned: 1
+        pages_specified: 1
+        pages_implemented: 0
+        started_date: "2026-01-02"
+        completed_date: null
+        intent: "План миграции всех страниц на Electric Orange — документация завершена, готов к имплементации"
+        artifacts:
+          - "docs/4-ux-design/00-design-system-migration/00-migration-plan.md"
+          - "docs/4-ux-design/00-design-system-migration/01-color-mapping.md"
+          - "docs/4-ux-design/00-design-system-migration/02-component-specs.md"
+          - "docs/4-ux-design/00-design-system-migration/03-page-specs.md"
+        
+      - id: "01-homepage"
+        name: "Главная страница"
+        status: "not_started"
+        pages_planned: 1
+        pages_specified: 0
+        pages_implemented: 0
+        started_date: null
+        completed_date: null
+        intent: "Редизайн главной страницы с Hero-баннерами"
+        artifacts: []
+        
+      - id: "02-catalog"
+        name: "Каталог товаров"
+        status: "not_started"
+        pages_planned: 3
+        pages_specified: 0
+        pages_implemented: 0
+        started_date: null
+        completed_date: null
+        intent: "Редизайн страницы каталога, фильтров, карточки товара"
+        artifacts: []
+        
+      - id: "03-cart-checkout"
+        name: "Корзина и оформление заказа"
+        status: "not_started"
+        pages_planned: 3
+        pages_specified: 0
+        pages_implemented: 0
+        started_date: null
+        completed_date: null
+        intent: "Редизайн корзины, чекаута, подтверждения заказа"
+        artifacts: []
+        
+      - id: "04-account"
+        name: "Личный кабинет"
+        status: "not_started"
+        pages_planned: 5
+        pages_specified: 0
+        pages_implemented: 0
+        started_date: null
+        completed_date: null
+        intent: "Редизайн профиля, истории заказов, адресов, B2B-функций"
+        artifacts: []
+        
+      - id: "05-static-pages"
+        name: "Информационные страницы"
+        status: "not_started"
+        pages_planned: 4
+        pages_specified: 0
+        pages_implemented: 0
+        started_date: null
+        completed_date: null
+        intent: "Редизайн О нас, Контакты, Доставка, Новости"
+        artifacts: []
+
+    scenarios_planned: 6
+    scenarios_complete: 0
+    current_scenario: null
+    artifacts:
+      - "docs/front-end-spec.md"
+      - "frontend/public/electric-orange/design_v2.3.0.json"
+
+  phase_5_design_system:
+    active: true
+    required: false
+    name: "Design System"
+    folder: "5-design-system"
+    agent: "freya-designer"
+    status: "complete"
+    started_date: "2025-11-19"
+    completed_date: "2025-11-25"
+    completed_by: "UX Expert Team"
+    intent: |
+      Дизайн-система Electric Orange уже создана.
+      
+      Источники:
+      - design_v2.3.0.json — токены и правила
+      - front-end-spec.md — полная спецификация UI/UX
+      
+      Ключевые принципы:
+      - Digital Brutalism & Kinetic Energy
+      - Skew angle: -12deg / counter-skew: 12deg
+      - Dark theme: #0F0F0F / #1A1A1A
+      - Primary: Electric Orange #FF6B00
+      - Typography: Roboto Condensed (display) + Inter (body)
+    skip_reason: "Уже создана"
+    artifacts:
+      - "frontend/public/electric-orange/design_v2.3.0.json"
+      - "docs/front-end-spec.md"
+      - "docs/frontend/design-system.json"
+      - "docs/frontend/css-variables-mapping.md"
+
+  phase_6_design_deliveries:
+    active: true
+    required: false
+    name: "Design Deliveries"
+    folder: "6-design-deliveries"
+    agent: "idunn-pm"
+    status: "not_started"
+    started_date: null
+    completed_date: null
+    completed_by: null
+    intent: |
+      Подготовка спецификаций для редизайна.
+      Создание плана миграции страниц на Electric Orange.
+    artifacts: []
+
+  phase_7_testing:
+    active: true
+    required: false
+    name: "Testing"
+    folder: "7-testing"
+    agent: "freya-designer"
+    status: "not_started"
+    started_date: null
+    completed_date: null
+    completed_by: null
+    intent: |
+      Валидация редизайна:
+      - Визуальное соответствие Electric Orange
+      - Адаптивность на всех устройствах
+      - A11y проверки
+    artifacts: []
+
+  phase_8_ongoing_development:
+    active: true
+    required: false
+    name: "Ongoing Development"
+    folder: "8-ongoing-development"
+    agent: "idunn-pm"
+    status: "not_started"
+    started_date: null
+    completed_date: null
+    completed_by: null
+    intent: |
+      Фаза активна — это редизайн существующего продукта.
+      Сюда будут добавляться запросы на доработку после редизайна.
+    skip_reason: ""
+    artifacts: []
+
+# Project Type Configuration
+project_type:
+  category: "complex-ecommerce"
+  complexity: "complex"
+  stage: "redesign"
+  customer_facing: true
+  design_system_approach: "custom"
+  design_library: "Electric Orange (custom design system)"
+
+# Technology Stack
+tech_stack:
+  framework: "Next.js 15"
+  language: "TypeScript 5.0+"
+  styling: "Tailwind CSS 4.0"
+  backend: "Django 4.2 LTS + DRF"
+
+# Agent Initialization Behavior
+agent_behavior:
+  skip_inactive_phases: true
+  focus_on_current_phase: true
+  suggest_phase_handoffs: true
+  show_completion_percentage: false
+  show_phase_estimates: false
+  show_next_actions: true
+
+# Project-Specific Notes
+notes: |
+  ПРОЕКТ РЕДИЗАЙНА
+  ================
+  Цель: Миграция существующего сайта FREESPORT на новую дизайн-систему Electric Orange.
+  
+  Особенности:
+  - Сохранение функционала и содержания
+  - Полная визуальная трансформация
+  - Digital Brutalism стиль
+  - Dark theme с оранжевыми акцентами
+  
+  Приоритеты редизайна:
+  1. Главная страница (Hero-баннеры, категории)
+  2. Каталог и карточка товара
+  3. Корзина и чекаут
+  4. Личный кабинет (B2B функции)
+  5. Информационные страницы
+  
+  Ключевые ресурсы:
+  - Brief.md — миссия и vision
+  - front-end-spec.md — текущая UX спецификация
+  - design_v2.3.0.json — дизайн-система Electric Orange
+  - GEMINI.md — технический контекст
+
+# Version Control & Update Log
+version: 1
+last_updated: "2026-01-02"
+updated_by: "saga-analyst"
+
+# Update History
+update_history:
+  - date: "2026-01-02"
+    agent: "saga-analyst"
+    action: "created"
+    changes: "Initial project outline created for FREESPORT redesign"

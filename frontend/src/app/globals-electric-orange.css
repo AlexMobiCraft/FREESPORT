@@ -1,0 +1,711 @@
+@import 'tailwindcss';
+
+/**
+ * FREESPORT Design System - Electric Orange Theme
+ * Version: 1.0.0
+ * Date: 2026-01-02
+ * 
+ * DESIGN PHILOSOPHY: Digital Brutalism & Kinetic Energy
+ * 
+ * Key Principles:
+ * - Dark theme with Electric Orange accent
+ * - Sharp geometry (0px radius) + Skew (-12deg)
+ * - High contrast for accessibility
+ * - Glow-based shadows (not traditional drop shadows)
+ * 
+ * Typography:
+ * - Display: Roboto Condensed (Black 900, Uppercase, Skewed)
+ * - Body: Inter (Regular/Medium)
+ */
+
+/* ============================================
+   FONTS - Import Roboto Condensed for display
+   ============================================ */
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;700;900&display=swap');
+
+/* ============================================
+   DESIGN TOKENS - Electric Orange Theme
+   ============================================ */
+@theme inline {
+  /* === GEOMETRY === */
+  --skew-angle: -12deg;
+  --counter-skew: 12deg;
+  --border-radius-none: 0px;
+
+  /* === PRIMARY (Electric Orange) === */
+  --color-primary: #ff6b00;
+  --color-primary-hover: #ff8533;
+  --color-primary-active: #e55a00;
+  --color-primary-subtle: rgba(255, 107, 0, 0.1);
+  --color-primary-glow: rgba(255, 107, 0, 0.4);
+
+  /* === BACKGROUNDS === */
+  --bg-body: #0f0f0f;
+  --bg-canvas: #0f0f0f;
+  --bg-card: #1a1a1a;
+  --bg-card-hover: #222222;
+  --bg-input: transparent;
+  --bg-overlay: rgba(0, 0, 0, 0.85);
+
+  /* === TEXT === */
+  --color-text-primary: #ffffff;
+  --color-text-secondary: #a0a0a0;
+  --color-text-muted: #666666;
+  --color-text-inverse: #000000;
+
+  /* === BORDERS === */
+  --border-default: #333333;
+  --border-subtle: #2a2a2a;
+  --border-active: #ff6b00;
+  --border-hover: #444444;
+
+  /* === NEUTRAL SCALE (Dark → Light) === */
+  --color-neutral-100: #0f0f0f;
+  --color-neutral-200: #1a1a1a;
+  --color-neutral-300: #2a2a2a;
+  --color-neutral-400: #333333;
+  --color-neutral-500: #555555;
+  --color-neutral-600: #777777;
+  --color-neutral-700: #999999;
+  --color-neutral-800: #bbbbbb;
+  --color-neutral-900: #ffffff;
+
+  /* === SEMANTIC COLORS === */
+  --color-success: #22c55e;
+  --color-success-bg: rgba(34, 197, 94, 0.15);
+  --color-warning: #eab308;
+  --color-warning-bg: rgba(234, 179, 8, 0.15);
+  --color-danger: #ef4444;
+  --color-danger-bg: rgba(239, 68, 68, 0.15);
+
+  /* === SHADOWS (Glow-based) === */
+  --shadow-none: none;
+  --shadow-hover: 0 0 20px rgba(255, 107, 0, 0.2);
+  --shadow-primary: 0 0 15px rgba(255, 107, 0, 0.4);
+  --shadow-glow: 0 0 30px rgba(255, 107, 0, 0.3);
+  --shadow-glow-intense: 0 0 40px rgba(255, 107, 0, 0.5);
+  --shadow-modal: 0 0 60px rgba(0, 0, 0, 0.8);
+
+  /* === TYPOGRAPHY === */
+  --font-display: 'Roboto Condensed', sans-serif;
+  --font-body: 'Inter', sans-serif;
+
+  /* Display Sizes */
+  --font-size-display-xl: 72px;
+  --font-size-display-l: 56px;
+  --font-size-display-m: 48px;
+  --font-size-headline-l: 36px;
+  --font-size-headline-m: 28px;
+  --font-size-title-l: 24px;
+  --font-size-title-m: 20px;
+  --font-size-body-l: 18px;
+  --font-size-body-m: 16px;
+  --font-size-body-s: 14px;
+  --font-size-caption: 12px;
+
+  /* Line Heights */
+  --line-height-display-xl: 80px;
+  --line-height-display-l: 64px;
+  --line-height-display-m: 56px;
+  --line-height-headline-l: 44px;
+  --line-height-headline-m: 36px;
+  --line-height-title-l: 32px;
+  --line-height-title-m: 28px;
+  --line-height-body-l: 28px;
+  --line-height-body-m: 24px;
+  --line-height-body-s: 20px;
+  --line-height-caption: 16px;
+
+  /* === SPACING === */
+  --spacing-1: 4px;
+  --spacing-2: 8px;
+  --spacing-3: 12px;
+  --spacing-4: 16px;
+  --spacing-5: 20px;
+  --spacing-6: 24px;
+  --spacing-8: 32px;
+  --spacing-10: 40px;
+  --spacing-12: 48px;
+  --spacing-16: 64px;
+  --spacing-20: 80px;
+
+  /* === MOTION === */
+  --duration-fast: 0.15s;
+  --duration-normal: 0.3s;
+  --duration-slow: 0.5s;
+  --easing-default: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --easing-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
+  /* === FOCUS === */
+  --focus-ring: 0 0 0 2px #ff6b00;
+  --focus-outline: 2px solid #ff6b00;
+}
+
+/* ============================================
+   ROOT STYLES
+   ============================================ */
+:root {
+  --background: var(--bg-body);
+  --foreground: var(--color-text-primary);
+  color-scheme: dark;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ============================================
+   TYPOGRAPHY UTILITIES
+   ============================================ */
+@layer utilities {
+  /* Display text with skew */
+  .text-display-xl {
+    font-family: var(--font-display);
+    font-size: var(--font-size-display-xl);
+    line-height: var(--line-height-display-xl);
+    font-weight: 900;
+    text-transform: uppercase;
+    transform: skewX(var(--skew-angle));
+  }
+
+  .text-display-l {
+    font-family: var(--font-display);
+    font-size: var(--font-size-display-l);
+    line-height: var(--line-height-display-l);
+    font-weight: 900;
+    text-transform: uppercase;
+    transform: skewX(var(--skew-angle));
+  }
+
+  .text-display-m {
+    font-family: var(--font-display);
+    font-size: var(--font-size-display-m);
+    line-height: var(--line-height-display-m);
+    font-weight: 900;
+    text-transform: uppercase;
+    transform: skewX(var(--skew-angle));
+  }
+
+  /* Headline - skewed */
+  .text-headline-l {
+    font-family: var(--font-display);
+    font-size: var(--font-size-headline-l);
+    line-height: var(--line-height-headline-l);
+    font-weight: 700;
+    text-transform: uppercase;
+    transform: skewX(var(--skew-angle));
+  }
+
+  .text-headline-m {
+    font-family: var(--font-display);
+    font-size: var(--font-size-headline-m);
+    line-height: var(--line-height-headline-m);
+    font-weight: 700;
+    text-transform: uppercase;
+    transform: skewX(var(--skew-angle));
+  }
+
+  /* Title - straight */
+  .text-title-l {
+    font-family: var(--font-body);
+    font-size: var(--font-size-title-l);
+    line-height: var(--line-height-title-l);
+    font-weight: 600;
+  }
+
+  .text-title-m {
+    font-family: var(--font-body);
+    font-size: var(--font-size-title-m);
+    line-height: var(--line-height-title-m);
+    font-weight: 600;
+  }
+
+  /* Body text - straight */
+  .text-body-l {
+    font-family: var(--font-body);
+    font-size: var(--font-size-body-l);
+    line-height: var(--line-height-body-l);
+    font-weight: 400;
+  }
+
+  .text-body-m {
+    font-family: var(--font-body);
+    font-size: var(--font-size-body-m);
+    line-height: var(--line-height-body-m);
+    font-weight: 400;
+  }
+
+  .text-body-s {
+    font-family: var(--font-body);
+    font-size: var(--font-size-body-s);
+    line-height: var(--line-height-body-s);
+    font-weight: 400;
+  }
+
+  .text-caption {
+    font-family: var(--font-body);
+    font-size: var(--font-size-caption);
+    line-height: var(--line-height-caption);
+    font-weight: 500;
+  }
+}
+
+/* ============================================
+   GEOMETRY UTILITIES (Skew)
+   ============================================ */
+@layer utilities {
+  /* Skewed containers */
+  .skew-container {
+    transform: skewX(var(--skew-angle));
+  }
+
+  /* Counter-skew for text inside skewed containers */
+  .counter-skew {
+    transform: skewX(var(--counter-skew));
+    display: inline-block;
+  }
+
+  /* Price tag styling */
+  .price-tag {
+    font-family: var(--font-display);
+    font-weight: 700;
+    color: var(--color-primary);
+    transform: skewX(var(--skew-angle));
+  }
+
+  .price-tag-text {
+    transform: skewX(var(--counter-skew));
+    display: inline-block;
+  }
+}
+
+/* ============================================
+   BUTTON COMPONENTS
+   ============================================ */
+@layer components {
+  /* Base button */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-body);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transform: skewX(var(--skew-angle));
+    transition: all var(--duration-normal) var(--easing-default);
+    cursor: pointer;
+    border: none;
+    outline: none;
+  }
+
+  .btn-text {
+    transform: skewX(var(--counter-skew));
+    display: inline-block;
+  }
+
+  /* Primary button */
+  .btn-primary {
+    background: var(--color-primary);
+    color: var(--color-text-inverse);
+  }
+
+  .btn-primary:hover {
+    background: var(--color-primary-hover);
+    box-shadow: var(--shadow-primary);
+  }
+
+  .btn-primary:active {
+    background: var(--color-primary-active);
+  }
+
+  .btn-primary:focus-visible {
+    box-shadow: var(--focus-ring);
+  }
+
+  /* Outline button */
+  .btn-outline {
+    background: transparent;
+    border: 2px solid var(--color-text-primary);
+    color: var(--color-text-primary);
+  }
+
+  .btn-outline:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+  }
+
+  /* Ghost button */
+  .btn-ghost {
+    background: transparent;
+    color: var(--color-text-primary);
+  }
+
+  .btn-ghost:hover {
+    color: var(--color-primary);
+    background: var(--color-primary-subtle);
+  }
+
+  /* Button sizes */
+  .btn-sm {
+    height: 36px;
+    padding: 0 16px;
+    font-size: var(--font-size-body-s);
+  }
+
+  .btn-md {
+    height: 44px;
+    padding: 0 24px;
+    font-size: var(--font-size-body-m);
+  }
+
+  .btn-lg {
+    height: 56px;
+    padding: 0 32px;
+    font-size: var(--font-size-body-l);
+  }
+}
+
+/* ============================================
+   FORM COMPONENTS (Rectangular - no skew)
+   ============================================ */
+@layer components {
+  /* Base input */
+  .input {
+    width: 100%;
+    background: var(--bg-input);
+    border: 1px solid var(--border-default);
+    color: var(--color-text-primary);
+    font-family: var(--font-body);
+    transition: all var(--duration-fast) var(--easing-default);
+    /* NO SKEW - inputs remain rectangular */
+  }
+
+  .input::placeholder {
+    color: var(--color-text-muted);
+  }
+
+  .input:hover {
+    border-color: var(--border-hover);
+  }
+
+  .input:focus {
+    border-color: var(--color-primary);
+    outline: none;
+    box-shadow: 0 0 0 1px var(--color-primary);
+  }
+
+  .input-error {
+    border-color: var(--color-danger);
+    box-shadow: 0 0 0 1px var(--color-danger);
+  }
+
+  /* Input sizes */
+  .input-sm {
+    height: 36px;
+    padding: 0 12px;
+    font-size: var(--font-size-body-s);
+  }
+
+  .input-md {
+    height: 44px;
+    padding: 0 16px;
+    font-size: var(--font-size-body-m);
+  }
+
+  .input-lg {
+    height: 52px;
+    padding: 0 20px;
+    font-size: var(--font-size-body-l);
+  }
+}
+
+/* ============================================
+   CHECKBOX (Skewed)
+   ============================================ */
+@layer components {
+  .checkbox-container {
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--border-default);
+    background: transparent;
+    transform: skewX(var(--skew-angle));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all var(--duration-fast) var(--easing-default);
+  }
+
+  .checkbox-container:hover {
+    border-color: var(--color-primary);
+  }
+
+  .checkbox-container.checked {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+  }
+
+  .checkbox-mark {
+    transform: skewX(var(--counter-skew));
+    color: var(--color-text-inverse);
+    font-size: 14px;
+  }
+}
+
+/* ============================================
+   BADGE (Skewed)
+   ============================================ */
+@layer components {
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    transform: skewX(var(--skew-angle));
+    padding: 4px 12px;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: var(--font-size-caption);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .badge-text {
+    transform: skewX(var(--counter-skew));
+    display: inline-block;
+  }
+
+  .badge-primary {
+    background: var(--color-primary);
+    color: var(--color-text-inverse);
+  }
+
+  .badge-sale {
+    background: var(--color-danger);
+    color: var(--color-text-primary);
+  }
+
+  .badge-new {
+    background: var(--color-primary);
+    color: var(--color-text-inverse);
+  }
+
+  .badge-hit {
+    background: var(--color-success);
+    color: var(--color-text-inverse);
+  }
+}
+
+/* ============================================
+   CARD COMPONENTS (Rectangular)
+   ============================================ */
+@layer components {
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-default);
+    transition: all var(--duration-normal) var(--easing-default);
+    /* NO SKEW - cards remain rectangular */
+  }
+
+  .card:hover {
+    border-color: var(--color-primary);
+    box-shadow: var(--shadow-hover);
+  }
+
+  .card-image {
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    width: 100%;
+  }
+}
+
+/* ============================================
+   SECTION HEADER (Skewed)
+   ============================================ */
+@layer components {
+  .section-header {
+    font-family: var(--font-display);
+    font-weight: 900;
+    font-size: var(--font-size-headline-l);
+    text-transform: uppercase;
+    color: var(--color-text-primary);
+    transform: skewX(var(--skew-angle));
+    display: inline-block;
+    padding-bottom: 8px;
+    border-bottom: 3px solid var(--color-primary);
+    margin-bottom: var(--spacing-10);
+  }
+
+  .section-header-text {
+    transform: skewX(var(--counter-skew));
+    display: inline-block;
+  }
+}
+
+/* ============================================
+   ANIMATIONS
+   ============================================ */
+@layer utilities {
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes scaleIn {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  @keyframes slideInRight {
+    from {
+      opacity: 0;
+      transform: translateX(100%);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes slideInUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes glowPulse {
+    0%,
+    100% {
+      box-shadow: 0 0 20px rgba(255, 107, 0, 0.3);
+    }
+    50% {
+      box-shadow: 0 0 40px rgba(255, 107, 0, 0.5);
+    }
+  }
+
+  .animate-fadeIn {
+    animation: fadeIn var(--duration-normal) var(--easing-default);
+  }
+
+  .animate-scaleIn {
+    animation: scaleIn var(--duration-normal) var(--easing-default);
+  }
+
+  .animate-slideInRight {
+    animation: slideInRight var(--duration-normal) var(--easing-default);
+  }
+
+  .animate-slideInUp {
+    animation: slideInUp var(--duration-normal) var(--easing-default);
+  }
+
+  .animate-glowPulse {
+    animation: glowPulse 2s ease-in-out infinite;
+  }
+}
+
+/* ============================================
+   SCROLLBAR (Dark theme)
+   ============================================ */
+@layer utilities {
+  .scrollbar-dark {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-default) var(--bg-body);
+  }
+
+  .scrollbar-dark::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .scrollbar-dark::-webkit-scrollbar-track {
+    background: var(--bg-body);
+  }
+
+  .scrollbar-dark::-webkit-scrollbar-thumb {
+    background: var(--border-default);
+    border-radius: 0;
+  }
+
+  .scrollbar-dark::-webkit-scrollbar-thumb:hover {
+    background: var(--color-primary);
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* ============================================
+   ACCESSIBILITY - Reduced Motion
+   ============================================ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Disable skew for users who prefer reduced motion */
+  .skew-container,
+  .btn,
+  .badge,
+  .checkbox-container,
+  .section-header,
+  .text-display-xl,
+  .text-display-l,
+  .text-display-m,
+  .text-headline-l,
+  .text-headline-m {
+    transform: none !important;
+  }
+
+  .counter-skew,
+  .btn-text,
+  .badge-text,
+  .checkbox-mark,
+  .section-header-text {
+    transform: none !important;
+  }
+}
+
+/* ============================================
+   FOCUS VISIBLE (Accessibility)
+   ============================================ */
+:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: 2px;
+}
+
+/* ============================================
+   SELECTION
+   ============================================ */
+::selection {
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+}
