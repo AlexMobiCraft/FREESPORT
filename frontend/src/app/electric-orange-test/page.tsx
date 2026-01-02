@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 'use client';
 
 /**
@@ -275,25 +276,33 @@ export default function ElectricOrangeTestPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
           <ProductCardDemo
-            brand="BOYBO"
-            title="Перчатки боксерские STAIN"
-            price="7 990"
+            brand="Espado"
+            title="Гантель неопреновая Espado ES1115 зеленая"
+            price="225"
             badge="hit"
+            image="/electric-orange/img/8f07c7eb-899f-11eb-81dd-00155d3cae02_6a52988c-8c7b-11eb-81de-00155d3cae02.jpg"
           />
           <ProductCardDemo
-            brand="Nike"
-            title="Футболка Pro Training"
-            price="4 990"
-            oldPrice="6 990"
+            brand="BOYBO"
+            title="Борцовки BoyBo на толстой подошве, на липучке красные"
+            price="2 200"
+            oldPrice="2 990"
             badge="sale"
+            image="/electric-orange/img/6976ce61-be0d-11ea-81c4-00155d3cae02_09591dd0-565f-11eb-81d3-00155d3cae02.jpg"
           />
           <ProductCardDemo
             brand="Adidas"
             title="Кроссовки Ultraboost 22"
             price="14 990"
             badge="new"
+            image="/electric-orange/img/Gemini_Generated_Image_36n5hd36n5hd36n5.png"
           />
-          <ProductCardDemo brand="VECTOR" title="Спортивная куртка WindBreaker" price="8 990" />
+          <ProductCardDemo
+            brand="VECTOR"
+            title="Спортивная куртка WindBreaker"
+            price="8 990"
+            image="/electric-orange/img/Gemini_Generated_Image_k7t8bpk7t8bpk7t8.png"
+          />
         </div>
       </section>
 
@@ -302,10 +311,144 @@ export default function ElectricOrangeTestPage() {
         <SectionHeader>Карточка категории</SectionHeader>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
-          <CategoryCardDemo title="Единоборства" />
-          <CategoryCardDemo title="Фитнес" />
-          <CategoryCardDemo title="Игровые виды" />
-          <CategoryCardDemo title="Оборудование" />
+          <CategoryCardDemo title="Единоборства" image="/electric-orange/img/bags.jpg" />
+          <CategoryCardDemo
+            title="Фитнес"
+            image="/electric-orange/img/photo-1534438327276-14e5300c3a48.avif"
+          />
+          <CategoryCardDemo
+            title="Игровые виды"
+            image="/electric-orange/img/Gemini_Generated_Image_36n5hd36n5hd36n5.png"
+          />
+          <CategoryCardDemo
+            title="Гимнастика"
+            image="/electric-orange/img/Gemini_Generated_Image_k7t8bpk7t8bpk7t8.png"
+          />
+        </div>
+      </section>
+
+      {/* Sidebar Widget Demo */}
+      <section className="mb-16">
+        <SectionHeader>Sidebar Widget</SectionHeader>
+
+        <div className="flex gap-8">
+          {/* Sidebar */}
+          <aside className="bg-[#1A1A1A] p-8 border border-[#333333] w-full max-w-[300px] h-fit">
+            {/* Filter Group: Categories */}
+            <div className="mb-8">
+              <h3
+                className="text-xl mb-5 pb-3 border-b border-[#333333] w-full block uppercase tracking-wide"
+                style={{
+                  fontFamily: "'Roboto Condensed', sans-serif",
+                  fontWeight: 900,
+                  transform: 'skewX(-12deg)',
+                  transformOrigin: 'left',
+                }}
+              >
+                <span style={{ transform: 'skewX(12deg)', display: 'inline-block' }}>
+                  КАТЕГОРИИ
+                </span>
+              </h3>
+              <div className="space-y-3">
+                <SidebarCheckbox label="Кроссфит" count={24} checked />
+                <SidebarCheckbox label="Фитнес" count={156} />
+                <SidebarCheckbox label="Единоборства" count={89} />
+              </div>
+            </div>
+
+            {/* Filter Group: Brands */}
+            <div className="mb-8">
+              <h3
+                className="text-xl mb-5 pb-3 border-b border-[#333333] w-full block uppercase tracking-wide"
+                style={{
+                  fontFamily: "'Roboto Condensed', sans-serif",
+                  fontWeight: 900,
+                  transform: 'skewX(-12deg)',
+                  transformOrigin: 'left',
+                }}
+              >
+                <span style={{ transform: 'skewX(12deg)', display: 'inline-block' }}>БРЕНД</span>
+              </h3>
+              <div className="space-y-3">
+                <SidebarCheckbox label="Nike" count={45} checked />
+                <SidebarCheckbox label="Adidas" count={38} />
+                <SidebarCheckbox label="Under Armour" count={22} />
+                <SidebarCheckbox label="BoyBo" count={67} />
+              </div>
+            </div>
+
+            {/* Filter Group: Price */}
+            <div className="mb-8">
+              <h3
+                className="text-xl mb-5 pb-3 border-b border-[#333333] w-full block uppercase tracking-wide"
+                style={{
+                  fontFamily: "'Roboto Condensed', sans-serif",
+                  fontWeight: 900,
+                  transform: 'skewX(-12deg)',
+                  transformOrigin: 'left',
+                }}
+              >
+                <span style={{ transform: 'skewX(12deg)', display: 'inline-block' }}>ЦЕНА (₽)</span>
+              </h3>
+
+              {/* Price Inputs */}
+              <div className="flex gap-3 mb-4">
+                <input
+                  type="number"
+                  defaultValue={1000}
+                  className="w-1/2 bg-transparent border border-[#333333] px-3 py-2 text-white text-sm focus:border-[#FF6B00] focus:outline-none"
+                />
+                <input
+                  type="number"
+                  defaultValue={50000}
+                  className="w-1/2 bg-transparent border border-[#333333] px-3 py-2 text-white text-sm focus:border-[#FF6B00] focus:outline-none"
+                />
+              </div>
+
+              {/* Skewed Range Slider */}
+              <div className="my-5" style={{ transform: 'skewX(-12deg)' }}>
+                <input
+                  type="range"
+                  min={1000}
+                  max={50000}
+                  defaultValue={25000}
+                  className="w-full h-[6px] bg-[#333333] appearance-none cursor-pointer
+                    [&::-webkit-slider-thumb]:appearance-none
+                    [&::-webkit-slider-thumb]:w-[18px]
+                    [&::-webkit-slider-thumb]:h-[18px]
+                    [&::-webkit-slider-thumb]:bg-[#FF6B00]
+                    [&::-webkit-slider-thumb]:border-2
+                    [&::-webkit-slider-thumb]:border-black
+                    [&::-webkit-slider-thumb]:cursor-pointer
+                    [&::-webkit-slider-thumb]:hover:bg-white
+                    [&::-webkit-slider-thumb]:transition-colors"
+                />
+              </div>
+            </div>
+
+            {/* Apply Button */}
+            <button
+              className="w-full h-12 bg-[#FF6B00] text-black font-bold uppercase tracking-wide transition-all hover:bg-white hover:text-[#FF6B00]"
+              style={{
+                fontFamily: "'Roboto Condensed', sans-serif",
+                transform: 'skewX(-12deg)',
+              }}
+            >
+              <span style={{ transform: 'skewX(12deg)', display: 'inline-block' }}>Применить</span>
+            </button>
+          </aside>
+
+          {/* Info Panel */}
+          <div className="flex-1 bg-[#1A1A1A] border border-[#333333] p-8">
+            <p className="text-[#666666] text-sm mb-4">Sidebar Widget Features:</p>
+            <ul className="text-[#A0A0A0] space-y-2 text-sm">
+              <li>• Filter titles with -12° skew</li>
+              <li>• Skewed checkboxes (-12°) with counter-skewed text</li>
+              <li>• Price range inputs (rectangular)</li>
+              <li>• Skewed range slider container</li>
+              <li>• CTA button with apply action</li>
+            </ul>
+          </div>
         </div>
       </section>
 
@@ -315,13 +458,7 @@ export default function ElectricOrangeTestPage() {
 
         <div className="bg-[#1A1A1A] p-8 border border-[#333333]">
           <div className="flex flex-wrap gap-8 items-center justify-center">
-            <div
-              className="w-32 h-32 bg-[#FF6B00] flex items-center justify-center"
-              style={{
-                boxShadow: '0 0 30px rgba(255, 107, 0, 0.5)',
-                animation: 'pulse 2s ease-in-out infinite',
-              }}
-            >
+            <div className="w-32 h-32 bg-[#FF6B00] flex items-center justify-center shadow-[0_0_30px_rgba(255,107,0,0.5)]">
               <span className="text-black font-bold">GLOW</span>
             </div>
 
@@ -337,18 +474,6 @@ export default function ElectricOrangeTestPage() {
         <p>Electric Orange Design System v1.0 • FREESPORT</p>
         <p className="mt-2">Digital Brutalism & Kinetic Energy</p>
       </footer>
-
-      <style jsx>{`
-        @keyframes pulse {
-          0%,
-          100% {
-            box-shadow: 0 0 20px rgba(255, 107, 0, 0.3);
-          }
-          50% {
-            box-shadow: 0 0 40px rgba(255, 107, 0, 0.6);
-          }
-        }
-      `}</style>
     </div>
   );
 }
@@ -447,31 +572,39 @@ interface ProductCardDemoProps {
   price: string;
   oldPrice?: string;
   badge?: 'hit' | 'sale' | 'new';
+  image?: string;
 }
 
-function ProductCardDemo({ brand, title, price, oldPrice, badge }: ProductCardDemoProps) {
+function ProductCardDemo({ brand, title, price, oldPrice, badge, image }: ProductCardDemoProps) {
   return (
     <div className="bg-[#1A1A1A] border border-[#333333] p-4 transition-all hover:border-[#FF6B00] hover:shadow-[0_0_20px_rgba(255,107,0,0.15)] group">
-      {/* Image placeholder */}
-      <div className="relative aspect-square bg-[#2A2A2A] mb-4 flex items-center justify-center">
-        <span className="text-[#555555]">IMG</span>
+      {/* Product Image */}
+      <div className="relative aspect-square bg-[#2A2A2A] mb-4 overflow-hidden">
+        {image ? (
+          <img
+            src={image}
+            alt={title}
+            className="w-full h-full object-cover transition-transform group-hover:scale-105"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <span className="text-[#555555]">IMG</span>
+          </div>
+        )}
         {badge && (
-          <div className="absolute top-2 left-2">
+          <div className="absolute top-2 left-2 z-10">
             <SkewedBadge variant={badge}>
               {badge === 'hit' ? 'Хит' : badge === 'sale' ? '-20%' : 'New'}
             </SkewedBadge>
           </div>
         )}
-        <button className="absolute top-2 right-2 text-[#666666] hover:text-[#FF6B00] transition-colors">
-          ♡
-        </button>
       </div>
 
       {/* Info */}
       <p className="text-xs text-[#A0A0A0] uppercase mb-1">{brand}</p>
       <h3 className="text-white font-medium mb-3 line-clamp-2">{title}</h3>
 
-      {/* Price */}
+      {/* Price - Skewed */}
       <div className="flex items-center gap-2 mb-4">
         <span
           className="text-xl font-bold text-[#FF6B00]"
@@ -485,27 +618,41 @@ function ProductCardDemo({ brand, title, price, oldPrice, badge }: ProductCardDe
         {oldPrice && <span className="text-sm text-[#666666] line-through">{oldPrice} ₽</span>}
       </div>
 
-      {/* Button */}
-      <SkewedButton variant="primary" size="sm">
-        В корзину
-      </SkewedButton>
+      {/* Two Buttons Row per design_v2.3.0.json */}
+      <div className="flex gap-2.5">
+        <SkewedButton variant="primary" size="sm">
+          В КОРЗИНУ
+        </SkewedButton>
+        <SkewedButton variant="outline" size="sm">
+          ЗАПОМНИТЬ
+        </SkewedButton>
+      </div>
     </div>
   );
 }
 
-function CategoryCardDemo({ title }: { title: string }) {
+function CategoryCardDemo({ title, image }: { title: string; image?: string }) {
   return (
     <div className="relative aspect-square bg-[#2A2A2A] overflow-hidden group cursor-pointer">
-      {/* Image placeholder with grayscale effect */}
+      {/* Category Image */}
+      {image && (
+        <img
+          src={image}
+          alt={title}
+          className="absolute inset-0 w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-300"
+        />
+      )}
+      {/* Gradient overlay */}
       <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/80" />
 
-      {/* Title */}
-      <div className="absolute bottom-0 left-0 right-0 p-4">
+      {/* Title - 1.8rem per design_v2.3.0.json */}
+      <div className="absolute bottom-0 left-0 right-0 p-6">
         <h3
-          className="text-xl font-bold uppercase text-white"
+          className="text-[1.8rem] font-black uppercase text-white"
           style={{
             fontFamily: "'Roboto Condensed', sans-serif",
             transform: 'skewX(-12deg)',
+            textShadow: '2px 2px 0 #000',
           }}
         >
           <span style={{ transform: 'skewX(12deg)', display: 'inline-block' }}>{title}</span>
@@ -515,5 +662,48 @@ function CategoryCardDemo({ title }: { title: string }) {
       {/* Hover flash effect */}
       <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[rgba(255,107,0,0.3)] to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-500" />
     </div>
+  );
+}
+
+interface SidebarCheckboxProps {
+  label: string;
+  count?: number;
+  checked?: boolean;
+}
+
+function SidebarCheckbox({ label, count, checked = false }: SidebarCheckboxProps) {
+  const [isChecked, setIsChecked] = React.useState(checked);
+
+  return (
+    <label className="flex items-center cursor-pointer select-none group">
+      <input
+        type="checkbox"
+        checked={isChecked}
+        onChange={e => setIsChecked(e.target.checked)}
+        className="hidden"
+      />
+
+      {/* Skewed Checkbox */}
+      <span
+        className={`w-5 h-5 border-2 mr-4 flex items-center justify-center transition-all ${
+          isChecked
+            ? 'bg-[#FF6B00] border-[#FF6B00]'
+            : 'border-[#555555] group-hover:border-[#FF6B00]'
+        }`}
+        style={{ transform: 'skewX(-12deg)' }}
+      >
+        {isChecked && (
+          <span className="text-black text-xs font-bold" style={{ transform: 'skewX(12deg)' }}>
+            ✓
+          </span>
+        )}
+      </span>
+
+      {/* Label */}
+      <span className="text-[#A0A0A0] text-sm transition-colors group-hover:text-white">
+        {label}
+        {count !== undefined && <span className="text-[#666666] ml-2">({count})</span>}
+      </span>
+    </label>
   );
 }

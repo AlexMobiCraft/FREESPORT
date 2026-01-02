@@ -129,6 +129,12 @@
   --spacing-16: 64px;
   --spacing-20: 80px;
 
+  /* === LAYOUT (from design_v2.3.0.json) === */
+  --container-max-width: 1200px;
+  --grid-gap: 20px;
+  --section-padding: 20px;
+  --block-margin: 80px;
+
   /* === MOTION === */
   --duration-fast: 0.15s;
   --duration-normal: 0.3s;
@@ -546,6 +552,188 @@ body {
 }
 
 /* ============================================
+   SIDEBAR WIDGET
+   ============================================ */
+@layer components {
+  /* Sidebar Panel Container */
+  .sidebar-panel {
+    background: var(--bg-card);
+    padding: 30px;
+    border: 1px solid var(--border-default);
+    height: fit-content;
+    width: 100%;
+    max-width: 300px;
+  }
+
+  /* Filter Group */
+  .filter-group {
+    margin-bottom: 30px;
+  }
+
+  .filter-group:last-child {
+    margin-bottom: 0;
+  }
+
+  /* Filter Title - Skewed */
+  .filter-title {
+    font-family: var(--font-display);
+    font-weight: 900;
+    font-size: 1.2rem;
+    text-transform: uppercase;
+    color: var(--color-text-primary);
+    transform: skewX(var(--skew-angle));
+    transform-origin: left;
+    display: block;
+    width: 100%;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-default);
+  }
+
+  .filter-title-text {
+    transform: skewX(var(--counter-skew));
+    display: inline-block;
+  }
+
+  /* Checkbox Row */
+  .checkbox-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 12px;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .checkbox-row:hover .checkbox-text {
+    color: var(--color-text-primary);
+  }
+
+  .checkbox-row:hover .custom-check {
+    border-color: var(--color-primary);
+  }
+
+  .checkbox-row input {
+    display: none;
+  }
+
+  /* Custom Checkbox - Skewed */
+  .custom-check {
+    width: 20px;
+    height: 20px;
+    border: 2px solid #555555;
+    margin-right: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--duration-fast) var(--easing-default);
+    transform: skewX(var(--skew-angle));
+  }
+
+  .checkbox-row input:checked + .custom-check {
+    background-color: var(--color-primary);
+    border-color: var(--color-primary);
+  }
+
+  .checkbox-row input:checked + .custom-check::after {
+    content: '✓';
+    color: var(--color-text-inverse);
+    font-weight: 900;
+    font-size: 14px;
+    transform: skewX(var(--counter-skew));
+  }
+
+  .checkbox-text {
+    font-family: var(--font-body);
+    color: var(--color-text-secondary);
+    font-size: 0.95rem;
+    transition: color var(--duration-fast) var(--easing-default);
+  }
+
+  /* Price Inputs Row */
+  .price-inputs-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+  }
+
+  .price-input {
+    width: 50%;
+    background: transparent;
+    border: 1px solid var(--border-default);
+    padding: 8px;
+    color: var(--color-text-primary);
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+  }
+
+  .price-input:focus {
+    border-color: var(--color-primary);
+    outline: none;
+  }
+
+  /* Range Slider - Skewed Container */
+  .range-container {
+    width: 100%;
+    margin: 20px 0;
+    transform: skewX(var(--skew-angle));
+  }
+
+  /* Range Slider Track */
+  input[type='range'] {
+    -webkit-appearance: none;
+    width: 100%;
+    background: transparent;
+  }
+
+  input[type='range']:focus {
+    outline: none;
+  }
+
+  input[type='range']::-webkit-slider-runnable-track {
+    width: 100%;
+    height: 6px;
+    cursor: pointer;
+    background: var(--border-default);
+    border: 0;
+  }
+
+  input[type='range']::-webkit-slider-thumb {
+    height: 18px;
+    width: 18px;
+    background: var(--color-primary);
+    cursor: pointer;
+    -webkit-appearance: none;
+    margin-top: -6px;
+    border: 2px solid var(--color-text-inverse);
+    transition: background var(--duration-fast);
+  }
+
+  input[type='range']::-webkit-slider-thumb:hover {
+    background: var(--color-text-primary);
+  }
+
+  input[type='range']::-moz-range-track {
+    width: 100%;
+    height: 6px;
+    cursor: pointer;
+    background: var(--border-default);
+    border: 0;
+  }
+
+  input[type='range']::-moz-range-thumb {
+    height: 18px;
+    width: 18px;
+    background: var(--color-primary);
+    cursor: pointer;
+    border: 2px solid var(--color-text-inverse);
+  }
+
+  input[type='range']::-moz-range-thumb:hover {
+    background: var(--color-text-primary);
+  }
+}
+
+/* ============================================
    ANIMATIONS
    ============================================ */
 @layer utilities {
@@ -553,6 +741,7 @@ body {
     from {
       opacity: 0;
     }
+
     to {
       opacity: 1;
     }
@@ -563,6 +752,7 @@ body {
       opacity: 0;
       transform: scale(0.95);
     }
+
     to {
       opacity: 1;
       transform: scale(1);
@@ -574,6 +764,7 @@ body {
       opacity: 0;
       transform: translateX(100%);
     }
+
     to {
       opacity: 1;
       transform: translateX(0);
@@ -585,6 +776,7 @@ body {
       opacity: 0;
       transform: translateY(20px);
     }
+
     to {
       opacity: 1;
       transform: translateY(0);
@@ -596,6 +788,7 @@ body {
     100% {
       box-shadow: 0 0 20px rgba(255, 107, 0, 0.3);
     }
+
     50% {
       box-shadow: 0 0 40px rgba(255, 107, 0, 0.5);
     }
