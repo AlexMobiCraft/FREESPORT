@@ -73,7 +73,7 @@ export function ElectricProductCard({
         // Base - Rectangular card
         'bg-[var(--bg-card)] border border-[var(--border-default)] p-4',
         'transition-all duration-300',
-        'hover:border-[var(--color-primary)] hover:shadow-[var(--shadow-hover)]',
+        'hover:border-[var(--color-primary)] hover:shadow-[var(--shadow-hover)] hover:-translate-y-[5px]',
         'cursor-pointer group',
         'flex flex-col h-full', // Ensure full height for alignment
         !inStock && 'opacity-60',

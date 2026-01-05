@@ -1,9 +1,9 @@
 {
   "system_meta": {
     "project_name": "FREESPORT E-Commerce",
-    "version": "2.0.0 (Final Production)",
+    "version": "2.3.1 (Merged)",
     "design_philosophy": "Digital Brutalism & Kinetic Energy",
-    "core_concept": "A high-contrast interface where aggressive geometry (-12deg) meets functional rigidity (rectangular inputs). The design implies speed, movement, and technical precision."
+    "core_concept": "Geometric alignment is priority. Fonts are mechanically skewed (-12deg) rather than using native italics to ensure perfect parallel alignment with UI shapes."
   },
   "global_tokens": {
     "palette": {
@@ -38,18 +38,19 @@
         "display_black": 900
       },
       "styles": {
-        "italic": "italic (Used strictly for Display fonts)"
+        "display_style": "Normal (Not Italic). Skew is strictly achieved via CSS transform: skewX(-12deg)."
       }
     },
     "geometry": {
       "skew_angle": "-12deg",
       "counter_skew": "12deg",
-      "border_radius": "0px (Strictly sharp corners everywhere)"
+      "border_radius": "0px"
     },
     "spacing": {
-      "container_max_width": "1440px",
-      "grid_gap": "30px",
-      "section_padding": "40px"
+      "container_max_width": "1200px",
+      "grid_gap": "20px",
+      "section_padding": "20px",
+      "block_margin": "80px"
     },
     "animation": {
       "default_curve": "cubic-bezier(0.25, 0.46, 0.45, 0.94)",
@@ -58,35 +59,34 @@
   },
   "rules_engine": {
     "typography_usage": {
-      "headers": "Roboto Condensed, Black Italic, Uppercase, Skewed -12deg.",
+      "headers": "Roboto Condensed, Black, Uppercase. Style: Normal. Transform: SkewX(-12deg).",
       "body": "Inter, Regular, Normal Style, No Skew.",
-      "price_tags": "Roboto Condensed, Bold Italic, Skewed -12deg, Primary Color."
+      "price_tags": "Roboto Condensed, Bold. Style: Normal. Transform: SkewX(-12deg). Color: Primary."
     },
     "shape_logic": {
       "interactive_actions": "Skewed -12deg (Buttons, Badges, Checkboxes, Slider Tracks).",
       "data_entry": "Strictly Rectangular 0deg (Text Inputs, Price Inputs, Newsletter Form).",
-      "images": "Rectangular containers, Zoom interaction on hover."
+      "images": "Strictly Square 1:1 containers, Object-fit: Cover."
     }
   },
   "components": {
     "buttons": {
-      "structure": "Container skewed -12deg, Text span counter-skewed 12deg.",
+      "structure": "Container skewed -12deg. Text inside must be counter-skewed (12deg) to appear upright. Font-style: Normal.",
       "variants": {
-        "primary": "Background Orange, Text Black, No Border.",
+        "primary": "Background Orange (#FF6B00), Text Black, No Border.",
         "outline": "Background Transparent, Border 2px White, Text White. Hover: Border Orange, Text Orange."
       }
     },
     "inputs_text": {
       "shape": "Rectangular (0deg)",
       "style": "Transparent background, 1px Solid Border #333, White Text.",
-      "focus_state": "Border color becomes Primary Orange.",
       "typography": "Inter (Body font) for readability."
     },
     "inputs_selection": {
       "checkbox": {
         "container": "Skewed -12deg box (20x20px).",
         "check_mark": "Counter-skewed 12deg inside the box.",
-        "label": "Inter font, Straight (0deg), White/Gray."
+        "label": "Inter font, Straight (0deg)."
       },
       "range_slider": {
         "track": "Dark Gray (#333), Skewed -12deg, Height 6px.",
@@ -95,37 +95,150 @@
     },
     "newsletter_form": {
       "type": "Compact Joined",
-      "shape": "Rectangular (0deg) - Exception to the 'Action' rule to maintain input contrast.",
-      "layout": "Input field + Icon Button (No gap).",
-      "button_style": "Square aspect ratio, Orange background, Rectangular (0deg)."
+      "shape": "Rectangular (0deg).",
+      "layout": "Input field + Icon Button (No gap)."
     },
     "cards": {
       "category_card": {
-        "structure": "Strictly Square (Aspect Ratio 1:1). No fixed height.",
-        "purpose": "Navigation & Atmosphere",
-        "visuals": "Grayscale image becomes Color on hover. Flash effect overlay.",
-        "typography": "Large Skewed Titles over image.",
-        "interaction": "Scale Up + Flash."
+        "structure": "Strictly Square (Aspect Ratio 1:1).",
+        "typography": "Compact Titles (1.8rem). Normal Style + Skew Transform.",
+        "visuals": "Grayscale image becomes Color on hover. Flash effect overlay on hover."
       },
       "product_card": {
-        "purpose": "Direct Commerce",
         "visuals": "Square 1:1 Image Container (Strict), Vertical Layout.",
         "image_fit": "Object-fit: Cover.",
-        "typography": "Readable Inter title + Large Skewed Price.",
-        "interaction": "Physical Lift (-5px translateY), Shadow.",
-        "actions": "Always visible (No hover hide)."
+        "typography": "Readable Inter title + Large Skewed Price (Normal style + Transform).",
+        "actions": "Always visible row (Flexbox): 1. [Primary Btn: Add to Cart] + 2. [Outline Btn: Wishlist]."
       },
       "news_card": {
-        "purpose": "Content Consumption",
-        "visuals": "Horizontal image (16:9 aspect ratio).",
-        "typography": "Hybrid: Skewed Date Badge, Straight Body Text.",
-        "interaction": "Subtle Lift, Border Highlight."
+        "structure": "Horizontal Layout (Aspect Ratio 16:9 for image).",
+        "typography": "Hybrid: Skewed Badges, Straight Body Text."
+      },
+      "sidebar_filter": {
+        "headers": "Skewed -12deg via Transform, Uppercase, Underlined.",
+        "layout": "Vertical stack.",
+        "price_row": "Two rectangular inputs (From/To) + One skewed range slider below."
       }
     },
-    "sidebar_filter": {
-      "headers": "Skewed -12deg, Uppercase, Underlined.",
-      "layout": "Vertical stack.",
-      "price_row": "Two rectangular inputs (From/To) + One skewed range slider below."
+    "navigation": {
+      "breadcrumbs": {
+        "geometry": "Rectangular (0deg) - No skew for readability.",
+        "typography": "Inter, 14px, Secondary color for links, Primary on hover.",
+        "separators": "Chevron icons",
+        "features": "Home icon optional, collapse to ellipsis when >5 items."
+      },
+      "pagination": {
+        "geometry": "Skewed buttons (-12deg), counter-skewed text.",
+        "sizes": "40x40px per button.",
+        "states": {
+          "default": "Transparent bg, border #333.",
+          "hover": "Border orange, text orange.",
+          "active": "Orange bg, black text, glow shadow."
+        }
+      }
+    },
+    "feedback": {
+      "modal": {
+        "overlay": "rgba(15,15,15,0.9) with backdrop-blur.",
+        "container": "Background #1A1A1A, border #333.",
+        "header": "Skewed title (-12deg), skewed close button.",
+        "footer": "Skewed action buttons.",
+        "sizes": {
+          "sm": "400px",
+          "md": "560px",
+          "lg": "720px",
+          "xl": "960px"
+        }
+      },
+      "toast": {
+        "purpose": "User notifications for actions and system messages",
+        "structure": "Container skewed -12deg, content counter-skewed 12deg.",
+        "variants": ["success", "error", "warning", "info"],
+        "animation": {
+          "slide_in": "slideInRight 180ms ease-out",
+          "slide_out": "slideOutRight 280ms ease-out forwards",
+          "exit_delay": "300ms (synced with animation + buffer)"
+        },
+        "positioning": "Fixed top-right, z-index 50",
+        "auto_dismiss": "5000ms default (configurable)"
+      },
+      "tooltip": {
+        "geometry": "Skewed container (-12deg), counter-skewed text.",
+        "background": "#1A1A1A",
+        "positions": ["top", "bottom", "left", "right"],
+        "delay": "200ms"
+      },
+      "spinner": {
+        "purpose": "Loading indicator for async operations",
+        "structure": "Parallelogram container (skewed -12deg) with animated bars",
+        "sizes": ["sm (8x4)", "md (12x6)", "lg (16x8)"],
+        "animation": {
+          "type": "Sequential bar fill",
+          "keyframes": "spinnerBarFill - opacity 0→1→0, scaleY 0→1→0",
+          "duration": "1.2s per cycle",
+          "delay_between_bars": "150ms"
+        },
+        "bar_count": {
+          "sm": 5,
+          "md": 6,
+          "lg": 7
+        }
+      }
+    },
+    "forms_extended": {
+      "accordion": {
+        "header": {
+          "geometry": "Skewed title (-12deg).",
+          "typography": "Roboto Condensed, Bold, Uppercase."
+        },
+        "chevron": "Orange, rotates 180deg when open.",
+        "content": "Inter, straight text, fade-in animation."
+      },
+      "select": {
+        "trigger": "Rectangular (0deg) - like text inputs.",
+        "dropdown": "Dark background #1A1A1A, hover highlight.",
+        "chevron": "Orange when open."
+      },
+      "radio_button": {
+        "geometry": "Skewed checkbox style: skewX(-12deg). Same as Sidebar checkbox.",
+        "checkmark": "Black checkmark, counter-skewed (12deg).",
+        "label": "Inter, straight text.",
+        "states": {
+          "unchecked": "Border neutral-500, transparent background.",
+          "checked": "Orange background, orange border, black checkmark.",
+          "hover": "Orange border."
+        }
+      }
+    },
+    "content_blocks": {
+      "table": {
+        "headers": "Skewed (-12deg), Roboto Condensed, Bold, Uppercase.",
+        "rows": "Alternating bg #0F0F0F / #1A1A1A.",
+        "hover": "Left orange border 4px."
+      },
+      "features_block": {
+        "layout": "Grid 1-4 columns responsive.",
+        "icon_container": "Skewed border with orange.",
+        "title": "Roboto Condensed, Bold, Orange, Skewed.",
+        "description": "Inter, Secondary color, centered."
+      }
+    },
+    "ecommerce": {
+      "cart_widget": {
+        "trigger": "Skewed button (-12deg) with bag icon.",
+        "badge": "Skewed, orange bg, item count.",
+        "dropdown": {
+          "header": "Skewed title.",
+          "items": "Product rows with image, title, price, remove btn.",
+          "footer": "Total price (skewed), action buttons."
+        }
+      },
+      "search_results": {
+        "input": "Rectangular (0deg) with search icon.",
+        "dropdown": "Dark bg, product/category/brand items.",
+        "type_badges": "Skewed (-12deg).",
+        "keyboard_nav": "ArrowUp/Down, Enter, Escape."
+      }
     }
   }
 }

@@ -1,803 +1,144 @@
 # Electric Orange Component Specifications
 
-**Версия:** 1.0  
-**Дата:** 2026-01-02  
-**Автор:** Saga WDS Analyst Agent  
-**Статус:** 📋 Reference Document
+**Версия:** 2.3.1  
+**Дата:** 2026-01-05  
+**Статус:** ✅ Verified Implementation  
+**Source:** `design.json` & Codebase Audit
 
 ---
 
-## 📐 Базовые принципы
+## 🔘 Button `(ElectricButton)`
 
-### Геометрия
+### Specifications
 
-```
-Skew Angle:      -12deg (для интерактивных элементов)
-Counter Skew:    12deg (для текста внутри скошенных контейнеров)
-Border Radius:   0px (все углы острые)
-```
+| Property | Value | Notes |
+|----------|-------|-------|
+| **Component** | `ElectricButton` | `src/components/ui/Button/ElectricButton.tsx` |
+| **Geometry** | Skewed `-12deg` | Container transform |
+| **Text** | Counter-skewed `12deg` | To appear upright |
+| **Typography** | `Roboto Condensed`, Uppercase | Bold weight |
+| **Border Radius** | `0px` | Strict |
 
-### Типографика
+### Visual Variants
 
-```
-Display Font:    'Roboto Condensed', sans-serif
-Body Font:       'Inter', sans-serif
-Display Weight:  900 (Black)
-Display Style:   Normal (NOT italic) + transform: skewX(-12deg)
-```
+#### Primary
 
----
+- **Background:** `var(--color-primary)` (#FF6B00)
+- **Text:** Black (Inverse)
+- **Hover:** Background White, Text Orange, Shadow Glow
 
-## 🔘 Button
+#### Outline
 
-### Структура
-
-```
-┌─────────────────────────────────────┐
-│ Container (skewed -12deg)           │
-│   ┌─────────────────────────────┐   │
-│   │ Text (counter-skewed 12deg) │   │
-│   └─────────────────────────────┘   │
-└─────────────────────────────────────┘
-```
-
-### Variants
-
-#### Primary Button
-
-```css
-.btn-primary {
-  /* Container */
-  background: var(--color-primary);
-  border: none;
-  transform: skewX(-12deg);
-  
-  /* Text */
-  color: var(--color-text-inverse);
-  font-family: 'Inter', sans-serif;
-  font-weight: 600;
-  text-transform: uppercase;
-  
-  /* Inner text container */
-  .btn-text {
-    transform: skewX(12deg); /* Counter-skew */
-  }
-}
-
-.btn-primary:hover {
-  background: var(--color-text-primary);
-  color: var(--color-primary-active);
-  box-shadow: var(--shadow-hover);
-}
-
-.btn-primary:active {
-  background: var(--color-primary-active);
-}
-```
-
-#### Outline Button
-
-```css
-.btn-outline {
-  /* Container */
-  background: transparent;
-  border: 2px solid var(--color-text-primary);
-  transform: skewX(-12deg);
-  
-  /* Text */
-  color: var(--color-text-primary);
-}
-
-.btn-outline:hover {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
-}
-```
-
-### Sizes
-
-| Size | Height | Padding X | Font Size |
-|------|--------|-----------|-----------|
-| **Small** | 36px | 16px | 14px |
-| **Medium** | 44px | 24px | 16px |
-| **Large** | 56px | 32px | 18px |
-
-### React Component
-
-```tsx
-interface ButtonProps {
-  variant: 'primary' | 'outline' | 'ghost';
-  size: 'sm' | 'md' | 'lg';
-  children: React.ReactNode;
-  onClick?: () => void;
-  disabled?: boolean;
-  fullWidth?: boolean;
-}
-
-// Tailwind Classes
-const buttonStyles = {
-  base: 'transform -skew-x-12 transition-all duration-300',
-  primary: 'bg-primary text-black hover:bg-primary-hover hover:shadow-glow',
-  outline: 'bg-transparent border-2 border-white text-white hover:border-primary hover:text-primary',
-  textWrapper: 'transform skew-x-12 uppercase font-semibold',
-};
-```
+- **Background:** Transparent
+- **Border:** 2px Solid White
+- **Text:** White
+- **Hover:** Border Orange, Text Orange
 
 ---
 
-## 📝 Input (Text Field)
+## 📝 Input `(ElectricInput)`
 
-### Структура
+### Specifications
 
-```
-┌─────────────────────────────────────┐
-│ Container (RECTANGULAR - 0deg)      │
-│ Border: 1px solid #333333           │
-│ Background: transparent             │
-│                                     │
-│ Placeholder / Value                 │
-└─────────────────────────────────────┘
-```
-
-### States
-
-#### Default
-
-```css
-.input-default {
-  background: transparent;
-  border: 1px solid var(--border-default);
-  color: var(--color-text-primary);
-  font-family: 'Inter', sans-serif;
-  
-  /* NO SKEW - inputs are always rectangular */
-  transform: none;
-  border-radius: 0;
-}
-
-.input-default::placeholder {
-  color: var(--color-text-muted);
-}
-```
-
-#### Focus
-
-```css
-.input-focus {
-  border-color: var(--color-primary);
-  outline: none;
-  box-shadow: 0 0 0 1px var(--color-primary);
-}
-```
-
-#### Error
-
-```css
-.input-error {
-  border-color: var(--color-danger);
-  box-shadow: 0 0 0 1px var(--color-danger);
-}
-```
-
-### Sizes
-
-| Size | Height | Padding | Font Size |
-|------|--------|---------|-----------|
-| **Small** | 36px | 12px | 14px |
-| **Medium** | 44px | 16px | 16px |
-| **Large** | 52px | 20px | 18px |
+| Property | Value | Notes |
+|----------|-------|-------|
+| **Component** | `ElectricInput` | `src/components/ui/Input/ElectricInput.tsx` |
+| **Geometry** | **Rectangular (0deg)** | NO skew for readability |
+| **Border** | 1px Solid `var(--border-default)` | Dark Gray (#333) |
+| **Background** | Transparent | |
+| **Focus** | Border `var(--color-primary)` | Orange focus ring |
+| **Typography** | `Inter` (Body) | |
 
 ---
 
-## ✅ Checkbox
+## ✅ Checkbox `(ElectricCheckbox)`
 
-### Структура
+### Specifications
 
-```
-╱───╲
-│ ✓ │  ← Skewed container (-12deg)
-╲───╱   Check mark counter-skewed (12deg)
-   Label text (straight, 0deg)
-```
-
-### Styles
-
-```css
-.checkbox-container {
-  width: 20px;
-  height: 20px;
-  border: 2px solid var(--border-default);
-  background: transparent;
-  transform: skewX(-12deg);
-}
-
-.checkbox-container.checked {
-  background: var(--color-primary);
-  border-color: var(--color-primary);
-}
-
-.checkbox-mark {
-  transform: skewX(12deg); /* Counter-skew */
-  color: var(--color-text-inverse);
-}
-
-.checkbox-label {
-  font-family: 'Inter', sans-serif;
-  color: var(--color-text-primary);
-  transform: none; /* Straight text */
-}
-```
+| Property | Value | Notes |
+|----------|-------|-------|
+| **Component** | `ElectricCheckbox` | `src/components/ui/Checkbox/ElectricCheckbox.tsx` |
+| **Container** | Skewed `-12deg` | 20x20px |
+| **Checkmark** | Counter-skewed `12deg` | Black color |
+| **Active State** | Orange Background | Filled when checked |
+| **Label** | **Straight (0deg)** | Inter font |
 
 ---
 
-## 🏷️ Badge
+## 🎴 Product Card `(ElectricProductCard)`
 
-### Структура
+### Specifications
 
-```
-╱─────────────╲
-│ SALE -20%   │  ← Skewed badge
-╲─────────────╱
-```
+| Property | Value | Notes |
+|----------|-------|-------|
+| **Component** | `ElectricProductCard` | `src/components/ui/ProductCard` |
+| **Structure** | Vertical Layout | |
+| **Image** | **Strictly Square (1:1)** | `aspect-square`, `object-fit: cover` |
+| **Interaction** | **Physical Lift** | `hover:-translate-y-[5px]` |
+| **Price Tag** | Skewed `-12deg` | Roboto Condensed, Bold, Orange |
+| **Actions** | Always Visible | "Add to Cart" + "Wishlist" |
 
-### Variants
+### Interaction Details
 
-```css
-/* Base */
-.badge {
-  transform: skewX(-12deg);
-  padding: 4px 12px;
-  font-family: 'Roboto Condensed', sans-serif;
-  font-weight: 700;
-  text-transform: uppercase;
-  font-size: 12px;
-}
+On hover:
 
-.badge-text {
-  transform: skewX(12deg);
-}
-
-/* Variants */
-.badge-sale {
-  background: var(--color-danger);
-  color: var(--color-text-primary);
-}
-
-.badge-new {
-  background: var(--color-primary);
-  color: var(--color-text-inverse);
-}
-
-.badge-hit {
-  background: var(--color-success);
-  color: var(--color-text-inverse);
-}
-```
+1. Border becomes Orange.
+2. Shadow appears (Glow).
+3. Card lifts up by 5px.
+4. Image scales up slightly (105%).
 
 ---
 
-## 🎴 Product Card
+## 🍞 Toast Notification `(ElectricToast)`
 
-### Структура
+### Specifications
 
-```
-┌─────────────────────────────────────┐
-│ ┌─────────────────────────────────┐ │
-│ │                                 │ │
-│ │      IMAGE (Square 1:1)         │ │
-│ │      Object-fit: cover          │ │
-│ │                                 │ │
-│ └─────────────────────────────────┘ │
-│                                     │
-│ Brand Name (Inter, gray)            │
-│ Product Title (Inter, white)        │
-│                                     │
-│ ╱─────────╲                         │
-│ │ 7 990 ₽ │ ← Skewed price tag     │
-│ ╲─────────╱                         │
-│                                     │
-│ ╱─────────────────╲ ╱─────────────╲ │
-│ │  ADD TO CART    │ │     ♡       │ │
-│ ╲─────────────────╱ ╲─────────────╱ │
-└─────────────────────────────────────┘
-```
-
-### Styles
-
-(Defined in `globals-electric-orange.css`)
-
-```css
-.product-card {
-  background: var(--bg-card);
-  border: 1px solid transparent; /* Starts transparent per reference */
-  display: flex;
-  flex-direction: column;
-  
-  /* Strictly defined dimensions */
-  width: 100%;
-  max-width: 280px;
-  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-}
-
-.product-image-container {
-  aspect-ratio: 1 / 1; /* Metric: Strictly Square */
-  overflow: hidden;
-  position: relative;
-  background: #252525; /* Matches reference */
-  width: 100%;
-}
-
-.product-image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transition: transform 0.5s; /* Reference duration */
-}
-
-.product-card:hover .product-image {
-  transform: scale(1.1); /* Reference scale */
-}
-
-/* Typography & Actions */
-.product-info {
-  padding: 20px;
-  flex-grow: 1;
-  display: flex;
-  flex-direction: column;
-}
-
-.product-actions {
-  display: flex;
-  gap: 10px;
-  margin-top: auto; /* Push to bottom */
-}
-
-/* Button Size: Flexible but constrained padding */
-.product-actions button {
-  flex: 1;
-  padding: 12px 5px; /* Reference padding */
-  white-space: nowrap;
-}
-
-/* Price Tag - Skewed -12deg WITHOUT counter-skew on text */
-.price-tag {
-  transform: skewX(-12deg);
-  display: block;
-}
-```
-
-### Hover Effect
-
-```css
-.product-card:hover {
-  transform: translateY(-5px);
-  border-color: var(--color-primary);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-}
-```
+| Property | Value | Notes |
+|----------|-------|-------|
+| **Component** | `ElectricToast` | `src/components/ui/Toast/ElectricToast.tsx` |
+| **Geometry** | Skewed `-12deg` | |
+| **Animation In** | `slideInRight` (180ms) | From right edge |
+| **Animation Out** | `slideOutRight` (280ms) | To right edge |
+| **Position** | Top Right | Fixed, z-index 50 |
 
 ---
 
-## 🗂️ Category Card
+## 🌀 Spinner `(ElectricSpinner)`
 
-### Структура
+### Specifications
 
-```
-┌─────────────────────────────────────┐
-│                                     │
-│      IMAGE (Grayscale → Color)      │
-│                                     │
-│ ╱─────────────────────────────────╲ │
-│ │       CATEGORY TITLE            │ │
-│ ╲─────────────────────────────────╱ │
-└─────────────────────────────────────┘
-```
-
-### Размеры
-
-- **Ширина:** 270px
-- **Высота:** 270px
-- **Соотношение сторон:** 1:1 (квадратная)
-- **Сетка:** 4 колонки, gap 20px
-
-### Styles
-
-(Defined in `globals-electric-orange.css`)
-
-```css
-.category-card {
-  position: relative;
-  width: 270px;
-  height: 270px;
-  aspect-ratio: 1 / 1;
-  overflow: hidden;
-  cursor: pointer;
-  background: var(--bg-card);
-}
-
-.category-image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  filter: grayscale(100%) contrast(1.2);
-  transform: scale(1.01);
-  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-}
-
-.category-card:hover .category-image {
-  filter: grayscale(0%) contrast(1.2);
-  transform: scale(1.1);
-}
-
-.category-title {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  
-  font-family: 'Roboto Condensed', sans-serif;
-  font-weight: 900;
-  font-size: 1.8rem;
-  text-transform: uppercase;
-  color: var(--color-text-primary);
-  transform: skewX(-12deg);
-  text-shadow: 2px 2px 0 #000;
-  
-  padding: 24px;
-}
-
-/* Orange wave overlay on hover */
-.category-card::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 50%;
-  height: 100%;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 107, 0, 0.4),
-    transparent
-  );
-  transform: skewX(-20deg);
-  transition: 1s;
-  pointer-events: none;
-  z-index: 2;
-}
-
-.category-card:hover::after {
-  left: 150%;
-}
-```
+| Property | Value | Notes |
+|----------|-------|-------|
+| **Component** | `ElectricSpinner` | `src/components/ui/Spinner/ElectricSpinner.tsx` |
+| **Structure** | Parallelogram `-12deg` | No border, no background |
+| **Animation** | Sequential Bar Fill | Bars appear one by one |
+| **Duration** | 1.2s per cycle | Loop |
+| **Sizes** | sm, md, lg | Bar count varies (5, 6, 7) |
 
 ---
 
-## 📰 News Card
+## 🗺️ Breadcrumb `(ElectricBreadcrumbs)`
 
-### Структура
+### Specifications
 
-```
-┌─────────────────────────────────────────────────┐
-│ ┌───────────────┐                               │
-│ │               │  ╱──────────╲                 │
-│ │    IMAGE      │  │ CATEGORY │ ← Skewed badge │
-│ │   (16:9)      │  ╲──────────╱                 │
-│ │               │                               │
-│ └───────────────┘  15 января 2026               │
-│                                                 │
-│                    Заголовок новости            │
-│                    (Inter, white)               │
-│                                                 │
-│                    Краткое описание...          │
-│                    (Inter, gray)                │
-└─────────────────────────────────────────────────┘
-```
-
-### Styles
-
-```css
-.news-card {
-  display: flex;
-  gap: 20px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-default);
-}
-
-.news-image {
-  aspect-ratio: 16 / 9;
-  flex-shrink: 0;
-  width: 200px;
-}
-
-.news-category {
-  /* Skewed badge */
-  transform: skewX(-12deg);
-  background: var(--color-primary);
-  color: var(--color-text-inverse);
-  padding: 4px 12px;
-  font-size: 11px;
-  text-transform: uppercase;
-}
-
-.news-date {
-  font-family: 'Inter', sans-serif;
-  color: var(--color-text-muted);
-  font-size: 12px;
-}
-
-.news-title {
-  font-family: 'Inter', sans-serif;
-  color: var(--color-text-primary);
-  font-size: 18px;
-  font-weight: 600;
-}
-
-.news-excerpt {
-  font-family: 'Inter', sans-serif;
-  color: var(--color-text-secondary);
-  font-size: 14px;
-}
-```
+| Property | Value | Notes |
+|----------|-------|-------|
+| **Component** | `ElectricBreadcrumbs` | `src/components/ui/Breadcrumb` |
+| **Geometry** | **Rectangular (0deg)** | No skew for links |
+| **Typography** | `Inter` 14px | |
+| **Colors** | Secondary (Default) | Primary (Hover/Active) |
+| **Separator** | Chevron `>` | Gray color |
 
 ---
 
-## 🎚️ Range Slider
+## 📋 General Rules Checklist (Developers)
 
-### Структура
+When creating new components:
 
-```
-╱═══════════════●═══════════════╲
-   ↑ Track      ↑ Thumb
-   Skewed       Skewed
-```
-
-### Styles
-
-```css
-.slider-track {
-  height: 6px;
-  background: var(--border-default);
-  transform: skewX(-12deg);
-}
-
-.slider-fill {
-  background: var(--color-primary);
-}
-
-.slider-thumb {
-  width: 20px;
-  height: 20px;
-  background: var(--color-primary);
-  border: 2px solid var(--color-text-inverse);
-  transform: skewX(-12deg);
-  cursor: pointer;
-}
-
-.slider-thumb:hover {
-  box-shadow: 0 0 10px rgba(255, 107, 0, 0.5);
-}
-```
-
----
-
-## 🏷️ Tabs
-
-### Структура
-
-```
-┌────────────────────────────────────────────────┐
-│ [ОПИСАНИЕ]  [ХАРАКТЕРИСТИКИ]  [ОТЗЫВЫ (12)]    │
-│  ╱═══════╲                                     │
-│  Active indicator (skewed)                     │
-└────────────────────────────────────────────────┘
-```
-
-### Styles
-
-```css
-.tabs-list {
-  display: flex;
-  gap: 32px;
-  border-bottom: 1px solid var(--border-default);
-}
-
-.tab-trigger {
-  font-family: 'Inter', sans-serif;
-  font-weight: 500;
-  color: var(--color-text-secondary);
-  padding-bottom: 12px;
-  position: relative;
-}
-
-.tab-trigger.active {
-  color: var(--color-text-primary);
-}
-
-.tab-trigger.active::after {
-  content: '';
-  position: absolute;
-  bottom: -1px;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: var(--color-primary);
-  transform: skewX(-12deg);
-}
-
-.tab-trigger:hover:not(.active) {
-  color: var(--color-primary);
-}
-```
-
----
-
-## 🗄️ Sidebar Widget
-
-### Структура
-
-```
-┌─────────────────────────────────────┐
-│ Sidebar Panel (bg: #1A1A1A)         │
-│                                     │
-│ ╱════════════════════╲              │
-│ │ КАТЕГОРИИ          │ ← Skewed -12°│
-│ ╲════════════════════╱              │
-│ ───────────────────────             │
-│                                     │
-│ ╱──╲                                │
-│ │✓ │ Кроссфит         ← Checkbox    │
-│ ╲──╱                                │
-│ ╱──╲                                │
-│ │  │ Фитнес                         │
-│ ╲──╱                                │
-│                                     │
-│ ╱════════════════════╲              │
-│ │ БРЕНД              │              │
-│ ╲════════════════════╱              │
-│ ───────────────────────             │
-│                                     │
-│ ╱──╲                                │
-│ │✓ │ Nike                           │
-│ ╲──╱                                │
-│ ╱──╲                                │
-│ │  │ Adidas                         │
-│ ╲──╱                                │
-│                                     │
-│ ╱════════════════════╲              │
-│ │ ЦЕНА (₽)           │              │
-│ ╲════════════════════╱              │
-│ ───────────────────────             │
-│                                     │
-│ ┌──────────┐ ┌──────────┐           │
-│ │   1000   │ │  50000   │ Price     │
-│ └──────────┘ └──────────┘           │
-│                                     │
-│ ╱══════════●══════════╲             │
-│     Range Slider (skewed)           │
-│                                     │
-│ ╱─────────────────────╲             │
-│ │     ПРИМЕНИТЬ       │ CTA Button  │
-│ ╲─────────────────────╱             │
-└─────────────────────────────────────┘
-```
-
-### Filter Title Styles
-
-```css
-.filter-title {
-  font-family: 'Roboto Condensed', sans-serif;
-  font-weight: 900;
-  font-size: 1.2rem;
-  text-transform: uppercase;
-  color: var(--color-text-primary);
-  
-  /* Skewed -12deg */
-  transform: skewX(-12deg);
-  transform-origin: left;
-  
-  display: block;
-  width: 100%;
-  margin-bottom: 20px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid var(--border-default);
-}
-
-.filter-title-text {
-  transform: skewX(12deg);
-  display: inline-block;
-}
-```
-
-### Checkbox Row Styles
-
-```css
-.checkbox-row {
-  display: flex;
-  align-items: center;
-  margin-bottom: 12px;
-  cursor: pointer;
-  user-select: none;
-}
-
-.checkbox-row input {
-  display: none;
-}
-
-/* Skewed Checkbox */
-.custom-check {
-  width: 20px;
-  height: 20px;
-  border: 2px solid var(--color-neutral-500);
-  margin-right: 15px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.15s ease;
-  transform: skewX(-12deg);
-}
-
-.checkbox-row input:checked + .custom-check {
-  background-color: var(--color-primary);
-  border-color: var(--color-primary);
-}
-
-.checkbox-row input:checked + .custom-check::after {
-  content: '✓';
-  color: var(--color-text-inverse);
-  font-weight: 900;
-  font-size: 14px;
-  transform: skewX(12deg);
-}
-
-.checkbox-row:hover .custom-check {
-  border-color: var(--color-primary);
-}
-
-.checkbox-text {
-  font-family: 'Inter', sans-serif;
-  color: var(--color-text-secondary);
-  font-size: 0.95rem;
-  transition: color 0.15s ease;
-}
-
-.checkbox-row:hover .checkbox-text {
-  color: var(--color-text-primary);
-}
-```
-
-### Price Range Styles
-
-```css
-.price-inputs-row {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 15px;
-}
-
-.price-input {
-  width: 50%;
-  background: transparent;
-  border: 1px solid var(--border-default);
-  padding: 8px;
-  color: var(--color-text-primary);
-  font-family: 'Inter', sans-serif;
-  font-size: 0.9rem;
-}
-
-.price-input:focus {
-  border-color: var(--color-primary);
-  outline: none;
-}
-
-/* Skewed Range Slider */
-.range-container {
-  width: 100%;
-  margin: 20px 0;
-  transform: skewX(-12deg);
-}
-
-input[type='range']::-webkit-slider-thumb {
+1. **Is it interactive?** (Button, Badge, Checkbox, Tab) -> **SKEW IT (-12deg)**.
+2. **Is it a container/input?** (Card, Input, Modal window) -> **KEEP IT STRAIGHT (0deg)**.
+3. **Border Radius:** ALWAYS 0px.
+4. **Fonts:** `Roboto Condensed` for Uppercase Headers; `Inter` for everything else.
   height: 18px;
   width: 18px;
   background: var(--color-primary);
@@ -808,6 +149,7 @@ input[type='range']::-webkit-slider-thumb {
 input[type='range']::-webkit-slider-thumb:hover {
   background: var(--color-text-primary);
 }
+
 ```
 
 ### React Component
