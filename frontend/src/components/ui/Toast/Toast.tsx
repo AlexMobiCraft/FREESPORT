@@ -73,10 +73,10 @@ export const Toast: React.FC<ToastProps> = ({
 
   const handleClose = useCallback(() => {
     setIsExiting(true);
-    // Ждем завершения анимации перед удалением
+    // Таймаут синхронизирован с CSS-анимацией slideOutRight (280ms + буфер)
     setTimeout(() => {
       onClose(id);
-    }, 180); // duration анимации
+    }, 300);
   }, [id, onClose]);
 
   // Auto-dismiss

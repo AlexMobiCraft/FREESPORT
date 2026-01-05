@@ -1116,3 +1116,40 @@ body {
     transform: scale(1.1);
   }
 }
+
+/* ============================================
+   TOAST ANIMATIONS
+   ============================================ */
+@layer utilities {
+  @keyframes slideInRight {
+    from {
+      opacity: 0;
+      transform: translateX(100%) skewX(var(--skew-angle));
+    }
+
+    to {
+      opacity: 1;
+      transform: translateX(0) skewX(var(--skew-angle));
+    }
+  }
+
+  @keyframes slideOutRight {
+    from {
+      opacity: 1;
+      transform: translateX(0) skewX(var(--skew-angle));
+    }
+
+    to {
+      opacity: 0;
+      transform: translateX(100%) skewX(var(--skew-angle));
+    }
+  }
+
+  .animate-slideInRight {
+    animation: slideInRight 200ms var(--easing-default);
+  }
+
+  .animate-slideOutRight {
+    animation: slideOutRight 280ms var(--easing-default) forwards;
+  }
+}

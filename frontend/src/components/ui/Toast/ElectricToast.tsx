@@ -83,9 +83,10 @@ export function ElectricToast({
 
   const handleClose = useCallback(() => {
     setIsExiting(true);
+    // Таймаут синхронизирован с CSS-анимацией slideOutRight (280ms + буфер)
     setTimeout(() => {
       onClose(id);
-    }, 200);
+    }, 300);
   }, [id, onClose]);
 
   // Auto-dismiss

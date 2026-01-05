@@ -126,6 +126,18 @@
       "headers": "Skewed -12deg, Uppercase, Underlined.",
       "layout": "Vertical stack.",
       "price_row": "Two rectangular inputs (From/To) + One skewed range slider below."
+    },
+    "toast": {
+      "purpose": "User notifications for actions and system messages",
+      "structure": "Container skewed -12deg, content counter-skewed 12deg.",
+      "variants": ["success", "error", "warning", "info"],
+      "animation": {
+        "slide_in": "slideInRight 180ms ease-out",
+        "slide_out": "slideOutRight 280ms ease-out forwards",
+        "exit_delay": "300ms (synced with animation + buffer)"
+      },
+      "positioning": "Fixed top-right, z-index 50",
+      "auto_dismiss": "5000ms default (configurable)"
     }
   }
 }
