@@ -62,7 +62,7 @@ export function ElectricSectionHeader({
       {/* Label */}
       {label && (
         <span
-          className="text-[#FF6B00] text-sm uppercase tracking-wider mb-2 block"
+          className="text-[var(--color-primary)] text-sm uppercase tracking-wider mb-2 block"
           style={{ fontFamily: "'Inter', sans-serif" }}
         >
           {label}
@@ -72,9 +72,9 @@ export function ElectricSectionHeader({
       {/* Title - Skewed */}
       <h2
         className={cn(
-          'font-black uppercase tracking-wide text-white inline-block',
+          'font-black uppercase tracking-wide text-[var(--foreground)] inline-block',
           sizeStyles[size],
-          showUnderline && 'pb-2 border-b-[3px] border-[#FF6B00]'
+          showUnderline && 'pb-2 border-b-[3px] border-[var(--color-primary)]'
         )}
         style={{
           fontFamily: "'Roboto Condensed', sans-serif",

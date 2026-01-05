@@ -77,10 +77,10 @@ export const ElectricCheckbox = forwardRef<HTMLInputElement, ElectricCheckboxPro
             'border-2 flex items-center justify-center mr-3',
             'transition-all duration-150',
             checked
-              ? 'bg-[#FF6B00] border-[#FF6B00]'
+              ? 'bg-[var(--color-primary)] border-[var(--color-primary)]'
               : error
-                ? 'border-[#EF4444] group-hover:border-[#EF4444]'
-                : 'border-[#555555] group-hover:border-[#FF6B00]'
+                ? 'border-[var(--color-danger)] group-hover:border-[var(--color-danger)]'
+                : 'border-[var(--color-neutral-500)] group-hover:border-[var(--color-primary)]'
           )}
           style={{ transform: 'skewX(-12deg)' }}
         >
@@ -100,7 +100,9 @@ export const ElectricCheckbox = forwardRef<HTMLInputElement, ElectricCheckboxPro
             className={cn(
               styles.text,
               'transition-colors duration-150',
-              error ? 'text-[#EF4444]' : 'text-[#A0A0A0] group-hover:text-white'
+              error
+                ? 'text-[var(--color-danger)]'
+                : 'text-[var(--color-text-secondary)] group-hover:text-[var(--foreground)]'
             )}
             style={{ fontFamily: "'Inter', sans-serif" }}
           >

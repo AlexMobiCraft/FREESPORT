@@ -20,7 +20,8 @@ import { cn } from '@/utils/cn';
 // Types
 // ============================================
 
-export interface ElectricInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+export interface ElectricInputProps
+  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'size'> {
   /** Input size variant */
   size?: 'sm' | 'md' | 'lg';
   /** Error state */
@@ -60,7 +61,7 @@ export const ElectricInput = forwardRef<HTMLInputElement, ElectricInputProps>(
         {label && (
           <label
             htmlFor={inputId}
-            className="text-[#A0A0A0] text-sm mb-2"
+            className="text-[var(--color-text-secondary)] text-sm mb-2"
             style={{ fontFamily: "'Inter', sans-serif" }}
           >
             {label}
@@ -73,8 +74,8 @@ export const ElectricInput = forwardRef<HTMLInputElement, ElectricInputProps>(
           id={inputId}
           className={cn(
             // Base styles - Rectangular, NO skew
-            'bg-transparent border text-white',
-            'placeholder-[#666666]',
+            'bg-transparent border text-[var(--foreground)]',
+            'placeholder-[var(--color-text-muted)]',
             'transition-all duration-150',
             'outline-none',
 
@@ -83,8 +84,8 @@ export const ElectricInput = forwardRef<HTMLInputElement, ElectricInputProps>(
 
             // States
             error
-              ? 'border-[#EF4444] focus:border-[#EF4444] focus:ring-1 focus:ring-[#EF4444]'
-              : 'border-[#333333] hover:border-[#444444] focus:border-[#FF6B00] focus:ring-1 focus:ring-[#FF6B00]',
+              ? 'border-[var(--color-danger)] focus:border-[var(--color-danger)] focus:ring-1 focus:ring-[var(--color-danger)]'
+              : 'border-[var(--border-default)] hover:border-[var(--border-hover)] focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)]',
 
             // Disabled
             'disabled:opacity-50 disabled:cursor-not-allowed',
@@ -99,7 +100,9 @@ export const ElectricInput = forwardRef<HTMLInputElement, ElectricInputProps>(
         />
 
         {/* Error Message */}
-        {error && errorMessage && <p className="text-[#EF4444] text-sm mt-1">{errorMessage}</p>}
+        {error && errorMessage && (
+          <p className="text-[var(--color-danger)] text-sm mt-1">{errorMessage}</p>
+        )}
       </div>
     );
   }

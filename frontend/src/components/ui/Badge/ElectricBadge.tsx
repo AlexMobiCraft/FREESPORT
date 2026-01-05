@@ -35,11 +35,11 @@ export interface ElectricBadgeProps {
 // ============================================
 
 const variantStyles = {
-  primary: 'bg-[#FF6B00] text-black',
-  sale: 'bg-[#EF4444] text-white',
-  new: 'bg-white text-black',
-  hit: 'bg-[#22C55E] text-black',
-  outline: 'bg-transparent border-2 border-[#FF6B00] text-[#FF6B00]',
+  primary: 'bg-[var(--color-primary)] text-black',
+  sale: 'bg-[var(--color-danger)] text-white',
+  new: 'bg-[var(--color-text-primary)] text-black',
+  hit: 'bg-[var(--color-success)] text-black',
+  outline: 'bg-transparent border-2 border-[var(--color-primary)] text-[var(--color-primary)]',
 };
 
 const sizeStyles = {

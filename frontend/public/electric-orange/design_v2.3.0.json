@@ -119,6 +119,118 @@
         "layout": "Vertical stack.",
         "price_row": "Two rectangular inputs (From/To) + One skewed range slider below."
       }
+    },
+    "navigation": {
+      "breadcrumbs": {
+        "geometry": "Rectangular (0deg) - No skew for readability.",
+        "typography": "Inter, 14px, Secondary color for links, Primary on hover.",
+        "separators": "Chevron icons",
+        "features": "Home icon optional, collapse to ellipsis when >5 items."
+      },
+      "pagination": {
+        "geometry": "Skewed buttons (-12deg), counter-skewed text.",
+        "sizes": "40x40px per button.",
+        "states": {
+          "default": "Transparent bg, border #333.",
+          "hover": "Border orange, text orange.",
+          "active": "Orange bg, black text, glow shadow."
+        }
+      }
+    },
+    "feedback": {
+      "modal": {
+        "overlay": "rgba(15,15,15,0.9) with backdrop-blur.",
+        "container": "Background #1A1A1A, border #333.",
+        "header": "Skewed title (-12deg), skewed close button.",
+        "footer": "Skewed action buttons.",
+        "sizes": {
+          "sm": "400px",
+          "md": "560px",
+          "lg": "720px",
+          "xl": "960px"
+        }
+      },
+      "toast": {
+        "geometry": "Skewed container (-12deg), counter-skewed content.",
+        "structure": "4px left border (color by variant), icon, text, close button.",
+        "variants": {
+          "success": "Border color: --color-success (#22C55E).",
+          "error": "Border color: --color-danger (#EF4444).",
+          "warning": "Border color: --color-warning (#EAB308).",
+          "info": "Border color: --color-primary (#FF6B00)."
+        },
+        "animation": "Slide-in from right."
+      },
+      "tooltip": {
+        "geometry": "Skewed container (-12deg), counter-skewed text.",
+        "background": "#1A1A1A",
+        "positions": ["top", "bottom", "left", "right"],
+        "delay": "200ms"
+      },
+      "spinner": {
+        "geometry": "Skewed square (-12deg), rotating.",
+        "border": "2px solid #333, top border orange.",
+        "sizes": {
+          "sm": "20x20px",
+          "md": "32x32px",
+          "lg": "48x48px"
+        }
+      }
+    },
+    "forms_extended": {
+      "accordion": {
+        "header": {
+          "geometry": "Skewed title (-12deg).",
+          "typography": "Roboto Condensed, Bold, Uppercase."
+        },
+        "chevron": "Orange, rotates 180deg when open.",
+        "content": "Inter, straight text, fade-in animation."
+      },
+      "select": {
+        "trigger": "Rectangular (0deg) - like text inputs.",
+        "dropdown": "Dark background #1A1A1A, hover highlight.",
+        "chevron": "Orange when open."
+      },
+      "radio_button": {
+        "geometry": "Skewed checkbox style: skewX(-12deg). Same as Sidebar checkbox.",
+        "checkmark": "Black checkmark, counter-skewed (12deg).",
+        "label": "Inter, straight text.",
+        "states": {
+          "unchecked": "Border neutral-500, transparent background.",
+          "checked": "Orange background, orange border, black checkmark.",
+          "hover": "Orange border."
+        }
+      }
+    },
+    "content_blocks": {
+      "table": {
+        "headers": "Skewed (-12deg), Roboto Condensed, Bold, Uppercase.",
+        "rows": "Alternating bg #0F0F0F / #1A1A1A.",
+        "hover": "Left orange border 4px."
+      },
+      "features_block": {
+        "layout": "Grid 1-4 columns responsive.",
+        "icon_container": "Skewed border with orange.",
+        "title": "Roboto Condensed, Bold, Orange, Skewed.",
+        "description": "Inter, Secondary color, centered."
+      }
+    },
+    "ecommerce": {
+      "cart_widget": {
+        "trigger": "Skewed button (-12deg) with bag icon.",
+        "badge": "Skewed, orange bg, item count.",
+        "dropdown": {
+          "header": "Skewed title.",
+          "items": "Product rows with image, title, price, remove btn.",
+          "footer": "Total price (skewed), action buttons."
+        }
+      },
+      "search_results": {
+        "input": "Rectangular (0deg) with search icon.",
+        "dropdown": "Dark bg, product/category/brand items.",
+        "type_badges": "Skewed (-12deg).",
+        "keyboard_nav": "ArrowUp/Down, Enter, Escape."
+      }
     }
   }
 }

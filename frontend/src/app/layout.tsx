@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
+import { Inter, Roboto_Condensed } from 'next/font/google';
 import './globals.css';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
@@ -9,6 +9,13 @@ import Providers from '@/components/providers/Providers';
 const inter = Inter({
   variable: '--font-inter',
   subsets: ['latin', 'cyrillic'],
+});
+
+const robotoCondensed = Roboto_Condensed({
+  variable: '--font-roboto-condensed',
+  subsets: ['latin', 'cyrillic'],
+  weight: ['400', '700', '900'],
+  style: ['normal'],
 });
 
 const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
@@ -27,8 +34,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ru">
-      <body className={`${inter.variable} font-sans antialiased`}>
+    <html lang="ru" suppressHydrationWarning>
+      <body className={`${inter.variable} ${robotoCondensed.variable} font-sans antialiased`}>
         <Providers>
           <LayoutWrapper header={<Header />} footer={<Footer />}>
             {children}

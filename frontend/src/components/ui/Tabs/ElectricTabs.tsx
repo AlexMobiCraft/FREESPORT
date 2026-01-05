@@ -61,7 +61,10 @@ export function ElectricTabs({
   };
 
   return (
-    <div className={cn('flex gap-6 md:gap-8 border-b border-[#333333]', className)} role="tablist">
+    <div
+      className={cn('flex gap-6 md:gap-8 border-b border-[var(--border-default)]', className)}
+      role="tablist"
+    >
       {tabs.map(tab => {
         const isActive = tab.id === activeId;
 
@@ -74,19 +77,21 @@ export function ElectricTabs({
             className={cn(
               'relative pb-3 font-medium text-sm md:text-base uppercase tracking-wide',
               'transition-colors duration-200',
-              isActive ? 'text-white' : 'text-[#A0A0A0] hover:text-[#FF6B00]'
+              isActive
+                ? 'text-[var(--foreground)]'
+                : 'text-[var(--color-text-secondary)] hover:text-[var(--color-primary)]'
             )}
             style={{ fontFamily: "'Inter', sans-serif" }}
           >
             {tab.label}
             {tab.count !== undefined && (
-              <span className="ml-1.5 text-[#666666]">({tab.count})</span>
+              <span className="ml-1.5 text-[var(--color-text-muted)]">({tab.count})</span>
             )}
 
             {/* Active Indicator - Skewed */}
             {isActive && (
               <span
-                className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#FF6B00]"
+                className="absolute bottom-0 left-0 right-0 h-[3px] bg-[var(--color-primary)]"
                 style={{ transform: 'skewX(-12deg)' }}
               />
             )}

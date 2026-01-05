@@ -48,12 +48,12 @@ Display Style:   Normal (NOT italic) + transform: skewX(-12deg)
 ```css
 .btn-primary {
   /* Container */
-  background: #FF6B00;
+  background: var(--color-primary);
   border: none;
   transform: skewX(-12deg);
   
   /* Text */
-  color: #000000;
+  color: var(--color-text-inverse);
   font-family: 'Inter', sans-serif;
   font-weight: 600;
   text-transform: uppercase;
@@ -65,12 +65,13 @@ Display Style:   Normal (NOT italic) + transform: skewX(-12deg)
 }
 
 .btn-primary:hover {
-  background: #FF8533;
-  box-shadow: 0 0 20px rgba(255, 107, 0, 0.4);
+  background: var(--color-text-primary);
+  color: var(--color-primary-active);
+  box-shadow: var(--shadow-hover);
 }
 
 .btn-primary:active {
-  background: #E55A00;
+  background: var(--color-primary-active);
 }
 ```
 
@@ -80,16 +81,16 @@ Display Style:   Normal (NOT italic) + transform: skewX(-12deg)
 .btn-outline {
   /* Container */
   background: transparent;
-  border: 2px solid #FFFFFF;
+  border: 2px solid var(--color-text-primary);
   transform: skewX(-12deg);
   
   /* Text */
-  color: #FFFFFF;
+  color: var(--color-text-primary);
 }
 
 .btn-outline:hover {
-  border-color: #FF6B00;
-  color: #FF6B00;
+  border-color: var(--color-primary);
+  color: var(--color-primary);
 }
 ```
 
@@ -145,8 +146,8 @@ const buttonStyles = {
 ```css
 .input-default {
   background: transparent;
-  border: 1px solid #333333;
-  color: #FFFFFF;
+  border: 1px solid var(--border-default);
+  color: var(--color-text-primary);
   font-family: 'Inter', sans-serif;
   
   /* NO SKEW - inputs are always rectangular */
@@ -155,7 +156,7 @@ const buttonStyles = {
 }
 
 .input-default::placeholder {
-  color: #666666;
+  color: var(--color-text-muted);
 }
 ```
 
@@ -163,9 +164,9 @@ const buttonStyles = {
 
 ```css
 .input-focus {
-  border-color: #FF6B00;
+  border-color: var(--color-primary);
   outline: none;
-  box-shadow: 0 0 0 1px #FF6B00;
+  box-shadow: 0 0 0 1px var(--color-primary);
 }
 ```
 
@@ -173,8 +174,8 @@ const buttonStyles = {
 
 ```css
 .input-error {
-  border-color: #EF4444;
-  box-shadow: 0 0 0 1px #EF4444;
+  border-color: var(--color-danger);
+  box-shadow: 0 0 0 1px var(--color-danger);
 }
 ```
 
@@ -205,24 +206,24 @@ const buttonStyles = {
 .checkbox-container {
   width: 20px;
   height: 20px;
-  border: 2px solid #333333;
+  border: 2px solid var(--border-default);
   background: transparent;
   transform: skewX(-12deg);
 }
 
 .checkbox-container.checked {
-  background: #FF6B00;
-  border-color: #FF6B00;
+  background: var(--color-primary);
+  border-color: var(--color-primary);
 }
 
 .checkbox-mark {
   transform: skewX(12deg); /* Counter-skew */
-  color: #000000;
+  color: var(--color-text-inverse);
 }
 
 .checkbox-label {
   font-family: 'Inter', sans-serif;
-  color: #FFFFFF;
+  color: var(--color-text-primary);
   transform: none; /* Straight text */
 }
 ```
@@ -258,18 +259,18 @@ const buttonStyles = {
 
 /* Variants */
 .badge-sale {
-  background: #EF4444;
-  color: #FFFFFF;
+  background: var(--color-danger);
+  color: var(--color-text-primary);
 }
 
 .badge-new {
-  background: #FF6B00;
-  color: #000000;
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
 }
 
 .badge-hit {
-  background: #22C55E;
-  color: #000000;
+  background: var(--color-success);
+  color: var(--color-text-inverse);
 }
 ```
 
@@ -303,53 +304,65 @@ const buttonStyles = {
 
 ### Styles
 
+(Defined in `globals-electric-orange.css`)
+
 ```css
 .product-card {
-  background: #1A1A1A;
-  border: 1px solid #333333;
-  /* NO SKEW - card is rectangular */
+  background: var(--bg-card);
+  border: 1px solid transparent; /* Starts transparent per reference */
+  display: flex;
+  flex-direction: column;
+  
+  /* Strictly defined dimensions */
+  width: 100%;
+  max-width: 280px;
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.product-image-container {
+  aspect-ratio: 1 / 1; /* Metric: Strictly Square */
+  overflow: hidden;
+  position: relative;
+  background: #252525; /* Matches reference */
+  width: 100%;
 }
 
 .product-image {
-  aspect-ratio: 1 / 1;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
-  filter: grayscale(0);
-  transition: filter 0.3s ease;
+  transition: transform 0.5s; /* Reference duration */
 }
 
 .product-card:hover .product-image {
-  filter: brightness(1.1);
+  transform: scale(1.1); /* Reference scale */
 }
 
-.product-brand {
-  font-family: 'Inter', sans-serif;
-  color: #A0A0A0;
-  font-size: 12px;
-  text-transform: uppercase;
-}
-
-.product-title {
-  font-family: 'Inter', sans-serif;
-  color: #FFFFFF;
-  font-size: 16px;
-  font-weight: 500;
-}
-
-.product-price {
-  font-family: 'Roboto Condensed', sans-serif;
-  font-weight: 700;
-  font-size: 24px;
-  color: #FF6B00;
-  transform: skewX(-12deg);
-}
-
-.product-price-text {
-  transform: skewX(12deg);
+/* Typography & Actions */
+.product-info {
+  padding: 20px;
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
 }
 
 .product-actions {
   display: flex;
-  gap: 8px;
+  gap: 10px;
+  margin-top: auto; /* Push to bottom */
+}
+
+/* Button Size: Flexible but constrained padding */
+.product-actions button {
+  flex: 1;
+  padding: 12px 5px; /* Reference padding */
+  white-space: nowrap;
+}
+
+/* Price Tag - Skewed -12deg WITHOUT counter-skew on text */
+.price-tag {
+  transform: skewX(-12deg);
+  display: block;
 }
 ```
 
@@ -357,8 +370,9 @@ const buttonStyles = {
 
 ```css
 .product-card:hover {
-  border-color: #FF6B00;
-  box-shadow: 0 0 20px rgba(255, 107, 0, 0.15);
+  transform: translateY(-5px);
+  border-color: var(--color-primary);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
 }
 ```
 
@@ -379,22 +393,40 @@ const buttonStyles = {
 └─────────────────────────────────────┘
 ```
 
+### Размеры
+
+- **Ширина:** 270px
+- **Высота:** 270px
+- **Соотношение сторон:** 1:1 (квадратная)
+- **Сетка:** 4 колонки, gap 20px
+
 ### Styles
+
+(Defined in `globals-electric-orange.css`)
 
 ```css
 .category-card {
   position: relative;
+  width: 270px;
+  height: 270px;
   aspect-ratio: 1 / 1;
   overflow: hidden;
+  cursor: pointer;
+  background: var(--bg-card);
 }
 
 .category-image {
-  filter: grayscale(100%);
-  transition: filter 0.3s ease;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: grayscale(100%) contrast(1.2);
+  transform: scale(1.01);
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
 .category-card:hover .category-image {
-  filter: grayscale(0);
+  filter: grayscale(0%) contrast(1.2);
+  transform: scale(1.1);
 }
 
 .category-title {
@@ -407,34 +439,35 @@ const buttonStyles = {
   font-weight: 900;
   font-size: 1.8rem;
   text-transform: uppercase;
-  color: #FFFFFF;
+  color: var(--color-text-primary);
   transform: skewX(-12deg);
+  text-shadow: 2px 2px 0 #000;
   
-  background: linear-gradient(transparent, rgba(0,0,0,0.8));
-  padding: 20px;
+  padding: 24px;
 }
 
-.category-title-text {
-  transform: skewX(12deg);
-}
-
-/* Flash overlay on hover */
+/* Orange wave overlay on hover */
 .category-card::after {
   content: '';
   position: absolute;
-  inset: 0;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 100%;
   background: linear-gradient(
-    135deg,
-    transparent 40%,
-    rgba(255, 107, 0, 0.3) 50%,
-    transparent 60%
+    90deg,
+    transparent,
+    rgba(255, 107, 0, 0.4),
+    transparent
   );
-  transform: translateX(-100%);
-  transition: transform 0.5s ease;
+  transform: skewX(-20deg);
+  transition: 1s;
+  pointer-events: none;
+  z-index: 2;
 }
 
 .category-card:hover::after {
-  transform: translateX(100%);
+  left: 150%;
 }
 ```
 
@@ -467,8 +500,8 @@ const buttonStyles = {
 .news-card {
   display: flex;
   gap: 20px;
-  background: #1A1A1A;
-  border: 1px solid #333333;
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
 }
 
 .news-image {
@@ -480,8 +513,8 @@ const buttonStyles = {
 .news-category {
   /* Skewed badge */
   transform: skewX(-12deg);
-  background: #FF6B00;
-  color: #000000;
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
   padding: 4px 12px;
   font-size: 11px;
   text-transform: uppercase;
@@ -489,20 +522,20 @@ const buttonStyles = {
 
 .news-date {
   font-family: 'Inter', sans-serif;
-  color: #666666;
+  color: var(--color-text-muted);
   font-size: 12px;
 }
 
 .news-title {
   font-family: 'Inter', sans-serif;
-  color: #FFFFFF;
+  color: var(--color-text-primary);
   font-size: 18px;
   font-weight: 600;
 }
 
 .news-excerpt {
   font-family: 'Inter', sans-serif;
-  color: #A0A0A0;
+  color: var(--color-text-secondary);
   font-size: 14px;
 }
 ```
@@ -524,19 +557,19 @@ const buttonStyles = {
 ```css
 .slider-track {
   height: 6px;
-  background: #333333;
+  background: var(--border-default);
   transform: skewX(-12deg);
 }
 
 .slider-fill {
-  background: #FF6B00;
+  background: var(--color-primary);
 }
 
 .slider-thumb {
   width: 20px;
   height: 20px;
-  background: #FF6B00;
-  border: 2px solid #000000;
+  background: var(--color-primary);
+  border: 2px solid var(--color-text-inverse);
   transform: skewX(-12deg);
   cursor: pointer;
 }
@@ -566,19 +599,19 @@ const buttonStyles = {
 .tabs-list {
   display: flex;
   gap: 32px;
-  border-bottom: 1px solid #333333;
+  border-bottom: 1px solid var(--border-default);
 }
 
 .tab-trigger {
   font-family: 'Inter', sans-serif;
   font-weight: 500;
-  color: #A0A0A0;
+  color: var(--color-text-secondary);
   padding-bottom: 12px;
   position: relative;
 }
 
 .tab-trigger.active {
-  color: #FFFFFF;
+  color: var(--color-text-primary);
 }
 
 .tab-trigger.active::after {
@@ -588,12 +621,12 @@ const buttonStyles = {
   left: 0;
   right: 0;
   height: 3px;
-  background: #FF6B00;
+  background: var(--color-primary);
   transform: skewX(-12deg);
 }
 
 .tab-trigger:hover:not(.active) {
-  color: #FF6B00;
+  color: var(--color-primary);
 }
 ```
 
@@ -657,7 +690,7 @@ const buttonStyles = {
   font-weight: 900;
   font-size: 1.2rem;
   text-transform: uppercase;
-  color: #FFFFFF;
+  color: var(--color-text-primary);
   
   /* Skewed -12deg */
   transform: skewX(-12deg);
@@ -667,7 +700,7 @@ const buttonStyles = {
   width: 100%;
   margin-bottom: 20px;
   padding-bottom: 10px;
-  border-bottom: 1px solid #333333;
+  border-bottom: 1px solid var(--border-default);
 }
 
 .filter-title-text {
@@ -695,7 +728,7 @@ const buttonStyles = {
 .custom-check {
   width: 20px;
   height: 20px;
-  border: 2px solid #555555;
+  border: 2px solid var(--color-neutral-500);
   margin-right: 15px;
   display: flex;
   align-items: center;
@@ -705,31 +738,31 @@ const buttonStyles = {
 }
 
 .checkbox-row input:checked + .custom-check {
-  background-color: #FF6B00;
-  border-color: #FF6B00;
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
 }
 
 .checkbox-row input:checked + .custom-check::after {
   content: '✓';
-  color: #000000;
+  color: var(--color-text-inverse);
   font-weight: 900;
   font-size: 14px;
   transform: skewX(12deg);
 }
 
 .checkbox-row:hover .custom-check {
-  border-color: #FF6B00;
+  border-color: var(--color-primary);
 }
 
 .checkbox-text {
   font-family: 'Inter', sans-serif;
-  color: #A0A0A0;
+  color: var(--color-text-secondary);
   font-size: 0.95rem;
   transition: color 0.15s ease;
 }
 
 .checkbox-row:hover .checkbox-text {
-  color: #FFFFFF;
+  color: var(--color-text-primary);
 }
 ```
 
@@ -745,15 +778,15 @@ const buttonStyles = {
 .price-input {
   width: 50%;
   background: transparent;
-  border: 1px solid #333333;
+  border: 1px solid var(--border-default);
   padding: 8px;
-  color: #FFFFFF;
+  color: var(--color-text-primary);
   font-family: 'Inter', sans-serif;
   font-size: 0.9rem;
 }
 
 .price-input:focus {
-  border-color: #FF6B00;
+  border-color: var(--color-primary);
   outline: none;
 }
 
@@ -767,13 +800,13 @@ const buttonStyles = {
 input[type='range']::-webkit-slider-thumb {
   height: 18px;
   width: 18px;
-  background: #FF6B00;
-  border: 2px solid #000000;
+  background: var(--color-primary);
+  border: 2px solid var(--color-text-inverse);
   cursor: pointer;
 }
 
 input[type='range']::-webkit-slider-thumb:hover {
-  background: #FFFFFF;
+  background: var(--color-text-primary);
 }
 ```
 
@@ -842,13 +875,98 @@ interface ElectricSidebarProps {
 />
 ```
 
+### Checkbox Behavior (Updated 2026-01-02)
+
+**State Management:**
+
+- Компонент поддерживает **два режима работы**:
+  1. **Controlled Mode** — когда передан `onFilterChange`, состояние управляется внешне через `selectedFilters`
+  2. **Uncontrolled Mode** — когда `onFilterChange` не передан, компонент использует внутренний `localSelectedFilters` state
+
+**Визуальное поведение при клике:**
+
+- ✅ Чекбокс **заполняется** оранжевым цветом (#FF6B00)
+- ✅ Появляется **галочка** ✓ (чёрного цвета, counter-skewed на 12deg)
+- ✅ Граница меняется на оранжевую (#FF6B00)
+- ✅ Состояние сохраняется до повторного клика
+
+**Пример внутренней реализации:**
+
+```tsx
+// Local state for checkboxes when no external handler is provided
+const [localSelectedFilters, setLocalSelectedFilters] = useState<Record<string, string[]>>(
+  selectedFilters
+);
+
+const handleCheckboxChange = (groupId: string, optionId: string, checked: boolean) => {
+  if (onFilterChange) {
+    // Use external handler if provided
+    onFilterChange(groupId, optionId, checked);
+  } else {
+    // Use local state
+    setLocalSelectedFilters(prev => {
+      const currentGroup = prev[groupId] || [];
+      if (checked) {
+        return { ...prev, [groupId]: [...currentGroup, optionId] };
+      } else {
+        return { ...prev, [groupId]: currentGroup.filter(id => id !== optionId) };
+      }
+    });
+  }
+};
+```
+
 ### Component File Location
 
 ```
 frontend/src/components/ui/Sidebar/
-├── ElectricSidebar.tsx    # Main component
+├── ElectricSidebar.tsx    # Main component (с локальным state management)
 └── index.ts               # Exports
 ```
+
+---
+
+## 🔖 Section Header
+
+Специальный заголовок для разграничения секций на страницах.
+
+### Visual Style
+
+- **Font:** Roboto Condensed, Bold/Black, Uppercase
+- **Geometry:** Skewed container (-12deg), Counter-skewed text (12deg)
+- **Decoration:** Orange underline (#FF6B00, 3px)
+- **Optional Label:** Small text above main title (Inter, Straight)
+
+### React Component
+
+```tsx
+import ElectricSectionHeader from '@/components/ui/SectionHeader/ElectricSectionHeader';
+
+// Basic Usage
+<ElectricSectionHeader title="Популярные товары" />
+
+// With Label
+<ElectricSectionHeader
+  title="Хиты продаж"
+  label="Топ выбор"
+/>
+
+// Centered
+<ElectricSectionHeader
+  title="О нас"
+  align="center"
+/>
+```
+
+### Props
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `title` | `string` | - | Main heading text |
+| `label` | `string` | - | Small label above title |
+| `size` | `'sm' \| 'md' \| 'lg'` | `'md'` | Text size |
+| `align` | `'left' \| 'center'` | `'left'` | Alignment |
+| `showUnderline` | `boolean` | `true` | Visibility of orange underline |
 
 ---
 
@@ -951,6 +1069,387 @@ frontend/src/components/ui/Sidebar/
 - [ ] Focus states visible
 - [ ] Mobile responsive
 - [ ] Accessibility (contrast, focus)
+
+---
+
+## 🧭 Breadcrumbs (ElectricBreadcrumbs)
+
+### Структура
+
+```
+Главная > Каталог > Категория > Товар
+   ↑         ↑          ↑         ↑
+ Link      Link       Link    Current (bold)
+```
+
+### Стилизация
+
+```css
+.electric-breadcrumbs {
+  font-family: var(--font-body);  /* Inter */
+  font-size: 14px;
+  /* NO SKEW - breadcrumbs stay straight for readability */
+}
+
+.electric-breadcrumbs a {
+  color: var(--color-text-secondary);
+  transition: color 0.2s;
+}
+
+.electric-breadcrumbs a:hover {
+  color: var(--color-primary);
+}
+
+.electric-breadcrumbs .current {
+  color: var(--foreground);
+  font-weight: 500;
+}
+```
+
+### Особенности
+
+- Home иконка для первого элемента (опционально)
+- Chevron разделители
+- Collapse при > 5 элементов (ellipsis)
+
+---
+
+## 📄 Pagination (ElectricPagination)
+
+### Структура
+
+```
+┌────────────────────────────────────────┐
+│ [<] [1] [...] [3] [4] [5] [...] [10] [>] │
+│      ↑              ↑                    │
+│   Skewed       Active (glow)             │
+└────────────────────────────────────────┘
+```
+
+### Стилизация
+
+```css
+.pagination-btn {
+  width: 40px;
+  height: 40px;
+  transform: skewX(-12deg);
+  border: 1px solid var(--border-default);
+  background: transparent;
+  transition: all 0.2s;
+}
+
+.pagination-btn:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.pagination-btn.active {
+  background: var(--color-primary);
+  color: black;
+  box-shadow: var(--shadow-glow);
+}
+
+.pagination-btn .text {
+  transform: skewX(12deg); /* Counter-skew */
+}
+```
+
+---
+
+## 🪟 Modal (ElectricModal)
+
+### Структура
+
+```
+┌─ Overlay (rgba(15,15,15,0.9)) ─────────────────────┐
+│                                                     │
+│   ┌─ Modal Container (#1A1A1A) ─────────────────┐  │
+│   │ ┌─ Header ─────────────────────────────────┐│  │
+│   │ │ SKEWED TITLE          [X] (skewed btn)   ││  │
+│   │ └──────────────────────────────────────────┘│  │
+│   │ ┌─ Content ────────────────────────────────┐│  │
+│   │ │ Body text (Inter, straight)              ││  │
+│   │ └──────────────────────────────────────────┘│  │
+│   │ ┌─ Footer ─────────────────────────────────┐│  │
+│   │ │ [Cancel]  [Confirm] ← skewed buttons     ││  │
+│   │ └──────────────────────────────────────────┘│  │
+│   └─────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────┘
+```
+
+### Стилизация
+
+- Overlay: `rgba(15,15,15,0.9)` + `backdrop-blur`
+- Container: `bg: #1A1A1A`, `border: 1px solid #333333`
+- Title: Roboto Condensed, Bold, Uppercase, `skewX(-12deg)`
+- Close button: Skewed box with X icon
+
+---
+
+## 🔔 Toast (ElectricToast)
+
+### Структура
+
+```
+┌─────────────────────────────────────────────┐
+│ [colored left border]  [Icon] Title     [X] │  ← Skewed container
+│                              Message        │
+└─────────────────────────────────────────────┘
+```
+
+### Variants
+
+| Variant | Border Color | Icon |
+|---------|--------------|------|
+| success | `--color-success` | CheckCircle |
+| error | `--color-danger` | XCircle |
+| warning | `--color-warning` | AlertTriangle |
+| info | `--color-primary` | Info |
+
+### Стилизация
+
+```css
+.electric-toast {
+  transform: skewX(-12deg);
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
+  border-left: 4px solid; /* color from variant */
+}
+
+.electric-toast .content {
+  transform: skewX(12deg); /* Counter-skew */
+}
+```
+
+---
+
+## 🪗 Accordion (ElectricAccordion)
+
+### Структура
+
+```
+┌─────────────────────────────────────────┐
+│ SKEWED TITLE                        [▼] │ ← Click to expand
+├─────────────────────────────────────────┤
+│ Content (visible when expanded)         │
+│ Inter, regular, straight text           │
+└─────────────────────────────────────────┘
+```
+
+### Стилизация
+
+- Header: Roboto Condensed, Bold, Uppercase, `skewX(-12deg)`
+- Chevron: Orange, rotates 180° when open
+- Content: Fade-in animation
+
+---
+
+## 📋 Select (ElectricSelect)
+
+### Структура
+
+```
+┌─────────────────────────────────────────┐
+│ Placeholder / Selected value        [▼] │ ← Rectangular (0deg)
+└─────────────────────────────────────────┘
+         │
+         ▼
+┌─────────────────────────────────────────┐
+│ Option 1                                │
+│ Option 2                            [✓] │ ← Selected
+│ Option 3                                │
+└─────────────────────────────────────────┘
+```
+
+### Особенности
+
+- Trigger: Rectangular (как inputs — 0deg)
+- Dropdown: Dark background, hover highlight
+- Selected: Checkmark icon
+
+---
+
+## 🔘 RadioButton (ElectricRadioButton)
+
+### Структура
+
+```
+[✓] Label    ← Skewed checkbox style (like Sidebar)
+```
+
+### Стилизация
+
+```css
+.electric-radio {
+  width: 20px;
+  height: 20px;
+  transform: skewX(-12deg);
+  border: 2px solid var(--color-neutral-500);
+}
+
+.electric-radio.checked {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.electric-radio .checkmark {
+  color: black;
+  font-weight: bold;
+  transform: skewX(12deg); /* Counter-skew */
+}
+```
+
+### Особенности
+
+- Стиль идентичен checkbox в Sidebar (ElectricSidebar)
+- При выборе: оранжевый фон + чёрная галочка
+- При hover: оранжевая граница
+
+---
+
+## 💬 Tooltip (ElectricTooltip)
+
+### Позиции
+
+- top, bottom, left, right
+
+### Стилизация
+
+```css
+.electric-tooltip {
+  transform: skewX(-12deg);
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
+  padding: 8px 12px;
+  font-size: 12px;
+}
+
+.electric-tooltip .text {
+  transform: skewX(12deg); /* Counter-skew */
+}
+```
+
+---
+
+## 📊 Table (ElectricTable)
+
+### Структура
+
+```
+┌──────────────────────────────────────────────────┐
+│ АРТИКУЛ │ НАИМЕНОВАНИЕ │ КОЛ-ВО │    ЦЕНА       │ ← Skewed headers
+├──────────────────────────────────────────────────┤
+│ BX-001  │ Перчатки     │   2    │ 3 500 ₽       │ ← Alternating rows
+│ KM-042  │ Кимоно       │   1    │ 4 200 ₽       │
+└──────────────────────────────────────────────────┘
+```
+
+### Стилизация
+
+- Headers: Roboto Condensed, Bold, Uppercase, `skewX(-12deg)`
+- Rows: Alternating `#0F0F0F` / `#1A1A1A`
+- Hover: Left orange border
+
+---
+
+## ⏳ Spinner (ElectricSpinner)
+
+### Структура
+
+```
+┌───┐
+│   │  ← Skewed square, spinning
+└───┘
+```
+
+### Sizes
+
+| Size | Dimensions |
+|------|------------|
+| sm | 20px × 20px |
+| md | 32px × 32px |
+| lg | 48px × 48px |
+
+### Стилизация
+
+```css
+.electric-spinner {
+  transform: skewX(-12deg);
+  border: 2px solid var(--border-default);
+  border-top-color: var(--color-primary);
+  animation: spin 1s linear infinite;
+}
+```
+
+---
+
+## ⭐ Features Block (ElectricFeaturesBlock)
+
+### Структура
+
+```
+┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐
+│    [📦]     │  │    [🛡️]     │  │    [↩️]     │  │    [🎧]     │
+│   SKEWED    │  │   SKEWED    │  │   SKEWED    │  │   SKEWED    │
+│   TITLE     │  │   TITLE     │  │   TITLE     │  │   TITLE     │
+│ Description │  │ Description │  │ Description │  │ Description │
+└─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘
+```
+
+### Стилизация
+
+- Icon container: Skewed border with orange
+- Title: Roboto Condensed, Bold, Orange, Skewed
+- Description: Inter, Secondary color
+
+---
+
+## 🛒 Cart Widget (ElectricCartWidget)
+
+### Структура
+
+```
+┌───────┐
+│ 🛒 [3]│ ← Skewed badge with count
+└───┬───┘
+    │
+    ▼
+┌─────────────────────────────────┐
+│ КОРЗИНА                     [X] │
+├─────────────────────────────────┤
+│ [img] Товар 1        3 500 ₽ 🗑 │
+│ [img] Товар 2        2 800 ₽ 🗑 │
+├─────────────────────────────────┤
+│ Итого:               6 300 ₽    │
+│ [В корзину] [Оформить]          │ ← Skewed buttons
+└─────────────────────────────────┘
+```
+
+---
+
+## 🔍 Search Results (ElectricSearchResults)
+
+### Структура
+
+```
+┌─────────────────────────────────────┐
+│ 🔍 Поиск товаров...             [X] │ ← Rectangular input
+└─────────────────────────────────────┘
+                │
+                ▼
+┌─────────────────────────────────────┐
+│ [◇] Перчатки боксерские   [Товар]  │ ← Skewed type badge
+│ [img] Шлем для бокса      [Товар]  │
+│ [◇] Единоборства       [Категория] │
+│ [◇] BOYBO                 [Бренд]  │
+└─────────────────────────────────────┘
+```
+
+### Особенности
+
+- Input: Rectangular (0deg)
+- Keyboard navigation: ArrowUp/Down, Enter, Escape
+- Type badges: Skewed
 
 ---
 

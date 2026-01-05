@@ -11,8 +11,27 @@
 import React from 'react';
 import { cn } from '@/utils/cn';
 import { ElectricBadge } from '../Badge';
+import { ElectricButton } from '../Button/ElectricButton';
 
-// ... (Types remain same)
+const formatPrice = (value: number) => {
+  return new Intl.NumberFormat('ru-RU').format(value);
+};
+
+export interface ElectricProductCardProps {
+  id?: string;
+  image: string;
+  title: string;
+  brand?: string;
+  price: number;
+  oldPrice?: number;
+  badge?: 'primary' | 'sale' | 'hit' | 'new';
+  isFavorite?: boolean;
+  inStock?: boolean;
+  onAddToCart?: () => void;
+  onToggleFavorite?: () => void;
+  onClick?: () => void;
+  className?: string;
+}
 
 // ============================================
 // Product Card Component
@@ -52,10 +71,11 @@ export function ElectricProductCard({
     <article
       className={cn(
         // Base - Rectangular card
-        'bg-[#1A1A1A] border border-[#333333] p-4',
+        'bg-[var(--bg-card)] border border-[var(--border-default)] p-4',
         'transition-all duration-300',
-        'hover:border-[#FF6B00] hover:shadow-[0_0_20px_rgba(255,107,0,0.15)]',
+        'hover:border-[var(--color-primary)] hover:shadow-[var(--shadow-hover)]',
         'cursor-pointer group',
+        'flex flex-col h-full', // Ensure full height for alignment
         !inStock && 'opacity-60',
         className
       )}
@@ -65,7 +85,7 @@ export function ElectricProductCard({
       tabIndex={0}
     >
       {/* Image Container */}
-      <div className="relative aspect-square bg-[#2A2A2A] mb-4 overflow-hidden">
+      <div className="relative aspect-square bg-[var(--color-neutral-300)] mb-4 overflow-hidden flex-shrink-0">
         <img
           src={image}
           alt={title}
@@ -95,7 +115,9 @@ export function ElectricProductCard({
           className={cn(
             'absolute top-2 right-2 z-10 w-8 h-8 flex items-center justify-center',
             'transition-colors duration-200',
-            isFavorite ? 'text-[#FF6B00]' : 'text-[#666666] hover:text-[#FF6B00]'
+            isFavorite
+              ? 'text-[var(--color-primary)]'
+              : 'text-[var(--color-text-muted)] hover:text-[var(--color-primary)]'
           )}
           aria-label={isFavorite ? 'Убрать из избранного' : 'Добавить в избранное'}
         >
@@ -105,95 +127,87 @@ export function ElectricProductCard({
         {/* Out of Stock Overlay */}
         {!inStock && (
           <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-            <span className="text-[#A0A0A0] font-medium uppercase">Нет в наличии</span>
+            <span className="text-[var(--color-text-secondary)] font-medium uppercase">
+              Нет в наличии
+            </span>
           </div>
         )}
       </div>
 
-      {/* Product Info */}
-      <div className="space-y-2">
-        {/* Brand */}
-        {brand && (
-          <p
-            className="text-xs text-[#A0A0A0] uppercase tracking-wide"
+      {/* Product Info - Flex Grow to push buttons down */}
+      <div className="space-y-2 flex-grow flex flex-col justify-between">
+        <div>
+          {/* Brand */}
+          {brand && (
+            <p
+              className="text-xs text-[var(--color-text-secondary)] uppercase tracking-wide"
+              style={{ fontFamily: "'Inter', sans-serif" }}
+            >
+              {brand}
+            </p>
+          )}
+
+          {/* Title */}
+          <h3
+            className="text-[var(--foreground)] font-medium line-clamp-2 min-h-[40px] mb-2"
             style={{ fontFamily: "'Inter', sans-serif" }}
           >
-            {brand}
-          </p>
-        )}
-
-        {/* Title */}
-        <h3
-          className="text-white font-medium line-clamp-2 min-h-[48px]"
-          style={{ fontFamily: "'Inter', sans-serif" }}
-        >
-          {title}
-        </h3>
+            {title}
+          </h3>
+        </div>
 
         {/* Price - Skewed */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 mb-4">
           <span
-            className="text-xl font-bold text-[#FF6B00] inline-block"
+            className="text-xl font-bold text-[var(--color-primary)] inline-block"
             style={{
               fontFamily: "'Roboto Condensed', sans-serif",
               transform: 'skewX(-12deg)',
             }}
           >
-            <span style={{ transform: 'skewX(12deg)', display: 'inline-block' }}>
-              {formatPrice(price)} ₽
-            </span>
+            {formatPrice(price)} ₽
           </span>
+
           {oldPrice && (
-            <span className="text-sm text-[#666666] line-through">{formatPrice(oldPrice)} ₽</span>
+            <span className="text-sm text-[var(--color-text-muted)] line-through">
+              {formatPrice(oldPrice)} ₽
+            </span>
           )}
         </div>
       </div>
 
       {/* Action Buttons Row - Always visible per spec: Primary + Outline */}
-      <div className="flex gap-2.5 mt-4">
-        {/* Primary Button: Add to Cart */}
-        <button
-          onClick={e => {
-            e.stopPropagation();
-            onAddToCart?.();
-          }}
-          disabled={!inStock}
-          className={cn(
-            'flex-1 h-10 font-semibold uppercase text-sm tracking-wide',
-            'transition-all duration-300',
-            inStock
-              ? 'bg-[#FF6B00] text-black hover:bg-white hover:text-[#FF6B00]'
-              : 'bg-[#333333] text-[#666666] cursor-not-allowed'
-          )}
-          style={{
-            fontFamily: "'Roboto Condensed', sans-serif",
-            transform: 'skewX(-12deg)',
-          }}
-        >
-          <span style={{ transform: 'skewX(12deg)', display: 'inline-block' }}>В КОРЗИНУ</span>
-        </button>
-
-        {/* Outline Button: Wishlist */}
-        <button
-          onClick={e => {
-            e.stopPropagation();
-            onToggleFavorite?.();
-          }}
-          className={cn(
-            'flex-1 h-10 font-semibold uppercase text-sm tracking-wide',
-            'transition-all duration-300',
-            'bg-transparent border-2',
-            isFavorite
-              ? 'border-[#FF6B00] text-[#FF6B00]'
-              : 'border-white text-white hover:border-[#FF6B00] hover:text-[#FF6B00]'
-          )}
-          style={{
-            fontFamily: "'Roboto Condensed', sans-serif",
-            transform: 'skewX(-12deg)',
-          }}
-        >
-          <span style={{ transform: 'skewX(12deg)', display: 'inline-block' }}>ЗАПОМНИТЬ</span>
-        </button>
+      <div className="flex gap-2.5 mt-auto">
+        <div className="flex-1">
+          <ElectricButton
+            variant="primary"
+            size="sm"
+            className="w-full"
+            disabled={!inStock}
+            onClick={e => {
+              e.stopPropagation();
+              onAddToCart?.();
+            }}
+          >
+            В КОРЗИНУ
+          </ElectricButton>
+        </div>
+        <div className="flex-1">
+          <ElectricButton
+            variant="outline"
+            size="sm"
+            className={cn(
+              'w-full',
+              isFavorite && 'border-[var(--color-primary)] text-[var(--color-primary)]'
+            )}
+            onClick={e => {
+              e.stopPropagation();
+              onToggleFavorite?.();
+            }}
+          >
+            ЗАПОМНИТЬ
+          </ElectricButton>
+        </div>
       </div>
     </article>
   );

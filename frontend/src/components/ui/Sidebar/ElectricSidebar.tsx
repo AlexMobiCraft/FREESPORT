@@ -75,6 +75,32 @@ export function ElectricSidebar({
     currentPrice || { min: priceRange.min, max: priceRange.max }
   );
 
+  // Local state for checkboxes when no external onFilterChange is provided
+  const [localSelectedFilters, setLocalSelectedFilters] =
+    useState<Record<string, string[]>>(selectedFilters);
+
+  const handleCheckboxChange = (groupId: string, optionId: string, checked: boolean) => {
+    if (onFilterChange) {
+      // Use external handler if provided
+      onFilterChange(groupId, optionId, checked);
+    } else {
+      // Use local state
+      setLocalSelectedFilters(prev => {
+        const currentGroup = prev[groupId] || [];
+        if (checked) {
+          return { ...prev, [groupId]: [...currentGroup, optionId] };
+        } else {
+          return { ...prev, [groupId]: currentGroup.filter(id => id !== optionId) };
+        }
+      });
+    }
+  };
+
+  const isChecked = (groupId: string, optionId: string): boolean => {
+    const filters = onFilterChange ? selectedFilters : localSelectedFilters;
+    return filters[groupId]?.includes(optionId) || false;
+  };
+
   const handlePriceMinChange = (value: number) => {
     const newRange = { ...localPrice, min: Math.min(value, localPrice.max) };
     setLocalPrice(newRange);
@@ -95,7 +121,7 @@ export function ElectricSidebar({
   return (
     <aside
       className={cn(
-        'bg-[#1A1A1A] p-8 border border-[#333333]',
+        'bg-[var(--bg-card)] p-8 border border-[var(--border-default)]',
         'w-full max-w-[300px] h-fit',
         className
       )}
@@ -104,7 +130,7 @@ export function ElectricSidebar({
         <div key={group.id} className="mb-8 last:mb-0">
           {/* Filter Title - Skewed */}
           <h3
-            className="text-xl mb-5 pb-3 border-b border-[#333333] w-full block uppercase tracking-wide"
+            className="text-xl mb-5 pb-3 border-b border-[var(--border-default)] w-full block uppercase tracking-wide"
             style={{
               fontFamily: "'Roboto Condensed', sans-serif",
               fontWeight: 900,
@@ -123,8 +149,8 @@ export function ElectricSidebar({
                 <CheckboxRow
                   key={option.id}
                   option={option}
-                  checked={selectedFilters[group.id]?.includes(option.id) || false}
-                  onChange={checked => onFilterChange?.(group.id, option.id, checked)}
+                  checked={isChecked(group.id, option.id)}
+                  onChange={checked => handleCheckboxChange(group.id, option.id, checked)}
                 />
               ))}
             </div>
@@ -138,7 +164,7 @@ export function ElectricSidebar({
                   type="number"
                   value={localPrice.min}
                   onChange={e => handlePriceMinChange(Number(e.target.value))}
-                  className="w-1/2 bg-transparent border border-[#333333] px-3 py-2 text-white text-sm focus:border-[#FF6B00] focus:outline-none"
+                  className="w-1/2 bg-transparent border border-[var(--border-default)] px-3 py-2 text-[var(--foreground)] text-sm focus:border-[var(--color-primary)] focus:outline-none"
                   min={priceRange.min}
                   max={priceRange.max}
                 />
@@ -146,7 +172,7 @@ export function ElectricSidebar({
                   type="number"
                   value={localPrice.max}
                   onChange={e => handlePriceMaxChange(Number(e.target.value))}
-                  className="w-1/2 bg-transparent border border-[#333333] px-3 py-2 text-white text-sm focus:border-[#FF6B00] focus:outline-none"
+                  className="w-1/2 bg-transparent border border-[var(--border-default)] px-3 py-2 text-[var(--foreground)] text-sm focus:border-[var(--color-primary)] focus:outline-none"
                   min={priceRange.min}
                   max={priceRange.max}
                 />
@@ -160,11 +186,11 @@ export function ElectricSidebar({
                   max={priceRange.max}
                   value={localPrice.max}
                   onChange={e => handleSliderChange(Number(e.target.value))}
-                  className="w-full h-[6px] bg-[#333333] appearance-none cursor-pointer
+                  className="w-full h-[6px] bg-[var(--border-default)] appearance-none cursor-pointer
                     [&::-webkit-slider-thumb]:appearance-none
                     [&::-webkit-slider-thumb]:w-[18px]
                     [&::-webkit-slider-thumb]:h-[18px]
-                    [&::-webkit-slider-thumb]:bg-[#FF6B00]
+                    [&::-webkit-slider-thumb]:bg-[var(--color-primary)]
                     [&::-webkit-slider-thumb]:border-2
                     [&::-webkit-slider-thumb]:border-black
                     [&::-webkit-slider-thumb]:cursor-pointer
@@ -172,7 +198,7 @@ export function ElectricSidebar({
                     [&::-webkit-slider-thumb]:transition-colors
                     [&::-moz-range-thumb]:w-[18px]
                     [&::-moz-range-thumb]:h-[18px]
-                    [&::-moz-range-thumb]:bg-[#FF6B00]
+                    [&::-moz-range-thumb]:bg-[var(--color-primary)]
                     [&::-moz-range-thumb]:border-2
                     [&::-moz-range-thumb]:border-black
                     [&::-moz-range-thumb]:cursor-pointer"
@@ -187,7 +213,7 @@ export function ElectricSidebar({
       {onApply && (
         <button
           onClick={onApply}
-          className="w-full h-12 bg-[#FF6B00] text-black font-bold uppercase tracking-wide transition-all hover:bg-white hover:text-[#FF6B00]"
+          className="w-full h-12 bg-[var(--color-primary)] text-black font-bold uppercase tracking-wide transition-all hover:bg-white hover:text-[var(--color-primary)]"
           style={{
             fontFamily: "'Roboto Condensed', sans-serif",
             transform: 'skewX(-12deg)',
@@ -225,8 +251,8 @@ function CheckboxRow({ option, checked, onChange }: CheckboxRowProps) {
         className={cn(
           'w-5 h-5 border-2 mr-4 flex items-center justify-center transition-all',
           checked
-            ? 'bg-[#FF6B00] border-[#FF6B00]'
-            : 'border-[#555555] group-hover:border-[#FF6B00]'
+            ? 'bg-[var(--color-primary)] border-[var(--color-primary)]'
+            : 'border-[var(--color-neutral-500)] group-hover:border-[var(--color-primary)]'
         )}
         style={{ transform: 'skewX(-12deg)' }}
       >
@@ -238,10 +264,10 @@ function CheckboxRow({ option, checked, onChange }: CheckboxRowProps) {
       </span>
 
       {/* Label */}
-      <span className="text-[#A0A0A0] text-sm transition-colors group-hover:text-white">
+      <span className="text-[var(--color-text-secondary)] text-sm transition-colors group-hover:text-[var(--foreground)]">
         {option.label}
         {option.count !== undefined && (
-          <span className="text-[#666666] ml-2">({option.count})</span>
+          <span className="text-[var(--color-text-muted)] ml-2">({option.count})</span>
         )}
       </span>
     </label>
