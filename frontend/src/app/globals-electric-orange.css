@@ -1153,3 +1153,36 @@ body {
     animation: slideOutRight 280ms var(--easing-default) forwards;
   }
 }
+
+/* ============================================
+   SPINNER ANIMATIONS
+   ============================================ */
+@layer utilities {
+  @keyframes spinnerBarFill {
+    0% {
+      opacity: 0;
+      transform: scaleY(0);
+    }
+
+    20% {
+      opacity: 1;
+      transform: scaleY(1);
+    }
+
+    70% {
+      opacity: 1;
+      transform: scaleY(1);
+    }
+
+    100% {
+      opacity: 0;
+      transform: scaleY(0);
+    }
+  }
+
+  .electric-spinner-bar {
+    opacity: 0;
+    transform-origin: bottom;
+    animation: spinnerBarFill 1.2s var(--easing-default) infinite;
+  }
+}

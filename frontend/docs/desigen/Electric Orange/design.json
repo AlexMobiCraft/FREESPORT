@@ -138,6 +138,22 @@
       },
       "positioning": "Fixed top-right, z-index 50",
       "auto_dismiss": "5000ms default (configurable)"
+    },
+    "spinner": {
+      "purpose": "Loading indicator for async operations",
+      "structure": "Parallelogram container (skewed -12deg) with animated bars",
+      "sizes": ["sm (8x4)", "md (12x6)", "lg (16x8)"],
+      "animation": {
+        "type": "Sequential bar fill",
+        "keyframes": "spinnerBarFill - opacity 0→1→0, scaleY 0→1→0",
+        "duration": "1.2s per cycle",
+        "delay_between_bars": "150ms"
+      },
+      "bar_count": {
+        "sm": 5,
+        "md": 6,
+        "lg": 7
+      }
     }
   }
 }
