@@ -76,6 +76,7 @@ export function ElectricProductCard({
         'hover:border-[var(--color-primary)] hover:shadow-[var(--shadow-hover)] hover:-translate-y-[5px]',
         'cursor-pointer group',
         'flex flex-col h-full', // Ensure full height for alignment
+        'w-full', // Strict Width per Design
         !inStock && 'opacity-60',
         className
       )}

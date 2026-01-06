@@ -428,7 +428,7 @@ export default function ElectricOrangeTestPage() {
                     options: [],
                   },
                 ]}
-                priceRange={{ min: 1000, max: 50000 }}
+                priceRange={{ min: 1, max: 50000 }}
                 currentPrice={{ min: 1000, max: 25000 }}
                 className="w-full max-w-[300px]"
               />

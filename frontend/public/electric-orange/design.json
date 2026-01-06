@@ -67,6 +67,10 @@
       "interactive_actions": "Skewed -12deg (Buttons, Badges, Checkboxes, Slider Tracks).",
       "data_entry": "Strictly Rectangular 0deg (Text Inputs, Price Inputs, Newsletter Form).",
       "images": "Strictly Square 1:1 containers, Object-fit: Cover."
+    },
+    "layout_fixes": {
+      "flex_child_overflow": "Flex children containing grids or large images MUST have min-w-0 to prevent overflow. Without this, flex items expand to fit content instead of respecting parent constraints.",
+      "grid_container_constraint": "Grid containers inside flex layouts require explicit width constraint (w-full or max-w-[value]) combined with min-w-0 on the flex parent."
     }
   },
   "components": {
@@ -117,7 +121,7 @@
       "sidebar_filter": {
         "headers": "Skewed -12deg via Transform, Uppercase, Underlined.",
         "layout": "Vertical stack.",
-        "price_row": "Two rectangular inputs (From/To) + One skewed range slider below."
+        "price_row": "Two rectangular inputs (From/To) for min/max values + Skewed dual-thumb PriceRangeSlider."
       }
     },
     "navigation": {

@@ -139,6 +139,49 @@ When creating new components:
 2. **Is it a container/input?** (Card, Input, Modal window) -> **KEEP IT STRAIGHT (0deg)**.
 3. **Border Radius:** ALWAYS 0px.
 4. **Fonts:** `Roboto Condensed` for Uppercase Headers; `Inter` for everything else.
+
+---
+
+## 📐 Layout Rules (Critical)
+
+### Flex Child Overflow Fix
+
+When using Flexbox layouts where a flex child contains a CSS Grid or large images:
+
+```css
+/* REQUIRED: Prevents content from expanding flex child beyond parent */
+.flex-child-with-grid {
+  min-width: 0; /* or min-w-0 in Tailwind */
+}
+```
+
+**Problem:** Flex children have `min-width: auto` by default, which allows intrinsic content (like large images) to expand the container.
+
+**Solution:** Add `min-w-0` to any flex child that contains:
+
+- CSS Grid with `1fr` columns
+- Large images (especially product images)
+- Any content that could exceed the parent's width
+
+### Grid Container Constraints
+
+Grid containers inside flex layouts require:
+
+1. `min-w-0` on the flex parent (the `<main>` or content area)
+2. `w-full` or explicit `max-width` on the grid container
+
+**Example (Catalog Page):**
+
+```tsx
+<div className="flex gap-8">
+  <aside className="w-[280px] flex-shrink-0">...</aside>
+  <main className="flex-1 min-w-0"> {/* <-- CRITICAL */}
+    <div className="grid grid-cols-4 gap-2">...</div>
+  </main>
+</div>
+```
+
+---
   height: 18px;
   width: 18px;
   background: var(--color-primary);
@@ -792,6 +835,42 @@ import ElectricSectionHeader from '@/components/ui/SectionHeader/ElectricSection
 - Input: Rectangular (0deg)
 - Keyboard navigation: ArrowUp/Down, Enter, Escape
 - Type badges: Skewed
+
+---
+
+## 🎛️ Sidebar Widget (ElectricSidebar)
+
+### Specifications
+
+| Property | Value | Notes |
+|----------|-------|-------|
+| **Component** | `ElectricSidebar` | `src/components/ui/Sidebar/ElectricSidebar.tsx` |
+| **Headers** | Skewed `-12deg` | Uppercase, Border-bottom |
+| **Filters** | Checkbox / Price | |
+| **Price Slider** | **Dual Thumb** | Skewed `-12deg`. Min/Max configurable. |
+
+### Price Range Detail (PriceRangeSlider)
+
+- **Input Fields:** Rectangular `0deg` (From / To).
+- **Slider Track:** Skewed `-12deg`.
+- **Thumbs:** Square skewed `-12deg`.
+- **Logic:** Dual-thumb (allows selecting both min and max).
+- **Default Min:** `1` (Updated from 1000).
+
+### Visual Style
+
+```css
+.sidebar-header {
+  font-family: 'Roboto Condensed';
+  transform: skewX(-12deg);
+  border-bottom: 1px solid var(--border-default);
+}
+
+.price-slider-track {
+  transform: skewX(-12deg);
+  /* Thumb styles handled by component */
+}
+```
 
 ---
 

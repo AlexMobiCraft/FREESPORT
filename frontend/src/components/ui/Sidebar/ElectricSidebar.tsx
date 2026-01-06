@@ -15,6 +15,7 @@
 
 import React, { useState } from 'react';
 import { cn } from '@/utils/cn';
+import { PriceRangeSlider } from '@/components/ui/PriceRangeSlider/PriceRangeSlider';
 
 // ============================================
 // Types
@@ -101,23 +102,6 @@ export function ElectricSidebar({
     return filters[groupId]?.includes(optionId) || false;
   };
 
-  const handlePriceMinChange = (value: number) => {
-    const newRange = { ...localPrice, min: Math.min(value, localPrice.max) };
-    setLocalPrice(newRange);
-    onPriceChange?.(newRange);
-  };
-
-  const handlePriceMaxChange = (value: number) => {
-    const newRange = { ...localPrice, max: Math.max(value, localPrice.min) };
-    setLocalPrice(newRange);
-    onPriceChange?.(newRange);
-  };
-
-  const handleSliderChange = (value: number) => {
-    setLocalPrice({ min: priceRange.min, max: value });
-    onPriceChange?.({ min: priceRange.min, max: value });
-  };
-
   return (
     <aside
       className={cn(
@@ -158,52 +142,17 @@ export function ElectricSidebar({
 
           {group.type === 'price' && (
             <div>
-              {/* Price Inputs */}
-              <div className="flex gap-3 mb-4">
-                <input
-                  type="number"
-                  value={localPrice.min}
-                  onChange={e => handlePriceMinChange(Number(e.target.value))}
-                  className="w-1/2 bg-transparent border border-[var(--border-default)] px-3 py-2 text-[var(--foreground)] text-sm focus:border-[var(--color-primary)] focus:outline-none"
-                  min={priceRange.min}
-                  max={priceRange.max}
-                />
-                <input
-                  type="number"
-                  value={localPrice.max}
-                  onChange={e => handlePriceMaxChange(Number(e.target.value))}
-                  className="w-1/2 bg-transparent border border-[var(--border-default)] px-3 py-2 text-[var(--foreground)] text-sm focus:border-[var(--color-primary)] focus:outline-none"
-                  min={priceRange.min}
-                  max={priceRange.max}
-                />
-              </div>
-
-              {/* Skewed Range Slider */}
-              <div className="my-5" style={{ transform: 'skewX(-12deg)' }}>
-                <input
-                  type="range"
-                  min={priceRange.min}
-                  max={priceRange.max}
-                  value={localPrice.max}
-                  onChange={e => handleSliderChange(Number(e.target.value))}
-                  className="w-full h-[6px] bg-[var(--border-default)] appearance-none cursor-pointer
-                    [&::-webkit-slider-thumb]:appearance-none
-                    [&::-webkit-slider-thumb]:w-[18px]
-                    [&::-webkit-slider-thumb]:h-[18px]
-                    [&::-webkit-slider-thumb]:bg-[var(--color-primary)]
-                    [&::-webkit-slider-thumb]:border-2
-                    [&::-webkit-slider-thumb]:border-black
-                    [&::-webkit-slider-thumb]:cursor-pointer
-                    [&::-webkit-slider-thumb]:hover:bg-white
-                    [&::-webkit-slider-thumb]:transition-colors
-                    [&::-moz-range-thumb]:w-[18px]
-                    [&::-moz-range-thumb]:h-[18px]
-                    [&::-moz-range-thumb]:bg-[var(--color-primary)]
-                    [&::-moz-range-thumb]:border-2
-                    [&::-moz-range-thumb]:border-black
-                    [&::-moz-range-thumb]:cursor-pointer"
-                />
-              </div>
+              {/* Price Range Slider (Electric Orange) */}
+              <PriceRangeSlider
+                min={priceRange.min}
+                max={priceRange.max}
+                value={[localPrice.min, localPrice.max]}
+                onChange={([newMin, newMax]) => {
+                  const newRange = { min: newMin, max: newMax };
+                  setLocalPrice(newRange);
+                  onPriceChange?.(newRange);
+                }}
+              />
             </div>
           )}
         </div>
