@@ -3,7 +3,7 @@
 import React, { forwardRef } from 'react';
 import { cn } from '@/utils/cn';
 
-interface ElectricButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+export interface ElectricButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'outline' | 'ghost';
   size?: 'sm' | 'md' | 'lg';
   children: React.ReactNode;
