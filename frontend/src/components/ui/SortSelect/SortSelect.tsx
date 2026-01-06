@@ -31,7 +31,7 @@ export interface SortSelectProps {
  * Опции сортировки товаров
  * Значения соответствуют Django ordering API format: field или -field
  * Доступные поля сортировки API: name, min_retail_price, created_at, total_stock
- * 
+ *
  * ВАЖНО: "Новинки" и "Акция" — это ФИЛЬТРЫ (is_new, is_sale), а не сортировка!
  * Для них используются быстрые фильтры-табы на странице каталога.
  */
@@ -47,7 +47,7 @@ export const SORT_OPTIONS: SortOption[] = [
  * Использует SelectDropdown как базу
  */
 export const SortSelect = React.forwardRef<HTMLDivElement, SortSelectProps>(
-  ({ options = SORT_OPTIONS, value, onChange, mode = 'b2c', className }, _ref) => {
+  ({ options = SORT_OPTIONS, value, onChange, mode = 'b2c', className }) => {
     // Преобразуем SortOption в ElectricSelectOption
     const selectOptions: ElectricSelectOption[] = options.map(opt => ({
       value: opt.value,

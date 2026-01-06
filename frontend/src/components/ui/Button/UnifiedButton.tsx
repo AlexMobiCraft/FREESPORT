@@ -30,7 +30,7 @@ const variantMap = {
   secondary: 'outline',
   tertiary: 'ghost',
   subtle: 'ghost',
-  danger: 'danger',
+  danger: 'primary', // ElectricButton doesn't have danger, fallback to primary
 } as const;
 
 export type UnifiedButtonProps = ButtonProps;
