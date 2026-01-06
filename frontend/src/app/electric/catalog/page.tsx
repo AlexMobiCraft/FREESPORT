@@ -18,6 +18,9 @@ import { useToast } from '@/components/ui/Toast';
 import { ElectricBreadcrumbs } from '@/components/ui/Breadcrumb/ElectricBreadcrumbs';
 import { SortSelect, SORT_OPTIONS } from '@/components/ui/SortSelect/SortSelect';
 import { ElectricCategoryTree } from '@/components/ui/CategoryTree/ElectricCategoryTree';
+import { ElectricButton } from '@/components/ui/Button/ElectricButton';
+import { ElectricDrawer } from '@/components/ui/Drawer/ElectricDrawer';
+import { SlidersHorizontal } from 'lucide-react';
 
 // Services & Type Definitions
 import productsService, { type ProductFilters } from '@/services/productsService';
@@ -132,6 +135,9 @@ const ElectricCatalogPage: React.FC = () => {
   const [isProductsLoading, setIsProductsLoading] = useState(false);
   const [productsError, setProductsError] = useState<string | null>(null);
 
+  // Mobile filter drawer state
+  const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
+
   // Cart
   const { addItem } = useCartStore();
   const { success, error: toastError } = useToast();
@@ -141,6 +147,27 @@ const ElectricCatalogPage: React.FC = () => {
     if (!activeCategoryId || categoriesTree.length === 0) return [];
     return findCategoryPathById(categoriesTree, activeCategoryId);
   }, [categoriesTree, activeCategoryId]);
+
+  // Computed: Check if any filters are active (to show reset button)
+  const hasActiveFilters = useMemo(() => {
+    return (
+      selectedBrandIds.size > 0 ||
+      priceRange.min !== DEFAULT_PRICE_RANGE.min ||
+      priceRange.max !== DEFAULT_PRICE_RANGE.max ||
+      quickFilter !== 'all' ||
+      searchQuery.trim().length > 0
+    );
+  }, [selectedBrandIds, priceRange, quickFilter, searchQuery]);
+
+  // Computed: Count of active filters for badge
+  const activeFiltersCount = useMemo(() => {
+    let count = 0;
+    if (selectedBrandIds.size > 0) count += selectedBrandIds.size;
+    if (priceRange.min !== DEFAULT_PRICE_RANGE.min || priceRange.max !== DEFAULT_PRICE_RANGE.max)
+      count += 1;
+    if (quickFilter !== 'all') count += 1;
+    return count;
+  }, [selectedBrandIds, priceRange, quickFilter]);
 
   // Breadcrumb items (excluding "СПОРТ")
   const breadcrumbItems = useMemo(() => {
@@ -304,6 +331,15 @@ const ElectricCatalogPage: React.FC = () => {
     setPage(1);
   };
 
+  // Reset all filters to default values
+  const handleResetFilters = useCallback(() => {
+    setSelectedBrandIds(new Set());
+    setPriceRange(DEFAULT_PRICE_RANGE);
+    setQuickFilter('all');
+    setSearchQuery('');
+    setPage(1);
+  }, []);
+
   const handleAddToCart = useCallback(
     async (productId: number) => {
       // Reuse existing logic from original page
@@ -346,17 +382,17 @@ const ElectricCatalogPage: React.FC = () => {
     label: brand.name,
   }));
 
-  // Flatten categories or use direct children of active category? 
+  // Flatten categories or use direct children of active category?
   // For 'link-list', we ideally want to show the current level siblings or children.
-  // For simplicity, let's show top-level categories if no category selected, 
+  // For simplicity, let's show top-level categories if no category selected,
   // or children of current category.
-  // We need access to the full tree 'mapped' which is inside useEffect. 
+  // We need access to the full tree 'mapped' which is inside useEffect.
   // Better to move 'categories' state up or fetch it differently.
-  // For this "Retro-Spec" implementation, let's just use a hardcoded list or empty for now if complexities arise, 
+  // For this "Retro-Spec" implementation, let's just use a hardcoded list or empty for now if complexities arise,
   // BUT user asked for "Categories in Sidebar".
   // Let's rely on `categoriesService.getTree` being cached or fast enough.
   // Actually, we can just use `activeCategoryId` to decide what to show?
-  // Since `mapped` is local to useEffect, we can't access it here. 
+  // Since `mapped` is local to useEffect, we can't access it here.
   // Let's add `categories` state.
 
   // NOTE: Ideally we refactor data fetching, but for now let's assume we have categories.
@@ -380,13 +416,39 @@ const ElectricCatalogPage: React.FC = () => {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-6">
           <div className="space-y-2">
             <ElectricSectionHeader title={activeCategoryLabel} size="lg" />
-            <p className="text-[var(--color-text-secondary)]">Найдено {totalProducts} товаров</p>
+            <p className="text-sm md:text-base text-[var(--color-text-secondary)]">
+              Найдено {totalProducts} товаров
+            </p>
           </div>
 
-          <div className="w-full md:w-auto min-w-[200px]">
+          <div className="w-full md:w-auto min-w-[200px] flex gap-3">
+            {/* Mobile Filter Button */}
+            <button
+              onClick={() => setIsFilterDrawerOpen(true)}
+              className="lg:hidden flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 text-xs md:text-sm border border-[var(--border-default)] text-[var(--color-text-secondary)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] transition-all duration-200"
+              style={{ transform: 'skewX(-12deg)' }}
+            >
+              <span
+                style={{
+                  transform: 'skewX(12deg)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                }}
+              >
+                <SlidersHorizontal className="w-4 h-4" />
+                Фильтры
+                {activeFiltersCount > 0 && (
+                  <span className="bg-[var(--color-primary)] text-black text-xs font-bold w-5 h-5 flex items-center justify-center">
+                    {activeFiltersCount}
+                  </span>
+                )}
+              </span>
+            </button>
+
             <SortSelect
               value={ordering}
-              onChange={(val) => {
+              onChange={val => {
                 setOrdering(val);
                 setPage(1);
               }}
@@ -395,8 +457,8 @@ const ElectricCatalogPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Quick Filter Tabs */}
-        <div className="flex gap-2 mb-6">
+        {/* Quick Filter Tabs - Horizontally scrollable on mobile */}
+        <div className="flex gap-2 mb-6 overflow-x-auto pb-2 scrollbar-hide">
           {[
             { key: 'all' as const, label: 'Все товары' },
             { key: 'new' as const, label: 'Новинки' },
@@ -409,25 +471,24 @@ const ElectricCatalogPage: React.FC = () => {
                 setPage(1);
               }}
               className={`
-                px-4 py-2 text-sm font-medium uppercase tracking-wide
+                px-3 py-1.5 md:px-4 md:py-2 text-xs md:text-sm font-medium uppercase tracking-wide whitespace-nowrap
                 border transition-all duration-200
-                ${quickFilter === key
-                  ? 'bg-[var(--color-primary)] text-[var(--color-text-inverse)] border-[var(--color-primary)]'
-                  : 'bg-transparent text-[var(--color-text-secondary)] border-[var(--border-default)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]'
+                ${
+                  quickFilter === key
+                    ? 'bg-[var(--color-primary)] text-[var(--color-text-inverse)] border-[var(--color-primary)]'
+                    : 'bg-transparent text-[var(--color-text-secondary)] border-[var(--border-default)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]'
                 }
               `}
               style={{ transform: 'skewX(-12deg)' }}
             >
-              <span style={{ display: 'inline-block', transform: 'skewX(12deg)' }}>
-                {label}
-              </span>
+              <span style={{ display: 'inline-block', transform: 'skewX(12deg)' }}>{label}</span>
             </button>
           ))}
         </div>
 
         <div className="flex flex-col lg:flex-row gap-8">
-          {/* Sidebar */}
-          <aside className="w-full lg:w-[280px] flex-shrink-0 space-y-6">
+          {/* Sidebar - Hidden on mobile */}
+          <aside className="hidden lg:block w-[280px] flex-shrink-0 space-y-6">
             {/* Category Tree */}
             <div className="bg-[var(--bg-card)] p-6 border border-[var(--border-default)]">
               <h3
@@ -446,7 +507,7 @@ const ElectricCatalogPage: React.FC = () => {
               <ElectricCategoryTree
                 nodes={categoriesTree}
                 activeCategoryId={activeCategoryId}
-                onSelectCategory={(node) => {
+                onSelectCategory={node => {
                   setActiveCategoryId(node.id);
                   setActiveCategoryLabel(node.label);
                   setPage(1);
@@ -479,6 +540,18 @@ const ElectricCatalogPage: React.FC = () => {
               onPriceChange={handlePriceChange}
               className="w-full"
             />
+
+            {/* Reset Filters Button */}
+            {hasActiveFilters && (
+              <ElectricButton
+                variant="outline"
+                size="sm"
+                onClick={handleResetFilters}
+                className="w-full"
+              >
+                Сбросить фильтры
+              </ElectricButton>
+            )}
           </aside>
 
           {/* Product Grid */}
@@ -535,7 +608,7 @@ const ElectricCatalogPage: React.FC = () => {
                       inStock={product.is_in_stock}
                       onAddToCart={() => handleAddToCart(product.id)}
                       isFavorite={false}
-                      onToggleFavorite={() => { }}
+                      onToggleFavorite={() => {}}
                     />
                   );
                 })}
@@ -555,6 +628,81 @@ const ElectricCatalogPage: React.FC = () => {
           </main>
         </div>
       </div>
+
+      {/* Mobile Filter Drawer */}
+      <ElectricDrawer
+        isOpen={isFilterDrawerOpen}
+        onClose={() => setIsFilterDrawerOpen(false)}
+        title="ФИЛЬТРЫ"
+        width="md"
+        footer={
+          hasActiveFilters ? (
+            <ElectricButton
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                handleResetFilters();
+                setIsFilterDrawerOpen(false);
+              }}
+              className="w-full"
+            >
+              Сбросить фильтры
+            </ElectricButton>
+          ) : undefined
+        }
+      >
+        <div className="space-y-6">
+          {/* Category Tree in Drawer */}
+          <div>
+            <h3
+              className="text-base md:text-lg mb-4 pb-2 border-b border-[var(--border-default)] uppercase tracking-wide"
+              style={{
+                fontFamily: "'Roboto Condensed', sans-serif",
+                fontWeight: 900,
+                transform: 'skewX(-12deg)',
+                transformOrigin: 'left',
+              }}
+            >
+              <span style={{ transform: 'skewX(12deg)', display: 'inline-block' }}>КАТЕГОРИИ</span>
+            </h3>
+            <ElectricCategoryTree
+              nodes={categoriesTree}
+              activeCategoryId={activeCategoryId}
+              onSelectCategory={node => {
+                setActiveCategoryId(node.id);
+                setActiveCategoryLabel(node.label);
+                setPage(1);
+              }}
+            />
+          </div>
+
+          {/* Filters in Drawer */}
+          <ElectricSidebar
+            filterGroups={[
+              {
+                id: 'brands',
+                title: 'БРЕНДЫ',
+                type: 'checkbox',
+                options: brandFilterOptions,
+              },
+              {
+                id: 'price',
+                title: 'ЦЕНА (₽)',
+                type: 'price',
+                options: [],
+              },
+            ]}
+            priceRange={{ min: PRICE_MIN, max: PRICE_MAX }}
+            currentPrice={priceRange}
+            selectedFilters={{
+              brands: Array.from(selectedBrandIds).map(String),
+            }}
+            onFilterChange={handleFilterChange}
+            onPriceChange={handlePriceChange}
+            className="w-full"
+          />
+        </div>
+      </ElectricDrawer>
     </div>
   );
 };

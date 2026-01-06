@@ -40,9 +40,9 @@ export interface ElectricSectionHeaderProps {
 // ============================================
 
 const sizeStyles = {
-  sm: 'text-xl md:text-2xl',
-  md: 'text-2xl md:text-3xl',
-  lg: 'text-3xl md:text-4xl',
+  sm: 'text-lg md:text-xl lg:text-2xl',
+  md: 'text-xl md:text-2xl lg:text-3xl',
+  lg: 'text-2xl md:text-3xl lg:text-4xl',
 };
 
 // ============================================

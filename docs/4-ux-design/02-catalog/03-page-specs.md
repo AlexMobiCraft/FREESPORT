@@ -149,3 +149,58 @@
 5. **ElectricSidebar:** Фильтры по брендам и цене.
 6. **ElectricProductCard:** Карточка товара.
 7. **ElectricPagination:** Пагинация.
+8. **ElectricDrawer:** Мобильная шторка для фильтров (только `< lg`).
+
+---
+
+## 7. Mobile Adaptation
+
+### 7.1 Breakpoints
+
+| Breakpoint | Ширина | Поведение |
+|------------|--------|-----------|
+| Mobile | `< 768px` | 2 колонки товаров, drawer для фильтров |
+| Tablet | `768px - 1023px` | 3 колонки товаров, drawer для фильтров |
+| Desktop | `≥ 1024px` | 4 колонки товаров, sidebar виден |
+
+### 7.2 Mobile Layout
+
+**Sidebar скрыт** на экранах `< lg` (1024px):
+
+```css
+aside { @apply hidden lg:block; }
+```
+
+**Кнопка «Фильтры»** появляется вместо sidebar:
+* Видима только на `lg:hidden`
+* Иконка `SlidersHorizontal` + текст "Фильтры"
+* Бейдж с количеством активных фильтров
+
+**ElectricDrawer** — slide-in панель слева:
+* Содержит: ElectricCategoryTree + ElectricSidebar
+* Footer с кнопкой "Сбросить фильтры" (если есть активные)
+* Ширина: `max-w-[320px]`
+
+### 7.3 Responsive Typography
+
+| Элемент | Desktop | Mobile |
+|---------|---------|--------|
+| Section Header (lg) | `text-4xl` | `text-3xl` |
+| Счётчик товаров | `text-base` | `text-sm` |
+| Кнопка «Фильтры» | `text-sm`, `px-4 py-2` | `text-xs`, `px-3 py-1.5` |
+| Quick Filter Tabs | `text-sm`, `px-4 py-2` | `text-xs`, `px-3 py-1.5` |
+| ElectricButton (sm) | `h-9 px-2.5 text-sm` | `h-8 px-2 text-xs` |
+| ElectricButton (md) | `h-11 px-6 text-base` | `h-10 px-4 text-sm` |
+
+### 7.4 Quick Filter Tabs (Mobile)
+
+* **Горизонтальный скролл:** `overflow-x-auto scrollbar-hide`
+* **Без переноса:** `whitespace-nowrap`
+* **Padding внизу** для touch-области: `pb-2`
+
+### 7.5 Компоненты Mobile
+
+| Компонент | Файл |
+|-----------|------|
+| ElectricDrawer | `components/ui/Drawer/ElectricDrawer.tsx` |
+| ElectricButton (responsive) | `components/ui/Button/ElectricButton.tsx` |

@@ -6,16 +6,16 @@ import { Facebook, Instagram, Youtube, Mail, Phone, MapPin } from 'lucide-react'
 
 const ElectricFooter: React.FC = () => {
   return (
-    <footer className="bg-[var(--bg-card)] text-[var(--foreground)] pt-16 pb-8 border-t border-[var(--border-default)]">
+    <footer className="bg-[var(--bg-card)] text-[var(--foreground)] pt-10 md:pt-16 pb-6 md:pb-8 border-t border-[var(--border-default)]">
       <div className="max-w-[1200px] mx-auto px-5">
         {/* Main Footer Content */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-16">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 md:gap-12 mb-10 md:mb-16">
           {/* Column 1: About */}
           <div>
-            <h3 className="font-roboto-condensed font-bold text-[20px] uppercase transform -skew-x-12 mb-6 text-[var(--foreground)] border-b-2 border-[var(--color-primary)] inline-block pb-1">
+            <h3 className="font-roboto-condensed font-bold text-[16px] md:text-[20px] uppercase transform -skew-x-12 mb-4 md:mb-6 text-[var(--foreground)] border-b-2 border-[var(--color-primary)] inline-block pb-1">
               <span className="transform skew-x-12 inline-block">О КОМПАНИИ</span>
             </h3>
-            <p className="font-inter text-[var(--color-text-secondary)] text-[14px] leading-relaxed mb-6">
+            <p className="font-inter text-[var(--color-text-secondary)] text-[12px] md:text-[14px] leading-relaxed mb-4 md:mb-6">
               FREESPORT — ваш надежный партнер в мире спорта. Мы предлагаем только качественное
               оборудование и экипировку для профессионалов и любителей.
             </p>
@@ -43,10 +43,10 @@ const ElectricFooter: React.FC = () => {
 
           {/* Column 2: Catalog */}
           <div>
-            <h3 className="font-roboto-condensed font-bold text-[20px] uppercase transform -skew-x-12 mb-6 text-[var(--foreground)] border-b-2 border-[var(--color-primary)] inline-block pb-1">
+            <h3 className="font-roboto-condensed font-bold text-[16px] md:text-[20px] uppercase transform -skew-x-12 mb-4 md:mb-6 text-[var(--foreground)] border-b-2 border-[var(--color-primary)] inline-block pb-1">
               <span className="transform skew-x-12 inline-block">КАТАЛОГ</span>
             </h3>
-            <ul className="space-y-3 font-inter text-[14px]">
+            <ul className="space-y-2 md:space-y-3 font-inter text-[12px] md:text-[14px]">
               {[
                 'Единоборства',
                 'Фитнес',
@@ -70,10 +70,10 @@ const ElectricFooter: React.FC = () => {
 
           {/* Column 3: Information */}
           <div>
-            <h3 className="font-roboto-condensed font-bold text-[20px] uppercase transform -skew-x-12 mb-6 text-[var(--foreground)] border-b-2 border-[var(--color-primary)] inline-block pb-1">
+            <h3 className="font-roboto-condensed font-bold text-[16px] md:text-[20px] uppercase transform -skew-x-12 mb-4 md:mb-6 text-[var(--foreground)] border-b-2 border-[var(--color-primary)] inline-block pb-1">
               <span className="transform skew-x-12 inline-block">ИНФОРМАЦИЯ</span>
             </h3>
-            <ul className="space-y-3 font-inter text-[14px]">
+            <ul className="space-y-2 md:space-y-3 font-inter text-[12px] md:text-[14px]">
               {[
                 'О нас',
                 'Доставка и оплата',
@@ -97,10 +97,10 @@ const ElectricFooter: React.FC = () => {
 
           {/* Column 4: Contacts */}
           <div>
-            <h3 className="font-roboto-condensed font-bold text-[20px] uppercase transform -skew-x-12 mb-6 text-[var(--foreground)] border-b-2 border-[var(--color-primary)] inline-block pb-1">
+            <h3 className="font-roboto-condensed font-bold text-[16px] md:text-[20px] uppercase transform -skew-x-12 mb-4 md:mb-6 text-[var(--foreground)] border-b-2 border-[var(--color-primary)] inline-block pb-1">
               <span className="transform skew-x-12 inline-block">КОНТАКТЫ</span>
             </h3>
-            <ul className="space-y-4 font-inter text-[14px] text-[var(--color-text-secondary)]">
+            <ul className="space-y-3 md:space-y-4 font-inter text-[12px] md:text-[14px] text-[var(--color-text-secondary)]">
               <li className="flex items-start gap-3">
                 <MapPin className="w-5 h-5 text-[var(--color-primary)] mt-0.5 flex-shrink-0" />
                 <span>г. Москва, ул. Спортивная, д. 15, офис 204</span>
@@ -128,20 +128,20 @@ const ElectricFooter: React.FC = () => {
         </div>
 
         {/* Bottom Bar */}
-        <div className="border-t border-[var(--border-default)] pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
-          <p className="font-inter text-[12px] text-[var(--color-text-muted)]">
+        <div className="border-t border-[var(--border-default)] pt-6 md:pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
+          <p className="font-inter text-[10px] md:text-[12px] text-[var(--color-text-muted)]">
             © 2026 FREESPORT. Все права защищены.
           </p>
           <div className="flex gap-6">
             <Link
               href="#"
-              className="font-inter text-[12px] text-[var(--color-text-muted)] hover:text-[var(--foreground)] transition-colors"
+              className="font-inter text-[10px] md:text-[12px] text-[var(--color-text-muted)] hover:text-[var(--foreground)] transition-colors"
             >
               Политика конфиденциальности
             </Link>
             <Link
               href="#"
-              className="font-inter text-[12px] text-[var(--color-text-muted)] hover:text-[var(--foreground)] transition-colors"
+              className="font-inter text-[10px] md:text-[12px] text-[var(--color-text-muted)] hover:text-[var(--foreground)] transition-colors"
             >
               Пользовательское соглашение
             </Link>

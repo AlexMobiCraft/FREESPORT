@@ -71,7 +71,7 @@ export function ElectricProductCard({
     <article
       className={cn(
         // Base - Rectangular card
-        'bg-[var(--bg-card)] border border-[var(--border-default)] p-4',
+        'bg-[var(--bg-card)] border border-[var(--border-default)] p-3 md:p-4',
         'transition-all duration-300',
         'hover:border-[var(--color-primary)] hover:shadow-[var(--shadow-hover)] hover:-translate-y-[5px]',
         'cursor-pointer group',
@@ -86,7 +86,7 @@ export function ElectricProductCard({
       tabIndex={0}
     >
       {/* Image Container */}
-      <div className="relative aspect-square bg-[var(--color-neutral-300)] mb-4 overflow-hidden flex-shrink-0">
+      <div className="relative aspect-square bg-[var(--color-neutral-300)] mb-2 md:mb-4 overflow-hidden flex-shrink-0">
         <img
           src={image}
           alt={title}
@@ -150,7 +150,7 @@ export function ElectricProductCard({
 
           {/* Title */}
           <h3
-            className="text-[var(--foreground)] font-medium line-clamp-2 min-h-[40px] mb-2"
+            className="text-sm md:text-base text-[var(--foreground)] font-medium line-clamp-2 min-h-[32px] md:min-h-[40px] mb-1 md:mb-2"
             style={{ fontFamily: "'Inter', sans-serif" }}
           >
             {title}
@@ -158,9 +158,9 @@ export function ElectricProductCard({
         </div>
 
         {/* Price - Skewed */}
-        <div className="flex items-center gap-2 mb-4">
+        <div className="flex items-center gap-1 md:gap-2 mb-2 md:mb-4">
           <span
-            className="text-xl font-bold text-[var(--color-primary)] inline-block"
+            className="text-lg md:text-xl font-bold text-[var(--color-primary)] inline-block"
             style={{
               fontFamily: "'Roboto Condensed', sans-serif",
               transform: 'skewX(-12deg)',
@@ -170,7 +170,7 @@ export function ElectricProductCard({
           </span>
 
           {oldPrice && (
-            <span className="text-sm text-[var(--color-text-muted)] line-through">
+            <span className="text-xs md:text-sm text-[var(--color-text-muted)] line-through">
               {formatPrice(oldPrice)} ₽
             </span>
           )}
@@ -178,7 +178,7 @@ export function ElectricProductCard({
       </div>
 
       {/* Action Buttons Row - Always visible per spec: Primary + Outline */}
-      <div className="flex gap-2.5 mt-auto">
+      <div className="flex gap-1.5 md:gap-2.5 mt-auto">
         <div className="flex-1">
           <ElectricButton
             variant="primary"

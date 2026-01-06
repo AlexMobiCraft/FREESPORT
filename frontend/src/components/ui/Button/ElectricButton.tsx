@@ -18,9 +18,9 @@ export function ElectricButton({
   ...props
 }: ElectricButtonProps) {
   const sizeClasses = {
-    sm: 'h-9 px-2.5 text-sm',
-    md: 'h-11 px-6 text-base',
-    lg: 'h-14 px-8 text-lg',
+    sm: 'h-8 px-2 text-xs md:h-9 md:px-2.5 md:text-sm',
+    md: 'h-10 px-4 text-sm md:h-11 md:px-6 md:text-base',
+    lg: 'h-12 px-6 text-base md:h-14 md:px-8 md:text-lg',
   };
 
   const variantClasses = {
