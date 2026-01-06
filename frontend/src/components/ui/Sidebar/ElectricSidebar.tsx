@@ -31,7 +31,7 @@ export interface FilterGroup {
   id: string;
   title: string;
   options: FilterOption[];
-  type: 'checkbox' | 'price';
+  type: 'checkbox' | 'price' | 'link-list';
 }
 
 export interface PriceRange {
@@ -140,6 +140,48 @@ export function ElectricSidebar({
             </div>
           )}
 
+          {group.type === 'link-list' && (
+            <div className="space-y-1">
+              {group.options.map(option => (
+                <CategoryLink
+                  key={option.id}
+                  option={option}
+                  isActive={
+                    selectedFilters && selectedFilters[group.id]
+                      ? selectedFilters[group.id].includes(option.id)
+                      : false
+                  }
+                  onClick={
+                    onFilterChange
+                      ? () => onFilterChange(group.id, option.id, true)
+                      : undefined
+                  }
+                />
+              ))}
+            </div>
+          )}
+
+          {group.type === 'link-list' && (
+            <div className="space-y-1">
+              {group.options.map(option => (
+                <CategoryLink
+                  key={option.id}
+                  option={option}
+                  isActive={
+                    selectedFilters && selectedFilters[group.id]
+                      ? selectedFilters[group.id].includes(option.id)
+                      : false
+                  }
+                  onClick={
+                    onFilterChange
+                      ? () => onFilterChange(group.id, option.id, true)
+                      : undefined
+                  }
+                />
+              ))}
+            </div>
+          )}
+
           {group.type === 'price' && (
             <div>
               {/* Price Range Slider (Electric Orange) */}
@@ -226,5 +268,35 @@ function CheckboxRow({ option, checked, onChange }: CheckboxRowProps) {
 // ============================================
 // Exports
 // ============================================
+
+// ============================================
+// Category Link Component
+// ============================================
+
+interface CategoryLinkProps {
+  option: FilterOption;
+  isActive: boolean;
+  onClick?: () => void;
+}
+
+function CategoryLink({ option, isActive, onClick }: CategoryLinkProps) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        'w-full text-left py-1.5 px-2 text-sm transition-colors duration-200 block',
+        'hover:text-[var(--color-primary)]',
+        isActive
+          ? 'text-[var(--color-primary)] font-medium pl-3 border-l-2 border-[var(--color-primary)]'
+          : 'text-[var(--color-text-secondary)] border-l-2 border-transparent hover:border-[var(--color-text-muted)]'
+      )}
+    >
+      {option.label}
+      {option.count !== undefined && (
+        <span className="text-[var(--color-text-muted)] text-xs ml-2">({option.count})</span>
+      )}
+    </button>
+  );
+}
 
 export default ElectricSidebar;

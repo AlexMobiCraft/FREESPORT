@@ -6,7 +6,7 @@
  */
 
 import React from 'react';
-import { SelectDropdown, SelectOption } from '../Select';
+import { ElectricSelect, ElectricSelectOption } from '../Select/ElectricSelect';
 
 export interface SortOption {
   value: string;
@@ -28,15 +28,18 @@ export interface SortSelectProps {
 }
 
 /**
- * Опции сортировки по умолчанию согласно спецификации
+ * Опции сортировки товаров
+ * Значения соответствуют Django ordering API format: field или -field
+ * Доступные поля сортировки API: name, min_retail_price, created_at, total_stock
+ * 
+ * ВАЖНО: "Новинки" и "Акция" — это ФИЛЬТРЫ (is_new, is_sale), а не сортировка!
+ * Для них используются быстрые фильтры-табы на странице каталога.
  */
 export const SORT_OPTIONS: SortOption[] = [
-  { value: 'price_asc', label: 'Цена: по возрастанию', direction: 'asc' },
-  { value: 'price_desc', label: 'Цена: по убыванию', direction: 'desc' },
-  { value: 'stock_desc', label: 'По наличию', direction: 'desc' },
-  { value: 'brand_asc', label: 'По бренду (А-Я)', direction: 'asc' },
-  { value: 'name_asc', label: 'По названию (А-Я)', direction: 'asc' },
-  { value: 'created_desc', label: 'Новинки', direction: 'desc' },
+  { value: 'min_retail_price', label: 'Цена: по возрастанию', direction: 'asc' },
+  { value: '-min_retail_price', label: 'Цена: по убыванию', direction: 'desc' },
+  { value: 'name', label: 'По названию (А-Я)', direction: 'asc' },
+  { value: '-name', label: 'По названию (Я-А)', direction: 'desc' },
 ];
 
 /**
@@ -44,9 +47,9 @@ export const SORT_OPTIONS: SortOption[] = [
  * Использует SelectDropdown как базу
  */
 export const SortSelect = React.forwardRef<HTMLDivElement, SortSelectProps>(
-  ({ options = SORT_OPTIONS, value, onChange, mode = 'b2c', className }, ref) => {
-    // Преобразуем SortOption в SelectOption
-    const selectOptions: SelectOption[] = options.map(opt => ({
+  ({ options = SORT_OPTIONS, value, onChange, mode = 'b2c', className }, _ref) => {
+    // Преобразуем SortOption в ElectricSelectOption
+    const selectOptions: ElectricSelectOption[] = options.map(opt => ({
       value: opt.value,
       label: opt.label,
     }));
@@ -54,12 +57,11 @@ export const SortSelect = React.forwardRef<HTMLDivElement, SortSelectProps>(
     const labelText = mode === 'b2b' ? 'Сортировка (B2B)' : 'Сортировка';
 
     return (
-      <SelectDropdown
-        ref={ref}
+      <ElectricSelect
+        // ref={ref} // ElectricSelect currently doesn't forward ref, but it wraps a div
         options={selectOptions}
         value={value}
         placeholder={labelText}
-        label={labelText}
         onChange={onChange}
         className={className}
       />

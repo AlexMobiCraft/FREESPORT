@@ -5,9 +5,8 @@
 
 'use client';
 
-import React, { useCallback, useEffect, useState, Suspense } from 'react';
+import React, { useCallback, useEffect, useState, Suspense, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
-import Link from 'next/link';
 
 // Electric Orange Components
 import ElectricProductCard from '@/components/ui/ProductCard/ElectricProductCard';
@@ -16,6 +15,9 @@ import ElectricSectionHeader from '@/components/ui/SectionHeader/ElectricSection
 import ElectricPagination from '@/components/ui/Pagination/ElectricPagination';
 import ElectricSpinner from '@/components/ui/Spinner/ElectricSpinner';
 import { useToast } from '@/components/ui/Toast';
+import { ElectricBreadcrumbs } from '@/components/ui/Breadcrumb/ElectricBreadcrumbs';
+import { SortSelect, SORT_OPTIONS } from '@/components/ui/SortSelect/SortSelect';
+import { ElectricCategoryTree } from '@/components/ui/CategoryTree/ElectricCategoryTree';
 
 // Services & Type Definitions
 import productsService, { type ProductFilters } from '@/services/productsService';
@@ -23,9 +25,6 @@ import categoriesService from '@/services/categoriesService';
 import brandsService from '@/services/brandsService';
 import type { Product, CategoryTree as CategoryTreeResponse, Brand } from '@/types/api';
 import { useCartStore } from '@/stores/cartStore';
-
-// Icons & Utils
-import { ArrowLeft } from 'lucide-react';
 
 // ============================================
 // Types reuse
@@ -84,6 +83,26 @@ const findCategoryByLabel = (nodes: CategoryNode[], targetLabel: string): Catego
   return null;
 };
 
+const findCategoryPathById = (
+  nodes: CategoryNode[],
+  targetId: number,
+  path: CategoryNode[] = []
+): CategoryNode[] => {
+  for (const node of nodes) {
+    const currentPath = [...path, node];
+    if (node.id === targetId) {
+      return currentPath;
+    }
+    if (node.children?.length) {
+      const childPath = findCategoryPathById(node.children, targetId, currentPath);
+      if (childPath.length) {
+        return childPath;
+      }
+    }
+  }
+  return [];
+};
+
 // ============================================
 // Main Component
 // ============================================
@@ -101,10 +120,14 @@ const ElectricCatalogPage: React.FC = () => {
   const [priceRange, setPriceRange] = useState<PriceRange>(DEFAULT_PRICE_RANGE);
   const [searchQuery, setSearchQuery] = useState('');
 
+  const [categoriesTree, setCategoriesTree] = useState<CategoryNode[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [totalProducts, setTotalProducts] = useState(0);
   const [page, setPage] = useState(1);
-  const [ordering] = useState(DEFAULT_ORDERING);
+  const [ordering, setOrdering] = useState(DEFAULT_ORDERING);
+
+  // Quick filters: 'all' | 'new' | 'sale'
+  const [quickFilter, setQuickFilter] = useState<'all' | 'new' | 'sale'>('all');
 
   const [isProductsLoading, setIsProductsLoading] = useState(false);
   const [productsError, setProductsError] = useState<string | null>(null);
@@ -112,6 +135,30 @@ const ElectricCatalogPage: React.FC = () => {
   // Cart
   const { addItem } = useCartStore();
   const { success, error: toastError } = useToast();
+
+  // Computed: Active category path (for breadcrumbs)
+  const activePathNodes = useMemo(() => {
+    if (!activeCategoryId || categoriesTree.length === 0) return [];
+    return findCategoryPathById(categoriesTree, activeCategoryId);
+  }, [categoriesTree, activeCategoryId]);
+
+  // Breadcrumb items (excluding "СПОРТ")
+  const breadcrumbItems = useMemo(() => {
+    const base = [
+      { label: 'Главная', href: '/' },
+      { label: 'Каталог', href: '/electric/catalog' },
+    ];
+
+    // Filter out "СПОРТ" (case-insensitive) and add remaining path
+    const categoryPath = activePathNodes
+      .filter(node => node.label.toLowerCase() !== DEFAULT_CATEGORY_LABEL.toLowerCase())
+      .map((node: CategoryNode, index: number, arr: CategoryNode[]) => ({
+        label: node.label,
+        href: index < arr.length - 1 ? `/electric/catalog?category=${node.slug}` : undefined,
+      }));
+
+    return [...base, ...categoryPath];
+  }, [activePathNodes]);
 
   // --------------------------------------------
   // Data Fetching: Categories & Brands
@@ -125,6 +172,7 @@ const ElectricCatalogPage: React.FC = () => {
         const tree = await categoriesService.getTree();
         if (!isMounted) return;
         const mapped = tree.map(mapCategoryTreeNode);
+        setCategoriesTree(mapped);
 
         const categorySlug = searchParams.get('category');
         let initialCategory: CategoryNode | null = null;
@@ -199,6 +247,10 @@ const ElectricCatalogPage: React.FC = () => {
       if (selectedBrandIds.size > 0) filters.brand = Array.from(selectedBrandIds).join(',');
       if (searchQuery.trim().length >= 2) filters.search = searchQuery.trim();
 
+      // Quick filters
+      if (quickFilter === 'new') filters.is_new = true;
+      if (quickFilter === 'sale') filters.is_sale = true;
+
       const response = await productsService.getAll(filters);
       setProducts(response.results);
       setTotalProducts(response.count);
@@ -208,7 +260,7 @@ const ElectricCatalogPage: React.FC = () => {
     } finally {
       setIsProductsLoading(false);
     }
-  }, [activeCategoryId, ordering, page, priceRange, selectedBrandIds, searchQuery]);
+  }, [activeCategoryId, ordering, page, priceRange, selectedBrandIds, searchQuery, quickFilter]);
 
   useEffect(() => {
     if (activeCategoryId !== null) {
@@ -223,14 +275,13 @@ const ElectricCatalogPage: React.FC = () => {
   const handleFilterChange = (groupId: string, optionId: string, checked: boolean) => {
     // Categories
     if (groupId === 'categories') {
-      // Since ElectricSidebar handles categories as checkboxes/toggles, we need to map back to IDs
-      // This part might need adjustment depending on how ElectricSidebar exposes IDs
-      // For now, let's assume optionId is the string ID of the category
-      // but our categories use numeric IDs.
-      // The sidebar is generic. Let's try to map string id back to numeric if possible.
-      // Optimization: ElectricSidebar generally expects string IDs.
-      // We can reimplement handleSelectCategory logic here if needed,
-      // but treating categories as a single-select filter in the sidebar is cleaner visually.
+      // Handled via link-list click which might just navigate or set filter
+      // For now, if we want to filter by category ID client side:
+      const catId = Number(optionId);
+      if (!isNaN(catId)) {
+        setActiveCategoryId(catId);
+        setPage(1);
+      }
     }
 
     // Brands
@@ -295,6 +346,22 @@ const ElectricCatalogPage: React.FC = () => {
     label: brand.name,
   }));
 
+  // Flatten categories or use direct children of active category? 
+  // For 'link-list', we ideally want to show the current level siblings or children.
+  // For simplicity, let's show top-level categories if no category selected, 
+  // or children of current category.
+  // We need access to the full tree 'mapped' which is inside useEffect. 
+  // Better to move 'categories' state up or fetch it differently.
+  // For this "Retro-Spec" implementation, let's just use a hardcoded list or empty for now if complexities arise, 
+  // BUT user asked for "Categories in Sidebar".
+  // Let's rely on `categoriesService.getTree` being cached or fast enough.
+  // Actually, we can just use `activeCategoryId` to decide what to show?
+  // Since `mapped` is local to useEffect, we can't access it here. 
+  // Let's add `categories` state.
+
+  // NOTE: Ideally we refactor data fetching, but for now let's assume we have categories.
+  // I will add `categoriesTree` state in a separate chunk.
+
   // --------------------------------------------
   // Render
   // --------------------------------------------
@@ -303,27 +370,91 @@ const ElectricCatalogPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[var(--bg-body)] text-[var(--color-text-primary)] font-body selection:bg-[var(--color-primary)] selection:text-[var(--color-text-inverse)]">
-      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {/* Breadcrumbs */}
+        <div className="mb-6">
+          <ElectricBreadcrumbs items={breadcrumbItems} />
+        </div>
+
         {/* Header Section */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-6">
           <div className="space-y-2">
-            <Link
-              href="/"
-              className="inline-flex items-center text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-primary)] transition-colors mb-2"
-            >
-              <ArrowLeft className="w-4 h-4 mr-1" />
-              Вернуться на главную
-            </Link>
             <ElectricSectionHeader title={activeCategoryLabel} size="lg" />
             <p className="text-[var(--color-text-secondary)]">Найдено {totalProducts} товаров</p>
           </div>
 
-          <div className="flex gap-4">{/* Ordering Select could go here */}</div>
+          <div className="w-full md:w-auto min-w-[200px]">
+            <SortSelect
+              value={ordering}
+              onChange={(val) => {
+                setOrdering(val);
+                setPage(1);
+              }}
+              options={SORT_OPTIONS}
+            />
+          </div>
+        </div>
+
+        {/* Quick Filter Tabs */}
+        <div className="flex gap-2 mb-6">
+          {[
+            { key: 'all' as const, label: 'Все товары' },
+            { key: 'new' as const, label: 'Новинки' },
+            { key: 'sale' as const, label: 'Акция' },
+          ].map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => {
+                setQuickFilter(key);
+                setPage(1);
+              }}
+              className={`
+                px-4 py-2 text-sm font-medium uppercase tracking-wide
+                border transition-all duration-200
+                ${quickFilter === key
+                  ? 'bg-[var(--color-primary)] text-[var(--color-text-inverse)] border-[var(--color-primary)]'
+                  : 'bg-transparent text-[var(--color-text-secondary)] border-[var(--border-default)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]'
+                }
+              `}
+              style={{ transform: 'skewX(-12deg)' }}
+            >
+              <span style={{ display: 'inline-block', transform: 'skewX(12deg)' }}>
+                {label}
+              </span>
+            </button>
+          ))}
         </div>
 
         <div className="flex flex-col lg:flex-row gap-8">
           {/* Sidebar */}
-          <aside className="w-full lg:w-[240px] flex-shrink-0">
+          <aside className="w-full lg:w-[280px] flex-shrink-0 space-y-6">
+            {/* Category Tree */}
+            <div className="bg-[var(--bg-card)] p-6 border border-[var(--border-default)]">
+              <h3
+                className="text-xl mb-5 pb-3 border-b border-[var(--border-default)] uppercase tracking-wide"
+                style={{
+                  fontFamily: "'Roboto Condensed', sans-serif",
+                  fontWeight: 900,
+                  transform: 'skewX(-12deg)',
+                  transformOrigin: 'left',
+                }}
+              >
+                <span style={{ transform: 'skewX(12deg)', display: 'inline-block' }}>
+                  КАТЕГОРИИ
+                </span>
+              </h3>
+              <ElectricCategoryTree
+                nodes={categoriesTree}
+                activeCategoryId={activeCategoryId}
+                onSelectCategory={(node) => {
+                  setActiveCategoryId(node.id);
+                  setActiveCategoryLabel(node.label);
+                  setPage(1);
+                }}
+              />
+            </div>
+
+            {/* Filters (Brands + Price) */}
             <ElectricSidebar
               filterGroups={[
                 {
@@ -348,13 +479,6 @@ const ElectricCatalogPage: React.FC = () => {
               onPriceChange={handlePriceChange}
               className="w-full"
             />
-            {/* 
-              Note: Category navigation in sidebar in original design is a Tree. 
-              ElectricSidebar uses generic checklists. 
-              Ideally we should enhance ElectricSidebar to support Trees or 
-              render the CategoryTree component styled for Electric Orange separately.
-              For this iteration, we keep brands and price and category is selected via URL/Header or we add a simple list.
-            */}
           </aside>
 
           {/* Product Grid */}
@@ -411,7 +535,7 @@ const ElectricCatalogPage: React.FC = () => {
                       inStock={product.is_in_stock}
                       onAddToCart={() => handleAddToCart(product.id)}
                       isFavorite={false}
-                      onToggleFavorite={() => {}}
+                      onToggleFavorite={() => { }}
                     />
                   );
                 })}
