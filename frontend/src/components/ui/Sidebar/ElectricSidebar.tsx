@@ -105,8 +105,8 @@ export function ElectricSidebar({
   return (
     <aside
       className={cn(
-        'bg-[var(--bg-card)] p-8 border border-[var(--border-default)]',
-        'w-full max-w-none lg:max-w-[240px] h-fit',
+        'bg-[var(--bg-card)] p-6 border border-[var(--border-default)]',
+        'w-full h-fit',
         className
       )}
     >
@@ -152,9 +152,7 @@ export function ElectricSidebar({
                       : false
                   }
                   onClick={
-                    onFilterChange
-                      ? () => onFilterChange(group.id, option.id, true)
-                      : undefined
+                    onFilterChange ? () => onFilterChange(group.id, option.id, true) : undefined
                   }
                 />
               ))}
@@ -173,9 +171,7 @@ export function ElectricSidebar({
                       : false
                   }
                   onClick={
-                    onFilterChange
-                      ? () => onFilterChange(group.id, option.id, true)
-                      : undefined
+                    onFilterChange ? () => onFilterChange(group.id, option.id, true) : undefined
                   }
                 />
               ))}
