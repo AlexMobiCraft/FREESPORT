@@ -23,7 +23,7 @@
 
 #### Primary
 
-- **Background:** `var(--color-primary)` (#FF6B00)
+- **Background:** `var(--color-primary)`
 - **Text:** Black (Inverse)
 - **Hover:** Background White, Text Orange, Shadow Glow
 
@@ -44,7 +44,7 @@
 |----------|-------|-------|
 | **Component** | `ElectricInput` | `src/components/ui/Input/ElectricInput.tsx` |
 | **Geometry** | **Rectangular (0deg)** | NO skew for readability |
-| **Border** | 1px Solid `var(--border-default)` | Dark Gray (#333) |
+| **Border** | 1px Solid `var(--border-default)` | Dark Gray |
 | **Background** | Transparent | |
 | **Focus** | Border `var(--color-primary)` | Orange focus ring |
 | **Typography** | `Inter` (Body) | |
@@ -270,9 +270,9 @@ interface ElectricSidebarProps {
 
 **Визуальное поведение при клике:**
 
-- ✅ Чекбокс **заполняется** оранжевым цветом (#FF6B00)
+- ✅ Чекбокс **заполняется** оранжевым цветом (`var(--color-primary)`)
 - ✅ Появляется **галочка** ✓ (чёрного цвета, counter-skewed на 12deg)
-- ✅ Граница меняется на оранжевую (#FF6B00)
+- ✅ Граница меняется на оранжевую (`var(--color-primary)`)
 - ✅ Состояние сохраняется до повторного клика
 
 **Пример внутренней реализации:**
@@ -319,7 +319,7 @@ frontend/src/components/ui/Sidebar/
 
 - **Font:** Roboto Condensed, Bold/Black, Uppercase
 - **Geometry:** Skewed container (-12deg), Counter-skewed text (12deg)
-- **Decoration:** Orange underline (#FF6B00, 3px)
+- **Decoration:** Orange underline (`var(--color-primary)`, 3px)
 - **Optional Label:** Small text above main title (Inter, Straight)
 
 ### React Component
@@ -371,8 +371,8 @@ import ElectricSectionHeader from '@/components/ui/SectionHeader/ElectricSection
 
 ```css
 .header {
-  background: #0F0F0F;
-  border-bottom: 1px solid #333333;
+  background: var(--bg-body);
+  border-bottom: 1px solid var(--border-default);
   padding: 16px 0;
 }
 
@@ -380,7 +380,7 @@ import ElectricSectionHeader from '@/components/ui/SectionHeader/ElectricSection
   font-family: 'Roboto Condensed', sans-serif;
   font-weight: 900;
   font-size: 24px;
-  color: #FFFFFF;
+  color: var(--color-text-primary);
   text-transform: uppercase;
   transform: skewX(-12deg);
 }
@@ -392,29 +392,29 @@ import ElectricSectionHeader from '@/components/ui/SectionHeader/ElectricSection
 .header-nav-link {
   font-family: 'Inter', sans-serif;
   font-weight: 500;
-  color: #A0A0A0;
+  color: var(--color-text-secondary);
   text-transform: uppercase;
   font-size: 14px;
 }
 
 .header-nav-link:hover,
 .header-nav-link.active {
-  color: #FF6B00;
+  color: var(--color-primary);
 }
 
 .header-icon {
-  color: #FFFFFF;
+  color: var(--color-text-primary);
   width: 24px;
   height: 24px;
 }
 
 .header-icon:hover {
-  color: #FF6B00;
+  color: var(--color-primary);
 }
 
 .header-cart-badge {
-  background: #FF6B00;
-  color: #000000;
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
   font-size: 10px;
   font-weight: 700;
   border-radius: 50%;
@@ -444,10 +444,10 @@ import ElectricSectionHeader from '@/components/ui/SectionHeader/ElectricSection
 
 Для каждого компонента:
 
-- [ ] Background: dark colors (`#0F0F0F` / `#1A1A1A`)
-- [ ] Primary accent: `#FF6B00`
+- [ ] Background: dark colors (`var(--bg-body)` / `var(--bg-card)`)
+- [ ] Primary accent: `var(--color-primary)`
 - [ ] Text: white on dark
-- [ ] Borders: `#333333`
+- [ ] Borders: `var(--border-default)`
 - [ ] Skew applied where needed
 - [ ] Counter-skew for inner text
 - [ ] Hover states with glow
@@ -564,8 +564,8 @@ import ElectricSectionHeader from '@/components/ui/SectionHeader/ElectricSection
 
 ### Стилизация
 
-- Overlay: `rgba(15,15,15,0.9)` + `backdrop-blur`
-- Container: `bg: #1A1A1A`, `border: 1px solid #333333`
+- Overlay: `var(--bg-overlay)` + `backdrop-blur`
+- Container: `bg: var(--bg-card)`, `border: 1px solid var(--border-default)`
 - Title: Roboto Condensed, Bold, Uppercase, `skewX(-12deg)`
 - Close button: Skewed box with X icon
 
@@ -732,7 +732,7 @@ import ElectricSectionHeader from '@/components/ui/SectionHeader/ElectricSection
 ### Стилизация
 
 - Headers: Roboto Condensed, Bold, Uppercase, `skewX(-12deg)`
-- Rows: Alternating `#0F0F0F` / `#1A1A1A`
+- Rows: Alternating `var(--bg-body)` / `var(--bg-card)`
 - Hover: Left orange border
 
 ---
@@ -878,7 +878,7 @@ import ElectricSectionHeader from '@/components/ui/SectionHeader/ElectricSection
 
 - `00-migration-plan.md` — Общий план миграции
 - `01-color-mapping.md` — Маппинг цветов
-- `design_v2.3.0.json` — Официальные токены
+- `design.json` — Официальные токены
 
 ---
 

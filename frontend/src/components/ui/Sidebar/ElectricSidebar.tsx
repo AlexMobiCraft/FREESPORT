@@ -106,7 +106,7 @@ export function ElectricSidebar({
     <aside
       className={cn(
         'bg-[var(--bg-card)] p-8 border border-[var(--border-default)]',
-        'w-full max-w-[300px] h-fit',
+        'w-full max-w-none lg:max-w-[240px] h-fit',
         className
       )}
     >
@@ -201,7 +201,7 @@ function CheckboxRow({ option, checked, onChange }: CheckboxRowProps) {
           'w-5 h-5 border-2 mr-4 flex items-center justify-center transition-all',
           checked
             ? 'bg-[var(--color-primary)] border-[var(--color-primary)]'
-            : 'border-[var(--color-neutral-500)] group-hover:border-[var(--color-primary)]'
+            : 'border-[var(--border-default)] group-hover:border-[var(--color-primary)]'
         )}
         style={{ transform: 'skewX(-12deg)' }}
       >
@@ -213,7 +213,7 @@ function CheckboxRow({ option, checked, onChange }: CheckboxRowProps) {
       </span>
 
       {/* Label */}
-      <span className="text-[var(--color-text-secondary)] text-sm transition-colors group-hover:text-[var(--foreground)]">
+      <span className="text-[var(--color-text-secondary)] text-sm transition-colors group-hover:text-[var(--color-text-primary)]">
         {option.label}
         {option.count !== undefined && (
           <span className="text-[var(--color-text-muted)] ml-2">({option.count})</span>

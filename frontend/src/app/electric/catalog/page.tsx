@@ -13,6 +13,8 @@ import Link from 'next/link';
 import ElectricProductCard from '@/components/ui/ProductCard/ElectricProductCard';
 import ElectricSidebar from '@/components/ui/Sidebar/ElectricSidebar';
 import ElectricSectionHeader from '@/components/ui/SectionHeader/ElectricSectionHeader';
+import ElectricPagination from '@/components/ui/Pagination/ElectricPagination';
+import ElectricSpinner from '@/components/ui/Spinner/ElectricSpinner';
 import { useToast } from '@/components/ui/Toast';
 
 // Services & Type Definitions
@@ -321,7 +323,7 @@ const ElectricCatalogPage: React.FC = () => {
 
         <div className="flex flex-col lg:flex-row gap-8">
           {/* Sidebar */}
-          <aside className="w-full lg:w-[280px] flex-shrink-0">
+          <aside className="w-full lg:w-[240px] flex-shrink-0">
             <ElectricSidebar
               filterGroups={[
                 {
@@ -358,13 +360,14 @@ const ElectricCatalogPage: React.FC = () => {
           {/* Product Grid */}
           <main className="flex-1 min-w-0">
             {isProductsLoading ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                {Array.from({ length: 6 }).map((_, i) => (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
+                {Array.from({ length: 8 }).map((_, i) => (
                   <div
                     key={i}
-                    className="aspect-square bg-[var(--bg-card)] animate-pulse"
-                    style={{ transform: 'skewX(-12deg)' }}
-                  />
+                    className="aspect-square bg-[var(--bg-card)] flex items-center justify-center transform -skew-x-12 border border-[var(--border-default)]"
+                  >
+                    <ElectricSpinner size="md" />
+                  </div>
                 ))}
               </div>
             ) : productsError ? (
@@ -376,7 +379,7 @@ const ElectricCatalogPage: React.FC = () => {
                 Товары не найдены
               </div>
             ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
                 {products.map(product => {
                   // Badge logic
                   let badge: 'primary' | 'sale' | 'hit' | 'new' | undefined;
@@ -417,23 +420,12 @@ const ElectricCatalogPage: React.FC = () => {
 
             {/* Pagination */}
             {totalPages > 1 && (
-              <div className="mt-16 flex justify-center gap-2">
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
-                  <button
-                    key={p}
-                    onClick={() => setPage(p)}
-                    className={`
-                       w-10 h-10 flex items-center justify-center transform -skew-x-12 border transition-all
-                       ${
-                         p === page
-                           ? 'bg-[var(--color-primary)] border-[var(--color-primary)] text-[var(--color-text-inverse)] shadow-[var(--shadow-primary)]'
-                           : 'bg-transparent border-[var(--border-default)] text-[var(--color-text-secondary)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]'
-                       }
-                     `}
-                  >
-                    <span className="transform skew-x-12 font-bold font-display">{p}</span>
-                  </button>
-                ))}
+              <div className="mt-16">
+                <ElectricPagination
+                  currentPage={page}
+                  totalPages={totalPages}
+                  onPageChange={setPage}
+                />
               </div>
             )}
           </main>
