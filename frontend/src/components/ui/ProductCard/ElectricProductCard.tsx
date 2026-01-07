@@ -177,13 +177,13 @@ export function ElectricProductCard({
         </div>
       </div>
 
-      {/* Action Buttons Row - Always visible per spec: Primary + Outline */}
-      <div className="flex gap-1.5 md:gap-2.5 mt-auto">
-        <div className="flex-1">
+      {/* Action Buttons - Stack on mobile, row on desktop */}
+      <div className="flex flex-col sm:flex-row gap-1.5 sm:gap-2 mt-auto">
+        <div className="flex-1 min-w-0">
           <ElectricButton
             variant="primary"
             size="sm"
-            className="w-full"
+            className="w-full text-[10px] sm:text-xs"
             disabled={!inStock}
             onClick={e => {
               e.stopPropagation();
@@ -193,12 +193,12 @@ export function ElectricProductCard({
             В КОРЗИНУ
           </ElectricButton>
         </div>
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           <ElectricButton
             variant="outline"
             size="sm"
             className={cn(
-              'w-full',
+              'w-full text-[10px] sm:text-xs',
               isFavorite && 'border-[var(--color-primary)] text-[var(--color-primary)]'
             )}
             onClick={e => {
@@ -206,7 +206,7 @@ export function ElectricProductCard({
               onToggleFavorite?.();
             }}
           >
-            ЗАПОМНИТЬ
+            ИЗБРАННОЕ
           </ElectricButton>
         </div>
       </div>

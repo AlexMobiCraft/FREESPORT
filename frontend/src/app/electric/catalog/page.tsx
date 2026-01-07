@@ -413,10 +413,10 @@ const ElectricCatalogPage: React.FC = () => {
         </div>
 
         {/* Header Section */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-6">
-          <div className="space-y-2">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 md:mb-8 gap-4 md:gap-6">
+          <div className="space-y-1 md:space-y-2">
             <ElectricSectionHeader title={activeCategoryLabel} size="lg" />
-            <p className="text-sm md:text-base text-[var(--color-text-secondary)]">
+            <p className="text-xs md:text-sm text-[var(--color-text-secondary)]">
               Найдено {totalProducts} товаров
             </p>
           </div>

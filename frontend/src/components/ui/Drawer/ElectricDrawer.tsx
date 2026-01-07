@@ -211,7 +211,7 @@ export function ElectricDrawer({
         </div>
 
         {/* Content - Scrollable */}
-        <div id={descriptionId} className="flex-1 overflow-y-auto p-4">
+        <div id={descriptionId} className="flex-1 overflow-y-auto p-4 pr-2">
           {children}
         </div>
 
