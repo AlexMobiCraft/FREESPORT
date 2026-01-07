@@ -11,7 +11,6 @@ import { useSearchParams } from 'next/navigation';
 // Electric Orange Components
 import ElectricProductCard from '@/components/ui/ProductCard/ElectricProductCard';
 import ElectricSidebar from '@/components/ui/Sidebar/ElectricSidebar';
-import ElectricSectionHeader from '@/components/ui/SectionHeader/ElectricSectionHeader';
 import ElectricPagination from '@/components/ui/Pagination/ElectricPagination';
 import ElectricSpinner from '@/components/ui/Spinner/ElectricSpinner';
 import { useToast } from '@/components/ui/Toast';
@@ -115,7 +114,6 @@ const ElectricCatalogPage: React.FC = () => {
 
   // State
   const [activeCategoryId, setActiveCategoryId] = useState<number | null>(null);
-  const [activeCategoryLabel, setActiveCategoryLabel] = useState(DEFAULT_CATEGORY_LABEL);
 
   const [brands, setBrands] = useState<Brand[]>([]);
   const [selectedBrandIds, setSelectedBrandIds] = useState<Set<number>>(new Set());
@@ -214,7 +212,6 @@ const ElectricCatalogPage: React.FC = () => {
 
         if (initialCategory) {
           setActiveCategoryId(initialCategory.id);
-          setActiveCategoryLabel(initialCategory.label);
         }
       } catch (error) {
         console.error('Failed to load categories', error);
@@ -412,79 +409,85 @@ const ElectricCatalogPage: React.FC = () => {
           <ElectricBreadcrumbs items={breadcrumbItems} />
         </div>
 
-        {/* Header Section */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 md:mb-8 gap-4 md:gap-6">
-          <div className="space-y-1 md:space-y-2">
-            <ElectricSectionHeader title={activeCategoryLabel} size="lg" />
-            <p className="text-xs md:text-sm text-[var(--color-text-secondary)]">
+        {/* Controls Bar: Aligned with Sidebar (Count) and Content (Tabs + Sort) */}
+        <div className="flex flex-col lg:flex-row lg:gap-8 mb-6">
+          {/* Left Column: Aligned with Sidebar (280px) */}
+          <div className="lg:w-[280px] lg:flex-shrink-0 flex items-center mb-4 lg:mb-0">
+            <span className="text-xs md:text-sm text-[var(--color-text-secondary)] whitespace-nowrap">
               Найдено {totalProducts} товаров
-            </p>
+            </span>
           </div>
 
-          <div className="w-full md:w-auto min-w-[200px] flex gap-3">
-            {/* Mobile Filter Button */}
-            <button
-              onClick={() => setIsFilterDrawerOpen(true)}
-              className="lg:hidden flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 text-xs md:text-sm border border-[var(--border-default)] text-[var(--color-text-secondary)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] transition-all duration-200"
-              style={{ transform: 'skewX(-12deg)' }}
-            >
-              <span
-                style={{
-                  transform: 'skewX(12deg)',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                }}
-              >
-                <SlidersHorizontal className="w-4 h-4" />
-                Фильтры
-                {activeFiltersCount > 0 && (
-                  <span className="bg-[var(--color-primary)] text-black text-xs font-bold w-5 h-5 flex items-center justify-center">
-                    {activeFiltersCount}
+          {/* Right Column: Aligned with Product Grid */}
+          <div className="flex-1 min-w-0 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-0">
+            {/* Quick Filter Tabs */}
+            {/* Added px-4 to prevent first and last skewed buttons from being cut off */}
+            <div className="flex gap-2 overflow-x-auto pb-2 lg:pb-0 px-4 scrollbar-hide max-w-full -ml-4">
+              {[
+                { key: 'all' as const, label: 'Все товары' },
+                { key: 'new' as const, label: 'Новинки' },
+                { key: 'sale' as const, label: 'Акция' },
+              ].map(({ key, label }) => (
+                <button
+                  key={key}
+                  onClick={() => {
+                    setQuickFilter(key);
+                    setPage(1);
+                  }}
+                  className={`
+                    px-3 py-1.5 md:px-4 md:py-2 text-xs md:text-sm font-medium uppercase tracking-wide whitespace-nowrap
+                    border transition-all duration-200 flex-shrink-0
+                    ${
+                      quickFilter === key
+                        ? 'bg-[var(--color-primary)] text-[var(--color-text-inverse)] border-[var(--color-primary)]'
+                        : 'bg-transparent text-[var(--color-text-secondary)] border-[var(--border-default)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]'
+                    }
+                  `}
+                  style={{ transform: 'skewX(-12deg)' }}
+                >
+                  <span style={{ display: 'inline-block', transform: 'skewX(12deg)' }}>
+                    {label}
                   </span>
-                )}
-              </span>
-            </button>
+                </button>
+              ))}
+            </div>
 
-            <SortSelect
-              value={ordering}
-              onChange={val => {
-                setOrdering(val);
-                setPage(1);
-              }}
-              options={SORT_OPTIONS}
-            />
+            {/* Sort & Mobile Filters */}
+            <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-end">
+              {/* Mobile Filter Button */}
+              <button
+                onClick={() => setIsFilterDrawerOpen(true)}
+                className="lg:hidden flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 text-xs md:text-sm border border-[var(--border-default)] text-[var(--color-text-secondary)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] transition-all duration-200"
+                style={{ transform: 'skewX(-12deg)' }}
+              >
+                <span
+                  style={{
+                    transform: 'skewX(12deg)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                  }}
+                >
+                  <SlidersHorizontal className="w-4 h-4" />
+                  Фильтры
+                  {activeFiltersCount > 0 && (
+                    <span className="bg-[var(--color-primary)] text-black text-xs font-bold w-5 h-5 flex items-center justify-center">
+                      {activeFiltersCount}
+                    </span>
+                  )}
+                </span>
+              </button>
+
+              <SortSelect
+                value={ordering}
+                onChange={val => {
+                  setOrdering(val);
+                  setPage(1);
+                }}
+                options={SORT_OPTIONS}
+              />
+            </div>
           </div>
-        </div>
-
-        {/* Quick Filter Tabs - Horizontally scrollable on mobile */}
-        {/* Added pl-2 to prevent first skewed button from being cut off */}
-        <div className="flex gap-2 mb-6 overflow-x-auto pb-2 pl-2 scrollbar-hide">
-          {[
-            { key: 'all' as const, label: 'Все товары' },
-            { key: 'new' as const, label: 'Новинки' },
-            { key: 'sale' as const, label: 'Акция' },
-          ].map(({ key, label }) => (
-            <button
-              key={key}
-              onClick={() => {
-                setQuickFilter(key);
-                setPage(1);
-              }}
-              className={`
-                px-3 py-1.5 md:px-4 md:py-2 text-xs md:text-sm font-medium uppercase tracking-wide whitespace-nowrap
-                border transition-all duration-200
-                ${
-                  quickFilter === key
-                    ? 'bg-[var(--color-primary)] text-[var(--color-text-inverse)] border-[var(--color-primary)]'
-                    : 'bg-transparent text-[var(--color-text-secondary)] border-[var(--border-default)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]'
-                }
-              `}
-              style={{ transform: 'skewX(-12deg)' }}
-            >
-              <span style={{ display: 'inline-block', transform: 'skewX(12deg)' }}>{label}</span>
-            </button>
-          ))}
         </div>
 
         <div className="flex flex-col lg:flex-row gap-8">
@@ -510,7 +513,6 @@ const ElectricCatalogPage: React.FC = () => {
                 activeCategoryId={activeCategoryId}
                 onSelectCategory={node => {
                   setActiveCategoryId(node.id);
-                  setActiveCategoryLabel(node.label);
                   setPage(1);
                 }}
               />
@@ -671,7 +673,6 @@ const ElectricCatalogPage: React.FC = () => {
               activeCategoryId={activeCategoryId}
               onSelectCategory={node => {
                 setActiveCategoryId(node.id);
-                setActiveCategoryLabel(node.label);
                 setPage(1);
               }}
             />
