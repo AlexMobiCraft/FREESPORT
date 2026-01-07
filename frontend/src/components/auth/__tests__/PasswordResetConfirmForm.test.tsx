@@ -181,7 +181,12 @@ describe('PasswordResetConfirmForm', () => {
       await user.type(confirmPasswordInput, 'short');
       await user.click(submitButton);
 
-      expect(await screen.findByText(/минимум 8 символов/i)).toBeInTheDocument();
+      // Ищем сообщение об ошибке - используем getAllByRole и проверяем текстовое содержимое
+      await waitFor(() => {
+        const alerts = screen.getAllByRole('alert');
+        const hasError = alerts.some(alert => /минимум 8 символов/i.test(alert.textContent || ''));
+        expect(hasError).toBe(true);
+      });
     });
 
     test('should show error for password without digit', async () => {
@@ -201,7 +206,12 @@ describe('PasswordResetConfirmForm', () => {
       await user.type(confirmPasswordInput, 'NoDigitsHere');
       await user.click(submitButton);
 
-      expect(await screen.findByText(/хотя бы 1 цифру/i)).toBeInTheDocument();
+      // Ищем сообщение об ошибке - используем getAllByRole и проверяем текстовое содержимое
+      await waitFor(() => {
+        const alerts = screen.getAllByRole('alert');
+        const hasError = alerts.some(alert => /хотя бы 1 цифру/i.test(alert.textContent || ''));
+        expect(hasError).toBe(true);
+      });
     });
 
     test('should show error for password without uppercase', async () => {
@@ -221,7 +231,12 @@ describe('PasswordResetConfirmForm', () => {
       await user.type(confirmPasswordInput, 'nouppercase123');
       await user.click(submitButton);
 
-      expect(await screen.findByText(/хотя бы 1 заглавную букву/i)).toBeInTheDocument();
+      // Ищем сообщение об ошибке - используем getAllByRole и проверяем текстовое содержимое
+      await waitFor(() => {
+        const alerts = screen.getAllByRole('alert');
+        const hasError = alerts.some(alert => /хотя бы 1 заглавную букву/i.test(alert.textContent || ''));
+        expect(hasError).toBe(true);
+      });
     });
 
     test('should show error when passwords do not match', async () => {
@@ -241,7 +256,12 @@ describe('PasswordResetConfirmForm', () => {
       await user.type(confirmPasswordInput, 'DifferentPass123');
       await user.click(submitButton);
 
-      expect(await screen.findByText(/пароли не совпадают/i)).toBeInTheDocument();
+      // Ищем сообщение об ошибке - используем getAllByRole и проверяем текстовое содержимое
+      await waitFor(() => {
+        const alerts = screen.getAllByRole('alert');
+        const hasError = alerts.some(alert => /пароли не совпадают/i.test(alert.textContent || ''));
+        expect(hasError).toBe(true);
+      });
     });
   });
 
