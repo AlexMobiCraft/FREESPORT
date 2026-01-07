@@ -29,6 +29,7 @@ let mockAuthState = {
 // Mock Zustand store with getState method
 vi.mock('@/stores/authStore', () => ({
   useAuthStore: Object.assign(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     vi.fn((selector: any) => {
       return selector ? selector(mockAuthState) : mockAuthState;
     }),
@@ -104,7 +105,6 @@ describe('Главная страница (/)', () => {
 
   describe('Рендеринг страницы', () => {
     it('должна рендериться без ошибок', () => {
-
       const { container } = render(<Home />);
       expect(container).toBeInTheDocument();
     });
@@ -196,7 +196,6 @@ describe('Главная страница (/)', () => {
 
   describe('Адаптивность', () => {
     it('должна иметь responsive контейнер', () => {
-
       const { container } = render(<Home />);
 
       // Проверка наличия контейнеров с max-width
@@ -205,7 +204,6 @@ describe('Главная страница (/)', () => {
     });
 
     it('должна содержать адаптивные padding классы', () => {
-
       const { container } = render(<Home />);
 
       // Проверка responsive padding (sm:px-6, lg:px-8)
@@ -232,7 +230,9 @@ describe('Главная страница (/)', () => {
 
       // HeroSection должен показывать баннер (может быть любой текст из баннера)
       await waitFor(() => {
-        expect(screen.getByText(/FREESPORT - Спортивные товары для профессионалов и любителей/i)).toBeInTheDocument();
+        expect(
+          screen.getByText(/FREESPORT - Спортивные товары для профессионалов и любителей/i)
+        ).toBeInTheDocument();
       });
     });
 
@@ -253,7 +253,9 @@ describe('Главная страница (/)', () => {
 
       // HeroSection должен показывать баннер (может быть любой текст из баннера)
       await waitFor(() => {
-        expect(screen.getByText(/FREESPORT - Спортивные товары для профессионалов и любителей/i)).toBeInTheDocument();
+        expect(
+          screen.getByText(/FREESPORT - Спортивные товары для профессионалов и любителей/i)
+        ).toBeInTheDocument();
       });
     });
   });
