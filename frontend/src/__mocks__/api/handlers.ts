@@ -811,6 +811,11 @@ export const emptyHandlers = [
 
   // Пустой ответ для категорий
   http.get(`${API_BASE_URL}/categories/`, () => {
-    return HttpResponse.json([]);
+    return HttpResponse.json({
+      count: 0,
+      next: null,
+      previous: null,
+      results: [],
+    });
   }),
 ];

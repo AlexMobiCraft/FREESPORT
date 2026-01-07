@@ -129,7 +129,8 @@ describe('ProductCard', () => {
 
       const image = screen.getByRole('img', { name: 'Test Product' });
       expect(image).toBeInTheDocument();
-      expect(image).toHaveAttribute('src', '/test-image.jpg');
+      // resolveImageUrl добавляет MEDIA_BASE_URL к относительным путям
+      expect(image).toHaveAttribute('src', 'http://localhost:8001/test-image.jpg');
     });
 
     it('shows placeholder when no image available', () => {
