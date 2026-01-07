@@ -87,9 +87,9 @@ describe('Toast', () => {
 
       expect(mockOnClose).not.toHaveBeenCalled();
 
-      // Advance timers by duration + animation time
+      // Advance timers by duration + animation time (300ms для fade out)
       act(() => {
-        vi.advanceTimersByTime(5000 + 180);
+        vi.advanceTimersByTime(5000 + 300);
       });
 
       expect(mockOnClose).toHaveBeenCalledWith('test-1');
@@ -141,9 +141,9 @@ describe('Toast', () => {
           fireEvent.click(closeButton);
         });
 
-        // Wait for animation
+        // Wait for animation (300ms для fade out)
         act(() => {
-          vi.advanceTimersByTime(180);
+          vi.advanceTimersByTime(300);
         });
 
         expect(mockOnClose).toHaveBeenCalledWith('test-1');
