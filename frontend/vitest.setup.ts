@@ -8,6 +8,7 @@ process.env.NEXT_PUBLIC_API_URL = 'http://localhost:8001/api/v1';
 // Подключение дополнительных матчеров для DOM элементов (Vitest версия)
 import '@testing-library/jest-dom/vitest';
 import { vi } from 'vitest';
+import React from 'react';
 
 // Подключение vitest-axe для accessibility тестирования
 import 'vitest-axe/extend-expect';
@@ -58,6 +59,36 @@ vi.mock('next/navigation', () => ({
   usePathname: () => '/',
   useSearchParams: () => new URLSearchParams(),
 }));
+
+// Мокирование next/link с правильной forwardRef сигнатурой
+vi.mock('next/link', () => {
+  const Link = React.forwardRef((props: any, ref: any) => {
+    const { children, href, ...rest } = props;
+    return React.createElement('a', { href, ref, ...rest }, children);
+  });
+  Link.displayName = 'Link';
+  return { default: Link };
+});
+
+// Мокирование authStore для тестов с методом getState()
+// Это необходимо для apiClient, который использует useAuthStore.getState().accessToken
+vi.mock('@/stores/authStore', async () => {
+  const actual = await vi.importActual('@/stores/authStore');
+  const mockStore = vi.fn(() => null);
+
+  // Добавляем getState() метод для совместимости с apiClient
+  mockStore.getState = vi.fn(() => ({
+    accessToken: null,
+    refreshToken: null,
+    user: null,
+    isAuthenticated: false,
+  }));
+
+  return {
+    ...actual,
+    useAuthStore: mockStore,
+  };
+});
 
 // Подавление предупреждений console в тестах (опционально)
 global.console = {

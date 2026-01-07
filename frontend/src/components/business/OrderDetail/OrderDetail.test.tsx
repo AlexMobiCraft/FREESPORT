@@ -8,12 +8,6 @@ import { describe, it, expect, vi } from 'vitest';
 import { OrderDetail } from './OrderDetail';
 import type { Order } from '@/types/order';
 
-vi.mock('next/link', () => ({
-  default: ({ children, href }: { children: React.ReactNode; href: string }) => (
-    <a href={href}>{children}</a>
-  ),
-}));
-
 const mockOrder: Order = {
   id: 1,
   order_number: 'ORD-2025-001',

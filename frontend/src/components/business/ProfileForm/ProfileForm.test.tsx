@@ -51,28 +51,40 @@ const mockB2BUser: MockUser = {
 let currentMockUser = mockUser;
 const mockSetUser = vi.fn();
 
-vi.mock('@/stores/authStore', () => ({
-  useAuthStore: vi.fn(selector => {
+vi.mock('@/stores/authStore', () => {
+  const mockStore = vi.fn(selector => {
     const state = {
       user: currentMockUser,
+      accessToken: 'test-token',
       setUser: mockSetUser,
     };
     return selector(state);
-  }),
-  authSelectors: {
-    useUser: () => currentMockUser,
-    useIsB2BUser: () => {
-      const b2bRoles = [
-        'wholesale_level1',
-        'wholesale_level2',
-        'wholesale_level3',
-        'trainer',
-        'federation_rep',
-      ];
-      return b2bRoles.includes(currentMockUser.role);
+  });
+
+  // Добавляем getState() метод для совместимости с apiClient
+  mockStore.getState = () => ({
+    user: currentMockUser,
+    accessToken: 'test-token',
+    setUser: mockSetUser,
+  });
+
+  return {
+    useAuthStore: mockStore,
+    authSelectors: {
+      useUser: () => currentMockUser,
+      useIsB2BUser: () => {
+        const b2bRoles = [
+          'wholesale_level1',
+          'wholesale_level2',
+          'wholesale_level3',
+          'trainer',
+          'federation_rep',
+        ];
+        return b2bRoles.includes(currentMockUser.role);
+      },
     },
-  },
-}));
+  };
+});
 
 // Mock Toast
 const mockSuccess = vi.fn();
