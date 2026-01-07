@@ -57,15 +57,14 @@ export const SortSelect = React.forwardRef<HTMLDivElement, SortSelectProps>(
     const labelText = mode === 'b2b' ? 'Сортировка (B2B)' : 'Сортировка';
 
     return (
-      <div ref={ref}>
-        <ElectricSelect
-          options={selectOptions}
-          value={value}
-          placeholder={labelText}
-          onChange={onChange}
-          className={className}
-        />
-      </div>
+      <ElectricSelect
+        ref={ref}
+        options={selectOptions}
+        value={value}
+        placeholder={labelText}
+        onChange={onChange}
+        className={className}
+      />
     );
   }
 );
