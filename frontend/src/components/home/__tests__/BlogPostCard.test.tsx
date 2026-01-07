@@ -102,7 +102,7 @@ describe('BlogPostCard', () => {
       render(<BlogPostCard {...mockProps} />);
 
       const timeElement = screen.getByText(/15 ноября 2025/i);
-      expect(timeElement).toHaveClass('text-xs', 'text-muted');
+      expect(timeElement).toHaveClass('text-xs', 'text-text-secondary');
     });
 
     it('formats different date correctly', () => {
@@ -124,7 +124,7 @@ describe('BlogPostCard', () => {
       render(<BlogPostCard {...mockProps} />);
 
       const heading = screen.getByRole('heading', { level: 3 });
-      expect(heading).toHaveClass('text-xl', 'font-semibold', 'text-primary');
+      expect(heading).toHaveClass('text-xl', 'font-semibold', 'text-text-primary');
     });
 
     it('applies line-clamp-2 to title', () => {
@@ -161,7 +161,7 @@ describe('BlogPostCard', () => {
       render(<BlogPostCard {...mockProps} />);
 
       const excerpt = screen.getByText(mockProps.excerpt);
-      expect(excerpt).toHaveClass('text-sm', 'text-secondary');
+      expect(excerpt).toHaveClass('text-sm', 'text-text-secondary');
     });
 
     it('applies line-clamp-2 to excerpt', () => {
@@ -279,9 +279,9 @@ describe('BlogPostCard', () => {
       const excerpt = screen.getByText(mockProps.excerpt);
       const time = screen.getByText(/15 ноября 2025/i);
 
-      expect(heading).toHaveClass('text-primary');
-      expect(excerpt).toHaveClass('text-secondary');
-      expect(time).toHaveClass('text-muted');
+      expect(heading).toHaveClass('text-text-primary');
+      expect(excerpt).toHaveClass('text-text-secondary');
+      expect(time).toHaveClass('text-text-secondary');
     });
 
     it('uses correct motion duration (180ms)', () => {

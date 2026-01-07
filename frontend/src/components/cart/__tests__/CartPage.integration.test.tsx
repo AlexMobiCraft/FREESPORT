@@ -13,9 +13,9 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, it, expect, vi, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
-import { setupServer } from 'msw/node';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { http, HttpResponse } from 'msw';
+import { server } from '@/__mocks__/api/server';
 import { CartPage } from '../CartPage';
 import { useCartStore } from '@/stores/cartStore';
 import type { CartItem } from '@/types/cart';
@@ -68,13 +68,11 @@ const mockItems: CartItem[] = [
 
 // ==================== MSW Server Setup ====================
 
-const API_URL = 'http://localhost:8001/api/v1';
-
 let serverItems = [...mockItems];
 
 const handlers = [
   // GET /api/v1/cart/
-  http.get(`${API_URL}/cart/`, () => {
+  http.get('*/api/v1/cart/', () => {
     const totalItems = serverItems.reduce((sum, item) => sum + item.quantity, 0);
     const totalAmount = serverItems.reduce((sum, item) => sum + parseFloat(item.total_price), 0);
     return HttpResponse.json({
@@ -86,7 +84,7 @@ const handlers = [
   }),
 
   // PATCH /api/v1/cart/items/:id/
-  http.patch(`${API_URL}/cart/items/:id/`, async ({ params, request }) => {
+  http.patch('*/api/v1/cart/items/:id/', async ({ params, request }) => {
     const { id } = params;
     const { quantity } = (await request.json()) as { quantity: number };
     const itemId = Number(id);
@@ -109,7 +107,7 @@ const handlers = [
   }),
 
   // DELETE /api/v1/cart/items/:id/
-  http.delete(`${API_URL}/cart/items/:id/`, ({ params }) => {
+  http.delete('*/api/v1/cart/items/:id/', ({ params }) => {
     const { id } = params;
     const itemId = Number(id);
     serverItems = serverItems.filter(item => item.id !== itemId);
@@ -117,7 +115,7 @@ const handlers = [
   }),
 
   // POST /api/v1/promo/apply/
-  http.post(`${API_URL}/promo/apply/`, async ({ request }) => {
+  http.post('*/api/v1/promo/apply/', async ({ request }) => {
     const { code } = (await request.json()) as { code: string };
 
     if (code.toUpperCase() === 'SAVE10') {
@@ -132,8 +130,6 @@ const handlers = [
     return HttpResponse.json({ success: false, error: 'Промокод недействителен' }, { status: 400 });
   }),
 ];
-
-const server = setupServer(...handlers);
 
 // ==================== Mocks ====================
 
@@ -187,15 +183,15 @@ vi.mock('react-hot-toast', () => ({
 describe('CartPage Integration Tests', () => {
   const user = userEvent.setup();
 
-  beforeAll(() => {
-    server.listen({ onUnhandledRequest: 'error' });
-  });
-
   beforeEach(() => {
     vi.clearAllMocks();
     // Reset server state
     serverItems = [...mockItems];
-    // Reset store
+
+    // Override global MSW handlers with test-specific handlers
+    server.use(...handlers);
+
+    // Reset store - НЕ очищаем items здесь, потому что fetchCart() загрузит их из MSW
     useCartStore.setState({
       items: [],
       totalItems: 0,
@@ -209,31 +205,21 @@ describe('CartPage Integration Tests', () => {
   });
 
   afterEach(() => {
+    // Restore global handlers after each test
     server.resetHandlers();
-  });
-
-  afterAll(() => {
-    server.close();
   });
 
   // ==================== Full Cart Flow ====================
 
   describe('Full Cart Flow: Render → Update → Totals', () => {
     it('displays cart items after loading', async () => {
-      // Устанавливаем начальное состояние с items
-      useCartStore.setState({
-        items: mockItems,
-        totalItems: 3,
-        totalPrice: 14480,
-        isLoading: false,
-      });
-
+      // НЕ устанавливаем items вручную - пусть fetchCart() загрузит их из MSW
       render(<CartPage />);
 
-      // Ждём отображения страницы
+      // Ждём пока fetchCart() загрузит данные из MSW и отобразит страницу
       await waitFor(() => {
         expect(screen.getByTestId('cart-page')).toBeInTheDocument();
-      });
+      }, { timeout: 3000 });
 
       // Проверяем отображение товаров
       expect(screen.getByText('Кроссовки Nike Air Max')).toBeInTheDocument();
@@ -241,18 +227,12 @@ describe('CartPage Integration Tests', () => {
     });
 
     it('updates quantity and recalculates totals', async () => {
-      useCartStore.setState({
-        items: mockItems,
-        totalItems: 3,
-        totalPrice: 14480,
-        isLoading: false,
-      });
-
+      // Пусть fetchCart() загрузит данные из MSW
       render(<CartPage />);
 
       await waitFor(() => {
         expect(screen.getByTestId('cart-page')).toBeInTheDocument();
-      });
+      }, { timeout: 3000 });
 
       // Находим первый cart item card
       const cartItems = screen.getAllByTestId('cart-item-card');
@@ -275,18 +255,12 @@ describe('CartPage Integration Tests', () => {
     });
 
     it('removes item from cart and updates list', async () => {
-      useCartStore.setState({
-        items: mockItems,
-        totalItems: 3,
-        totalPrice: 14480,
-        isLoading: false,
-      });
-
+      // Пусть fetchCart() загрузит данные из MSW
       render(<CartPage />);
 
       await waitFor(() => {
         expect(screen.getByTestId('cart-page')).toBeInTheDocument();
-      });
+      }, { timeout: 3000 });
 
       // Изначально 2 товара
       expect(screen.getAllByTestId('cart-item-card')).toHaveLength(2);
@@ -310,6 +284,18 @@ describe('CartPage Integration Tests', () => {
 
   describe('Empty Cart', () => {
     it('shows EmptyCart when cart has no items', async () => {
+      // Переопределяем MSW handler для этого теста - возвращаем пустую корзину
+      server.use(
+        http.get('*/api/v1/cart/', () => {
+          return HttpResponse.json({
+            id: 1,
+            items: [],
+            total_items: 0,
+            total_amount: '0.00',
+          });
+        })
+      );
+
       useCartStore.setState({
         items: [],
         totalItems: 0,
@@ -329,19 +315,15 @@ describe('CartPage Integration Tests', () => {
     });
 
     it('shows EmptyCart after removing all items', async () => {
-      // Корзина с одним товаром
-      useCartStore.setState({
-        items: [mockItems[0]],
-        totalItems: 2,
-        totalPrice: 11980,
-        isLoading: false,
-      });
+      // Устанавливаем serverItems с одним товаром для этого теста
+      serverItems = [mockItems[0]];
 
       render(<CartPage />);
 
+      // Ждём загрузки одного товара
       await waitFor(() => {
         expect(screen.getByTestId('cart-page')).toBeInTheDocument();
-      });
+      }, { timeout: 3000 });
 
       // Удаляем единственный товар
       const removeButton = screen.getByTestId('remove-item-button');

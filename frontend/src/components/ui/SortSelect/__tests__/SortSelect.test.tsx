@@ -22,7 +22,8 @@ describe('SortSelect', () => {
     render(<SortSelect {...defaultProps} />);
 
     expect(screen.getByRole('combobox')).toBeInTheDocument();
-    expect(screen.getByText('Сортировка')).toBeInTheDocument();
+    // Проверяем отображение выбранного значения (defaultProps.value = 'price_asc')
+    expect(screen.getByText('Цена: по возрастанию')).toBeInTheDocument();
   });
 
   it('displays current selected value', () => {

@@ -25,8 +25,9 @@ type MockButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & { children: Rea
 type MockCnArgs = Array<string | false | null | undefined>;
 
 // Mock Next.js Image component
-// eslint-disable-next-line @next/next/no-img-element, @typescript-eslint/no-unused-vars
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const MockImage = ({ src, alt, fill: _fill, ...rest }: MockImageProps) => (
+  // eslint-disable-next-line @next/next/no-img-element
   <img src={src} alt={alt} {...rest} />
 );
 
@@ -131,7 +132,8 @@ describe('ProductCard', () => {
 
       const image = screen.getByRole('img', { name: 'Test Product' });
       expect(image).toBeInTheDocument();
-      expect(image).toHaveAttribute('src', '/test-image.jpg');
+      // resolveImageUrl добавляет MEDIA_BASE_URL к относительным путям
+      expect(image).toHaveAttribute('src', 'http://localhost:8001/test-image.jpg');
     });
 
     it('shows placeholder when no image available', () => {

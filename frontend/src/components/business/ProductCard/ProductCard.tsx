@@ -157,7 +157,7 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
       userRole = 'retail',
       showRRP = false,
       showMSRP = false,
-
+      onAddToCart,
       onToggleFavorite,
       isFavorite = false,
       onClick,
@@ -181,6 +181,13 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
       e.preventDefault();
       e.stopPropagation();
       onToggleFavorite?.(product.id);
+    };
+
+    // Обработчик добавления в корзину
+    const handleAddToCart = (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      onAddToCart?.(product.id);
     };
 
     // Получаем основное изображение
@@ -466,6 +473,26 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
                       ₽
                     </p>
                   )}
+
+                {/* Кнопка "В корзину" */}
+                {isInStock && onAddToCart && (
+                  <button
+                    onClick={handleAddToCart}
+                    className={cn(
+                      'mt-3 py-2 px-4 rounded-[8px]',
+                      'bg-[var(--color-primary)] text-white',
+                      'hover:bg-[var(--color-primary-hover)]',
+                      'transition-colors duration-200',
+                      'text-body-s font-medium',
+                      'focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-offset-2',
+                      'whitespace-nowrap'
+                    )}
+                    type="button"
+                    aria-label={`Добавить ${product.name} в корзину`}
+                  >
+                    В корзину
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -597,6 +624,25 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
                   </p>
                 )}
             </div>
+
+            {/* Кнопка "В корзину" */}
+            {isInStock && onAddToCart && (
+              <button
+                onClick={handleAddToCart}
+                className={cn(
+                  'w-full py-2.5 px-4 rounded-[8px]',
+                  'bg-[var(--color-primary)] text-white',
+                  'hover:bg-[var(--color-primary-hover)]',
+                  'transition-colors duration-200',
+                  'text-body-m font-medium',
+                  'focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-offset-2'
+                )}
+                type="button"
+                aria-label={`Добавить ${product.name} в корзину`}
+              >
+                В корзину
+              </button>
+            )}
 
             {/* Статус наличия */}
             {!isInStock && (

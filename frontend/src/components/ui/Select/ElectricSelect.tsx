@@ -85,6 +85,10 @@ export const ElectricSelect = React.forwardRef<HTMLDivElement, ElectricSelectPro
         {/* Trigger Button - Rectangular */}
         <button
           type="button"
+          role="combobox"
+          aria-expanded={isOpen}
+          aria-haspopup="listbox"
+          aria-controls="electric-select-listbox"
           onClick={() => !disabled && setIsOpen(!isOpen)}
           disabled={disabled}
           className={cn(
@@ -120,6 +124,8 @@ export const ElectricSelect = React.forwardRef<HTMLDivElement, ElectricSelectPro
         {/* Dropdown Menu */}
         {isOpen && (
           <div
+            id="electric-select-listbox"
+            role="listbox"
             className={cn(
               'absolute top-full left-0 right-0 z-50 mt-1',
               'bg-[var(--bg-card)] border border-[var(--border-default)]',
@@ -130,6 +136,8 @@ export const ElectricSelect = React.forwardRef<HTMLDivElement, ElectricSelectPro
             {options.map(option => (
               <button
                 key={option.value}
+                role="option"
+                aria-selected={value === option.value}
                 onClick={() => !option.disabled && handleSelect(option.value)}
                 disabled={option.disabled}
                 className={cn(

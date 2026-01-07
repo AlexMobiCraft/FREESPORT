@@ -57,7 +57,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ redirectUrl, onSuccess }) 
       }
 
       // Редирект на указанный URL или на главную
-      const targetUrl = redirectUrl || '/test';
+      const targetUrl = redirectUrl || '/';
       router.push(targetUrl);
     } catch (error: unknown) {
       // AC 4: Обработка ошибок API

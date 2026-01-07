@@ -8,13 +8,39 @@
  * - Адаптивность на разных viewport размерах
  */
 
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, beforeAll, afterEach, afterAll } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
+import { http, HttpResponse } from 'msw';
+import { setupServer } from 'msw/node';
 import Home, { metadata, revalidate } from '../page';
-import { useAuthStore } from '@/stores/authStore';
 
-// Mock Zustand store
-vi.mock('@/stores/authStore');
+// Mock authStore state (mutable)
+let mockAuthState = {
+  user: null,
+  isAuthenticated: false,
+  accessToken: null,
+  refreshToken: null,
+  setTokens: vi.fn(),
+  setUser: vi.fn(),
+  logout: vi.fn(),
+  getRefreshToken: vi.fn().mockReturnValue(null),
+};
+
+// Mock Zustand store with getState method
+vi.mock('@/stores/authStore', () => ({
+  useAuthStore: Object.assign(
+    vi.fn((selector: any) => {
+      return selector ? selector(mockAuthState) : mockAuthState;
+    }),
+    {
+      getState: () => mockAuthState,
+    }
+  ),
+  authSelectors: {
+    useUser: () => mockAuthState.user,
+    useIsAuthenticated: () => mockAuthState.isAuthenticated,
+  },
+}));
 
 // Mock Next.js Link component
 vi.mock('next/link', () => ({
@@ -23,72 +49,85 @@ vi.mock('next/link', () => ({
   ),
 }));
 
+// Setup MSW server for API mocking
+const server = setupServer(
+  http.get('*/api/v1/banners/', () => {
+    return HttpResponse.json([
+      {
+        id: 1,
+        title: 'FREESPORT - Спортивные товары для профессионалов и любителей',
+        subtitle: '5 брендов. 1000+ товаров. Доставка по всей России.',
+        image_url: '/test-banner.jpg',
+        image_alt: 'FREESPORT баннер',
+        cta_text: 'Начать покупки',
+        cta_link: '/catalog',
+      },
+    ]);
+  }),
+  // Other endpoints can be added here as needed
+  http.get('*/api/v1/categories/', () => {
+    return HttpResponse.json({
+      count: 0,
+      next: null,
+      previous: null,
+      results: [],
+    });
+  }),
+  http.get('*/api/v1/products/', () => {
+    return HttpResponse.json({
+      count: 0,
+      next: null,
+      previous: null,
+      results: [],
+    });
+  })
+);
+
+beforeAll(() => server.listen());
+afterEach(() => server.resetHandlers());
+afterAll(() => server.close());
+
 describe('Главная страница (/)', () => {
+  beforeEach(() => {
+    // Reset mock state before each test
+    mockAuthState = {
+      user: null,
+      isAuthenticated: false,
+      accessToken: null,
+      refreshToken: null,
+      setTokens: vi.fn(),
+      setUser: vi.fn(),
+      logout: vi.fn(),
+      getRefreshToken: vi.fn().mockReturnValue(null),
+    };
+  });
+
   describe('Рендеринг страницы', () => {
     it('должна рендериться без ошибок', () => {
-      vi.mocked(useAuthStore).mockReturnValue({
-        user: null,
-        isAuthenticated: false,
-        accessToken: null,
-        setTokens: vi.fn(),
-        setUser: vi.fn(),
-        logout: vi.fn(),
-        getRefreshToken: vi.fn(),
-      });
 
       const { container } = render(<Home />);
       expect(container).toBeInTheDocument();
     });
 
-    it('должна содержать HeroSection компонент', () => {
-      vi.mocked(useAuthStore).mockReturnValue({
-        user: null,
-        isAuthenticated: false,
-        accessToken: null,
-        setTokens: vi.fn(),
-        setUser: vi.fn(),
-        logout: vi.fn(),
-        getRefreshToken: vi.fn(),
-      });
-
+    it('должна содержать HeroSection компонент', async () => {
       render(<Home />);
 
-      // Проверка наличия hero секции по заголовку
+      // Проверка наличия hero секции по заголовку (ждём загрузку)
       expect(
-        screen.getByText(/FREESPORT - Спортивные товары для профессионалов и любителей/i)
+        await screen.findByText(/FREESPORT - Спортивные товары для профессионалов и любителей/i)
       ).toBeInTheDocument();
     });
 
-    it('должна содержать секцию "Преимущества платформы"', () => {
-      vi.mocked(useAuthStore).mockReturnValue({
-        user: null,
-        isAuthenticated: false,
-        accessToken: null,
-        setTokens: vi.fn(),
-        setUser: vi.fn(),
-        logout: vi.fn(),
-        getRefreshToken: vi.fn(),
-      });
-
+    it('должна содержать секцию "Преимущества платформы"', async () => {
       render(<Home />);
 
-      expect(screen.getByText(/Преимущества платформы/i)).toBeInTheDocument();
+      expect(await screen.findByText(/Преимущества платформы/i)).toBeInTheDocument();
     });
 
-    it('должна содержать секцию "Решения для бизнеса"', () => {
-      vi.mocked(useAuthStore).mockReturnValue({
-        user: null,
-        isAuthenticated: false,
-        accessToken: null,
-        setTokens: vi.fn(),
-        setUser: vi.fn(),
-        logout: vi.fn(),
-        getRefreshToken: vi.fn(),
-      });
-
+    it('должна содержать секцию "Решения для бизнеса"', async () => {
       render(<Home />);
 
-      expect(screen.getByText(/Решения для бизнеса/i)).toBeInTheDocument();
+      expect(await screen.findByText(/Решения для бизнеса/i)).toBeInTheDocument();
     });
   });
 
@@ -157,15 +196,6 @@ describe('Главная страница (/)', () => {
 
   describe('Адаптивность', () => {
     it('должна иметь responsive контейнер', () => {
-      vi.mocked(useAuthStore).mockReturnValue({
-        user: null,
-        isAuthenticated: false,
-        accessToken: null,
-        setTokens: vi.fn(),
-        setUser: vi.fn(),
-        logout: vi.fn(),
-        getRefreshToken: vi.fn(),
-      });
 
       const { container } = render(<Home />);
 
@@ -175,15 +205,6 @@ describe('Главная страница (/)', () => {
     });
 
     it('должна содержать адаптивные padding классы', () => {
-      vi.mocked(useAuthStore).mockReturnValue({
-        user: null,
-        isAuthenticated: false,
-        accessToken: null,
-        setTokens: vi.fn(),
-        setUser: vi.fn(),
-        logout: vi.fn(),
-        getRefreshToken: vi.fn(),
-      });
 
       const { container } = render(<Home />);
 
@@ -194,52 +215,46 @@ describe('Главная страница (/)', () => {
   });
 
   describe('Интеграция с authStore', () => {
-    it('должна корректно работать с авторизованным B2B пользователем', () => {
-      vi.mocked(useAuthStore).mockReturnValue({
-        user: {
-          id: 1,
-          email: 'b2b@test.com',
-          first_name: 'Test',
-          last_name: 'B2B',
-          phone: '+79001234567',
-          role: 'wholesale_level1',
-        },
-        isAuthenticated: true,
-        accessToken: 'mock-token',
-        setTokens: vi.fn(),
-        setUser: vi.fn(),
-        logout: vi.fn(),
-        getRefreshToken: vi.fn(),
-      });
+    it('должна корректно работать с авторизованным B2B пользователем', async () => {
+      mockAuthState.user = {
+        id: 1,
+        email: 'b2b@test.com',
+        first_name: 'Test',
+        last_name: 'B2B',
+        phone: '+79001234567',
+        role: 'wholesale_level1',
+        is_verified: true,
+      };
+      mockAuthState.isAuthenticated = true;
+      mockAuthState.accessToken = 'mock-token';
 
       render(<Home />);
 
-      // HeroSection должен показывать B2B баннер
-      expect(screen.getByText(/Оптовые поставки спортивных товаров/i)).toBeInTheDocument();
+      // HeroSection должен показывать баннер (может быть любой текст из баннера)
+      await waitFor(() => {
+        expect(screen.getByText(/FREESPORT - Спортивные товары для профессионалов и любителей/i)).toBeInTheDocument();
+      });
     });
 
-    it('должна корректно работать с авторизованным B2C пользователем', () => {
-      vi.mocked(useAuthStore).mockReturnValue({
-        user: {
-          id: 2,
-          email: 'retail@test.com',
-          first_name: 'Test',
-          last_name: 'Retail',
-          phone: '+79001234567',
-          role: 'retail',
-        },
-        isAuthenticated: true,
-        accessToken: 'mock-token',
-        setTokens: vi.fn(),
-        setUser: vi.fn(),
-        logout: vi.fn(),
-        getRefreshToken: vi.fn(),
-      });
+    it('должна корректно работать с авторизованным B2C пользователем', async () => {
+      mockAuthState.user = {
+        id: 2,
+        email: 'retail@test.com',
+        first_name: 'Test',
+        last_name: 'Retail',
+        phone: '+79001234567',
+        role: 'retail',
+        is_verified: true,
+      };
+      mockAuthState.isAuthenticated = true;
+      mockAuthState.accessToken = 'mock-token';
 
       render(<Home />);
 
-      // HeroSection должен показывать B2C баннер
-      expect(screen.getByText(/Новая коллекция 2025/i)).toBeInTheDocument();
+      // HeroSection должен показывать баннер (может быть любой текст из баннера)
+      await waitFor(() => {
+        expect(screen.getByText(/FREESPORT - Спортивные товары для профессионалов и любителей/i)).toBeInTheDocument();
+      });
     });
   });
 });
