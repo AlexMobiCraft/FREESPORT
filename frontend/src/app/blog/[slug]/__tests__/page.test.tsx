@@ -10,6 +10,7 @@
  * - Обработку notFound()
  */
 
+import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import BlogDetailPage, { generateMetadata } from '../page';
@@ -24,9 +25,9 @@ vi.mock('next/navigation', () => ({
 
 // Mock Next.js components
 vi.mock('next/link', () => ({
-  default: ({ children, href }: { children: React.ReactNode; href: string }) => (
-    <a href={href}>{children}</a>
-  ),
+  default: React.forwardRef(({ children, href }: { children: React.ReactNode; href: string }, ref: React.Ref<HTMLAnchorElement>) => (
+    <a href={href} ref={ref}>{children}</a>
+  )),
 }));
 
 vi.mock('next/image', () => ({

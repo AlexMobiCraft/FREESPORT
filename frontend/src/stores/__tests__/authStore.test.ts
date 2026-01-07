@@ -4,9 +4,9 @@
 import { useAuthStore } from '../authStore';
 
 describe('authStore', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     // Reset store перед каждым тестом
-    useAuthStore.getState().logout();
+    await useAuthStore.getState().logout();
     localStorage.clear();
   });
 
@@ -38,7 +38,7 @@ describe('authStore', () => {
     expect(state.user).toEqual(user);
   });
 
-  test('logout clears all data', () => {
+  test('logout clears all data', async () => {
     const store = useAuthStore.getState();
 
     // Setup: установить токены и пользователя
@@ -53,7 +53,7 @@ describe('authStore', () => {
     });
 
     // Act: выполнить logout
-    store.logout();
+    await store.logout();
 
     // Assert: проверить что все очищено
     const state = useAuthStore.getState();

@@ -549,11 +549,21 @@ export const handlers = [
 
     // Только корневые категории
     if (parentIdNull === 'true') {
-      return HttpResponse.json(mockCategories);
+      return HttpResponse.json({
+        count: mockCategories.length,
+        next: null,
+        previous: null,
+        results: mockCategories,
+      });
     }
 
-    // Default: все категории
-    return HttpResponse.json(mockCategories);
+    // Default: все категории (также в формате pagination)
+    return HttpResponse.json({
+      count: mockCategories.length,
+      next: null,
+      previous: null,
+      results: mockCategories,
+    });
   }),
 
   // Story 11.3: Subscribe endpoint

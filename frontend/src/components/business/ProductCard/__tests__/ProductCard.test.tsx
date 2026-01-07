@@ -11,6 +11,7 @@
  * Target coverage: >= 80%
  */
 
+import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import type { ButtonHTMLAttributes, ComponentProps, ReactNode } from 'react';
@@ -18,15 +19,16 @@ import { ProductCard } from '../ProductCard';
 import type { Product } from '@/types/api';
 import type { ProductBadgeProps } from '@/components/common/ProductBadge';
 
-type MockImageProps = ComponentProps<'img'> & { src: string; alt: string };
+type MockImageProps = ComponentProps<'img'> & { src: string; alt: string; fill?: boolean };
 type MockHeartProps = ComponentProps<'svg'> & { fill?: string };
 type MockButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & { children: ReactNode };
 type MockCnArgs = Array<string | false | null | undefined>;
 
 // Mock Next.js Image component
 vi.mock('next/image', () => ({
-  default: ({ src, alt, ...props }: MockImageProps) => {
+  default: ({ src, alt, fill, ...props }: MockImageProps) => {
     // eslint-disable-next-line @next/next/no-img-element
+    // Exclude 'fill' prop as it's Next.js specific and not a valid HTML img attribute
     return <img src={src} alt={alt} {...props} />;
   },
 }));

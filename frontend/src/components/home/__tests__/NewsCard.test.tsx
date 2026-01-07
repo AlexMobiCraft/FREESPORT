@@ -63,8 +63,8 @@ describe('NewsCard', () => {
 
     const image = screen.getByRole('img', { name: mockProps.title });
     expect(image).toBeInTheDocument();
-    // Fallback изображение должно быть установлено
-    expect(image).toHaveAttribute('src', expect.stringContaining('running-shoes.jpg'));
+    // Fallback изображение должно быть установлено (normalizeImageUrl возвращает No_image.svg для пустых значений)
+    expect(image).toHaveAttribute('src', expect.stringContaining('No_image.svg'));
   });
 
   it('has proper accessibility attributes', () => {
