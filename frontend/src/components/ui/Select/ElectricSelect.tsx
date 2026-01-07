@@ -46,16 +46,11 @@ export interface ElectricSelectProps {
 // Component
 // ============================================
 
-export function ElectricSelect({
-  options,
-  value,
-  placeholder = 'Выберите...',
-  onChange,
-  disabled = false,
-  className,
-}: ElectricSelectProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
+export const ElectricSelect = React.forwardRef<HTMLDivElement, ElectricSelectProps>(
+  ({ options, value, placeholder = 'Выберите...', onChange, disabled = false, className }, ref) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const localRef = useRef<HTMLDivElement>(null);
+    const containerRef = ref || localRef;
 
   const selectedOption = options.find(opt => opt.value === value);
 
@@ -81,6 +76,9 @@ export function ElectricSelect({
       {/* Trigger Button - Rectangular */}
       <button
         type="button"
+        role="combobox"
+        aria-expanded={isOpen}
+        aria-haspopup="listbox"
         onClick={() => !disabled && setIsOpen(!isOpen)}
         disabled={disabled}
         className={cn(
@@ -112,6 +110,7 @@ export function ElectricSelect({
       {/* Dropdown Menu */}
       {isOpen && (
         <div
+          role="listbox"
           className={cn(
             'absolute top-full left-0 right-0 z-50 mt-1',
             'bg-[var(--bg-card)] border border-[var(--border-default)]',
@@ -122,6 +121,8 @@ export function ElectricSelect({
           {options.map(option => (
             <button
               key={option.value}
+              role="option"
+              aria-selected={value === option.value}
               onClick={() => !option.disabled && handleSelect(option.value)}
               disabled={option.disabled}
               className={cn(
@@ -145,7 +146,7 @@ export function ElectricSelect({
       )}
     </div>
   );
-}
+});
 
 ElectricSelect.displayName = 'ElectricSelect';
 
