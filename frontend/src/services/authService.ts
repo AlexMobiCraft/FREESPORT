@@ -81,8 +81,8 @@ class AuthService {
    * Выход из системы (локальный)
    * @deprecated Используйте logoutFromServer() + authStore.logout()
    */
-  logout(): void {
-    useAuthStore.getState().logout();
+  async logout(): Promise<void> {
+    await useAuthStore.getState().logout();
   }
 
   /**

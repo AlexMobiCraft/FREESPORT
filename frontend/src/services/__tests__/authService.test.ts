@@ -51,11 +51,11 @@ describe('authService', () => {
   });
 
   describe('logout', () => {
-    test('clears tokens and store', () => {
+    test('clears tokens and store', async () => {
       // Setup: login first
       useAuthStore.getState().setTokens('test-access', 'test-refresh');
 
-      authService.logout();
+      await authService.logout();
 
       expect(useAuthStore.getState().isAuthenticated).toBe(false);
       expect(localStorage.getItem('refreshToken')).toBeNull();

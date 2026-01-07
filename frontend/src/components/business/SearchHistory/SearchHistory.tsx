@@ -121,14 +121,21 @@ export function SearchHistory({
               <Clock className="w-4 h-4 text-[#7A7A7A] flex-shrink-0" aria-hidden="true" />
               <span className="truncate">{query}</span>
             </div>
-            <button
+            <div
+              role="button"
+              tabIndex={0}
               onClick={e => handleRemove(e, query)}
-              className="p-1 rounded hover:bg-[#E3E8F2] transition-colors flex-shrink-0"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  handleRemove(e as any, query);
+                }
+              }}
+              className="p-1 rounded hover:bg-[#E3E8F2] transition-colors flex-shrink-0 cursor-pointer"
               aria-label={`Удалить запрос: ${query}`}
-              type="button"
             >
               <X className="w-4 h-4 text-text-muted hover:text-text-primary" />
-            </button>
+            </div>
           </button>
         ))}
       </div>
