@@ -52,13 +52,25 @@ let currentMockUser = mockUser;
 const mockSetUser = vi.fn();
 
 vi.mock('@/stores/authStore', () => ({
-  useAuthStore: vi.fn(selector => {
-    const state = {
-      user: currentMockUser,
-      setUser: mockSetUser,
-    };
-    return selector(state);
-  }),
+  useAuthStore: Object.assign(
+    vi.fn(selector => {
+      const state = {
+        user: currentMockUser,
+        setUser: mockSetUser,
+        accessToken: 'mock-token',
+        refreshToken: 'mock-refresh-token',
+      };
+      return selector ? selector(state) : state;
+    }),
+    {
+      getState: () => ({
+        user: currentMockUser,
+        setUser: mockSetUser,
+        accessToken: 'mock-token',
+        refreshToken: 'mock-refresh-token',
+      }),
+    }
+  ),
   authSelectors: {
     useUser: () => currentMockUser,
     useIsB2BUser: () => {
@@ -136,7 +148,7 @@ describe('ProfileForm', () => {
       // ARRANGE
       server.use(
         http.get('*/api/v1/users/profile/', () => {
-          return HttpResponse.json({ detail: 'Server error' }, { status: 500 });
+          return HttpResponse.json({ detail: 'Server error' }, { status: 400 });
         })
       );
 
@@ -296,7 +308,7 @@ describe('ProfileForm', () => {
       // ARRANGE
       server.use(
         http.put('*/api/v1/users/profile/', () => {
-          return HttpResponse.json({ detail: 'Server error' }, { status: 500 });
+          return HttpResponse.json({ detail: 'Server error' }, { status: 400 });
         })
       );
 
