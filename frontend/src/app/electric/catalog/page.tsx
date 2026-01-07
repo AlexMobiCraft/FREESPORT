@@ -405,7 +405,7 @@ const ElectricCatalogPage: React.FC = () => {
   const totalPages = Math.max(1, Math.ceil(totalProducts / PAGE_SIZE));
 
   return (
-    <div className="min-h-screen bg-[var(--bg-body)] text-[var(--color-text-primary)] font-body selection:bg-[var(--color-primary)] selection:text-[var(--color-text-inverse)]">
+    <div className="min-h-screen bg-[var(--bg-body)] text-[var(--color-text-primary)] font-body selection:bg-[var(--color-primary)] selection:text-[var(--color-text-inverse)] pt-20 md:pt-24">
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* Breadcrumbs */}
         <div className="mb-6">
@@ -458,7 +458,8 @@ const ElectricCatalogPage: React.FC = () => {
         </div>
 
         {/* Quick Filter Tabs - Horizontally scrollable on mobile */}
-        <div className="flex gap-2 mb-6 overflow-x-auto pb-2 scrollbar-hide">
+        {/* Added pl-2 to prevent first skewed button from being cut off */}
+        <div className="flex gap-2 mb-6 overflow-x-auto pb-2 pl-2 scrollbar-hide">
           {[
             { key: 'all' as const, label: 'Все товары' },
             { key: 'new' as const, label: 'Новинки' },
