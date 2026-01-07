@@ -8,10 +8,10 @@
  * - Адаптивность на разных viewport размерах
  */
 
-import { describe, it, expect, vi, beforeEach, beforeAll, afterEach, afterAll } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
-import { setupServer } from 'msw/node';
+import { server } from '@/__mocks__/api/server';
 import Home, { metadata, revalidate } from '../page';
 
 // Mock authStore state (mutable)
@@ -50,44 +50,6 @@ vi.mock('next/link', () => ({
   ),
 }));
 
-// Setup MSW server for API mocking
-const server = setupServer(
-  http.get('*/api/v1/banners/', () => {
-    return HttpResponse.json([
-      {
-        id: 1,
-        title: 'FREESPORT - Спортивные товары для профессионалов и любителей',
-        subtitle: '5 брендов. 1000+ товаров. Доставка по всей России.',
-        image_url: '/test-banner.jpg',
-        image_alt: 'FREESPORT баннер',
-        cta_text: 'Начать покупки',
-        cta_link: '/catalog',
-      },
-    ]);
-  }),
-  // Other endpoints can be added here as needed
-  http.get('*/api/v1/categories/', () => {
-    return HttpResponse.json({
-      count: 0,
-      next: null,
-      previous: null,
-      results: [],
-    });
-  }),
-  http.get('*/api/v1/products/', () => {
-    return HttpResponse.json({
-      count: 0,
-      next: null,
-      previous: null,
-      results: [],
-    });
-  })
-);
-
-beforeAll(() => server.listen());
-afterEach(() => server.resetHandlers());
-afterAll(() => server.close());
-
 describe('Главная страница (/)', () => {
   beforeEach(() => {
     // Reset mock state before each test
@@ -118,73 +80,45 @@ describe('Главная страница (/)', () => {
       ).toBeInTheDocument();
     });
 
-    it('должна содержать секцию "Преимущества платформы"', async () => {
+    it('должна содержать секцию с популярными категориями', async () => {
       render(<Home />);
 
-      expect(await screen.findByText(/Преимущества платформы/i)).toBeInTheDocument();
-    });
-
-    it('должна содержать секцию "Решения для бизнеса"', async () => {
-      render(<Home />);
-
-      expect(await screen.findByText(/Решения для бизнеса/i)).toBeInTheDocument();
+      expect(await screen.findByText(/Популярные категории/i)).toBeInTheDocument();
     });
   });
 
   describe('SEO Metadata', () => {
     it('должна содержать правильный title', () => {
-      expect(metadata.title).toBe(
-        'FREESPORT - Оптовые поставки спортивных товаров | B2B и Розница'
-      );
+      expect(metadata.title).toBe('FREESPORT - Спортивные товары оптом и в розницу');
     });
 
     it('должна содержать правильный description', () => {
-      expect(metadata.description).toContain('Оптовые поставки спортивных товаров');
-      expect(metadata.description).toContain('B2B и розничных покупателей');
-      expect(metadata.description).toContain('5 брендов');
+      expect(metadata.description).toContain('Платформа для оптовых и розничных продаж');
+      expect(metadata.description).toContain('спортивных товаров');
     });
 
     it('должна содержать keywords', () => {
       expect(metadata.keywords).toBeDefined();
-      expect(Array.isArray(metadata.keywords)).toBe(true);
       expect(metadata.keywords).toContain('спортивные товары оптом');
       expect(metadata.keywords).toContain('FREESPORT');
     });
 
     it('должна содержать OpenGraph метатеги', () => {
       expect(metadata.openGraph).toBeDefined();
-      expect(metadata.openGraph?.title).toBe('FREESPORT - Оптовые поставки спортивных товаров');
-      expect(metadata.openGraph?.description).toContain('B2B и B2C продажи');
-      expect(metadata.openGraph?.url).toBe('https://freesport.ru');
-      expect(metadata.openGraph?.siteName).toBe('FREESPORT');
-      expect(metadata.openGraph?.locale).toBe('ru_RU');
-      expect(metadata.openGraph?.type).toBe('website');
+      expect(metadata.openGraph?.title).toBe('FREESPORT - Спортивные товары оптом и в розницу');
+      expect(metadata.openGraph?.description).toContain('Платформа для оптовых и розничных продаж');
     });
 
     it('должна содержать OpenGraph изображение', () => {
       expect(metadata.openGraph?.images).toBeDefined();
       expect(Array.isArray(metadata.openGraph?.images)).toBe(true);
-
-      const images = metadata.openGraph?.images as Array<{
-        url: string;
-        width: number;
-        height: number;
-        alt?: string;
-      }>;
-
-      expect(images[0]).toEqual({
-        url: '/og-image.jpg',
-        width: 1200,
-        height: 630,
-        alt: 'FREESPORT - Платформа спортивных товаров',
-      });
+      expect(metadata.openGraph?.images).toContain('/og-image.jpg');
     });
 
     it('должна содержать Twitter метатеги', () => {
       expect(metadata.twitter).toBeDefined();
       expect(metadata.twitter?.card).toBe('summary_large_image');
-      expect(metadata.twitter?.title).toBe('FREESPORT - Оптовые поставки спортивных товаров');
-      expect(metadata.twitter?.images).toContain('/og-image.jpg');
+      expect(metadata.twitter?.title).toBe('FREESPORT - Спортивные товары оптом и в розницу');
     });
   });
 

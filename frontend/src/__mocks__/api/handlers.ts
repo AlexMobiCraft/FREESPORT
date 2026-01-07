@@ -488,12 +488,12 @@ const bannersHandlersLocal = [
     return HttpResponse.json([
       {
         id: 1,
-        title: 'Test Banner',
-        subtitle: 'Test Subtitle',
-        image_url: '/media/banners/test.jpg',
-        image_alt: 'Test banner',
-        cta_text: 'Click here',
-        cta_link: '/test',
+        title: 'FREESPORT - Спортивные товары для профессионалов и любителей',
+        subtitle: '5 брендов. 1000+ товаров. Доставка по всей России.',
+        image_url: '/test-banner.jpg',
+        image_alt: 'FREESPORT баннер',
+        cta_text: 'Начать покупки',
+        cta_link: '/catalog',
       },
     ]);
   }),
@@ -512,6 +512,7 @@ export const handlers = [
     const url = new URL(request.url);
     const isHit = url.searchParams.get('is_hit');
     const isNew = url.searchParams.get('is_new');
+    const search = url.searchParams.get('search');
 
     // Запрос хитов продаж
     if (isHit === 'true') {
@@ -533,12 +534,45 @@ export const handlers = [
       });
     }
 
-    // Default: пустой ответ
+    // Поисковый запрос
+    if (search) {
+      // Фильтруем товары по поисковому запросу
+      const allProducts = [...mockHitsProducts, ...mockNewProducts];
+      const filtered = allProducts.filter(
+        (p) => p.name.toLowerCase().includes(search.toLowerCase())
+      );
+      return HttpResponse.json({
+        count: filtered.length,
+        next: null,
+        previous: null,
+        results: filtered,
+      });
+    }
+
+    // Default: возвращаем тестовый набор для общих запросов
+    // Это нужно для тестов, которые вызывают getAll() без параметров
+    const defaultProduct = {
+      id: 1,
+      name: 'Test Product',
+      slug: 'test-product',
+      description: 'Test Product Description',
+      retail_price: 2500,
+      is_in_stock: true,
+      category: { id: 1, name: 'Test Category', slug: 'test-category' },
+      images: [{ id: 1, image: '/test-product.jpg', is_primary: true }],
+      is_hit: false,
+      is_new: false,
+      is_sale: false,
+      is_promo: false,
+      is_premium: false,
+      discount_percent: null,
+    };
+
     return HttpResponse.json({
-      count: 0,
+      count: 100,
       next: null,
       previous: null,
-      results: [],
+      results: [defaultProduct],
     });
   }),
 
@@ -635,8 +669,31 @@ export const handlers = [
       return HttpResponse.json(MOCK_PRODUCT_WITH_VARIANTS);
     }
 
-    // 404 для несуществующего товара
-    return HttpResponse.json({ detail: 'Product not found' }, { status: 404 });
+    // Специальный случай для теста 404
+    if (slug === 'non-existent-product') {
+      return HttpResponse.json({ detail: 'Product not found' }, { status: 404 });
+    }
+
+    // Default: возвращаем тестовый товар для любых других ID/slug
+    // Это нужно для тестов, которые вызывают getById() с произвольными ID
+    const defaultProductDetail = {
+      id: typeof slug === 'string' && !isNaN(Number(slug)) ? Number(slug) : 1,
+      name: 'Test Product',
+      slug: 'test-product',
+      description: 'Test Product Description',
+      retail_price: 2500,
+      is_in_stock: true,
+      category: { id: 1, name: 'Test Category', slug: 'test-category' },
+      images: [{ id: 1, image: '/test-product.jpg', is_primary: true }],
+      is_hit: false,
+      is_new: false,
+      is_sale: false,
+      is_promo: false,
+      is_premium: false,
+      discount_percent: null,
+    };
+
+    return HttpResponse.json(defaultProductDetail);
   }),
 
   // Story 12.3: Cart API endpoints
