@@ -7,7 +7,7 @@ import { describe, it, expect, beforeAll, afterEach, afterAll, vi } from 'vitest
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
-import { server } from '@/__mocks__/api/server';
+import { server } from '../../../__mocks__/api/server';
 import { CategoriesSection } from '../CategoriesSection';
 
 // Setup MSW
