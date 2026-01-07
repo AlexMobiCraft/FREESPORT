@@ -47,7 +47,7 @@ export const SORT_OPTIONS: SortOption[] = [
  * Использует SelectDropdown как базу
  */
 export const SortSelect = React.forwardRef<HTMLDivElement, SortSelectProps>(
-  ({ options = SORT_OPTIONS, value, onChange, mode = 'b2c', className }) => {
+  ({ options = SORT_OPTIONS, value, onChange, mode = 'b2c', className }, ref) => {
     // Преобразуем SortOption в ElectricSelectOption
     const selectOptions: ElectricSelectOption[] = options.map(opt => ({
       value: opt.value,
@@ -57,14 +57,15 @@ export const SortSelect = React.forwardRef<HTMLDivElement, SortSelectProps>(
     const labelText = mode === 'b2b' ? 'Сортировка (B2B)' : 'Сортировка';
 
     return (
-      <ElectricSelect
-        // ref={ref} // ElectricSelect currently doesn't forward ref, but it wraps a div
-        options={selectOptions}
-        value={value}
-        placeholder={labelText}
-        onChange={onChange}
-        className={className}
-      />
+      <div ref={ref}>
+        <ElectricSelect
+          options={selectOptions}
+          value={value}
+          placeholder={labelText}
+          onChange={onChange}
+          className={className}
+        />
+      </div>
     );
   }
 );
