@@ -24,14 +24,24 @@ vi.mock('next/navigation', () => ({
 }));
 
 // Mock Next.js components
+const MockLink = React.forwardRef<HTMLAnchorElement, { children: React.ReactNode; href: string }>(
+  ({ children, href }, ref) => (
+    <a href={href} ref={ref}>
+      {children}
+    </a>
+  )
+);
+MockLink.displayName = 'MockLink';
+
 vi.mock('next/link', () => ({
-  default: React.forwardRef(({ children, href }: { children: React.ReactNode; href: string }, ref: React.Ref<HTMLAnchorElement>) => (
-    <a href={href} ref={ref}>{children}</a>
-  )),
+  default: MockLink,
 }));
 
+// eslint-disable-next-line @next/next/no-img-element
+const MockImage = ({ src, alt }: { src: string; alt: string }) => <img src={src} alt={alt} />;
+
 vi.mock('next/image', () => ({
-  default: ({ src, alt }: { src: string; alt: string }) => <img src={src} alt={alt} />,
+  default: MockImage,
 }));
 
 // Mock newsService
@@ -101,7 +111,7 @@ describe('NewsDetailPage (/news/[slug])', () => {
       const homeLink = screen.getByText('Главная').closest('a');
       expect(homeLink).toHaveAttribute('href', '/');
       const newsLinks = screen.getAllByText('Новости');
-      const newsLink = newsLinks.find((el) => el.closest('a'))?.closest('a');
+      const newsLink = newsLinks.find(el => el.closest('a'))?.closest('a');
       expect(newsLink).toHaveAttribute('href', '/news');
     });
   });

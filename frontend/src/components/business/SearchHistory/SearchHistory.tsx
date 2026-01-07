@@ -125,10 +125,10 @@ export function SearchHistory({
               role="button"
               tabIndex={0}
               onClick={e => handleRemove(e, query)}
-              onKeyDown={(e) => {
+              onKeyDown={e => {
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault();
-                  handleRemove(e as any, query);
+                  handleRemove(e as unknown as React.MouseEvent, query);
                 }
               }}
               className="p-1 rounded hover:bg-[#E3E8F2] transition-colors flex-shrink-0 cursor-pointer"

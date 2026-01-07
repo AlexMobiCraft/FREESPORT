@@ -24,14 +24,24 @@ vi.mock('next/navigation', () => ({
 }));
 
 // Mock Next.js components
+const MockLink = React.forwardRef<HTMLAnchorElement, { children: React.ReactNode; href: string }>(
+  ({ children, href }, ref) => (
+    <a href={href} ref={ref}>
+      {children}
+    </a>
+  )
+);
+MockLink.displayName = 'MockLink';
+
 vi.mock('next/link', () => ({
-  default: React.forwardRef(({ children, href }: { children: React.ReactNode; href: string }, ref: React.Ref<HTMLAnchorElement>) => (
-    <a href={href} ref={ref}>{children}</a>
-  )),
+  default: MockLink,
 }));
 
+// eslint-disable-next-line @next/next/no-img-element
+const MockImage = ({ src, alt }: { src: string; alt: string }) => <img src={src} alt={alt} />;
+
 vi.mock('next/image', () => ({
-  default: ({ src, alt }: { src: string; alt: string }) => <img src={src} alt={alt} />,
+  default: MockImage,
 }));
 
 // Mock blogService
@@ -104,7 +114,7 @@ describe('BlogDetailPage (/blog/[slug])', () => {
       const homeLink = screen.getByText('Главная').closest('a');
       expect(homeLink).toHaveAttribute('href', '/');
       const blogLinks = screen.getAllByText('Блог');
-      const blogLink = blogLinks.find((el) => el.closest('a'))?.closest('a');
+      const blogLink = blogLinks.find(el => el.closest('a'))?.closest('a');
       expect(blogLink).toHaveAttribute('href', '/blog');
     });
   });
@@ -208,9 +218,7 @@ describe('BlogDetailPage (/blog/[slug])', () => {
 
   describe('Обработка ошибок', () => {
     it('должна вызвать notFound() если статья не найдена', async () => {
-      vi.mocked(blogService.getBlogPostBySlug).mockRejectedValue(
-        new Error('Blog post not found')
-      );
+      vi.mocked(blogService.getBlogPostBySlug).mockRejectedValue(new Error('Blog post not found'));
 
       await BlogDetailPage({ params: Promise.resolve({ slug: 'non-existent' }) });
 
@@ -279,9 +287,7 @@ describe('BlogDetailPage (/blog/[slug])', () => {
     });
 
     it('должна обрабатывать ошибку при генерации метаданных', async () => {
-      vi.mocked(blogService.getBlogPostBySlug).mockRejectedValue(
-        new Error('Blog post not found')
-      );
+      vi.mocked(blogService.getBlogPostBySlug).mockRejectedValue(new Error('Blog post not found'));
       const metadata = await generateMetadata({
         params: Promise.resolve({ slug: 'test-blog-post' }),
       });

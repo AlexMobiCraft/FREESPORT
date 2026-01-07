@@ -25,12 +25,13 @@ type MockButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & { children: Rea
 type MockCnArgs = Array<string | false | null | undefined>;
 
 // Mock Next.js Image component
+// eslint-disable-next-line @next/next/no-img-element, @typescript-eslint/no-unused-vars
+const MockImage = ({ src, alt, fill: _fill, ...rest }: MockImageProps) => (
+  <img src={src} alt={alt} {...rest} />
+);
+
 vi.mock('next/image', () => ({
-  default: ({ src, alt, fill, ...props }: MockImageProps) => {
-    // eslint-disable-next-line @next/next/no-img-element
-    // Exclude 'fill' prop as it's Next.js specific and not a valid HTML img attribute
-    return <img src={src} alt={alt} {...props} />;
-  },
+  default: MockImage,
 }));
 
 // Mock lucide-react icons
@@ -90,6 +91,7 @@ describe('ProductCard', () => {
     brand: {
       id: 1,
       name: 'Nike',
+      slug: 'nike',
     },
     images: [
       {
