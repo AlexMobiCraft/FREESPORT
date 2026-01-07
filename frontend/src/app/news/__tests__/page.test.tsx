@@ -33,8 +33,11 @@ vi.mock('next/link', () => ({
   ),
 }));
 
+// eslint-disable-next-line @next/next/no-img-element
+const MockImage = ({ src, alt }: { src: string; alt: string }) => <img src={src} alt={alt} />;
+
 vi.mock('next/image', () => ({
-  default: ({ src, alt }: { src: string; alt: string }) => <img src={src} alt={alt} />,
+  default: MockImage,
 }));
 
 // Mock newsService

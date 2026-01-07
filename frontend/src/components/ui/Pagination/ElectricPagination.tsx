@@ -107,8 +107,8 @@ export function ElectricPagination({
   // Skewed button styles
   const baseButtonStyles = cn(
     'flex items-center justify-center',
-    'w-10 h-10',
-    'font-medium text-sm',
+    'w-8 h-8 sm:w-10 sm:h-10',
+    'font-medium text-xs sm:text-sm',
     'transition-all duration-200',
     'transform -skew-x-12',
     'focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-offset-2 focus:ring-offset-[var(--bg-body)]'

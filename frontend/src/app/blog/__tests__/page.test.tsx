@@ -33,8 +33,11 @@ vi.mock('next/link', () => ({
   ),
 }));
 
+// eslint-disable-next-line @next/next/no-img-element
+const MockImage = ({ src, alt }: { src: string; alt: string }) => <img src={src} alt={alt} />;
+
 vi.mock('next/image', () => ({
-  default: ({ src, alt }: { src: string; alt: string }) => <img src={src} alt={alt} />,
+  default: MockImage,
 }));
 
 // Mock blogService
@@ -109,7 +112,9 @@ describe('BlogPage (/blog)', () => {
       vi.mocked(blogService.getBlogPosts).mockResolvedValue(mockBlogData);
       render(await BlogPage({ searchParams: Promise.resolve({}) }));
       expect(
-        screen.getByText(/Полезные статьи о спорте, тренировках и экипировке от экспертов FREESPORT/i)
+        screen.getByText(
+          /Полезные статьи о спорте, тренировках и экипировке от экспертов FREESPORT/i
+        )
       ).toBeInTheDocument();
     });
   });
