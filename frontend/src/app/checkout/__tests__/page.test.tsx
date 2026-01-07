@@ -6,7 +6,22 @@ import { useCartStore } from '@/stores/cartStore';
 import type { User } from '@/types/api';
 
 // Mock зависимостей
-vi.mock('@/stores/authStore');
+vi.mock('@/stores/authStore', () => {
+  const mockStore = vi.fn();
+
+  // Добавляем getState() метод для совместимости с apiClient
+  mockStore.getState = vi.fn(() => ({
+    accessToken: 'test-token',
+    refreshToken: null,
+    user: null,
+    isAuthenticated: false,
+  }));
+
+  return {
+    useAuthStore: mockStore,
+  };
+});
+
 vi.mock('@/stores/cartStore');
 vi.mock('next/navigation', () => ({
   useRouter: () => ({

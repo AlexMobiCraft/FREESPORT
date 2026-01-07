@@ -70,26 +70,6 @@ vi.mock('next/link', () => {
   return { default: Link };
 });
 
-// Мокирование authStore для тестов с методом getState()
-// Это необходимо для apiClient, который использует useAuthStore.getState().accessToken
-vi.mock('@/stores/authStore', async () => {
-  const actual = await vi.importActual('@/stores/authStore');
-  const mockStore = vi.fn(() => null);
-
-  // Добавляем getState() метод для совместимости с apiClient
-  mockStore.getState = vi.fn(() => ({
-    accessToken: null,
-    refreshToken: null,
-    user: null,
-    isAuthenticated: false,
-  }));
-
-  return {
-    ...actual,
-    useAuthStore: mockStore,
-  };
-});
-
 // Подавление предупреждений console в тестах (опционально)
 global.console = {
   ...console,
