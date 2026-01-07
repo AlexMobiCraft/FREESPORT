@@ -39,7 +39,7 @@ describe('LoginForm', () => {
       render(<LoginForm />);
 
       expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/пароль/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/^пароль$/i)).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /войти/i })).toBeInTheDocument();
     });
 
@@ -47,7 +47,7 @@ describe('LoginForm', () => {
       render(<LoginForm />);
 
       const emailInput = screen.getByLabelText(/email/i);
-      const passwordInput = screen.getByLabelText(/пароль/i);
+      const passwordInput = screen.getByLabelText(/^пароль$/i);
 
       expect(emailInput).toHaveAttribute('autocomplete', 'email');
       expect(passwordInput).toHaveAttribute('autocomplete', 'current-password');
@@ -61,7 +61,7 @@ describe('LoginForm', () => {
       render(<LoginForm />);
 
       const emailInput = screen.getByLabelText(/email/i);
-      const passwordInput = screen.getByLabelText(/пароль/i);
+      const passwordInput = screen.getByLabelText(/^пароль$/i);
       const submitButton = screen.getByRole('button', { name: /войти/i });
 
       // Use a format that passes browser validation but might fail Zod
@@ -83,7 +83,7 @@ describe('LoginForm', () => {
       render(<LoginForm />);
 
       const emailInput = screen.getByLabelText(/email/i);
-      const passwordInput = screen.getByLabelText(/пароль/i);
+      const passwordInput = screen.getByLabelText(/^пароль$/i);
       const submitButton = screen.getByRole('button', { name: /войти/i });
 
       await user.type(emailInput, 'test@example.com');
@@ -98,7 +98,7 @@ describe('LoginForm', () => {
       render(<LoginForm />);
 
       const emailInput = screen.getByLabelText(/email/i);
-      const passwordInput = screen.getByLabelText(/пароль/i);
+      const passwordInput = screen.getByLabelText(/^пароль$/i);
       const submitButton = screen.getByRole('button', { name: /войти/i });
 
       await user.type(emailInput, 'test@example.com');
@@ -113,7 +113,7 @@ describe('LoginForm', () => {
       render(<LoginForm />);
 
       const emailInput = screen.getByLabelText(/email/i);
-      const passwordInput = screen.getByLabelText(/пароль/i);
+      const passwordInput = screen.getByLabelText(/^пароль$/i);
       const submitButton = screen.getByRole('button', { name: /войти/i });
 
       await user.type(emailInput, 'test@example.com');
@@ -145,7 +145,7 @@ describe('LoginForm', () => {
       render(<LoginForm />);
 
       const emailInput = screen.getByLabelText(/email/i);
-      const passwordInput = screen.getByLabelText(/пароль/i);
+      const passwordInput = screen.getByLabelText(/^пароль$/i);
       const submitButton = screen.getByRole('button', { name: /войти/i });
 
       await user.type(emailInput, 'test@example.com');
@@ -185,7 +185,7 @@ describe('LoginForm', () => {
       render(<LoginForm redirectUrl="/dashboard" />);
 
       const emailInput = screen.getByLabelText(/email/i);
-      const passwordInput = screen.getByLabelText(/пароль/i);
+      const passwordInput = screen.getByLabelText(/^пароль$/i);
       const submitButton = screen.getByRole('button', { name: /войти/i });
 
       await user.type(emailInput, 'test@example.com');
@@ -212,7 +212,7 @@ describe('LoginForm', () => {
       render(<LoginForm />);
 
       const emailInput = screen.getByLabelText(/email/i);
-      const passwordInput = screen.getByLabelText(/пароль/i);
+      const passwordInput = screen.getByLabelText(/^пароль$/i);
       const submitButton = screen.getByRole('button', { name: /войти/i });
 
       await user.type(emailInput, 'wrong@example.com');
@@ -235,7 +235,7 @@ describe('LoginForm', () => {
       render(<LoginForm />);
 
       const emailInput = screen.getByLabelText(/email/i);
-      const passwordInput = screen.getByLabelText(/пароль/i);
+      const passwordInput = screen.getByLabelText(/^пароль$/i);
       const submitButton = screen.getByRole('button', { name: /войти/i });
 
       await user.type(emailInput, 'test@example.com');
@@ -278,7 +278,7 @@ describe('LoginForm', () => {
       render(<LoginForm />);
 
       const emailInput = screen.getByLabelText(/email/i);
-      const passwordInput = screen.getByLabelText(/пароль/i);
+      const passwordInput = screen.getByLabelText(/^пароль$/i);
       const submitButton = screen.getByRole('button', { name: /войти/i });
 
       await user.type(emailInput, 'test@example.com');
@@ -324,7 +324,7 @@ describe('LoginForm', () => {
       render(<LoginForm />);
 
       const emailInput = screen.getByLabelText(/email/i) as HTMLInputElement;
-      const passwordInput = screen.getByLabelText(/пароль/i) as HTMLInputElement;
+      const passwordInput = screen.getByLabelText(/^пароль$/i) as HTMLInputElement;
       const submitButton = screen.getByRole('button', { name: /войти/i });
 
       await user.type(emailInput, 'test@example.com');
@@ -347,7 +347,7 @@ describe('LoginForm', () => {
       render(<LoginForm />);
 
       const emailInput = screen.getByLabelText(/email/i);
-      const passwordInput = screen.getByLabelText(/пароль/i);
+      const passwordInput = screen.getByLabelText(/^пароль$/i);
 
       // Labels should exist and be associated
       expect(emailInput).toHaveAccessibleName();
@@ -359,7 +359,7 @@ describe('LoginForm', () => {
       render(<LoginForm />);
 
       const emailInput = screen.getByLabelText(/email/i);
-      const passwordInput = screen.getByLabelText(/пароль/i);
+      const passwordInput = screen.getByLabelText(/^пароль$/i);
       const submitButton = screen.getByRole('button', { name: /войти/i });
 
       // Use valid email but short password to trigger Zod validation error
@@ -387,7 +387,7 @@ describe('LoginForm', () => {
       render(<LoginForm />);
 
       const emailInput = screen.getByLabelText(/email/i);
-      const passwordInput = screen.getByLabelText(/пароль/i);
+      const passwordInput = screen.getByLabelText(/^пароль$/i);
       const submitButton = screen.getByRole('button', { name: /войти/i });
 
       await user.type(emailInput, 'test@example.com');
