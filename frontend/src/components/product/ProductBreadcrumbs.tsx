@@ -47,8 +47,8 @@ export default function ProductBreadcrumbs({
     return name !== 'Главная' && name !== 'СПОРТ';
   });
 
-  // Счётчик позиций для schema.org (начинаем с 3: Главная=1, Каталог=2)
-  let position = 3;
+  // Счётчик позиций для schema.org (начинаем с 2: Главная=1)
+  let position = 2;
 
   return (
     <nav aria-label="Breadcrumb" className="mb-6">
@@ -57,30 +57,12 @@ export default function ProductBreadcrumbs({
         itemScope
         itemType="https://schema.org/BreadcrumbList"
       >
-        {/* Главная страница → /test */}
+        {/* Главная страница → / */}
         <li itemProp="itemListElement" itemScope itemType="https://schema.org/ListItem">
-          <Link href="/test" className="hover:text-primary-600 transition-colors" itemProp="item">
+          <Link href="/" className="hover:text-primary-600 transition-colors" itemProp="item">
             <span itemProp="name">Главная</span>
           </Link>
           <meta itemProp="position" content="1" />
-        </li>
-
-        {/* Каталог → /catalog */}
-        <li
-          className="flex items-center gap-2"
-          itemProp="itemListElement"
-          itemScope
-          itemType="https://schema.org/ListItem"
-        >
-          <ChevronIcon />
-          <Link
-            href="/catalog"
-            className="text-neutral-700 hover:text-primary-600 transition-colors"
-            itemProp="item"
-          >
-            <span itemProp="name">Каталог</span>
-          </Link>
-          <meta itemProp="position" content="2" />
         </li>
 
         {/* Категории из breadcrumbs - с активными ссылками */}
