@@ -4,6 +4,81 @@
 
 import type { ProductDetail } from '@/types/api';
 
+/**
+ * Backend API format - то что возвращает Django REST API
+ * Используется в MSW handlers
+ */
+export const MOCK_PRODUCT_DETAIL_API = {
+  id: 101,
+  slug: 'asics-gel-blast-ff',
+  name: 'ASICS Gel-Blast FF',
+  sku: 'AS-GB-FF-2025',
+  brand: { name: 'ASICS' },
+  description: 'Профессиональные кроссовки для интенсивных тренировок',
+  full_description:
+    'ASICS Gel-Blast FF - это кроссовки нового поколения для игры в зале. Технология FlyteFoam обеспечивает превосходную амортизацию при минимальном весе. Гелевая прокладка в пятке гарантирует комфорт при приземлении.',
+  retail_price: 12990,
+  opt1_price: 11890,
+  opt2_price: 11290,
+  opt3_price: 10790,
+  trainer_price: 10990,
+  federation_price: 9990,
+  stock_quantity: 34,
+  images: [
+    {
+      id: 1,
+      url: 'https://cdn.freesport.ru/products/asics-gel-blast-ff/main.jpg',
+      alt_text: 'ASICS Gel-Blast FF front',
+      is_main: true,
+    },
+    {
+      id: 2,
+      url: 'https://cdn.freesport.ru/products/asics-gel-blast-ff/side.jpg',
+      alt_text: 'ASICS Gel-Blast FF side',
+      is_main: false,
+    },
+    {
+      id: 3,
+      url: 'https://cdn.freesport.ru/products/asics-gel-blast-ff/back.jpg',
+      alt_text: 'ASICS Gel-Blast FF back',
+      is_main: false,
+    },
+  ],
+  rating: 4.7,
+  reviews_count: 38,
+  specifications: {
+    Материал: 'Полиамид + сетка',
+    Вес: '310 г',
+    Цвета: 'black, lime',
+    Размеры: '36-46',
+    'Страна производства': 'Вьетнам',
+    Назначение: 'Зальный гандбол, волейбол',
+    Технологии: 'FlyteFoam, Gel, Trusstic System',
+  },
+  category: {
+    id: 1,
+    name: 'Обувь',
+    slug: 'obuv',
+  },
+  category_breadcrumbs: [
+    { name: 'Главная', slug: '/' },
+    { name: 'Обувь', slug: '/catalog/obuv' },
+    { name: 'Зал', slug: '/catalog/zal' },
+    { name: 'ASICS', slug: '/catalog/asics' },
+  ],
+  is_in_stock: true,
+  can_be_ordered: true,
+  is_hit: false,
+  is_new: false,
+  is_sale: false,
+  is_promo: false,
+  is_premium: false,
+  discount_percent: null,
+};
+
+/**
+ * Frontend format - то что используют React компоненты
+ */
 export const MOCK_PRODUCT_DETAIL: ProductDetail = {
   id: 101,
   slug: 'asics-gel-blast-ff',
@@ -60,7 +135,12 @@ export const MOCK_PRODUCT_DETAIL: ProductDetail = {
     id: 1,
     name: 'Обувь',
     slug: 'obuv',
-    breadcrumbs: ['Главная', 'Обувь', 'Зал', 'ASICS'],
+    breadcrumbs: [
+      { name: 'Главная', slug: '/' },
+      { name: 'Обувь', slug: '/catalog/obuv' },
+      { name: 'Зал', slug: '/catalog/zal' },
+      { name: 'ASICS', slug: '/catalog/asics' },
+    ],
   },
   is_in_stock: true,
   can_be_ordered: true,

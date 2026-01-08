@@ -110,10 +110,10 @@ function adaptProductToDetail(apiProduct: ApiProductDetailResponse): ProductDeta
     id: apiProduct.id,
     slug: apiProduct.slug,
     name: apiProduct.name,
-    sku: apiProduct.variants?.[0]?.sku || `SKU-${apiProduct.id}`,
+    sku: apiProduct.sku || apiProduct.variants?.[0]?.sku || `SKU-${apiProduct.id}`,
     brand: apiProduct.brand?.name || '',
     description: apiProduct.description || '',
-    full_description: apiProduct.description || '',
+    full_description: apiProduct.full_description || apiProduct.description || '',
     price: {
       retail: apiProduct.retail_price || 0,
       wholesale: {
@@ -131,9 +131,9 @@ function adaptProductToDetail(apiProduct: ApiProductDetailResponse): ProductDeta
     reviews_count: apiProduct.reviews_count,
     specifications: apiProduct.specifications,
     category: {
-      id: categoryFromBreadcrumbs?.id || 0,
-      name: categoryFromBreadcrumbs?.name || String(apiProduct.category || ''),
-      slug: categoryFromBreadcrumbs?.slug || '',
+      id: apiProduct.category?.id || 0,
+      name: apiProduct.category?.name || '',
+      slug: apiProduct.category?.slug || '',
       breadcrumbs: breadcrumbs.length > 0 ? breadcrumbs : [],
     },
     is_in_stock: apiProduct.is_in_stock,

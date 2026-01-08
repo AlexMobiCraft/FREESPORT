@@ -67,6 +67,13 @@ describe('authService', () => {
       // Setup: set refresh token
       localStorage.setItem('refreshToken', 'mock-refresh-token');
 
+      // Override handler to return specific token
+      server.use(
+        http.post('http://localhost:8001/api/v1/auth/refresh/', () => {
+          return HttpResponse.json({ access: 'new-mock-access-token' });
+        })
+      );
+
       const result = await authService.refreshToken();
 
       expect(result.access).toBe('new-mock-access-token');

@@ -6,7 +6,7 @@
 import { http, HttpResponse } from 'msw';
 import type { Product, Category, NewsItem } from '@/types/api';
 import {
-  MOCK_PRODUCT_DETAIL,
+  MOCK_PRODUCT_DETAIL_API,
   MOCK_OUT_OF_STOCK_PRODUCT,
   MOCK_UNAVAILABLE_PRODUCT,
   MOCK_PRODUCT_WITH_VARIANTS,
@@ -655,7 +655,7 @@ export const handlers = [
 
     // Mock для разных состояний товара
     if (slug === 'asics-gel-blast-ff') {
-      return HttpResponse.json(MOCK_PRODUCT_DETAIL);
+      return HttpResponse.json(MOCK_PRODUCT_DETAIL_API);
     }
 
     if (slug === 'out-of-stock-product') {
