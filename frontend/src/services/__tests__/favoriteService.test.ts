@@ -46,7 +46,7 @@ describe('favoriteService', () => {
     it('returns list of favorites on success', async () => {
       // ARRANGE
       server.use(
-        http.get(`${API_URL}/favorites/`, () => {
+        http.get(`${API_URL}/users/favorites/`, () => {
           return HttpResponse.json(mockFavorites);
         })
       );
@@ -62,7 +62,7 @@ describe('favoriteService', () => {
     it('throws error on 401 unauthorized', async () => {
       // ARRANGE
       server.use(
-        http.get(`${API_URL}/favorites/`, () => {
+        http.get(`${API_URL}/users/favorites/`, () => {
           return HttpResponse.json(
             { detail: 'Authentication credentials were not provided.' },
             { status: 401 }
@@ -90,7 +90,7 @@ describe('favoriteService', () => {
       };
 
       server.use(
-        http.post(`${API_URL}/favorites/`, () => {
+        http.post(`${API_URL}/users/favorites/`, () => {
           return HttpResponse.json(newFavorite, { status: 201 });
         })
       );
@@ -106,7 +106,7 @@ describe('favoriteService', () => {
     it('throws error when product already in favorites', async () => {
       // ARRANGE
       server.use(
-        http.post(`${API_URL}/favorites/`, () => {
+        http.post(`${API_URL}/users/favorites/`, () => {
           return HttpResponse.json(
             { non_field_errors: ['The fields user, product must make a unique set.'] },
             { status: 400 }
@@ -121,7 +121,7 @@ describe('favoriteService', () => {
     it('throws FavoriteValidationError on other 400 errors', async () => {
       // ARRANGE
       server.use(
-        http.post(`${API_URL}/favorites/`, () => {
+        http.post(`${API_URL}/users/favorites/`, () => {
           return HttpResponse.json(
             { product: ['Товар неактивен или не существует'] },
             { status: 400 }
@@ -138,7 +138,7 @@ describe('favoriteService', () => {
     it('removes favorite on success', async () => {
       // ARRANGE
       server.use(
-        http.delete(`${API_URL}/favorites/1/`, () => {
+        http.delete(`${API_URL}/users/favorites/1/`, () => {
           return new HttpResponse(null, { status: 204 });
         })
       );
@@ -150,7 +150,7 @@ describe('favoriteService', () => {
     it('throws error on 404 not found', async () => {
       // ARRANGE
       server.use(
-        http.delete(`${API_URL}/favorites/999/`, () => {
+        http.delete(`${API_URL}/users/favorites/999/`, () => {
           return HttpResponse.json({ detail: 'Not found.' }, { status: 404 });
         })
       );
@@ -162,7 +162,7 @@ describe('favoriteService', () => {
     it('throws error on 401 unauthorized', async () => {
       // ARRANGE
       server.use(
-        http.delete(`${API_URL}/favorites/1/`, () => {
+        http.delete(`${API_URL}/users/favorites/1/`, () => {
           return HttpResponse.json(
             { detail: 'Authentication credentials were not provided.' },
             { status: 401 }

@@ -29,7 +29,7 @@ export interface PriceRangeSliderProps {
 }
 
 export const PriceRangeSlider = React.forwardRef<HTMLDivElement, PriceRangeSliderProps>(
-  ({ min, max, value, onChange, step = 1, className, noSkew = false }, ref) => {
+  ({ min, max, value, onChange, step = 1, formatPrice, className, noSkew = false }, ref) => {
     const [minValue, maxValue] = value;
     const [isDragging, setIsDragging] = useState<'min' | 'max' | null>(null);
     const trackRef = useRef<HTMLDivElement>(null);
@@ -136,7 +136,7 @@ export const PriceRangeSlider = React.forwardRef<HTMLDivElement, PriceRangeSlide
           <div className="flex-1">
             <input
               type="text"
-              value={minValue.toLocaleString('ru-RU')}
+              value={formatPrice ? formatPrice(minValue) : minValue.toLocaleString('ru-RU')}
               onChange={handleMinInputChange}
               className={cn(
                 'w-full h-10 px-3',
@@ -153,7 +153,7 @@ export const PriceRangeSlider = React.forwardRef<HTMLDivElement, PriceRangeSlide
           <div className="flex-1">
             <input
               type="text"
-              value={maxValue.toLocaleString('ru-RU')}
+              value={formatPrice ? formatPrice(maxValue) : maxValue.toLocaleString('ru-RU')}
               onChange={handleMaxInputChange}
               className={cn(
                 'w-full h-10 px-3',

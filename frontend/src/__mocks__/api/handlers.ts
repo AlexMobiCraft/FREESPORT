@@ -830,8 +830,8 @@ export const handlers = [
   // Addresses API (Story 16.3)
   // ============================================================
 
-  // GET /addresses/ - список адресов
-  http.get(`${API_BASE_URL}/addresses/`, () => {
+  // GET /users/addresses/ - список адресов
+  http.get(`${API_BASE_URL}/users/addresses/`, () => {
     return HttpResponse.json([
       {
         id: 1,
@@ -852,8 +852,8 @@ export const handlers = [
     ]);
   }),
 
-  // POST /addresses/ - создать адрес
-  http.post(`${API_BASE_URL}/addresses/`, async ({ request }) => {
+  // POST /users/addresses/ - создать адрес
+  http.post(`${API_BASE_URL}/users/addresses/`, async ({ request }) => {
     const body = (await request.json()) as Record<string, unknown>;
     return HttpResponse.json(
       {
@@ -867,8 +867,8 @@ export const handlers = [
     );
   }),
 
-  // PATCH /addresses/:id/ - обновить адрес
-  http.patch(`${API_BASE_URL}/addresses/:id/`, async ({ params, request }) => {
+  // PATCH /users/addresses/:id/ - обновить адрес
+  http.patch(`${API_BASE_URL}/users/addresses/:id/`, async ({ params, request }) => {
     const body = (await request.json()) as Record<string, unknown>;
     return HttpResponse.json({
       id: Number(params.id),
@@ -877,8 +877,8 @@ export const handlers = [
     });
   }),
 
-  // DELETE /addresses/:id/ - удалить адрес
-  http.delete(`${API_BASE_URL}/addresses/:id/`, () => {
+  // DELETE /users/addresses/:id/ - удалить адрес
+  http.delete(`${API_BASE_URL}/users/addresses/:id/`, () => {
     return new HttpResponse(null, { status: 204 });
   }),
 
@@ -886,8 +886,8 @@ export const handlers = [
   // Favorites API (Story 16.3)
   // ============================================================
 
-  // GET /favorites/ - список избранного
-  http.get(`${API_BASE_URL}/favorites/`, () => {
+  // GET /users/favorites/ - список избранного
+  http.get(`${API_BASE_URL}/users/favorites/`, () => {
     return HttpResponse.json([
       {
         id: 1,
@@ -902,13 +902,13 @@ export const handlers = [
     ]);
   }),
 
-  // POST /favorites/ - добавить в избранное
-  http.post(`${API_BASE_URL}/favorites/`, async ({ request }) => {
-    const body = (await request.json()) as { product_id: number };
+  // POST /users/favorites/ - добавить в избранное
+  http.post(`${API_BASE_URL}/users/favorites/`, async ({ request }) => {
+    const body = (await request.json()) as { product: number };
     return HttpResponse.json(
       {
         id: Date.now(),
-        product: body.product_id,
+        product: body.product,
         product_name: 'Test Product',
         product_price: '2500.00',
         product_image: '/test.jpg',
@@ -920,9 +920,31 @@ export const handlers = [
     );
   }),
 
-  // DELETE /favorites/:id/ - удалить из избранного
-  http.delete(`${API_BASE_URL}/favorites/:id/`, () => {
+  // DELETE /users/favorites/:id/ - удалить из избранного
+  http.delete(`${API_BASE_URL}/users/favorites/:id/`, () => {
     return new HttpResponse(null, { status: 204 });
+  }),
+
+  // ============================================================
+  // Auth API
+  // ============================================================
+
+  // POST /auth/refresh/ - обновить access token
+  http.post(`${API_BASE_URL}/auth/refresh/`, async ({ request }) => {
+    const body = (await request.json()) as { refresh: string };
+
+    // Проверяем валидность refresh токена
+    if (body.refresh === 'expired-token') {
+      return HttpResponse.json(
+        { detail: 'Invalid refresh token' },
+        { status: 401 }
+      );
+    }
+
+    // Возвращаем новый access токен
+    return HttpResponse.json({
+      access: 'new-access-token-' + Date.now(),
+    });
   }),
 ];
 

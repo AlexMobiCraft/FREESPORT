@@ -10,6 +10,23 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/a
 describe('bannersService', () => {
   describe('getActive', () => {
     test('fetches active banners successfully', async () => {
+      // Переопределяем хендлер для этого теста
+      server.use(
+        http.get(`${API_BASE_URL}/banners/`, () => {
+          return HttpResponse.json([
+            {
+              id: 1,
+              title: 'Test Banner',
+              subtitle: 'Test subtitle',
+              image_url: '/media/banners/test.jpg',
+              image_alt: 'Test banner',
+              cta_text: 'Click here',
+              cta_link: '/test',
+            },
+          ]);
+        })
+      );
+
       const result = await bannersService.getActive();
 
       expect(result).toHaveLength(1);

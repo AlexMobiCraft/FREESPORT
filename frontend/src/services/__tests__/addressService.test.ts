@@ -55,7 +55,7 @@ describe('addressService', () => {
     it('returns list of addresses on success', async () => {
       // ARRANGE
       server.use(
-        http.get(`${API_URL}/addresses/`, () => {
+        http.get(`${API_URL}/users/addresses/`, () => {
           return HttpResponse.json(mockAddresses);
         })
       );
@@ -71,7 +71,7 @@ describe('addressService', () => {
     it('throws error on 401 unauthorized', async () => {
       // ARRANGE
       server.use(
-        http.get(`${API_URL}/addresses/`, () => {
+        http.get(`${API_URL}/users/addresses/`, () => {
           return HttpResponse.json(
             { detail: 'Authentication credentials were not provided.' },
             { status: 401 }
@@ -99,7 +99,7 @@ describe('addressService', () => {
       };
 
       server.use(
-        http.post(`${API_URL}/addresses/`, () => {
+        http.post(`${API_URL}/users/addresses/`, () => {
           return HttpResponse.json(newAddress, { status: 201 });
         })
       );
@@ -115,7 +115,7 @@ describe('addressService', () => {
     it('throws AddressValidationError on 400', async () => {
       // ARRANGE
       server.use(
-        http.post(`${API_URL}/addresses/`, () => {
+        http.post(`${API_URL}/users/addresses/`, () => {
           return HttpResponse.json(
             { phone: ['Номер телефона должен быть в формате: +79001234567'] },
             { status: 400 }
@@ -137,7 +137,7 @@ describe('addressService', () => {
       };
 
       server.use(
-        http.put(`${API_URL}/addresses/1/`, () => {
+        http.put(`${API_URL}/users/addresses/1/`, () => {
           return HttpResponse.json(updatedAddress);
         })
       );
@@ -152,7 +152,7 @@ describe('addressService', () => {
     it('throws error on 404 not found', async () => {
       // ARRANGE
       server.use(
-        http.put(`${API_URL}/addresses/999/`, () => {
+        http.put(`${API_URL}/users/addresses/999/`, () => {
           return HttpResponse.json({ detail: 'Not found.' }, { status: 404 });
         })
       );
@@ -166,7 +166,7 @@ describe('addressService', () => {
     it('deletes address on success', async () => {
       // ARRANGE
       server.use(
-        http.delete(`${API_URL}/addresses/1/`, () => {
+        http.delete(`${API_URL}/users/addresses/1/`, () => {
           return new HttpResponse(null, { status: 204 });
         })
       );
@@ -178,7 +178,7 @@ describe('addressService', () => {
     it('throws error on 404 not found', async () => {
       // ARRANGE
       server.use(
-        http.delete(`${API_URL}/addresses/999/`, () => {
+        http.delete(`${API_URL}/users/addresses/999/`, () => {
           return HttpResponse.json({ detail: 'Not found.' }, { status: 404 });
         })
       );

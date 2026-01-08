@@ -87,8 +87,9 @@ describe('PriceRangeSlider', () => {
     const customFormat = (price: number) => `$${price}`;
     render(<PriceRangeSlider {...defaultProps} formatPrice={customFormat} />);
 
-    expect(screen.getByText('$0')).toBeInTheDocument();
-    expect(screen.getByText('$10000')).toBeInTheDocument();
+    // Проверяем, что текущие значения отформатированы с помощью customFormat
+    expect(screen.getByDisplayValue('$1000')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('$5000')).toBeInTheDocument();
   });
 
   it('has correct accessibility attributes', () => {
