@@ -172,7 +172,7 @@ describe('NewsSection', () => {
     });
   });
 
-  // Story 20.3 - New tests for "Все новости" button
+  // Story 20.3 - New tests for "Все новости" link
   it('renders "Все новости" button', async () => {
     const mockGetNews = vi.mocked(newsService.getNews);
     mockGetNews.mockResolvedValueOnce(mockNewsItems);
@@ -180,8 +180,8 @@ describe('NewsSection', () => {
     render(<NewsSection />);
 
     await waitFor(() => {
-      const button = screen.getByRole('button', { name: /все новости/i });
-      expect(button).toBeInTheDocument();
+      const link = screen.getByRole('link', { name: /все новости/i });
+      expect(link).toBeInTheDocument();
     });
   });
 

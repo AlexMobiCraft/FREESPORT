@@ -86,10 +86,18 @@ export const NewsSection: React.FC = () => {
 
   return (
     <section className="max-w-[1280px] mx-auto px-3 md:px-4 lg:px-6" aria-labelledby="news-heading">
-      {/* Header */}
-      <h2 id="news-heading" className="text-3xl font-bold text-text-primary mb-8">
-        Новости
-      </h2>
+      {/* Header with button */}
+      <div className="flex items-center justify-between mb-8">
+        <h2 id="news-heading" className="text-3xl font-bold text-text-primary">
+          Новости
+        </h2>
+        <a
+          href="/news"
+          className="inline-flex items-center px-6 py-2 bg-primary text-white font-medium rounded-lg hover:bg-primary-dark transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+        >
+          Все новости
+        </a>
+      </div>
 
       {isLoading && <NewsSkeletonLoader />}
 
