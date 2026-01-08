@@ -55,49 +55,49 @@ help:
 
 # Сборка образов
 build:
-	docker-compose build
+	cd docker && docker compose build
 
 # Запуск среды разработки
 up:
-	docker-compose up -d
+	cd docker && docker compose up -d
 
 # Остановка среды разработки
 down:
-	docker-compose down
+	cd docker && docker compose down
 
 # Все тесты
 test:
 	@echo "Запуск всех тестов..."
-	docker-compose -f docker-compose.test.yml down --remove-orphans --volumes
-	docker-compose -f docker-compose.test.yml up --build --abort-on-container-exit --exit-code-from backend
-	docker-compose -f docker-compose.test.yml down
+	cd docker && docker compose -f docker-compose.test.yml down --remove-orphans --volumes
+	cd docker && docker compose -f docker-compose.test.yml up --build --abort-on-container-exit --exit-code-from backend
+	cd docker && docker compose -f docker-compose.test.yml down
 
 # Unit-тесты
 test-unit:
 	@echo "Запуск unit-тестов..."
-	docker-compose -f docker-compose.test.yml down --remove-orphans
-	docker-compose -f docker-compose.test.yml run --rm backend pytest -v -m unit --cov=apps --cov-report=term-missing
-	docker-compose -f docker-compose.test.yml down
+	cd docker && docker compose -f docker-compose.test.yml down --remove-orphans
+	cd docker && docker compose -f docker-compose.test.yml run --rm backend pytest -v -m unit --cov=apps --cov-report=term-missing
+	cd docker && docker compose -f docker-compose.test.yml down
 
 # Интеграционные тесты
 test-integration:
 	@echo "Запуск интеграционных тестов..."
-	docker-compose -f docker-compose.test.yml down --remove-orphans
-	docker-compose -f docker-compose.test.yml run --rm backend pytest -v -m integration --cov=apps --cov-report=term-missing
-	docker-compose -f docker-compose.test.yml down
+	cd docker && docker compose -f docker-compose.test.yml down --remove-orphans
+	cd docker && docker compose -f docker-compose.test.yml run --rm backend pytest -v -m integration --cov=apps --cov-report=term-missing
+	cd docker && docker compose -f docker-compose.test.yml down
 
 # Быстрые тесты (без сборки образов)
 test-fast:
 	@echo "Быстрый запуск тестов (без пересборки)..."
-	docker-compose -f docker-compose.test.yml run --rm backend pytest -v --tb=short
+	cd docker && docker compose -f docker-compose.test.yml run --rm backend pytest -v --tb=short
 
 # Логи всех сервисов
 logs:
-	docker-compose logs -f
+	cd docker && docker compose logs -f
 
 # Shell в backend контейнере
 shell:
-	docker-compose exec backend bash
+	cd docker && docker compose exec backend bash
 
 # Подключение к БД
 db-shell:
