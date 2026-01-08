@@ -73,10 +73,10 @@ describe('SizeChartModal', () => {
       expect(screen.getByText('Обхват талии')).toBeInTheDocument();
       expect(screen.getByText('Обхват бедер')).toBeInTheDocument();
 
-      // Check some size data
-      expect(screen.getByText('XS')).toBeInTheDocument();
-      expect(screen.getByText('S')).toBeInTheDocument();
-      expect(screen.getByText('M')).toBeInTheDocument();
+      // Check some size data (sizes may appear multiple times in different tables)
+      expect(screen.getAllByText('XS').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('S').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('M').length).toBeGreaterThan(0);
     });
 
     it('shows measurement instructions for clothing', () => {
