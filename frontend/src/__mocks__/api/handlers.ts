@@ -825,6 +825,105 @@ export const handlers = [
       discount_value: promo.discount_value,
     });
   }),
+
+  // ============================================================
+  // Addresses API (Story 16.3)
+  // ============================================================
+
+  // GET /addresses/ - список адресов
+  http.get(`${API_BASE_URL}/addresses/`, () => {
+    return HttpResponse.json([
+      {
+        id: 1,
+        address_type: 'shipping',
+        full_name: 'Иван Иванов',
+        phone: '+79001234567',
+        city: 'Москва',
+        street: 'Тверская',
+        building: '12',
+        building_section: '',
+        apartment: '45',
+        postal_code: '123456',
+        is_default: true,
+        full_address: '123456, Москва, Тверская 12, кв. 45',
+        created_at: '2025-01-01T00:00:00Z',
+        updated_at: '2025-01-01T00:00:00Z',
+      },
+    ]);
+  }),
+
+  // POST /addresses/ - создать адрес
+  http.post(`${API_BASE_URL}/addresses/`, async ({ request }) => {
+    const body = (await request.json()) as Record<string, unknown>;
+    return HttpResponse.json(
+      {
+        id: Date.now(),
+        ...body,
+        full_address: `${body.postal_code}, ${body.city}, ${body.street} ${body.building}${body.apartment ? `, кв. ${body.apartment}` : ''}`,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      { status: 201 }
+    );
+  }),
+
+  // PATCH /addresses/:id/ - обновить адрес
+  http.patch(`${API_BASE_URL}/addresses/:id/`, async ({ params, request }) => {
+    const body = (await request.json()) as Record<string, unknown>;
+    return HttpResponse.json({
+      id: Number(params.id),
+      ...body,
+      updated_at: new Date().toISOString(),
+    });
+  }),
+
+  // DELETE /addresses/:id/ - удалить адрес
+  http.delete(`${API_BASE_URL}/addresses/:id/`, () => {
+    return new HttpResponse(null, { status: 204 });
+  }),
+
+  // ============================================================
+  // Favorites API (Story 16.3)
+  // ============================================================
+
+  // GET /favorites/ - список избранного
+  http.get(`${API_BASE_URL}/favorites/`, () => {
+    return HttpResponse.json([
+      {
+        id: 1,
+        product: 10,
+        product_name: 'Мяч футбольный Nike',
+        product_price: '2500.00',
+        product_image: '/images/ball.jpg',
+        product_slug: 'myach-futbolny-nike',
+        product_sku: 'BALL-001',
+        created_at: '2025-01-01T00:00:00Z',
+      },
+    ]);
+  }),
+
+  // POST /favorites/ - добавить в избранное
+  http.post(`${API_BASE_URL}/favorites/`, async ({ request }) => {
+    const body = (await request.json()) as { product_id: number };
+    return HttpResponse.json(
+      {
+        id: Date.now(),
+        product: body.product_id,
+        product_name: 'Test Product',
+        product_price: '2500.00',
+        product_image: '/test.jpg',
+        product_slug: 'test-product',
+        product_sku: 'TEST-001',
+        created_at: new Date().toISOString(),
+      },
+      { status: 201 }
+    );
+  }),
+
+  // DELETE /favorites/:id/ - удалить из избранного
+  http.delete(`${API_BASE_URL}/favorites/:id/`, () => {
+    return new HttpResponse(null, { status: 204 });
+  }),
 ];
 
 /**

@@ -3,9 +3,9 @@
  * Story 16.3: Управление избранными товарами (AC: 8)
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { http, HttpResponse } from 'msw';
-import { setupServer } from 'msw/node';
+import { server } from '@/__mocks__/api/server';
 import {
   getFavorites,
   addFavorite,
@@ -40,21 +40,6 @@ const mockFavorites: Favorite[] = [
     created_at: '2025-01-02T00:00:00Z',
   },
 ];
-
-// MSW server setup
-const server = setupServer();
-
-beforeEach(() => {
-  server.listen({ onUnhandledRequest: 'bypass' });
-});
-
-afterEach(() => {
-  server.resetHandlers();
-});
-
-afterEach(() => {
-  server.close();
-});
 
 describe('favoriteService', () => {
   describe('getFavorites', () => {

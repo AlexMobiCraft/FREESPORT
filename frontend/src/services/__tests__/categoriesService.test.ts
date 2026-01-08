@@ -10,20 +10,25 @@ describe('categoriesService', () => {
     test('fetches categories list successfully', async () => {
       server.use(
         http.get('http://localhost:8001/api/v1/categories/', () => {
-          return HttpResponse.json([
-            {
-              id: 1,
-              name: 'Футбол',
-              slug: 'futbol',
-              description: 'Футбольная экипировка',
-            },
-            {
-              id: 2,
-              name: 'Баскетбол',
-              slug: 'basketbol',
-              description: 'Баскетбольная экипировка',
-            },
-          ]);
+          return HttpResponse.json({
+            count: 2,
+            next: null,
+            previous: null,
+            results: [
+              {
+                id: 1,
+                name: 'Футбол',
+                slug: 'futbol',
+                description: 'Футбольная экипировка',
+              },
+              {
+                id: 2,
+                name: 'Баскетбол',
+                slug: 'basketbol',
+                description: 'Баскетбольная экипировка',
+              },
+            ],
+          });
         })
       );
 
@@ -37,7 +42,12 @@ describe('categoriesService', () => {
     test('handles empty categories list', async () => {
       server.use(
         http.get('http://localhost:8001/api/v1/categories/', () => {
-          return HttpResponse.json([]);
+          return HttpResponse.json({
+            count: 0,
+            next: null,
+            previous: null,
+            results: [],
+          });
         })
       );
 
@@ -60,7 +70,7 @@ describe('categoriesService', () => {
   describe('getTree', () => {
     test('fetches category tree successfully', async () => {
       server.use(
-        http.get('http://localhost:8001/api/v1/categories/tree/', () => {
+        http.get('http://localhost:8001/api/v1/categories-tree/', () => {
           return HttpResponse.json([
             {
               id: 1,
@@ -94,7 +104,7 @@ describe('categoriesService', () => {
 
     test('handles empty tree', async () => {
       server.use(
-        http.get('http://localhost:8001/api/v1/categories/tree/', () => {
+        http.get('http://localhost:8001/api/v1/categories-tree/', () => {
           return HttpResponse.json([]);
         })
       );
