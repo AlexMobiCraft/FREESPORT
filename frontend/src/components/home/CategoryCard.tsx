@@ -43,7 +43,7 @@ export const CategoryCard: React.FC<CategoryCardProps> = ({ name, image, href, a
 
       {/* Название категории */}
       <div className="p-4">
-        <h3 className="text-xl font-semibold text-text-primary text-center">{name}</h3>
+        <h3 className="text-xl font-semibold text-primary text-center">{name}</h3>
       </div>
     </Link>
   );

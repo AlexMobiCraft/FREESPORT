@@ -49,11 +49,13 @@ vi.mock('@/services/newsService', () => ({
 
 // Mock NewsCard component
 vi.mock('@/components/home/NewsCard', () => ({
-  NewsCard: ({ title, excerpt }: { title: string; excerpt: string }) => (
-    <article data-testid="news-card">
-      <h3>{title}</h3>
-      <p>{excerpt}</p>
-    </article>
+  NewsCard: ({ title, excerpt, slug }: { title: string; excerpt: string; slug: string }) => (
+    <a href={`/news/${slug}`}>
+      <article data-testid="news-card">
+        <h3>{title}</h3>
+        <p>{excerpt}</p>
+      </article>
+    </a>
   ),
 }));
 

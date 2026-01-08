@@ -212,7 +212,7 @@ export const PriceRangeSlider = React.forwardRef<HTMLDivElement, PriceRangeSlide
               aria-label="Минимальная цена"
               aria-valuenow={minValue}
               aria-valuemin={min}
-              aria-valuemax={maxValue}
+              aria-valuemax={max}
               onKeyDown={e => {
                 if (e.key === 'ArrowRight') {
                   const nextVal = Math.min(minValue + step, maxValue);
@@ -239,7 +239,7 @@ export const PriceRangeSlider = React.forwardRef<HTMLDivElement, PriceRangeSlide
               tabIndex={0}
               aria-label="Максимальная цена"
               aria-valuenow={maxValue}
-              aria-valuemin={minValue}
+              aria-valuemin={min}
               aria-valuemax={max}
               onKeyDown={e => {
                 if (e.key === 'ArrowRight') {

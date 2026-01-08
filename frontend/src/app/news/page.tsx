@@ -29,7 +29,7 @@ interface NewsPageProps {
 export default async function NewsPage({ searchParams }: NewsPageProps) {
   const params = await searchParams;
   const currentPage = Number(params.page) || 1;
-  const breadcrumbItems = [{ label: 'Главная', href: '/test' }, { label: 'Новости' }];
+  const breadcrumbItems = [{ label: 'Главная', href: '/' }, { label: 'Новости' }];
 
   // Fetch news data
   let newsData;
