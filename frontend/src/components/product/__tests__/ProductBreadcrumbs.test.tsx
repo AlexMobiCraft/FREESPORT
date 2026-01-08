@@ -63,8 +63,8 @@ describe('ProductBreadcrumbs', () => {
     expect(breadcrumbList).toBeInTheDocument();
 
     const listItems = container.querySelectorAll('[itemType="https://schema.org/ListItem"]');
-    // Главная + 3 категории + товар = 5 элементов
-    expect(listItems).toHaveLength(5);
+    // Главная + Каталог + 3 категории + товар = 6 элементов
+    expect(listItems).toHaveLength(6);
   });
 
   it('корректно отображает позиции в schema.org', () => {
@@ -73,12 +73,13 @@ describe('ProductBreadcrumbs', () => {
     );
 
     const positions = container.querySelectorAll('meta[itemprop="position"]');
-    expect(positions).toHaveLength(5);
+    expect(positions).toHaveLength(6);
 
     // Проверяем значения позиций
     expect(positions[0]).toHaveAttribute('content', '1'); // Главная
-    expect(positions[1]).toHaveAttribute('content', '2'); // Обувь
-    expect(positions[4]).toHaveAttribute('content', '5'); // Товар
+    expect(positions[1]).toHaveAttribute('content', '2'); // Каталог
+    expect(positions[2]).toHaveAttribute('content', '3'); // Обувь
+    expect(positions[5]).toHaveAttribute('content', '6'); // Товар
   });
 
   it('рендерит иконки-разделители', () => {
