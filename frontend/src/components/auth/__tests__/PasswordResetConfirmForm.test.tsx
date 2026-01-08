@@ -181,7 +181,12 @@ describe('PasswordResetConfirmForm', () => {
       await user.type(confirmPasswordInput, 'short');
       await user.click(submitButton);
 
-      expect(await screen.findByText(/минимум 8 символов/i)).toBeInTheDocument();
+      // Wait for error to appear - use getAllByText and check first alert role element
+      await waitFor(() => {
+        const alerts = screen.getAllByRole('alert');
+        const passwordError = alerts.find(el => el.textContent?.includes('минимум 8 символов'));
+        expect(passwordError).toBeTruthy();
+      });
     });
 
     test('should show error for password without digit', async () => {
@@ -201,7 +206,11 @@ describe('PasswordResetConfirmForm', () => {
       await user.type(confirmPasswordInput, 'NoDigitsHere');
       await user.click(submitButton);
 
-      expect(await screen.findByText(/хотя бы 1 цифру/i)).toBeInTheDocument();
+      await waitFor(() => {
+        const alerts = screen.getAllByRole('alert');
+        const passwordError = alerts.find(el => el.textContent?.includes('хотя бы 1 цифру'));
+        expect(passwordError).toBeTruthy();
+      });
     });
 
     test('should show error for password without uppercase', async () => {
@@ -221,7 +230,11 @@ describe('PasswordResetConfirmForm', () => {
       await user.type(confirmPasswordInput, 'nouppercase123');
       await user.click(submitButton);
 
-      expect(await screen.findByText(/хотя бы 1 заглавную букву/i)).toBeInTheDocument();
+      await waitFor(() => {
+        const alerts = screen.getAllByRole('alert');
+        const passwordError = alerts.find(el => el.textContent?.includes('хотя бы 1 заглавную букву'));
+        expect(passwordError).toBeTruthy();
+      });
     });
 
     test('should show error when passwords do not match', async () => {
@@ -241,7 +254,11 @@ describe('PasswordResetConfirmForm', () => {
       await user.type(confirmPasswordInput, 'DifferentPass123');
       await user.click(submitButton);
 
-      expect(await screen.findByText(/пароли не совпадают/i)).toBeInTheDocument();
+      await waitFor(() => {
+        const alerts = screen.getAllByRole('alert');
+        const passwordError = alerts.find(el => el.textContent?.includes('Пароли не совпадают'));
+        expect(passwordError).toBeTruthy();
+      });
     });
   });
 
