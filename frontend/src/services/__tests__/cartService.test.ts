@@ -3,7 +3,7 @@
  * Обновлено для работы с variant_id (Story 12.3)
  */
 import cartService from '../cartService';
-import { server } from '../../../__mocks__/server';
+import { server } from '../../__mocks__/api/server';
 import { http, HttpResponse } from 'msw';
 
 describe('cartService', () => {

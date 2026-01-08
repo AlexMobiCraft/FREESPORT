@@ -13,7 +13,7 @@
 import { act } from 'react';
 import { useOrderStore } from '../orderStore';
 import { useCartStore } from '../cartStore';
-import { server } from '../../__mocks__/server';
+import { server } from '../__mocks__/api/server';
 import { ordersErrorHandlers, mockSuccessOrder } from '../../__mocks__/handlers/ordersHandlers';
 import type { CheckoutFormData } from '@/schemas/checkoutSchema';
 import type { CartItem } from '@/types/cart';

@@ -648,6 +648,8 @@ export const handlers = [
   }),
 
   // Story 12.1: Product Detail endpoint
+  // ВАЖНО: Этот хендлер использует :slug параметр, но также обрабатывает numeric ID
+  // Тесты могут переопределить через server.use() для специфичных случаев
   http.get(`${API_BASE_URL}/products/:slug/`, ({ params }) => {
     const { slug } = params;
 

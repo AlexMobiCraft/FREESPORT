@@ -2,7 +2,7 @@
  * Categories Service Tests
  */
 import categoriesService from '../categoriesService';
-import { server } from '../../../__mocks__/server';
+import { server } from '../../__mocks__/api/server';
 import { http, HttpResponse } from 'msw';
 
 describe('categoriesService', () => {

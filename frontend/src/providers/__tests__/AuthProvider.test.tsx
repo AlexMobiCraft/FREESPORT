@@ -13,7 +13,7 @@ import { describe, test, expect, vi, beforeEach, afterEach, beforeAll, afterAll 
 import { render, screen, waitFor } from '@testing-library/react';
 import { AuthProvider, useAuth } from '../AuthProvider';
 import { useAuthStore } from '@/stores/authStore';
-import { server } from '@/__mocks__/server';
+import { server } from '@/__mocks__/api/server';
 import { http, HttpResponse } from 'msw';
 import { handlers as baseHandlers } from '@/__mocks__/handlers';
 

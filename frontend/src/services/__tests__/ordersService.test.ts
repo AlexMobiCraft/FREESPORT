@@ -12,7 +12,7 @@
  */
 
 import ordersService, { mapFormDataToPayload, parseApiError } from '../ordersService';
-import { server } from '../../__mocks__/server';
+import { server } from '../__mocks__/api/server';
 import { ordersErrorHandlers, mockSuccessOrder } from '../../__mocks__/handlers/ordersHandlers';
 import { AxiosError } from 'axios';
 import type { CheckoutFormData } from '@/schemas/checkoutSchema';

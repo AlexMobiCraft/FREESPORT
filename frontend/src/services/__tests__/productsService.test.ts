@@ -2,7 +2,7 @@
  * Products Service Tests
  */
 import productsService from '../productsService';
-import { server } from '../../../__mocks__/server';
+import { server } from '../../__mocks__/api/server';
 import { http, HttpResponse } from 'msw';
 
 describe('productsService', () => {

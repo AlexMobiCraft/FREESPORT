@@ -3,7 +3,7 @@
  */
 import authService from '../authService';
 import { useAuthStore } from '@/stores/authStore';
-import { server } from '../../../__mocks__/server';
+import { server } from '../../__mocks__/api/server';
 import { http, HttpResponse } from 'msw';
 
 describe('authService', () => {
