@@ -3,19 +3,15 @@
  * Тестирование API интеграции с MSW моками
  */
 
-import { describe, it, expect, beforeAll, afterAll, afterEach } from 'vitest';
-import { setupServer } from 'msw/node';
-import { handlers } from '@/__mocks__/api/handlers';
+import { describe, it, expect } from 'vitest';
+import { server } from '@/__mocks__/api/server';
+import { http, HttpResponse } from 'msw';
 import productsService from '../productsService';
 import { MOCK_PRODUCT_DETAIL } from '@/__mocks__/productDetail';
 
-// Setup MSW server
-const server = setupServer(...handlers);
+const API_BASE_URL = 'http://localhost:8001/api/v1';
 
 describe('productsService Integration Tests', () => {
-  beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
-  afterEach(() => server.resetHandlers());
-  afterAll(() => server.close());
 
   describe('getProductBySlug', () => {
     it('получает детальную информацию о товаре по slug', async () => {
@@ -72,7 +68,13 @@ describe('productsService Integration Tests', () => {
       expect(product.category).toHaveProperty('slug');
       expect(product.category).toHaveProperty('breadcrumbs');
 
-      expect(product.category.breadcrumbs).toEqual(['Главная', 'Обувь', 'Зал', 'ASICS']);
+      // breadcrumbs это массив объектов CategoryBreadcrumb[], а не строк
+      expect(Array.isArray(product.category.breadcrumbs)).toBe(true);
+      expect(product.category.breadcrumbs).toHaveLength(4);
+      expect(product.category.breadcrumbs?.[0]?.name).toBe('Главная');
+      expect(product.category.breadcrumbs?.[1]?.name).toBe('Обувь');
+      expect(product.category.breadcrumbs?.[2]?.name).toBe('Зал');
+      expect(product.category.breadcrumbs?.[3]?.name).toBe('ASICS');
     });
 
     it('возвращает изображения товара', async () => {
@@ -117,6 +119,19 @@ describe('productsService Integration Tests', () => {
     });
 
     it('выбрасывает ошибку для несуществующего товара', async () => {
+      // Переопределяем хендлер для несуществующего slug
+      server.use(
+        http.get(`${API_BASE_URL}/products/:slug/`, ({ params }) => {
+          if (params.slug === 'non-existent-slug') {
+            return HttpResponse.json(
+              { detail: 'Product not found' },
+              { status: 404 }
+            );
+          }
+          return HttpResponse.json(MOCK_PRODUCT_DETAIL);
+        })
+      );
+
       await expect(productsService.getProductBySlug('non-existent-slug')).rejects.toThrow();
     });
   });

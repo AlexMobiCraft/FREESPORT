@@ -39,16 +39,20 @@ interface ApiProductDetailResponse {
   opt1_price?: number;
   opt2_price?: number;
   opt3_price?: number;
+  trainer_price?: number;
+  federation_price?: number;
   stock_quantity: number;
   is_in_stock: boolean;
   main_image?: string | null;
   can_be_ordered: boolean;
   // Детальные поля
-  images?: Array<{ url: string; alt_text: string; is_main: boolean }>;
+  images?: Array<{ id?: number; url: string; alt_text: string; is_main: boolean }>;
   related_products?: unknown[];
   category_breadcrumbs?: Array<{ id: number; name: string; slug: string }>;
   seo_title?: string;
   seo_description?: string;
+  rating?: number;
+  reviews_count?: number;
   variants?: Array<{
     id: number;
     sku: string;
@@ -69,10 +73,11 @@ interface ApiProductDetailResponse {
  * Backend возвращает данные в формате ApiProductDetailResponse
  */
 function adaptProductToDetail(apiProduct: ApiProductDetailResponse): ProductDetail {
-  // Адаптируем изображения из формата API [{url, alt_text, is_main}]
-  // в формат компонентов [{image, alt_text, is_primary}]
+  // Адаптируем изображения из формата API [{id, url, alt_text, is_main}]
+  // в формат компонентов [{id, image, alt_text, is_primary}]
   // Нормализуем URL для корректной работы в Docker
   const images: ProductImage[] = (apiProduct.images || []).map(img => ({
+    id: img.id,
     image: normalizeImageUrl(img.url),
     alt_text: img.alt_text || apiProduct.name,
     is_primary: img.is_main,
@@ -116,10 +121,14 @@ function adaptProductToDetail(apiProduct: ApiProductDetailResponse): ProductDeta
         level2: apiProduct.opt2_price,
         level3: apiProduct.opt3_price,
       },
+      trainer: apiProduct.trainer_price,
+      federation: apiProduct.federation_price,
       currency: 'RUB',
     },
     stock_quantity: apiProduct.stock_quantity || 0,
     images,
+    rating: apiProduct.rating,
+    reviews_count: apiProduct.reviews_count,
     specifications: apiProduct.specifications,
     category: {
       id: categoryFromBreadcrumbs?.id || 0,
