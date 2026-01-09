@@ -538,9 +538,7 @@ export const handlers = [
     if (search) {
       // Фильтруем товары по поисковому запросу
       const allProducts = [...mockHitsProducts, ...mockNewProducts];
-      const filtered = allProducts.filter(
-        (p) => p.name.toLowerCase().includes(search.toLowerCase())
-      );
+      const filtered = allProducts.filter(p => p.name.toLowerCase().includes(search.toLowerCase()));
       return HttpResponse.json({
         count: filtered.length,
         next: null,
@@ -935,10 +933,7 @@ export const handlers = [
 
     // Проверяем валидность refresh токена
     if (body.refresh === 'expired-token') {
-      return HttpResponse.json(
-        { detail: 'Invalid refresh token' },
-        { status: 401 }
-      );
+      return HttpResponse.json({ detail: 'Invalid refresh token' }, { status: 401 });
     }
 
     // Возвращаем новый access токен

@@ -40,7 +40,8 @@ export default function B2BRegisterPage() {
             </h1>
           </div>
           <p className="text-body-m text-[var(--color-text-muted)] max-w-lg mx-auto">
-            Зарегистрируйтесь как бизнес-партнер для получения доступа к оптовым ценам и специальным условиям
+            Зарегистрируйтесь как бизнес-партнер для получения доступа к оптовым ценам и специальным
+            условиям
           </p>
         </div>
 
@@ -94,9 +95,7 @@ export default function B2BRegisterPage() {
               </svg>
               <h3 className="text-body-m font-semibold">Оптовые цены</h3>
             </div>
-            <p className="text-body-xs text-gray-600">
-              Скидки до 40% для постоянных партнеров
-            </p>
+            <p className="text-body-xs text-gray-600">Скидки до 40% для постоянных партнеров</p>
           </div>
 
           <div className="bg-white p-4 rounded-lg shadow-sm">
@@ -116,9 +115,7 @@ export default function B2BRegisterPage() {
               </svg>
               <h3 className="text-body-m font-semibold">Персональный менеджер</h3>
             </div>
-            <p className="text-body-xs text-gray-600">
-              Индивидуальное обслуживание и консультации
-            </p>
+            <p className="text-body-xs text-gray-600">Индивидуальное обслуживание и консультации</p>
           </div>
 
           <div className="bg-white p-4 rounded-lg shadow-sm">
@@ -138,9 +135,7 @@ export default function B2BRegisterPage() {
               </svg>
               <h3 className="text-body-m font-semibold">Быстрая обработка</h3>
             </div>
-            <p className="text-body-xs text-gray-600">
-              Проверка заявки в течение 1-2 рабочих дней
-            </p>
+            <p className="text-body-xs text-gray-600">Проверка заявки в течение 1-2 рабочих дней</p>
           </div>
         </div>
       </div>

@@ -27,10 +27,7 @@ export default defineConfig({
     css: false,
 
     // Паттерны для поиска тестовых файлов
-    include: [
-      'src/**/__tests__/**/*.{test,spec}.{ts,tsx}',
-      'src/**/*.{test,spec}.{ts,tsx}',
-    ],
+    include: ['src/**/__tests__/**/*.{test,spec}.{ts,tsx}', 'src/**/*.{test,spec}.{ts,tsx}'],
 
     // Настройки покрытия кода
     coverage: {

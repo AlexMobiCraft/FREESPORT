@@ -360,10 +360,13 @@ describe('Cart Components Accessibility', () => {
       });
 
       // Wait for items to render before checking for buttons
-      await waitFor(() => {
-        const buttons = screen.queryAllByRole('button');
-        expect(buttons.length).toBeGreaterThan(0);
-      }, { timeout: 3000 });
+      await waitFor(
+        () => {
+          const buttons = screen.queryAllByRole('button');
+          expect(buttons.length).toBeGreaterThan(0);
+        },
+        { timeout: 3000 }
+      );
 
       // Проверяем что все интерактивные элементы доступны
       const buttons = screen.getAllByRole('button');

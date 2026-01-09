@@ -217,9 +217,12 @@ describe('CartPage Integration Tests', () => {
       render(<CartPage />);
 
       // Ждём пока fetchCart() загрузит данные из MSW и отобразит страницу
-      await waitFor(() => {
-        expect(screen.getByTestId('cart-page')).toBeInTheDocument();
-      }, { timeout: 3000 });
+      await waitFor(
+        () => {
+          expect(screen.getByTestId('cart-page')).toBeInTheDocument();
+        },
+        { timeout: 3000 }
+      );
 
       // Проверяем отображение товаров
       expect(screen.getByText('Кроссовки Nike Air Max')).toBeInTheDocument();
@@ -230,9 +233,12 @@ describe('CartPage Integration Tests', () => {
       // Пусть fetchCart() загрузит данные из MSW
       render(<CartPage />);
 
-      await waitFor(() => {
-        expect(screen.getByTestId('cart-page')).toBeInTheDocument();
-      }, { timeout: 3000 });
+      await waitFor(
+        () => {
+          expect(screen.getByTestId('cart-page')).toBeInTheDocument();
+        },
+        { timeout: 3000 }
+      );
 
       // Находим первый cart item card
       const cartItems = screen.getAllByTestId('cart-item-card');
@@ -258,9 +264,12 @@ describe('CartPage Integration Tests', () => {
       // Пусть fetchCart() загрузит данные из MSW
       render(<CartPage />);
 
-      await waitFor(() => {
-        expect(screen.getByTestId('cart-page')).toBeInTheDocument();
-      }, { timeout: 3000 });
+      await waitFor(
+        () => {
+          expect(screen.getByTestId('cart-page')).toBeInTheDocument();
+        },
+        { timeout: 3000 }
+      );
 
       // Изначально 2 товара
       expect(screen.getAllByTestId('cart-item-card')).toHaveLength(2);
@@ -321,9 +330,12 @@ describe('CartPage Integration Tests', () => {
       render(<CartPage />);
 
       // Ждём загрузки одного товара
-      await waitFor(() => {
-        expect(screen.getByTestId('cart-page')).toBeInTheDocument();
-      }, { timeout: 3000 });
+      await waitFor(
+        () => {
+          expect(screen.getByTestId('cart-page')).toBeInTheDocument();
+        },
+        { timeout: 3000 }
+      );
 
       // Удаляем единственный товар
       const removeButton = screen.getByTestId('remove-item-button');

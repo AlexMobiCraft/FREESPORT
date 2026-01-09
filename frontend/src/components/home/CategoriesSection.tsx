@@ -118,7 +118,7 @@ export const CategoriesSection: React.FC = () => {
       {/* Success State - Grid с категориями */}
       {!isLoading && !error && categories.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6" role="list">
-          {categories.map((category) => (
+          {categories.map(category => (
             <a
               key={category.id}
               href={`/catalog/${category.slug}`}

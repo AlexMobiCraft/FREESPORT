@@ -313,9 +313,10 @@ const ProfileForm: React.FC = () => {
           className={`
             w-full sm:w-auto h-10 px-6 rounded-md text-body-m font-medium
             transition-colors duration-150
-            ${isLoading || !isDirty
-              ? 'bg-neutral-400 text-neutral-100 cursor-not-allowed'
-              : 'bg-primary text-white hover:bg-primary-hover active:bg-primary-active'
+            ${
+              isLoading || !isDirty
+                ? 'bg-neutral-400 text-neutral-100 cursor-not-allowed'
+                : 'bg-primary text-white hover:bg-primary-hover active:bg-primary-active'
             }
           `}
         >

@@ -28,7 +28,10 @@ export interface SelectProps extends Omit<React.SelectHTMLAttributes<HTMLSelectE
 }
 
 export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
-  ({ label, placeholder, options, helper, error, className, disabled, id, onChange, ...props }, ref) => {
+  (
+    { label, placeholder, options, helper, error, className, disabled, id, onChange, ...props },
+    ref
+  ) => {
     const selectId = id || `select-${label.toLowerCase().replace(/\s+/g, '-')}`;
     const hasError = Boolean(error);
 

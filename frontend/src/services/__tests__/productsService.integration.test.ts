@@ -12,7 +12,6 @@ import { MOCK_PRODUCT_DETAIL } from '@/__mocks__/productDetail';
 const API_BASE_URL = 'http://localhost:8001/api/v1';
 
 describe('productsService Integration Tests', () => {
-
   describe('getProductBySlug', () => {
     it('получает детальную информацию о товаре по slug', async () => {
       const product = await productsService.getProductBySlug('asics-gel-blast-ff');
@@ -123,10 +122,7 @@ describe('productsService Integration Tests', () => {
       server.use(
         http.get(`${API_BASE_URL}/products/:slug/`, ({ params }) => {
           if (params.slug === 'non-existent-slug') {
-            return HttpResponse.json(
-              { detail: 'Product not found' },
-              { status: 404 }
-            );
+            return HttpResponse.json({ detail: 'Product not found' }, { status: 404 });
           }
           return HttpResponse.json(MOCK_PRODUCT_DETAIL);
         })

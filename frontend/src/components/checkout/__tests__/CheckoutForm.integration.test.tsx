@@ -213,7 +213,11 @@ describe('CheckoutForm Integration', () => {
 
       // Пытаемся выбрать способ доставки через radio button (если доступен)
       try {
-        const courierRadio = await screen.findByRole('radio', { name: /курьерская доставка/i }, { timeout: 1000 });
+        const courierRadio = await screen.findByRole(
+          'radio',
+          { name: /курьерская доставка/i },
+          { timeout: 1000 }
+        );
         await user.click(courierRadio);
         expect(courierRadio).toBeChecked();
       } catch {

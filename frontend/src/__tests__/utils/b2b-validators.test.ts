@@ -135,9 +135,7 @@ describe('getOGRNErrorMessage', () => {
 
   it('should return error for non-numeric OGRN', () => {
     expect(getOGRNErrorMessage('123abc7890123')).toBe('ОГРН должен содержать только цифры');
-    expect(getOGRNErrorMessage('12-34-56-78-90-12-3')).toBe(
-      'ОГРН должен содержать только цифры'
-    );
+    expect(getOGRNErrorMessage('12-34-56-78-90-12-3')).toBe('ОГРН должен содержать только цифры');
   });
 
   it('should return error for wrong length OGRN', () => {

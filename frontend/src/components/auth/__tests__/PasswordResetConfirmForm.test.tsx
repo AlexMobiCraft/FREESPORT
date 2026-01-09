@@ -232,7 +232,9 @@ describe('PasswordResetConfirmForm', () => {
 
       await waitFor(() => {
         const alerts = screen.getAllByRole('alert');
-        const passwordError = alerts.find(el => el.textContent?.includes('хотя бы 1 заглавную букву'));
+        const passwordError = alerts.find(el =>
+          el.textContent?.includes('хотя бы 1 заглавную букву')
+        );
         expect(passwordError).toBeTruthy();
       });
     });
