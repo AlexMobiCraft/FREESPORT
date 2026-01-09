@@ -54,14 +54,14 @@ describe('Badge', () => {
       render(<Badge variant="transit">In Transit</Badge>);
 
       const badge = screen.getByText('In Transit');
-      expect(badge).toHaveClass('bg-[#FFF1CC]', 'text-[#B07600]');
+      expect(badge).toHaveClass('bg-[#FFF1CC]', 'text-[#8C5A00]');
     });
 
     it('applies cancelled variant styles', () => {
       render(<Badge variant="cancelled">Cancelled</Badge>);
 
       const badge = screen.getByText('Cancelled');
-      expect(badge).toHaveClass('bg-[#FFE1E1]', 'text-[#C23B3B]');
+      expect(badge).toHaveClass('bg-[#FFE1E1]', 'text-[#A62828]');
     });
 
     it('applies promo variant styles', () => {

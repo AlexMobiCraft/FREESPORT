@@ -98,8 +98,9 @@ describe('OrderDetail', () => {
 
   it('renders order items table', () => {
     render(<OrderDetail {...defaultProps} />);
-    expect(screen.getByText('Кроссовки Nike Air Max')).toBeInTheDocument();
-    expect(screen.getByText('Футболка Adidas')).toBeInTheDocument();
+    // Product names may appear multiple times in the DOM (e.g., in table and summary)
+    expect(screen.getAllByText('Кроссовки Nike Air Max').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Футболка Adidas').length).toBeGreaterThan(0);
     expect(screen.getByText('NIKE-AM-001')).toBeInTheDocument();
     expect(screen.getByText('ADIDAS-TS-002')).toBeInTheDocument();
   });

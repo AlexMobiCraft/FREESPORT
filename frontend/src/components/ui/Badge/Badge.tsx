@@ -35,12 +35,12 @@ const variantConfig: Record<BadgeVariant, { bg: string; text: string; icon?: Rea
   },
   transit: {
     bg: 'bg-[#FFF1CC]',
-    text: 'text-[#B07600]',
+    text: 'text-[#8C5A00]',
     icon: <Truck className="w-3 h-3" aria-hidden="true" />,
   },
   cancelled: {
     bg: 'bg-[#FFE1E1]',
-    text: 'text-[#C23B3B]',
+    text: 'text-[#A62828]',
     icon: <X className="w-3 h-3" aria-hidden="true" />,
   },
   promo: { bg: 'bg-[#FFF0F5]', text: 'text-accent-promo' },
