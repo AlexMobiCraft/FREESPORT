@@ -10,8 +10,6 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
-import { http, HttpResponse } from 'msw';
-import { server } from '@/__mocks__/api/server';
 import Home, { metadata, revalidate } from '../page';
 
 // Mock authStore state (mutable)
