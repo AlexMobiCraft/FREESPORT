@@ -348,12 +348,22 @@ describe('Cart Components Accessibility', () => {
     });
 
     it('all interactive elements can receive focus', async () => {
+      // Mock fetchCart to preserve items
+      const mockFetchCart = vi.fn();
       setStoreWithItems();
+      useCartStore.setState({ fetchCart: mockFetchCart });
+
       render(<CartPage />);
 
       await waitFor(() => {
         expect(screen.getByTestId('cart-page')).toBeInTheDocument();
       });
+
+      // Wait for items to render before checking for buttons
+      await waitFor(() => {
+        const buttons = screen.queryAllByRole('button');
+        expect(buttons.length).toBeGreaterThan(0);
+      }, { timeout: 3000 });
 
       // Проверяем что все интерактивные элементы доступны
       const buttons = screen.getAllByRole('button');

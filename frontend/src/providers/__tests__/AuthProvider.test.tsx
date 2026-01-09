@@ -83,9 +83,9 @@ describe('AuthProvider - Session Initialization', () => {
     // Устанавливаем valid refresh token
     localStorageMock.setItem('refreshToken', 'valid-refresh-token');
 
-    // Mock /auth/me/ response
+    // Mock /users/profile/ response (updated endpoint)
     server.use(
-      http.get('http://localhost:8001/api/v1/auth/me/', () => {
+      http.get('http://localhost:8001/api/v1/users/profile/', () => {
         return HttpResponse.json({
           id: 1,
           email: 'test@example.com',

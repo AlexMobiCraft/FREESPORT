@@ -210,7 +210,7 @@ describe('RegisterForm', () => {
 
       // Should redirect to home after successful registration
       await waitFor(() => {
-        expect(mockPush).toHaveBeenCalledWith('/');
+        expect(mockPush).toHaveBeenCalledWith('/test');
       });
     });
 

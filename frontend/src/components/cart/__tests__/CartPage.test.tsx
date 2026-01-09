@@ -399,7 +399,7 @@ describe('CartPage', () => {
       });
     });
 
-    it('does not call fetchCart when items exist', async () => {
+    it('calls fetchCart even when items exist to sync with server', async () => {
       const mockFetchCart = vi.fn();
       vi.mocked(useCartStore).mockReturnValue({
         ...mockStoreWithItems,
@@ -409,8 +409,9 @@ describe('CartPage', () => {
       render(<CartPage />);
 
       await waitFor(() => {
-        // Should not call fetchCart since items already exist
-        expect(mockFetchCart).not.toHaveBeenCalled();
+        // Always calls fetchCart to sync with server, even if items exist
+        // This is intentional - see CartPage.tsx line 33-35 comment
+        expect(mockFetchCart).toHaveBeenCalled();
       });
     });
   });
