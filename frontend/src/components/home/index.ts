@@ -22,3 +22,8 @@ export { SubscribeNewsSection } from './SubscribeNewsSection';
 export { WhyFreesportSection } from './WhyFreesportSection';
 export { DeliveryTeaser } from './DeliveryTeaser';
 export { AboutTeaser } from './AboutTeaser';
+
+// Electric Orange Components
+export { ElectricHeroSection } from './ElectricHeroSection';
+export { ElectricProductSection } from './ElectricProductSection';
+export { ElectricCategorySection } from './ElectricCategorySection';
