@@ -21,8 +21,10 @@ interface ApiProductDetailResponse {
   name: string;
   slug: string;
   brand: { id: number; name: string; slug: string } | null;
-  category: string; // StringRelatedField возвращает строку
+  category: { id: number; name: string; slug: string } | null;
+  sku?: string;
   description: string;
+  full_description?: string;
   short_description?: string;
   specifications?: Record<string, string>;
   base_images?: string[];
