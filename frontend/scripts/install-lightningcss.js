@@ -2,11 +2,14 @@
 /**
  * Ensures required native binaries for both Alpine (musl) and Ubuntu (gnu) are available.
  * Supports Docker (musl) and GitHub Actions (gnu).
+ *
+ * In CI environments, binaries are installed explicitly in the workflow.
  */
 const { execSync } = require('child_process');
 
 const platform = process.platform;
 const arch = process.arch;
+const isCI = process.env.CI === 'true';
 
 function isMusl() {
   // Available starting Node 12+, returns true on musl builds
@@ -21,6 +24,11 @@ function isMusl() {
   } catch (e) {
     return false;
   }
+}
+
+if (isCI) {
+  console.log('CI environment detected. Skipping postinstall (binaries installed in workflow).');
+  process.exit(0);
 }
 
 if (platform === 'linux' && arch === 'x64') {
@@ -47,7 +55,7 @@ if (platform === 'linux' && arch === 'x64') {
         },
       ];
 
-  const envType = isMuslEnv ? 'linux-x64-musl (Alpine/Docker)' : 'linux-x64-gnu (Ubuntu/GitHub Actions)';
+  const envType = isMuslEnv ? 'linux-x64-musl (Alpine/Docker)' : 'linux-x64-gnu (Ubuntu/local)';
   console.log(`Detected ${envType} environment.`);
 
   for (const pkg of packages) {
