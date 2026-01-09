@@ -24,12 +24,12 @@
 |---|--------|-----------|-------------------|--------|
 | 1 | Hero Баннер | `HeroSection` | `ElectricHeroSection` | ✅ Создан |
 | 2 | Хиты продаж | `HitsSection` | `HitsSection variant="electric"` | ✅ Рефакторнут |
-| 3 | Новинки | `NewArrivalsSection` | `NewArrivalsSection variant="electric"` | ⏳ Pending |
-| 4 | **Акция** | `PromoSection` | `PromoSection variant="electric"` | ⏳ Pending |
-| 5 | Распродажа | `SaleSection` | `SaleSection variant="electric"` | ⏳ Pending |
-| 6 | Категории | `CategoriesSection` | `CategoriesSection variant="electric"` | ⏳ Pending |
-| 7 | Новости | `NewsSection` | `NewsSection variant="electric"` | ⏳ Pending |
-| 8 | **Наш блог** | `BlogSection` | `BlogSection variant="electric"` | ⏳ Pending |
+| 3 | Новинки | `NewArrivalsSection` | `ElectricProductSection` | ✅ Временно |
+| 4 | **Акция** | `PromoSection` | `ElectricProductSection` | ✅ Временно |
+| 5 | Распродажа | `SaleSection` | `ElectricProductSection` | ✅ Временно |
+| 6 | Категории | `CategoriesSection` | `ElectricCategorySection` | ✅ Создан |
+| 7 | Новости | `NewsSection` | `NewsSection variant="electric"` | ✅ Рефакторнут |
+| 8 | **Наш блог** | `BlogSection` | `BlogSection variant="electric"` | ✅ Рефакторнут |
 | 9 | Подписка | `SubscribeNewsSection` | `SubscribeNewsSection variant="electric"` | ⏳ Pending |
 
 ---

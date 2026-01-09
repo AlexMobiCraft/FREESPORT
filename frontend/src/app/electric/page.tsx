@@ -120,17 +120,11 @@ export default function ElectricHomePage() {
       {/* 6. Категории — Electric-specific component */}
       <ElectricCategorySection />
 
-      {/* 7. Новости — Pending refactoring, using default style wrapped */}
-      {/* TODO: Refactor NewsSection with variant="electric" */}
-      <section className="py-12">
-        <NewsSection />
-      </section>
+      {/* 7. Новости — Refactored with variant */}
+      <NewsSection variant="electric" viewAllLink="/news" />
 
-      {/* 8. Наш блог — Pending refactoring, using default style wrapped */}
-      {/* TODO: Refactor BlogSection with variant="electric" */}
-      <section className="py-12">
-        <BlogSection />
-      </section>
+      {/* 8. Наш блог — Refactored with variant */}
+      <BlogSection variant="electric" viewAllLink="/blog" />
 
       {/* 9. Подписка — Pending refactoring, using default style wrapped */}
       {/* TODO: Refactor SubscribeNewsSection with variant="electric" */}
