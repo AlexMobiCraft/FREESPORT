@@ -209,12 +209,12 @@ export const NewsSection: React.FC<NewsSectionProps> = ({
         <h2 id="news-heading" className="text-3xl font-bold text-text-primary">
           {title}
         </h2>
-        <a
+        <Link
           href={viewAllLink}
           className="inline-flex items-center px-6 py-2 bg-primary text-white font-medium rounded-lg hover:bg-primary-dark transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
         >
           Все новости
-        </a>
+        </Link>
       </div>
 
       {isLoading && <NewsSkeletonLoader />}

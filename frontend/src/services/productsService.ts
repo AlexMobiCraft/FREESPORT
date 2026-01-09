@@ -104,7 +104,6 @@ function adaptProductToDetail(apiProduct: ApiProductDetailResponse): ProductDeta
 
   // Извлекаем breadcrumbs из category_breadcrumbs (сохраняем полную структуру для ссылок)
   const breadcrumbs: CategoryBreadcrumb[] = apiProduct.category_breadcrumbs || [];
-  const categoryFromBreadcrumbs = breadcrumbs.slice(-1)[0];
 
   return {
     id: apiProduct.id,
