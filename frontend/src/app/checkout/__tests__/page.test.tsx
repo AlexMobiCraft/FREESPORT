@@ -173,7 +173,8 @@ describe('CheckoutPage', () => {
 
       render(<CheckoutPageClient />);
 
-      expect(screen.getByText('Корзина пуста')).toBeInTheDocument();
+      // Message may appear multiple times in different components
+      expect(screen.getAllByText('Корзина пуста').length).toBeGreaterThan(0);
     });
   });
 });
