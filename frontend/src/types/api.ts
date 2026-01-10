@@ -38,7 +38,9 @@ export interface Product {
   name: string;
   slug: string;
   description?: string;
+  short_description?: string;
   retail_price: number;
+  old_price?: number;
   opt1_price?: number;
   opt2_price?: number;
   opt3_price?: number;
@@ -53,6 +55,7 @@ export interface Product {
     name: string;
     slug: string;
   };
+  category_id?: number;
   brand?: Brand | null;
   images?: Array<{
     id: number;
@@ -69,6 +72,10 @@ export interface Product {
   is_promo: boolean;
   is_premium: boolean;
   discount_percent: number | null;
+  rating?: number;
+  reviews_count?: number;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface CartItem {

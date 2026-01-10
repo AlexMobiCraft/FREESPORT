@@ -12,7 +12,7 @@
  */
 
 import ordersService, { mapFormDataToPayload, parseApiError } from '../ordersService';
-import { server } from '../__mocks__/api/server';
+import { server } from '../../__mocks__/api/server';
 import { ordersErrorHandlers, mockSuccessOrder } from '../../__mocks__/handlers/ordersHandlers';
 import { AxiosError } from 'axios';
 import type { CheckoutFormData } from '@/schemas/checkoutSchema';
@@ -32,6 +32,7 @@ const mockFormData: CheckoutFormData = {
   apartment: '5',
   postalCode: '123456',
   deliveryMethod: 'courier',
+  paymentMethod: 'card',
   comment: 'Позвоните за час до доставки',
 };
 
@@ -69,12 +70,13 @@ describe('ordersService', () => {
       expect(payload.phone).toBe('+79001234567');
       expect(payload.first_name).toBe('Иван');
       expect(payload.last_name).toBe('Петров');
-      expect(payload.delivery_address.city).toBe('Москва');
-      expect(payload.delivery_address.street).toBe('Ленина');
-      expect(payload.delivery_address.house).toBe('10');
-      expect(payload.delivery_address.apartment).toBe('5');
-      expect(payload.delivery_address.postal_code).toBe('123456');
-      expect(payload.delivery_method_id).toBe('courier');
+
+      // Проверка строки адреса: "123456, г. Москва, ул. Ленина, д. 10, кв. 5"
+      const expectedAddress = '123456, г. Москва, ул. Ленина, д. 10, кв. 5';
+      expect(payload.delivery_address).toBe(expectedAddress);
+
+      expect(payload.delivery_method).toBe('courier');
+      expect(payload.payment_method).toBe('card');
       expect(payload.comment).toBe('Позвоните за час до доставки');
       expect(payload.items).toHaveLength(1);
       expect(payload.items[0].variant_id).toBe(123);
@@ -90,7 +92,8 @@ describe('ordersService', () => {
 
       const payload = mapFormDataToPayload(formDataWithoutOptional, mockCartItems);
 
-      expect(payload.delivery_address.apartment).toBeUndefined();
+      expect(payload.delivery_address).toContain('123456, г. Москва, ул. Ленина, д. 10');
+      expect(payload.delivery_address).not.toContain('кв.');
       expect(payload.comment).toBeUndefined();
     });
   });
@@ -227,7 +230,7 @@ describe('ordersService', () => {
     });
 
     test('получает заказы с пагинацией', async () => {
-      const result = await ordersService.getAll({ page: 1, limit: 20 });
+      const result = await ordersService.getAll({ page: 1 });
 
       expect(result.results).toBeDefined();
     });

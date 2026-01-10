@@ -13,7 +13,9 @@ import { render, screen, waitFor } from '@testing-library/react';
 import Home, { metadata, revalidate } from '../page';
 
 // Mock authStore state (mutable)
-let mockAuthState = {
+// Mock authStore state (mutable)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let mockAuthState: any = {
   user: null,
   isAuthenticated: false,
   accessToken: null,
@@ -115,7 +117,8 @@ describe('Главная страница (/)', () => {
 
     it('должна содержать Twitter метатеги', () => {
       expect(metadata.twitter).toBeDefined();
-      expect(metadata.twitter?.card).toBe('summary_large_image');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      expect((metadata.twitter as any)?.card).toBe('summary_large_image');
       expect(metadata.twitter?.title).toBe('FREESPORT - Спортивные товары оптом и в розницу');
     });
   });

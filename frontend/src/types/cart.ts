@@ -65,6 +65,8 @@ export interface Cart {
   items: CartItem[];
   total_items: number;
   total_amount: string; // Decimal as string
+  promo_code?: string;
+  discount_amount?: number;
   created_at: string;
   updated_at: string;
 }

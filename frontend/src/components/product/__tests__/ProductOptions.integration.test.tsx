@@ -107,7 +107,10 @@ const mockProduct: ProductDetailWithVariants = {
     id: 1,
     name: 'Кроссовки',
     slug: 'sneakers',
-    breadcrumbs: ['Обувь', 'Кроссовки'],
+    breadcrumbs: [
+      { id: 100, name: 'Обувь', slug: 'shoes' },
+      { id: 101, name: 'Кроссовки', slug: 'sneakers' },
+    ],
   },
   is_in_stock: true,
   can_be_ordered: true,

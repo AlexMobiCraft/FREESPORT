@@ -27,7 +27,12 @@ vi.mock('@/components/product/ProductInfo', () => ({ default: () => null }));
 vi.mock('@/components/product/ProductSpecs', () => ({ default: () => null }));
 vi.mock('@/components/product/ProductImageGallery', () => ({ default: () => null }));
 
-import { getUserRole } from '../page';
+import { getUserRole } from '@/utils/server-auth';
+
+// Mock getUserRole
+vi.mock('@/utils/server-auth', () => ({
+  getUserRole: vi.fn(),
+}));
 
 describe('Product Detail Page - SSR getUserRole', () => {
   beforeEach(() => {

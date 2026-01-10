@@ -42,6 +42,8 @@ const mockOrder: Order = {
       quantity: 2,
       unit_price: '5000.00',
       total_price: '10000.00',
+      variant: null,
+      variant_info: '',
     },
     {
       id: 2,
@@ -51,6 +53,8 @@ const mockOrder: Order = {
       quantity: 1,
       unit_price: '5000.00',
       total_price: '5000.00',
+      variant: null,
+      variant_info: '',
     },
   ],
   subtotal: '15000.00',
@@ -278,6 +282,8 @@ describe('OrderSuccessView', () => {
             quantity: 1,
             unit_price: '25000.50',
             total_price: '25000.50',
+            variant: null,
+            variant_info: '',
           },
         ],
       };

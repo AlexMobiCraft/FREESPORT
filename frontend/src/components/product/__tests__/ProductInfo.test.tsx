@@ -35,7 +35,10 @@ describe('ProductInfo', () => {
       id: 1,
       name: 'Обувь',
       slug: 'obuv',
-      breadcrumbs: ['Главная', 'Обувь'],
+      breadcrumbs: [
+        { id: 100, name: 'Главная', slug: 'home' },
+        { id: 101, name: 'Обувь', slug: 'shoes' },
+      ],
     },
     is_in_stock: true,
     can_be_ordered: true,

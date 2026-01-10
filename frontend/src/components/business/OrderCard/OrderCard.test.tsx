@@ -45,6 +45,8 @@ const mockOrder: Order = {
       quantity: 2,
       unit_price: '5000',
       total_price: '10000',
+      variant: null,
+      variant_info: '',
     },
     {
       id: 2,
@@ -54,6 +56,8 @@ const mockOrder: Order = {
       quantity: 1,
       unit_price: '5000',
       total_price: '5000',
+      variant: null,
+      variant_info: '',
     },
   ],
   subtotal: '15000',

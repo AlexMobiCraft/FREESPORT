@@ -5,7 +5,7 @@
  * @see docs/stories/epic-13/13.5a.productoptions-ui-msw-mock.md
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ProductOptions, type ProductVariant } from '../ProductOptions';
@@ -83,7 +83,7 @@ const mockVariants: ProductVariant[] = [
 ];
 
 describe('ProductOptions', () => {
-  let onSelectionChange: ReturnType<typeof vi.fn>;
+  let onSelectionChange: Mock;
 
   beforeEach(() => {
     onSelectionChange = vi.fn();
