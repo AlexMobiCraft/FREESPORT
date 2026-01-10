@@ -7,5 +7,6 @@ print(f"Найдено вариантов с size_value='Да': {invalid.count()
 
 for v in invalid[:10]:
     print(
-        f"  {v.sku}: size_value=[{v.size_value}], product={v.product.name if v.product else None}"
+        f"  {v.sku}: size_value=[{v.size_value}], "
+        f"product={v.product.name if v.product else None}"
     )

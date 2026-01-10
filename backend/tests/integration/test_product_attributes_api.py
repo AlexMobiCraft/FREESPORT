@@ -255,7 +255,8 @@ class TestProductVariantAttributesAPI:
         # Проверяем наличие поля attributes
         assert "attributes" in variant
 
-        # Проверяем что вариант содержит ОБА атрибута (Material от продукта + Size от варианта)
+        # Проверяем что вариант содержит ОБА атрибута
+        # (Material от продукта + Size от варианта)
         attributes = variant["attributes"]
         assert len(attributes) == 2
 

@@ -772,7 +772,8 @@ class BlogPostListView(generics.ListAPIView):
                         "excerpt": "В этой статье мы расскажем о ключевых критериях...",
                         "content": "<p>Полное содержимое статьи...</p>",
                         "image": (
-                            "https://example.com/media/blog/images/2025/12/27/equipment.jpg"
+                            "https://example.com/media/blog/images/"
+                            "2025/12/27/equipment.jpg"
                         ),
                         "author": "Иван Петров",
                         "category": {

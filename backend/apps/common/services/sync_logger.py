@@ -194,7 +194,8 @@ class CustomerSyncLogger:
         Args:
             existing_customer: Существующий объект User
             onec_data: Данные из 1С
-            conflict_source: Источник конфликта ('portal_registration' или 'data_import')
+            conflict_source: Источник конфликта ('portal_registration' или
+                             'data_import')
             resolution_result: Результат операции разрешения
             duration_ms: Длительность операции в миллисекундах
 

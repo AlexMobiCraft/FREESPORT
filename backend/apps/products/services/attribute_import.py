@@ -264,7 +264,8 @@ class AttributeImportService:
 
         if self.dry_run:
             logger.info(
-                f"DRY-RUN: Would process {len(properties)} properties from {self.source}"
+                f"DRY-RUN: Would process {len(properties)} properties from "
+                f"{self.source}"
             )
             return
 

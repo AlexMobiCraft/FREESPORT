@@ -40,6 +40,7 @@ def check_verification_status_change(sender, instance, created, **kwargs):
     # Триггером может быть изменение verification_status на 'verified'
     if old_status != "verified" and instance.verification_status == "verified":
         logger.info(
-            f"User {instance.id} verification status changed to 'verified'. Sending email."
+            f"User {instance.id} verification status changed to 'verified'. "
+            "Sending email."
         )
         send_user_verified_email.delay(instance.id)

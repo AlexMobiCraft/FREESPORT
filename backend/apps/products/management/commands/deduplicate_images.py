@@ -11,13 +11,15 @@ Management команда для удаления дублированных и 
     Из-за бага в импорте, одно изображение могло сохраняться с разными путями:
     - products/base/import_files/41cae745...jpg
     - products/base/41/41cae745...jpg
-    
-    Эта команда удаляет дубликаты, оставляя только первый путь для каждого уникального filename.
+
+    Эта команда удаляет дубликаты, оставляя только первый путь для каждого
+    уникального filename.
     Также удаляет изображения меньше указанного размера (по умолчанию 100KB).
-    
+
     Дополнительно проверяется размер main_image у вариантов товара:
-    - Если main_image меньше минимального размера И в gallery_images есть файл >= min_size,
-      то main_image заменяется на первый подходящий файл из галереи.
+    - Если main_image меньше минимального размера И в gallery_images есть
+      файл >= min_size, то main_image заменяется на первый подходящий файл
+      из галереи.
 """
 
 import logging
@@ -58,14 +60,20 @@ class Command(BaseCommand):
         parser.add_argument(
             "--prefer-new-path",
             action="store_true",
-            help="Предпочитать новый формат пути (XX/...) вместо старого (import_files/...)",
+            help=(
+                "Предпочитать новый формат пути (XX/...) вместо старого "
+                "(import_files/...)"
+            ),
         )
         parser.add_argument(
             "--min-size",
             type=int,
             default=DEFAULT_MIN_SIZE_KB,
-            help=f"Минимальный размер файла в KB (по умолчанию {DEFAULT_MIN_SIZE_KB}KB). "
-            f"Файлы меньше этого размера будут удалены из списка.",
+            help=(
+                f"Минимальный размер файла в KB (по умолчанию "
+                f"{DEFAULT_MIN_SIZE_KB}KB). Файлы меньше этого размера будут "
+                "удалены из списка."
+            ),
         )
         parser.add_argument(
             "--skip-size-check",
@@ -211,7 +219,8 @@ class Command(BaseCommand):
                         for img_path, size_kb in small_files:
                             self.stdout.write(
                                 self.style.ERROR(
-                                    f"      ❌ {img_path} ({size_kb:.1f}KB < {min_size_kb}KB)"
+                                    f"      ❌ {img_path} ({size_kb:.1f}KB < "
+                                    f"{min_size_kb}KB)"
                                 )
                             )
 
@@ -348,7 +357,8 @@ class Command(BaseCommand):
                         len(filtered_images) == 0
                         and len(variant.gallery_images or []) > 0
                     ):
-                        # Возвращаем первое изображение (если не использовано как main_image)
+                        # Возвращаем первое изображение (если не использовано
+                        # как main_image)
                         fallback_images = [
                             img
                             for img in (variant.gallery_images or [])
@@ -384,7 +394,8 @@ class Command(BaseCommand):
                     filtered_images, prefer_new_path, seen_filenames
                 )
 
-                # Сравниваем с оригинальными gallery_images (без перемещённого в main_image)
+                # Сравниваем с оригинальными gallery_images (без
+                # перемещённого в main_image)
                 compare_original = [
                     img
                     for img in (variant.gallery_images or [])
@@ -412,8 +423,9 @@ class Command(BaseCommand):
                             ) = main_image_replacement_info
                             self.stdout.write(
                                 self.style.WARNING(
-                                    f"      🔄 main_image заменён: {Path(old_path).name} "
-                                    f"({old_size:.1f}KB) → {Path(new_path).name} ({new_size:.1f}KB)"
+                                    f"      🔄 main_image заменён: "
+                                    f"{Path(old_path).name} ({old_size:.1f}KB) "
+                                    f"→ {Path(new_path).name} ({new_size:.1f}KB)"
                                 )
                             )
 
@@ -430,7 +442,8 @@ class Command(BaseCommand):
                         for img_path, size_kb in small_files:
                             self.stdout.write(
                                 self.style.ERROR(
-                                    f"      ❌ {img_path} ({size_kb:.1f}KB < {min_size_kb}KB)"
+                                    f"      ❌ {img_path} ({size_kb:.1f}KB < "
+                                    f"{min_size_kb}KB)"
                                 )
                             )
 
@@ -516,10 +529,13 @@ class Command(BaseCommand):
         self, products_result: dict, variants_result: dict, dry_run: bool
     ):
         """Вывод итоговой статистики."""
+        status_msg = (
+            "✅ Дедупликация завершена" if not dry_run else "🔍 DRY-RUN завершён"
+        )
         self.stdout.write(
             self.style.SUCCESS(
                 f"\n{'=' * 60}\n"
-                f"  {'✅ Дедупликация завершена' if not dry_run else '🔍 DRY-RUN завершён'}\n"
+                f"  {status_msg}\n"
                 f"{'=' * 60}\n"
             )
         )
@@ -534,7 +550,7 @@ class Command(BaseCommand):
         self.stdout.write(
             self.style.SUCCESS(f"   • Удалено записей: {products_result['removed']}")
             if products_result["removed"] > 0
-            else f"   • Удалено записей: 0"
+            else "   • Удалено записей: 0"
         )
         if products_result.get("small_removed", 0) > 0:
             self.stdout.write(
@@ -555,7 +571,7 @@ class Command(BaseCommand):
                 f"   • Удалено записей из галереи: {variants_result['removed']}"
             )
             if variants_result["removed"] > 0
-            else f"   • Удалено записей из галереи: 0"
+            else "   • Удалено записей из галереи: 0"
         )
         if variants_result.get("small_removed", 0) > 0:
             self.stdout.write(
@@ -566,7 +582,8 @@ class Command(BaseCommand):
         if variants_result.get("main_image_replaced", 0) > 0:
             self.stdout.write(
                 self.style.WARNING(
-                    f"   • Заменено main_image: {variants_result['main_image_replaced']}"
+                    f"   • Заменено main_image: "
+                    f"{variants_result['main_image_replaced']}"
                 )
             )
 

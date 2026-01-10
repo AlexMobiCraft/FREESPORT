@@ -46,7 +46,8 @@ class TestLoginVerificationBlocking:
         assert response.status_code == status.HTTP_403_FORBIDDEN
         assert "detail" in response.data
         assert response.data["detail"] == "Ваша учетная запись находится на проверке"
-        # Проверяем наличие кода ошибки (может быть в разных местах в зависимости от DRF)
+        # Проверяем наличие кода ошибки (может быть в разных местах в
+        # зависимости от DRF)
         # AuthenticationFailed в DRF добавляет code в detail или отдельным полем
         # Проверяем оба варианта
 
@@ -121,7 +122,8 @@ class TestLoginVerificationBlocking:
 
     def test_full_verification_workflow(self) -> None:
         """
-        Полный workflow: B2B регистрация → блокировка входа → верификация → успешный вход
+        Полный workflow: B2B регистрация → блокировка входа → верификация →
+        успешный вход
         """
         # Шаг 1: B2B регистрация
         register_response = self.client.post(

@@ -28,7 +28,8 @@ from apps.products.services.variant_import import VariantImportProcessor
 
 class Command(BaseCommand):
     """
-    Импорт каталога товаров из XML файлов 1С (CommerceML 3.1) с поддержкой ProductVariant
+    Импорт каталога товаров из XML файлов 1С (CommerceML 3.1) с поддержкой
+    ProductVariant
 
     Использование:
         python manage.py import_products_from_1c --data-dir /path/to/1c/data

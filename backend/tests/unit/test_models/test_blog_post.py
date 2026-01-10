@@ -169,7 +169,8 @@ class TestBlogPostModel(TestCase):
         )
 
         expected_url = f"/blog/{blog_post.slug}/"
-        # Метод get_absolute_url будет использовать reverse('blog-detail', kwargs={'slug': self.slug})
+        # Метод get_absolute_url будет использовать
+        # reverse('blog-detail', kwargs={'slug': self.slug})
         # Пока URL не настроены, просто проверяем, что метод не падает
         try:
             url = blog_post.get_absolute_url()

@@ -2,7 +2,8 @@
 Unit тесты для LogoutSerializer
 
 Story 30.4: Тесты для Logout функциональности
-AC: 1, 3, 6 - Unit-тесты покрывают все методы serializer, изолированы, следуют pytest conventions
+AC: 1, 3, 6 - Unit-тесты покрывают все методы serializer, изолированы,
+следуют pytest conventions
 """
 
 import pytest

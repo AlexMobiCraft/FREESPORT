@@ -191,8 +191,10 @@ class CartItemViewSet(viewsets.ModelViewSet):
 
     @extend_schema(
         summary="Добавить вариант товара в корзину",
-        description="Добавление варианта товара (variant_id) в корзину с автоматическим "
-        "объединением одинаковых вариантов. Цена фиксируется в момент добавления.",
+        description=(
+            "Добавление варианта товара (variant_id) в корзину с автоматическим "
+            "объединением одинаковых вариантов. Цена фиксируется в момент добавления."
+        ),
         tags=["Cart Items"],
     )
     def create(self, request, *args, **kwargs):

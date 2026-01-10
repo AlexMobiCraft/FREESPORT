@@ -559,9 +559,9 @@ def enable_db_access_for_all_tests(db):
 
 @pytest.fixture(autouse=True)
 def clear_db_before_test(transactional_db):
-    """
-    Оптимизированная очистка базы данных без deadlock'ов
-    Автоматически запускается перед каждым тестом для предотвращения конфликтов уникальности
+    """Оптимизированная очистка базы данных без deadlock'ов.
+    Автоматически запускается перед каждым тестом для предотвращения
+    конфликтов уникальности.
     """
     from django.apps import apps
     from django.core.cache import cache

@@ -111,7 +111,9 @@ def _execute_import_type(import_type: str, task_id: str) -> dict[str, str]:
     Выполнение импорта конкретного типа данных.
 
     Args:
-        import_type: Тип импорта (catalog, attributes, stocks, prices, customers, images)
+        import_type: (
+            "Тип импорта (catalog, attributes, stocks, prices, customers, images)"
+        )
         task_id: ID задачи Celery для логирования и связи с сессией
 
     Returns:
@@ -172,7 +174,8 @@ def _execute_import_type(import_type: str, task_id: str) -> dict[str, str]:
         if not onec_data_dir:
             raise ValueError("Настройка ONEC_DATA_DIR не найдена в settings")
         logger.info(
-            f"[Task {task_id}] Запуск import_customers_from_1c --data-dir={onec_data_dir}"
+            f"[Task {task_id}] Запуск import_customers_from_1c "
+            f"--data-dir={onec_data_dir}"
         )
         call_command("import_customers_from_1c", "--data-dir", onec_data_dir)
         return {"type": "customers", "message": "Клиенты импортированы"}

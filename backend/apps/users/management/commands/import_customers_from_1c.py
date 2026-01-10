@@ -39,7 +39,10 @@ class Command(BaseCommand):
             "--data-dir",
             type=str,
             required=True,
-            help="Путь к директории с данными 1С (содержит поддиректорию contragents/).",
+            help=(
+                "Путь к директории с данными 1С (содержит поддиректорию "
+                "contragents/)."
+            ),
         )
         parser.add_argument(
             "--chunk-size",

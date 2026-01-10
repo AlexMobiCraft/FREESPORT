@@ -45,7 +45,8 @@ class TestEpic28Regression:
         assert response.status_code == status.HTTP_201_CREATED
         assert "user" in response.data
 
-        # Проверяем что пользователь может войти (Epic 29.2: retail должны иметь is_active=True)
+        # Проверяем что пользователь может войти
+        # (Epic 29.2: retail должны иметь is_active=True)
         login_response = self.client.post(
             "/api/v1/auth/login/",
             {"email": "newretail@example.com", "password": "SecurePass123!"},

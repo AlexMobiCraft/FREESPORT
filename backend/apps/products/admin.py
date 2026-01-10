@@ -106,7 +106,8 @@ class BrandAdmin(admin.ModelAdmin):
                                         f"Duplicate mapping for brand {target_brand}: "
                                         f"{mapping.onec_id}. Skipping transfer."
                                     )
-                                    continue  # Mapping will be deleted with source_brand
+                                    continue  # Mapping will be deleted with
+                                    # source_brand
                                 mapping.brand = target_brand
                                 mapping.save()
 
@@ -677,7 +678,8 @@ class AttributeAdmin(admin.ModelAdmin):
                                 ).first()
 
                                 if existing_value:
-                                    # Значение уже существует - переносим только маппинги
+                                    # Значение уже существует - переносим только
+                                    # маппинги
                                     for value_mapping in value.onec_mappings.all():
                                         if existing_value.onec_mappings.filter(
                                             onec_id=value_mapping.onec_id

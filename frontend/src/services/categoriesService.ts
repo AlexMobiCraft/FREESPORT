@@ -48,14 +48,18 @@ class CategoriesService {
    * GET /categories?parent_id__isnull=true&limit=6
    */
   async getCategories(params?: GetCategoriesParams): Promise<Category[]> {
-    const response = await apiClient.get<PaginatedResponse<Category>>('/categories/', {
+    const response = await apiClient.get<Category[] | PaginatedResponse<Category>>('/categories/', {
       params: {
         parent_id__isnull: true, // Django filter: только корневые категории
         limit: 6, // AC 3: до 6 категорий
         ...params,
       },
     });
-    return response.data.results;
+    // Handle both array and paginated response formats (for E2E mocks compatibility)
+    if (Array.isArray(response.data)) {
+      return response.data;
+    }
+    return response.data?.results ?? [];
   }
 }
 

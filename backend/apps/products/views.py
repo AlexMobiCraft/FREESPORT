@@ -50,7 +50,8 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
     filterset_class = ProductFilter
     # После Epic 13: retail_price и stock_quantity перенесены в ProductVariant
-    # Используем аннотации: min_retail_price (мин. цена варианта), total_stock (сумма остатков)
+    # Используем аннотации: min_retail_price (мин. цена варианта),
+    # total_stock (сумма остатков)
     ordering_fields = ["name", "min_retail_price", "created_at", "total_stock"]
     ordering = ["-created_at"]  # Сортировка по умолчанию (override при search)
 

@@ -7,9 +7,10 @@ Management команда для очистки некорректных зна�
 Использование:
     python manage.py fix_variant_sizes --dry-run    # Тестовый запуск
     python manage.py fix_variant_sizes              # Очистка данных
-    
+
 После очистки:
-    python manage.py import_products_from_1c --file-type=offers --data-dir=data/import_1c
+    python manage.py import_products_from_1c --file-type=offers \
+        --data-dir=data/import_1c
 """
 
 import re
@@ -69,7 +70,8 @@ class Command(BaseCommand):
             self.stdout.write(
                 self.style.WARNING(
                     "\nТеперь запустите повторный импорт:\n"
-                    "  python manage.py import_products_from_1c --file-type=offers --data-dir=data/import_1c"
+                    "  python manage.py import_products_from_1c "
+                    "--file-type=offers --data-dir=data/import_1c"
                 )
             )
         else:

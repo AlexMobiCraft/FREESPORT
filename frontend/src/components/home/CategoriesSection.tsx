@@ -95,7 +95,7 @@ export const CategoriesSection: React.FC = () => {
   }, []);
 
   // Не рендерим секцию если нет категорий и не идет загрузка
-  if (!isLoading && !error && categories.length === 0) {
+  if (!isLoading && !error && (!categories || categories.length === 0)) {
     return null;
   }
 

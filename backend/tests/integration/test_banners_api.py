@@ -275,7 +275,8 @@ class TestBannersAPI:
         assert banner_data["cta_link"] == banner.cta_link
 
     def test_multiple_role_flags_work(self) -> None:
-        """Баннер с несколькими флагами таргетинга доступен всем соответствующим ролям"""
+        """Баннер с несколькими флагами таргетинга доступен всем
+        соответствующим ролям"""
         # Arrange
         multi_role_banner = BannerFactory(
             title="Multi Role Banner",

@@ -41,7 +41,8 @@ class TestLogoutRouteRegistration:
         ]
 
     @pytest.mark.skip(
-        reason="Schema generation fails due to existing Decimal import issue (not related to logout)"
+        reason="Schema generation fails due to existing Decimal import issue "
+        "(not related to logout)"
     )
     def test_logout_in_openapi_schema(self, api_client: APIClient):
         """Logout endpoint присутствует в OpenAPI схеме"""

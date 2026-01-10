@@ -25,7 +25,8 @@ class TestUserRegistrationVerification:
 
     def test_retail_registration_sets_active_and_verified(self) -> None:
         """
-        AC 1: Retail пользователь получает is_active=True, verification_status='verified'
+        AC 1: Retail пользователь получает is_active=True,
+        verification_status='verified'
         """
         data = {
             "email": "retail@example.com",

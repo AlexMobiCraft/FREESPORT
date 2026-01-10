@@ -96,7 +96,7 @@ class TestProductVariantSerializer:
     def test_get_current_price_for_wholesale_user(
         self, variant, wholesale_user, api_factory
     ):
-        """Тест: current_price возвращает opt1_price для wholesale_level1 пользователя"""
+        """Тест: current_price для wholesale_level1 пользователя = opt1_price"""
         request = api_factory.get("/")
         request.user = wholesale_user
 

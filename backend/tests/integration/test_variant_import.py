@@ -856,7 +856,8 @@ class TestHybridImagesLogic(TransactionTestCase):
 
     def test_default_variant_without_images_uses_base_images(self):
         """
-        Тест: Default variant без своих изображений использует base_images через effective_images()
+        Тест: Default variant без своих изображений использует
+        base_images через effective_images()
         """
         # Создаем Product с base_images
         product = Product.objects.create(

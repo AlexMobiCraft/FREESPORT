@@ -143,7 +143,8 @@ class OrderCreateSerializer(serializers.ModelSerializer):
 
             if not product or not product.is_active:
                 raise serializers.ValidationError(
-                    f"Товар '{product.name if product else 'неизвестен'}' больше недоступен"
+                    f"Товар '{product.name if product else 'неизвестен'}' "
+                    "больше недоступен"
                 )
 
             if not variant or not variant.is_active:
