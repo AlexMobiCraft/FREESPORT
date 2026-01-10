@@ -178,6 +178,8 @@ test.describe('Search History Flow E2E Tests', () => {
     // Инициализируем историю
     await initSearchHistory(page, testSearchQueries.slice(0, 3));
 
+    await page.goto('/catalog');
+
     const searchField = page.locator('[data-testid="search-field"]').first();
     await expect(searchField).toBeVisible();
 
@@ -361,6 +363,7 @@ test.describe('Search History Accessibility Tests', () => {
     await page.goto('/catalog');
 
     const searchField = page.locator('[data-testid="search-field"]').first();
+    await expect(searchField).toBeVisible();
     await searchField.focus();
 
     // Ждём появления истории

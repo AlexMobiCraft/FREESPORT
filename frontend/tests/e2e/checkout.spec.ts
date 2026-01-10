@@ -187,14 +187,8 @@ async function fillCheckoutForm(page: Page, data: typeof testCheckoutData) {
   await page.fill('#input-город', data.city);
   await page.fill('#input-улица', data.street);
   await page.fill('#input-дом', data.house);
-  await page.fill('#input-корпус', data.apartment); // Note: variable is apartment but label is Корпус? Wait.
-  // In fillCheckoutForm:
-  // await page.fill('input[name="apartment"]', data.apartment);
-  // Label for apartment is "Кв./офис". id will be "input-кв./офис".
-  await page.fill('#input-кв\\.\/офис', data.apartment); // complex ID?
-  // Let's check Input.tsx logic: id || `input-${label.toLowerCase().replace(/\s+/g, '-')}`
-
-  await page.fill('#input-почтовый-индекс', data.postalCode);
+  await page.fill('input[name="apartment"]', data.apartment);
+  await page.fill('input[name="postalCode"]', data.postalCode);
 }
 
 test.describe('Checkout Flow E2E Tests', () => {
@@ -276,8 +270,15 @@ test.describe('Checkout Flow E2E Tests', () => {
     await page.goto('/checkout');
 
     // Заполняем адрес доставки
-    await expect(page.locator('#input-кв\\.\/офис')).toHaveValue(testCheckoutData.apartment);
-    await expect(page.locator('#input-почтовый-индекс')).toHaveValue(testCheckoutData.postalCode);
+    await page.fill('input[name="city"]', testCheckoutData.city);
+    await page.fill('input[name="street"]', testCheckoutData.street);
+    await page.fill('input[name="house"]', testCheckoutData.house);
+    await page.fill('input[name="apartment"]', testCheckoutData.apartment);
+    await page.fill('input[name="postalCode"]', testCheckoutData.postalCode);
+
+    // Проверяем значения
+    await expect(page.locator('input[name="apartment"]')).toHaveValue(testCheckoutData.apartment);
+    await expect(page.locator('input[name="postalCode"]')).toHaveValue(testCheckoutData.postalCode);
   });
 
   /**

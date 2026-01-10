@@ -43,11 +43,12 @@ export default defineConfig({
 
     // Таймауты
     actionTimeout: 15000,
-    navigationTimeout: 30000,
+    // Увеличен timeout навигации из-за медленной компиляции Next.js в Docker
+    navigationTimeout: 60000,
   },
 
   // Общий таймаут теста
-  timeout: 60000,
+  timeout: 90000,
 
   // Ожидание результата expect
   expect: {
@@ -72,10 +73,14 @@ export default defineConfig({
   ],
 
   // Web server для локального тестирования
-  webServer: {
-    command: 'npm run dev',
-    url: 'http://localhost:3000',
-    reuseExistingServer: !process.env.CI,
-    timeout: 120000,
-  },
+  // ВАЖНО: Frontend запущен в Docker контейнере
+  // Используем reuseExistingServer: true для подключения к Docker контейнеру
+  webServer: process.env.CI
+    ? {
+        command: 'npm run dev',
+        url: 'http://localhost:3000',
+        reuseExistingServer: false,
+        timeout: 120000,
+      }
+    : undefined,
 });
