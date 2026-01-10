@@ -187,12 +187,15 @@ class TestExecuteImportType:
         data_dir = "/path/to/data"
         task_id = "test-task-123"
 
-        with patch("apps.integrations.tasks.Path") as mock_path:
+        # Указываем настройку ONEC_DATA_DIR, так как она используется внутри _execute_import_type
+        # для типа customers
+        with patch.object(settings, "ONEC_DATA_DIR", data_dir), \
+             patch("apps.integrations.tasks.Path") as mock_path:
             # Мокаем структуру директорий
             mock_contragents_dir = MagicMock()
             mock_contragents_dir.exists.return_value = True
             mock_contragents_dir.glob.return_value = [
-                Path("/path/to/data/contragents/contragents.xml")
+                Path(f"{data_dir}/contragents/contragents.xml")
             ]
 
             mock_path.return_value.__truediv__.return_value = mock_contragents_dir
