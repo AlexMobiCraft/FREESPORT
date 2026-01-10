@@ -30,9 +30,6 @@ vi.mock('@/components/product/ProductImageGallery', () => ({ default: () => null
 import { getUserRole } from '@/utils/server-auth';
 
 // Mock getUserRole
-vi.mock('@/utils/server-auth', () => ({
-  getUserRole: vi.fn(),
-}));
 
 describe('Product Detail Page - SSR getUserRole', () => {
   beforeEach(() => {

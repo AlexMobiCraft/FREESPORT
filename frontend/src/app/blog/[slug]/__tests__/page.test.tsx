@@ -18,30 +18,26 @@ import { blogService } from '@/services/blogService';
 import type { BlogItem } from '@/types/api';
 
 // Mock Next.js navigation
-const mockNotFound = vi.fn();
+// Mock Next.js navigation
+const { mockNotFound } = vi.hoisted(() => ({
+  mockNotFound: vi.fn(),
+}));
+
 vi.mock('next/navigation', () => ({
-  notFound: () => mockNotFound(),
+  notFound: mockNotFound,
 }));
 
 // Mock Next.js components
-const MockLink = React.forwardRef<HTMLAnchorElement, { children: React.ReactNode; href: string }>(
-  ({ children, href }, ref) => (
-    <a href={href} ref={ref}>
-      {children}
-    </a>
-  )
-);
-MockLink.displayName = 'MockLink';
-
 vi.mock('next/link', () => ({
-  default: MockLink,
+  default: ({ children, href }: { children: React.ReactNode; href: string }) => (
+    <a href={href}>{children}</a>
+  ),
 }));
 
-// eslint-disable-next-line @next/next/no-img-element
-const MockImage = ({ src, alt }: { src: string; alt: string }) => <img src={src} alt={alt} />;
-
+// Mock Next.js Image component
 vi.mock('next/image', () => ({
-  default: MockImage,
+  // eslint-disable-next-line @next/next/no-img-element
+  default: ({ src, alt }: { src: string; alt: string }) => <img src={src} alt={alt} />,
 }));
 
 // Mock blogService

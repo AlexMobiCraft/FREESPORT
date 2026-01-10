@@ -33,11 +33,10 @@ vi.mock('next/link', () => ({
   ),
 }));
 
-// eslint-disable-next-line @next/next/no-img-element
-const MockImage = ({ src, alt }: { src: string; alt: string }) => <img src={src} alt={alt} />;
-
+// Mock Next.js Image component
 vi.mock('next/image', () => ({
-  default: MockImage,
+  // eslint-disable-next-line @next/next/no-img-element
+  default: ({ src, alt }: { src: string; alt: string }) => <img src={src} alt={alt} />,
 }));
 
 // Mock blogService
@@ -47,12 +46,14 @@ vi.mock('@/services/blogService', () => ({
   },
 }));
 
-// Mock NewsCard component (используется для блога)
-vi.mock('@/components/home/NewsCard', () => ({
-  NewsCard: ({ title, excerpt }: { title: string; excerpt: string }) => (
+// Mock BlogPostCard component
+vi.mock('@/components/home/BlogPostCard', () => ({
+  BlogPostCard: ({ title, excerpt, slug }: { title: string; excerpt: string; slug: string }) => (
     <article data-testid="blog-card">
-      <h3>{title}</h3>
-      <p>{excerpt}</p>
+      <a href={`/blog/${slug}`}>
+        <h3>{title}</h3>
+        <p>{excerpt}</p>
+      </a>
     </article>
   ),
 }));

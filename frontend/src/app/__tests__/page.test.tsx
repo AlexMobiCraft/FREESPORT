@@ -11,6 +11,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import Home, { metadata, revalidate } from '../page';
+import { ToastProvider } from '@/components/ui/Toast/ToastProvider';
 
 // Mock authStore state (mutable)
 // Mock authStore state (mutable)
@@ -67,12 +68,20 @@ describe('Главная страница (/)', () => {
 
   describe('Рендеринг страницы', () => {
     it('должна рендериться без ошибок', () => {
-      const { container } = render(<Home />);
+      const { container } = render(
+        <ToastProvider>
+          <Home />
+        </ToastProvider>
+      );
       expect(container).toBeInTheDocument();
     });
 
     it('должна содержать HeroSection компонент', async () => {
-      render(<Home />);
+      render(
+        <ToastProvider>
+          <Home />
+        </ToastProvider>
+      );
 
       // Проверка наличия hero секции по заголовку (ждём загрузку)
       expect(
@@ -81,7 +90,11 @@ describe('Главная страница (/)', () => {
     });
 
     it('должна содержать секцию с популярными категориями', async () => {
-      render(<Home />);
+      render(
+        <ToastProvider>
+          <Home />
+        </ToastProvider>
+      );
 
       expect(await screen.findByText(/Популярные категории/i)).toBeInTheDocument();
     });
@@ -131,7 +144,11 @@ describe('Главная страница (/)', () => {
 
   describe('Адаптивность', () => {
     it('должна иметь responsive контейнер', () => {
-      const { container } = render(<Home />);
+      const { container } = render(
+        <ToastProvider>
+          <Home />
+        </ToastProvider>
+      );
 
       // Проверка наличия контейнеров с max-width
       const containers = container.querySelectorAll('.max-w-7xl, .mx-auto');
@@ -139,7 +156,11 @@ describe('Главная страница (/)', () => {
     });
 
     it('должна содержать адаптивные padding классы', () => {
-      const { container } = render(<Home />);
+      const { container } = render(
+        <ToastProvider>
+          <Home />
+        </ToastProvider>
+      );
 
       // Проверка responsive padding (sm:px-6, lg:px-8)
       const responsiveContainers = container.querySelectorAll('[class*="px-"]');
@@ -161,7 +182,11 @@ describe('Главная страница (/)', () => {
       mockAuthState.isAuthenticated = true;
       mockAuthState.accessToken = 'mock-token';
 
-      render(<Home />);
+      render(
+        <ToastProvider>
+          <Home />
+        </ToastProvider>
+      );
 
       // HeroSection должен показывать баннер (может быть любой текст из баннера)
       await waitFor(() => {
@@ -184,7 +209,11 @@ describe('Главная страница (/)', () => {
       mockAuthState.isAuthenticated = true;
       mockAuthState.accessToken = 'mock-token';
 
-      render(<Home />);
+      render(
+        <ToastProvider>
+          <Home />
+        </ToastProvider>
+      );
 
       // HeroSection должен показывать баннер (может быть любой текст из баннера)
       await waitFor(() => {

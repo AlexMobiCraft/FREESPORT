@@ -9,6 +9,7 @@ import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { server } from '@/__mocks__/api/server';
 import { HitsSection } from '../HitsSection';
+import { ToastProvider } from '@/components/ui/Toast/ToastProvider';
 
 // Setup MSW
 beforeAll(() => server.listen());
@@ -17,7 +18,11 @@ afterAll(() => server.close());
 
 describe('HitsSection', () => {
   it('loads and displays 8 hit products with badges', async () => {
-    render(<HitsSection />);
+    render(
+      <ToastProvider>
+        <HitsSection />
+      </ToastProvider>
+    );
 
     // Loading state - проверяем skeleton loaders
     expect(screen.getAllByRole('status')).toHaveLength(1);
@@ -46,7 +51,11 @@ describe('HitsSection', () => {
   });
 
   it('shows skeleton loaders during loading', () => {
-    render(<HitsSection />);
+    render(
+      <ToastProvider>
+        <HitsSection />
+      </ToastProvider>
+    );
 
     // Проверяем наличие skeleton loader
     const skeletons = screen.getAllByRole('status');
@@ -66,7 +75,11 @@ describe('HitsSection', () => {
     );
 
     const user = userEvent.setup();
-    render(<HitsSection />);
+    render(
+      <ToastProvider>
+        <HitsSection />
+      </ToastProvider>
+    );
 
     // Проверяем error state (дожидаемся, что загрузка завершится ошибкой)
     await waitFor(
@@ -110,7 +123,11 @@ describe('HitsSection', () => {
       })
     );
 
-    render(<HitsSection />);
+    render(
+      <ToastProvider>
+        <HitsSection />
+      </ToastProvider>
+    );
 
     await waitFor(() => {
       expect(requestSpy).toHaveBeenCalled();
@@ -135,7 +152,11 @@ describe('HitsSection', () => {
       })
     );
 
-    const { container } = render(<HitsSection />);
+    const { container } = render(
+      <ToastProvider>
+        <HitsSection />
+      </ToastProvider>
+    );
 
     // Ждём завершения загрузки
     await waitFor(() => {
@@ -147,7 +168,11 @@ describe('HitsSection', () => {
   });
 
   it('displays correct badge variants based on priority', async () => {
-    render(<HitsSection />);
+    render(
+      <ToastProvider>
+        <HitsSection />
+      </ToastProvider>
+    );
 
     // Ждем загрузки всех товаров, включая велосипед Trek с premium бейджем
     await waitFor(() => {

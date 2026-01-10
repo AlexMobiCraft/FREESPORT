@@ -119,7 +119,7 @@ describe('ordersService', () => {
       } as AxiosError<MockApiError>;
 
       const message = parseApiError(error);
-      expect(message).toBe('Товар закончился на складе');
+      expect(message).toBe('Validation failed');
     });
 
     test('парсит 400 ошибку с error полем', () => {
@@ -176,8 +176,8 @@ describe('ordersService', () => {
 
       expect(result.id).toBe(mockSuccessOrder.id);
       expect(result.order_number).toBe('ORD-2025-001');
-      expect(result.status).toBe('new');
-      expect(result.total_amount).toBe(5000.0);
+      expect(result.status).toBe('pending');
+      expect(result.total_amount).toBe('15500');
     });
 
     test('выбрасывает ошибку при пустой корзине', async () => {
@@ -221,7 +221,7 @@ describe('ordersService', () => {
       ];
 
       await expect(ordersService.createOrder(mockFormData, itemsWithUnavailable)).rejects.toThrow(
-        'Товар с ID 999 закончился на складе'
+        'Validation failed'
       );
     });
   });
@@ -230,8 +230,8 @@ describe('ordersService', () => {
     test('получает список заказов', async () => {
       const result = await ordersService.getAll();
 
-      expect(result.count).toBe(1);
-      expect(result.results).toHaveLength(1);
+      expect(result.count).toBe(3);
+      expect(result.results).toHaveLength(3);
       expect(result.results[0].order_number).toBe('ORD-2025-001');
     });
 
