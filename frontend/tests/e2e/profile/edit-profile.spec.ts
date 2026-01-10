@@ -36,7 +36,9 @@ test.describe('Profile Page - Edit Profile Flow', () => {
       await page.goto('/profile');
 
       // ASSERT
-      await expect(page).toHaveURL(/\/login\?next=\/profile/);
+      const url = new URL(page.url());
+      expect(url.pathname).toBe('/login');
+      expect(url.searchParams.get('next')).toBe('/profile');
     });
 
     test('allows authenticated users to access profile page', async ({ page }) => {
@@ -301,10 +303,10 @@ test.describe('Profile Page - Edit Profile Flow', () => {
 
       // ASSERT
       await expect(page.locator('text=Личный кабинет')).toBeVisible();
-      await expect(page.locator('a[href="/profile"]').first()).toBeVisible();
-      await expect(page.locator('a[href="/profile/orders"]').first()).toBeVisible();
-      await expect(page.locator('a[href="/profile/addresses"]').first()).toBeVisible();
-      await expect(page.locator('a[href="/profile/favorites"]').first()).toBeVisible();
+      await expect(page.locator('aside a[href="/profile"]')).toBeVisible();
+      await expect(page.locator('aside a[href="/profile/orders"]')).toBeVisible();
+      await expect(page.locator('aside a[href="/profile/addresses"]')).toBeVisible();
+      await expect(page.locator('aside a[href="/profile/favorites"]')).toBeVisible();
     });
 
     test('displays tab navigation on mobile', async ({ page }) => {

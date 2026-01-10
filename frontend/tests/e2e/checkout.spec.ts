@@ -221,7 +221,7 @@ test.describe('Checkout Flow E2E Tests', () => {
     await expect(page.locator('input[name="firstName"]')).toHaveValue(testCheckoutData.firstName);
 
     // 5. Оформляем заказ (AC5)
-    await page.click('button[type="submit"]:has-text("Оформить заказ")');
+    await page.getByRole('button', { name: /оформить заказ/i }).click();
 
     // 6. Проверяем редирект на success страницу (AC6)
     await expect(page).toHaveURL(/\/checkout\/success\/\d+/);
@@ -340,7 +340,7 @@ test.describe('Checkout Form Validation E2E Tests', () => {
     await expect(page.locator('h2:has-text("Контактные данные")')).toBeVisible();
 
     // Пытаемся отправить пустую форму (клик по кнопке submit)
-    await page.click('button[type="submit"]:has-text("Оформить заказ")');
+    await page.getByRole('button', { name: /оформить заказ/i }).click();
 
     // Проверяем появление ошибок валидации
     // Email обязателен
@@ -364,7 +364,7 @@ test.describe('Checkout Form Validation E2E Tests', () => {
     await page.fill('input[name="phone"]', testCheckoutData.phone); // blur для триггера валидации
 
     // Проверяем ошибку формата email
-    await expect(page.locator('text=Некорректный формат email')).toBeVisible();
+    await expect(page.locator('text=Некорректный формат email').first()).toBeVisible();
 
     // Исправляем email
     await page.fill('input[name="email"]', 'valid@example.com');
@@ -385,7 +385,7 @@ test.describe('Checkout Form Validation E2E Tests', () => {
     await page.fill('input[name="email"]', testCheckoutData.email); // blur
 
     // Проверяем ошибку формата
-    await expect(page.locator('text=Формат: +7XXXXXXXXXX')).toBeVisible();
+    await expect(page.locator('text=Формат: +7XXXXXXXXXX').first()).toBeVisible();
 
     // Исправляем телефон
     await page.fill('input[name="phone"]', '+79001234567');
@@ -406,7 +406,7 @@ test.describe('Checkout Form Validation E2E Tests', () => {
     await page.fill('input[name="email"]', testCheckoutData.email); // blur
 
     // Проверяем ошибку
-    await expect(page.locator('text=6 цифр')).toBeVisible();
+    await expect(page.locator('text=6 цифр').first()).toBeVisible();
 
     // Исправляем индекс
     await page.fill('input[name="postalCode"]', '123456');
@@ -450,7 +450,7 @@ test.describe('Checkout Form Validation E2E Tests', () => {
     await fillCheckoutForm(page, testCheckoutData);
 
     // Пытаемся отправить форму
-    await page.click('button[type="submit"]:has-text("Оформить заказ")');
+    await page.getByRole('button', { name: /оформить заказ/i }).click();
 
     // Проверяем ошибку выбора способа доставки
     await expect(page.locator('text=Выберите способ доставки')).toBeVisible();
@@ -574,7 +574,7 @@ test.describe('Checkout Error Handling E2E Tests', () => {
     await page.click('input[value="courier"]');
 
     // Отправляем форму
-    await page.click('button[type="submit"]:has-text("Оформить заказ")');
+    await page.getByRole('button', { name: /оформить заказ/i }).click();
 
     // Проверяем отображение ошибки
     await expect(page.locator('text=Ошибка').first()).toBeVisible({ timeout: 10000 });
@@ -611,7 +611,7 @@ test.describe('Checkout Error Handling E2E Tests', () => {
     await page.click('input[value="courier"]');
 
     // Отправляем форму
-    await page.click('button[type="submit"]:has-text("Оформить заказ")');
+    await page.getByRole('button', { name: /оформить заказ/i }).click();
 
     // Ожидаем появления ошибки (общей или конкретной)
     await expect(page.locator('[role="alert"]').first()).toBeVisible({ timeout: 10000 });
@@ -641,7 +641,7 @@ test.describe('Checkout Error Handling E2E Tests', () => {
     await page.click('input[value="courier"]');
 
     // Отправляем форму
-    await page.click('button[type="submit"]:has-text("Оформить заказ")');
+    await page.getByRole('button', { name: /оформить заказ/i }).click();
 
     // Проверяем что страница не крашится и показывает ошибку
     await expect(page.locator('button[type="submit"]')).toBeVisible();

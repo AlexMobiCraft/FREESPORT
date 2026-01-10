@@ -183,7 +183,7 @@ test.describe('Search History Flow E2E Tests', () => {
     const searchField = page.locator('[data-testid="search-field"]').first();
     await expect(searchField).toBeVisible();
 
-    await searchField.focus();
+    await searchField.locator('input').focus();
 
     // Ждём появления истории
     await expect(page.locator('[data-testid="search-history"]')).toBeVisible({ timeout: 5000 });
@@ -202,7 +202,7 @@ test.describe('Search History Flow E2E Tests', () => {
     await page.goto('/catalog');
 
     const searchField = page.locator('[data-testid="search-field"]').first();
-    await searchField.focus();
+    await searchField.locator('input').focus();
 
     // Ждём появления истории
     await expect(page.locator('[data-testid="search-history"]')).toBeVisible({ timeout: 5000 });
@@ -223,7 +223,7 @@ test.describe('Search History Flow E2E Tests', () => {
     await page.goto('/catalog');
 
     const searchField = page.locator('[data-testid="search-field"]').first();
-    await searchField.focus();
+    await searchField.locator('input').focus();
 
     // Ждём появления истории
     await expect(page.locator('[data-testid="search-history"]')).toBeVisible({ timeout: 5000 });
@@ -247,7 +247,7 @@ test.describe('Search History Flow E2E Tests', () => {
     await page.goto('/catalog');
 
     const searchField = page.locator('[data-testid="search-field"]').first();
-    await searchField.focus();
+    await searchField.locator('input').focus();
 
     // Ждём появления истории
     await expect(page.locator('[data-testid="search-history"]')).toBeVisible({ timeout: 5000 });
@@ -274,7 +274,7 @@ test.describe('Search History Flow E2E Tests', () => {
     await page.goto('/catalog');
 
     const searchField = page.locator('[data-testid="search-field"]').first();
-    await searchField.focus();
+    await searchField.locator('input').focus();
 
     // Ждём появления истории
     await expect(page.locator('[data-testid="search-history"]')).toBeVisible({ timeout: 5000 });
@@ -309,7 +309,9 @@ test.describe('Search History Flow E2E Tests', () => {
     await searchField.press('Enter');
 
     // Проверяем, что URL изменился
-    await expect(page).toHaveURL(/\/search\?q=тренажёр/);
+    const url = new URL(page.url());
+    expect(url.pathname).toBe('/search');
+    expect(url.searchParams.get('q')).toBe('тренажёр');
 
     // "Перезагружаем" страницу (симуляция новой сессии)
     await page.goto('/catalog');
@@ -364,7 +366,7 @@ test.describe('Search History Accessibility Tests', () => {
 
     const searchField = page.locator('[data-testid="search-field"]').first();
     await expect(searchField).toBeVisible();
-    await searchField.focus();
+    await searchField.locator('input').focus();
 
     // Ждём появления истории
     await expect(page.locator('[data-testid="search-history"]')).toBeVisible({ timeout: 5000 });
@@ -384,7 +386,7 @@ test.describe('Search History Accessibility Tests', () => {
     await page.goto('/catalog');
 
     const searchField = page.locator('[data-testid="search-field"]').first();
-    await searchField.focus();
+    await searchField.locator('input').focus();
 
     await expect(page.locator('[data-testid="search-history"]')).toBeVisible({ timeout: 5000 });
 
@@ -405,7 +407,7 @@ test.describe('Search History Accessibility Tests', () => {
     await page.goto('/catalog');
 
     const searchField = page.locator('[data-testid="search-field"]').first();
-    await searchField.focus();
+    await searchField.locator('input').focus();
 
     await expect(page.locator('[data-testid="search-history"]')).toBeVisible({ timeout: 5000 });
 
