@@ -32,6 +32,7 @@ const mockFormData: CheckoutFormData = {
   apartment: '5',
   postalCode: '123456',
   deliveryMethod: 'courier',
+  paymentMethod: 'card',
   comment: 'Комментарий к заказу',
 };
 

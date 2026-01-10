@@ -97,14 +97,9 @@ export const ordersHandlers = [
       phone: string;
       first_name: string;
       last_name: string;
-      delivery_address: {
-        city: string;
-        street: string;
-        house: string;
-        apartment?: string;
-        postal_code: string;
-      };
-      delivery_method_id: string;
+      delivery_address: string;
+      delivery_method: string;
+      payment_method: string;
       items: Array<{ variant_id: number; quantity: number }>;
       comment?: string;
     };

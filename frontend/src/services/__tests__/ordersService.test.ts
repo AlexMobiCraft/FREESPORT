@@ -17,6 +17,12 @@ import { ordersErrorHandlers, mockSuccessOrder } from '../../__mocks__/handlers/
 import { AxiosError } from 'axios';
 import type { CheckoutFormData } from '@/schemas/checkoutSchema';
 import type { CartItem } from '@/types/cart';
+import type { OrderAuthError, OrderValidationError } from '@/types/order';
+
+type MockApiError =
+  | OrderValidationError
+  | OrderAuthError
+  | { error?: string; message?: string; detail?: string };
 
 /**
  * Mock данные формы checkout
@@ -110,7 +116,7 @@ describe('ordersService', () => {
             },
           },
         },
-      } as AxiosError;
+      } as AxiosError<MockApiError>;
 
       const message = parseApiError(error);
       expect(message).toBe('Товар закончился на складе');
@@ -124,7 +130,7 @@ describe('ordersService', () => {
             error: 'Некорректные данные',
           },
         },
-      } as AxiosError;
+      } as AxiosError<MockApiError>;
 
       const message = parseApiError(error);
       expect(message).toBe('Некорректные данные');
@@ -136,7 +142,7 @@ describe('ordersService', () => {
           status: 401,
           data: {},
         },
-      } as AxiosError;
+      } as AxiosError<MockApiError>;
 
       const message = parseApiError(error);
       expect(message).toBe('Сессия истекла. Войдите заново.');
@@ -148,7 +154,7 @@ describe('ordersService', () => {
           status: 500,
           data: {},
         },
-      } as AxiosError;
+      } as AxiosError<MockApiError>;
 
       const message = parseApiError(error);
       expect(message).toBe('Ошибка сервера. Попробуйте позже.');
@@ -157,7 +163,7 @@ describe('ordersService', () => {
     test('парсит network ошибку', () => {
       const error = {
         code: 'ECONNREFUSED',
-      } as AxiosError;
+      } as AxiosError<MockApiError>;
 
       const message = parseApiError(error);
       expect(message).toBe('Ошибка сети. Проверьте подключение к интернету.');
