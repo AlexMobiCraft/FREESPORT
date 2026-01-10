@@ -107,6 +107,7 @@ class CustomerSyncLog(TimeStampedModel):
 
     class OperationType(models.TextChoices):
         """Типы операций синхронизации."""
+
         CREATED = "created", _("Создан")
         UPDATED = "updated", _("Обновлен")
         SKIPPED = "skipped", _("Пропущен")
@@ -122,6 +123,7 @@ class CustomerSyncLog(TimeStampedModel):
 
     class StatusType(models.TextChoices):
         """Статусы операций синхронизации."""
+
         SUCCESS = "success", _("Успешно")
         FAILED = "failed", _("Ошибка")
         ERROR = "error", _("Ошибка")

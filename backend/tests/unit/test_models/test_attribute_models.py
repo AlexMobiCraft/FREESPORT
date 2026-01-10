@@ -22,9 +22,7 @@ class TestAttributeModel:
         onec_id = f"attr-color-{suffix}"
 
         # ACT
-        attribute = Attribute.objects.create(
-            name=name, onec_id=onec_id, type="color"
-        )
+        attribute = Attribute.objects.create(name=name, onec_id=onec_id, type="color")
 
         # ASSERT
         assert attribute.name == name
@@ -70,15 +68,11 @@ class TestAttributeModel:
         # ARRANGE
         suffix = get_unique_suffix()
         onec_id = f"attr-duplicate-{suffix}"
-        Attribute.objects.create(
-            name=f"Атрибут 1 {suffix}", onec_id=onec_id
-        )
+        Attribute.objects.create(name=f"Атрибут 1 {suffix}", onec_id=onec_id)
 
         # ACT & ASSERT
         with pytest.raises(IntegrityError):
-            Attribute.objects.create(
-                name=f"Атрибут 2 {suffix}", onec_id=onec_id
-            )
+            Attribute.objects.create(name=f"Атрибут 2 {suffix}", onec_id=onec_id)
 
 
 @pytest.mark.unit

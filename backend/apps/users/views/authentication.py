@@ -8,8 +8,7 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
-from drf_spectacular.utils import (OpenApiExample, OpenApiResponse,
-                                   extend_schema)
+from drf_spectacular.utils import OpenApiExample, OpenApiResponse, extend_schema
 from rest_framework import permissions, status
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.generics import GenericAPIView
@@ -21,9 +20,14 @@ from rest_framework_simplejwt.tokens import RefreshToken
 logger = logging.getLogger("apps.users.auth")
 
 # User model is used in the code
-from ..serializers import (LogoutSerializer, PasswordResetConfirmSerializer,
-                           PasswordResetRequestSerializer, UserLoginSerializer,
-                           UserRegistrationSerializer, ValidateTokenSerializer)
+from ..serializers import (
+    LogoutSerializer,
+    PasswordResetConfirmSerializer,
+    PasswordResetRequestSerializer,
+    UserLoginSerializer,
+    UserRegistrationSerializer,
+    ValidateTokenSerializer,
+)
 from ..tasks import send_password_reset_email
 from ..tokens import password_reset_token
 
@@ -265,13 +269,13 @@ class PasswordResetRequestView(APIView):
                 reset_url = (
                     f"http://localhost:3000/password-reset/confirm/{uid}/{token}/"
                 )
-                
+
                 # Запускаем задачу асинхронно
                 send_password_reset_email.delay(user.id, reset_url)
-                
+
                 logger.info(
                     "Password reset requested",
-                    extra={"user_id": user.id, "email": email}
+                    extra={"user_id": user.id, "email": email},
                 )
 
             except User.DoesNotExist:

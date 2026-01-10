@@ -13,9 +13,13 @@ from rest_framework.views import APIView
 from apps.orders.models import Order
 
 from ..models import Address, Favorite, User
-from ..serializers import (AddressSerializer, FavoriteCreateSerializer,
-                           FavoriteSerializer, OrderHistorySerializer,
-                           UserDashboardSerializer)
+from ..serializers import (
+    AddressSerializer,
+    FavoriteCreateSerializer,
+    FavoriteSerializer,
+    OrderHistorySerializer,
+    UserDashboardSerializer,
+)
 
 
 @dataclass
@@ -223,10 +227,10 @@ class OrderHistoryView(APIView):
 class CompanyView(APIView):
     """
     View для получения и редактирования реквизитов компании B2B пользователя.
-    
+
     GET: Получение реквизитов компании
     PUT: Обновление реквизитов компании
-    
+
     Доступ: только для B2B пользователей (is_b2b_user=True)
     """
 
@@ -244,13 +248,13 @@ class CompanyView(APIView):
     def _get_or_create_company(self, user: User):
         """Получить или создать Company для пользователя"""
         from ..models import Company
-        
+
         company, created = Company.objects.get_or_create(
             user=user,
             defaults={
                 "legal_name": user.company_name or "",
                 "tax_id": user.tax_id or "",
-            }
+            },
         )
         return company
 
@@ -267,15 +271,16 @@ class CompanyView(APIView):
     def get(self, request):
         """Получение реквизитов компании"""
         user = request.user
-        
+
         # Проверка B2B доступа
         error_response = self._check_b2b_access(user)
         if error_response:
             return error_response
-        
+
         company = self._get_or_create_company(user)
-        
+
         from ..serializers import CompanySerializer
+
         serializer = CompanySerializer(company)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -294,25 +299,28 @@ class CompanyView(APIView):
     def put(self, request):
         """Обновление реквизитов компании"""
         user = request.user
-        
+
         # Проверка B2B доступа
         error_response = self._check_b2b_access(user)
         if error_response:
             return error_response
-        
+
         company = self._get_or_create_company(user)
-        
+
         from ..serializers import CompanySerializer
+
         serializer = CompanySerializer(company, data=request.data, partial=True)
-        
+
         if serializer.is_valid():
             serializer.save()
-            
+
             # Синхронизируем company_name и tax_id в User
-            user.company_name = serializer.validated_data.get("legal_name", user.company_name)
+            user.company_name = serializer.validated_data.get(
+                "legal_name", user.company_name
+            )
             user.tax_id = serializer.validated_data.get("tax_id", user.tax_id)
             user.save(update_fields=["company_name", "tax_id"])
-            
+
             return Response(serializer.data, status=status.HTTP_200_OK)
-        
+
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

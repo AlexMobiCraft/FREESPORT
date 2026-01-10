@@ -70,8 +70,7 @@ SECURE_HSTS_PRELOAD = False
 # EMAIL_HOST=mailhog (или localhost)
 # EMAIL_PORT=1025
 EMAIL_BACKEND = os.environ.get(
-    "EMAIL_BACKEND",
-    "django.core.mail.backends.console.EmailBackend"
+    "EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend"
 )
 
 # Логирование для разработки

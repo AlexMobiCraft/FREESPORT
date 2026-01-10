@@ -14,7 +14,10 @@ class DeliveryMethod(models.Model):
     name = models.CharField("Название", max_length=100)
     description = models.TextField("Описание", blank=True)
     icon = models.CharField(
-        "Иконка", max_length=50, blank=True, help_text="CSS класс иконки или emoji для UI"
+        "Иконка",
+        max_length=50,
+        blank=True,
+        help_text="CSS класс иконки или emoji для UI",
     )
     is_available = models.BooleanField("Доступен", default=True)
     sort_order = models.PositiveIntegerField("Порядок сортировки", default=0)

@@ -8,6 +8,7 @@ from .tasks import send_user_verified_email
 User = get_user_model()
 logger = logging.getLogger(__name__)
 
+
 @receiver(pre_save, sender=User)
 def store_previous_verification_status(sender, instance, **kwargs):
     """
@@ -22,6 +23,7 @@ def store_previous_verification_status(sender, instance, **kwargs):
         except User.DoesNotExist:
             pass
 
+
 @receiver(post_save, sender=User)
 def check_verification_status_change(sender, instance, created, **kwargs):
     """
@@ -32,11 +34,11 @@ def check_verification_status_change(sender, instance, created, **kwargs):
         return
 
     # Получаем старые значения (если они были сохранены в pre_save)
-    old_status = getattr(instance, '_old_verification_status', None)
-    
+    old_status = getattr(instance, "_old_verification_status", None)
+
     # Проверяем переход в статус verified
     # Триггером может быть изменение verification_status на 'verified'
-    if old_status != 'verified' and instance.verification_status == 'verified':
+    if old_status != "verified" and instance.verification_status == "verified":
         logger.info(
             f"User {instance.id} verification status changed to 'verified'. Sending email."
         )

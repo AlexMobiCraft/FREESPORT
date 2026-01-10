@@ -22,9 +22,7 @@ class TestRegistrationEmailsIntegration:
 
     @patch("apps.users.serializers.send_admin_verification_email.delay")
     @patch("apps.users.serializers.send_user_pending_email.delay")
-    def test_b2b_registration_triggers_emails(
-        self, mock_user_email, mock_admin_email
-    ):
+    def test_b2b_registration_triggers_emails(self, mock_user_email, mock_admin_email):
         """B2B регистрация вызывает отправку email уведомлений."""
         client = APIClient()
 

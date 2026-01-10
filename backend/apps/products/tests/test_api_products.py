@@ -14,8 +14,11 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from apps.products.factories import (ColorMappingFactory, ProductFactory,
-                                     ProductVariantFactory)
+from apps.products.factories import (
+    ColorMappingFactory,
+    ProductFactory,
+    ProductVariantFactory,
+)
 from apps.products.models import ColorMapping, Product, ProductVariant
 from apps.users.models import User
 
@@ -351,9 +354,7 @@ class TestProductAPIPerformance:
         time_10 = timings[0][1]
         time_100 = timings[2][1]
 
-        assert (
-            time_100 <= time_10 * 15
-        ), (
+        assert time_100 <= time_10 * 15, (
             f"Performance не масштабируется линейно: 10v={time_10:.2f}ms, "
             f"100v={time_100:.2f}ms"
         )

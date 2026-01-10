@@ -139,7 +139,7 @@ def parse_characteristics(characteristics: list[dict[str, str]]) -> dict[str, st
     color_names = {"цвет", "color", "окраска"}
     # Убран "детский размер" — это булевый флаг, не размер
     size_names = {"размер", "size", "размерtd"}
-    
+
     # Невалидные значения для размера (булевые флаги)
     invalid_size_values = {"да", "нет", "yes", "no", "true", "false", "-"}
 
@@ -158,7 +158,6 @@ def parse_characteristics(characteristics: list[dict[str, str]]) -> dict[str, st
                 result["size_value"] = value
 
     return result
-
 
 
 def extract_size_from_name(name: str) -> str:
@@ -397,8 +396,7 @@ class VariantImportProcessor:
         Returns:
             Product instance или None при ошибке
         """
-        from apps.products.models import (Brand, Brand1CMapping, Category,
-                                          Product)
+        from apps.products.models import Brand, Brand1CMapping, Category, Product
 
         try:
             parent_id = goods_data.get("id")
@@ -545,13 +543,13 @@ class VariantImportProcessor:
         existing_images = product.base_images or []
         seen_filenames: set[str] = set()
         base_images: list[str] = []
-        
+
         for img_path in existing_images:
             filename = Path(img_path).name if img_path else ""
             if filename and filename not in seen_filenames:
                 base_images.append(img_path)
                 seen_filenames.add(filename)
-        
+
         seen_paths: set[str] = set(base_images)
 
         for image_path in image_paths:
@@ -824,24 +822,24 @@ class VariantImportProcessor:
             return
 
         main_image_set = bool(variant.main_image)
-        
+
         # Дедупликация существующих gallery_images по filename (исправление бага дублей)
         existing_gallery = variant.gallery_images or []
         seen_filenames: set[str] = set()
         gallery_images: list[str] = []
-        
+
         # Добавляем main_image filename в seen_filenames
         if variant.main_image:
             main_filename = Path(variant.main_image).name
             if main_filename:
                 seen_filenames.add(main_filename)
-        
+
         for img_path in existing_gallery:
             filename = Path(img_path).name if img_path else ""
             if filename and filename not in seen_filenames:
                 gallery_images.append(img_path)
                 seen_filenames.add(filename)
-        
+
         seen_paths: set[str] = set(gallery_images)
 
         for image_path in image_paths:
@@ -858,7 +856,7 @@ class VariantImportProcessor:
                     # Проверяем и по пути, и по filename
                     if saved_filename in seen_filenames:
                         continue
-                        
+
                     if not main_image_set:
                         variant.main_image = saved_path
                         main_image_set = True
@@ -1108,8 +1106,10 @@ class VariantImportProcessor:
             - Update stats: attributes_linked, attributes_missing
         """
         from apps.products.models import Attribute, AttributeValue
-        from apps.products.utils.attributes import (normalize_attribute_name,
-                                                    normalize_attribute_value)
+        from apps.products.utils.attributes import (
+            normalize_attribute_name,
+            normalize_attribute_value,
+        )
 
         if not characteristics:
             return

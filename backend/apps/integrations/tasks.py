@@ -27,7 +27,8 @@ def run_selective_import_task(
     self,
     selected_types: list[str],
     data_dir: (
-        str | None
+        str
+        | None
         # Этот аргумент больше не используется, но оставлен для обратной совместимости
     ) = None,
 ) -> dict[str, Any]:
@@ -170,7 +171,9 @@ def _execute_import_type(import_type: str, task_id: str) -> dict[str, str]:
         onec_data_dir = getattr(settings, "ONEC_DATA_DIR", None)
         if not onec_data_dir:
             raise ValueError("Настройка ONEC_DATA_DIR не найдена в settings")
-        logger.info(f"[Task {task_id}] Запуск import_customers_from_1c --data-dir={onec_data_dir}")
+        logger.info(
+            f"[Task {task_id}] Запуск import_customers_from_1c --data-dir={onec_data_dir}"
+        )
         call_command("import_customers_from_1c", "--data-dir", onec_data_dir)
         return {"type": "customers", "message": "Клиенты импортированы"}
 

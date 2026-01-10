@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 def send_order_confirmation_email(sender, instance, created, **kwargs):
     """
     Отправка email-уведомления клиенту при создании нового заказа.
-    
+
     Args:
         sender: Класс модели (Order)
         instance: Экземпляр заказа
@@ -46,7 +46,7 @@ def send_order_confirmation_email(sender, instance, created, **kwargs):
 
     # Формируем содержимое письма
     subject = f"Заказ #{instance.order_number} успешно оформлен - FREESPORT"
-    
+
     # Простое текстовое письмо
     message = _build_order_email_text(instance)
 
@@ -63,24 +63,22 @@ def send_order_confirmation_email(sender, instance, created, **kwargs):
             f"отправлено на {customer_email}"
         )
     except Exception as e:
-        logger.error(
-            f"Ошибка отправки email для заказа {instance.order_number}: {e}"
-        )
+        logger.error(f"Ошибка отправки email для заказа {instance.order_number}: {e}")
 
 
 def _build_order_email_text(order):
     """
     Формирование текста email-уведомления о заказе.
-    
+
     Args:
         order: Экземпляр заказа
-        
+
     Returns:
         str: Текст письма
     """
     # Получаем имя клиента
     customer_name = order.customer_display_name or "Уважаемый клиент"
-    
+
     # Получаем способ доставки
     delivery_methods = {
         "pickup": "Самовывоз",
@@ -95,7 +93,9 @@ def _build_order_email_text(order):
     # Формируем список товаров
     items_text = ""
     for item in order.items.all():
-        items_text += f"  - {item.product_name} × {item.quantity}: {item.total_price} ₽\n"
+        items_text += (
+            f"  - {item.product_name} × {item.quantity}: {item.total_price} ₽\n"
+        )
 
     message = f"""
 Здравствуйте, {customer_name}!

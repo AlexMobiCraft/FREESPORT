@@ -351,8 +351,7 @@ CONFLICT_NOTIFICATION_EMAIL = config(
 # Email backend: console для development, smtp для production
 # В development это переопределяется в development.py на console backend
 EMAIL_BACKEND = config(
-    "EMAIL_BACKEND",
-    default="django.core.mail.backends.smtp.EmailBackend"
+    "EMAIL_BACKEND", default="django.core.mail.backends.smtp.EmailBackend"
 )
 
 # SMTP сервер настройки
@@ -366,21 +365,14 @@ EMAIL_HOST_USER = config("EMAIL_HOST_USER", default="")
 EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD", default="")
 
 # Адрес отправителя по умолчанию
-DEFAULT_FROM_EMAIL = config(
-    "DEFAULT_FROM_EMAIL",
-    default="noreply@freesport.ru"
-)
+DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="noreply@freesport.ru")
 SERVER_EMAIL = config("SERVER_EMAIL", default=DEFAULT_FROM_EMAIL)
 
 # Парсинг списка администраторов из ADMIN_EMAILS
 # Формат: "Admin Name <admin@example.com>,Another Admin <admin2@example.com>"
 # или просто: "admin@example.com,admin2@example.com"
 _admin_emails_raw = config("ADMIN_EMAILS", default="", cast=Csv())
-ADMINS = [
-    ("Admin", email.strip())
-    for email in _admin_emails_raw
-    if email.strip()
-]
+ADMINS = [("Admin", email.strip()) for email in _admin_emails_raw if email.strip()]
 
 # Менеджеры получают уведомления о битых ссылках (404)
 MANAGERS = ADMINS
@@ -394,7 +386,9 @@ LOGS_DIR = BASE_DIR / "logs"
 # Создаём директорию логов безопасно
 try:
     LOGS_DIR.mkdir(exist_ok=True)
-    _base_file_logging_available = LOGS_DIR.exists() and os.access(str(LOGS_DIR), os.W_OK)
+    _base_file_logging_available = LOGS_DIR.exists() and os.access(
+        str(LOGS_DIR), os.W_OK
+    )
 except (OSError, PermissionError):
     _base_file_logging_available = False
 
@@ -429,8 +423,12 @@ if _base_file_logging_available:
     }
 
 # Определяем loggers в зависимости от доступности файлового логирования
-_import_handlers = ["import_file", "console"] if _base_file_logging_available else ["console"]
-_products_handlers = ["console", "error_file"] if _base_file_logging_available else ["console"]
+_import_handlers = (
+    ["import_file", "console"] if _base_file_logging_available else ["console"]
+)
+_products_handlers = (
+    ["console", "error_file"] if _base_file_logging_available else ["console"]
+)
 
 LOGGING = {
     "version": 1,

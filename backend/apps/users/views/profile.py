@@ -2,8 +2,7 @@
 Views для управления профилем пользователя
 """
 
-from drf_spectacular.utils import (OpenApiExample, OpenApiResponse,
-                                   extend_schema)
+from drf_spectacular.utils import OpenApiExample, OpenApiResponse, extend_schema
 from rest_framework import permissions
 from rest_framework.generics import RetrieveUpdateAPIView
 

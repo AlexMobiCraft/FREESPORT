@@ -10,14 +10,18 @@ import pytest
 from django.test import TestCase
 from django.utils import timezone
 
-from apps.banners.factories import (ActiveAuthenticatedBannerFactory,
-                                    ActiveFederationBannerFactory,
-                                    ActiveGuestBannerFactory,
-                                    ActiveTrainerBannerFactory,
-                                    ActiveWholesaleBannerFactory,
-                                    BannerFactory, ExpiredBannerFactory,
-                                    FutureBannerFactory, InactiveBannerFactory,
-                                    ScheduledBannerFactory)
+from apps.banners.factories import (
+    ActiveAuthenticatedBannerFactory,
+    ActiveFederationBannerFactory,
+    ActiveGuestBannerFactory,
+    ActiveTrainerBannerFactory,
+    ActiveWholesaleBannerFactory,
+    BannerFactory,
+    ExpiredBannerFactory,
+    FutureBannerFactory,
+    InactiveBannerFactory,
+    ScheduledBannerFactory,
+)
 from apps.banners.models import Banner
 from tests.factories import UserFactory
 

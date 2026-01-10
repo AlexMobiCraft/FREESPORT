@@ -623,8 +623,8 @@ class TestIntegrationVerification(TestCase):
 
     def test_iv1_brands_categories_unchanged(self):
         """IV1: Импорт брендов и категорий работает без изменений
-        
-        Note: Методы process_categories и process_brands перенесены 
+
+        Note: Методы process_categories и process_brands перенесены
         в VariantImportProcessor в Story 27.1
         """
         session = ImportSession.objects.create(

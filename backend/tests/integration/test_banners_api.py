@@ -236,9 +236,9 @@ class TestBannersAPI:
         mid_index = titles.index(banner_mid.title)
         low_index = titles.index(banner_low.title)
 
-        assert high_index < mid_index < low_index, (
-            "Баннеры должны быть отсортированы по приоритету в порядке убывания"
-        )
+        assert (
+            high_index < mid_index < low_index
+        ), "Баннеры должны быть отсортированы по приоритету в порядке убывания"
 
     def test_response_contains_required_fields(self) -> None:
         """Ответ API содержит все обязательные поля"""

@@ -64,8 +64,7 @@ class ActiveBannersView(viewsets.ViewSet):
                         "title": "Специальные цены для оптовиков",
                         "subtitle": "Скидки до 30% на весь ассортимент",
                         "image_url": (
-                            "http://example.com/media/banners/2025/01/"
-                            "wholesale.webp"
+                            "http://example.com/media/banners/2025/01/" "wholesale.webp"
                         ),
                         "image_alt": "Баннер оптовых цен",
                         "cta_text": "Узнать больше",

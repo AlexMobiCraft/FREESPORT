@@ -120,9 +120,7 @@ class TestLogoutAPISuccess:
         """
         # Arrange
         tokens = authenticated_user_with_tokens
-        logout_api_client.credentials(
-            HTTP_AUTHORIZATION=f"Bearer {tokens['access']}"
-        )
+        logout_api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {tokens['access']}")
 
         # Act
         response = logout_api_client.post(
@@ -148,9 +146,7 @@ class TestLogoutAPISuccess:
         """
         # Arrange
         tokens = authenticated_user_with_tokens
-        logout_api_client.credentials(
-            HTTP_AUTHORIZATION=f"Bearer {tokens['access']}"
-        )
+        logout_api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {tokens['access']}")
         jti = tokens["refresh_obj"]["jti"]
 
         # Act
@@ -181,9 +177,7 @@ class TestLogoutAPISuccess:
         """
         # Arrange
         tokens = authenticated_user_with_tokens
-        logout_api_client.credentials(
-            HTTP_AUTHORIZATION=f"Bearer {tokens['access']}"
-        )
+        logout_api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {tokens['access']}")
 
         # Act - Logout
         logout_api_client.post(
@@ -215,9 +209,7 @@ class TestLogoutAPISuccess:
         """
         # Arrange
         tokens = authenticated_user_with_tokens
-        logout_api_client.credentials(
-            HTTP_AUTHORIZATION=f"Bearer {tokens['access']}"
-        )
+        logout_api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {tokens['access']}")
 
         # Act - logout сразу после создания токенов
         response = logout_api_client.post(
@@ -333,9 +325,7 @@ class TestLogoutAPITokenValidationErrors:
         """
         # Arrange
         tokens = authenticated_user_with_tokens
-        logout_api_client.credentials(
-            HTTP_AUTHORIZATION=f"Bearer {tokens['access']}"
-        )
+        logout_api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {tokens['access']}")
 
         # Act
         response = logout_api_client.post(
@@ -360,9 +350,7 @@ class TestLogoutAPITokenValidationErrors:
         """
         # Arrange
         tokens = authenticated_user_with_tokens
-        logout_api_client.credentials(
-            HTTP_AUTHORIZATION=f"Bearer {tokens['access']}"
-        )
+        logout_api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {tokens['access']}")
 
         # Blacklist токена
         logout_api_client.post(
@@ -394,9 +382,7 @@ class TestLogoutAPITokenValidationErrors:
         """
         # Arrange
         tokens = authenticated_user_with_tokens
-        logout_api_client.credentials(
-            HTTP_AUTHORIZATION=f"Bearer {tokens['access']}"
-        )
+        logout_api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {tokens['access']}")
 
         # Act
         response = logout_api_client.post(
@@ -420,9 +406,7 @@ class TestLogoutAPITokenValidationErrors:
         """
         # Arrange
         tokens = authenticated_user_with_tokens
-        logout_api_client.credentials(
-            HTTP_AUTHORIZATION=f"Bearer {tokens['access']}"
-        )
+        logout_api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {tokens['access']}")
 
         # Act
         response = logout_api_client.post(
@@ -447,9 +431,7 @@ class TestLogoutAPITokenValidationErrors:
         """
         # Arrange
         tokens = authenticated_user_with_tokens
-        logout_api_client.credentials(
-            HTTP_AUTHORIZATION=f"Bearer {tokens['access']}"
-        )
+        logout_api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {tokens['access']}")
 
         # Act - передаем access token вместо refresh
         response = logout_api_client.post(
@@ -514,9 +496,7 @@ class TestLogoutAPIEdgeCases:
         """
         # Arrange
         tokens = authenticated_user_with_tokens
-        logout_api_client.credentials(
-            HTTP_AUTHORIZATION=f"Bearer {tokens['access']}"
-        )
+        logout_api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {tokens['access']}")
 
         # First logout
         first_response = logout_api_client.post(
@@ -545,9 +525,7 @@ class TestLogoutAPIEdgeCases:
         """GET запрос возвращает 405 Method Not Allowed."""
         # Arrange
         tokens = authenticated_user_with_tokens
-        logout_api_client.credentials(
-            HTTP_AUTHORIZATION=f"Bearer {tokens['access']}"
-        )
+        logout_api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {tokens['access']}")
 
         # Act
         response = logout_api_client.get(get_logout_url)
@@ -564,9 +542,7 @@ class TestLogoutAPIEdgeCases:
         """PUT запрос возвращает 405 Method Not Allowed."""
         # Arrange
         tokens = authenticated_user_with_tokens
-        logout_api_client.credentials(
-            HTTP_AUTHORIZATION=f"Bearer {tokens['access']}"
-        )
+        logout_api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {tokens['access']}")
 
         # Act
         response = logout_api_client.put(
@@ -586,9 +562,7 @@ class TestLogoutAPIEdgeCases:
         """DELETE запрос возвращает 405 Method Not Allowed."""
         # Arrange
         tokens = authenticated_user_with_tokens
-        logout_api_client.credentials(
-            HTTP_AUTHORIZATION=f"Bearer {tokens['access']}"
-        )
+        logout_api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {tokens['access']}")
 
         # Act
         response = logout_api_client.delete(get_logout_url)
@@ -608,9 +582,7 @@ class TestLogoutAPIEdgeCases:
         """
         # Arrange
         tokens = authenticated_user_with_tokens
-        logout_api_client.credentials(
-            HTTP_AUTHORIZATION=f"Bearer {tokens['access']}"
-        )
+        logout_api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {tokens['access']}")
         long_token = "a" * 10000  # Очень длинный токен
 
         # Act
@@ -637,9 +609,7 @@ class TestLogoutAPIEdgeCases:
         """
         # Arrange
         tokens = authenticated_user_with_tokens
-        logout_api_client.credentials(
-            HTTP_AUTHORIZATION=f"Bearer {tokens['access']}"
-        )
+        logout_api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {tokens['access']}")
 
         # Act - logout
         response = logout_api_client.post(

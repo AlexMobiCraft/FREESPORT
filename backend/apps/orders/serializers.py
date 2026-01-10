@@ -276,7 +276,9 @@ class OrderCreateSerializer(serializers.ModelSerializer):
         order_item_manager.bulk_create(order_items)
 
         # Списываем физические остатки со склада
-        variant_manager = cast(BaseManager[ProductVariant], getattr(ProductVariant, "objects"))
+        variant_manager = cast(
+            BaseManager[ProductVariant], getattr(ProductVariant, "objects")
+        )
         for variant_pk, quantity in variant_updates:
             variant_manager.filter(pk=variant_pk).update(
                 stock_quantity=F("stock_quantity") - quantity

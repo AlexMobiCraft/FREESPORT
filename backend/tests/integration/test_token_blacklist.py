@@ -137,7 +137,9 @@ class TestTokenBlacklistMechanism:
 
         # Проверка создания записи
         final_count = OutstandingToken.objects.filter(user=self.test_user).count()
-        assert final_count == initial_count + 1, "Должна быть создана запись в OutstandingToken"
+        assert (
+            final_count == initial_count + 1
+        ), "Должна быть создана запись в OutstandingToken"
 
     def test_blacklist_token_creates_blacklisted_record(self) -> None:
         """Blacklist токена создаёт запись в BlacklistedToken"""
@@ -149,7 +151,9 @@ class TestTokenBlacklistMechanism:
 
         # Проверка создания записи
         final_count = BlacklistedToken.objects.count()
-        assert final_count == initial_count + 1, "Должна быть создана запись в BlacklistedToken"
+        assert (
+            final_count == initial_count + 1
+        ), "Должна быть создана запись в BlacklistedToken"
 
     def test_blacklisted_token_cannot_be_used(self) -> None:
         """Blacklisted токен не может быть использован для refresh"""
@@ -163,9 +167,10 @@ class TestTokenBlacklistMechanism:
         with pytest.raises(TokenError) as exc_info:
             RefreshToken(refresh_token_str)
 
-        assert "черный список" in str(exc_info.value).lower() or "blacklist" in str(
-            exc_info.value
-        ).lower(), "Должна быть ошибка о blacklist"
+        assert (
+            "черный список" in str(exc_info.value).lower()
+            or "blacklist" in str(exc_info.value).lower()
+        ), "Должна быть ошибка о blacklist"
 
     def test_non_blacklisted_token_works_normally(self) -> None:
         """Не-blacklisted токен работает нормально"""
@@ -190,7 +195,9 @@ class TestTokenBlacklistMechanism:
 
         # Проверка количества записей
         final_count = BlacklistedToken.objects.count()
-        assert final_count == initial_count + 3, "Должно быть добавлено 3 записи в BlacklistedToken"
+        assert (
+            final_count == initial_count + 3
+        ), "Должно быть добавлено 3 записи в BlacklistedToken"
 
 
 @pytest.mark.integration
@@ -240,28 +247,30 @@ class TestTokenRotationWithBlacklist:
             "/api/v1/auth/refresh/", {"refresh": old_refresh_token}, format="json"
         )
 
-        assert response.status_code == status.HTTP_200_OK, (
-            f"Refresh должен быть успешным, получен статус {response.status_code}"
-        )
+        assert (
+            response.status_code == status.HTTP_200_OK
+        ), f"Refresh должен быть успешным, получен статус {response.status_code}"
         assert "refresh" in response.data, "Должен быть возвращён новый refresh токен"
         assert "access" in response.data, "Должен быть возвращён новый access токен"
 
         new_refresh_token = response.data["refresh"]
-        assert new_refresh_token != old_refresh_token, "Новый refresh токен должен отличаться"
+        assert (
+            new_refresh_token != old_refresh_token
+        ), "Новый refresh токен должен отличаться"
 
         # Проверка что старый токен добавлен в blacklist
         final_blacklist_count = BlacklistedToken.objects.count()
-        assert final_blacklist_count == initial_blacklist_count + 1, (
-            "Старый токен должен быть добавлен в blacklist"
-        )
+        assert (
+            final_blacklist_count == initial_blacklist_count + 1
+        ), "Старый токен должен быть добавлен в blacklist"
 
         # Проверка что старый токен больше не работает
         old_token_response = self.client.post(
             "/api/v1/auth/refresh/", {"refresh": old_refresh_token}, format="json"
         )
-        assert old_token_response.status_code == status.HTTP_401_UNAUTHORIZED, (
-            "Старый токен не должен работать после ротации"
-        )
+        assert (
+            old_token_response.status_code == status.HTTP_401_UNAUTHORIZED
+        ), "Старый токен не должен работать после ротации"
 
 
 @pytest.mark.integration
@@ -305,9 +314,9 @@ class TestLogoutView:
         )
 
         # Assert - проверка ответа
-        assert response.status_code == status.HTTP_204_NO_CONTENT, (
-            f"Logout должен вернуть 204, получен {response.status_code}"
-        )
+        assert (
+            response.status_code == status.HTTP_204_NO_CONTENT
+        ), f"Logout должен вернуть 204, получен {response.status_code}"
 
         # Проверка что токен в blacklist
         assert BlacklistedToken.objects.filter(
@@ -322,9 +331,9 @@ class TestLogoutView:
         )
 
         # Assert
-        assert response.status_code == status.HTTP_401_UNAUTHORIZED, (
-            f"Должен вернуть 401, получен {response.status_code}"
-        )
+        assert (
+            response.status_code == status.HTTP_401_UNAUTHORIZED
+        ), f"Должен вернуть 401, получен {response.status_code}"
 
     def test_logout_with_invalid_token(self) -> None:
         """Logout с невалидным токеном возвращает 400"""
@@ -335,13 +344,15 @@ class TestLogoutView:
         # Act - logout с невалидным refresh токеном
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {access_token}")
         response = self.client.post(
-            "/api/v1/auth/logout/", data={"refresh": "invalid-token-string"}, format="json"
+            "/api/v1/auth/logout/",
+            data={"refresh": "invalid-token-string"},
+            format="json",
         )
 
         # Assert
-        assert response.status_code == status.HTTP_400_BAD_REQUEST, (
-            f"Должен вернуть 400, получен {response.status_code}"
-        )
+        assert (
+            response.status_code == status.HTTP_400_BAD_REQUEST
+        ), f"Должен вернуть 400, получен {response.status_code}"
         assert "error" in response.data, "Должно быть сообщение об ошибке"
 
     def test_blacklisted_token_cannot_refresh(self) -> None:
@@ -362,9 +373,9 @@ class TestLogoutView:
         )
 
         # Assert
-        assert response.status_code == status.HTTP_401_UNAUTHORIZED, (
-            f"Blacklisted токен не должен работать, получен {response.status_code}"
-        )
+        assert (
+            response.status_code == status.HTTP_401_UNAUTHORIZED
+        ), f"Blacklisted токен не должен работать, получен {response.status_code}"
 
     def test_logout_with_already_blacklisted_token(self) -> None:
         """Logout с уже blacklisted токеном возвращает 400"""
@@ -381,9 +392,9 @@ class TestLogoutView:
         )
 
         # Assert
-        assert response.status_code == status.HTTP_400_BAD_REQUEST, (
-            f"Должен вернуть 400, получен {response.status_code}"
-        )
+        assert (
+            response.status_code == status.HTTP_400_BAD_REQUEST
+        ), f"Должен вернуть 400, получен {response.status_code}"
 
     def test_logout_audit_logging(self, caplog) -> None:
         """Проверка audit logging при logout"""
@@ -409,9 +420,7 @@ class TestLogoutView:
         assert response.status_code == status.HTTP_204_NO_CONTENT
 
         # Проверка audit log записи
-        log_record = next(
-            (r for r in caplog.records if "[AUDIT]" in r.message), None
-        )
+        log_record = next((r for r in caplog.records if "[AUDIT]" in r.message), None)
         assert log_record is not None, "Audit log не найден"
         assert log_record.levelname == "INFO"
 
@@ -427,9 +436,7 @@ class TestLogoutView:
         assert timestamp_match is not None, "Timestamp не найден в логе"
         timestamp_str = timestamp_match.group(1)
         # Проверка парсинга timestamp
-        parsed_timestamp = datetime.fromisoformat(
-            timestamp_str.replace("Z", "+00:00")
-        )
+        parsed_timestamp = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
         assert parsed_timestamp is not None, "Timestamp должен быть в ISO 8601 формате"
 
     def test_logout_failed_audit_logging(self, caplog) -> None:
@@ -453,7 +460,11 @@ class TestLogoutView:
 
         # Проверка WARNING log записи
         log_record = next(
-            (r for r in caplog.records if "[AUDIT]" in r.message and "failed" in r.message),
+            (
+                r
+                for r in caplog.records
+                if "[AUDIT]" in r.message and "failed" in r.message
+            ),
             None,
         )
         assert log_record is not None, "WARNING audit log не найден"

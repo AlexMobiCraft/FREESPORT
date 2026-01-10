@@ -233,9 +233,7 @@ class TestBlogDetailEndpoint:
 
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
-    def test_get_blog_detail_unpublished_returns_404(
-        self, api_client, test_category
-    ):
+    def test_get_blog_detail_unpublished_returns_404(self, api_client, test_category):
         """Проверяет 404 для неопубликованной статьи."""
         now = timezone.now()
         unpublished_post = BlogPost.objects.create(
@@ -253,9 +251,7 @@ class TestBlogDetailEndpoint:
 
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
-    def test_get_blog_detail_future_post_returns_404(
-        self, api_client, test_category
-    ):
+    def test_get_blog_detail_future_post_returns_404(self, api_client, test_category):
         """Проверяет 404 для статьи с будущей датой публикации."""
         now = timezone.now()
         future_post = BlogPost.objects.create(
@@ -273,9 +269,7 @@ class TestBlogDetailEndpoint:
 
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
-    def test_get_blog_detail_response_structure(
-        self, api_client, published_blog_posts
-    ):
+    def test_get_blog_detail_response_structure(self, api_client, published_blog_posts):
         """Проверяет структуру ответа детальной страницы (все поля присутствуют)."""
         blog_post = published_blog_posts[0]
         url = reverse("common:blog-detail", kwargs={"slug": blog_post.slug})
@@ -303,9 +297,7 @@ class TestBlogDetailEndpoint:
         }
         assert expected_fields.issubset(response.data.keys())
 
-    def test_get_blog_detail_category_structure(
-        self, api_client, published_blog_posts
-    ):
+    def test_get_blog_detail_category_structure(self, api_client, published_blog_posts):
         """Проверяет структуру вложенной категории."""
         blog_post = published_blog_posts[0]
         url = reverse("common:blog-detail", kwargs={"slug": blog_post.slug})

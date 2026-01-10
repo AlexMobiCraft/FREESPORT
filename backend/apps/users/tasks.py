@@ -246,7 +246,6 @@ def monitor_pending_verification_queue() -> dict:
                 },
             )
 
-
     return {"pending_count": pending_count, "alert_sent": alert_sent}
 
 

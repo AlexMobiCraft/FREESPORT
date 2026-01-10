@@ -28,11 +28,15 @@ from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 
 from .filters import ProductFilter
-from .models import (Attribute, AttributeValue, Brand, Category, Product,
-                     ProductVariant)
-from .serializers import (AttributeFilterSerializer, BrandSerializer,
-                          CategorySerializer, CategoryTreeSerializer,
-                          ProductDetailSerializer, ProductListSerializer)
+from .models import Attribute, AttributeValue, Brand, Category, Product, ProductVariant
+from .serializers import (
+    AttributeFilterSerializer,
+    BrandSerializer,
+    CategorySerializer,
+    CategoryTreeSerializer,
+    ProductDetailSerializer,
+    ProductListSerializer,
+)
 from .services.facets import AttributeFacetService
 
 
@@ -69,7 +73,9 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
                 # Фильтруем варианты с ценой > 0, чтобы избежать отображения цены 0
                 Prefetch(
                     "variants",
-                    queryset=ProductVariant.objects.filter(retail_price__gt=0).order_by("retail_price"),
+                    queryset=ProductVariant.objects.filter(retail_price__gt=0).order_by(
+                        "retail_price"
+                    ),
                     to_attr="first_variant_list",
                 ),
             )

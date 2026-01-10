@@ -21,8 +21,21 @@ class Command(BaseCommand):
     help = "Очистка некорректных значений size_value в ProductVariant"
 
     # Невалидные значения размера (булевые флаги)
-    INVALID_VALUES = ['Да', 'да', 'Нет', 'нет', 'Yes', 'yes', 'No', 'no', 
-                      'True', 'true', 'False', 'false', '-']
+    INVALID_VALUES = [
+        "Да",
+        "да",
+        "Нет",
+        "нет",
+        "Yes",
+        "yes",
+        "No",
+        "no",
+        "True",
+        "true",
+        "False",
+        "false",
+        "-",
+    ]
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -64,4 +77,3 @@ class Command(BaseCommand):
             self.stdout.write(
                 self.style.WARNING("\nДля применения изменений запустите без --dry-run")
             )
-

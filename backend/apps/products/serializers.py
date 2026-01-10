@@ -10,8 +10,16 @@ from typing import TYPE_CHECKING, Any
 from django.db.models import Count, Q
 from rest_framework import serializers
 
-from .models import (Attribute, AttributeValue, Brand, Category, ColorMapping,
-                     Product, ProductImage, ProductVariant)
+from .models import (
+    Attribute,
+    AttributeValue,
+    Brand,
+    Category,
+    ColorMapping,
+    Product,
+    ProductImage,
+    ProductVariant,
+)
 
 
 class AttributeValueSerializer(serializers.ModelSerializer):
