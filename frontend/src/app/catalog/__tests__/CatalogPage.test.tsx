@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import CatalogPage from '../page';
 import { useSearchParams } from 'next/navigation';
@@ -20,6 +20,13 @@ const mockProducts = [
     stock_quantity: 10,
     can_be_ordered: true,
     brand: { id: 1, name: 'Nike', slug: 'nike' },
+    category: { id: 1, name: 'Обувь', slug: 'shoes' },
+    is_hit: false,
+    is_new: false,
+    is_sale: false,
+    is_promo: false,
+    is_premium: false,
+    discount_percent: null,
   },
   {
     id: 2,
@@ -31,6 +38,13 @@ const mockProducts = [
     stock_quantity: 5,
     can_be_ordered: true,
     brand: { id: 1, name: 'Nike', slug: 'nike' },
+    category: { id: 1, name: 'Обувь', slug: 'shoes' },
+    is_hit: false,
+    is_new: false,
+    is_sale: false,
+    is_promo: false,
+    is_premium: false,
+    discount_percent: null,
   },
 ];
 
@@ -306,8 +320,10 @@ describe('CatalogPage - Search Integration (Story 18.4)', () => {
     // Вводим 1 символ
     await user.type(searchInput, 'n');
 
-    // Ждем debounce
-    await new Promise(resolve => setTimeout(resolve, 400));
+    // Ждем debounce, обернув в act чтобы поймать обновление состояния
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 400));
+    });
 
     // Проверяем, что API не был вызван с параметром search
     const calls = (productsService.default.getAll as Mock).mock.calls;

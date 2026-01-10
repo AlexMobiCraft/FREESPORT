@@ -226,11 +226,16 @@ describe('SearchPageClient', () => {
       });
     });
 
-    it('shows loading state initially', () => {
+    it('shows loading state initially', async () => {
       render(<SearchPageClient initialQuery="nike" initialPage={1} />);
 
       const searchResults = screen.getByTestId('search-results');
       expect(searchResults).toHaveAttribute('data-loading', 'true');
+
+      // Wait for data to load to avoid act warning
+      await waitFor(() => {
+        expect(searchResults).toHaveAttribute('data-loading', 'false');
+      });
     });
 
     it('hides loading state after data is fetched', async () => {

@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SearchAutocomplete } from '../SearchAutocomplete';
 
@@ -44,21 +44,89 @@ vi.mock('@/hooks/useSearchHistory', () => ({
 import productsService from '@/services/productsService';
 
 const mockProducts = [
-  { id: 1, name: 'Мяч футбольный Nike', slug: 'myach-futbolny-nike', retail_price: 2500 },
-  { id: 2, name: 'Кроссовки Adidas', slug: 'krossovki-adidas', retail_price: 8900 },
+  {
+    id: 1,
+    name: 'Мяч футбольный Nike',
+    slug: 'myach-futbolny-nike',
+    retail_price: 2500,
+    category: { id: 1, name: 'Мячи', slug: 'balls' },
+    is_in_stock: true,
+    is_hit: false,
+    is_new: false,
+    is_sale: false,
+    is_promo: false,
+    is_premium: false,
+    discount_percent: null,
+  },
+  {
+    id: 2,
+    name: 'Кроссовки Adidas',
+    slug: 'krossovki-adidas',
+    retail_price: 8900,
+    category: { id: 2, name: 'Обувь', slug: 'shoes' },
+    is_in_stock: true,
+    is_hit: false,
+    is_new: false,
+    is_sale: false,
+    is_promo: false,
+    is_premium: false,
+    discount_percent: null,
+  },
   {
     id: 3,
     name: 'Ракетка теннисная Wilson',
     slug: 'raketka-tennisnaya-wilson',
     retail_price: 15000,
+    category: { id: 3, name: 'Теннис', slug: 'tennis' },
+    is_in_stock: true,
+    is_hit: false,
+    is_new: false,
+    is_sale: false,
+    is_promo: false,
+    is_premium: false,
+    discount_percent: null,
   },
-  { id: 4, name: 'Шлем хоккейный Bauer', slug: 'shlem-hokkeynyy-bauer', retail_price: 12000 },
-  { id: 5, name: 'Коньки фигурные Jackson', slug: 'konki-figurnye-jackson', retail_price: 25000 },
+  {
+    id: 4,
+    name: 'Шлем хоккейный Bauer',
+    slug: 'shlem-hokkeynyy-bauer',
+    retail_price: 12000,
+    category: { id: 4, name: 'Хоккей', slug: 'hockey' },
+    is_in_stock: true,
+    is_hit: false,
+    is_new: false,
+    is_sale: false,
+    is_promo: false,
+    is_premium: false,
+    discount_percent: null,
+  },
+  {
+    id: 5,
+    name: 'Коньки фигурные Jackson',
+    slug: 'konki-figurnye-jackson',
+    retail_price: 25000,
+    category: { id: 4, name: 'Хоккей', slug: 'hockey' },
+    is_in_stock: true,
+    is_hit: false,
+    is_new: false,
+    is_sale: false,
+    is_promo: false,
+    is_premium: false,
+    discount_percent: null,
+  },
   {
     id: 6,
     name: 'Перчатки боксерские Everlast',
     slug: 'perchatki-bokserskie-everlast',
     retail_price: 5500,
+    category: { id: 5, name: 'Единоборства', slug: 'fight' },
+    is_in_stock: true,
+    is_hit: false,
+    is_new: false,
+    is_sale: false,
+    is_promo: false,
+    is_premium: false,
+    discount_percent: null,
   },
 ];
 
@@ -128,8 +196,11 @@ describe('SearchAutocomplete', () => {
       const input = screen.getByRole('combobox');
       await user.type(input, 'м');
 
-      // Wait and verify no call was made
-      await new Promise(resolve => setTimeout(resolve, 400));
+      // Wait and verify no call was made, wrapped in act
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 400));
+      });
+
       expect(productsService.search).not.toHaveBeenCalled();
     });
 

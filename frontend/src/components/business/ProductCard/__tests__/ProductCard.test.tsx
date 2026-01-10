@@ -25,14 +25,12 @@ type MockButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & { children: Rea
 type MockCnArgs = Array<string | false | null | undefined>;
 
 // Mock Next.js Image component
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const MockImage = ({ src, alt, fill: _fill, ...rest }: MockImageProps) => (
-  // eslint-disable-next-line @next/next/no-img-element
-  <img src={src} alt={alt} {...rest} />
-);
-
+// Mock Next.js Image component
 vi.mock('next/image', () => ({
-  default: MockImage,
+  default: ({ src, alt, fill, ...rest }: MockImageProps) => (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={src} alt={alt} {...rest} data-fill={fill} />
+  ),
 }));
 
 // Mock lucide-react icons
