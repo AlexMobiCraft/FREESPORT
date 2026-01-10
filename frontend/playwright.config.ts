@@ -44,11 +44,12 @@ export default defineConfig({
     // Таймауты
     actionTimeout: 15000,
     // Увеличен timeout навигации из-за медленной компиляции Next.js в Docker
-    navigationTimeout: 60000,
+    // Некоторые checkout страницы компилируются до 39 секунд
+    navigationTimeout: 120000,
   },
 
-  // Общий таймаут теста
-  timeout: 90000,
+  // Общий таймаут теста (увеличен для медленных страниц в Docker)
+  timeout: 180000,
 
   // Ожидание результата expect
   expect: {

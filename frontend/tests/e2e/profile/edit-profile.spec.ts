@@ -181,7 +181,7 @@ test.describe('Profile Page - Edit Profile Flow', () => {
       await page.click('button[type="submit"]');
 
       // ASSERT
-      await expect(page.locator('text=Телефон должен быть в формате')).toBeVisible();
+      await expect(page.locator('text=Телефон должен быть в формате').first()).toBeVisible();
     });
   });
 

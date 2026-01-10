@@ -9,5 +9,9 @@
       "Bash(curl:*)",
       "Bash(docker logs:*)"
     ]
-  }
+  },
+  "enabledMcpjsonServers": [
+    "agentvibes"
+  ],
+  "enableAllProjectMcpServers": true
 }

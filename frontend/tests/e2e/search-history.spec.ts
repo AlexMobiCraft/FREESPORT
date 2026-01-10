@@ -109,6 +109,16 @@ async function getSearchHistory(page: Page): Promise<string[]> {
   }, STORAGE_KEY);
 }
 
+/**
+ * Получение и фокус на поле поиска
+ */
+async function getSearchInput(page: Page) {
+  await page.waitForLoadState('networkidle');
+  const searchInput = page.locator('input[role="combobox"]').first();
+  await searchInput.waitFor({ state: 'visible', timeout: 10000 });
+  return searchInput;
+}
+
 test.describe('Search History Flow E2E Tests', () => {
   test.beforeEach(async ({ page }) => {
     await setupApiMocks(page);
@@ -120,16 +130,15 @@ test.describe('Search History Flow E2E Tests', () => {
   test('stores search queries in localStorage', async ({ page }) => {
     await page.goto('/catalog');
 
-    // Находим поле поиска в header
-    const searchField = page.locator('[data-testid="search-field"]').first();
-    await expect(searchField).toBeVisible();
+    // Находим поле поиска
+    const searchInput = await getSearchInput(page);
 
     // Вводим поисковый запрос
-    await searchField.fill('кроссовки');
+    await searchInput.fill('кроссовки');
 
     // Ждём debounce и нажимаем Enter
     await page.waitForTimeout(400);
-    await searchField.press('Enter');
+    await searchInput.press('Enter');
 
     // Проверяем, что запрос сохранён в localStorage
     const history = await getSearchHistory(page);
@@ -157,13 +166,12 @@ test.describe('Search History Flow E2E Tests', () => {
 
     await page.goto('/catalog');
 
-    const searchField = page.locator('[data-testid="search-field"]').first();
-    await expect(searchField).toBeVisible();
+    const searchInput = await getSearchInput(page);
 
     // Добавляем новый запрос
-    await searchField.fill('новый запрос');
+    await searchInput.fill('новый запрос');
     await page.waitForTimeout(400);
-    await searchField.press('Enter');
+    await searchInput.press('Enter');
 
     // Проверяем, что история содержит макс 10 элементов
     const history = await getSearchHistory(page);
@@ -180,10 +188,9 @@ test.describe('Search History Flow E2E Tests', () => {
 
     await page.goto('/catalog');
 
-    const searchField = page.locator('[data-testid="search-field"]').first();
-    await expect(searchField).toBeVisible();
-
-    await searchField.focus();
+    // Получаем и фокусируем поле поиска
+    const searchInput = await getSearchInput(page);
+    await searchInput.focus();
 
     // Ждём появления истории
     await expect(page.locator('[data-testid="search-history"]')).toBeVisible({ timeout: 5000 });
@@ -201,14 +208,14 @@ test.describe('Search History Flow E2E Tests', () => {
 
     await page.goto('/catalog');
 
-    const searchField = page.locator('[data-testid="search-field"]').first();
-    await searchField.focus();
+    const searchInput = await getSearchInput(page);
+    await searchInput.focus();
 
     // Ждём появления истории
     await expect(page.locator('[data-testid="search-history"]')).toBeVisible({ timeout: 5000 });
 
     // Начинаем вводить текст
-    await searchField.fill('ку');
+    await searchInput.fill('ку');
 
     // История должна скрыться
     await expect(page.locator('[data-testid="search-history"]')).not.toBeVisible({ timeout: 3000 });
@@ -222,8 +229,8 @@ test.describe('Search History Flow E2E Tests', () => {
 
     await page.goto('/catalog');
 
-    const searchField = page.locator('[data-testid="search-field"]').first();
-    await searchField.focus();
+    const searchInput = await getSearchInput(page);
+    await searchInput.focus();
 
     // Ждём появления истории
     await expect(page.locator('[data-testid="search-history"]')).toBeVisible({ timeout: 5000 });
@@ -234,8 +241,8 @@ test.describe('Search History Flow E2E Tests', () => {
       .first()
       .click();
 
-    // Проверяем редирект на страницу поиска
-    await expect(page).toHaveURL(/\/search\?q=кроссовки/);
+    // Проверяем редирект на страницу поиска (кириллица кодируется в URL)
+    await expect(page).toHaveURL(new RegExp(`/search\\?q=${encodeURIComponent('кроссовки')}`));
   });
 
   /**
@@ -246,8 +253,8 @@ test.describe('Search History Flow E2E Tests', () => {
 
     await page.goto('/catalog');
 
-    const searchField = page.locator('[data-testid="search-field"]').first();
-    await searchField.focus();
+    const searchInput = await getSearchInput(page);
+    await searchInput.focus();
 
     // Ждём появления истории
     await expect(page.locator('[data-testid="search-history"]')).toBeVisible({ timeout: 5000 });
@@ -273,8 +280,8 @@ test.describe('Search History Flow E2E Tests', () => {
 
     await page.goto('/catalog');
 
-    const searchField = page.locator('[data-testid="search-field"]').first();
-    await searchField.focus();
+    const searchInput = await getSearchInput(page);
+    await searchInput.focus();
 
     // Ждём появления истории
     await expect(page.locator('[data-testid="search-history"]')).toBeVisible({ timeout: 5000 });
@@ -300,23 +307,22 @@ test.describe('Search History Flow E2E Tests', () => {
   test('persists history between sessions', async ({ page }) => {
     await page.goto('/catalog');
 
-    const searchField = page.locator('[data-testid="search-field"]').first();
-    await expect(searchField).toBeVisible();
+    const searchInput = await getSearchInput(page);
 
     // Добавляем запрос в историю
-    await searchField.fill('тренажёр');
+    await searchInput.fill('тренажёр');
     await page.waitForTimeout(400);
-    await searchField.press('Enter');
+    await searchInput.press('Enter');
 
-    // Проверяем, что URL изменился
-    await expect(page).toHaveURL(/\/search\?q=тренажёр/);
+    // Проверяем, что URL изменился (кириллица кодируется в URL)
+    await expect(page).toHaveURL(new RegExp(`/search\\?q=${encodeURIComponent('тренажёр')}`));
 
     // "Перезагружаем" страницу (симуляция новой сессии)
     await page.goto('/catalog');
 
     // Фокусируемся на поле поиска
-    const searchFieldNew = page.locator('[data-testid="search-field"] input').first();
-    await searchFieldNew.focus();
+    const searchInputNew = await getSearchInput(page);
+    await searchInputNew.focus();
 
     // Проверяем, что история сохранилась
     await expect(page.locator('[data-testid="search-history"]')).toBeVisible({ timeout: 5000 });
@@ -331,13 +337,12 @@ test.describe('Search History Flow E2E Tests', () => {
 
     await page.goto('/catalog');
 
-    const searchField = page.locator('[data-testid="search-field"]').first();
-    await expect(searchField).toBeVisible();
+    const searchInput = await getSearchInput(page);
 
     // Ищем запрос, который уже есть в истории
-    await searchField.fill('футболка');
+    await searchInput.fill('футболка');
     await page.waitForTimeout(400);
-    await searchField.press('Enter');
+    await searchInput.press('Enter');
 
     // Проверяем, что "футболка" теперь первая в истории
     const history = await getSearchHistory(page);
@@ -362,9 +367,8 @@ test.describe('Search History Accessibility Tests', () => {
   test('has correct ARIA attributes', async ({ page }) => {
     await page.goto('/catalog');
 
-    const searchField = page.locator('[data-testid="search-field"]').first();
-    await expect(searchField).toBeVisible();
-    await searchField.focus();
+    const searchInput = await getSearchInput(page);
+    await searchInput.focus();
 
     // Ждём появления истории
     await expect(page.locator('[data-testid="search-history"]')).toBeVisible({ timeout: 5000 });
@@ -383,8 +387,8 @@ test.describe('Search History Accessibility Tests', () => {
   test('buttons have aria-labels', async ({ page }) => {
     await page.goto('/catalog');
 
-    const searchField = page.locator('[data-testid="search-field"]').first();
-    await searchField.focus();
+    const searchInput = await getSearchInput(page);
+    await searchInput.focus();
 
     await expect(page.locator('[data-testid="search-history"]')).toBeVisible({ timeout: 5000 });
 
@@ -404,13 +408,13 @@ test.describe('Search History Accessibility Tests', () => {
   test('Escape key closes history dropdown', async ({ page }) => {
     await page.goto('/catalog');
 
-    const searchField = page.locator('[data-testid="search-field"]').first();
-    await searchField.focus();
+    const searchInput = await getSearchInput(page);
+    await searchInput.focus();
 
     await expect(page.locator('[data-testid="search-history"]')).toBeVisible({ timeout: 5000 });
 
     // Нажимаем Escape
-    await searchField.press('Escape');
+    await searchInput.press('Escape');
 
     // История должна скрыться
     await expect(page.locator('[data-testid="search-history"]')).not.toBeVisible({ timeout: 3000 });

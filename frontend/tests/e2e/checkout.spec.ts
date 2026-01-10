@@ -221,7 +221,7 @@ test.describe('Checkout Flow E2E Tests', () => {
     await expect(page.locator('input[name="firstName"]')).toHaveValue(testCheckoutData.firstName);
 
     // 5. Оформляем заказ (AC5)
-    await page.click('button[type="submit"]:has-text("Оформить заказ")');
+    await page.locator('button[type="submit"]:has-text("Оформить заказ")').first().click();
 
     // 6. Проверяем редирект на success страницу (AC6)
     await expect(page).toHaveURL(/\/checkout\/success\/\d+/);
@@ -340,7 +340,7 @@ test.describe('Checkout Form Validation E2E Tests', () => {
     await expect(page.locator('h2:has-text("Контактные данные")')).toBeVisible();
 
     // Пытаемся отправить пустую форму (клик по кнопке submit)
-    await page.click('button[type="submit"]:has-text("Оформить заказ")');
+    await page.locator('button[type="submit"]:has-text("Оформить заказ")').first().click();
 
     // Проверяем появление ошибок валидации
     // Email обязателен
@@ -364,14 +364,14 @@ test.describe('Checkout Form Validation E2E Tests', () => {
     await page.fill('input[name="phone"]', testCheckoutData.phone); // blur для триггера валидации
 
     // Проверяем ошибку формата email
-    await expect(page.locator('text=Некорректный формат email')).toBeVisible();
+    await expect(page.locator('text=Некорректный формат email').first()).toBeVisible();
 
     // Исправляем email
     await page.fill('input[name="email"]', 'valid@example.com');
     await page.fill('input[name="phone"]', testCheckoutData.phone);
 
     // Ошибка должна исчезнуть
-    await expect(page.locator('text=Некорректный формат email')).not.toBeVisible();
+    await expect(page.locator('text=Некорректный формат email').first()).not.toBeVisible();
   });
 
   /**
@@ -450,7 +450,7 @@ test.describe('Checkout Form Validation E2E Tests', () => {
     await fillCheckoutForm(page, testCheckoutData);
 
     // Пытаемся отправить форму
-    await page.click('button[type="submit"]:has-text("Оформить заказ")');
+    await page.locator('button[type="submit"]:has-text("Оформить заказ")').first().click();
 
     // Проверяем ошибку выбора способа доставки
     await expect(page.locator('text=Выберите способ доставки')).toBeVisible();
@@ -641,7 +641,7 @@ test.describe('Checkout Error Handling E2E Tests', () => {
     await page.click('input[value="courier"]');
 
     // Отправляем форму
-    await page.click('button[type="submit"]:has-text("Оформить заказ")');
+    await page.locator('button[type="submit"]:has-text("Оформить заказ")').first().click();
 
     // Проверяем что страница не крашится и показывает ошибку
     await expect(page.locator('button[type="submit"]')).toBeVisible();
