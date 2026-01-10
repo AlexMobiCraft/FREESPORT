@@ -1,0 +1,196 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e1]:
+    - button "Open Next.js Dev Tools" [ref=e7] [cursor=pointer]:
+        - img [ref=e8]
+    - alert [ref=e11]
+    - generic [ref=e12]:
+        - banner [ref=e13]:
+            - generic [ref=e15]:
+                - link "FREESPORT" [ref=e17] [cursor=pointer]:
+                    - /url: /test
+                    - img "FREESPORT" [ref=e18]
+                - navigation "Основная навигация" [ref=e19]:
+                    - link "Главная" [ref=e20] [cursor=pointer]:
+                        - /url: /test
+                    - link "Каталог" [ref=e21] [cursor=pointer]:
+                        - /url: /catalog
+                    - link "Новости" [ref=e22] [cursor=pointer]:
+                        - /url: /news
+                    - link "Акции" [ref=e23] [cursor=pointer]:
+                        - /url: /promotions
+                    - link "Партнёрам" [ref=e24] [cursor=pointer]:
+                        - /url: /partners
+                - generic [ref=e25]:
+                    - generic [ref=e26]:
+                        - link "Поиск" [ref=e27] [cursor=pointer]:
+                            - /url: /catalog?focusSearch=true
+                            - img [ref=e28]
+                        - link "Избранное" [ref=e31] [cursor=pointer]:
+                            - /url: /profile/favorites
+                            - img [ref=e32]
+                        - link "Корзина (0 товаров)" [ref=e34] [cursor=pointer]:
+                            - /url: /cart
+                            - img [ref=e35]
+                    - generic [ref=e39]:
+                        - link "Регистрация" [ref=e40] [cursor=pointer]:
+                            - /url: /register
+                            - button "Регистрация" [ref=e41]
+                        - link "Войти" [ref=e42] [cursor=pointer]:
+                            - /url: /login
+                            - button "Войти" [ref=e43]
+        - main [ref=e44]:
+            - generic [ref=e46]:
+                - heading "Оформление заказа" [level=1] [ref=e48]
+                - generic [ref=e49]:
+                    - alert [ref=e50]:
+                        - img [ref=e53]
+                        - generic [ref=e55]:
+                            - generic [ref=e56]: Корзина пуста
+                            - generic [ref=e57]: Добавьте товары в корзину для оформления заказа
+                    - alert [ref=e58]:
+                        - img [ref=e61]
+                        - generic [ref=e63]:
+                            - generic [ref=e64]: Ошибки в форме
+                            - generic [ref=e65]: Пожалуйста, исправьте ошибки в форме перед отправкой
+                    - generic [ref=e66]:
+                        - generic [ref=e67]:
+                            - region "Контактные данные" [ref=e68]:
+                                - heading "Контактные данные" [level=2] [ref=e69]
+                                - generic [ref=e70]:
+                                    - generic [ref=e71]:
+                                        - generic [ref=e72]:
+                                            - generic [ref=e73]: Email
+                                            - generic [ref=e74]:
+                                                - textbox "Email" [ref=e75]:
+                                                    - /placeholder: example@mail.com
+                                                    - text: invalid-email
+                                                - img [ref=e77]
+                                            - paragraph [ref=e79]: Некорректный формат email
+                                        - paragraph [ref=e80]: Некорректный формат email
+                                    - generic [ref=e82]:
+                                        - generic [ref=e83]: Телефон
+                                        - textbox "Телефон" [active] [ref=e85]:
+                                            - /placeholder: '+79001234567'
+                                            - text: '+79001234567'
+                                        - paragraph [ref=e86]: 'Формат: +7XXXXXXXXXX'
+                                    - generic [ref=e88]:
+                                        - generic [ref=e89]: Имя
+                                        - textbox "Имя" [ref=e91]:
+                                            - /placeholder: Иван
+                                    - generic [ref=e93]:
+                                        - generic [ref=e94]: Фамилия
+                                        - textbox "Фамилия" [ref=e96]:
+                                            - /placeholder: Петров
+                            - region "Адрес доставки" [ref=e97]:
+                                - heading "Адрес доставки" [level=2] [ref=e98]
+                                - generic [ref=e99]:
+                                    - generic [ref=e101]:
+                                        - generic [ref=e102]: Город
+                                        - textbox "Город" [ref=e104]:
+                                            - /placeholder: Москва
+                                    - generic [ref=e106]:
+                                        - generic [ref=e107]: Улица
+                                        - textbox "Улица" [ref=e109]:
+                                            - /placeholder: Ленина
+                                    - generic [ref=e110]:
+                                        - generic [ref=e112]:
+                                            - generic [ref=e113]: Дом
+                                            - textbox "Дом" [ref=e115]:
+                                                - /placeholder: '10'
+                                        - generic [ref=e117]:
+                                            - generic [ref=e118]: Корпус
+                                            - textbox "Корпус" [ref=e120]:
+                                                - /placeholder: А
+                                        - generic [ref=e122]:
+                                            - generic [ref=e123]: Кв./офис
+                                            - textbox "Кв./офис" [ref=e125]:
+                                                - /placeholder: '25'
+                                    - generic [ref=e127]:
+                                        - generic [ref=e128]: Почтовый индекс
+                                        - textbox "Почтовый индекс" [ref=e130]:
+                                            - /placeholder: '123456'
+                                        - paragraph [ref=e131]: 6 цифр
+                            - region "Способ доставки" [ref=e132]:
+                                - heading "Способ доставки" [level=2] [ref=e133]
+                                - radiogroup "Выбор способа доставки" [ref=e134]:
+                                    - generic [ref=e135] [cursor=pointer]:
+                                        - 'radio "🚚Курьерская доставка Доставка курьером до двери Стоимость: Уточняется администратором" [ref=e136]'
+                                        - generic [ref=e137]:
+                                            - generic [ref=e138]: 🚚Курьерская доставка
+                                            - generic [ref=e139]: Доставка курьером до двери
+                                            - generic [ref=e140]: 'Стоимость: Уточняется администратором'
+                                    - generic [ref=e141] [cursor=pointer]:
+                                        - 'radio "🏪Самовывоз Забрать из магазина Стоимость: Уточняется администратором" [ref=e142]'
+                                        - generic [ref=e143]:
+                                            - generic [ref=e144]: 🏪Самовывоз
+                                            - generic [ref=e145]: Забрать из магазина
+                                            - generic [ref=e146]: 'Стоимость: Уточняется администратором'
+                                - paragraph [ref=e148]:
+                                    - strong [ref=e149]: 'Обратите внимание:'
+                                    - text: Стоимость доставки будет рассчитана и уточнена администратором после оформления заказа.
+                            - region "Комментарий к заказу" [ref=e150]:
+                                - heading "Комментарий к заказу" [level=2] [ref=e151]
+                                - generic [ref=e152]:
+                                    - generic [ref=e153]: Комментарий (необязательно)
+                                    - textbox "Комментарий (необязательно)" [ref=e154]:
+                                        - /placeholder: Укажите дополнительную информацию для доставки или пожелания к заказу...
+                                    - generic [ref=e155]:
+                                        - paragraph [ref=e157]: Необязательное поле
+                                        - paragraph [ref=e158]: 0/500
+                        - generic [ref=e160]:
+                            - heading "Ваш заказ" [level=2] [ref=e161]
+                            - paragraph [ref=e162]: Корзина пуста
+        - contentinfo [ref=e163]:
+            - generic [ref=e164]:
+                - generic [ref=e165]:
+                    - generic [ref=e166]:
+                        - heading "Каталог" [level=3] [ref=e167]
+                        - list [ref=e168]:
+                            - listitem [ref=e169]:
+                                - link "Товары" [ref=e170] [cursor=pointer]:
+                                    - /url: /catalog
+                            - listitem [ref=e171]:
+                                - link "Бренды" [ref=e172] [cursor=pointer]:
+                                    - /url: /brands
+                            - listitem [ref=e173]:
+                                - link "Акции" [ref=e174] [cursor=pointer]:
+                                    - /url: /promotions
+                    - generic [ref=e175]:
+                        - heading "Информация" [level=3] [ref=e176]
+                        - list [ref=e177]:
+                            - listitem [ref=e178]:
+                                - link "О компании" [ref=e179] [cursor=pointer]:
+                                    - /url: /about
+                            - listitem [ref=e180]:
+                                - link "Партнёрам" [ref=e181] [cursor=pointer]:
+                                    - /url: /partners
+                            - listitem [ref=e182]:
+                                - link "Доставка" [ref=e183] [cursor=pointer]:
+                                    - /url: /delivery
+                    - generic [ref=e184]:
+                        - heading "Контакты" [level=3] [ref=e185]
+                        - list [ref=e186]:
+                            - listitem [ref=e187]:
+                                - link "+7 (495) 123-45-67" [ref=e188] [cursor=pointer]:
+                                    - /url: tel:+74951234567
+                            - listitem [ref=e189]:
+                                - link "info@freesport.ru" [ref=e190] [cursor=pointer]:
+                                    - /url: mailto:info@freesport.ru
+                            - listitem [ref=e191]:
+                                - link "Москва, ул. Примерная, д. 1" [ref=e192] [cursor=pointer]:
+                                    - /url: '#'
+                - generic [ref=e193]:
+                    - generic [ref=e194]:
+                        - link "VK" [ref=e195] [cursor=pointer]:
+                            - /url: https://vk.com/freesport
+                            - img [ref=e196]
+                        - link "Telegram" [ref=e198] [cursor=pointer]:
+                            - /url: https://t.me/freesport
+                            - img [ref=e199]
+                        - link "YouTube" [ref=e201] [cursor=pointer]:
+                            - /url: https://youtube.com/@freesport
+                            - img [ref=e202]
+                    - paragraph [ref=e204]: © 2025 FREESPORT. Все права защищены.
+```

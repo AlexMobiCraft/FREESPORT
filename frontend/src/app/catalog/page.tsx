@@ -9,7 +9,7 @@ import React, { useCallback, useEffect, useMemo, useState, Suspense } from 'reac
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import Button from '@/components/ui/Button';
-import { SearchField } from '@/components/ui/SearchField/SearchField';
+import { SearchAutocomplete } from '@/components/business/SearchAutocomplete';
 import { Grid2x2, List } from 'lucide-react';
 import { ProductCard as BusinessProductCard } from '@/components/business/ProductCard/ProductCard';
 import productsService, { type ProductFilters } from '@/services/productsService';
@@ -792,7 +792,7 @@ const CatalogContent: React.FC = () => {
           <h1 className="text-4xl font-semibold text-gray-900">{activeCategoryLabel}</h1>
 
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-            <SearchField
+            <SearchAutocomplete
               ref={searchInputRef}
               placeholder="Поиск в каталоге..."
               onSearch={handleSearchChange}

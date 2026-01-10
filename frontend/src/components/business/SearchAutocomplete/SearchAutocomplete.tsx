@@ -175,6 +175,7 @@ export const SearchAutocomplete: React.FC<SearchAutocompleteProps> = ({
   }, []);
 
   return (
+    // eslint-disable-next-line jsx-a11y/no-static-element-interactions
     <div
       className={cn(
         'relative',
@@ -185,6 +186,11 @@ export const SearchAutocomplete: React.FC<SearchAutocompleteProps> = ({
         className
       )}
       data-testid="search-autocomplete"
+      onKeyDown={e => {
+        if (e.key === 'Escape') {
+          setIsFocused(false);
+        }
+      }}
     >
       <SearchField
         placeholder={placeholder}

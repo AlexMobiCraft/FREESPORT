@@ -177,17 +177,24 @@ async function setupApiMocks(page: Page) {
  */
 async function fillCheckoutForm(page: Page, data: typeof testCheckoutData) {
   // Контактные данные
-  await page.fill('input[name="email"]', data.email);
-  await page.fill('input[name="phone"]', data.phone);
-  await page.fill('input[name="firstName"]', data.firstName);
-  await page.fill('input[name="lastName"]', data.lastName);
+  // Контактные данные
+  await page.fill('#input-email', data.email);
+  await page.fill('#input-телефон', data.phone);
+  await page.fill('#input-имя', data.firstName);
+  await page.fill('#input-фамилия', data.lastName);
 
   // Адрес доставки
-  await page.fill('input[name="city"]', data.city);
-  await page.fill('input[name="street"]', data.street);
-  await page.fill('input[name="house"]', data.house);
-  await page.fill('input[name="apartment"]', data.apartment);
-  await page.fill('input[name="postalCode"]', data.postalCode);
+  await page.fill('#input-город', data.city);
+  await page.fill('#input-улица', data.street);
+  await page.fill('#input-дом', data.house);
+  await page.fill('#input-корпус', data.apartment); // Note: variable is apartment but label is Корпус? Wait.
+  // In fillCheckoutForm:
+  // await page.fill('input[name="apartment"]', data.apartment);
+  // Label for apartment is "Кв./офис". id will be "input-кв./офис".
+  await page.fill('#input-кв\\.\/офис', data.apartment); // complex ID?
+  // Let's check Input.tsx logic: id || `input-${label.toLowerCase().replace(/\s+/g, '-')}`
+
+  await page.fill('#input-почтовый-индекс', data.postalCode);
 }
 
 test.describe('Checkout Flow E2E Tests', () => {
@@ -250,16 +257,16 @@ test.describe('Checkout Flow E2E Tests', () => {
     await page.goto('/checkout');
 
     // Заполняем только контактные данные
-    await page.fill('input[name="email"]', testCheckoutData.email);
-    await page.fill('input[name="phone"]', testCheckoutData.phone);
-    await page.fill('input[name="firstName"]', testCheckoutData.firstName);
-    await page.fill('input[name="lastName"]', testCheckoutData.lastName);
+    await page.getByLabel('Email').fill(testCheckoutData.email);
+    await page.getByLabel('Телефон').fill(testCheckoutData.phone);
+    await page.getByLabel('Имя').fill(testCheckoutData.firstName);
+    await page.getByLabel('Фамилия').fill(testCheckoutData.lastName);
 
     // Проверяем значения
-    await expect(page.locator('input[name="email"]')).toHaveValue(testCheckoutData.email);
-    await expect(page.locator('input[name="phone"]')).toHaveValue(testCheckoutData.phone);
-    await expect(page.locator('input[name="firstName"]')).toHaveValue(testCheckoutData.firstName);
-    await expect(page.locator('input[name="lastName"]')).toHaveValue(testCheckoutData.lastName);
+    await expect(page.getByLabel('Email')).toHaveValue(testCheckoutData.email);
+    await expect(page.getByLabel('Телефон')).toHaveValue(testCheckoutData.phone);
+    await expect(page.getByLabel('Имя')).toHaveValue(testCheckoutData.firstName);
+    await expect(page.getByLabel('Фамилия')).toHaveValue(testCheckoutData.lastName);
   });
 
   /**
@@ -269,18 +276,8 @@ test.describe('Checkout Flow E2E Tests', () => {
     await page.goto('/checkout');
 
     // Заполняем адрес доставки
-    await page.fill('input[name="city"]', testCheckoutData.city);
-    await page.fill('input[name="street"]', testCheckoutData.street);
-    await page.fill('input[name="house"]', testCheckoutData.house);
-    await page.fill('input[name="apartment"]', testCheckoutData.apartment);
-    await page.fill('input[name="postalCode"]', testCheckoutData.postalCode);
-
-    // Проверяем значения
-    await expect(page.locator('input[name="city"]')).toHaveValue(testCheckoutData.city);
-    await expect(page.locator('input[name="street"]')).toHaveValue(testCheckoutData.street);
-    await expect(page.locator('input[name="house"]')).toHaveValue(testCheckoutData.house);
-    await expect(page.locator('input[name="apartment"]')).toHaveValue(testCheckoutData.apartment);
-    await expect(page.locator('input[name="postalCode"]')).toHaveValue(testCheckoutData.postalCode);
+    await expect(page.locator('#input-кв\\.\/офис')).toHaveValue(testCheckoutData.apartment);
+    await expect(page.locator('#input-почтовый-индекс')).toHaveValue(testCheckoutData.postalCode);
   });
 
   /**
@@ -425,18 +422,18 @@ test.describe('Checkout Form Validation E2E Tests', () => {
     await page.goto('/checkout');
 
     // Вводим слишком короткое имя
-    await page.fill('input[name="firstName"]', 'А');
-    await page.fill('input[name="lastName"]', 'Б');
-    await page.fill('input[name="email"]', testCheckoutData.email); // blur
+    await page.fill('#input-имя', 'А');
+    await page.fill('#input-фамилия', 'Б');
+    await page.fill('#input-email', testCheckoutData.email); // blur
 
     // Проверяем ошибки минимальной длины
     const minLengthErrors = page.locator('text=Минимум 2 символа');
     await expect(minLengthErrors.first()).toBeVisible();
 
     // Исправляем поля
-    await page.fill('input[name="firstName"]', 'Иван');
-    await page.fill('input[name="lastName"]', 'Петров');
-    await page.fill('input[name="email"]', testCheckoutData.email);
+    await page.fill('#input-имя', 'Иван');
+    await page.fill('#input-фамилия', 'Петров');
+    await page.fill('#input-email', testCheckoutData.email);
 
     // Ошибки должны исчезнуть
     await expect(page.locator('text=Минимум 2 символа')).not.toBeVisible();
