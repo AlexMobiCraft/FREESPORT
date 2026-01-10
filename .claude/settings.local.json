@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run test:e2e:*)",
+      "Bash(npm install:*)",
+      "Bash(npx playwright:*)",
+      "Bash(findstr:*)",
+      "Bash(docker ps:*)",
+      "Bash(curl:*)",
+      "Bash(docker logs:*)"
+    ]
+  }
+}

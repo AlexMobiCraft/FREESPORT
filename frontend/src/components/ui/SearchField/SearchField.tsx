@@ -194,7 +194,7 @@ export const SearchField = React.forwardRef<HTMLInputElement, SearchFieldProps>(
     };
 
     return (
-      <div ref={containerRef} className="w-full relative">
+      <div ref={containerRef} className="w-full relative" data-testid="search-field">
         <div className="relative">
           {/* Search Icon */}
           <div className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-600">

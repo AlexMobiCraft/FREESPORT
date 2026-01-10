@@ -301,10 +301,10 @@ test.describe('Profile Page - Edit Profile Flow', () => {
 
       // ASSERT
       await expect(page.locator('text=Личный кабинет')).toBeVisible();
-      await expect(page.locator('a[href="/profile"]')).toBeVisible();
-      await expect(page.locator('a[href="/profile/orders"]')).toBeVisible();
-      await expect(page.locator('a[href="/profile/addresses"]')).toBeVisible();
-      await expect(page.locator('a[href="/profile/favorites"]')).toBeVisible();
+      await expect(page.locator('a[href="/profile"]').first()).toBeVisible();
+      await expect(page.locator('a[href="/profile/orders"]').first()).toBeVisible();
+      await expect(page.locator('a[href="/profile/addresses"]').first()).toBeVisible();
+      await expect(page.locator('a[href="/profile/favorites"]').first()).toBeVisible();
     });
 
     test('displays tab navigation on mobile', async ({ page }) => {
@@ -314,8 +314,9 @@ test.describe('Profile Page - Edit Profile Flow', () => {
       // ACT
       await page.goto('/profile');
 
-      // ASSERT - навигационные табы должны быть видимы
-      await expect(page.locator('nav').first()).toBeVisible();
+      // ASSERT - навигационные табы должны быть видимы (на mobile используются табы вместо sidebar)
+      // Проверяем наличие ссылок профиля в любой навигации
+      await expect(page.locator('a[href="/profile"]').first()).toBeVisible();
     });
   });
 });
