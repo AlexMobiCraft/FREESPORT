@@ -1,3 +1,4 @@
+import uuid
 import factory
 from factory.django import DjangoModelFactory
 
@@ -45,11 +46,13 @@ class ProductFactory(DjangoModelFactory):
     name = factory.Faker("catch_phrase")
     brand = factory.SubFactory(BrandFactory)
     category = factory.SubFactory(CategoryFactory)
-    retail_price = factory.Faker(
-        "pydecimal", left_digits=4, right_digits=2, positive=True
-    )
-    stock_quantity = factory.Faker("random_int", min=0, max=100)
-    onec_brand_id = factory.Faker("uuid4")
+    slug = factory.LazyAttribute(lambda obj: factory.Faker("slug").generate() + "-" + str(uuid.uuid4())[:8])
+
+    @factory.post_generation
+    def create_variant(self, create, extracted, **kwargs):
+        if not create:
+            return
+        ProductVariantFactory.create(product=self)
 
 
 class UserFactory(DjangoModelFactory):

@@ -43,6 +43,7 @@ yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
 .pnpm-debug.log*
+playwright-report/
 
 # Runtime data
 pids
@@ -175,3 +176,6 @@ import_1c.tar.gz
 
 # GitHub Actions logs
 .github/logs_*/
+test_output.txt
+role_test_debug.txt
+detail_test_debug.txt

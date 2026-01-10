@@ -18,6 +18,7 @@ def product_detail_setup(db):
     product = ProductFactory.create(
         brand=brand, category=category, specifications={"color": "red", "size": "L"}
     )
+    # Вариант создается автоматически через post_generation в ProductFactory
     for _ in range(5):
         ProductFactory.create(category=category, brand=brand)
     return product
@@ -26,7 +27,7 @@ def product_detail_setup(db):
 def test_product_detail_basic(api_client, product_detail_setup):
     """Test basic product detail API endpoint."""
     product = product_detail_setup
-    url = reverse("products:product-detail", kwargs={"pk": product.pk})
+    url = reverse("products:product-detail", kwargs={"slug": product.slug})
     response = api_client.get(url)
     assert response.status_code == status.HTTP_200_OK
     assert response.data["id"] == product.id
@@ -34,7 +35,9 @@ def test_product_detail_basic(api_client, product_detail_setup):
 
 
 @pytest.fixture
-def retail_client(db, api_client):
+def retail_client(db):
+    from rest_framework.test import APIClient
+    api_client = APIClient()
     user = UserFactory.create(role="retail")
     from rest_framework_simplejwt.tokens import RefreshToken
 
@@ -44,7 +47,9 @@ def retail_client(db, api_client):
 
 
 @pytest.fixture
-def wholesale_client(db, api_client):
+def wholesale_client(db):
+    from rest_framework.test import APIClient
+    api_client = APIClient()
     user = UserFactory.create(role="wholesale_level1")
     from rest_framework_simplejwt.tokens import RefreshToken
 
@@ -56,7 +61,7 @@ def wholesale_client(db, api_client):
 def test_role_based_pricing(retail_client, wholesale_client, product_detail_setup):
     """Test role-based pricing in product detail."""
     product = product_detail_setup
-    url = reverse("products:product-detail", kwargs={"pk": product.pk})
+    url = reverse("products:product-detail", kwargs={"slug": product.slug})
 
     # Retail user should not see RRP/MSRP fields
     response = retail_client.get(url)
@@ -64,10 +69,11 @@ def test_role_based_pricing(retail_client, wholesale_client, product_detail_setu
     assert response.data.get("rrp") is None
     assert response.data.get("msrp") is None
 
-    # Wholesale user should see RRP/MSRP
-    product.recommended_retail_price = 150.00
-    product.max_suggested_retail_price = 200.00
-    product.save()
+    # wholesale user should see RRP/MSRP (they are in variants)
+    variant = product.variants.first()
+    variant.retail_price = 150.00
+    variant.opt1_price = 100.00
+    variant.save()
     response = wholesale_client.get(url)
     assert response.status_code == status.HTTP_200_OK
     assert "rrp" in response.data
@@ -78,7 +84,7 @@ def test_product_images(api_client, product_detail_setup):
     """Test product images in product detail."""
     product = product_detail_setup
     # You would typically create ProductImage objects here if you had the model
-    url = reverse("products:product-detail", kwargs={"pk": product.pk})
+    url = reverse("products:product-detail", kwargs={"slug": product.slug})
     response = api_client.get(url)
     assert response.status_code == status.HTTP_200_OK
     assert "images" in response.data
@@ -87,7 +93,7 @@ def test_product_images(api_client, product_detail_setup):
 def test_related_products(api_client, product_detail_setup):
     """Test related products in product detail."""
     product = product_detail_setup
-    url = reverse("products:product-detail", kwargs={"pk": product.pk})
+    url = reverse("products:product-detail", kwargs={"slug": product.slug})
     response = api_client.get(url)
     assert response.status_code == status.HTTP_200_OK
     assert "related_products" in response.data
@@ -99,7 +105,7 @@ def test_related_products(api_client, product_detail_setup):
 def test_specifications_and_details(api_client, product_detail_setup):
     """Test specifications and details in product detail."""
     product = product_detail_setup
-    url = reverse("products:product-detail", kwargs={"pk": product.pk})
+    url = reverse("products:product-detail", kwargs={"slug": product.slug})
     response = api_client.get(url)
     assert response.status_code == status.HTTP_200_OK
     assert response.data["specifications"]["color"] == "red"
@@ -119,7 +125,7 @@ def trainer_client(db, api_client):
 def test_discount_calculation(trainer_client, product_detail_setup):
     """Test discount calculation in product detail."""
     product = product_detail_setup
-    url = reverse("products:product-detail", kwargs={"pk": product.pk})
+    url = reverse("products:product-detail", kwargs={"slug": product.slug})
     response = trainer_client.get(url)
     assert response.status_code == status.HTTP_200_OK
     # This assertion depends on the serializer logic for discount_percent
@@ -129,6 +135,6 @@ def test_discount_calculation(trainer_client, product_detail_setup):
 
 def test_product_not_found(api_client):
     """Test 404 for non-existent product."""
-    url = reverse("products:product-detail", kwargs={"pk": 99999})
+    url = reverse("products:product-detail", kwargs={"slug": "non-existent-slug"})
     response = api_client.get(url)
     assert response.status_code == status.HTTP_404_NOT_FOUND

@@ -5,6 +5,7 @@ Integration тесты ролевого ценообразования
 import pytest
 from django.contrib.auth import get_user_model
 from django.test import TestCase
+from django.urls import reverse
 from rest_framework.test import APIClient
 
 from apps.products.models import Brand, Category, Product
@@ -41,12 +42,18 @@ class PricingIntegrationTest(TestCase):
             name="Test Category", slug="test-category"
         )
         self.brand = Brand.objects.create(name="Test Brand", slug="test-brand")
+        from apps.products.models import ProductVariant
         self.product = Product.objects.create(
             name="Test Product",
             slug="test-product",
             category=self.category,
             brand=self.brand,
             description="Test product for pricing integration",
+            is_active=True,
+        )
+        self.variant = ProductVariant.objects.create(
+            product=self.product,
+            sku="PRICING-TEST-001",
             retail_price=1000.00,
             opt1_price=800.00,
             opt2_price=750.00,
@@ -54,7 +61,6 @@ class PricingIntegrationTest(TestCase):
             trainer_price=850.00,
             stock_quantity=10,
             is_active=True,
-            sku="PRICING-TEST-001",
         )
 
     def test_product_api_role_based_pricing(self):
@@ -69,8 +75,8 @@ class PricingIntegrationTest(TestCase):
         for user, expected_price in test_cases:
             with self.subTest(user=user.role):
                 self.client.force_authenticate(user=user)
-
-                response = self.client.get(f"/api/v1/products/{self.product.id}/")
+                url = reverse("products:product-detail", kwargs={"slug": self.product.slug})
+                response = self.client.get(url)
                 self.assertEqual(response.status_code, 200)
 
                 current_price = float(response.data["current_price"])
@@ -89,7 +95,7 @@ class PricingIntegrationTest(TestCase):
                 self.client.force_authenticate(user=user)
 
                 # Добавляем товар в корзину
-                data = {"product": self.product.id, "quantity": 1}
+                data = {"variant_id": self.variant.id, "quantity": 1}
                 self.client.post("/api/v1/cart/items/", data)
 
                 # Проверяем цену в корзине
@@ -106,7 +112,7 @@ class PricingIntegrationTest(TestCase):
         self.client.force_authenticate(user=self.wholesale_l1_user)
 
         # Добавляем товар в корзину (цена wholesale_level1)
-        data = {"product": self.product.id, "quantity": 2}
+        data = {"variant_id": self.variant.id, "quantity": 2}
         self.client.post("/api/v1/cart/items/", data)
 
         # Создаем заказ
@@ -130,7 +136,8 @@ class PricingIntegrationTest(TestCase):
     def test_anonymous_user_gets_retail_prices(self):
         """Анонимные пользователи видят розничные цены"""
         # Не авторизуемся
-        response = self.client.get(f"/api/v1/products/{self.product.id}/")
+        url = reverse("products:product-detail", kwargs={"slug": self.product.slug})
+        response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
 
         current_price = float(response.data["current_price"])
@@ -139,8 +146,8 @@ class PricingIntegrationTest(TestCase):
     def test_b2b_user_sees_rrp_msrp(self):
         """B2B пользователи видят RRP и MSRP"""
         self.client.force_authenticate(user=self.wholesale_l1_user)
-
-        response = self.client.get(f"/api/v1/products/{self.product.id}/")
+        url = reverse("products:product-detail", kwargs={"slug": self.product.slug})
+        response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
 
         # B2B пользователи должны видеть дополнительные поля
@@ -150,8 +157,8 @@ class PricingIntegrationTest(TestCase):
     def test_retail_user_does_not_see_rrp_msrp(self):
         """Розничные пользователи не видят RRP и MSRP"""
         self.client.force_authenticate(user=self.retail_user)
-
-        response = self.client.get(f"/api/v1/products/{self.product.id}/")
+        url = reverse("products:product-detail", kwargs={"slug": self.product.slug})
+        response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
 
         # Розничные пользователи не должны видеть эти поля
@@ -163,12 +170,13 @@ class PricingIntegrationTest(TestCase):
         self.client.force_authenticate(user=self.wholesale_l2_user)
 
         # Получаем цену из Product API
-        product_response = self.client.get(f"/api/v1/products/{self.product.id}/")
+        url = reverse("products:product-detail", kwargs={"slug": self.product.slug})
+        product_response = self.client.get(url)
         product_price = float(product_response.data["current_price"])
 
         # Добавляем в корзину и получаем цену из Cart API
         self.client.post(
-            "/api/v1/cart/items/", {"product": self.product.id, "quantity": 1}
+            "/api/v1/cart/items/", {"variant_id": self.variant.id, "quantity": 1}
         )
         cart_response = self.client.get("/api/v1/cart/")
         cart_price = float(cart_response.data["items"][0]["unit_price"])

@@ -1,8 +1,10 @@
 import pytest
+import uuid
+import time
 from django.urls import reverse
 from rest_framework.test import APIClient
 
-from apps.products.models import Brand, Category, Product
+from apps.products.models import Brand, Category, Product, ProductVariant
 from apps.users.models import User
 
 # Используем маркер pytest для доступа к БД во всех тестах этого модуля
@@ -22,9 +24,6 @@ def setup_test_data():
     """
     Фикстура для создания тестовых данных для каждого теста.
     """
-    import time
-    import uuid
-
     # Создаем уникальные имена с timestamp для избежания конфликтов
     unique_suffix = f"{int(time.time())}-{uuid.uuid4().hex[:6]}"
 
@@ -79,8 +78,31 @@ def setup_test_data():
 
     products = []
     for product_data in products_data:
+        # Извлекаем поля для варианта
+        variant_fields = {
+            "sku": product_data.pop("sku", f"SKU-{uuid.uuid4().hex[:8]}"),
+            "onec_id": product_data.pop("variant_onec_id", f"1C-VAR-{uuid.uuid4().hex[:8]}"),
+            "retail_price": product_data.pop("retail_price"),
+            "opt1_price": product_data.pop("opt1_price", None),
+            "opt2_price": product_data.pop("opt2_price", None),
+            "opt3_price": product_data.pop("opt3_price", None),
+            "trainer_price": product_data.pop("trainer_price", None),
+            "federation_price": product_data.pop("federation_price", None),
+            "stock_quantity": product_data.pop("stock_quantity", 10),
+        }
+
+        # Создаем продукт
+        # Обеспечиваем уникальность onec_id для продукта
+        p_onec_id = product_data.pop("onec_id", f"1C-PROD-{uuid.uuid4().hex[:8]}")
         product = Product.objects.create(
-            **product_data, brand=brand, category=child_category
+            **product_data, brand=brand, category=child_category, onec_id=p_onec_id
+        )
+        
+        # Создаем вариант для товара
+        ProductVariant.objects.create(
+            product=product,
+            is_active=True,
+            **variant_fields
         )
         products.append(product)
 
@@ -111,8 +133,11 @@ def register_and_login_user(api_client, role="retail"):
         "role": role,
     }
     if role != "retail":
+        # Используем уникальный ИНН для каждой роли
+        import random
+        tax_id = "".join([str(random.randint(0, 9)) for _ in range(10)])
         registration_data.update(
-            {"company_name": f"Тестовая компания {role}", "tax_id": "1234567890"}
+            {"company_name": f"Тестовая компания {role}", "tax_id": tax_id}
         )
 
     # Регистрация
@@ -123,6 +148,14 @@ def register_and_login_user(api_client, role="retail"):
     assert (
         response.status_code == 201
     ), f"Registration failed for role {role} with status {response.status_code}"
+
+    # Верифицируем B2B пользователей, иначе они не смогут войти (Story 2.1)
+    if role != "retail":
+        user = User.objects.get(email=email)
+        user.is_verified = True
+        user.is_active = True
+        user.verification_status = "verified"
+        user.save()
 
     # Авторизация
     url = reverse(
@@ -176,7 +209,8 @@ def test_products_sorting(api_client, setup_test_data):
     assert names == sorted(names)
 
     # Сортировка по цене (убывание)
-    response = api_client.get(url, {"ordering": "-retail_price"})
+    # Используем min_retail_price, так как retail_price теперь на варианте
+    response = api_client.get(url, {"ordering": "-min_retail_price"})
     assert response.status_code == 200
     prices = [p["retail_price"] for p in response.json()["results"]]
     assert prices == sorted(prices, reverse=True)
@@ -185,7 +219,8 @@ def test_products_sorting(api_client, setup_test_data):
 def test_role_based_pricing(api_client, setup_test_data):
     """Тестирование ролевого ценообразования (AC 5)"""
     url = reverse("products:product-list")
-    product_sku = setup_test_data["products"][0].sku  # Используем динамический SKU
+    # Получаем SKU из первого варианта первого товара
+    product_sku = setup_test_data["products"][0].variants.first().sku
 
     # 1. Анонимный пользователь (видит розничную цену)
     response = api_client.get(url, {"search": product_sku})
@@ -242,12 +277,12 @@ def test_product_detail_api(api_client, setup_test_data):
     """Тестирование GET /products/{id}/"""
     token = register_and_login_user(api_client, "retail")
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
-    # Сначала получаем ID продукта
+    # Сначала получаем slug продукта
     list_url = reverse("products:product-list")
-    product_id = api_client.get(list_url).json()["results"][0]["id"]
+    product_slug = api_client.get(list_url).json()["results"][0]["slug"]
 
-    detail_url = reverse("products:product-detail", kwargs={"pk": product_id})
+    detail_url = reverse("products:product-detail", kwargs={"slug": product_slug})
     response = api_client.get(detail_url)
     assert response.status_code == 200
-    assert response.json()["id"] == product_id
+    assert response.json()["slug"] == product_slug
     assert "category_breadcrumbs" in response.json()

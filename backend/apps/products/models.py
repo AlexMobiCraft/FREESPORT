@@ -842,6 +842,30 @@ class ProductVariant(models.Model):
             help_text="Цена для роли federation_rep",
         ),
     )
+    rrp = cast(
+        Decimal | None,
+        models.DecimalField(
+            "РРЦ",
+            max_digits=10,
+            decimal_places=2,
+            null=True,
+            blank=True,
+            validators=[MinValueValidator(Decimal("0"))],
+            help_text="Рекомендованная розничная цена (информационно)",
+        ),
+    )
+    msrp = cast(
+        Decimal | None,
+        models.DecimalField(
+            "МРЦ",
+            max_digits=10,
+            decimal_places=2,
+            null=True,
+            blank=True,
+            validators=[MinValueValidator(Decimal("0"))],
+            help_text="Минимальная рекомендованная розничная цена (информационно)",
+        ),
+    )
 
     # Остатки
     stock_quantity = cast(

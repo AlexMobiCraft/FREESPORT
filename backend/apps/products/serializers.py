@@ -376,6 +376,10 @@ class ProductListSerializer(serializers.ModelSerializer):
     is_in_stock = serializers.SerializerMethodField()
     main_image = serializers.SerializerMethodField()
     can_be_ordered = serializers.SerializerMethodField()
+    current_price = serializers.SerializerMethodField()
+    sku = serializers.SerializerMethodField()
+    rrp = serializers.SerializerMethodField()
+    msrp = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
@@ -408,6 +412,10 @@ class ProductListSerializer(serializers.ModelSerializer):
             "is_in_stock",
             "main_image",
             "can_be_ordered",
+            "current_price",
+            "sku",
+            "rrp",
+            "msrp",
         ]
         read_only_fields = [
             "is_hit",
@@ -434,6 +442,49 @@ class ProductListSerializer(serializers.ModelSerializer):
         if variant:
             return float(variant.retail_price)
         return 0.0
+
+    def get_current_price(self, obj: Product) -> str:
+        """Получить актуальную цену на основе роли пользователя"""
+        request = self.context.get("request")
+        user = getattr(request, "user", None) if request else None
+        variant = self._get_first_variant(obj)
+        if not variant:
+            return "0.00"
+
+        price = variant.get_price_for_user(user)
+        return f"{price:.2f}"
+
+    def to_representation(self, instance):
+        """Логика скрытия полей для разных ролей"""
+        data = super().to_representation(instance)
+        request = self.context.get("request")
+        user = getattr(request, "user", None) if request else None
+
+        # Определяем роль пользователя (по умолчанию retail для анонимов)
+        role = "retail"
+        if user and user.is_authenticated:
+            role = getattr(user, "role", "retail")
+
+        # Скрываем RRP и MSRP для розничных пользователей и гостей
+        if role == "retail":
+            data.pop("rrp", None)
+            data.pop("msrp", None)
+        return data
+
+    def get_sku(self, obj: Product) -> str:
+        """Получить артикул первого варианта"""
+        variant = self._get_first_variant(obj)
+        return variant.sku if variant else ""
+
+    def get_rrp(self, obj: Product) -> float:
+        """Получить РРЦ первого варианта"""
+        variant = self._get_first_variant(obj)
+        return float(variant.rrp) if variant and variant.rrp else 0.0
+
+    def get_msrp(self, obj: Product) -> float:
+        """Получить МРЦ первого варианта"""
+        variant = self._get_first_variant(obj)
+        return float(variant.msrp) if variant and variant.msrp else 0.0
 
     def get_opt1_price(self, obj: Product) -> float:
         """Получить оптовую цену уровня 1 из первого варианта"""
@@ -547,6 +598,10 @@ class ProductDetailSerializer(ProductListSerializer):
             "seo_description",
             "variants",
         ]
+
+    def to_representation(self, instance):
+        """Гарантируем использование логики скрытия полей из родительского класса"""
+        return super().to_representation(instance)
 
     def get_images(self, obj):
         """

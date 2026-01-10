@@ -141,7 +141,27 @@ def create_factories():
         category = factory.SubFactory(CategoryFactory)
         description = factory.Faker("text", max_nb_chars=500, locale="ru_RU")
         short_description = factory.Faker("sentence", nb_words=10, locale="ru_RU")
-        # Ценообразование
+        onec_id = factory.LazyFunction(lambda: f"1C-PROD-{get_unique_suffix()}")
+
+        is_active = True
+        is_featured = False
+
+        @factory.post_generation
+        def create_variant(self, create, extracted, **kwargs):
+            if not create:
+                return
+            ProductVariantFactory.create(product=self)
+    class ProductVariantFactory(factory.django.DjangoModelFactory):
+        """Фабрика для создания вариантов товаров"""
+
+        class Meta:
+            model = "products.ProductVariant"
+
+        product = factory.SubFactory("tests.conftest.ProductFactory")
+        sku = factory.LazyFunction(lambda: f"SKU-{get_unique_suffix().upper()}")
+        onec_id = factory.LazyFunction(lambda: f"1C-VAR-{get_unique_suffix()}")
+
+        # Цены
         retail_price = factory.Faker(
             "pydecimal", left_digits=4, right_digits=2, positive=True
         )
@@ -161,14 +181,8 @@ def create_factories():
             lambda obj: obj.retail_price * Decimal("0.75")
         )
 
-        # Инвентаризация
-        sku = factory.LazyFunction(lambda: f"SKU-{get_unique_suffix().upper()}")
-        # Фиксированное количество на складе, чтобы избежать случайных падений тестов
         stock_quantity = 100
-        min_order_quantity = 1
-
         is_active = True
-        is_featured = False
 
     class ProductImageFactory(factory.django.DjangoModelFactory):
         """Фабрика для создания изображений товаров"""
@@ -570,9 +584,9 @@ def clear_db_before_test(transactional_db):
     # Очищаем кэши Django
     cache.clear()
 
-    # Сбрасываем счетчик перед каждым тестом
-    global _unique_counter
-    _unique_counter = 0
+    # Сбрасываем кэши
+    # global _unique_counter
+    # _unique_counter = 0
 
     try:
         # Проверяем существование соединения с базой
@@ -589,8 +603,8 @@ def clear_db_before_test(transactional_db):
             "orders.Order",
             "cart.Cart",
             "products.ProductImage",
-            "products.ProductVariants",  # Добавлено для избежания duplicate key
-            "products.ColorMappings",  # Добавлено для избежания duplicate key
+            "products.ProductVariant",
+            "products.ColorMapping",
             "products.Product",
             "products.Category",
             "products.Brand",
