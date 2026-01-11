@@ -16,14 +16,18 @@ pytestmark = pytest.mark.django_db
 
 @pytest.fixture
 def variant(sample_image):
-    brand = Brand.objects.create(name=f"Brand-{uuid.uuid4()}", slug=f"brand-{uuid.uuid4()}")
-    category = Category.objects.create(name=f"Cat-{uuid.uuid4()}", slug=f"cat-{uuid.uuid4()}")
+    brand = Brand.objects.create(
+        name=f"Brand-{uuid.uuid4()}", slug=f"brand-{uuid.uuid4()}"
+    )
+    category = Category.objects.create(
+        name=f"Cat-{uuid.uuid4()}", slug=f"cat-{uuid.uuid4()}"
+    )
     product = Product.objects.create(
         name="Test Product",
         slug=f"product-{uuid.uuid4()}",
         brand=brand,
         category=category,
-        is_active=True
+        is_active=True,
     )
     return ProductVariant.objects.create(
         product=product,
@@ -31,13 +35,15 @@ def variant(sample_image):
         onec_id=f"1C-{uuid.uuid4()}",
         retail_price=Decimal("100.00"),
         stock_quantity=10,
-        is_active=True
+        is_active=True,
     )
 
 
 @pytest.fixture
 def authenticated_client(db, api_client):
-    user = User.objects.create_user(email=f"user-{uuid.uuid4()}@example.com", password="testpass")
+    user = User.objects.create_user(
+        email=f"user-{uuid.uuid4()}@example.com", password="testpass"
+    )
     from rest_framework_simplejwt.tokens import RefreshToken
 
     refresh = RefreshToken.for_user(user)
@@ -120,7 +126,9 @@ def test_user_cannot_see_other_users_order(
     order_id = create_response.data["id"]
 
     # Create and authenticate a second user
-    other_user = User.objects.create_user(email=f"other-{uuid.uuid4()}@example.com", password="testpass")
+    other_user = User.objects.create_user(
+        email=f"other-{uuid.uuid4()}@example.com", password="testpass"
+    )
     from rest_framework_simplejwt.tokens import RefreshToken
 
     refresh = RefreshToken.for_user(other_user)

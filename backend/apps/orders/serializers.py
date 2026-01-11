@@ -161,7 +161,10 @@ class OrderCreateSerializer(serializers.ModelSerializer):
                 )
 
             # Проверка минимального количества заказа
-            if product.min_order_quantity > 1 and item.quantity < product.min_order_quantity:
+            if (
+                product.min_order_quantity > 1
+                and item.quantity < product.min_order_quantity
+            ):
                 raise serializers.ValidationError(
                     f"Минимальное количество для заказа товара '{product.name}': {product.min_order_quantity} шт."
                 )
