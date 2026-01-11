@@ -356,7 +356,7 @@ def create_factories():
         action = factory.Faker("word", locale="en")
         resource_type = "Product"
         resource_id = factory.Sequence(lambda n: str(n))
-        changes = factory.Dict({"field": "value"})
+        details = factory.Dict({"field": "value"})
         ip_address = factory.Faker("ipv4")
         user_agent = factory.Faker("user_agent")
 
