@@ -529,15 +529,9 @@ class Command(BaseCommand):
         self, products_result: dict, variants_result: dict, dry_run: bool
     ):
         """Вывод итоговой статистики."""
-        status_msg = (
-            "✅ Дедупликация завершена" if not dry_run else "🔍 DRY-RUN завершён"
-        )
+        status_msg = "✅ Дедупликация завершена" if not dry_run else "🔍 DRY-RUN завершён"
         self.stdout.write(
-            self.style.SUCCESS(
-                f"\n{'=' * 60}\n"
-                f"  {status_msg}\n"
-                f"{'=' * 60}\n"
-            )
+            self.style.SUCCESS(f"\n{'=' * 60}\n" f"  {status_msg}\n" f"{'=' * 60}\n")
         )
 
         self.stdout.write("📊 Статистика Product.base_images:")

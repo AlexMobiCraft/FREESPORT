@@ -81,7 +81,9 @@ def setup_test_data():
         # Извлекаем поля для варианта
         variant_fields = {
             "sku": product_data.pop("sku", f"SKU-{uuid.uuid4().hex[:8]}"),
-            "onec_id": product_data.pop("variant_onec_id", f"1C-VAR-{uuid.uuid4().hex[:8]}"),
+            "onec_id": product_data.pop(
+                "variant_onec_id", f"1C-VAR-{uuid.uuid4().hex[:8]}"
+            ),
             "retail_price": product_data.pop("retail_price"),
             "opt1_price": product_data.pop("opt1_price", None),
             "opt2_price": product_data.pop("opt2_price", None),
@@ -97,13 +99,9 @@ def setup_test_data():
         product = Product.objects.create(
             **product_data, brand=brand, category=child_category, onec_id=p_onec_id
         )
-        
+
         # Создаем вариант для товара
-        ProductVariant.objects.create(
-            product=product,
-            is_active=True,
-            **variant_fields
-        )
+        ProductVariant.objects.create(product=product, is_active=True, **variant_fields)
         products.append(product)
 
     return {
@@ -135,6 +133,7 @@ def register_and_login_user(api_client, role="retail"):
     if role != "retail":
         # Используем уникальный ИНН для каждой роли
         import random
+
         tax_id = "".join([str(random.randint(0, 9)) for _ in range(10)])
         registration_data.update(
             {"company_name": f"Тестовая компания {role}", "tax_id": tax_id}

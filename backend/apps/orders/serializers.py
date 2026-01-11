@@ -160,7 +160,11 @@ class OrderCreateSerializer(serializers.ModelSerializer):
                     f"запрошено: {item.quantity} штук"
                 )
 
-            # Минимальное количество товара не контролируется на уровне Product
+            # Проверка минимального количества заказа
+            if product.min_order_quantity > 1 and item.quantity < product.min_order_quantity:
+                raise serializers.ValidationError(
+                    f"Минимальное количество для заказа товара '{product.name}': {product.min_order_quantity} шт."
+                )
 
         # Валидация способов доставки и оплаты
         payment_method = attrs.get("payment_method")

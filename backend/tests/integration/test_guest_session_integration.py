@@ -201,7 +201,10 @@ class GuestSessionIntegrationTest(TestCase):
         client = APIClient()
 
         # Проверяем валидацию остатков для гостей
-        data = {"variant_id": self.variant.id, "quantity": 15}  # больше stock_quantity=10
+        data = {
+            "variant_id": self.variant.id,
+            "quantity": 15,
+        }  # больше stock_quantity=10
         response = client.post("/api/v1/cart/items/", data)
         self.assertEqual(response.status_code, 400)
 

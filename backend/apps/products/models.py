@@ -325,6 +325,15 @@ class Product(models.Model):
         ),
     )
 
+    min_order_quantity = cast(
+        int,
+        models.PositiveIntegerField(
+            "Минимальное количество заказа",
+            default=1,
+            help_text="Минимальное количество товара для заказа (для B2B)",
+        ),
+    )
+
     # Временные метки и интеграция с 1С
     created_at = cast(
         datetime, models.DateTimeField("Дата создания", auto_now_add=True)

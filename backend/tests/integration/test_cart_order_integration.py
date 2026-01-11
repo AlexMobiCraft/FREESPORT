@@ -9,7 +9,7 @@ from rest_framework.test import APIClient
 
 from apps.cart.models import Cart, CartItem
 from apps.orders.models import Order, OrderItem
-from apps.products.models import Brand, Category, Product
+from apps.products.models import Brand, Category, Product, ProductVariant
 
 User = get_user_model()
 
@@ -34,15 +34,28 @@ class CartOrderIntegrationTest(TestCase):
             slug="test-product-1",
             category=self.category,
             brand=self.brand,
+            is_active=True,
+        )
+        self.variant1 = ProductVariant.objects.create(
+            product=self.product1,
+            sku="VAR1",
+            onec_id="1C-VAR1",
             retail_price=100.00,
             stock_quantity=10,
             is_active=True,
         )
+
         self.product2 = Product.objects.create(
             name="Test Product 2",
             slug="test-product-2",
             category=self.category,
             brand=self.brand,
+            is_active=True,
+        )
+        self.variant2 = ProductVariant.objects.create(
+            product=self.product2,
+            sku="VAR2",
+            onec_id="1C-VAR2",
             retail_price=50.00,
             stock_quantity=5,
             is_active=True,
@@ -54,10 +67,10 @@ class CartOrderIntegrationTest(TestCase):
 
         # 1. Добавляем товары в корзину
         self.client.post(
-            "/api/v1/cart/items/", {"product": self.product1.id, "quantity": 2}
+            "/api/v1/cart/items/", {"variant_id": self.variant1.id, "quantity": 2}
         )
         self.client.post(
-            "/api/v1/cart/items/", {"product": self.product2.id, "quantity": 1}
+            "/api/v1/cart/items/", {"variant_id": self.variant2.id, "quantity": 1}
         )
 
         # 2. Проверяем корзину
@@ -102,7 +115,7 @@ class CartOrderIntegrationTest(TestCase):
 
         # Добавляем товар в корзину
         self.client.post(
-            "/api/v1/cart/items/", {"product": self.product1.id, "quantity": 1}
+            "/api/v1/cart/items/", {"variant_id": self.variant1.id, "quantity": 1}
         )
 
         # Получаем цену из корзины
@@ -145,12 +158,12 @@ class CartOrderIntegrationTest(TestCase):
 
         # Добавляем товар в корзину
         self.client.post(
-            "/api/v1/cart/items/", {"product": self.product1.id, "quantity": 2}
+            "/api/v1/cart/items/", {"variant_id": self.variant1.id, "quantity": 2}
         )
 
         # Уменьшаем остаток товара
-        self.product1.stock_quantity = 1
-        self.product1.save()
+        self.variant1.stock_quantity = 1
+        self.variant1.save()
 
         # Пытаемся создать заказ
         order_data = {
@@ -169,7 +182,7 @@ class CartOrderIntegrationTest(TestCase):
 
         # Добавляем товар в корзину
         self.client.post(
-            "/api/v1/cart/items/", {"product": self.product1.id, "quantity": 1}
+            "/api/v1/cart/items/", {"variant_id": self.variant1.id, "quantity": 1}
         )
 
         # Получаем начальное количество заказов

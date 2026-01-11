@@ -43,6 +43,7 @@ class PricingIntegrationTest(TestCase):
         )
         self.brand = Brand.objects.create(name="Test Brand", slug="test-brand")
         from apps.products.models import ProductVariant
+
         self.product = Product.objects.create(
             name="Test Product",
             slug="test-product",
@@ -75,7 +76,9 @@ class PricingIntegrationTest(TestCase):
         for user, expected_price in test_cases:
             with self.subTest(user=user.role):
                 self.client.force_authenticate(user=user)
-                url = reverse("products:product-detail", kwargs={"slug": self.product.slug})
+                url = reverse(
+                    "products:product-detail", kwargs={"slug": self.product.slug}
+                )
                 response = self.client.get(url)
                 self.assertEqual(response.status_code, 200)
 

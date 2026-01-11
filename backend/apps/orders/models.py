@@ -349,10 +349,20 @@ class OrderItem(models.Model):
         self.total_price = self.unit_price * self.quantity
 
         # Сохраняем снимок данных продукта
-        product = self.product
-        if product and not self.product_name:
-            self.product_name = getattr(product, "name", self.product_name)
-            self.product_sku = getattr(product, "sku", self.product_sku)
+        if self.product and not self.product_name:
+            self.product_name = getattr(self.product, "name", self.product_name)
+
+        if self.variant:
+            if not self.product_sku:
+                self.product_sku = getattr(self.variant, "sku", self.product_sku)
+            if not self.variant_info:
+                # Формируем информацию о варианте
+                parts = []
+                if self.variant.color_name:
+                    parts.append(f"Цвет: {self.variant.color_name}")
+                if self.variant.size_value:
+                    parts.append(f"Размер: {self.variant.size_value}")
+                self.variant_info = ", ".join(parts)
 
         super().save(*args, **kwargs)
 

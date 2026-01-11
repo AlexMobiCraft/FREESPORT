@@ -12,7 +12,9 @@ from rest_framework.test import APIClient
 
 from apps.cart.models import Cart, CartItem
 from apps.orders.models import Order, OrderItem
-from apps.products.models import Brand, Category, Product
+from apps.cart.models import Cart, CartItem
+from apps.orders.models import Order, OrderItem
+from apps.products.models import Brand, Category, Product, ProductVariant
 
 User = get_user_model()
 
@@ -41,9 +43,15 @@ class TestOrderAPI:
             slug="test-product",
             brand=self.brand,
             category=self.category,
+            is_active=True,
+        )
+        self.variant = ProductVariant.objects.create(
+            product=self.product,
             sku="TEST001",
+            onec_id="1C-TEST001",
             retail_price=Decimal("100.00"),
             stock_quantity=10,
+            is_active=True,
         )
 
     def test_create_order_from_cart_success(self, db):
@@ -53,7 +61,12 @@ class TestOrderAPI:
 
         # Создаем корзину с товаром
         cart = Cart.objects.create(user=self.user)
-        CartItem.objects.create(cart=cart, product=self.product, quantity=2)
+        CartItem.objects.create(
+            cart=cart,
+            variant=self.variant,
+            quantity=2,
+            price_snapshot=self.variant.retail_price,
+        )
 
         # Данные для создания заказа
         order_data = {
@@ -79,7 +92,7 @@ class TestOrderAPI:
         # Проверяем, что создались OrderItem
         assert order.items.count() == 1
         order_item = order.items.first()
-        assert order_item.product == self.product
+        assert order_item.variant == self.variant
         assert order_item.quantity == 2
         assert order_item.unit_price == Decimal("100.00")
         assert order_item.product_name == "Test Product"
@@ -114,13 +127,18 @@ class TestOrderAPI:
         # Создаем корзину с количеством больше чем на складе
         cart = Cart.objects.create(user=self.user)
         # Временно увеличим stock для создания CartItem
-        original_stock = self.product.stock_quantity
-        self.product.stock_quantity = 20
-        self.product.save()
-        CartItem.objects.create(cart=cart, product=self.product, quantity=15)
+        original_stock = self.variant.stock_quantity
+        self.variant.stock_quantity = 20
+        self.variant.save()
+        CartItem.objects.create(
+            cart=cart,
+            variant=self.variant,
+            quantity=15,
+            price_snapshot=self.variant.retail_price,
+        )
         # Вернем исходный stock для теста
-        self.product.stock_quantity = original_stock
-        self.product.save()
+        self.variant.stock_quantity = original_stock
+        self.variant.save()
 
         order_data = {
             "delivery_address": "г. Москва, ул. Тестовая, д. 1",
@@ -134,18 +152,23 @@ class TestOrderAPI:
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert "Недостаточно товара" in str(response.data)
 
-    def test_create_order_unauthenticated_failure(self, db):
-        """Тест создания заказа неавторизованным пользователем"""
+    def test_create_order_guest_no_cart_failure(self, db):
+        """Тест создания заказа гостем без корзины (ожидаем 400, так как доступ есть, но данных нет)"""
         order_data = {
             "delivery_address": "г. Москва, ул. Тестовая, д. 1",
             "delivery_method": "courier",
             "payment_method": "card",
+            "customer_email": "guest@example.com",
+            "customer_phone": "+79990000000",
+            "customer_name": "Guest",
         }
 
         url = reverse("orders:order-list")
         response = self.client.post(url, order_data)
 
-        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+        # 400 Bad Request because cart is missing/empty, not 401 Unauthorized
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "Корзина пуста" in str(response.data)
 
     def test_get_order_detail_success(self, db):
         """Тест получения детальной информации о заказе"""
@@ -163,10 +186,11 @@ class TestOrderAPI:
         OrderItem.objects.create(
             order=order,
             product=self.product,
+            variant=self.variant,
             quantity=1,
             unit_price=Decimal("100.00"),
             product_name=self.product.name,
-            product_sku=self.product.sku,
+            product_sku=self.variant.sku,
         )
 
         url = reverse("orders:order-detail", kwargs={"pk": order.pk})
@@ -241,13 +265,18 @@ class TestOrderAPI:
         self.client.force_authenticate(user=self.user)
 
         cart = Cart.objects.create(user=self.user)
-        CartItem.objects.create(cart=cart, product=self.product, quantity=1)
+        CartItem.objects.create(
+            cart=cart,
+            variant=self.variant,
+            quantity=1,
+            price_snapshot=self.variant.retail_price,
+        )
 
         delivery_methods = [
             ("pickup", Decimal("0")),
             ("courier", Decimal("500")),
             ("post", Decimal("300")),
-            ("transport", Decimal("1000")),
+            ("transport_company", Decimal("1000")),
         ]
 
         for method, expected_cost in delivery_methods:
@@ -270,7 +299,12 @@ class TestOrderAPI:
             order.delete()
 
             # Воссоздаем товар в корзине
-            CartItem.objects.create(cart=cart, product=self.product, quantity=1)
+            CartItem.objects.create(
+                cart=cart,
+                variant=self.variant,
+                quantity=1,
+                price_snapshot=self.variant.retail_price,
+            )
 
     def test_b2b_minimum_quantity_validation(self, db):
         """Тест валидации минимального количества для B2B пользователей"""
@@ -289,7 +323,12 @@ class TestOrderAPI:
         # Временно сбросим минимальное количество для создания CartItem
         self.product.min_order_quantity = 1
         self.product.save()
-        CartItem.objects.create(cart=cart, product=self.product, quantity=2)
+        CartItem.objects.create(
+            cart=cart,
+            variant=self.variant,
+            quantity=2,
+            price_snapshot=self.variant.retail_price,
+        )
         # Теперь установим реальное минимальное количество
         self.product.min_order_quantity = 5
         self.product.save()

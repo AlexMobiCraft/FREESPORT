@@ -151,6 +151,7 @@ def create_factories():
             if not create:
                 return
             ProductVariantFactory.create(product=self)
+
     class ProductVariantFactory(factory.django.DjangoModelFactory):
         """Фабрика для создания вариантов товаров"""
 
@@ -238,12 +239,15 @@ def create_factories():
 
         order = factory.SubFactory(OrderFactory)
         product = factory.SubFactory(ProductFactory)
+        variant = factory.SubFactory(ProductVariantFactory)
         quantity = factory.Faker("random_int", min=1, max=10)
         unit_price = factory.Faker(
             "pydecimal", left_digits=4, right_digits=2, positive=True
         )
         product_name = factory.LazyAttribute(lambda obj: obj.product.name)
-        product_sku = factory.LazyAttribute(lambda obj: obj.product.sku)
+        product_sku = factory.LazyAttribute(
+            lambda obj: obj.variant.sku if obj.variant else f"SKU-{get_unique_suffix()}"
+        )
         total_price = factory.LazyAttribute(lambda obj: obj.quantity * obj.unit_price)
 
     class AuditLogFactory(factory.django.DjangoModelFactory):

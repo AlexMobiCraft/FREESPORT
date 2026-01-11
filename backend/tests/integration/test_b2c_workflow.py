@@ -166,7 +166,8 @@ class B2CWorkflowTest(TestCase):
 
                 # Восстанавливаем корзину для следующего теста
                 self.client.post(
-                    "/api/v1/cart/items/", {"variant_id": self.variant.id, "quantity": 1}
+                    "/api/v1/cart/items/",
+                    {"variant_id": self.variant.id, "quantity": 1},
                 )
 
     def test_b2c_delivery_methods(self):
@@ -194,7 +195,8 @@ class B2CWorkflowTest(TestCase):
 
                 # Восстанавливаем корзину
                 self.client.post(
-                    "/api/v1/cart/items/", {"variant_id": self.variant.id, "quantity": 1}
+                    "/api/v1/cart/items/",
+                    {"variant_id": self.variant.id, "quantity": 1},
                 )
 
     def test_b2c_order_without_minimum_quantity(self):

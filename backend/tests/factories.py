@@ -46,7 +46,9 @@ class ProductFactory(DjangoModelFactory):
     name = factory.Faker("catch_phrase")
     brand = factory.SubFactory(BrandFactory)
     category = factory.SubFactory(CategoryFactory)
-    slug = factory.LazyAttribute(lambda obj: factory.Faker("slug").generate() + "-" + str(uuid.uuid4())[:8])
+    slug = factory.LazyAttribute(
+        lambda obj: factory.Faker("slug").generate() + "-" + str(uuid.uuid4())[:8]
+    )
 
     @factory.post_generation
     def create_variant(self, create, extracted, **kwargs):

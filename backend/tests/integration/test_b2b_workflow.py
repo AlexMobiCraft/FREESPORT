@@ -40,7 +40,7 @@ class B2BWorkflowTest(TestCase):
             is_active=True,
             specifications={"test": "spec"},
         )
-        
+
         self.variant = ProductVariant.objects.create(
             product=self.product,
             sku="B2B-TEST-001",
@@ -101,8 +101,6 @@ class B2BWorkflowTest(TestCase):
         self.assertEqual(order_detail.data["payment_method"], "bank_transfer")
         self.assertEqual(len(order_detail.data["items"]), 1)
         self.assertEqual(order_detail.data["items"][0]["quantity"], 5)
-
-
 
     def test_b2b_payment_method_validation(self):
         """Валидация способов оплаты для B2B"""

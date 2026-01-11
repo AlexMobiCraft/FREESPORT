@@ -37,6 +37,7 @@ def test_product_detail_basic(api_client, product_detail_setup):
 @pytest.fixture
 def retail_client(db):
     from rest_framework.test import APIClient
+
     api_client = APIClient()
     user = UserFactory.create(role="retail")
     from rest_framework_simplejwt.tokens import RefreshToken
@@ -49,6 +50,7 @@ def retail_client(db):
 @pytest.fixture
 def wholesale_client(db):
     from rest_framework.test import APIClient
+
     api_client = APIClient()
     user = UserFactory.create(role="wholesale_level1")
     from rest_framework_simplejwt.tokens import RefreshToken
