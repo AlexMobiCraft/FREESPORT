@@ -1017,6 +1017,21 @@ class ProductVariant(models.Model):
         return max(0, self.stock_quantity - self.reserved_quantity)
 
     @property
+    def can_be_ordered(self) -> bool:
+        """
+        Проверка возможности заказа товара.
+        Учитывает: активность Product, активность варианта,
+        наличие и минимальное количество заказа.
+        """
+        if not self.product.is_active:
+            return False
+        if not self.is_active:
+            return False
+        if self.available_quantity < self.product.min_order_quantity:
+            return False
+        return True
+
+    @property
     def effective_images(self) -> list[str]:
         """
         Hybrid подход: вернуть собственные изображения варианта,

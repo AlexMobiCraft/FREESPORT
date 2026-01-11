@@ -100,19 +100,27 @@ class TestProductModel:
         )
 
         assert product.name == "Футбольный мяч Nike"
-        assert product.retail_price == Decimal("2500.00")
         assert product.is_active is True
-        assert product.stock_quantity >= 0
-        assert str(product) == f"{product.name} ({product.sku})"
+
+        # Цены и остатки теперь в ProductVariant
+        variant = product.variants.first()
+        assert variant is not None
+        assert variant.retail_price == Decimal("2500.00")
+        assert variant.stock_quantity >= 0
+        assert str(product) == product.name
 
 
 class ProductComputedPropertiesTest(TestCase):
     """
-    Тесты для вычисляемых свойств модели Product.
+    Тесты для вычисляемых свойств модели ProductVariant.
+    Цены, остатки и computed properties находятся в ProductVariant, не в Product.
     """
 
     def setUp(self):
         """Настройка тестовых данных."""
+        from apps.products.models import ProductVariant
+        from decimal import Decimal
+
         self.brand = Brand.objects.create(name="Test Brand", slug="test-brand")
         self.category = Category.objects.create(
             name="Test Category", slug="test-category"
@@ -122,39 +130,45 @@ class ProductComputedPropertiesTest(TestCase):
             slug="test-product",
             brand=self.brand,
             category=self.category,
-            retail_price=100.00,
-            stock_quantity=20,
-            reserved_quantity=5,
             min_order_quantity=1,
             is_active=True,
+        )
+        # Цены и остатки находятся в ProductVariant
+        self.variant = ProductVariant.objects.create(
+            product=self.product,
+            sku="TEST-SKU-001",
+            onec_id="TEST-1C-001",
+            retail_price=Decimal("100.00"),
+            stock_quantity=20,
+            reserved_quantity=5,
         )
 
     def test_available_quantity(self):
         """Тест правильности расчета доступного количества."""
-        self.assertEqual(self.product.available_quantity, 15)
+        self.assertEqual(self.variant.available_quantity, 15)
 
     def test_can_be_ordered_when_available(self):
         """Тест, что товар можно заказать, когда он доступен."""
-        self.assertTrue(self.product.can_be_ordered)
+        self.assertTrue(self.variant.can_be_ordered)
 
     def test_cannot_be_ordered_when_stock_is_fully_reserved(self):
         """Тест, что товар нельзя заказать, если все зарезервировано."""
-        self.product.reserved_quantity = 20
-        self.product.save()
-        self.assertFalse(self.product.can_be_ordered)
-        self.assertEqual(self.product.available_quantity, 0)
+        self.variant.reserved_quantity = 20
+        self.variant.save()
+        self.assertFalse(self.variant.can_be_ordered)
+        self.assertEqual(self.variant.available_quantity, 0)
 
     def test_cannot_be_ordered_when_inactive(self):
-        """Тест, что неактивный товар нельзя заказать."""
+        """Тест, что неактивный товар (Product) нельзя заказать."""
         self.product.is_active = False
         self.product.save()
-        self.assertFalse(self.product.can_be_ordered)
+        self.assertFalse(self.variant.can_be_ordered)
 
     def test_cannot_be_ordered_if_available_is_less_than_min_order(self):
         """Тест, что товар нельзя заказать, если доступно меньше минимальной партии."""
         self.product.min_order_quantity = 20
         self.product.save()
-        self.assertFalse(self.product.can_be_ordered)
+        self.assertFalse(self.variant.can_be_ordered)
 
     def test_product_pricing_for_different_roles(self):
         """Тест ценообразования для разных ролей пользователей"""
