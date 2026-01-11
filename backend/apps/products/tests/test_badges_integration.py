@@ -11,6 +11,7 @@ import pytest
 from apps.products.filters import ProductFilter
 from apps.products.models import Brand, Category, Product
 from apps.products.serializers import ProductListSerializer
+from tests.factories import ProductFactory
 
 
 @pytest.mark.django_db
@@ -28,7 +29,7 @@ class TestBadgesIntegration:
     def test_filter_by_is_hit(self, brand, category):
         """Тест: фильтр по is_hit работает"""
         # Создаём хит и обычный товар
-        hit = Product.objects.create(
+        hit = ProductFactory.create(
             name="Hit",
             slug="hit",
             sku="HIT",
@@ -37,7 +38,7 @@ class TestBadgesIntegration:
             retail_price=Decimal("100"),
             is_hit=True,
         )
-        regular = Product.objects.create(
+        regular = ProductFactory.create(
             name="Regular",
             slug="regular",
             sku="REG",
@@ -53,7 +54,7 @@ class TestBadgesIntegration:
 
     def test_serializer_includes_badge_fields(self, brand, category):
         """Тест: сериализатор включает поля бейджей"""
-        product = Product.objects.create(
+        product = ProductFactory.create(
             name="Product",
             slug="product",
             sku="PROD",
@@ -76,7 +77,7 @@ class TestBadgesIntegration:
     def test_multiple_filters_combined(self, brand, category):
         """Тест: комбинация фильтров работает"""
         # Товар с двумя флагами
-        combo = Product.objects.create(
+        combo = ProductFactory.create(
             name="Combo",
             slug="combo",
             sku="COMBO",
@@ -87,7 +88,7 @@ class TestBadgesIntegration:
             is_sale=True,
         )
         # Товар с одним флагом
-        hit_only = Product.objects.create(
+        hit_only = ProductFactory.create(
             name="Hit",
             slug="hit",
             sku="HIT",

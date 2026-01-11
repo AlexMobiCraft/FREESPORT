@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from datetime import timedelta
 
+import uuid
 import pytest
 from django.contrib.auth import get_user_model
 from django.test import TestCase
@@ -52,9 +53,9 @@ class TestMonitoringAPIEndpoints(TestCase):
                 operation_type=CustomerSyncLog.OperationType.IMPORT_FROM_1C,
                 status=CustomerSyncLog.StatusType.SUCCESS,
                 customer=self.regular_user,
-                customer_email=self.regular_user.email,
                 onec_id=f"1C-SUCCESS-{i}",
                 duration_ms=100 + i * 10,
+                correlation_id=uuid.uuid4(),
             )
 
         # Ошибочные операции
@@ -63,9 +64,9 @@ class TestMonitoringAPIEndpoints(TestCase):
                 operation_type=CustomerSyncLog.OperationType.IMPORT_FROM_1C,
                 status=CustomerSyncLog.StatusType.ERROR,
                 customer=self.regular_user,
-                customer_email=self.regular_user.email,
                 onec_id=f"1C-ERROR-{i}",
                 error_message=f"Test error {i}",
+                correlation_id=uuid.uuid4(),
             )
 
     def test_operation_metrics_requires_admin(self) -> None:

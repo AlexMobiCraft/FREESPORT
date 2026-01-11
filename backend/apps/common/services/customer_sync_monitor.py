@@ -147,11 +147,12 @@ class CustomerSyncMonitor:
             return 0.0
 
         # Используем window function для расчета percentile
+        table_name = CustomerSyncLog._meta.db_table
         with connection.cursor() as cursor:
             cursor.execute(
-                """
+                f"""
                 SELECT PERCENTILE_CONT(%s) WITHIN GROUP (ORDER BY duration_ms)
-                FROM customer_sync_logs
+                FROM {table_name}
                 WHERE created_at >= %s AND created_at < %s
                 AND duration_ms IS NOT NULL
                 """,

@@ -62,7 +62,10 @@ class TestDeliveryMethodsListAPI:
         """Проверяет, что API возвращает только доступные способы доставки."""
         response = api_client.get("/api/v1/delivery/methods/")
         assert response.status_code == 200
-        results = response.data.get("results", response.data)
+        if isinstance(response.data, list):
+            results = response.data
+        else:
+            results = response.data.get("results", response.data)
         assert len(results) == 2  # Только is_available=True
 
     def test_list_excludes_unavailable(
@@ -70,7 +73,10 @@ class TestDeliveryMethodsListAPI:
     ) -> None:
         """Проверяет, что недоступные способы исключаются из списка."""
         response = api_client.get("/api/v1/delivery/methods/")
-        results = response.data.get("results", response.data)
+        if isinstance(response.data, list):
+            results = response.data
+        else:
+            results = response.data.get("results", response.data)
         ids = [m["id"] for m in results]
         assert "disabled" not in ids
 
@@ -79,7 +85,10 @@ class TestDeliveryMethodsListAPI:
     ) -> None:
         """Проверяет структуру ответа API."""
         response = api_client.get("/api/v1/delivery/methods/")
-        results = response.data.get("results", response.data)
+        if isinstance(response.data, list):
+            results = response.data
+        else:
+            results = response.data.get("results", response.data)
         method = results[0]
         assert "id" in method
         assert "name" in method
@@ -91,7 +100,10 @@ class TestDeliveryMethodsListAPI:
         """Проверяет, что пустой список возвращает 200."""
         response = api_client.get("/api/v1/delivery/methods/")
         assert response.status_code == 200
-        results = response.data.get("results", response.data)
+        if isinstance(response.data, list):
+            results = response.data
+        else:
+            results = response.data.get("results", response.data)
         assert results == []
 
     def test_ordering_by_sort_order(
@@ -99,7 +111,10 @@ class TestDeliveryMethodsListAPI:
     ) -> None:
         """Проверяет сортировку по sort_order."""
         response = api_client.get("/api/v1/delivery/methods/")
-        results = response.data.get("results", response.data)
+        if isinstance(response.data, list):
+            results = response.data
+        else:
+            results = response.data.get("results", response.data)
         ids = [m["id"] for m in results]
         assert ids == ["courier", "pickup"]  # Сортировка по sort_order
 

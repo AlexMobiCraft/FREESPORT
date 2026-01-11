@@ -11,6 +11,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 
+from apps.products.factories import ProductFactory, ProductVariantFactory
 from apps.products.models import Brand, Category, Product
 
 User = get_user_model()
@@ -41,60 +42,60 @@ class SearchAPITest(TestCase):
 
         # Создаем тестовые товары для поиска
         self.products = [
-            Product.objects.create(
-                name="Nike Phantom GT2 Elite FG",
+            ProductVariantFactory.create(
+                product__name="Nike Phantom GT2 Elite FG",
                 sku="NIKE-PHT-001",
-                short_description="Футбольные бутсы для профессиональных игроков",
-                description=(
+                product__short_description="Футбольные бутсы для профессиональных игроков",
+                product__description=(
                     "Высокотехнологичные футбольные бутсы Nike Phantom "
                     "GT2 Elite FG для профессионалов"
                 ),
-                brand=self.brand_nike,
-                category=self.category1,
+                product__brand=self.brand_nike,
+                product__category=self.category1,
                 retail_price=18999.00,
                 opt1_price=15999.00,
                 trainer_price=12999.00,
                 stock_quantity=15,
-                is_active=True,
-            ),
-            Product.objects.create(
-                name="Adidas Predator Freak.1 FG",
+                product__is_active=True,
+            ).product,
+            ProductVariantFactory.create(
+                product__name="Adidas Predator Freak.1 FG",
                 sku="ADIDAS-PRED-001",
-                short_description="Футбольная обувь Adidas для атаки",
-                description=(
+                product__short_description="Футбольная обувь Adidas для атаки",
+                product__description=(
                     "Adidas Predator Freak.1 FG футбольные бутсы с технологией "
                     "Demonskin"
                 ),
-                brand=self.brand_adidas,
-                category=self.category1,
+                product__brand=self.brand_adidas,
+                product__category=self.category1,
                 retail_price=15999.00,
                 opt1_price=13999.00,
                 trainer_price=11999.00,
                 stock_quantity=8,
-                is_active=True,
-            ),
-            Product.objects.create(
-                name="Футболка Nike Dri-FIT",
+                product__is_active=True,
+            ).product,
+            ProductVariantFactory.create(
+                product__name="Футболка Nike Dri-FIT",
                 sku="NIKE-SHIRT-001",
-                short_description="Спортивная футболка Nike",
-                description="Легкая спортивная футболка Nike Dri-FIT для тренировок",
-                brand=self.brand_nike,
-                category=self.category2,
+                product__short_description="Спортивная футболка Nike",
+                product__description="Легкая спортивная футболка Nike Dri-FIT для тренировок",
+                product__brand=self.brand_nike,
+                product__category=self.category2,
                 retail_price=3499.00,
                 stock_quantity=50,
-                is_active=True,
-            ),
-            Product.objects.create(
-                name="Перчатки вратарские Nike",
+                product__is_active=True,
+            ).product,
+            ProductVariantFactory.create(
+                product__name="Перчатки вратарские Nike",
                 sku="NIKE-GK-001",
-                short_description="Вратарские перчатки Nike Vapor Grip3",
-                description="Профессиональные вратарские перчатки Nike Vapor Grip3",
-                brand=self.brand_nike,
-                category=self.category1,
+                product__short_description="Вратарские перчатки Nike Vapor Grip3",
+                product__description="Профессиональные вратарские перчатки Nike Vapor Grip3",
+                product__brand=self.brand_nike,
+                product__category=self.category1,
                 retail_price=4999.00,
                 stock_quantity=25,
-                is_active=True,
-            ),
+                product__is_active=True,
+            ).product,
         ]
 
         # Создаем тестовых пользователей
@@ -375,7 +376,7 @@ class SearchAPITest(TestCase):
     def test_search_with_ordering(self):
         """Тест поиска с дополнительной сортировкой"""
         url = reverse("products:product-list")
-        response = self.client.get(url, {"search": "Nike", "ordering": "retail_price"})
+        response = self.client.get(url, {"search": "Nike", "ordering": "min_retail_price"})
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.json()
