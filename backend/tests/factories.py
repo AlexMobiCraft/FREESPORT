@@ -79,24 +79,35 @@ class ProductFactory(DjangoModelFactory):
     # Class-level storage for variant params (thread-safe per-instance)
     _variant_params_storage = {}
 
+    _VARIANT_FIELDS = [
+        "retail_price",
+        "opt1_price",
+        "opt2_price",
+        "opt3_price",
+        "trainer_price",
+        "federation_price",
+        "stock_quantity",
+        "reserved_quantity",
+        "sku",
+        "onec_variant_id",
+    ]
+
+    @classmethod
+    def _build(cls, model_class, *args, **kwargs):
+        """Build the Product instance, stripping variant fields."""
+        # Extract and ignore variant params for build
+        for field in cls._VARIANT_FIELDS:
+            if field in kwargs:
+                kwargs.pop(field)
+        return model_class(*args, **kwargs)
+
     @classmethod
     def _create(cls, model_class, *args, **kwargs):
         """Extract variant-related kwargs before creating Product."""
         from decimal import Decimal
 
         # Fields that belong to ProductVariant, not Product
-        variant_fields = [
-            "retail_price",
-            "opt1_price",
-            "opt2_price",
-            "opt3_price",
-            "trainer_price",
-            "federation_price",
-            "stock_quantity",
-            "reserved_quantity",
-            "sku",
-            "onec_variant_id",
-        ]
+        variant_fields = cls._VARIANT_FIELDS
 
         # Extract variant params from kwargs
         variant_params = {}

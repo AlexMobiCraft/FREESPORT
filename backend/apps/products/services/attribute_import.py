@@ -287,6 +287,13 @@ class AttributeImportService:
                     logger.debug(
                         f"Found existing mapping: {onec_name} → {attribute.name}"
                     )
+                    
+                    # Обновляем поля атрибута если изменились
+                    if attribute.name != onec_name or attribute.type != attr_type:
+                        attribute.name = onec_name
+                        attribute.type = attr_type
+                        attribute.save()
+                        self.stats["attributes_updated"] = self.stats.get("attributes_updated", 0) + 1
                 else:
                     # Шаг 2: Ищем атрибут по normalized_name для дедупликации
                     existing_attr = self.attribute_model.objects.filter(

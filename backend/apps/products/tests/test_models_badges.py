@@ -11,6 +11,7 @@ from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 
 from apps.products.models import Brand, Category, Product
+from tests.factories import ProductFactory
 
 
 @pytest.mark.django_db
@@ -29,7 +30,7 @@ class TestProductBadgeFields:
 
     def test_badge_fields_default_values(self, brand, category):
         """Тест: все флаги бейджей имеют default=False по умолчанию"""
-        product = Product.objects.create(
+        product = ProductFactory.create(
             name="Test Product",
             slug="test-product",
             sku="TEST-001",
@@ -47,7 +48,7 @@ class TestProductBadgeFields:
 
     def test_create_product_with_all_badges_true(self, brand, category):
         """Тест: создание товара со всеми флагами = True"""
-        product = Product.objects.create(
+        product = ProductFactory.create(
             name="Super Product",
             slug="super-product",
             sku="SUPER-001",
@@ -72,7 +73,7 @@ class TestProductBadgeFields:
     def test_discount_percent_valid_range(self, brand, category):
         """Тест: discount_percent принимает значения 0-100"""
         # Минимальное значение
-        product_min = Product.objects.create(
+        product_min = ProductFactory.create(
             name="Product Min",
             slug="product-min",
             sku="MIN-001",
@@ -84,7 +85,7 @@ class TestProductBadgeFields:
         assert product_min.discount_percent == 0
 
         # Максимальное значение
-        product_max = Product.objects.create(
+        product_max = ProductFactory.create(
             name="Product Max",
             slug="product-max",
             sku="MAX-001",
@@ -96,7 +97,7 @@ class TestProductBadgeFields:
         assert product_max.discount_percent == 100
 
         # Среднее значение
-        product_mid = Product.objects.create(
+        product_mid = ProductFactory.create(
             name="Product Mid",
             slug="product-mid",
             sku="MID-001",
@@ -109,7 +110,7 @@ class TestProductBadgeFields:
 
     def test_discount_percent_exceeds_max_validator(self, brand, category):
         """Тест: discount_percent > 100 должен вызвать ValidationError"""
-        product = Product(
+        product = ProductFactory.build(
             name="Product Invalid",
             slug="product-invalid",
             sku="INV-001",
@@ -126,7 +127,7 @@ class TestProductBadgeFields:
 
     def test_discount_percent_null_allowed(self, brand, category):
         """Тест: discount_percent может быть NULL"""
-        product = Product.objects.create(
+        product = ProductFactory.create(
             name="Product No Discount",
             slug="product-no-discount",
             sku="ND-001",
@@ -140,7 +141,7 @@ class TestProductBadgeFields:
 
     def test_multiple_badges_combination(self, brand, category):
         """Тест: товар может иметь несколько бейджей одновременно"""
-        product = Product.objects.create(
+        product = ProductFactory.create(
             name="Multi Badge Product",
             slug="multi-badge",
             sku="MULTI-001",
@@ -161,7 +162,7 @@ class TestProductBadgeFields:
 
     def test_badge_fields_update(self, brand, category):
         """Тест: обновление флагов бейджей"""
-        product = Product.objects.create(
+        product = ProductFactory.create(
             name="Updatable Product",
             slug="updatable",
             sku="UPD-001",
@@ -188,7 +189,7 @@ class TestProductBadgeFields:
     def test_db_indexes_exist_for_badge_fields(self, brand, category):
         """Тест: проверка что индексы созданы для boolean полей"""
         # Создаём товары с разными флагами
-        Product.objects.create(
+        ProductFactory.create(
             name="Hit Product",
             slug="hit-product",
             sku="HIT-001",
@@ -198,7 +199,7 @@ class TestProductBadgeFields:
             is_hit=True,
         )
 
-        Product.objects.create(
+        ProductFactory.create(
             name="New Product",
             slug="new-product",
             sku="NEW-001",
@@ -211,16 +212,16 @@ class TestProductBadgeFields:
         # Проверяем что фильтрация работает корректно (косвенно проверяет индексы)
         hits = Product.objects.filter(is_hit=True)
         assert hits.count() == 1
-        assert hits.first().sku == "HIT-001"
+        assert hits.first().variants.first().sku == "HIT-001"
 
         news = Product.objects.filter(is_new=True)
         assert news.count() == 1
-        assert news.first().sku == "NEW-001"
+        assert news.first().variants.first().sku == "NEW-001"
 
     def test_badge_fields_in_queryset_filter(self, brand, category):
         """Тест: фильтрация по маркетинговым полям работает корректно"""
         # Создаём несколько товаров
-        Product.objects.create(
+        ProductFactory.create(
             name="Regular",
             slug="regular",
             sku="REG-001",
@@ -229,7 +230,7 @@ class TestProductBadgeFields:
             retail_price=Decimal("100.00"),
         )
 
-        Product.objects.create(
+        ProductFactory.create(
             name="Hit",
             slug="hit",
             sku="HIT-001",
@@ -239,7 +240,7 @@ class TestProductBadgeFields:
             is_hit=True,
         )
 
-        Product.objects.create(
+        ProductFactory.create(
             name="Sale",
             slug="sale",
             sku="SALE-001",

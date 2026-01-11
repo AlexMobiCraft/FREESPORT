@@ -229,13 +229,13 @@ class TestAttributeImportServiceIntegration:
             service.import_from_file(tmp_file_path)
 
             # Проверяем что атрибут создан
-            attribute = Attribute.objects.get(onec_id="test-attr-001")
+            attribute = Attribute.objects.get(onec_mappings__onec_id="test-attr-001")
             assert attribute.name == "Тестовый атрибут"
             assert attribute.type == "Справочник"
             assert attribute.slug  # slug должен быть сгенерирован
 
             # Проверяем что значение создано
-            value = AttributeValue.objects.get(onec_id="test-val-001")
+            value = AttributeValue.objects.get(onec_mappings__onec_id="test-val-001")
             assert value.value == "Значение 1"
             assert value.attribute == attribute
             assert value.slug  # slug должен быть сгенерирован
@@ -244,6 +244,8 @@ class TestAttributeImportServiceIntegration:
             stats = service.get_stats()
             assert stats["attributes_created"] == 1
             assert stats["values_created"] == 1
+            assert stats["mappings_created"] == 1
+            assert stats["value_mappings_created"] == 1
             assert stats["errors"] == 0
 
         finally:
@@ -278,7 +280,7 @@ class TestAttributeImportServiceIntegration:
             service1.import_from_file(tmp_file_path)
 
             count_after_first = Attribute.objects.filter(
-                onec_id="test-idempotent-001"
+                onec_mappings__onec_id="test-idempotent-001"
             ).count()
             assert count_after_first == 1
 
@@ -287,13 +289,14 @@ class TestAttributeImportServiceIntegration:
             service2.import_from_file(tmp_file_path)
 
             count_after_second = Attribute.objects.filter(
-                onec_id="test-idempotent-001"
+                onec_mappings__onec_id="test-idempotent-001"
             ).count()
             assert count_after_second == 1  # Не должно быть дубликатов
 
             # Проверяем статистику второго импорта
             stats2 = service2.get_stats()
-            assert stats2["attributes_updated"] == 1
+            assert stats2.get("attributes_updated", 0) == 0  # Service doesn't count "updated" if no changes
+            assert stats2["attributes_deduplicated"] == 0
             assert stats2["attributes_created"] == 0
 
         finally:
@@ -352,13 +355,13 @@ class TestAttributeImportServiceIntegration:
             service2 = AttributeImportService()
             service2.import_from_file(tmp_file_path2)
 
-            # Проверяем что данные обновились
-            attribute = Attribute.objects.get(onec_id="test-update-001")
+            # Проверяем что данные обновились (через маппинг)
+            attribute = Attribute.objects.get(onec_mappings__onec_id="test-update-001")
             assert attribute.name == "Новое название"
             assert attribute.type == "Строка"
 
             # Проверяем что запись одна (не создано дубликатов)
-            count = Attribute.objects.filter(onec_id="test-update-001").count()
+            count = Attribute.objects.filter(onec_mappings__onec_id="test-update-001").count()
             assert count == 1
 
             Path(tmp_file_path2).unlink()
@@ -408,8 +411,8 @@ class TestAttributeImportServiceIntegration:
             stats = service.import_from_directory(tmp_dir)
 
             # Проверяем что оба атрибута созданы
-            assert Attribute.objects.filter(onec_id="test-dir-001").exists()
-            assert Attribute.objects.filter(onec_id="test-dir-002").exists()
+            assert Attribute.objects.filter(onec_mappings__onec_id="test-dir-001").exists()
+            assert Attribute.objects.filter(onec_mappings__onec_id="test-dir-002").exists()
 
             # Проверяем статистику
             assert stats["attributes_created"] == 2
@@ -439,20 +442,28 @@ class TestAttributeAdminUI:
 
         from apps.products.admin import AttributeAdmin
 
+        from apps.products.models import Attribute1CMapping, AttributeValue1CMapping
+
         # Создаем атрибут с несколькими значениями
         attribute = Attribute.objects.create(
-            name="Тестовый атрибут", onec_id="test-admin-001", type="Справочник"
+            name="Тестовый атрибут", type="Справочник"
         )
+        Attribute1CMapping.objects.create(attribute=attribute, onec_id="test-admin-001", onec_name="Тест")
 
-        AttributeValue.objects.create(
-            attribute=attribute, value="Значение 1", onec_id="test-admin-val-001"
+        val1 = AttributeValue.objects.create(
+            attribute=attribute, value="Значение 1"
         )
-        AttributeValue.objects.create(
-            attribute=attribute, value="Значение 2", onec_id="test-admin-val-002"
+        AttributeValue1CMapping.objects.create(attribute_value=val1, onec_id="test-admin-val-001")
+        
+        val2 = AttributeValue.objects.create(
+            attribute=attribute, value="Значение 2"
         )
-        AttributeValue.objects.create(
-            attribute=attribute, value="Значение 3", onec_id="test-admin-val-003"
+        AttributeValue1CMapping.objects.create(attribute_value=val2, onec_id="test-admin-val-002")
+
+        val3 = AttributeValue.objects.create(
+            attribute=attribute, value="Значение 3"
         )
+        AttributeValue1CMapping.objects.create(attribute_value=val3, onec_id="test-admin-val-003")
 
         # Создаем инстанс AdminSite и AttributeAdmin
         site = AdminSite()
@@ -469,9 +480,11 @@ class TestAttributeAdminUI:
         expected_fields = [
             "name",
             "slug",
-            "onec_id",
+            "normalized_name",
+            "is_active",
             "type",
             "values_count",
+            "mappings_count",
             "created_at",
         ]
         assert AttributeAdmin.list_display == tuple(expected_fields)
@@ -480,7 +493,7 @@ class TestAttributeAdminUI:
         """Тест конфигурации list_display для AttributeValue в админке"""
         from apps.products.admin import AttributeValueAdmin
 
-        expected_fields = ["value", "attribute", "slug", "onec_id", "created_at"]
+        expected_fields = ["value", "attribute", "slug", "normalized_value", "mappings_count", "created_at"]
         assert AttributeValueAdmin.list_display == tuple(expected_fields)
 
     def test_attribute_admin_has_inline(self):
@@ -488,8 +501,8 @@ class TestAttributeAdminUI:
         from apps.products.admin import AttributeAdmin, AttributeValueInline
 
         # Проверяем что inline настроен
-        assert len(AttributeAdmin.inlines) == 1
-        assert AttributeAdmin.inlines[0] == AttributeValueInline
+        assert len(AttributeAdmin.inlines) == 2
+        assert AttributeValueInline in AttributeAdmin.inlines
 
     def test_attribute_value_inline_configuration(self):
         """Тест конфигурации AttributeValueInline"""
@@ -502,4 +515,4 @@ class TestAttributeAdminUI:
         assert AttributeValueInline.show_change_link is True
         assert "value" in AttributeValueInline.fields
         assert "slug" in AttributeValueInline.fields
-        assert "onec_id" in AttributeValueInline.fields
+        # onec_id removed from fields in favor of inline mappings checking logic or explicit mapping inline

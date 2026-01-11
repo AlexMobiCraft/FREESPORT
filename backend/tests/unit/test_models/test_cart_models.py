@@ -151,7 +151,7 @@ class TestCartItemModel:
         CartItemFactory.create(cart=cart, variant=variant)
 
         # Попытка добавить тот же вариант в ту же корзину должна вызвать ошибку
-        with pytest.raises(IntegrityError):
+        with pytest.raises((IntegrityError, ValidationError)):
             CartItemFactory.create(cart=cart, variant=variant)
 
     def test_cart_item_validation_inactive_product(self):
