@@ -145,12 +145,83 @@ def create_factories():
 
         is_active = True
         is_featured = False
+        min_order_quantity = 1
 
-        @factory.post_generation
-        def create_variant(self, create, extracted, **kwargs):
-            if not create:
-                return
-            ProductVariantFactory.create(product=self)
+        # Параметры для варианта
+        # Объявляем их как Transient поля (не сохраняются в модели, но передаются в kwargs)
+        # В factory_boy для DjangoModelFactory это просто поля, которые мы должны исключить
+        # из создания модели вручную в _create
+        retail_price = Decimal("1000.00")
+        opt1_price = None
+        opt2_price = None
+        opt3_price = None
+        trainer_price = None
+        federation_price = None
+        stock_quantity = 100
+        create_variant = True
+        
+        @classmethod
+        def _get_variant_fields(cls):
+            return [
+                "retail_price",
+                "opt1_price",
+                "opt2_price",
+                "opt3_price",
+                "trainer_price",
+                "federation_price",
+                "stock_quantity",
+                "create_variant",
+                "sku",
+            ]
+
+        @classmethod
+        def _extract_variant_params(cls, kwargs):
+            variant_params = {}
+            for param in cls._get_variant_fields():
+                if param in kwargs:
+                    variant_params[param] = kwargs.pop(param)
+                elif hasattr(cls, param):
+                    val = getattr(cls, param)
+                    if not isinstance(val, (factory.declarations.BaseDeclaration)):
+                         variant_params[param] = val
+            return variant_params
+
+        @classmethod
+        def _build(cls, model_class, *args, **kwargs):
+            """
+            Переопределяем build для очистки kwargs от параметров варианта
+            """
+            # Извлекаем и игнорируем параметры варианта, так как Product не принимает их
+            # И при build мы не создаем связанные объекты (варианты)
+            cls._extract_variant_params(kwargs)
+            return model_class(*args, **kwargs)
+
+        @classmethod
+        def _create(cls, model_class, *args, **kwargs):
+            """
+            Переопределяем создание для обработки параметров варианта
+            """
+            variant_params = cls._extract_variant_params(kwargs)
+
+            # Создаем продукт (оставшиеся kwargs идут в Product)
+            product = super()._create(model_class, *args, **kwargs)
+
+            # Проверяем флаг создания варианта
+            should_create_variant = variant_params.pop("create_variant", True)
+
+            if should_create_variant:
+                # Добавляем product в параметры
+                variant_params["product"] = product
+                
+                # Обеспечиваем дефолты если они не были извлечены
+                if "stock_quantity" not in variant_params:
+                    variant_params["stock_quantity"] = 100
+                if "retail_price" not in variant_params:
+                    variant_params["retail_price"] = Decimal("1000.00")
+
+                ProductVariantFactory.create(**variant_params)
+            
+            return product
 
     class ProductVariantFactory(factory.django.DjangoModelFactory):
         """Фабрика для создания вариантов товаров"""
@@ -158,7 +229,9 @@ def create_factories():
         class Meta:
             model = "products.ProductVariant"
 
-        product = factory.SubFactory("tests.conftest.ProductFactory")
+        # При создании варианта, если продукт не передан, создаем его.
+        # НО! Запрещаем продукту создавать вариант, чтобы не было рекурсии.
+        product = factory.SubFactory(ProductFactory, create_variant=False)
         sku = factory.LazyFunction(lambda: f"SKU-{get_unique_suffix().upper()}")
         onec_id = factory.LazyFunction(lambda: f"1C-VAR-{get_unique_suffix()}")
 
@@ -212,8 +285,28 @@ def create_factories():
             model = "cart.CartItem"
 
         cart = factory.SubFactory(CartFactory)
-        product = factory.SubFactory(ProductFactory)
+        # Внимание: для обратной совместимости можно передавать product,
+        # но мы будем использовать variants.first()
+        variant = factory.SubFactory(ProductVariantFactory)
         quantity = factory.Faker("random_int", min=1, max=10)
+        price_snapshot = factory.LazyAttribute(
+            lambda obj: obj.variant.retail_price if obj.variant else Decimal("1000.00")
+        )
+
+        @factory.post_generation
+        def product(self, create, extracted, **kwargs):
+            """
+            Поддержка создания через product=...
+            Если передан product, используем его первый вариант.
+            """
+            if not create:
+                return
+            if extracted:
+                self.variant = extracted.variants.first()
+                # Обновляем price_snapshot если вариант изменился
+                if self.variant:
+                    self.price_snapshot = self.variant.retail_price
+                self.save()
 
     class OrderFactory(factory.django.DjangoModelFactory):
         """Фабрика для создания заказов"""
@@ -238,13 +331,16 @@ def create_factories():
             model = "orders.OrderItem"
 
         order = factory.SubFactory(OrderFactory)
+        # OrderItem имеет ссылки и на Product и на ProductVariant
         product = factory.SubFactory(ProductFactory)
         variant = factory.SubFactory(ProductVariantFactory)
         quantity = factory.Faker("random_int", min=1, max=10)
         unit_price = factory.Faker(
             "pydecimal", left_digits=4, right_digits=2, positive=True
         )
-        product_name = factory.LazyAttribute(lambda obj: obj.product.name)
+        product_name = factory.LazyAttribute(
+            lambda obj: obj.product.name if obj.product else "Test Product"
+        )
         product_sku = factory.LazyAttribute(
             lambda obj: obj.variant.sku if obj.variant else f"SKU-{get_unique_suffix()}"
         )
