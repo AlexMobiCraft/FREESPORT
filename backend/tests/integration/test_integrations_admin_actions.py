@@ -51,7 +51,8 @@ class TestImportSessionAdminActions:
 
         # Assert
         assert response.status_code == 200
-        assert "Сессии импорта" in str(response.content)
+        content = response.content.decode("utf-8")
+        assert "Сессии импорта" in content
 
     def test_admin_filter_by_import_type(self, client, import_sessions):
         """
@@ -66,7 +67,7 @@ class TestImportSessionAdminActions:
         # Assert
         assert response.status_code == 200
         # Проверяем, что все 3 сессии отображаются
-        content = str(response.content)
+        content = response.content.decode("utf-8")
         for session in import_sessions:
             assert str(session.id) in content
 
@@ -82,7 +83,7 @@ class TestImportSessionAdminActions:
 
         # Assert
         assert response.status_code == 200
-        content = str(response.content)
+        content = response.content.decode("utf-8")
 
         # Проверяем наличие заголовков колонок
         assert "Тип импорта" in content or "import_type" in content
@@ -106,7 +107,7 @@ class TestImportSessionAdminActions:
 
         # Assert
         assert response.status_code == 200
-        content = str(response.content)
+        content = response.content.decode("utf-8")
         assert str(session_with_error.id) in content
 
     def test_admin_detail_page_readonly_fields(self, client, import_sessions):
@@ -122,7 +123,7 @@ class TestImportSessionAdminActions:
 
         # Assert
         assert response.status_code == 200
-        content = str(response.content)
+        content = response.content.decode("utf-8")
 
         # Проверяем наличие readonly полей
         assert "started_at" in content.lower()
@@ -154,7 +155,7 @@ class TestImportSessionAdminActions:
             response.status_code == 200
         ), "Страница сессий должна быть доступна по новому URL"
         # Проверяем что сессии отображаются
-        content = str(response.content)
+        content = response.content.decode("utf-8")
         for session in import_sessions:
             assert str(session.id) in content
 

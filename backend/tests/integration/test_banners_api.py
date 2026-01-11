@@ -8,6 +8,7 @@ Integration-тесты для API баннеров
 from __future__ import annotations
 
 import pytest
+from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
@@ -34,7 +35,7 @@ class TestBannersAPI:
     def setup_method(self) -> None:
         """Настройка тестового окружения перед каждым тестом"""
         self.client = APIClient()
-        self.url = "/api/banners/"
+        self.url = reverse("banners:banner-list")
 
     def test_guest_gets_guest_banners(self) -> None:
         """Гость получает только баннеры с show_to_guests=True"""
