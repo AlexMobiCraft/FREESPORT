@@ -153,7 +153,9 @@ class TestOrderAPI:
         assert "Недостаточно товара" in str(response.data)
 
     def test_create_order_guest_no_cart_failure(self, db):
-        """Тест создания заказа гостем без корзины (ожидаем 400, так как доступ есть, но данных нет)"""
+        """Тест создания заказа гостем без корзины
+        (ожидаем 400, так как доступ есть, но данных нет)
+        """
         order_data = {
             "delivery_address": "г. Москва, ул. Тестовая, д. 1",
             "delivery_method": "courier",

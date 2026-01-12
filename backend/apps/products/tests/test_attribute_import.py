@@ -530,4 +530,5 @@ class TestAttributeAdminUI:
         assert AttributeValueInline.show_change_link is True
         assert "value" in AttributeValueInline.fields
         assert "slug" in AttributeValueInline.fields
-        # onec_id removed from fields in favor of inline mappings checking logic or explicit mapping inline
+        # onec_id removed from fields in favor of inline mappings
+        # checking logic or explicit mapping inline

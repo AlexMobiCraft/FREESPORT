@@ -148,8 +148,10 @@ def create_factories():
         min_order_quantity = 1
 
         # Параметры для варианта
-        # Объявляем их как Transient поля (не сохраняются в модели, но передаются в kwargs)
-        # В factory_boy для DjangoModelFactory это просто поля, которые мы должны исключить
+        # Объявляем их как Transient поля (не сохраняются в модели,
+        # но передаются в kwargs)
+        # В factory_boy для DjangoModelFactory это просто поля,
+        # которые мы должны исключить
         # из создания модели вручную в _create
         retail_price = Decimal("1000.00")
         opt1_price = None

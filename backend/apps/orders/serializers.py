@@ -166,7 +166,8 @@ class OrderCreateSerializer(serializers.ModelSerializer):
                 and item.quantity < product.min_order_quantity
             ):
                 raise serializers.ValidationError(
-                    f"Минимальное количество для заказа товара '{product.name}': {product.min_order_quantity} шт."
+                    f"Минимальное количество для заказа товара '{product.name}': "
+                    f"{product.min_order_quantity} шт."
                 )
 
         # Валидация способов доставки и оплаты

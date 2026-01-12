@@ -78,7 +78,8 @@ class TestCartModel:
         # Проверяем, что snapshot сохранился корректно
         assert item.price_snapshot == Decimal(
             "900.00"
-        ), f"Snapshot is {item.price_snapshot}, expected 900.00. Variant retail: {variant.retail_price}"
+        ), f"Snapshot is {item.price_snapshot}, expected 900.00. " \
+           f"Variant retail: {variant.retail_price}"
 
         # Должна использоваться цена из snapshot (оптовая)
         assert cart.total_amount == Decimal("900.00")

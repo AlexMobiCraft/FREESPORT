@@ -45,7 +45,9 @@ class SearchAPITest(TestCase):
             ProductVariantFactory.create(
                 product__name="Nike Phantom GT2 Elite FG",
                 sku="NIKE-PHT-001",
-                product__short_description="Футбольные бутсы для профессиональных игроков",
+                product__short_description=(
+                    "Футбольные бутсы для профессиональных игроков"
+                ),
                 product__description=(
                     "Высокотехнологичные футбольные бутсы Nike Phantom "
                     "GT2 Elite FG для профессионалов"
@@ -78,7 +80,9 @@ class SearchAPITest(TestCase):
                 product__name="Футболка Nike Dri-FIT",
                 sku="NIKE-SHIRT-001",
                 product__short_description="Спортивная футболка Nike",
-                product__description="Легкая спортивная футболка Nike Dri-FIT для тренировок",
+                product__description=(
+                    "Легкая спортивная футболка Nike Dri-FIT для тренировок"
+                ),
                 product__brand=self.brand_nike,
                 product__category=self.category2,
                 retail_price=3499.00,
@@ -89,7 +93,9 @@ class SearchAPITest(TestCase):
                 product__name="Перчатки вратарские Nike",
                 sku="NIKE-GK-001",
                 product__short_description="Вратарские перчатки Nike Vapor Grip3",
-                product__description="Профессиональные вратарские перчатки Nike Vapor Grip3",
+                product__description=(
+                    "Профессиональные вратарские перчатки Nike Vapor Grip3"
+                ),
                 product__brand=self.brand_nike,
                 product__category=self.category1,
                 retail_price=4999.00,
