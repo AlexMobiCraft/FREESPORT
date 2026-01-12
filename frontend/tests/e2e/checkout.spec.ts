@@ -176,17 +176,16 @@ async function setupApiMocks(page: Page) {
  * Заполнение формы checkout
  */
 async function fillCheckoutForm(page: Page, data: typeof testCheckoutData) {
-  // Контактные данные
-  // Контактные данные
-  await page.fill('#input-email', data.email);
-  await page.fill('#input-телефон', data.phone);
-  await page.fill('#input-имя', data.firstName);
-  await page.fill('#input-фамилия', data.lastName);
+  // Контактные данные - используем name атрибуты для стабильности
+  await page.fill('input[name="email"]', data.email);
+  await page.fill('input[name="phone"]', data.phone);
+  await page.fill('input[name="firstName"]', data.firstName);
+  await page.fill('input[name="lastName"]', data.lastName);
 
   // Адрес доставки
-  await page.fill('#input-город', data.city);
-  await page.fill('#input-улица', data.street);
-  await page.fill('#input-дом', data.house);
+  await page.fill('input[name="city"]', data.city);
+  await page.fill('input[name="street"]', data.street);
+  await page.fill('input[name="house"]', data.house);
   await page.fill('input[name="apartment"]', data.apartment);
   await page.fill('input[name="postalCode"]', data.postalCode);
 }
@@ -423,18 +422,18 @@ test.describe('Checkout Form Validation E2E Tests', () => {
     await page.goto('/checkout');
 
     // Вводим слишком короткое имя
-    await page.fill('#input-имя', 'А');
-    await page.fill('#input-фамилия', 'Б');
-    await page.fill('#input-email', testCheckoutData.email); // blur
+    await page.fill('input[name="firstName"]', 'А');
+    await page.fill('input[name="lastName"]', 'Б');
+    await page.fill('input[name="email"]', testCheckoutData.email); // blur
 
     // Проверяем ошибки минимальной длины
     const minLengthErrors = page.locator('text=Минимум 2 символа');
     await expect(minLengthErrors.first()).toBeVisible();
 
     // Исправляем поля
-    await page.fill('#input-имя', 'Иван');
-    await page.fill('#input-фамилия', 'Петров');
-    await page.fill('#input-email', testCheckoutData.email);
+    await page.fill('input[name="firstName"]', 'Иван');
+    await page.fill('input[name="lastName"]', 'Петров');
+    await page.fill('input[name="email"]', testCheckoutData.email);
 
     // Ошибки должны исчезнуть
     await expect(page.locator('text=Минимум 2 символа')).not.toBeVisible();
