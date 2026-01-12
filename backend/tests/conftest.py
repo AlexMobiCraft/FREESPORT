@@ -379,6 +379,7 @@ def create_factories():
         "BrandFactory": BrandFactory,
         "CategoryFactory": CategoryFactory,
         "ProductFactory": ProductFactory,
+        "ProductVariantFactory": ProductVariantFactory,
         "ProductImageFactory": ProductImageFactory,
         "CartFactory": CartFactory,
         "CartItemFactory": CartItemFactory,
@@ -421,6 +422,7 @@ AddressFactory = FactoryWrapper("AddressFactory")
 BrandFactory = FactoryWrapper("BrandFactory")
 CategoryFactory = FactoryWrapper("CategoryFactory")
 ProductFactory = FactoryWrapper("ProductFactory")
+ProductVariantFactory = FactoryWrapper("ProductVariantFactory")
 ProductImageFactory = FactoryWrapper("ProductImageFactory")
 CartFactory = FactoryWrapper("CartFactory")
 CartItemFactory = FactoryWrapper("CartItemFactory")
@@ -481,6 +483,11 @@ def category_factory():
 @pytest.fixture
 def product_factory():
     return ProductFactory
+
+
+@pytest.fixture
+def product_variant_factory():
+    return ProductVariantFactory
 
 
 @pytest.fixture
