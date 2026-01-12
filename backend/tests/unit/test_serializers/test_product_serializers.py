@@ -60,7 +60,9 @@ class TestProductListSerializer:
         )  # StringRelatedField возвращает __str__ модели
         assert data["brand"]["name"] == "Nike"
 
-    def test_product_list_with_user_context(self, user_factory, product_variant_factory):
+    def test_product_list_with_user_context(
+        self, user_factory, product_variant_factory
+    ):
         """Тест сериализации с контекстом пользователя"""
         user = user_factory.create()
         variant = product_variant_factory.create(

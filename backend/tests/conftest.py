@@ -159,7 +159,7 @@ def create_factories():
         federation_price = None
         stock_quantity = 100
         create_variant = True
-        
+
         @classmethod
         def _get_variant_fields(cls):
             return [
@@ -183,7 +183,7 @@ def create_factories():
                 elif hasattr(cls, param):
                     val = getattr(cls, param)
                     if not isinstance(val, (factory.declarations.BaseDeclaration)):
-                         variant_params[param] = val
+                        variant_params[param] = val
             return variant_params
 
         @classmethod
@@ -212,7 +212,7 @@ def create_factories():
             if should_create_variant:
                 # Добавляем product в параметры
                 variant_params["product"] = product
-                
+
                 # Обеспечиваем дефолты если они не были извлечены
                 if "stock_quantity" not in variant_params:
                     variant_params["stock_quantity"] = 100
@@ -220,7 +220,7 @@ def create_factories():
                     variant_params["retail_price"] = Decimal("1000.00")
 
                 ProductVariantFactory.create(**variant_params)
-            
+
             return product
 
     class ProductVariantFactory(factory.django.DjangoModelFactory):

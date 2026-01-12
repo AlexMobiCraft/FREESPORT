@@ -68,13 +68,17 @@ class TestCartModel:
             retail_price=Decimal("1000.00"), opt1_price=Decimal("900.00")
         )
         variant = product.variants.first()
-        
+
         # Обычно цена фиксируется в price_snapshot при добавлении в корзину
         # Логика определения цены лежит в сервисе корзины, но фабрика эмулирует это
-        item = CartItemFactory.create(cart=cart, variant=variant, quantity=1, price_snapshot=Decimal("900.00"))
+        item = CartItemFactory.create(
+            cart=cart, variant=variant, quantity=1, price_snapshot=Decimal("900.00")
+        )
 
         # Проверяем, что snapshot сохранился корректно
-        assert item.price_snapshot == Decimal("900.00"), f"Snapshot is {item.price_snapshot}, expected 900.00. Variant retail: {variant.retail_price}"
+        assert item.price_snapshot == Decimal(
+            "900.00"
+        ), f"Snapshot is {item.price_snapshot}, expected 900.00. Variant retail: {variant.retail_price}"
 
         # Должна использоваться цена из snapshot (оптовая)
         assert cart.total_amount == Decimal("900.00")
@@ -112,7 +116,7 @@ class TestCartItemModel:
         assert item.variant == variant
         assert item.variant.product == product
         assert item.quantity == 2
-        
+
         # Проверяем строковое представление, которое обычно содержит имя продукта
         assert "Тестовый товар" in str(item)
 
@@ -122,7 +126,7 @@ class TestCartItemModel:
         cart = CartFactory.create(user=user)
         product = ProductFactory.create(retail_price=Decimal("1000.00"))
         variant = product.variants.first()
-        
+
         item = CartItemFactory.create(cart=cart, variant=variant, quantity=3)
 
         assert item.total_price == Decimal("3000.00")
@@ -135,9 +139,11 @@ class TestCartItemModel:
             retail_price=Decimal("1000.00"), trainer_price=Decimal("850.00")
         )
         variant = product.variants.first()
-        
+
         # Эмулируем добавление с ценой тренера
-        item = CartItemFactory.create(cart=cart, variant=variant, quantity=2, price_snapshot=Decimal("850.00"))
+        item = CartItemFactory.create(
+            cart=cart, variant=variant, quantity=2, price_snapshot=Decimal("850.00")
+        )
 
         # Должна использоваться цена тренера
         assert item.total_price == Decimal("1700.00")
@@ -161,11 +167,9 @@ class TestCartItemModel:
         cart = CartFactory.create()
 
         with pytest.raises(ValidationError):
-            item = CartItemFactory.build(
-                cart=cart, variant=variant, quantity=1
-            )
+            item = CartItemFactory.build(cart=cart, variant=variant, quantity=1)
             item.full_clean()
-    
+
     def test_cart_item_validation_inactive_variant(self):
         """Тест валидации неактивного варианта"""
         product = ProductFactory.create(is_active=True)
@@ -173,13 +177,11 @@ class TestCartItemModel:
         variant = product.variants.first()
         variant.is_active = False
         variant.save()
-        
+
         cart = CartFactory.create()
 
         with pytest.raises(ValidationError):
-            item = CartItemFactory.build(
-                cart=cart, variant=variant, quantity=1
-            )
+            item = CartItemFactory.build(cart=cart, variant=variant, quantity=1)
             item.full_clean()
 
     def test_cart_item_validation_insufficient_stock(self):
@@ -192,14 +194,16 @@ class TestCartItemModel:
             item = CartItemFactory.build(cart=cart, variant=variant, quantity=10)
             item.full_clean()
 
-    @pytest.mark.skip(reason="Validation for min_order_quantity not implemented in CartItem model yet")
+    @pytest.mark.skip(
+        reason="Validation for min_order_quantity not implemented in CartItem model yet"
+    )
     def test_cart_item_validation_min_order_quantity(self):
         """Тест валидации минимального количества заказа"""
         # min_order_quantity находится в Product, но проверяется для варианта
         product = ProductFactory.create(min_order_quantity=5)
         variant = product.variants.first()
         cart = CartFactory.create()
-        
+
         # Тест требует реализации логики в модели CartItem
         with pytest.raises(ValidationError):
             item = CartItemFactory.build(cart=cart, variant=variant, quantity=3)

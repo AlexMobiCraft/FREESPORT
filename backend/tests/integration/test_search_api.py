@@ -376,7 +376,9 @@ class SearchAPITest(TestCase):
     def test_search_with_ordering(self):
         """Тест поиска с дополнительной сортировкой"""
         url = reverse("products:product-list")
-        response = self.client.get(url, {"search": "Nike", "ordering": "min_retail_price"})
+        response = self.client.get(
+            url, {"search": "Nike", "ordering": "min_retail_price"}
+        )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.json()

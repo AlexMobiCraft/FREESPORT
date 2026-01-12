@@ -207,13 +207,13 @@ class TestOrderItemModel:
         order = OrderFactory.create()
         product = ProductFactory.create(name="Тестовый товар", sku="TEST-001")
         variant = product.variants.first()
-        
+
         item = OrderItemFactory.create(
-            order=order, 
+            order=order,
             product=product,
-            variant=variant, 
-            quantity=2, 
-            unit_price=Decimal("1500.00")
+            variant=variant,
+            quantity=2,
+            unit_price=Decimal("1500.00"),
         )
 
         assert item.order == order
@@ -221,11 +221,11 @@ class TestOrderItemModel:
         assert item.quantity == 2
         assert item.unit_price == Decimal("1500.00")
         assert item.product_name == "Тестовый товар"
-        
+
         # sku теперь хранится в варианте, при создании товара в фабрике SKU генерится для варианта автоматически
         # поэтому здесь мы проверяем, что он не пустой, или что он совпадает с вариантом
         assert item.product_sku == variant.sku
-        
+
         assert str(item) == f"Тестовый товар x2 в заказе #{order.order_number}"
 
     def test_order_item_total_price_property(self):
@@ -242,10 +242,10 @@ class TestOrderItemModel:
         variant.save()
 
         item = OrderItemFactory.create(
-            product=product, 
+            product=product,
             variant=variant,
-            product_name=product.name, 
-            product_sku=variant.sku
+            product_name=product.name,
+            product_sku=variant.sku,
         )
 
         # Изменяем товар после создания заказа
