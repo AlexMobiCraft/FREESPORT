@@ -1,0 +1,61 @@
+# Quality Gate для Story 10.4
+schema: 1
+story: "10.4"
+story_title: "Migration from Jest to Vitest for ESM Support"
+gate: PENDING
+status_reason: "История создана, ожидает начала разработки"
+reviewer: "Quinn (Test Architect)"
+updated: "2025-11-16T21:15:00Z"
+
+waiver: { active: false }
+
+top_issues: []
+
+risk_summary:
+  totals: { critical: 0, high: 0, medium: 0, low: 0 }
+  recommendations:
+    must_fix: []
+    monitor:
+      - "Убедиться что все 62 теста проходят после миграции"
+      - "Проверить что MSW v2 работает корректно с Vitest"
+      - "Валидировать coverage ≥80% для сервисного слоя"
+
+evidence:
+  tests_reviewed: 0
+  risks_identified: 0
+  trace:
+    ac_covered: []
+    ac_partial: []
+
+nfr_validation:
+  security:
+    status: PENDING
+    notes: "Будет проверено после реализации"
+  performance:
+    status: PENDING
+    notes: "Vitest должен быть быстрее или сопоставим с Jest"
+  reliability:
+    status: PENDING
+    notes: "Все тесты должны проходить стабильно в CI"
+  maintainability:
+    status: PENDING
+    notes: "Vitest API совместим с Jest, миграция должна быть простой"
+
+recommendations:
+  immediate:
+    - action: "Начать с Task 1-2: анализ и установка Vitest"
+      refs: ["frontend/vitest.config.ts", "frontend/vitest.setup.ts"]
+    - action: "Механическая замена Jest API на Vitest API (Task 3)"
+      refs: ["frontend/src/**/__tests__/**"]
+    - action: "Интеграция MSW v2 и запуск service тестов (Task 4)"
+      refs: ["frontend/__mocks__/server.ts"]
+  future:
+    - action: "Рассмотреть добавление Vitest UI для улучшения DX"
+      refs: []
+    - action: "Оптимизировать coverage thresholds после стабилизации"
+      refs: ["frontend/vitest.config.ts"]
+
+quality_score: null
+# Оценка будет выставлена после завершения разработки
+
+expires: "2025-12-15T00:00:00Z"

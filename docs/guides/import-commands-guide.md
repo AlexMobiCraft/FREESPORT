@@ -6,8 +6,9 @@
 
 ## Содержание
 
-- [Команда import_catalog_from_1c](#команда-import_catalog_from_1c)
+- [Команда import_products_from_1c](#команда-import_products_from_1c)
 - [Команда load_product_stocks](#команда-load_product_stocks)
+- [Команда fix_variant_sizes](#команда-fix_variant_sizes)
 - [Команда backup_db](#команда-backup_db)
 - [Команда restore_db](#команда-restore_db)
 - [Команда rotate_backups](#команда-rotate_backups)
@@ -16,7 +17,7 @@
 
 ---
 
-## Команда import_catalog_from_1c
+## Команда import_products_from_1c
 
 ### Описание
 
@@ -25,7 +26,7 @@
 ### Синтаксис
 
 ```bash
-python manage.py import_catalog_from_1c --data-dir=<path> [OPTIONS]
+python manage.py import_products_from_1c --data-dir=<path> [OPTIONS]
 ```
 
 ### Обязательные параметры
@@ -78,13 +79,13 @@ data-dir/
 #### Базовый импорт
 
 ```bash
-python manage.py import_catalog_from_1c --data-dir=/var/data/1c/export/
+python manage.py import_products_from_1c --data-dir=/var/data/1c/export/
 ```
 
 #### Импорт с увеличенным chunk-size для больших каталогов
 
 ```bash
-python manage.py import_catalog_from_1c \
+python manage.py import_products_from_1c \
     --data-dir=/var/data/1c/export/ \
     --chunk-size=2000
 ```
@@ -92,7 +93,7 @@ python manage.py import_catalog_from_1c \
 #### Быстрый импорт без валидации
 
 ```bash
-python manage.py import_catalog_from_1c \
+python manage.py import_products_from_1c \
     --data-dir=/var/data/1c/export/ \
     --skip-validation
 ```
@@ -100,7 +101,7 @@ python manage.py import_catalog_from_1c \
 #### Импорт только цен
 
 ```bash
-python manage.py import_catalog_from_1c \
+python manage.py import_products_from_1c \
     --data-dir=/var/data/1c/export/ \
     --file-type=prices
 ```
@@ -108,7 +109,7 @@ python manage.py import_catalog_from_1c \
 #### Полная перезагрузка каталога
 
 ```bash
-python manage.py import_catalog_from_1c \
+python manage.py import_products_from_1c \
     --data-dir=/var/data/1c/export/ \
     --clear-existing
 ```
@@ -116,7 +117,7 @@ python manage.py import_catalog_from_1c \
 #### Тестовый запуск (dry-run)
 
 ```bash
-python manage.py import_catalog_from_1c \
+python manage.py import_products_from_1c \
     --data-dir=/var/data/1c/export/ \
     --dry-run
 ```
@@ -141,7 +142,7 @@ python manage.py import_catalog_from_1c \
 
 ### Описание
 
-Обновляет только остатки товаров из файла `rests.xml`. Эта команда является легковесной альтернативой `import_catalog_from_1c --file-type=rests` и рекомендуется для частых запусков (например, через cron).
+Обновляет только остатки товаров из файла `rests.xml`. Эта команда является легковесной альтернативой `import_products_from_1c --file-type=rests` и рекомендуется для частых запусков (например, через cron).
 
 ### Синтаксис
 
@@ -179,6 +180,105 @@ python manage.py load_product_stocks --file=/var/data/1c/export/rests.xml --dry-
 ```bash
 */15 * * * * cd /app && python manage.py load_product_stocks --file=/var/data/1c/export/rests.xml >> /var/log/stocks_import.log 2>&1
 ```
+
+---
+
+## Команда fix_variant_sizes
+
+### Описание
+
+Очищает некорректные значения `size_value` в модели `ProductVariant`. Эта команда используется для исправления данных, когда поле размера содержит булевые значения вместо реального размера (например, "Да" вместо "42").
+
+**Причина проблемы**: При импорте из 1С поле "Детский размер" (булевый флаг с значением "Да"/"Нет") ошибочно записывалось в `size_value` вместо реального размера из поля "Размер_...".
+
+### Синтаксис
+
+```bash
+python manage.py fix_variant_sizes [OPTIONS]
+```
+
+### Опциональные параметры
+
+| Параметр | Тип | По умолчанию | Описание |
+|----------|-----|--------------|----------|
+| `--dry-run` | flag | false | Тестовый запуск без записи в БД |
+
+### Невалидные значения, которые очищаются
+
+- `Да`, `да`
+- `Нет`, `нет`  
+- `Yes`, `yes`
+- `No`, `no`
+- `True`, `true`
+- `False`, `false`
+- `-`
+
+### Примеры использования
+
+#### Тестовый запуск (рекомендуется всегда начинать с него)
+
+```bash
+python manage.py fix_variant_sizes --dry-run
+```
+
+Вывод:
+
+```
+=== ТЕСТОВЫЙ ЗАПУСК (dry-run) ===
+
+Найдено вариантов с невалидным size_value: 742
+
+Будет очищено: 742 вариантов
+```
+
+#### Применение очистки
+
+```bash
+python manage.py fix_variant_sizes
+```
+
+Вывод:
+
+```
+Найдено вариантов с невалидным size_value: 742
+
+Очищено вариантов: 742
+
+Теперь запустите повторный импорт:
+  python manage.py import_products_from_1c --file-type=offers --data-dir=data/import_1c
+```
+
+### Рабочий процесс исправления данных
+
+После очистки некорректных значений необходимо повторно импортировать данные из `offers.xml`, чтобы правильно заполнить поле `size_value`:
+
+```bash
+# 1. Очистка невалидных значений
+python manage.py fix_variant_sizes
+
+# 2. Повторный импорт из offers.xml
+python manage.py import_products_from_1c --file-type=offers --data-dir=data/import_1c
+```
+
+### Docker команды
+
+```bash
+# Локальное окружение
+docker compose --env-file .env -f docker/docker-compose.yml exec backend python manage.py fix_variant_sizes --dry-run
+docker compose --env-file .env -f docker/docker-compose.yml exec backend python manage.py fix_variant_sizes
+
+# Production
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec backend python manage.py fix_variant_sizes --dry-run
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec backend python manage.py fix_variant_sizes
+```
+
+### Связанные исправления в коде
+
+Вместе с этой командой было исправлено в `variant_import.py`:
+
+1. Удалён "детский размер" из списка `size_names` (это булевый флаг, не размер)
+2. Добавлен паттерн `name.startswith("размер_")` для полей вроде "Размер_Обувь для гимнастики..."
+3. Добавлена фильтрация невалидных булевых значений ("да", "нет", etc.)
 
 ---
 
@@ -370,7 +470,7 @@ python manage.py rotate_backups --dry-run
 
 ```bash
 # 1. Создать backup перед импортом (автоматически)
-python manage.py import_catalog_from_1c --data-dir=/var/data/1c/export/
+python manage.py import_products_from_1c --data-dir=/var/data/1c/export/
 
 # 2. Если что-то пошло не так, восстановить из backup
 python manage.py restore_db --backup-file=/path/to/backup_2025-10-19_143000.sql
@@ -383,7 +483,7 @@ python manage.py rotate_backups --keep=3
 
 ```bash
 # Импорт каталога каждый день в 3:00
-0 3 * * * cd /app && python manage.py import_catalog_from_1c --data-dir=/var/data/1c/export/ >> /var/log/import.log 2>&1
+0 3 * * * cd /app && python manage.py import_products_from_1c --data-dir=/var/data/1c/export/ >> /var/log/import.log 2>&1
 
 # Ротация backup файлов каждый день в 4:00
 0 4 * * * cd /app && python manage.py rotate_backups --keep=5 >> /var/log/backup.log 2>&1
@@ -393,7 +493,7 @@ python manage.py rotate_backups --keep=3
 
 ```bash
 # Запуск с логированием
-python manage.py import_catalog_from_1c \
+python manage.py import_products_from_1c \
     --data-dir=/var/data/1c/export/ \
     2>&1 | tee /var/log/import_$(date +%Y%m%d_%H%M%S).log
 
@@ -464,7 +564,7 @@ IMPORT_MAX_FILE_SIZE = 200  # MB
 
 ```bash
 # Использовать меньший chunk-size
-python manage.py import_catalog_from_1c \
+python manage.py import_products_from_1c \
     --data-dir=/path \
     --chunk-size=500
 
@@ -472,7 +572,7 @@ python manage.py import_catalog_from_1c \
 tail -f /var/log/freesport/import.log
 
 # Проверить процессы
-ps aux | grep import_catalog
+ps aux | grep import_products
 ```
 
 ### Дубликаты товаров после импорта

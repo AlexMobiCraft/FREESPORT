@@ -1,10 +1,11 @@
 """
 Интеграционные тесты для полного workflow Personal Cabinet
 """
+
 import pytest
+from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
-from django.contrib.auth import get_user_model
 
 User = get_user_model()
 
@@ -64,12 +65,28 @@ class TestPersonalCabinetWorkflow:
             delivery_cost=300.00,
         )
 
+        # Создаем варианты для товаров
+        variant1 = product1.variants.create(
+            sku="PROD1-VAR1", retail_price=2000.00, onec_id="PROD1-VAR1-1C"
+        )
+        variant2 = product2.variants.create(
+            sku="PROD2-VAR1", retail_price=1000.00, onec_id="PROD2-VAR1-1C"
+        )
+
         # Добавляем товары в заказ
         order_item_factory.create(
-            order=order1, product=product1, quantity=2, unit_price=2000.00
+            order=order1,
+            product=product1,
+            variant=variant1,
+            quantity=2,
+            unit_price=2000.00,
         )
         order_item_factory.create(
-            order=order1, product=product2, quantity=1, unit_price=1000.00
+            order=order1,
+            product=product2,
+            variant=variant2,
+            quantity=1,
+            unit_price=1000.00,
         )
 
         order2 = order_factory.create(
@@ -82,7 +99,11 @@ class TestPersonalCabinetWorkflow:
         )
 
         order_item_factory.create(
-            order=order2, product=product1, quantity=1, unit_price=3000.00
+            order=order2,
+            product=product1,
+            variant=variant1,
+            quantity=1,
+            unit_price=3000.00,
         )
 
         # Шаг 5: Проверяем обновленный дашборд

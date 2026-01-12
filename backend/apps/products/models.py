@@ -2,6 +2,7 @@
 Модели продуктов для платформы FREESPORT
 Включает товары, категории, бренды с роле-ориентированным ценообразованием
 """
+
 from __future__ import annotations
 
 import time
@@ -10,10 +11,13 @@ from datetime import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, cast
 
-from django.core.validators import MinValueValidator
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils.text import slugify
 from transliterate import translit
+
+from apps.products.utils.attributes import normalize_attribute_name
+from apps.products.utils.brands import normalize_brand_name
 
 if TYPE_CHECKING:
     from apps.users.models import User
@@ -24,28 +28,26 @@ class Brand(models.Model):
     Модель бренда товаров
     """
 
-    name = cast(str, models.CharField("Название бренда", max_length=100, unique=True))
-    slug = cast(str, models.SlugField("Slug", max_length=255, unique=True))
+    name = cast(str, models.CharField("Название бренда", max_length=100, unique=False))
+    slug = cast(str, models.SlugField("Slug", max_length=255, unique=False))
+    normalized_name = cast(
+        str,
+        models.CharField(
+            "Нормализованное название",
+            max_length=100,
+            unique=True,
+            blank=False,
+            null=False,
+            db_index=True,
+            help_text="Нормализованное название для дедупликации брендов",
+        ),
+    )
     logo = cast(
         models.ImageField, models.ImageField("Логотип", upload_to="brands/", blank=True)
     )
     description = cast(str, models.TextField("Описание", blank=True))
     website = cast(str, models.URLField("Веб-сайт", blank=True))
     is_active = cast(bool, models.BooleanField("Активный", default=True))
-
-    # Интеграция с 1С
-    onec_id = cast(
-        str,
-        models.CharField(
-            "ID в 1С",
-            max_length=100,
-            unique=True,
-            null=True,
-            blank=True,
-            db_index=True,
-            help_text="Уникальный идентификатор бренда из 1С",
-        ),
-    )
 
     created_at = cast(
         datetime, models.DateTimeField("Дата создания", auto_now_add=True)
@@ -58,6 +60,10 @@ class Brand(models.Model):
         db_table = "brands"
 
     def save(self, *args: Any, **kwargs: Any) -> None:
+        # Вычисляем normalized_name при сохранении
+        # Если name пустой, используем пустую строку вместо None
+        self.normalized_name = normalize_brand_name(self.name) if self.name else ""
+
         if not self.slug:
             try:
                 # Транслитерация кириллицы в латиницу, затем slugify
@@ -74,6 +80,53 @@ class Brand(models.Model):
 
     def __str__(self) -> str:
         return str(self.name)
+
+
+class Brand1CMapping(models.Model):
+    """
+    Маппинг брендов из 1С на master-бренды в системе.
+    Позволяет связывать несколько ID из 1С с одним брендом.
+    """
+
+    brand = cast(
+        Brand,
+        models.ForeignKey(
+            Brand,
+            on_delete=models.CASCADE,
+            related_name="onec_mappings",
+            verbose_name="Бренд",
+            help_text="Master-бренд в системе",
+        ),
+    )
+    onec_id = cast(
+        str,
+        models.CharField(
+            "ID в 1С",
+            max_length=100,
+            unique=True,
+            db_index=True,
+            help_text="Уникальный идентификатор бренда из 1С",
+        ),
+    )
+    onec_name = cast(
+        str,
+        models.CharField(
+            "Название в 1С",
+            max_length=100,
+            help_text="Оригинальное название бренда из 1С",
+        ),
+    )
+    created_at = cast(
+        datetime, models.DateTimeField("Дата создания", auto_now_add=True)
+    )
+
+    class Meta:
+        verbose_name = "Маппинг бренда 1С"
+        verbose_name_plural = "Маппинги брендов 1С"
+        db_table = "products_brand_1c_mapping"
+
+    def __str__(self) -> str:
+        return f"{self.onec_name} ({self.onec_id}) -> {self.brand}"
 
 
 class Category(models.Model):
@@ -191,127 +244,20 @@ class Product(models.Model):
         dict, models.JSONField("Технические характеристики", default=dict, blank=True)
     )
 
-    # Ценообразование для различных ролей пользователей
-    retail_price = cast(
-        Decimal,
-        models.DecimalField(
-            "Розничная цена",
-            max_digits=10,
-            decimal_places=2,
-            validators=[MinValueValidator(0)],
-        ),
-    )
-    opt1_price = cast(
-        Decimal | None,
-        models.DecimalField(
-            "Оптовая цена уровень 1",
-            max_digits=10,
-            decimal_places=2,
-            null=True,
+    # Изображения (Hybrid подход)
+    # Структура: ['url1.jpg', 'url2.jpg', ...] - список URL изображений из 1С
+    # Используется как fallback в ProductVariant.effective_images()
+    base_images = cast(
+        list,
+        models.JSONField(
+            "Базовые изображения",
+            default=list,
             blank=True,
-            validators=[MinValueValidator(0)],
+            help_text=(
+                "Общие изображения товара из 1С "
+                "(используются как fallback для вариантов)"
+            ),
         ),
-    )
-    opt2_price = cast(
-        Decimal | None,
-        models.DecimalField(
-            "Оптовая цена уровень 2",
-            max_digits=10,
-            decimal_places=2,
-            null=True,
-            blank=True,
-            validators=[MinValueValidator(0)],
-        ),
-    )
-    opt3_price = cast(
-        Decimal | None,
-        models.DecimalField(
-            "Оптовая цена уровень 3",
-            max_digits=10,
-            decimal_places=2,
-            null=True,
-            blank=True,
-            validators=[MinValueValidator(0)],
-        ),
-    )
-    trainer_price = cast(
-        Decimal | None,
-        models.DecimalField(
-            "Цена для тренера",
-            max_digits=10,
-            decimal_places=2,
-            null=True,
-            blank=True,
-            validators=[MinValueValidator(0)],
-        ),
-    )
-    federation_price = cast(
-        Decimal | None,
-        models.DecimalField(
-            "Цена для представителя федерации",
-            max_digits=10,
-            decimal_places=2,
-            null=True,
-            blank=True,
-            validators=[MinValueValidator(0)],
-        ),
-    )
-
-    # Информационные цены для B2B пользователей
-    recommended_retail_price = cast(
-        Decimal | None,
-        models.DecimalField(
-            "Рекомендованная розничная цена (RRP)",
-            max_digits=10,
-            decimal_places=2,
-            null=True,
-            blank=True,
-            validators=[MinValueValidator(0)],
-        ),
-    )
-    max_suggested_retail_price = cast(
-        Decimal | None,
-        models.DecimalField(
-            "Максимальная рекомендованная цена (MSRP)",
-            max_digits=10,
-            decimal_places=2,
-            null=True,
-            blank=True,
-            validators=[MinValueValidator(0)],
-        ),
-    )
-
-    # Инвентаризация
-    sku = cast(
-        str, models.CharField("Артикул", max_length=100, unique=True, blank=True)
-    )
-    stock_quantity = cast(
-        int,
-        models.PositiveIntegerField(
-            "Количество на складе",
-            default=0,
-            help_text="Доступное количество на складе",
-        ),
-    )
-    reserved_quantity = cast(
-        int,
-        models.PositiveIntegerField(
-            "Зарезервированное количество",
-            default=0,
-            help_text="Количество товара, зарезервированного в корзинах и заказах",
-        ),
-    )
-    min_order_quantity = cast(
-        int, models.PositiveIntegerField("Минимальное количество заказа", default=1)
-    )
-
-    # Изображения
-    main_image = cast(
-        models.ImageField,
-        models.ImageField("Основное изображение", upload_to="products/"),
-    )
-    gallery_images = cast(
-        list, models.JSONField("Галерея изображений", default=list, blank=True)
     )
 
     # SEO и мета информация
@@ -321,6 +267,72 @@ class Product(models.Model):
     # Флаги
     is_active = cast(bool, models.BooleanField("Активный", default=True))
     is_featured = cast(bool, models.BooleanField("Рекомендуемый", default=False))
+
+    # Маркетинговые флаги для бейджей (Story 11.0)
+    is_hit = cast(
+        bool,
+        models.BooleanField(
+            "Хит продаж",
+            default=False,
+            db_index=True,
+            help_text="Отображать бейдж 'Хит продаж' на карточке товара",
+        ),
+    )
+    is_new = cast(
+        bool,
+        models.BooleanField(
+            "Новинка",
+            default=False,
+            db_index=True,
+            help_text="Отображать бейдж 'Новинка' на карточке товара",
+        ),
+    )
+    is_sale = cast(
+        bool,
+        models.BooleanField(
+            "Распродажа",
+            default=False,
+            db_index=True,
+            help_text="Товар участвует в распродаже",
+        ),
+    )
+    is_promo = cast(
+        bool,
+        models.BooleanField(
+            "Акция",
+            default=False,
+            db_index=True,
+            help_text="Товар участвует в акции/промо",
+        ),
+    )
+    is_premium = cast(
+        bool,
+        models.BooleanField(
+            "Премиум",
+            default=False,
+            db_index=True,
+            help_text="Премиум товар (эксклюзив, лимитированная серия)",
+        ),
+    )
+    discount_percent = cast(
+        int | None,
+        models.PositiveSmallIntegerField(
+            "Процент скидки",
+            null=True,
+            blank=True,
+            validators=[MaxValueValidator(100)],
+            help_text="Процент скидки для отображения на бейдже (0-100)",
+        ),
+    )
+
+    min_order_quantity = cast(
+        int,
+        models.PositiveIntegerField(
+            "Минимальное количество заказа",
+            default=1,
+            help_text="Минимальное количество товара для заказа (для B2B)",
+        ),
+    )
 
     # Временные метки и интеграция с 1С
     created_at = cast(
@@ -358,6 +370,20 @@ class Product(models.Model):
             help_text="ID базового товара из goods.xml",
         ),
     )
+    onec_brand_id = cast(
+        str | None,
+        models.CharField(
+            "ID бренда в 1С",
+            max_length=100,
+            null=True,
+            blank=True,
+            db_index=True,
+            help_text=(
+                "Исходный идентификатор бренда из CommerceML "
+                "для обратной синхронизации"
+            ),
+        ),
+    )
     sync_status = cast(
         str,
         models.CharField(
@@ -374,6 +400,15 @@ class Product(models.Model):
     )
     error_message = cast(str, models.TextField("Сообщение об ошибке", blank=True))
 
+    # Many-to-Many relationship with AttributeValue
+    attributes: models.ManyToManyField = models.ManyToManyField(
+        "AttributeValue",
+        blank=True,
+        related_name="products",
+        verbose_name="Атрибуты",
+        help_text="Атрибуты товара (цвет, материал, размер и т.д.)",
+    )
+
     class Meta:
         verbose_name = "Товар"
         verbose_name_plural = "Товары"
@@ -382,11 +417,15 @@ class Product(models.Model):
         indexes = [
             models.Index(fields=["is_active", "category"]),
             models.Index(fields=["brand", "is_active"]),
-            models.Index(fields=["sku"]),
-            models.Index(fields=["stock_quantity"]),
             models.Index(fields=["onec_id"]),  # 1С integration index
             models.Index(fields=["parent_onec_id"]),  # Parent 1C ID index
             models.Index(fields=["sync_status"]),  # Sync status index
+            # Story 11.0: Composite indexes для маркетинговых флагов (PERF-001)
+            models.Index(fields=["is_hit", "is_active"]),
+            models.Index(fields=["is_new", "is_active"]),
+            models.Index(fields=["is_sale", "is_active"]),
+            models.Index(fields=["is_promo", "is_active"]),
+            models.Index(fields=["is_premium", "is_active"]),
         ]
 
     def save(self, *args: Any, **kwargs: Any) -> None:
@@ -415,48 +454,10 @@ class Product(models.Model):
                     self.slug = f"{base_slug}-{uuid.uuid4().hex}"
                     break
 
-        if not self.sku:
-            self.sku = f"AUTO-{int(time.time())}-{uuid.uuid4().hex[:8].upper()}"
         super().save(*args, **kwargs)
 
     def __str__(self) -> str:
-        return f"{self.name} ({self.sku})"
-
-    def get_price_for_user(self, user: User | None) -> Decimal:
-        """Получить цену товара для конкретного пользователя на основе его роли"""
-        if not user or not user.is_authenticated:
-            return self.retail_price
-
-        role_price_mapping = {
-            "retail": self.retail_price,
-            "wholesale_level1": self.opt1_price or self.retail_price,
-            "wholesale_level2": self.opt2_price or self.retail_price,
-            "wholesale_level3": self.opt3_price or self.retail_price,
-            "trainer": self.trainer_price or self.retail_price,
-            "federation_rep": self.federation_price or self.retail_price,
-        }
-
-        return role_price_mapping.get(user.role, self.retail_price)
-
-    @property
-    def is_in_stock(self) -> bool:
-        """Проверка наличия товара на складе"""
-        return self.stock_quantity > 0
-
-    @property
-    def can_be_ordered(self) -> bool:
-        """Можно ли заказать товар"""
-        available_quantity = self.stock_quantity - self.reserved_quantity
-        return (
-            self.is_active
-            and self.is_in_stock
-            and available_quantity >= self.min_order_quantity
-        )
-
-    @property
-    def available_quantity(self) -> int:
-        """Доступное количество товара (с учетом резерва)"""
-        return max(0, self.stock_quantity - self.reserved_quantity)
+        return self.name
 
 
 class ProductImage(models.Model):
@@ -519,6 +520,9 @@ class ImportSession(models.Model):
 
     class ImportType(models.TextChoices):
         CATALOG = "catalog", "Каталог товаров"
+        VARIANTS = "variants", "Варианты товаров"
+        ATTRIBUTES = "attributes", "Атрибуты (справочники)"
+        IMAGES = "images", "Изображения товаров"
         STOCKS = "stocks", "Остатки товаров"
         PRICES = "prices", "Цены товаров"
         CUSTOMERS = "customers", "Клиенты"
@@ -564,6 +568,17 @@ class ImportSession(models.Model):
         ),
     )
     error_message = cast(str, models.TextField("Сообщение об ошибке", blank=True))
+    celery_task_id = cast(
+        str | None,
+        models.CharField(
+            "ID задачи Celery",
+            max_length=255,
+            null=True,
+            blank=True,
+            db_index=True,
+            help_text="UUID задачи Celery для отслеживания прогресса",
+        ),
+    )
 
     class Meta:
         verbose_name = "Сессия импорта"
@@ -660,3 +675,703 @@ class PriceType(models.Model):
 
     def __str__(self) -> str:
         return f"{self.onec_name} → {self.product_field}"
+
+
+class ColorMapping(models.Model):
+    """
+    Маппинг цветов на hex-коды для визуализации вариантов товаров
+    """
+
+    name = cast(
+        str,
+        models.CharField(
+            "Название цвета",
+            max_length=100,
+            unique=True,
+            help_text="Название цвета из 1С",
+        ),
+    )
+    hex_code = cast(
+        str,
+        models.CharField(
+            "Hex-код",
+            max_length=7,
+            help_text="Hex-код цвета (например: #FF0000)",
+        ),
+    )
+    swatch_image = cast(
+        models.ImageField,
+        models.ImageField(
+            "Изображение свотча",
+            upload_to="colors/",
+            blank=True,
+            help_text="Для градиентов и паттернов",
+        ),
+    )
+
+    class Meta:
+        verbose_name = "Маппинг цвета"
+        verbose_name_plural = "Маппинг цветов"
+        db_table = "color_mappings"
+        ordering = ["name"]
+
+    def __str__(self) -> str:
+        return f"{self.name} ({self.hex_code})"
+
+
+class ProductVariant(models.Model):
+    """
+    SKU-вариант товара с ценами, остатками и характеристиками
+    Hybrid подход: собственные изображения варианта с fallback на Product.base_images
+    """
+
+    # Foreign Key
+    product = cast(
+        Product,
+        models.ForeignKey(
+            Product,
+            on_delete=models.CASCADE,
+            related_name="variants",
+            verbose_name="Товар",
+        ),
+    )
+
+    # Идентификация
+    sku = cast(
+        str,
+        models.CharField(
+            "Артикул SKU",
+            max_length=100,
+            unique=True,
+            db_index=True,
+            help_text="Уникальный артикул варианта",
+        ),
+    )
+    onec_id = cast(
+        str,
+        models.CharField(
+            "ID в 1С",
+            max_length=100,
+            unique=True,
+            db_index=True,
+            help_text="Составной ID: parent_id#variant_id",
+        ),
+    )
+
+    # Характеристики
+    color_name = cast(
+        str,
+        models.CharField(
+            "Цвет",
+            max_length=100,
+            blank=True,
+            db_index=True,
+            help_text="Название цвета из 1С",
+        ),
+    )
+    size_value = cast(
+        str,
+        models.CharField(
+            "Размер",
+            max_length=50,
+            blank=True,
+            db_index=True,
+            help_text="Значение размера",
+        ),
+    )
+
+    # Цены для различных ролей (6 типов)
+    retail_price = cast(
+        Decimal,
+        models.DecimalField(
+            "Розничная цена",
+            max_digits=10,
+            decimal_places=2,
+            validators=[MinValueValidator(Decimal("0"))],
+            help_text="Цена для роли retail",
+        ),
+    )
+    opt1_price = cast(
+        Decimal | None,
+        models.DecimalField(
+            "Оптовая цена уровень 1",
+            max_digits=10,
+            decimal_places=2,
+            null=True,
+            blank=True,
+            validators=[MinValueValidator(Decimal("0"))],
+            help_text="Цена для роли wholesale_level1",
+        ),
+    )
+    opt2_price = cast(
+        Decimal | None,
+        models.DecimalField(
+            "Оптовая цена уровень 2",
+            max_digits=10,
+            decimal_places=2,
+            null=True,
+            blank=True,
+            validators=[MinValueValidator(Decimal("0"))],
+            help_text="Цена для роли wholesale_level2",
+        ),
+    )
+    opt3_price = cast(
+        Decimal | None,
+        models.DecimalField(
+            "Оптовая цена уровень 3",
+            max_digits=10,
+            decimal_places=2,
+            null=True,
+            blank=True,
+            validators=[MinValueValidator(Decimal("0"))],
+            help_text="Цена для роли wholesale_level3",
+        ),
+    )
+    trainer_price = cast(
+        Decimal | None,
+        models.DecimalField(
+            "Цена для тренера",
+            max_digits=10,
+            decimal_places=2,
+            null=True,
+            blank=True,
+            validators=[MinValueValidator(Decimal("0"))],
+            help_text="Цена для роли trainer",
+        ),
+    )
+    federation_price = cast(
+        Decimal | None,
+        models.DecimalField(
+            "Цена для представителя федерации",
+            max_digits=10,
+            decimal_places=2,
+            null=True,
+            blank=True,
+            validators=[MinValueValidator(Decimal("0"))],
+            help_text="Цена для роли federation_rep",
+        ),
+    )
+    rrp = cast(
+        Decimal | None,
+        models.DecimalField(
+            "РРЦ",
+            max_digits=10,
+            decimal_places=2,
+            null=True,
+            blank=True,
+            validators=[MinValueValidator(Decimal("0"))],
+            help_text="Рекомендованная розничная цена (информационно)",
+        ),
+    )
+    msrp = cast(
+        Decimal | None,
+        models.DecimalField(
+            "МРЦ",
+            max_digits=10,
+            decimal_places=2,
+            null=True,
+            blank=True,
+            validators=[MinValueValidator(Decimal("0"))],
+            help_text="Минимальная рекомендованная розничная цена (информационно)",
+        ),
+    )
+
+    # Остатки
+    stock_quantity = cast(
+        int,
+        models.PositiveIntegerField(
+            "Количество на складе",
+            default=0,
+            db_index=True,
+            help_text="Доступное количество на складе",
+        ),
+    )
+    reserved_quantity = cast(
+        int,
+        models.PositiveIntegerField(
+            "Зарезервированное количество",
+            default=0,
+            help_text="Количество, зарезервированное в корзинах и заказах",
+        ),
+    )
+
+    # Изображения (Hybrid подход - опциональные)
+    main_image = cast(
+        models.ImageField,
+        models.ImageField(
+            "Основное изображение",
+            upload_to="products/variants/",
+            null=True,
+            blank=True,
+            help_text="Основное изображение варианта (опционально)",
+        ),
+    )
+    gallery_images = cast(
+        list,
+        models.JSONField(
+            "Галерея изображений",
+            default=list,
+            blank=True,
+            help_text="Список URL дополнительных изображений варианта",
+        ),
+    )
+
+    # Статус
+    is_active = cast(
+        bool,
+        models.BooleanField(
+            "Активный",
+            default=True,
+            db_index=True,
+            help_text="Доступен для заказа",
+        ),
+    )
+    last_sync_at = cast(
+        datetime | None,
+        models.DateTimeField(
+            "Последняя синхронизация",
+            null=True,
+            blank=True,
+            help_text="Время последней синхронизации с 1С",
+        ),
+    )
+    created_at = cast(
+        datetime,
+        models.DateTimeField("Дата создания", auto_now_add=True),
+    )
+    updated_at = cast(
+        datetime,
+        models.DateTimeField("Дата обновления", auto_now=True),
+    )
+
+    # Many-to-Many relationship with AttributeValue
+    attributes: models.ManyToManyField = models.ManyToManyField(
+        "AttributeValue",
+        blank=True,
+        related_name="variants",
+        verbose_name="Атрибуты",
+        help_text=("Атрибуты варианта товара " "(цвет, материал, размер и т.д.)"),
+    )
+
+    class Meta:
+        verbose_name = "Вариант товара"
+        verbose_name_plural = "Варианты товаров"
+        db_table = "product_variants"
+        ordering = ["color_name", "size_value"]
+        indexes = [
+            models.Index(fields=["product", "is_active"]),
+            models.Index(fields=["sku"]),
+            models.Index(fields=["onec_id"]),
+            models.Index(fields=["color_name"]),
+            models.Index(fields=["size_value"]),
+            models.Index(fields=["stock_quantity"]),
+            # Композитный индекс для оптимизации фильтрации по характеристикам
+            models.Index(
+                fields=["color_name", "size_value"],
+                name="idx_variant_characteristics",
+            ),
+            # Индексы для оптимизации ценовых фильтров (Story 12.7 performance)
+            models.Index(fields=["retail_price"]),
+            models.Index(
+                fields=["product", "stock_quantity"],
+                name="idx_variant_product_stock",
+            ),
+            models.Index(
+                fields=["product", "retail_price"],
+                name="idx_variant_product_price",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        """Строковое представление варианта товара"""
+        return f"{self.product.name} - {self.sku}"
+
+    def clean(self) -> None:
+        """
+        Валидация модели: хотя бы одна характеристика
+        (цвет или размер) должна быть заполнена.
+        Если импорт из 1С создаёт варианты без характеристик -
+        это допустимый сценарий, но для UI выбора опций
+        рекомендуется иметь хотя бы одну характеристику.
+        """
+        super().clean()
+        if not self.color_name and not self.size_value:
+            # Это WARNING, не ValidationError - позволяем создать вариант,
+            # но логируем предупреждение для мониторинга качества данных из 1С
+            import logging
+
+            logger = logging.getLogger(__name__)
+            logger.warning(
+                f"ProductVariant {self.sku} создан без характеристик "
+                f"(color_name и size_value пустые). Проверьте данные из 1С."
+            )
+
+    @property
+    def is_in_stock(self) -> bool:
+        """Проверка наличия товара на складе"""
+        return self.stock_quantity > 0
+
+    @property
+    def available_quantity(self) -> int:
+        """Доступное количество товара (с учетом резерва)"""
+        return max(0, self.stock_quantity - self.reserved_quantity)
+
+    @property
+    def can_be_ordered(self) -> bool:
+        """
+        Проверка возможности заказа товара.
+        Учитывает: активность Product, активность варианта,
+        наличие и минимальное количество заказа.
+        """
+        if not self.product.is_active:
+            return False
+        if not self.is_active:
+            return False
+        if self.available_quantity < self.product.min_order_quantity:
+            return False
+        return True
+
+    @property
+    def effective_images(self) -> list[str]:
+        """
+        Hybrid подход: вернуть собственные изображения варианта,
+        если отсутствуют - fallback на Product.base_images
+        """
+        if self.main_image:
+            images = [self.main_image.url]
+            if self.gallery_images:
+                images.extend(self.gallery_images)
+            return images
+        # Fallback на базовые изображения продукта
+        return self.product.base_images if self.product.base_images else []
+
+    def get_price_for_user(self, user: User | None) -> Decimal:
+        """Получить цену варианта для конкретного пользователя на основе его роли"""
+        if not user or not user.is_authenticated:
+            return self.retail_price
+
+        role_price_mapping = {
+            "retail": self.retail_price,
+            "wholesale_level1": self.opt1_price or self.retail_price,
+            "wholesale_level2": self.opt2_price or self.retail_price,
+            "wholesale_level3": self.opt3_price or self.retail_price,
+            "trainer": self.trainer_price or self.retail_price,
+            "federation_rep": self.federation_price or self.retail_price,
+        }
+
+        return role_price_mapping.get(user.role, self.retail_price)
+
+
+class Attribute(models.Model):
+    """
+    Модель атрибута товара (тип свойства: Цвет, Размер, Материал и т.д.)
+    """
+
+    name = cast(
+        str,
+        models.CharField(
+            "Название атрибута",
+            max_length=255,
+            help_text="Название типа свойства (например, 'Цвет', 'Размер', 'Материал')",
+        ),
+    )
+    slug = cast(
+        str,
+        models.SlugField(
+            "Slug",
+            max_length=255,
+            unique=True,
+            db_index=True,
+            help_text="URL-совместимый идентификатор",
+        ),
+    )
+    type = cast(
+        str,
+        models.CharField(
+            "Тип атрибута",
+            max_length=50,
+            blank=True,
+            help_text="Тип атрибута для будущей логики фильтрации",
+        ),
+    )
+    normalized_name = cast(
+        str,
+        models.CharField(
+            "Нормализованное название",
+            max_length=255,
+            unique=True,
+            db_index=True,
+            blank=True,
+            null=True,
+            help_text="Нормализованное название для дедупликации атрибутов",
+        ),
+    )
+    is_active = cast(
+        bool,
+        models.BooleanField(
+            "Активный атрибут",
+            default=False,
+            db_index=True,
+            help_text="Атрибут активен и отображается в каталоге",
+        ),
+    )
+    created_at = cast(
+        datetime, models.DateTimeField("Дата создания", auto_now_add=True)
+    )
+    updated_at = cast(datetime, models.DateTimeField("Дата обновления", auto_now=True))
+
+    class Meta:
+        verbose_name = "Атрибут товара"
+        verbose_name_plural = "Атрибуты товаров"
+        db_table = "product_attributes"
+        ordering = ["name"]
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        """Автоматическая генерация slug и normalized_name при сохранении"""
+        # Вычисляем normalized_name для дедупликации
+        self.normalized_name = normalize_attribute_name(self.name) if self.name else ""
+
+        # Автогенерация slug с обработкой дубликатов
+        if not self.slug:
+            try:
+                # Транслитерация кириллицы в латиницу, затем slugify
+                transliterated = translit(self.name, "ru", reversed=True)
+                base_slug = slugify(transliterated)
+            except RuntimeError:
+                # Fallback на обычный slugify
+                base_slug = slugify(self.name)
+
+            # Если slug все еще пустой, создаем fallback
+            if not base_slug:
+                base_slug = f"attribute-{self.pk or int(time.time())}"
+
+            # Проверка уникальности и добавление суффикса при необходимости
+            slug = base_slug
+            counter = 1
+            while Attribute.objects.filter(slug=slug).exclude(pk=self.pk).exists():
+                slug = f"{base_slug}-{counter}"
+                counter += 1
+
+            self.slug = slug
+
+        super().save(*args, **kwargs)
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class AttributeValue(models.Model):
+    """
+    Модель значения атрибута (конкретное значение: Красный, XL, Хлопок и т.д.)
+    """
+
+    attribute = cast(
+        Attribute,
+        models.ForeignKey(
+            Attribute,
+            on_delete=models.CASCADE,
+            related_name="values",
+            verbose_name="Атрибут",
+            help_text="Тип атрибута, к которому относится это значение",
+        ),
+    )
+    value = cast(
+        str,
+        models.CharField(
+            "Значение",
+            max_length=255,
+            help_text=(
+                "Конкретное значение атрибута " "(например, 'Красный', 'XL', 'Хлопок')"
+            ),
+        ),
+    )
+    slug = cast(
+        str,
+        models.SlugField(
+            "Slug",
+            max_length=255,
+            db_index=True,
+            help_text="URL-совместимый идентификатор",
+        ),
+    )
+    normalized_value = cast(
+        str,
+        models.CharField(
+            "Нормализованное значение",
+            max_length=255,
+            db_index=True,
+            blank=True,
+            null=True,  # Initially nullable for migration
+            help_text="Нормализованное значение для дедупликации",
+        ),
+    )
+    created_at = cast(
+        datetime, models.DateTimeField("Дата создания", auto_now_add=True)
+    )
+    updated_at = cast(datetime, models.DateTimeField("Дата обновления", auto_now=True))
+
+    class Meta:
+        verbose_name = "Значение атрибута"
+        verbose_name_plural = "Значения атрибутов"
+        db_table = "product_attribute_values"
+        ordering = ["attribute", "value"]
+        indexes = [
+            models.Index(fields=["attribute", "value"]),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["attribute", "normalized_value"],
+                name="unique_attribute_normalized_value",
+            ),
+        ]
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        """Автоматическая генерация slug и normalized_value при сохранении"""
+        # Вычисляем normalized_value для дедупликации
+        from apps.products.utils.attributes import normalize_attribute_value
+
+        self.normalized_value = (
+            normalize_attribute_value(self.value) if self.value else ""
+        )
+
+        # Автогенерация slug
+        if not self.slug:
+            try:
+                # Транслитерация кириллицы в латиницу, затем slugify
+                transliterated = translit(self.value, "ru", reversed=True)
+                self.slug = slugify(transliterated)
+            except RuntimeError:
+                # Fallback на обычный slugify
+                self.slug = slugify(self.value)
+
+            # Если slug все еще пустой, создаем fallback
+            if not self.slug:
+                self.slug = f"value-{self.pk or int(time.time())}"
+
+        super().save(*args, **kwargs)
+
+    def __str__(self) -> str:
+        return f"{self.attribute.name}: {self.value}"
+
+
+class Attribute1CMapping(models.Model):
+    """
+    Маппинг атрибутов из 1С на master-атрибуты в системе.
+    Позволяет связывать несколько ID из 1С с одним атрибутом для дедупликации.
+    """
+
+    attribute = cast(
+        Attribute,
+        models.ForeignKey(
+            Attribute,
+            on_delete=models.CASCADE,
+            related_name="onec_mappings",
+            verbose_name="Атрибут",
+            help_text="Master-атрибут в системе",
+        ),
+    )
+    onec_id = cast(
+        str,
+        models.CharField(
+            "ID в 1С",
+            max_length=255,
+            unique=True,
+            db_index=True,
+            help_text="Уникальный идентификатор атрибута из 1С",
+        ),
+    )
+    onec_name = cast(
+        str,
+        models.CharField(
+            "Название в 1С",
+            max_length=255,
+            help_text="Оригинальное название атрибута из 1С",
+        ),
+    )
+    source = cast(
+        str,
+        models.CharField(
+            "Источник импорта",
+            max_length=10,
+            choices=[("goods", "Goods"), ("offers", "Offers")],
+            help_text="Тип файла откуда импортирован атрибут (goods/offers)",
+        ),
+    )
+    created_at = cast(
+        datetime,
+        models.DateTimeField("Дата создания", auto_now_add=True),
+    )
+
+    class Meta:
+        verbose_name = "Маппинг атрибута 1С"
+        verbose_name_plural = "Маппинги атрибутов 1С"
+        db_table = "product_attribute_1c_mappings"
+        indexes = [
+            models.Index(fields=["attribute", "source"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.onec_name} ({self.onec_id}) → {self.attribute.name}"
+
+
+class AttributeValue1CMapping(models.Model):
+    """
+    Маппинг значений атрибутов из 1С на master-значения в системе.
+    Позволяет связывать несколько ID из 1С с одним значением для дедупликации.
+    """
+
+    attribute_value = cast(
+        AttributeValue,
+        models.ForeignKey(
+            AttributeValue,
+            on_delete=models.CASCADE,
+            related_name="onec_mappings",
+            verbose_name="Значение атрибута",
+            help_text="Master-значение атрибута в системе",
+        ),
+    )
+    onec_id = cast(
+        str,
+        models.CharField(
+            "ID в 1С",
+            max_length=255,
+            unique=True,
+            db_index=True,
+            help_text="Уникальный идентификатор значения атрибута из 1С",
+        ),
+    )
+    onec_value = cast(
+        str,
+        models.CharField(
+            "Значение в 1С",
+            max_length=255,
+            help_text="Оригинальное значение атрибута из 1С",
+        ),
+    )
+    source = cast(
+        str,
+        models.CharField(
+            "Источник импорта",
+            max_length=10,
+            choices=[("goods", "Goods"), ("offers", "Offers")],
+            help_text="Тип файла откуда импортировано значение (goods/offers)",
+        ),
+    )
+    created_at = cast(
+        datetime,
+        models.DateTimeField("Дата создания", auto_now_add=True),
+    )
+
+    class Meta:
+        verbose_name = "Маппинг значения атрибута 1С"
+        verbose_name_plural = "Маппинги значений атрибутов 1С"
+        db_table = "product_attribute_value_1c_mappings"
+        indexes = [
+            models.Index(fields=["attribute_value", "source"]),
+        ]
+
+    def __str__(self) -> str:
+        return (
+            f"{self.onec_value} ({self.onec_id}) → "
+            f"{self.attribute_value.attribute.name}: {self.attribute_value.value}"
+        )

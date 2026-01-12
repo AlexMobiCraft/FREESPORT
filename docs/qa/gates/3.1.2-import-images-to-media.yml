@@ -1,0 +1,268 @@
+# Planning Advisory Review - Story 3.1.2
+schema: 1
+story: "3.1.2"
+story_title: "Импорт изображений в Django media storage - Brownfield Enhancement"
+gate: PASS
+status_reason: "Отличная спецификация для brownfield enhancement - детальная, реалистичная, с полным техническим контекстом и edge cases. ВСЕ РЕКОМЕНДАЦИИ QA ВНЕДРЕНЫ (обновлено 2025-11-09)."
+reviewer: "Quinn (Test Architect)"
+updated: "2025-11-09T14:30:00Z"
+
+# Нет критических проблем в планировании
+top_issues: []
+
+# Planning review - не требует waiver
+waiver:
+  active: false
+
+# Quality score для спецификации planning (обновлено после внедрения рекомендаций)
+quality_score: 100
+expires: "2025-12-09T00:00:00Z"
+
+# Planning review evidence (обновлено 2025-11-09)
+evidence:
+  specification_sections_reviewed: 11
+  acceptance_criteria_count: 8
+  edge_cases_identified: 7  # +3 новых (повторный импорт, дубликаты, структура директорий)
+  integration_points_documented: 4
+  test_scenarios_defined: 12  # +4 новых теста
+
+  planning_completeness:
+    user_story: "✓ Четкая, следует формату As-Want-So"
+    story_context: "✓ Отличная интеграция с существующей системой"
+    acceptance_criteria: "✓ 8 AC с детальными требованиями + уточненная семантика повторного импорта"
+    technical_notes: "✓ Подробная спецификация реализации + сохранение структуры директорий"
+    testing_strategy: "✓ 12 unit-тестовых сценариев + изоляция тестов + AAA Pattern"
+    definition_of_done: "✓ Четкие критерии готовности"
+    dependencies: "✓ Явно указаны зависимости"
+    risk_mitigation: "✓ Идентифицированы риски и rollback план"
+
+# Planning quality validation
+planning_validation:
+  requirements_clarity:
+    status: PASS
+    notes: "AC детализированы с символами ⚠️ для требуемых изменений, четко отделены от существующей функциональности"
+
+  technical_feasibility:
+    status: PASS
+    notes: "Спецификация реалистична - использует Django default_storage, Pillow валидация опциональна, batch операции для производительности"
+
+  integration_design:
+    status: PASS
+    notes: "Правильно интегрируется с ProductDataProcessor через create_product_placeholder(), расширяет существующий паттерн"
+
+  test_coverage_plan:
+    status: PASS
+    notes: "12 тестовых сценариев с моками файловых операций, примеры кода для тестов, изоляция через get_unique_suffix(), AAA Pattern, интеграционное тестирование в Story 3.1.3"
+
+  edge_case_handling:
+    status: PASS
+    notes: "Обработка: отсутствующих файлов, дубликатов, невалидных изображений, товаров без изображений - все сценарии покрыты"
+
+  backwards_compatibility:
+    status: PASS
+    notes: "AC 7-8 явно требуют сохранение существующей функциональности, append вместо replace для gallery_images"
+
+  performance_considerations:
+    status: PASS
+    notes: "AC 5: batch операции, группировка по директориям, ленивая валидация, максимум 1000 изображений за batch"
+
+  rollback_plan:
+    status: PASS
+    notes: "Определен rollback: очистка MEDIA_ROOT/products/, обнуление полей изображений, восстановление из ImportSession"
+
+# Planning strengths (что сделано отлично)
+planning_strengths:
+  - strength: "Детальная спецификация реализации с примерами кода"
+    evidence: "Строки 144-252: полный код метода import_product_images() с обработкой всех edge cases"
+
+  - strength: "Реалистичные unit-тесты с моками"
+    evidence: "Строки 377-426: пример теста с tempfile, моками default_storage, правильным использованием fixtures"
+
+  - strength: "Правильная интеграция с существующей архитектурой"
+    evidence: "Следует паттерну bulk операций ProductDataProcessor, использует ImportSession для логирования"
+
+  - strength: "Обработка edge cases явно специфицирована"
+    evidence: "AC 3: отсутствующие файлы → WARNING + skip, дубликаты → проверка exists(), товары без изображений → корректная обработка"
+
+  - strength: "Производительность учтена на этапе планирования"
+    evidence: "AC 5: батчинг, группировка по директориям, максимум 1000 изображений за batch, опциональная валидация"
+
+  - strength: "Обратная совместимость гарантирована"
+    evidence: "AC 7-8 + Technical Notes строка 296: append к gallery_images, НЕ replace, placeholder для товаров без изображений"
+
+# Рекомендации для улучшения спецификации
+recommendations:
+  immediate: []  # Все критичные рекомендации внедрены (обновлено 2025-11-09)
+
+  implemented:  # Внедренные рекомендации
+    - action: "✅ AC 1 - Сохранение оригинальных имен файлов"
+      implemented_at: "2025-11-09T14:30:00Z"
+      refs:
+        - "docs/stories/epic-3.1/story-3.1.2-import-images-to-media.md:68"
+      notes: "Внедрено: оригинальные имена сохраняются, UUID структура из 1С"
+
+    - action: "✅ AC 2 - Семантика повторного импорта"
+      implemented_at: "2025-11-09T14:30:00Z"
+      refs:
+        - "docs/stories/epic-3.1/story-3.1.2-import-images-to-media.md:71-79"
+      notes: "Детализирована семантика: main_image не меняется, дубликаты проверяются, append логика"
+
+    - action: "✅ Структура директорий"
+      implemented_at: "2025-11-09T14:30:00Z"
+      refs:
+        - "docs/stories/epic-3.1/story-3.1.2-import-images-to-media.md:69"
+        - "docs/stories/epic-3.1/story-3.1.2-import-images-to-media.md:205-209"
+      notes: "Сохранение поддиректорий media/products/{subdir}/{filename}"
+
+    - action: "✅ Изоляция тестов"
+      implemented_at: "2025-11-09T14:30:00Z"
+      refs:
+        - "docs/stories/epic-3.1/story-3.1.2-import-images-to-media.md:387-442"
+      notes: "Добавлены фикстуры изоляции, get_unique_suffix(), AAA Pattern"
+
+    - action: "✅ Дополнительные тестовые сценарии"
+      implemented_at: "2025-11-09T14:30:00Z"
+      refs:
+        - "docs/stories/epic-3.1/story-3.1.2-import-images-to-media.md:456-459"
+      notes: "4 новых теста: повторный импорт, дубликаты, структура директорий (итого 12)"
+
+  future:
+    - action: "Рассмотреть добавление спецификации для случая S3 storage"
+      refs:
+        - "docs/stories/epic-3.1/story-3.1.2-import-images-to-media.md:25"
+      priority: "P2 - для будущего когда начнем использовать S3"
+      rationale: "Спецификация упоминает S3 совместимость но не детализирует отличия"
+
+    - action: "Добавить пример обработки многоязычных имен файлов"
+      refs:
+        - "docs/stories/epic-3.1/story-3.1.2-import-images-to-media.md:140"
+      priority: "P3 - nice to have"
+      rationale: "Если 1С выгружает файлы с кириллицей в именах"
+
+# Planning advisory notes
+advisory_notes:
+  testability:
+    note: "Отличная тестируемость благодаря моками файловых операций"
+    recommendation: "При реализации убедиться что default_storage легко мокается в тестах"
+
+  maintainability:
+    note: "Код метода import_product_images() в спецификации хорошо структурирован"
+    recommendation: "Добавить docstring примеры для будущих разработчиков"
+
+  observability:
+    note: "Логирование продумано на 3 уровнях: DEBUG, INFO, WARNING"
+    recommendation: "Рассмотреть добавление ERROR уровня для критических I/O ошибок"
+
+  security:
+    note: "Pillow валидация опциональна - правильный подход для производительности"
+    recommendation: "В production включить validate_images=True хотя бы для первого импорта"
+
+# Implementation readiness
+implementation_readiness:
+  estimated_complexity: "5 Story Points (средняя задача)"
+  estimated_time: "4-6 часов разработки + 2-3 часа тестирования"
+  required_skills:
+    - "Django file storage (default_storage API)"
+    - "Python unit testing с моками"
+    - "Pillow для валидации изображений"
+  dependencies_clear: true
+  acceptance_criteria_testable: true
+  rollback_plan_defined: true
+
+  readiness_score: "10/10"  # Обновлено после внедрения всех рекомендаций
+  readiness_blockers: []  # Все рекомендации внедрены
+  readiness_risks:
+    - risk: "Производительность при импорте тысяч изображений"
+      mitigation: "AC 5 покрывает батчинг, структура директорий оптимизирована, требуется реальное тестирование в Story 3.1.3"
+      status: "MITIGATED"
+    - risk: "Заполнение дискового пространства"
+      mitigation: "Документирован в Risk Mitigation, флаг --skip-images, возможность S3"
+      status: "ACCEPTABLE"
+
+# Given-When-Then трассировка требований
+requirements_trace_planning:
+  # AC 1: Копирование изображений
+  - ac: 1
+    given: "Товар имеет пути к изображениям в goods_data['images']"
+    when: "Вызывается import_product_images() с корректным base_dir"
+    then: "Файлы копируются из {base_dir}/{image_path} в media/products/ через default_storage.save()"
+    test_scenarios: ["test_import_product_images_single_image", "test_import_product_images_multiple_images"]
+
+  # AC 2: Установка связей
+  - ac: 2
+    given: "Изображения успешно скопированы в media storage"
+    when: "Устанавливаются связи с Product"
+    then: "Первое изображение → Product.main_image, остальные → Product.gallery_images (JSON список)"
+    test_scenarios: ["test_import_product_images_multiple_images"]
+
+  # AC 3: Обработка ошибок
+  - ac: 3
+    given: "Файл изображения отсутствует или невалиден"
+    when: "import_product_images() проверяет существование/валидность"
+    then: "Логируется WARNING, файл пропускается, импорт продолжается"
+    test_scenarios: ["test_import_product_images_missing_file", "test_import_product_images_invalid_file"]
+
+  # AC 4: Интеграция с командой
+  - ac: 4
+    given: "Команда import_catalog_from_1c вызывается с --skip-images"
+    when: "Обрабатываются товары"
+    then: "Импорт изображений пропускается, только метаданные товаров импортируются"
+    test_scenarios: ["test_import_catalog_with_skip_images_flag"]
+
+  # AC 5: Производительность
+  - ac: 5
+    given: "Импортируется >1000 изображений"
+    when: "Выполняется батчинг операций"
+    then: "Файлы группируются по директориям, валидация ленивая, макс 1000 за batch"
+    test_scenarios: ["Performance тесты в Story 3.1.3"]
+
+  # AC 6: Логирование
+  - ac: 6
+    given: "Импорт изображений выполняется"
+    when: "Обрабатываются файлы"
+    then: "Статистика images_copied/skipped/errors обновляется, логи INFO/WARNING записываются"
+    test_scenarios: ["test_import_product_images_*"]
+
+  # AC 7: Существующая функциональность
+  - ac: 7
+    given: "Код изменен для добавления импорта изображений"
+    when: "Запускаются существующие тесты ProductDataProcessor"
+    then: "Все тесты проходят без регрессий"
+    test_scenarios: ["Все существующие тесты apps/products/tests/"]
+
+  # AC 8: Обратная совместимость
+  - ac: 8
+    given: "Товары созданы до этой истории"
+    when: "Повторный импорт с изображениями"
+    then: "Изображения добавляются (append), существующие данные не теряются, placeholder остается"
+    test_scenarios: ["Интеграционные тесты Story 3.1.3"]
+
+# История изменений планирования
+history:
+  - at: "2025-11-08T12:34:34Z"
+    action: "created"
+    note: "Создана спецификация Story 3.1.2 в коммите 4d9f0f1"
+    author: "Aleksandr Tkachenko"
+
+  - at: "2025-11-09T00:00:00Z"
+    action: "planning_review"
+    gate: PASS
+    note: "Planning review - спецификация отличная, готова к реализации"
+    reviewer: "Quinn (Test Architect)"
+    quality_score: 95
+
+  - at: "2025-11-09T14:30:00Z"
+    action: "recommendations_implemented"
+    gate: PASS
+    note: "Все 5 рекомендаций QA внедрены: оригинальные имена файлов, семантика повторного импорта, структура директорий, изоляция тестов, дополнительные тесты"
+    author: "Aleksandr Tkachenko"
+    reviewer: "Quinn (Test Architect)"
+    quality_score: 100
+    improvements:
+      - "AC 1: Сохранение оригинальных имен файлов из 1С"
+      - "AC 2: Детализированная семантика повторного импорта"
+      - "AC 1: Сохранение структуры поддиректорий"
+      - "Testing: Добавлена изоляция тестов (get_unique_suffix, AAA Pattern)"
+      - "Testing: 4 новых тестовых сценария (итого 12)"
+    readiness_score_before: "9/10"
+    readiness_score_after: "10/10"

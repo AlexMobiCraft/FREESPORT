@@ -24,11 +24,39 @@ erDiagram
     
     ImportLog ||--o{ CustomerSyncLog : tracks
     SyncConflict }|--|| CustomerSyncLog : resolves
+
+    Category ||--o{ News : contains
+    Category ||--o{ BlogPost : contains
+    User ||--o{ Newsletter : "can have"
+
+    Banner {
+        int id PK
+        string title
+        string subtitle
+        string image
+        string image_alt
+        string cta_text
+        string cta_link
+        boolean show_to_guests
+        boolean show_to_authenticated
+        boolean show_to_trainers
+        boolean show_to_wholesale
+        boolean show_to_federation
+        boolean is_active
+        int priority
+        datetime start_date
+        datetime end_date
+        datetime created_at
+        datetime updated_at
+    }
 ```
 
 ### user-model
 
 - *Модели управления пользователями*
+
+> [!NOTE]
+> Эта документация синхронизирована с `apps/users/models.py` (2025-12-12)
 
 ```python
 class User(AbstractUser):
@@ -36,44 +64,102 @@ class User(AbstractUser):
     Расширенная модель пользователя с поддержкой B2B/B2C и интеграции с 1С
     """
     # Основные поля
-    email = models.EmailField(unique=True)  # Primary identifier
-    phone = models.CharField(max_length=20, blank=True)
+    email = models.EmailField(unique=True)  # Primary identifier, USERNAME_FIELD
+    phone = models.CharField(max_length=255, blank=True)  # Формат: +79001234567
     
-    # B2B поля
-    company_name = models.CharField(max_length=255, blank=True)
-    tax_id = models.CharField(max_length=20, blank=True)
-    legal_address = models.TextField(blank=True)
-    contact_person = models.CharField(max_length=100, blank=True)
+    # B2B поля (базовые, расширенные данные в модели Company)
+    company_name = models.CharField(max_length=200, blank=True)
+    tax_id = models.CharField(max_length=12, blank=True)  # ИНН
     
     # Статус и верификация
-    is_verified_b2b = models.BooleanField(default=False)
+    is_verified = models.BooleanField(
+        default=False,
+        help_text="B2B пользователи требуют верификации администратором"
+    )
     verification_status = models.CharField(
         max_length=20,
-        choices=[('pending', 'На проверке'), ('verified', 'Верифицирован'), ('rejected', 'Отклонен')],
-        default='pending'
+        choices=[
+            ('unverified', 'Не верифицирован'),  # default для новых пользователей
+            ('verified', 'Верифицирован'),
+            ('pending', 'Ожидает верификации'),  # для B2B регистраций
+        ],
+        default='unverified'
     )
     
     # Интеграция с 1С
-    onec_id = models.CharField(max_length=50, blank=True, unique=True, null=True)
+    onec_id = models.CharField(max_length=100, blank=True, unique=True, null=True)
     onec_guid = models.UUIDField(blank=True, null=True, unique=True)
-    created_in_1c = models.BooleanField(default=False)  # True если клиент импортирован из 1С
+    created_in_1c = models.BooleanField(default=False)
     last_sync_from_1c = models.DateTimeField(blank=True, null=True)
-    last_sync_to_1c = models.DateTimeField(blank=True, null=True)
-    sync_conflicts = models.JSONField(default=dict, blank=True)  # Храним конфликты синхронизации
+    last_sync_at = models.DateTimeField(blank=True, null=True)  # Последняя синхронизация
+    sync_status = models.CharField(
+        max_length=20,
+        choices=[('pending', 'Ожидает'), ('synced', 'Синхронизирован'), ('error', 'Ошибка'), ('conflict', 'Конфликт')],
+        default='pending'
+    )
+    sync_error_message = models.TextField(blank=True)
+    needs_1c_export = models.BooleanField(default=False)
     
-    # Роль пользователя
+    # Роль пользователя (7 ролей)
     role = models.CharField(
         max_length=20,
         choices=[
             ('retail', 'Розничный покупатель'),
-            ('wholesale_level1', 'Мелкий опт'),        ('wholesale_level2', 'Средний опт'),        ('wholesale_level3', 'Крупный опт'),        ('trainer', 'Тренер'),        ('federation_rep', 'Представитель федерации'),        ('admin', 'Администратор'),
+            ('wholesale_level1', 'Оптовик уровень 1'),
+            ('wholesale_level2', 'Оптовик уровень 2'),
+            ('wholesale_level3', 'Оптовик уровень 3'),
+            ('trainer', 'Тренер/Фитнес-клуб'),
+            ('federation_rep', 'Представитель федерации'),
+            ('admin', 'Администратор'),
         ],
         default='retail'
     )
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    
+    # Computed properties
+    @property
+    def is_b2b_user(self) -> bool:
+        """Является ли пользователь B2B клиентом"""
+        return self.role in ['wholesale_level1', 'wholesale_level2', 'wholesale_level3', 'trainer', 'federation_rep']
 ```
+
+### Company Model
+
+> [!NOTE]
+> Модель Company хранит расширенные реквизиты юр.лица для B2B пользователей
+
+```python
+class Company(models.Model):
+    """
+    Модель компании для B2B пользователей
+    Содержит юридические и банковские реквизиты
+    """
+    user = models.OneToOneField(
+        User, on_delete=models.CASCADE, related_name="company"
+    )
+    
+    # Юридические данные
+    legal_name = models.CharField("Юридическое название", max_length=255, blank=True)
+    tax_id = models.CharField("ИНН", max_length=12, blank=True)
+    kpp = models.CharField("КПП", max_length=9, blank=True)
+    legal_address = models.TextField("Юридический адрес", blank=True)
+    
+    # Банковские реквизиты
+    bank_name = models.CharField("Название банка", max_length=200, blank=True)
+    bank_bik = models.CharField("БИК банка", max_length=9, blank=True)
+    account_number = models.CharField("Расчетный счет", max_length=20, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+```
+
+**Связь User ↔ Company:**
+
+- OneToOne связь через `user.company`
+- Company создаётся автоматически при первом обращении к API `/users/company/`
+- Данные `company_name` и `tax_id` в User синхронизируются с Company.legal_name/tax_id
 
 ### Модели каталога товаров
 
@@ -245,13 +331,118 @@ class OrderItem(models.Model):
     product_specifications = models.JSONField(default=dict)
     
     # Количество и цены
-    quantity = models.PositiveIntegerField()
     unit_price = models.DecimalField(max_digits=10, decimal_places=2)
-    total_price = models.DecimalField(max_digits=12, decimal_places=2)
-    
     # Интеграция с 1С
     onec_product_id = models.CharField(max_length=50, blank=True)
+
+### Banner Model
+
+```python
+class Banner(models.Model):
+    """
+    Модель баннера для Hero-секции главной страницы.
+    Поддерживает таргетинг по группам пользователей.
+    """
+    # Контент
+    title = models.CharField("Заголовок", max_length=200)
+    subtitle = models.CharField("Подзаголовок", max_length=500, blank=True)
+    image = models.ImageField("Изображение", upload_to="promos/%Y/%m/")
+    image_alt = models.CharField("Alt-текст", max_length=255, blank=True)
+    cta_text = models.CharField("Текст кнопки", max_length=50)
+    cta_link = models.CharField("Ссылка кнопки", max_length=200)
+    
+    # Таргетинг по группам
+    show_to_guests = models.BooleanField("Показывать гостям", default=False)
+    show_to_authenticated = models.BooleanField("Показывать авторизованным", default=False)
+    show_to_trainers = models.BooleanField("Показывать тренерам", default=False)
+    show_to_wholesale = models.BooleanField("Показывать оптовикам", default=False)
+    show_to_federation = models.BooleanField("Показывать федералам", default=False)
+    
+    # Управление
+    is_active = models.BooleanField("Активен", default=True)
+    priority = models.IntegerField("Приоритет", default=0)
+    start_date = models.DateTimeField("Дата начала показа", null=True, blank=True)
+    end_date = models.DateTimeField("Дата окончания показа", null=True, blank=True)
+    
+    # Метаданные
+    created_at = models.DateTimeField("Дата создания", auto_now_add=True)
+    updated_at = models.DateTimeField("Дата обновления", auto_now=True)
+    
+    class Meta:
+        db_table = "banners"
+        ordering = ["-priority", "-created_at"]
 ```
+
+```
+
+### Модели атрибутов и дедупликации (Story 14.3)
+
+```python
+class Attribute(models.Model):
+    """
+    Атрибут товара (цвет, размер и т.д.) с поддержкой дедупликации
+    """
+    name = models.CharField(max_length=255)
+    slug = models.SlugField(max_length=255, unique=True)
+    normalized_name = models.CharField(max_length=255, unique=True, db_index=True)
+    is_active = models.BooleanField(default=False)  # По умолчанию неактивен
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def save(self, *args, **kwargs):
+        # Автоматическое вычисление normalized_name
+        from apps.products.utils import normalize_attribute_name
+        self.normalized_name = normalize_attribute_name(self.name)
+        super().save(*args, **kwargs)
+
+class AttributeValue(models.Model):
+    """
+    Значение атрибута с дедупликацией
+    """
+    attribute = models.ForeignKey(Attribute, on_delete=models.CASCADE, related_name='values')
+    value = models.CharField(max_length=255)
+    slug = models.SlugField(max_length=255)
+    normalized_value = models.CharField(max_length=255, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['attribute', 'normalized_value'],
+                name='unique_attribute_normalized_value'
+            )
+        ]
+
+class Attribute1CMapping(models.Model):
+    """
+    Маппинг атрибутов на ID из 1С для дедупликации
+    """
+    attribute = models.ForeignKey(Attribute, on_delete=models.CASCADE, related_name='onec_mappings')
+    onec_id = models.CharField(max_length=255, unique=True, db_index=True)
+    onec_name = models.CharField(max_length=255)  # Оригинальное название из 1С
+    source = models.CharField(max_length=10, choices=[('goods', 'Goods'), ('offers', 'Offers')])
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'product_attribute_1c_mappings'
+        verbose_name = 'Маппинг атрибута 1С'
+
+class AttributeValue1CMapping(models.Model):
+    """
+    Маппинг значений атрибутов на ID из 1С
+    """
+    attribute_value = models.ForeignKey(AttributeValue, on_delete=models.CASCADE, related_name='onec_mappings')
+    onec_id = models.CharField(max_length=255, unique=True, db_index=True)
+    onec_value = models.CharField(max_length=255)  # Оригинальное значение из 1С
+    source = models.CharField(max_length=10, choices=[('goods', 'Goods'), ('offers', 'Offers')])
+    created_at = models.DateTimeField(auto_now_add=True)
+```
+
+**Архитектурные особенности дедупликации:**
+
+- **Master Attribute**: Единый атрибут на платформе = одно уникальное `normalized_name`
+- **1C ID Mapping**: Множество ID из 1С (из разных источников goods/offers) связаны с одним master-атрибутом
+- **Флаг активности**: `is_active=False` по умолчанию, требует ручной активации через Django Admin
+- **Нормализация**: lowercase + удаление пробелов и спецсимволов для определения "одинаковости"
 
 ### Модели интеграции с 1С
 
@@ -364,9 +555,62 @@ class SyncConflict(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 ```
 
+### Модели контента (News, Blog, Newsletter)
+
+#### Категории контента
+```python
+class Category(models.Model):
+    name = models.CharField("Название", max_length=100, unique=True)
+    slug = models.SlugField("URL-идентификатор", max_length=100, unique=True)
+    description = models.TextField("Описание", blank=True)
+    parent = models.ForeignKey("self", on_delete=models.CASCADE, null=True, blank=True)
+    is_active = models.BooleanField("Активна", default=True)
+```
+
+#### Подписка на рассылку
+```python
+class Newsletter(models.Model):
+    email = models.EmailField("Email", unique=True)
+    is_active = models.BooleanField("Активна", default=True)
+    subscribed_at = models.DateTimeField("Дата подписки", auto_now_add=True)
+    unsubscribed_at = models.DateTimeField("Дата отписки", null=True, blank=True)
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+```
+
+#### Новости
+```python
+class News(models.Model):
+    title = models.CharField("Заголовок", max_length=200)
+    slug = models.SlugField("URL-идентификатор", max_length=200, unique=True)
+    excerpt = models.TextField("Краткое описание", blank=True)
+    content = models.TextField("Содержание")
+    image = models.ImageField("Изображение", upload_to="news/images/%Y/%m/%d/", blank=True, null=True)
+    author = models.CharField("Автор", max_length=100, blank=True)
+    category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name="news", null=True, blank=True)
+    is_published = models.BooleanField("Опубликовано", default=False)
+    published_at = models.DateTimeField("Дата публикации", null=True, blank=True)
+```
+
+#### Блог
+```python
+class BlogPost(models.Model):
+    title = models.CharField("Заголовок", max_length=200)
+    slug = models.SlugField("URL-идентификатор", max_length=200, unique=True)
+    subtitle = models.CharField("Подзаголовок", max_length=200, blank=True)
+    excerpt = models.TextField("Краткое описание", blank=True)
+    content = models.TextField("Содержание")
+    image = models.ImageField("Изображение", upload_to="blog/images/%Y/%m/%d/", blank=True, null=True)
+    author = models.CharField("Автор", max_length=100, blank=True)
+    category = models.ForeignKey(Category, on_delete=models.SET_NULL, related_name="blog_posts", null=True, blank=True)
+    is_published = models.BooleanField("Опубликовано", default=False)
+    published_at = models.DateTimeField("Дата публикации", null=True, blank=True)
+    meta_title = models.CharField("SEO заголовок", max_length=200, blank=True)
+    meta_description = models.TextField("SEO описание", blank=True)
+```
+
 ### Обновленная диаграмма связей
 
-Диаграмма связей обновлена для включения новых моделей интеграции с 1С:
+Диаграмма связей обновлена для включения новых моделей интеграции с 1С и дедупликации атрибутов:
 
 ```mermaid
 erDiagram
@@ -390,4 +634,12 @@ erDiagram
     
     ImportLog ||--o{ CustomerSyncLog : tracks
     SyncConflict }|--|| CustomerSyncLog : resolves
+    
+    Attribute ||--o{ AttributeValue : has_values
+    Attribute ||--o{ Attribute1CMapping : "1C mappings"
+    AttributeValue ||--o{ AttributeValue1CMapping : "1C mappings"
+
+    Category ||--o{ News : contains
+    Category ||--o{ BlogPost : contains
+    User ||--o{ Newsletter : "can have"
 ```

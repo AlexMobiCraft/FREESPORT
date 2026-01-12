@@ -1,0 +1,660 @@
+<!doctype html>
+<html class="light" lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>FREESPORT - Каталог товаров</title>
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;700;900&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script id="tailwind-config">
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              primary: '#007BFF', // This is being overridden by the monochrome theme
+              'background-light': '#FFFFFF',
+              'background-dark': '#101922',
+              'surface-light': '#F8F9FA',
+              'surface-dark': '#182431',
+              'text-primary-light': '#212529',
+              'text-primary-dark': '#F8F9FA',
+              'text-secondary-light': '#617589',
+              'text-secondary-dark': '#a0b0c0',
+              'border-light': '#dbe0e6',
+              'border-dark': '#3a4a5a',
+              success: '#28A745',
+              danger: '#DC3545',
+            },
+            fontFamily: {
+              display: ['Lexend', 'sans-serif'],
+            },
+            borderRadius: {
+              DEFAULT: '0.5rem',
+              lg: '0.75rem',
+              xl: '1rem',
+              full: '9999px',
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      .material-symbols-outlined {
+        font-variation-settings:
+          'FILL' 0,
+          'wght' 400,
+          'GRAD' 0,
+          'opsz' 24;
+      }
+    </style>
+  </head>
+  <body
+    class="font-display bg-background-light dark:bg-background-dark text-text-primary-light dark:text-text-primary-dark"
+  >
+    <div class="relative flex min-h-screen w-full flex-col group/design-root overflow-x-hidden">
+      <header
+        class="sticky top-0 z-50 flex items-center justify-between whitespace-nowrap border-b border-solid border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark/80 backdrop-blur-sm px-4 sm:px-8 lg:px-16 py-3"
+      >
+        <div class="flex items-center gap-8">
+          <div class="flex items-center gap-3 text-text-primary-light dark:text-text-primary-dark">
+            <div class="size-8 text-text-primary-light dark:text-text-primary-dark">
+              <svg fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+                <path
+                  d="M39.5563 34.1455V13.8546C39.5563 15.708 36.8773 17.3437 32.7927 18.3189C30.2914 18.916 27.263 19.2655 24 19.2655C20.737 19.2655 17.7086 18.916 15.2073 18.3189C11.1227 17.3437 8.44365 15.708 8.44365 13.8546V34.1455C8.44365 35.9988 11.1227 37.6346 15.2073 38.6098C17.7086 39.2069 20.737 39.5564 24 39.5564C27.263 39.5564 30.2914 39.2069 32.7927 38.6098C36.8773 37.6346 39.5563 35.9988 39.5563 34.1455Z"
+                  fill="currentColor"
+                ></path>
+                <path
+                  clip-rule="evenodd"
+                  d="M10.4485 13.8519C10.4749 13.9271 10.6203 14.246 11.379 14.7361C12.298 15.3298 13.7492 15.9145 15.6717 16.3735C18.0007 16.9296 20.8712 17.2655 24 17.2655C27.1288 17.2655 29.9993 16.9296 32.3283 16.3735C34.2508 15.9145 35.702 15.3298 36.621 14.7361C37.3796 14.246 37.5251 13.9271 37.5515 13.8519C37.5287 13.7876 37.4333 13.5973 37.0635 13.2931C36.5266 12.8516 35.6288 12.3647 34.343 11.9175C31.79 11.0295 28.1333 10.4437 24 10.4437C19.8667 10.4437 16.2099 11.0295 13.657 11.9175C12.3712 12.3647 11.4734 12.8516 10.9365 13.2931C10.5667 13.5973 10.4713 13.7876 10.4485 13.8519ZM37.5563 18.7877C36.3176 19.3925 34.8502 19.8839 33.2571 20.2642C30.5836 20.9025 27.3973 21.2655 24 21.2655C20.6027 21.2655 17.4164 20.9025 14.7429 20.2642C13.1498 19.8839 11.6824 19.3925 10.4436 18.7877V34.1275C10.4515 34.1545 10.5427 34.4867 11.379 35.027C12.298 35.6207 13.7492 36.2054 15.6717 36.6644C18.0007 37.2205 20.8712 37.5564 24 37.5564C27.1288 37.5564 29.9993 37.2205 32.3283 36.6644C34.2508 36.2054 35.702 35.6207 36.621 35.027C37.4573 34.4867 37.5485 34.1546 37.5563 34.1275V18.7877ZM41.5563 13.8546V34.1455C41.5563 36.1078 40.158 37.5042 38.7915 38.3869C37.3498 39.3182 35.4192 40.0389 33.2571 40.5551C30.5836 41.1934 27.3973 41.5564 24 41.5564C20.6027 41.5564 17.4164 41.1934 14.7429 40.5551C12.5808 40.0389 10.6502 39.3182 9.20848 38.3869C7.84205 37.5042 6.44365 36.1078 6.44365 34.1455L6.44365 13.8546C6.44365 12.2684 7.37223 11.0454 8.39581 10.2036C9.43325 9.3505 10.8137 8.67141 12.343 8.13948C15.4203 7.06909 19.5418 6.44366 24 6.44366C28.4582 6.44366 32.5797 7.06909 35.657 8.13948C37.1863 8.67141 38.5667 9.3505 39.6042 10.2036C40.6278 11.0454 41.5563 12.2684 41.5563 13.8546Z"
+                  fill="currentColor"
+                  fill-rule="evenodd"
+                ></path>
+              </svg>
+            </div>
+            <h2 class="text-xl font-bold tracking-tighter">FREESPORT</h2>
+          </div>
+          <nav class="hidden lg:flex items-center gap-8">
+            <a
+              class="text-sm font-medium hover:text-text-primary-light dark:hover:text-text-primary-dark transition-colors"
+              href="#"
+              >Мужчинам</a
+            >
+            <a
+              class="text-sm font-medium hover:text-text-primary-light dark:hover:text-text-primary-dark transition-colors"
+              href="#"
+              >Женщинам</a
+            >
+            <a
+              class="text-sm font-medium hover:text-text-primary-light dark:hover:text-text-primary-dark transition-colors"
+              href="#"
+              >Детям</a
+            >
+            <a
+              class="text-sm font-medium hover:text-text-primary-light dark:hover:text-text-primary-dark transition-colors"
+              href="#"
+              >Бренды</a
+            >
+          </nav>
+        </div>
+        <div class="flex flex-1 justify-end items-center gap-4">
+          <div class="relative hidden sm:block w-full max-w-xs">
+            <span
+              class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary-light dark:text-text-secondary-dark"
+              >search</span
+            >
+            <input
+              class="form-input flex w-full resize-none overflow-hidden rounded-lg text-text-primary-light dark:text-text-primary-dark border-none bg-surface-light dark:bg-surface-dark h-10 placeholder:text-text-secondary-light dark:placeholder:text-text-secondary-dark pl-10 pr-4 text-sm"
+              placeholder="Поиск"
+              value=""
+            />
+          </div>
+          <div class="flex gap-2">
+            <button
+              class="flex cursor-pointer items-center justify-center rounded-lg h-10 w-10 bg-surface-light dark:bg-surface-dark hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+            >
+              <span
+                class="material-symbols-outlined text-text-primary-light dark:text-text-primary-dark"
+                >favorite</span
+              >
+            </button>
+            <button
+              class="flex cursor-pointer items-center justify-center rounded-lg h-10 w-10 bg-surface-light dark:bg-surface-dark hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+            >
+              <span
+                class="material-symbols-outlined text-text-primary-light dark:text-text-primary-dark"
+                >shopping_bag</span
+              >
+            </button>
+            <button
+              class="flex cursor-pointer items-center justify-center rounded-lg h-10 w-10 bg-surface-light dark:bg-surface-dark hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+            >
+              <span
+                class="material-symbols-outlined text-text-primary-light dark:text-text-primary-dark"
+                >person</span
+              >
+            </button>
+          </div>
+        </div>
+      </header>
+      <main class="container mx-auto px-4 sm:px-8 lg:px-16 py-8">
+        <div class="flex flex-col gap-6">
+          <div>
+            <div class="flex flex-wrap gap-2 text-sm">
+              <a
+                class="text-text-secondary-light dark:text-text-secondary-dark hover:text-text-primary-light dark:hover:text-text-primary-dark transition-colors"
+                href="#"
+                >Главная</a
+              >
+              <span class="text-text-secondary-light dark:text-text-secondary-dark">/</span>
+              <a
+                class="text-text-secondary-light dark:text-text-secondary-dark hover:text-text-primary-light dark:hover:text-text-primary-dark transition-colors"
+                href="#"
+                >Мужчинам</a
+              >
+              <span class="text-text-secondary-light dark:text-text-secondary-dark">/</span>
+              <a
+                class="text-text-secondary-light dark:text-text-secondary-dark hover:text-text-primary-light dark:hover:text-text-primary-dark transition-colors"
+                href="#"
+                >Одежда</a
+              >
+              <span class="text-text-secondary-light dark:text-text-secondary-dark">/</span>
+              <span class="font-medium text-text-primary-light dark:text-text-primary-dark"
+                >Худи и толстовки</span
+              >
+            </div>
+            <div class="flex flex-wrap justify-between gap-3 items-baseline mt-4">
+              <h1 class="text-4xl font-black tracking-tight">Мужские худи и толстовки</h1>
+            </div>
+          </div>
+          <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+            <aside class="col-span-1">
+              <div class="sticky top-28 flex flex-col gap-6">
+                <div class="flex flex-col rounded-lg bg-surface-light dark:bg-surface-dark p-4">
+                  <h3 class="text-lg font-bold mb-2">Категории</h3>
+                  <ul class="space-y-2 text-sm">
+                    <li>
+                      <a
+                        class="block text-text-secondary-light dark:text-text-secondary-dark hover:text-text-primary-light dark:hover:text-text-primary-dark transition-colors"
+                        href="#"
+                        >Вся одежда</a
+                      >
+                    </li>
+                    <li>
+                      <a
+                        class="block text-text-secondary-light dark:text-text-secondary-dark hover:text-text-primary-light dark:hover:text-text-primary-dark transition-colors"
+                        href="#"
+                        >Футболки и майки</a
+                      >
+                    </li>
+                    <li>
+                      <a
+                        class="block font-bold text-text-primary-light dark:text-text-primary-dark"
+                        href="#"
+                        >Худи и толстовки</a
+                      >
+                    </li>
+                    <ul
+                      class="pl-4 mt-2 space-y-2 border-l border-border-light dark:border-border-dark"
+                    >
+                      <li>
+                        <a
+                          class="block text-text-secondary-light dark:text-text-secondary-dark hover:text-text-primary-light dark:hover:text-text-primary-dark transition-colors"
+                          href="#"
+                          >Худи</a
+                        >
+                      </li>
+                      <li>
+                        <a
+                          class="block text-text-secondary-light dark:text-text-secondary-dark hover:text-text-primary-light dark:hover:text-text-primary-dark transition-colors"
+                          href="#"
+                          >Свитшоты</a
+                        >
+                      </li>
+                      <li>
+                        <a
+                          class="block text-text-secondary-light dark:text-text-secondary-dark hover:text-text-primary-light dark:hover:text-text-primary-dark transition-colors"
+                          href="#"
+                          >Олимпийки</a
+                        >
+                      </li>
+                    </ul>
+                    <li>
+                      <a
+                        class="block text-text-secondary-light dark:text-text-secondary-dark hover:text-text-primary-light dark:hover:text-text-primary-dark transition-colors mt-2"
+                        href="#"
+                        >Брюки и шорты</a
+                      >
+                    </li>
+                    <li>
+                      <a
+                        class="block text-text-secondary-light dark:text-text-secondary-dark hover:text-text-primary-light dark:hover:text-text-primary-dark transition-colors"
+                        href="#"
+                        >Куртки и ветровки</a
+                      >
+                    </li>
+                  </ul>
+                </div>
+                <div class="flex flex-col rounded-lg bg-surface-light dark:bg-surface-dark p-4">
+                  <h3 class="text-lg font-bold mb-2">Фильтры</h3>
+                  <div class="flex flex-col">
+                    <details
+                      class="flex flex-col border-t border-border-light dark:border-border-dark py-2 group"
+                      open=""
+                    >
+                      <summary class="flex cursor-pointer items-center justify-between gap-6 py-2">
+                        <p class="text-sm font-medium">Цена</p>
+                        <span
+                          class="material-symbols-outlined text-text-primary-light dark:text-text-primary-dark group-open:rotate-180 transition-transform"
+                          >expand_more</span
+                        >
+                      </summary>
+                      <div
+                        class="relative flex w-full flex-col items-start justify-between gap-3 pt-2 pb-4"
+                      >
+                        <div class="flex h-[38px] w-full pt-1.5">
+                          <div
+                            class="flex h-1 w-full rounded-sm bg-border-light dark:bg-border-dark pl-[10%] pr-[25%]"
+                          >
+                            <div class="relative">
+                              <div class="absolute -left-2.5 -top-2 flex flex-col items-center">
+                                <div
+                                  class="size-5 rounded-full bg-text-primary-light dark:bg-text-primary-dark ring-4 ring-black/10 dark:ring-white/10 cursor-pointer"
+                                ></div>
+                                <p class="text-xs font-normal mt-2">1 500₽</p>
+                              </div>
+                            </div>
+                            <div
+                              class="h-1 flex-1 rounded-sm bg-text-primary-light dark:bg-text-primary-dark"
+                            ></div>
+                            <div class="relative">
+                              <div class="absolute -left-2.5 -top-2 flex flex-col items-center">
+                                <div
+                                  class="size-5 rounded-full bg-text-primary-light dark:bg-text-primary-dark ring-4 ring-black/10 dark:ring-white/10 cursor-pointer"
+                                ></div>
+                                <p class="text-xs font-normal mt-2">12 000₽</p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </details>
+                    <details
+                      class="flex flex-col border-t border-border-light dark:border-border-dark py-2 group"
+                    >
+                      <summary class="flex cursor-pointer items-center justify-between gap-6 py-2">
+                        <p class="text-sm font-medium">Бренд</p>
+                        <span
+                          class="material-symbols-outlined text-text-primary-light dark:text-text-primary-dark group-open:rotate-180 transition-transform"
+                          >expand_more</span
+                        >
+                      </summary>
+                      <div class="flex flex-col gap-2 pt-2 text-sm">
+                        <label class="flex items-center gap-2"
+                          ><input
+                            class="form-checkbox rounded text-text-primary-light dark:text-text-primary-dark focus:ring-text-primary-light/50 dark:focus:ring-text-primary-dark/50"
+                            type="checkbox"
+                          />
+                          Nike</label
+                        >
+                        <label class="flex items-center gap-2"
+                          ><input
+                            class="form-checkbox rounded text-text-primary-light dark:text-text-primary-dark focus:ring-text-primary-light/50 dark:focus:ring-text-primary-dark/50"
+                            type="checkbox"
+                          />
+                          Adidas</label
+                        >
+                        <label class="flex items-center gap-2"
+                          ><input
+                            class="form-checkbox rounded text-text-primary-light dark:text-text-primary-dark focus:ring-text-primary-light/50 dark:focus:ring-text-primary-dark/50"
+                            type="checkbox"
+                          />
+                          Puma</label
+                        >
+                      </div>
+                    </details>
+                    <details
+                      class="flex flex-col border-t border-border-light dark:border-border-dark py-2 group"
+                    >
+                      <summary class="flex cursor-pointer items-center justify-between gap-6 py-2">
+                        <p class="text-sm font-medium">Размер</p>
+                        <span
+                          class="material-symbols-outlined text-text-primary-light dark:text-text-primary-dark group-open:rotate-180 transition-transform"
+                          >expand_more</span
+                        >
+                      </summary>
+                      <div class="grid grid-cols-4 gap-2 pt-2">
+                        <button
+                          class="border border-border-light dark:border-border-dark rounded h-10 text-sm font-medium hover:border-text-primary-light dark:hover:border-text-primary-dark hover:text-text-primary-light dark:hover:text-text-primary-dark transition-colors"
+                        >
+                          XS
+                        </button>
+                        <button
+                          class="border border-border-light dark:border-border-dark rounded h-10 text-sm font-medium hover:border-text-primary-light dark:hover:border-text-primary-dark hover:text-text-primary-light dark:hover:text-text-primary-dark transition-colors"
+                        >
+                          S
+                        </button>
+                        <button
+                          class="border border-text-primary-light dark:border-text-primary-dark text-background-light dark:text-background-dark bg-text-primary-light dark:bg-text-primary-dark rounded h-10 text-sm font-medium"
+                        >
+                          M
+                        </button>
+                        <button
+                          class="border border-border-light dark:border-border-dark rounded h-10 text-sm font-medium hover:border-text-primary-light dark:hover:border-text-primary-dark hover:text-text-primary-light dark:hover:text-text-primary-dark transition-colors"
+                        >
+                          L
+                        </button>
+                        <button
+                          class="border border-border-light dark:border-border-dark rounded h-10 text-sm font-medium text-text-secondary-light dark:text-text-secondary-dark cursor-not-allowed opacity-50"
+                        >
+                          XL
+                        </button>
+                      </div>
+                    </details>
+                    <details
+                      class="flex flex-col border-t border-border-light dark:border-border-dark py-2 group"
+                    >
+                      <summary class="flex cursor-pointer items-center justify-between gap-6 py-2">
+                        <p class="text-sm font-medium">Цвет</p>
+                        <span
+                          class="material-symbols-outlined text-text-primary-light dark:text-text-primary-dark group-open:rotate-180 transition-transform"
+                          >expand_more</span
+                        >
+                      </summary>
+                      <div class="flex flex-wrap gap-3 pt-2">
+                        <button
+                          class="size-8 rounded-full bg-black ring-2 ring-offset-2 ring-offset-surface-light dark:ring-offset-surface-dark ring-text-primary-light dark:ring-text-primary-dark"
+                        ></button>
+                        <button
+                          class="size-8 rounded-full bg-white border border-border-light dark:border-border-dark"
+                        ></button>
+                        <button class="size-8 rounded-full bg-gray-400"></button>
+                        <button class="size-8 rounded-full bg-blue-600"></button>
+                        <button class="size-8 rounded-full bg-red-600"></button>
+                        <button class="size-8 rounded-full bg-green-500"></button>
+                      </div>
+                    </details>
+                  </div>
+                </div>
+                <div class="flex flex-col gap-2">
+                  <button
+                    class="flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-lg h-11 bg-text-primary-light dark:bg-text-primary-dark text-background-light dark:text-background-dark gap-2 text-sm font-bold tracking-wide"
+                  >
+                    Применить
+                  </button>
+                  <button
+                    class="flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-lg h-11 bg-surface-light dark:bg-surface-dark text-text-primary-light dark:text-text-primary-dark gap-2 text-sm font-bold tracking-wide hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+                  >
+                    Сбросить
+                  </button>
+                </div>
+              </div>
+            </aside>
+            <div class="col-span-1 lg:col-span-3">
+              <div class="flex flex-col gap-6">
+                <div
+                  class="flex flex-wrap items-center justify-between gap-4 p-4 rounded-lg bg-surface-light dark:bg-surface-dark"
+                >
+                  <p class="text-sm text-text-secondary-light dark:text-text-secondary-dark">
+                    Показано 12 из 210 товаров
+                  </p>
+                  <div class="flex items-center gap-4">
+                    <div class="flex items-center gap-2">
+                      <button
+                        class="p-2 rounded-lg bg-black/10 dark:bg-white/20 text-text-primary-light dark:text-text-primary-dark"
+                      >
+                        <span class="material-symbols-outlined">grid_view</span>
+                      </button>
+                      <button
+                        class="p-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 text-text-secondary-light dark:text-text-secondary-dark"
+                      >
+                        <span class="material-symbols-outlined">view_list</span>
+                      </button>
+                    </div>
+                    <div class="relative">
+                      <select
+                        class="form-select appearance-none w-48 rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark text-sm focus:border-text-primary-light dark:focus:border-text-primary-dark focus:ring-text-primary-light/50 dark:focus:ring-text-primary-dark/50"
+                      >
+                        <option>По популярности</option>
+                        <option>Сначала дешевле</option>
+                        <option>Сначала дороже</option>
+                        <option>По новизне</option>
+                      </select>
+                      <span
+                        class="material-symbols-outlined pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary-light dark:text-text-secondary-dark"
+                        >expand_more</span
+                      >
+                    </div>
+                  </div>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+                  <div
+                    class="group relative flex flex-col overflow-hidden rounded-xl bg-surface-light dark:bg-surface-dark"
+                  >
+                    <div class="relative bg-white dark:bg-gray-800 aspect-square">
+                      <img
+                        class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        data-alt="Light grey hoodie on a plain background"
+                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuBsndt45qhty_0JyxQjnMOsaPHMiGkbxaVDM96VyEL1Boau6UYeVg9HQ89rJ58nl9lPA6dKSANFhAqNJL6RS6SqWhEY_z94DVQIFQKRgBj7ulbxh551NTxZLXoyeaxrvjO_Bye8tOW7-xydI790s7mQt9hltA862QJwHv_VM1wbSMQlowxZDUV5tJun3b2cspWeNZ-G5r39v3OPc4Nqu7b8ZJrwEmX3CEigNEf6DAy8wrjp55wUApHMUiUBqXZxMX_KkvL7I5lYvp8"
+                      />
+                      <button
+                        class="absolute top-3 right-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-background-light/70 dark:bg-background-dark/70 backdrop-blur-sm transition hover:bg-text-primary-light hover:text-background-light dark:hover:bg-text-primary-dark dark:hover:text-background-dark"
+                      >
+                        <span class="material-symbols-outlined text-base">favorite</span>
+                      </button>
+                    </div>
+                    <div class="flex flex-1 flex-col p-4">
+                      <p class="text-xs text-text-secondary-light dark:text-text-secondary-dark">
+                        Nike
+                      </p>
+                      <h3 class="mt-1 font-bold text-base leading-tight">Sportswear Club Fleece</h3>
+                      <div class="mt-2 flex items-baseline gap-2">
+                        <p class="font-black text-lg">7 499₽</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div
+                    class="group relative flex flex-col overflow-hidden rounded-xl bg-surface-light dark:bg-surface-dark"
+                  >
+                    <div class="relative bg-white dark:bg-gray-800 aspect-square">
+                      <img
+                        class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        data-alt="Black hoodie with a simple design"
+                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuDaChypAotFb_bMHmijq-oSZvyqj4pwn2aqi5AjeC7bRyiJE55PV_nkNPau-TzaR9kAREkcKli-tNp9RSUWQU-Bk-ekmP-Ea0TZRKlFVnwDyppkFxoYegaayPOZEdoL2ylYq7OCfomKoI5K0yr0xPv_rBKhjT6z_3URaDCdkwm6fY-MRgwOvUcuLIPNGB3mm_evSru4jGpggH41OX1jqVkQXBTLQ40QvCcpLuLPn0QVrYMeQlNJMWZuSV_jQCGHVcVDVorFuwkuhjc"
+                      />
+                      <div
+                        class="absolute top-3 left-3 z-10 rounded-full bg-danger px-2.5 py-1 text-xs font-bold text-white"
+                      >
+                        SALE
+                      </div>
+                      <button
+                        class="absolute top-3 right-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-background-light/70 dark:bg-background-dark/70 backdrop-blur-sm transition hover:bg-text-primary-light hover:text-background-light dark:hover:bg-text-primary-dark dark:hover:text-background-dark"
+                      >
+                        <span class="material-symbols-outlined text-base">favorite</span>
+                      </button>
+                    </div>
+                    <div class="flex flex-1 flex-col p-4">
+                      <p class="text-xs text-text-secondary-light dark:text-text-secondary-dark">
+                        Adidas
+                      </p>
+                      <h3 class="mt-1 font-bold text-base leading-tight">Essentials Hoodie</h3>
+                      <div class="mt-2 flex items-baseline gap-2">
+                        <p class="font-black text-lg text-danger">5 999₽</p>
+                        <p
+                          class="text-sm text-text-secondary-light dark:text-text-secondary-dark line-through"
+                        >
+                          8 299₽
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <div
+                    class="group relative flex flex-col overflow-hidden rounded-xl bg-surface-light dark:bg-surface-dark"
+                  >
+                    <div class="relative bg-white dark:bg-gray-800 aspect-square">
+                      <img
+                        class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        data-alt="Dark blue hoodie"
+                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuBS6e2ix0fLipXwG9NiA4NMYgmK7HR8YsFHWAjp4MA-sFyprVLkF_SM6fdejSyHpsdyc2VimVbnezYMtfMExKxVUzXqvz9O9x8oaPHuw1PgT9so4L9taNI1IDy8G-yKXgaeAZLn8EV-S9osGQXyqo4U9UUa65T8PIqZe5319axvis5knxJgYwwQDFWp3swpGNOTJHBkDsySP4xQ_TACsMt1_2UzK_UTaLLQif1Uo4C7olpWXHWcsYeKzHhT_GywlX36226xrw9Gpqw"
+                      />
+                      <button
+                        class="absolute top-3 right-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-background-light/70 dark:bg-background-dark/70 backdrop-blur-sm transition hover:bg-text-primary-light hover:text-background-light dark:hover:bg-text-primary-dark dark:hover:text-background-dark"
+                      >
+                        <span class="material-symbols-outlined text-base">favorite</span>
+                      </button>
+                    </div>
+                    <div class="flex flex-1 flex-col p-4">
+                      <p class="text-xs text-text-secondary-light dark:text-text-secondary-dark">
+                        Puma
+                      </p>
+                      <h3 class="mt-1 font-bold text-base leading-tight">Graphic Sweatshirt</h3>
+                      <div class="mt-2 flex items-baseline gap-2">
+                        <p class="font-black text-lg">6 899₽</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div
+                    class="group relative flex flex-col overflow-hidden rounded-xl bg-surface-light dark:bg-surface-dark"
+                  >
+                    <div class="relative bg-white dark:bg-gray-800 aspect-square">
+                      <img
+                        class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        data-alt="White athletic hoodie"
+                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuClVnic8ivvH0Z8i9lbUu5PDNgpRzn6CSCjyoKlpEEPv4A1vzi5SgYBpDnYXvQhFd6zg0eNncnqwGHWNW1eozArv14QRw_QG6xNDCTWZ1552N8TQUdySzh-j8XjTUAiEC2PFCLBHfNNyB1HKVwdQsTXL6fT74HYt0L-NSntrY8VpW6a-86Q0wvX76iV2mbROgxmvajAUI4Z3Kck07uENwvd3bHceiO-AHdOOiDhMA8dJhUrxxTy0OeUF_xqxVmOXwIl_G9blaAiJjM"
+                      />
+                      <button
+                        class="absolute top-3 right-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-background-light/70 dark:bg-background-dark/70 backdrop-blur-sm transition hover:bg-text-primary-light hover:text-background-light dark:hover:bg-text-primary-dark dark:hover:text-background-dark"
+                      >
+                        <span class="material-symbols-outlined text-base">favorite</span>
+                      </button>
+                    </div>
+                    <div class="flex flex-1 flex-col p-4">
+                      <p class="text-xs text-text-secondary-light dark:text-text-secondary-dark">
+                        The North Face
+                      </p>
+                      <h3 class="mt-1 font-bold text-base leading-tight">Box NSE Pullover</h3>
+                      <div class="mt-2 flex items-baseline gap-2">
+                        <p class="font-black text-lg">9 199₽</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div
+                    class="group relative flex flex-col overflow-hidden rounded-xl bg-surface-light dark:bg-surface-dark"
+                  >
+                    <div class="relative bg-white dark:bg-gray-800 aspect-square">
+                      <img
+                        class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        data-alt="Brightly colored sneakers"
+                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuCPna4TJVHSjWFwFQ9KpogjBE3lL44oirqHKwpAutKVw2fUMU6TT62mbI0WwaxacDFWhPBqyhFRvtON4eFerMZoKkkGizW8Fl0ZpqwwVvkcxuaqKvqaReBShCRmf1QDUh6I-mJOKVj2KJ4W7NUpIEWCi58Xe4TYkkYvIuBqjP-WwrSMXfSxY1sMqAMp7yQUaw2WJEhQJ5chVI1nxgNDgr7wGO7W0vy1ejGzgX_rIbFSWoCXgOIwbl8WO2QQp8e9_uFxQnbyGcLTW4s"
+                      />
+                      <button
+                        class="absolute top-3 right-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-background-light/70 dark:bg-background-dark/70 backdrop-blur-sm transition hover:bg-text-primary-light hover:text-background-light dark:hover:bg-text-primary-dark dark:hover:text-background-dark"
+                      >
+                        <span class="material-symbols-outlined text-base">favorite</span>
+                      </button>
+                    </div>
+                    <div class="flex flex-1 flex-col p-4">
+                      <p class="text-xs text-text-secondary-light dark:text-text-secondary-dark">
+                        Nike
+                      </p>
+                      <h3 class="mt-1 font-bold text-base leading-tight">Tech Fleece Full-Zip</h3>
+                      <div class="mt-2 flex items-baseline gap-2">
+                        <p class="font-black text-lg">11 499₽</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div
+                    class="group relative flex flex-col overflow-hidden rounded-xl bg-surface-light dark:bg-surface-dark"
+                  >
+                    <div class="relative bg-white dark:bg-gray-800 aspect-square">
+                      <img
+                        class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        data-alt="Stylish sneakers with orange accents"
+                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuCYM1EKTF03RooJq0FZid7usNPJXSNq9D1aZk3h4vkLxSh_BRFWBV7KzXe_bxyPIp4SOAJZtRWXr2zSaF5BEft1n_-S7ntWS0o41Umll5Jdnak66bIb7T2mVmpMCWMXoFIUxeSEgnY--SLEYWrkyW5CMlwa3Wj9BbQRCsi-smSvd54ohbFkHjoIg8gQ4IXMpnM2GtsMZmxPvXARV4sFgLWFWUG-_Jphc7KC6ytNFzWgQZHxqgxAXkvdxXDZt_bC7X6XtJOvtHnclFo"
+                      />
+                      <div
+                        class="absolute top-3 left-3 z-10 rounded-full bg-success px-2.5 py-1 text-xs font-bold text-white"
+                      >
+                        NEW
+                      </div>
+                      <button
+                        class="absolute top-3 right-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-background-light/70 dark:bg-background-dark/70 backdrop-blur-sm transition hover:bg-text-primary-light hover:text-background-light dark:hover:bg-text-primary-dark dark:hover:text-background-dark"
+                      >
+                        <span class="material-symbols-outlined text-base">favorite</span>
+                      </button>
+                    </div>
+                    <div class="flex flex-1 flex-col p-4">
+                      <p class="text-xs text-text-secondary-light dark:text-text-secondary-dark">
+                        Under Armour
+                      </p>
+                      <h3 class="mt-1 font-bold text-base leading-tight">Rival Fleece Logo</h3>
+                      <div class="mt-2 flex items-baseline gap-2">
+                        <p class="font-black text-lg">6 299₽</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <nav class="flex items-center justify-center gap-2 pt-8">
+                  <button
+                    class="flex h-10 w-10 items-center justify-center rounded-lg bg-surface-light dark:bg-surface-dark text-text-secondary-light dark:text-text-secondary-dark hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+                  >
+                    <span class="material-symbols-outlined">chevron_left</span>
+                  </button>
+                  <button
+                    class="flex h-10 w-10 items-center justify-center rounded-lg bg-text-primary-light dark:bg-text-primary-dark text-background-light dark:text-background-dark transition-colors"
+                  >
+                    1
+                  </button>
+                  <button
+                    class="flex h-10 w-10 items-center justify-center rounded-lg bg-surface-light dark:bg-surface-dark hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+                  >
+                    2
+                  </button>
+                  <button
+                    class="flex h-10 w-10 items-center justify-center rounded-lg bg-surface-light dark:bg-surface-dark hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+                  >
+                    3
+                  </button>
+                  <span class="text-text-secondary-light dark:text-text-secondary-dark">...</span>
+                  <button
+                    class="flex h-10 w-10 items-center justify-center rounded-lg bg-surface-light dark:bg-surface-dark hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+                  >
+                    18
+                  </button>
+                  <button
+                    class="flex h-10 w-10 items-center justify-center rounded-lg bg-surface-light dark:bg-surface-dark hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+                  >
+                    <span class="material-symbols-outlined">chevron_right</span>
+                  </button>
+                </nav>
+                <div
+                  class="prose prose-sm dark:prose-invert max-w-none text-text-secondary-light dark:text-text-secondary-dark pt-8 border-t border-border-light dark:border-border-dark"
+                >
+                  <h2 class="text-text-primary-light dark:text-text-primary-dark">
+                    Стильные и удобные мужские худи
+                  </h2>
+                  <p>
+                    Откройте для себя нашу коллекцию мужских худи и толстовок, созданных для
+                    комфорта и стиля. Идеально подходят как для активного отдыха, так и для
+                    повседневной носки. В нашем каталоге вы найдете модели от ведущих спортивных
+                    брендов, выполненные из высококачественных материалов, которые обеспечивают
+                    тепло и свободу движений.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>

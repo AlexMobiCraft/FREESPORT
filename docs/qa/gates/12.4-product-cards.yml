@@ -1,0 +1,386 @@
+# Quality Gate Decision for Story 12.4
+# Schema Version 1.0
+# Review #3 - POST-FIX VERIFICATION (TEST-001 RESOLVED)
+
+schema: 1
+story: "12.4"
+story_title: "Карточки товаров и списки"
+gate: PASS
+status_reason: "Критическая accessibility проблема успешно исправлена. Compact layout теперь использует role='article'. Все 39/39 тестов проходят успешно. 100% AC compliance достигнуто. Высокое качество кода (97/100). Story готова к production."
+reviewer: "Quinn (Test Architect)"
+updated: "2025-11-20T17:07:00Z"
+
+# Quality Score: Upgraded from 70 → 97 after TEST-001 fix
+quality_score: 97
+expires: "2025-12-04T23:59:59Z"
+
+# Waiver not active
+waiver:
+  active: false
+
+# Top Issues (Severity: low | medium | high)
+# Все критические issues решены. Остались только P3 (low severity) issues.
+top_issues:
+  - id: "A11Y-001"
+    severity: low
+    finding: "Next.js Image получает boolean prop fill вместо строки (warning в тестах: 'Received `true` for a non-boolean attribute `fill`')"
+    suggested_action: |
+      Низкий приоритет (P3) - можно отложить на будущее:
+
+      Использовать fill='true' как строку или удалить prop если используется aspect-square CSS:
+
+      ```tsx
+      // Вариант 1 (рекомендуемый):
+      <Image fill="true" ... />
+
+      // Вариант 2:
+      <Image fill={true} suppressHydrationWarning ... />
+
+      // Вариант 3:
+      // Удалить fill prop, использовать только aspect-square CSS
+      ```
+
+      Effort: 15 минут
+    suggested_owner: dev
+    refs:
+      - "frontend/src/components/business/ProductCard/ProductCard.tsx:201"
+
+  - id: "COVERAGE-001"
+    severity: low
+    finding: "Branch coverage 62.5% можно улучшить до 70%+ для более полного покрытия edge cases"
+    suggested_action: |
+      Низкий приоритет (P3) - можно отложить на будущее:
+
+      Добавить тесты для недостающих веток:
+      - federation_rep роль (последний fallback в getProductPrice)
+      - Fallback цены когда все opt*_price отсутствуют
+      - showRRP && showMSRP одновременно
+      - hasDiscount = false edge case
+
+      Effort: 1-2 часа
+    suggested_owner: dev
+    refs:
+      - "frontend/src/components/business/ProductCard/__tests__/ProductCard.test.tsx"
+
+# Evidence from testing
+evidence:
+  tests_reviewed: 39
+  tests_passed: 39
+  tests_failed: 0
+  test_coverage: "86.01% statements, 100% functions, 86.01% lines, 62.5% branches"
+  risks_identified: 2  # Both are low severity (P3)
+  trace:
+    ac_covered: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]  # All ACs covered
+    ac_gaps: []  # No gaps
+
+# NFR Validation Results
+nfr_validation:
+  security:
+    status: PASS
+    notes: |
+      ✅ Нет XSS уязвимостей - React автоматическое экранирование
+      ✅ Правильная обработка user input через props
+      ✅ stopPropagation предотвращает event bubbling attacks
+      ✅ Нет прямого доступа к DOM через innerHTML/dangerouslySetInnerHTML
+
+  performance:
+    status: PASS
+    notes: |
+      ✅ Next.js Image optimization с lazy loading
+      ✅ CSS transitions оптимальны (180ms cubic-bezier)
+      ✅ Отсутствие useMemo не критично для компонента такого размера
+      ℹ️ Рекомендация P3: для каталогов >100 товаров рассмотреть мемоизацию getProductPrice
+
+  reliability:
+    status: PASS
+    notes: |
+      ✅ 39/39 тестов проходят успешно (100% pass rate) - UPGRADED from FAIL
+      ✅ Критическая проблема TEST-001 исправлена
+      ✅ 86.01% line/statement coverage превышает требование >= 80%
+      ⚠️ 62.5% branch coverage (хорошо, но может быть улучшено до 70%+ - P3)
+
+  maintainability:
+    status: PASS
+    notes: |
+      ⭐⭐⭐ EXEMPLARY JSDoc документация с примерами
+      ✅ Строгая TypeScript типизация с forwardRef
+      ✅ Чистая архитектура с separation of concerns
+      ✅ Минимальное дублирование кода между layouts
+
+# Risk Summary
+risk_summary:
+  totals:
+    critical: 0
+    high: 0      # TEST-001 RESOLVED ✅
+    medium: 0
+    low: 2       # A11Y-001, COVERAGE-001
+
+  highest_risk:
+    id: "A11Y-001"
+    score: 2  # probability (2/5 - minor warning) × impact (2/5 - не блокирует функциональность) = 2.0
+    reason: |
+      Next.js Image fill prop warning является низкоприоритетной проблемой.
+      Не блокирует функциональность, только генерирует warning в тестах.
+      Можно исправить в будущем спринте.
+
+  recommendations:
+    must_fix: []  # Нет критических issues
+    monitor:
+      - "A11Y-001: Next.js Image fill prop warning (P3, 15 минут)"
+      - "COVERAGE-001: Branch coverage 62.5% можно улучшить до 70%+ (P3, 1-2 часа)"
+
+# Detailed Recommendations
+recommendations:
+  immediate: []  # Нет блокирующих issues
+
+  future:  # Can be addressed later (all P3)
+    - action: "Исправить Next.js Image fill prop warning"
+      priority: P3
+      effort: "15 минут"
+      refs:
+        - "frontend/src/components/business/ProductCard/ProductCard.tsx:201"
+      details: "fill должен быть fill='true' как строка или fill={true} с suppressHydrationWarning"
+
+    - action: "Увеличить branch coverage с 62.5% до >= 70%"
+      priority: P3
+      effort: "1-2 часа"
+      refs:
+        - "frontend/src/components/business/ProductCard/__tests__/ProductCard.test.tsx"
+      details: |
+        Добавить тесты для недостающих веток:
+        - federation_rep роль (getProductPrice)
+        - Fallback цены когда все opt*_price отсутствуют
+        - showRRP && showMSRP одновременно
+        - hasDiscount = false edge case
+
+    - action: "Рассмотреть useMemo для getProductPrice в больших каталогах"
+      priority: P3
+      effort: "30 минут"
+      details: "Для каталогов >100 товаров мемоизация может улучшить производительность"
+
+    - action: "Добавить E2E тесты с Playwright"
+      priority: P3
+      effort: "2-3 часа"
+      details: "Интеграционные E2E тесты для проверки реального взаимодействия с API"
+
+# Component-level Assessment
+components:
+  product_card:
+    score: 97
+    status: PASS
+    tests: 39
+    tests_passed: 39
+    tests_failed: 0
+    coverage: "86.01%"
+    notes: |
+      ✅ Grid layout: отлично реализован
+      ✅ List layout: отлично реализован
+      ✅ Compact layout: ✅ FIXED - role='article' теперь корректен
+      ✅ Ролевое ценообразование: 5/7 ролей покрыты тестами
+      ✅ Badge интеграция: ProductBadge из Story 11.0
+      ✅ Favorite button: filled/outline states корректны
+      ✅ Адаптивность: grid-cols-2/3/4 responsive breakpoints
+      ⭐ JSDoc документация: exemplary качество
+
+  product_grid:
+    score: 95
+    status: PASS
+    tests: "Не протестирован отдельно (интегрирован в ProductCard тесты)"
+    notes: "Простой wrapper для grid/list layouts. Надежный и чистый."
+
+# Acceptance Criteria Compliance
+ac_compliance:
+  ac1_grid_layout:
+    status: PASS
+    notes: "✅ Все элементы соответствуют спецификации"
+
+  ac2_list_layout:
+    status: PASS
+    notes: "✅ Горизонтальный layout с адаптивностью"
+
+  ac3_compact_layout:
+    status: PASS
+    notes: "✅ FIXED: role='article' теперь корректен (was FAIL)"
+
+  ac4_badges:
+    status: PASS
+    notes: "✅ ProductBadge компонент корректно интегрирован"
+
+  ac5_favorite_button:
+    status: PASS
+    notes: "✅ Heart icon с filled/outline states"
+
+  ac6_role_based_pricing:
+    status: PASS
+    notes: "✅ getProductPrice с fallback chain для 7 ролей"
+
+  ac7_responsive:
+    status: PASS
+    notes: "✅ grid-cols-2/3/4 адаптивные breakpoints"
+
+  ac8_accessibility:
+    status: PASS
+    notes: "✅ FIXED: Compact layout теперь соответствует WCAG (was FAIL)"
+
+  ac9_tests:
+    status: PASS
+    notes: "✅ FIXED: 39/39 тестов проходят успешно (100%) (was FAIL)"
+
+  ac10_documentation:
+    status: PASS
+    notes: "⭐⭐⭐ EXEMPLARY! JSDoc с примерами, Props interface документирован"
+
+# Overall AC Compliance Summary
+ac_summary:
+  total: 10
+  pass: 10  # All ACs now PASS
+  fail: 0
+  concerns: 0
+  compliance_percentage: 100%
+  notes: "100% AC compliance достигнуто после исправления TEST-001. Story готова к production."
+
+# Code Quality Assessment
+code_quality:
+  typescript_typing:
+    score: 100
+    notes: "Строгая типизация с UserRole type alias и ProductCardProps interface"
+
+  react_best_practices:
+    score: 95
+    notes: "forwardRef, stopPropagation, cn utility. Один момент: отсутствие useMemo (не критично)"
+
+  design_system_compliance:
+    score: 100
+    notes: "Полное соответствие Design System v2.0: графит, shadows, motion, typography"
+
+  test_quality:
+    score: 97
+    notes: "Comprehensive test suite с 39/39 тестов проходят. 86.01% coverage превышает требование."
+
+  maintainability:
+    score: 100
+    notes: "⭐ Чистая архитектура, separation of concerns, минимальное дублирование"
+
+  overall_quality_score: 98.4
+  notes: "Высокое качество кода с exemplary документацией и полным test coverage"
+
+# Dependencies Check
+dependencies:
+  story_12_1_design_tokens:
+    status: PASS
+    notes: "CSS переменные через var(--color-*)"
+
+  story_12_2_ui_components:
+    status: PASS
+    notes: "Button из @/components/ui используется корректно"
+
+  story_11_0_product_badge:
+    status: PASS
+    notes: "ProductBadge интеграция работает"
+
+  cart_store:
+    status: UNKNOWN
+    notes: "onAddToCart через callback, реальная интеграция не проверена"
+
+# Technical Debt
+technical_debt:
+  - area: "Branch coverage 62.5%"
+    severity: low
+    effort: "2 часа"
+    priority: P3
+    notes: "Добавить тесты для edge cases (необязательно для production)"
+
+  - area: "Next.js Image fill prop warning"
+    severity: low
+    effort: "15 минут"
+    priority: P3
+    notes: "Boolean prop → string (необязательно для production)"
+
+  - area: "Performance - useMemo отсутствует"
+    severity: low
+    effort: "30 минут"
+    priority: P3
+    notes: "Для каталогов >100 товаров (необязательно для MVP)"
+
+  - area: "E2E тесты отсутствуют"
+    severity: low
+    effort: "3 часа"
+    priority: P3
+    notes: "Playwright E2E тесты (необязательно для MVP)"
+
+# Regression Analysis (compared to previous gates)
+regression_analysis:
+  gate_changed: true
+  previous_gate: "FAIL"
+  current_gate: "PASS"
+  reason: |
+    Gate изменен с FAIL → PASS после успешного исправления TEST-001:
+
+    ✅ RESOLVED: Compact layout role='button' → role='article' (ProductCard.tsx:168)
+    ✅ RESOLVED: 38/39 → 39/39 тестов проходят (100% pass rate)
+    ✅ RESOLVED: AC 3, AC 8, AC 9 переведены в статус PASS
+    ✅ ACHIEVED: 100% AC compliance
+    ✅ ACHIEVED: Все NFR в статусе PASS
+
+    Оставшиеся issues (A11Y-001, COVERAGE-001) низкого приоритета (P3)
+    и могут быть отложены на будущее без блокирования production.
+
+  issues_resolved:
+    - id: "TEST-001"
+      status: "RESOLVED"
+      resolution: "Dev команда изменила role='button' → role='article' на строке 168 ProductCard.tsx"
+      verified_at: "2025-11-20T17:07:00Z"
+      verification: "npm test -- ProductCard.test.tsx --run показывает 39/39 tests passed"
+
+# Audit Trail
+history:
+  - at: "2025-11-20T00:00:00Z"
+    gate: CONCERNS
+    reviewer: "Quinn (Test Architect)"
+    note: "Initial comprehensive review - высокое качество с 1 accessibility regression (TEST-001 medium)"
+    quality_score: 90
+
+  - at: "2025-11-20T16:31:00Z"
+    gate: FAIL
+    reviewer: "Quinn (Test Architect)"
+    note: "Follow-up review - TEST-001 НЕ ИСПРАВЛЕНА. Severity upgraded medium → high. Gate изменен CONCERNS → FAIL."
+    quality_score: 70
+
+  - at: "2025-11-20T17:07:00Z"
+    gate: PASS
+    reviewer: "Quinn (Test Architect)"
+    note: "POST-FIX VERIFICATION - TEST-001 УСПЕШНО ИСПРАВЛЕНА. 39/39 тестов проходят. 100% AC compliance. Gate: PASS."
+    quality_score: 97
+
+# Gate Expiry and Re-review Policy
+gate_policy:
+  expires: "2025-12-04T23:59:59Z"
+  re_review_trigger: |
+    Повторный QA review НЕ ТРЕБУЕТСЯ.
+
+    ✅ Все критические проблемы решены
+    ✅ Все AC в статусе PASS
+    ✅ Все NFR в статусе PASS
+    ✅ Story готова к merge в develop
+
+    Оставшиеся issues (A11Y-001, COVERAGE-001) низкого приоритета (P3)
+    и могут быть адресованы в будущих спринтах без повторного gate review.
+
+# Final Verdict
+verdict:
+  status: "✅ APPROVED FOR PRODUCTION"
+  summary: |
+    Story 12.4 успешно прошла third review после исправления критической accessibility проблемы.
+
+    ✅ Compact layout теперь использует role='article'
+    ✅ Все 39/39 тестов проходят успешно
+    ✅ 100% AC compliance достигнуто
+    ✅ Качество кода: 97/100
+    ✅ Все NFR в статусе PASS
+
+    Story может быть безопасно merged в develop и deployed в production.
+
+    Оставшиеся P3 issues (A11Y-001, COVERAGE-001) не блокируют production
+    и могут быть адресованы в будущем.
+
+  next_action: "Owner может изменить status на 'Done' и создать PR для merge в develop."

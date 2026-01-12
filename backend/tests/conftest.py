@@ -2,6 +2,7 @@
 Глобальные фикстуры pytest для проекта FREESPORT
 Настройка базовых объектов и утилит для тестирования
 """
+
 import random
 import time
 import uuid
@@ -140,7 +141,101 @@ def create_factories():
         category = factory.SubFactory(CategoryFactory)
         description = factory.Faker("text", max_nb_chars=500, locale="ru_RU")
         short_description = factory.Faker("sentence", nb_words=10, locale="ru_RU")
-        # Ценообразование
+        onec_id = factory.LazyFunction(lambda: f"1C-PROD-{get_unique_suffix()}")
+
+        is_active = True
+        is_featured = False
+        min_order_quantity = 1
+
+        # Параметры для варианта
+        # Объявляем их как Transient поля (не сохраняются в модели, но передаются в kwargs)
+        # В factory_boy для DjangoModelFactory это просто поля, которые мы должны исключить
+        # из создания модели вручную в _create
+        retail_price = Decimal("1000.00")
+        opt1_price = None
+        opt2_price = None
+        opt3_price = None
+        trainer_price = None
+        federation_price = None
+        stock_quantity = 100
+        create_variant = True
+        
+        @classmethod
+        def _get_variant_fields(cls):
+            return [
+                "retail_price",
+                "opt1_price",
+                "opt2_price",
+                "opt3_price",
+                "trainer_price",
+                "federation_price",
+                "stock_quantity",
+                "create_variant",
+                "sku",
+            ]
+
+        @classmethod
+        def _extract_variant_params(cls, kwargs):
+            variant_params = {}
+            for param in cls._get_variant_fields():
+                if param in kwargs:
+                    variant_params[param] = kwargs.pop(param)
+                elif hasattr(cls, param):
+                    val = getattr(cls, param)
+                    if not isinstance(val, (factory.declarations.BaseDeclaration)):
+                         variant_params[param] = val
+            return variant_params
+
+        @classmethod
+        def _build(cls, model_class, *args, **kwargs):
+            """
+            Переопределяем build для очистки kwargs от параметров варианта
+            """
+            # Извлекаем и игнорируем параметры варианта, так как Product не принимает их
+            # И при build мы не создаем связанные объекты (варианты)
+            cls._extract_variant_params(kwargs)
+            return model_class(*args, **kwargs)
+
+        @classmethod
+        def _create(cls, model_class, *args, **kwargs):
+            """
+            Переопределяем создание для обработки параметров варианта
+            """
+            variant_params = cls._extract_variant_params(kwargs)
+
+            # Создаем продукт (оставшиеся kwargs идут в Product)
+            product = super()._create(model_class, *args, **kwargs)
+
+            # Проверяем флаг создания варианта
+            should_create_variant = variant_params.pop("create_variant", True)
+
+            if should_create_variant:
+                # Добавляем product в параметры
+                variant_params["product"] = product
+                
+                # Обеспечиваем дефолты если они не были извлечены
+                if "stock_quantity" not in variant_params:
+                    variant_params["stock_quantity"] = 100
+                if "retail_price" not in variant_params:
+                    variant_params["retail_price"] = Decimal("1000.00")
+
+                ProductVariantFactory.create(**variant_params)
+            
+            return product
+
+    class ProductVariantFactory(factory.django.DjangoModelFactory):
+        """Фабрика для создания вариантов товаров"""
+
+        class Meta:
+            model = "products.ProductVariant"
+
+        # При создании варианта, если продукт не передан, создаем его.
+        # НО! Запрещаем продукту создавать вариант, чтобы не было рекурсии.
+        product = factory.SubFactory(ProductFactory, create_variant=False)
+        sku = factory.LazyFunction(lambda: f"SKU-{get_unique_suffix().upper()}")
+        onec_id = factory.LazyFunction(lambda: f"1C-VAR-{get_unique_suffix()}")
+
+        # Цены
         retail_price = factory.Faker(
             "pydecimal", left_digits=4, right_digits=2, positive=True
         )
@@ -160,14 +255,8 @@ def create_factories():
             lambda obj: obj.retail_price * Decimal("0.75")
         )
 
-        # Инвентаризация
-        sku = factory.LazyFunction(lambda: f"SKU-{get_unique_suffix().upper()}")
-        # Фиксированное количество на складе, чтобы избежать случайных падений тестов
         stock_quantity = 100
-        min_order_quantity = 1
-
         is_active = True
-        is_featured = False
 
     class ProductImageFactory(factory.django.DjangoModelFactory):
         """Фабрика для создания изображений товаров"""
@@ -196,8 +285,28 @@ def create_factories():
             model = "cart.CartItem"
 
         cart = factory.SubFactory(CartFactory)
-        product = factory.SubFactory(ProductFactory)
+        # Внимание: для обратной совместимости можно передавать product,
+        # но мы будем использовать variants.first()
+        variant = factory.SubFactory(ProductVariantFactory)
         quantity = factory.Faker("random_int", min=1, max=10)
+        price_snapshot = factory.LazyAttribute(
+            lambda obj: obj.variant.retail_price if obj.variant else Decimal("1000.00")
+        )
+
+        @factory.post_generation
+        def product(self, create, extracted, **kwargs):
+            """
+            Поддержка создания через product=...
+            Если передан product, используем его первый вариант.
+            """
+            if not create:
+                return
+            if extracted:
+                self.variant = extracted.variants.first()
+                # Обновляем price_snapshot если вариант изменился
+                if self.variant:
+                    self.price_snapshot = self.variant.retail_price
+                self.save()
 
     class OrderFactory(factory.django.DjangoModelFactory):
         """Фабрика для создания заказов"""
@@ -222,13 +331,19 @@ def create_factories():
             model = "orders.OrderItem"
 
         order = factory.SubFactory(OrderFactory)
+        # OrderItem имеет ссылки и на Product и на ProductVariant
         product = factory.SubFactory(ProductFactory)
+        variant = factory.SubFactory(ProductVariantFactory)
         quantity = factory.Faker("random_int", min=1, max=10)
         unit_price = factory.Faker(
             "pydecimal", left_digits=4, right_digits=2, positive=True
         )
-        product_name = factory.LazyAttribute(lambda obj: obj.product.name)
-        product_sku = factory.LazyAttribute(lambda obj: obj.product.sku)
+        product_name = factory.LazyAttribute(
+            lambda obj: obj.product.name if obj.product else "Test Product"
+        )
+        product_sku = factory.LazyAttribute(
+            lambda obj: obj.variant.sku if obj.variant else f"SKU-{get_unique_suffix()}"
+        )
         total_price = factory.LazyAttribute(lambda obj: obj.quantity * obj.unit_price)
 
     class AuditLogFactory(factory.django.DjangoModelFactory):
@@ -241,7 +356,7 @@ def create_factories():
         action = factory.Faker("word", locale="en")
         resource_type = "Product"
         resource_id = factory.Sequence(lambda n: str(n))
-        changes = factory.Dict({"field": "value"})
+        details = factory.Dict({"field": "value"})
         ip_address = factory.Faker("ipv4")
         user_agent = factory.Faker("user_agent")
 
@@ -556,10 +671,11 @@ def enable_db_access_for_all_tests(db):
     # НЕ закрываем соединение - оставляем для следующих тестов
 
 
-@pytest.fixture(autouse=False)
+@pytest.fixture(autouse=True)
 def clear_db_before_test(transactional_db):
-    """
-    Оптимизированная очистка базы данных без deadlock'ов
+    """Оптимизированная очистка базы данных без deadlock'ов.
+    Автоматически запускается перед каждым тестом для предотвращения
+    конфликтов уникальности.
     """
     from django.apps import apps
     from django.core.cache import cache
@@ -568,9 +684,9 @@ def clear_db_before_test(transactional_db):
     # Очищаем кэши Django
     cache.clear()
 
-    # Сбрасываем счетчик перед каждым тестом
-    global _unique_counter
-    _unique_counter = 0
+    # Сбрасываем кэши
+    # global _unique_counter
+    # _unique_counter = 0
 
     try:
         # Проверяем существование соединения с базой
@@ -587,6 +703,8 @@ def clear_db_before_test(transactional_db):
             "orders.Order",
             "cart.Cart",
             "products.ProductImage",
+            "products.ProductVariant",
+            "products.ColorMapping",
             "products.Product",
             "products.Category",
             "products.Brand",
@@ -618,23 +736,47 @@ def clear_db_before_test(transactional_db):
         pass
 
 
-@pytest.fixture(autouse=True, scope="function")
-def close_db_connections():
+@pytest.fixture
+def truncate_db(transactional_db):
     """
-    Автоматическое закрытие соединений с БД после каждого теста.
-    Предотвращает ошибки "database is being accessed by other users".
+    Агрессивная очистка базы данных с TRUNCATE и сбросом последовательностей
+    Используйте эту фикстуру явно для тестов, требующих полной очистки:
 
-    ВАЖНО: Закрывает только неактивные соединения, не трогая транзакции.
+    def test_something(truncate_db):
+        # Ваш тест
+        pass
     """
+    from django.db import connection
+
     yield
 
-    # Закрываем все соединения с БД после теста
+    # Очистка после теста с TRUNCATE
     try:
-        from django.db import connection, connections
+        with connection.cursor() as cursor:
+            # Список таблиц для очистки
+            tables = [
+                "cart_cartitem",
+                "orders_orderitem",
+                "orders_order",
+                "cart_cart",
+                "products_productimage",
+                "products_productvariants",
+                "products_colormappings",
+                "products_product",
+                "products_category",
+                "products_brand",
+                "users_address",
+                "users_company",
+                "common_auditlog",
+                "common_synclog",
+            ]
 
-        # Проверяем, что нет активных транзакций
-        if not connection.in_atomic_block:
-            connections.close_all()
+            # TRUNCATE с CASCADE и сбросом последовательностей
+            for table in tables:
+                try:
+                    cursor.execute(f"TRUNCATE TABLE {table} RESTART IDENTITY CASCADE;")
+                except Exception:
+                    # Игнорируем ошибки для несуществующих таблиц
+                    pass
     except Exception:
-        # В случае ошибки просто пропускаем закрытие
         pass

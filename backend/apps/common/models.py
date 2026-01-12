@@ -1,307 +1,733 @@
-"""
-Общие модели для платформы FREESPORT
-Включает аудиторский журнал и логи синхронизации с 1С
-"""
 from __future__ import annotations
 
-import logging
+import uuid
 from typing import TYPE_CHECKING
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db import models
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 
 if TYPE_CHECKING:
-    from apps.products.models import ImportSession
-
-User = get_user_model()
+    pass  # Используется для type hints
 
 
-class AuditLog(models.Model):
-    """
-    Аудиторский журнал для соответствия требованиям B2B
-    Логирует все важные действия пользователей в системе
-    """
+class TimeStampedModel(models.Model):
+    """Абстрактная модель с полями created_at и updated_at."""
 
-    user: models.ForeignKey = models.ForeignKey(
-        User,
-        on_delete=models.SET_NULL,
-        null=True,
-        related_name="audit_logs",
-        verbose_name="Пользователь",
+    created_at: models.DateTimeField = models.DateTimeField(
+        _("Дата создания"),
+        auto_now_add=True,
+        help_text="Дата и время создания записи",
     )
-    action: models.CharField = models.CharField(
-        "Действие",
-        max_length=100,
-        help_text="Тип выполненного действия (create, update, delete, login, etc.)",
+    updated_at: models.DateTimeField = models.DateTimeField(
+        _("Дата обновления"),
+        auto_now=True,
+        help_text="Дата и время последнего обновления записи",
     )
-    resource_type: models.CharField = models.CharField(
-        "Тип ресурса",
-        max_length=50,
-        help_text=(
-            "Тип объекта над которым выполнено действие (User, Product, Order, " "etc.)"
-        ),
-    )
-    resource_id: models.CharField = models.CharField(
-        "ID ресурса", max_length=100, help_text="Идентификатор объекта"
-    )
-    changes: models.JSONField = models.JSONField(
-        "Изменения", default=dict, help_text="JSON с деталями изменений"
-    )
-    ip_address: models.GenericIPAddressField = models.GenericIPAddressField(
-        "IP адрес", help_text="IP адрес пользователя"
-    )
-    user_agent: models.TextField = models.TextField(
-        "User Agent", help_text="Браузер и устройство пользователя"
-    )
-    timestamp: models.DateTimeField = models.DateTimeField(
-        "Время действия", auto_now_add=True
-    )
-
-    objects = models.Manager()
 
     class Meta:
-        """Мета-опции для модели AuditLog."""
-
-        verbose_name = "Запись аудита"
-        verbose_name_plural = "Аудиторский журнал"
-        db_table = "audit_logs"
-        ordering = ["-timestamp"]
-        indexes = [
-            models.Index(fields=["user", "timestamp"]),
-            models.Index(fields=["resource_type", "resource_id"]),
-            models.Index(fields=["action", "timestamp"]),
-            models.Index(fields=["timestamp"]),
-        ]
-
-    def __str__(self):
-        user_display = (
-            getattr(self.user, "email", "Anonymous") if self.user else "Anonymous"
-        )
-        return (
-            f"{user_display} - {self.action} "
-            f"{self.resource_type}#{self.resource_id}"
-        )
-
-    @classmethod
-    def log_action(
-        cls,
-        user,
-        action,
-        resource_type,
-        resource_id,
-        changes=None,
-        ip_address=None,
-        user_agent=None,
-    ):
-        """
-        Удобный метод для создания записи аудита
-
-        Args:
-            user: Пользователь, выполняющий действие
-            action: Тип действия (create, update, delete, etc.)
-            resource_type: Тип ресурса (User, Product, etc.)
-            resource_id: ID ресурса
-            changes: Словарь с изменениями
-            ip_address: IP адрес пользователя
-            user_agent: User Agent строка
-        """
-        return cls.objects.create(
-            user=user,
-            action=action,
-            resource_type=resource_type,
-            resource_id=str(resource_id),
-            changes=changes or {},
-            ip_address=ip_address or "0.0.0.0",
-            user_agent=user_agent or "",
-        )
+        abstract = True
 
 
-class SyncLog(models.Model):
-    """
-    Журнал синхронизации с 1С
-    Отслеживает состояние синхронизации товаров, остатков и заказов
-    """
+class SyncLog(TimeStampedModel):
+    """Базовая модель для логов синхронизации."""
 
-    SYNC_TYPES = [
-        ("products", "Товары"),
-        ("stocks", "Остатки"),
-        ("orders", "Заказы"),
-        ("prices", "Цены"),
-    ]
-
-    SYNC_STATUSES = [
-        ("started", "Начата"),
-        ("completed", "Завершена"),
-        ("failed", "Ошибка"),
-    ]
-
-    sync_type: models.CharField = models.CharField(
-        "Тип синхронизации", max_length=50, choices=SYNC_TYPES
+    sync_type = models.CharField(
+        _("Тип синхронизации"),
+        max_length=50,
+        db_index=True,
+        help_text="Тип операции синхронизации (импорт, экспорт и т.д.)",
     )
-    status: models.CharField = models.CharField(
-        "Статус", max_length=20, choices=SYNC_STATUSES
-    )
-    records_processed: models.PositiveIntegerField = models.PositiveIntegerField(
-        "Обработано записей", default=0
-    )
-    errors_count: models.PositiveIntegerField = models.PositiveIntegerField(
-        "Количество ошибок", default=0
-    )
-    error_details: models.JSONField = models.JSONField(
-        "Детали ошибок",
-        default=list,
-        blank=True,
-        help_text="Список ошибок, возникших при синхронизации",
+    status = models.CharField(
+        _("Статус"),
+        max_length=20,
+        db_index=True,
+        help_text="Текущий статус операции",
     )
     started_at: models.DateTimeField = models.DateTimeField(
-        "Время начала", auto_now_add=True
+        _("Начало"),
+        auto_now_add=True,
+        db_index=True,
+        help_text="Время начала операции",
     )
     completed_at: models.DateTimeField = models.DateTimeField(
-        "Время завершения", null=True, blank=True
-    )
-
-    class Meta:
-        """Мета-опции для модели SyncLog."""
-
-        verbose_name = "Лог синхронизации"
-        verbose_name_plural = "Логи синхронизации"
-        db_table = "sync_logs"
-        ordering = ["-started_at"]
-        indexes = [
-            models.Index(fields=["sync_type", "status"]),
-            models.Index(fields=["started_at"]),
-            models.Index(fields=["status", "started_at"]),
-        ]
-
-    def __str__(self):
-        try:
-            # Используем getattr для безопасного доступа к методам
-            sync_type_display = getattr(
-                self, "get_sync_type_display", lambda: self.sync_type
-            )()
-            status_display = getattr(self, "get_status_display", lambda: self.status)()
-            return f"{sync_type_display} - {status_display} ({self.started_at})"
-        except AttributeError as e:
-            logger = logging.getLogger(__name__)
-            logger.error("Ошибка в SyncLog.__str__(): %s", e)
-            logger.error(
-                "SyncLog pk: %s, sync_type: %s, status: %s",
-                getattr(self, "pk", "unknown"),
-                getattr(self, "sync_type", "unknown"),
-                getattr(self, "status", "unknown"),
-            )
-            logger.error("Тип объекта: %s", type(self))
-            logger.error("Модуль: %s", getattr(self, "__module__", "unknown"))
-            # Fallback к базовому отображению
-            return (
-                f"SyncLog(pk={getattr(self, 'pk', 'unknown')}, "
-                f"sync_type={getattr(self, 'sync_type', 'unknown')}, "
-                f"status={getattr(self, 'status', 'unknown')})"
-            )
-
-    def mark_completed(self, records_processed=0, errors_count=0, error_details=None):
-        """
-        Отметить синхронизацию как завершенную
-
-        Args:
-            records_processed: Количество обработанных записей
-            errors_count: Количество ошибок
-            error_details: Список деталей ошибок
-        """
-
-        self.status = "completed"
-        self.records_processed = records_processed
-        self.errors_count = errors_count
-        self.error_details = error_details or []
-        self.completed_at = timezone.now()
-        self.save()
-
-    def mark_failed(self, error_details=None):
-        """
-        Отметить синхронезацию как неудачную
-
-        Args:
-            error_details: Список деталей ошибок
-        """
-
-        self.status = "failed"
-        self.error_details = error_details or []
-        self.errors_count = len(self.error_details)
-        self.completed_at = timezone.now()
-        self.save()
-
-    @property
-    def duration(self):
-        """Продолжительность синхронизации"""
-        if self.completed_at:
-            return self.completed_at - self.started_at
-        return None
-
-    @property
-    def success_rate(self):
-        """Процент успешности синхронизации"""
-        if self.records_processed == 0:
-            return 0
-        return (
-            (self.records_processed - self.errors_count) / self.records_processed
-        ) * 100
-
-
-class CustomerSyncLog(models.Model):
-    """
-    Детальное логирование операций импорта клиентов из 1С
-    Связан с ImportSession для двухуровневого логирования
-    """
-
-    class OperationType(models.TextChoices):
-        CREATED = "created", "Создан"
-        UPDATED = "updated", "Обновлен"
-        SKIPPED = "skipped", "Пропущен"
-        ERROR = "error", "Ошибка"
-
-    class StatusType(models.TextChoices):
-        SUCCESS = "success", "Успешно"
-        FAILED = "failed", "Ошибка"
-        WARNING = "warning", "Предупреждение"
-
-    session = models.ForeignKey(
-        "products.ImportSession",
-        on_delete=models.CASCADE,
-        related_name="customer_logs",
-        verbose_name="Сессия импорта",
-    )
-    user = models.ForeignKey(
-        User,
-        on_delete=models.CASCADE,
+        _("Завершение"),
         null=True,
         blank=True,
-        verbose_name="Пользователь",
+        help_text="Время завершения операции (успешно)",
     )
-    onec_id = models.CharField("ID в 1С", max_length=100)
-    operation_type = models.CharField(
-        "Тип операции", max_length=20, choices=OperationType.choices
+    records_processed = models.PositiveIntegerField(
+        _("Обработано записей"),
+        default=0,
+        help_text="Количество обработанных записей",
     )
-    status = models.CharField("Статус", max_length=20, choices=StatusType.choices)
-    error_message = models.TextField("Сообщение об ошибке", blank=True)
-    details = models.JSONField(
-        "Детали операции",
+    errors_count = models.PositiveIntegerField(
+        _("Количество ошибок"),
+        default=0,
+        help_text="Количество обнаруженных ошибок",
+    )
+    error_details = models.JSONField(
+        _("Детали ошибок"),
         default=dict,
         blank=True,
-        help_text="Дополнительная информация: старые/новые значения, причина пропуска",
+        help_text="Детальная информация об ошибках в формате JSON",
     )
-    created_at = models.DateTimeField("Дата создания", auto_now_add=True)
+    duration_ms = models.PositiveIntegerField(
+        _("Длительность (мс)"),
+        null=True,
+        blank=True,
+        help_text="Время выполнения в миллисекундах",
+    )
+    correlation_id = models.UUIDField(
+        _("ID корреляции"),
+        unique=True,
+        db_index=True,
+        null=True,
+        blank=True,
+        help_text="Уникальный идентификатор для группы связанных операций",
+    )
 
     class Meta:
-        verbose_name = "Лог синхронизации клиента"
-        verbose_name_plural = "Логи синхронизации клиентов"
-        db_table = "customer_sync_logs"
-        ordering = ["-created_at"]
+        verbose_name = _("Лог синхронизации")
+        verbose_name_plural = _("Логи синхронизации")
+        ordering = ["-started_at"]
         indexes = [
-            models.Index(fields=["session", "operation_type"]),
-            models.Index(fields=["onec_id"]),
-            models.Index(fields=["status"]),
+            models.Index(fields=["correlation_id", "started_at"]),
+            models.Index(fields=["sync_type", "status", "started_at"]),
         ]
 
     def __str__(self) -> str:
-        return f"{self.operation_type} - {self.onec_id} ({self.status})"
+        return f"{self.sync_type} - {self.started_at.strftime('%Y-%m-%d %H:%M')}"
+
+
+class CustomerSyncLog(TimeStampedModel):
+    """Лог синхронизации конкретного клиента."""
+
+    class OperationType(models.TextChoices):
+        """Типы операций синхронизации."""
+
+        CREATED = "created", _("Создан")
+        UPDATED = "updated", _("Обновлен")
+        SKIPPED = "skipped", _("Пропущен")
+        ERROR = "error", _("Ошибка")
+        IMPORT_FROM_1C = "import_from_1c", _("Импорт из 1С")
+        EXPORT_TO_1C = "export_to_1c", _("Экспорт в 1С")
+        CUSTOMER_IDENTIFICATION = "customer_identification", _("Идентификация клиента")
+        CONFLICT_RESOLUTION = "conflict_resolution", _("Разрешение конфликта")
+        SYNC_CHANGES = "sync_changes", _("Синхронизация изменений")
+        BATCH_OPERATION = "batch_operation", _("Пакетная операция")
+        DATA_VALIDATION = "data_validation", _("Валидация данных")
+        NOTIFICATION_FAILED = "notification_failed", _("Ошибка уведомления")
+
+    class StatusType(models.TextChoices):
+        """Статусы операций синхронизации."""
+
+        SUCCESS = "success", _("Успешно")
+        FAILED = "failed", _("Ошибка")
+        ERROR = "error", _("Ошибка")
+        WARNING = "warning", _("Предупреждение")
+        SKIPPED = "skipped", _("Пропущено")
+        PENDING = "pending", _("Ожидание")
+
+    customer = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        verbose_name=_("Клиент"),
+        help_text="Связанный пользователь",
+    )
+    operation_type = models.CharField(
+        _("Тип операции"),
+        max_length=50,
+        db_index=True,
+        help_text="Тип операции с клиентом",
+    )
+    status = models.CharField(
+        _("Статус"),
+        max_length=20,
+        db_index=True,
+        help_text="Статус операции",
+    )
+    details = models.JSONField(
+        _("Детали"),
+        default=dict,
+        blank=True,
+        help_text="Детальная информация об операции в формате JSON",
+    )
+    duration_ms = models.PositiveIntegerField(
+        _("Длительность (мс)"),
+        null=True,
+        blank=True,
+        help_text="Время выполнения в миллисекундах",
+    )
+    correlation_id = models.UUIDField(
+        _("ID корреляции"),
+        db_index=True,
+        help_text="ID для группировки связанных операций",
+    )
+    session = models.CharField(
+        _("Сессия"),
+        max_length=255,
+        db_index=True,
+        help_text="Идентификатор сессии пользователя",
+    )
+    ip_address = models.GenericIPAddressField(
+        _("IP адрес"),
+        null=True,
+        blank=True,
+        help_text="IP адрес клиента",
+    )
+    user_agent = models.TextField(
+        _("User Agent"),
+        blank=True,
+        help_text="User Agent строка браузера",
+    )
+    onec_id = models.CharField(
+        _("ID в 1С"),
+        max_length=36,
+        db_index=True,
+        help_text="Идентификатор клиента в системе 1С",
+    )
+    error_message = models.TextField(
+        _("Сообщение об ошибке"),
+        blank=True,
+        help_text="Текстовое описание ошибки",
+    )
+
+    class Meta:
+        verbose_name = _("Лог синхронизации клиента")
+        verbose_name_plural = _("Логи синхронизации клиентов")
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["correlation_id", "created_at"]),
+            models.Index(fields=["customer", "operation_type", "created_at"]),
+        ]
+
+    def __str__(self) -> str:
+        date_str = self.created_at.strftime("%Y-%m-%d %H:%M")
+        return f"{self.operation_type} - {self.customer} ({date_str})"
+
+    def get_duration_display(self) -> str:
+        """Отображение длительности в человекочитаемом формате."""
+        if self.duration_ms is None:
+            return _("Не определено")
+
+        if self.duration_ms < 1000:
+            return _("Менее 1 секунды")
+        elif self.duration_ms < 60000:
+            seconds = self.duration_ms / 1000
+            return _(f"{seconds:.1f} сек")
+        elif self.duration_ms < 3600000:
+            minutes = self.duration_ms // 60000
+            seconds = (self.duration_ms % 60000) // 1000
+            return _(f"{minutes} мин {seconds} сек")
+        else:
+            hours = self.duration_ms // 3600000
+            minutes = (self.duration_ms % 3600000) // 60000
+            return _(f"{hours} ч {minutes} мин")
+
+    @property
+    def correlation_id_short(self) -> str:
+        """Короткая версия correlation_id для отображения в списках."""
+        return str(self.correlation_id)[:8] + "..." if self.correlation_id else "-"
+
+    @property
+    def customer_email(self) -> str:
+        """Email клиента, если доступен."""
+        if self.customer and hasattr(self.customer, "email"):
+            return self.customer.email
+        return _("Нет email")
+
+    @property
+    def customer_name(self) -> str:
+        """Имя клиента для отображения."""
+        if self.customer and hasattr(self.customer, "get_full_name"):
+            return self.customer.get_full_name()
+        return str(self.customer) if self.customer else _("Неизвестный клиент")
+
+
+class SyncConflict(TimeStampedModel):
+    """Модель для отслеживания конфликтов синхронизации."""
+
+    customer = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        verbose_name=_("Клиент"),
+        help_text="Клиент, с которым связан конфликт",
+    )
+    conflict_type = models.CharField(
+        _("Тип конфликта"),
+        max_length=50,
+        db_index=True,
+        help_text="Тип обнаруженного конфликта данных",
+    )
+    resolution_strategy = models.CharField(
+        _("Стратегия разрешения"),
+        max_length=50,
+        db_index=True,
+        help_text="Выбранная стратегия разрешения конфликта",
+    )
+    is_resolved = models.BooleanField(
+        _("Разрешен"),
+        default=False,
+        db_index=True,
+        help_text="Флаг разрешения конфликта",
+    )
+    resolved_at = models.DateTimeField(
+        _("Дата разрешения"),
+        null=True,
+        blank=True,
+        help_text="Дата и время разрешения конфликта",
+    )
+    details = models.JSONField(
+        _("Детали"),
+        default=dict,
+        blank=True,
+        help_text="Детальная информация о конфликте в формате JSON",
+    )
+
+    class Meta:
+        verbose_name = _("Конфликт синхронизации")
+        verbose_name_plural = _("Конфликты синхронизации")
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["customer", "conflict_type", "created_at"]),
+            models.Index(fields=["is_resolved", "resolved_at"]),
+        ]
+
+    def __str__(self) -> str:
+        date_str = self.created_at.strftime("%Y-%m-%d %H:%M")
+        return f"{self.conflict_type} - {self.customer} ({date_str})"
+
+
+class AuditLog(TimeStampedModel):
+    """Аудит лог действий пользователей."""
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        verbose_name=_("Пользователь"),
+        help_text="Пользователь, выполнивший действие",
+    )
+    action = models.CharField(
+        _("Действие"),
+        max_length=50,
+        db_index=True,
+        help_text="Тип действия (создание, обновление, удаление)",
+    )
+    resource_type = models.CharField(
+        _("Тип ресурса"),
+        max_length=50,
+        db_index=True,
+        help_text="Тип измененного ресурса",
+    )
+    resource_id = models.CharField(
+        _("ID ресурса"),
+        max_length=50,
+        db_index=True,
+        help_text="Идентификатор измененного ресурса",
+    )
+    details = models.JSONField(
+        _("Детали"),
+        default=dict,
+        blank=True,
+        help_text="Детальная информация об действии в формате JSON",
+    )
+    ip_address = models.GenericIPAddressField(
+        _("IP адрес"),
+        null=True,
+        blank=True,
+        help_text="IP адрес пользователя",
+    )
+    user_agent = models.TextField(
+        _("User Agent"),
+        blank=True,
+        help_text="User Agent строка браузера",
+    )
+
+    class Meta:
+        verbose_name = _("Аудит лог")
+        verbose_name_plural = _("Аудит логи")
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["user", "action", "created_at"]),
+            models.Index(fields=["resource_type", "resource_id", "created_at"]),
+        ]
+
+    def __str__(self) -> str:
+        date_str = self.created_at.strftime("%Y-%m-%d %H:%M")
+        return f"{self.user} - {self.action} {self.resource_type} ({date_str})"
+
+
+class Category(models.Model):
+    """
+    Модель категории для новостей и других типов контента.
+    Поддерживает иерархическую структуру и SEO-оптимизацию.
+    """
+
+    name = models.CharField(
+        _("Название"),
+        max_length=100,
+        unique=True,
+        db_index=True,
+        help_text="Название категории (уникальное)",
+    )
+    slug = models.SlugField(
+        _("URL-идентификатор"),
+        max_length=100,
+        unique=True,
+        db_index=True,
+        help_text="URL-дружественный идентификатор (генерируется из названия)",
+    )
+    description = models.TextField(
+        _("Описание"),
+        blank=True,
+        help_text="SEO-описание категории для мета-тегов",
+    )
+    meta_keywords = models.TextField(
+        _("Meta-ключевые слова"),
+        blank=True,
+        help_text="SEO-ключевые слова через запятую",
+    )
+    meta_description = models.TextField(
+        _("Meta-описание"),
+        blank=True,
+        help_text="SEO-описание для поисковых систем",
+    )
+    parent = models.ForeignKey(
+        "self",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        verbose_name=_("Родительская категория"),
+        help_text="Родительская категория для иерархии",
+    )
+    is_active = models.BooleanField(
+        _("Активна"),
+        default=True,
+        db_index=True,
+        help_text="Флаг активности категории",
+    )
+    created_at = models.DateTimeField(
+        _("Дата создания"),
+        auto_now_add=True,
+        help_text="Дата и время создания категории",
+    )
+    updated_at = models.DateTimeField(
+        _("Дата обновления"),
+        auto_now=True,
+        help_text="Дата и время последнего обновления категории",
+    )
+
+    class Meta:
+        verbose_name = _("Категория")
+        verbose_name_plural = _("Категории")
+        ordering = ["name"]
+        indexes = [
+            models.Index(fields=["parent", "name"]),
+            models.Index(fields=["is_active", "name"]),
+        ]
+
+    def __str__(self) -> str:
+        return self.name
+
+    def get_absolute_url(self) -> str:
+        """Возвращает абсолютный URL категории."""
+        from django.conf import settings
+        from django.urls import reverse
+
+        if self.parent:
+            return reverse("common:category-detail", kwargs={"slug": self.slug})
+        else:
+            return reverse("common:category-list")
+
+    def clean(self):
+        """Валидация модели."""
+        super().clean()
+        if self.parent and self.parent == self:
+            from django.core.exceptions import ValidationError
+
+            raise ValidationError(
+                _("Категория не может быть родительской для самой себя"),
+                code="self_parent",
+            )
+
+
+class Newsletter(models.Model):
+    """Модель для подписки на email-рассылку."""
+
+    email = models.EmailField(
+        _("Email"),
+        unique=True,
+        db_index=True,
+        help_text="Email адрес для подписки",
+    )
+    is_active = models.BooleanField(
+        _("Активна"),
+        default=True,
+        db_index=True,
+        help_text="Флаг активности подписки",
+    )
+    subscribed_at = models.DateTimeField(
+        _("Дата подписки"),
+        auto_now_add=True,
+        help_text="Дата и время подписки",
+    )
+    unsubscribed_at = models.DateTimeField(
+        _("Дата отписки"),
+        null=True,
+        blank=True,
+        help_text="Дата и время отписки от рассылки",
+    )
+    ip_address = models.GenericIPAddressField(
+        _("IP адрес"),
+        null=True,
+        blank=True,
+        help_text="IP адрес при подписке/отписке",
+    )
+    user_agent = models.TextField(
+        _("User Agent"),
+        blank=True,
+        help_text="User Agent строка браузера",
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name=_("Пользователь"),
+        help_text="Пользователь, если подписка создана через аутентификацию",
+    )
+
+    class Meta:
+        verbose_name = _("Подписка на рассылку")
+        verbose_name_plural = _("Подписки на рассылку")
+        ordering = ["-subscribed_at"]
+        indexes = [
+            models.Index(fields=["email", "is_active"]),
+            models.Index(fields=["is_active", "subscribed_at"]),
+        ]
+
+    def __str__(self) -> str:
+        return self.email
+
+    def unsubscribe(self):
+        """Деактивирует подписку."""
+        self.is_active = False
+        self.unsubscribed_at = timezone.now()
+        self.save(update_fields=["is_active", "unsubscribed_at"])
+
+    def clean(self):
+        """Валидация email адреса."""
+        super().clean()
+        if self.email:
+            self.email = self.email.lower().strip()
+
+
+class News(models.Model):
+    """
+    Модель новости для системы управления контентом.
+    Поддерживает категории, автора, изображение и публикацию.
+    """
+
+    title: models.CharField = models.CharField(
+        "Заголовок",
+        max_length=200,
+        db_index=True,
+        help_text="Заголовок новости (отображается в списке и заголовке страницы)",
+    )
+    slug: models.SlugField = models.SlugField(
+        "URL-идентификатор",
+        max_length=200,
+        unique=True,
+        db_index=True,
+        help_text="Уникальный идентификатор для URL (генерируется из заголовка)",
+    )
+    excerpt: models.TextField = models.TextField(
+        "Краткое описание",
+        blank=True,
+        help_text="Краткое описание новости для превью (до 200 символов)",
+    )
+    content: models.TextField = models.TextField(
+        "Содержание",
+        help_text="Полное содержимое новости (HTML или Markdown)",
+    )
+    image: models.ImageField = models.ImageField(
+        "Изображение",
+        upload_to="news/images/%Y/%m/%d/",
+        blank=True,
+        null=True,
+        help_text="Изображение для новости (опционально)",
+    )
+    author: models.CharField = models.CharField(
+        "Автор",
+        max_length=100,
+        blank=True,
+        help_text="Имя автора (опционально)",
+    )
+    category: models.ForeignKey = models.ForeignKey(
+        Category,
+        on_delete=models.CASCADE,
+        related_name="news",
+        verbose_name="Категория",
+        help_text="Категория новости (выбор из существующих)",
+        null=True,
+        blank=True,
+        db_index=True,
+    )
+    is_published: models.BooleanField = models.BooleanField(
+        "Опубликовано",
+        default=False,
+        db_index=True,
+        help_text="Флаг публикации новости",
+    )
+    published_at: models.DateTimeField = models.DateTimeField(
+        "Дата публикации",
+        null=True,
+        blank=True,
+        help_text="Дата и время публикации новости",
+    )
+    created_at: models.DateTimeField = models.DateTimeField(
+        "Дата создания",
+        auto_now_add=True,
+        help_text="Дата и время создания записи",
+    )
+    updated_at: models.DateTimeField = models.DateTimeField(
+        "Дата обновления",
+        auto_now_add=True,
+        help_text="Дата и время последнего обновления записи",
+    )
+
+    class Meta:
+        verbose_name = _("Новость")
+        verbose_name_plural = _("Новости")
+        ordering = ["-published_at"]
+        indexes = [
+            models.Index(fields=["is_published", "published_at"]),
+            models.Index(fields=["category", "published_at"]),
+        ]
+
+    def __str__(self) -> str:
+        return self.title
+
+    def get_absolute_url(self) -> str:
+        """Возвращает абсолютный URL новости."""
+        from django.conf import settings
+        from django.urls import reverse
+
+        return reverse("common:news-detail", kwargs={"slug": self.slug})
+
+
+class BlogPost(models.Model):
+    """
+    Модель статьи блога для системы управления контентом.
+    Поддерживает категории, автора, изображение, публикацию и SEO-оптимизацию.
+    """
+
+    title: models.CharField = models.CharField(
+        "Заголовок",
+        max_length=200,
+        db_index=True,
+        help_text="Заголовок статьи (отображается в списке и заголовке страницы)",
+    )
+    slug: models.SlugField = models.SlugField(
+        "URL-идентификатор",
+        max_length=200,
+        unique=True,
+        db_index=True,
+        help_text="Уникальный идентификатор для URL (генерируется из заголовка)",
+    )
+    subtitle: models.CharField = models.CharField(
+        "Подзаголовок",
+        max_length=200,
+        blank=True,
+        help_text="Подзаголовок статьи (опционально)",
+    )
+    excerpt: models.TextField = models.TextField(
+        "Краткое описание",
+        blank=True,
+        help_text="Краткое описание статьи для превью (до 200 символов)",
+    )
+    content: models.TextField = models.TextField(
+        "Содержание",
+        help_text="Полное содержимое статьи (HTML или Markdown)",
+    )
+    image: models.ImageField = models.ImageField(
+        "Изображение",
+        upload_to="blog/images/%Y/%m/%d/",
+        blank=True,
+        null=True,
+        help_text="Изображение для статьи (опционально)",
+    )
+    author: models.CharField = models.CharField(
+        "Автор",
+        max_length=100,
+        blank=True,
+        help_text="Имя автора (опционально)",
+    )
+    category: models.ForeignKey = models.ForeignKey(
+        Category,
+        on_delete=models.SET_NULL,
+        related_name="blog_posts",
+        verbose_name="Категория",
+        help_text="Категория статьи (выбор из существующих)",
+        null=True,
+        blank=True,
+        db_index=True,
+    )
+    is_published: models.BooleanField = models.BooleanField(
+        "Опубликовано",
+        default=False,
+        db_index=True,
+        help_text="Флаг публикации статьи",
+    )
+    published_at: models.DateTimeField = models.DateTimeField(
+        "Дата публикации",
+        null=True,
+        blank=True,
+        help_text="Дата и время публикации статьи",
+    )
+    meta_title: models.CharField = models.CharField(
+        "SEO заголовок",
+        max_length=200,
+        blank=True,
+        help_text="SEO заголовок для поисковых систем (опционально)",
+    )
+    meta_description: models.TextField = models.TextField(
+        "SEO описание",
+        blank=True,
+        help_text="SEO описание для поисковых систем (опционально)",
+    )
+    created_at: models.DateTimeField = models.DateTimeField(
+        "Дата создания",
+        auto_now_add=True,
+        help_text="Дата и время создания записи",
+    )
+    updated_at: models.DateTimeField = models.DateTimeField(
+        "Дата обновления",
+        auto_now=True,
+        help_text="Дата и время последнего обновления записи",
+    )
+
+    class Meta:
+        verbose_name = _("Статья блога")
+        verbose_name_plural = _("Статьи блога")
+        ordering = ["-published_at"]
+        indexes = [
+            models.Index(fields=["is_published", "published_at"]),
+            models.Index(fields=["category", "published_at"]),
+        ]
+
+    def __str__(self) -> str:
+        return self.title
+
+    def get_absolute_url(self) -> str:
+        """Возвращает абсолютный URL статьи блога."""
+        from django.conf import settings
+        from django.urls import reverse
+
+        return reverse("blog-detail", kwargs={"slug": self.slug})

@@ -1,6 +1,7 @@
 """
 Serializers для статических страниц
 """
+
 from rest_framework import serializers
 
 from .models import Page

@@ -1,6 +1,7 @@
 """
 Тесты для моделей пользователей FREESPORT Platform
 """
+
 import time
 import uuid
 from io import StringIO

@@ -1,0 +1,108 @@
+# Quality Gate: Story 13.5a - ProductOptions UI component с MSW mock
+# Powered by BMAD™ Core
+
+schema: 1
+story: "13.5a"
+story_title: "ProductOptions UI component с MSW mock"
+gate: PASS
+status_reason: "Компонент полностью реализован согласно AC, все 37 тестов проходят, accessibility и дизайн-система соблюдены"
+reviewer: "Quinn (Test Architect)"
+updated: "2025-12-02T20:42:00+01:00"
+
+waiver: { active: false }
+
+top_issues: []
+
+risk_summary:
+  totals: { critical: 0, high: 0, medium: 0, low: 0 }
+  recommendations:
+    must_fix: []
+    monitor: []
+
+quality_score: 100
+expires: "2025-12-16T00:00:00Z"
+
+evidence:
+  tests_reviewed: 37
+  risks_identified: 0
+  trace:
+    ac_covered: [1, 2, 3, 4, 5, 6, 7, 8]
+    ac_gaps: []
+
+nfr_validation:
+  security:
+    status: PASS
+    notes: "Нет обработки пользовательского ввода, только отображение данных"
+  performance:
+    status: PASS
+    notes: "useMemo/useCallback оптимизации применены корректно"
+  reliability:
+    status: PASS
+    notes: "Edge cases обработаны (пустые варианты, null color_hex, дубликаты)"
+  maintainability:
+    status: PASS
+    notes: "Код хорошо документирован, JSDoc комментарии присутствуют"
+
+recommendations:
+  immediate: []
+  future:
+    - action: "Рассмотреть добавление интеграционных тестов с ProductSummary"
+      refs: ["frontend/src/components/product/ProductSummary.tsx"]
+    - action: "Добавить тесты для MSW handlers в изоляции"
+      refs: ["frontend/src/__mocks__/api/handlers.ts"]
+
+# Acceptance Criteria Traceability
+ac_traceability:
+  AC1_component_created:
+    status: PASS
+    evidence: "ProductOptions.tsx создан в src/components/product/"
+    tests: ["рендерит компонент с data-testid"]
+  
+  AC2_size_selectors:
+    status: PASS
+    evidence: "Размеры отображаются как группа Chip компонентов"
+    tests: ["рендерит селекторы размеров"]
+  
+  AC3_color_selectors:
+    status: PASS
+    evidence: "Цвета отображаются с цветовыми индикаторами"
+    tests: ["рендерит селекторы цветов", "рендерит цветовые индикаторы для цветов"]
+  
+  AC4_disabled_options:
+    status: PASS
+    evidence: "Недоступные опции имеют opacity-50, cursor-not-allowed, aria-disabled"
+    tests: ["отображает недоступные цвета как disabled", "применяет opacity-50 к недоступным опциям"]
+  
+  AC5_selection_state:
+    status: PASS
+    evidence: "onSelectionChange вызывается при клике, состояние обновляется"
+    tests: ["вызывает onSelectionChange при клике на размер", "вызывает onSelectionChange при клике на цвет"]
+  
+  AC6_design_system:
+    status: PASS
+    evidence: "Стили соответствуют front-end-spec.md: rounded-2xl, px-4, py-2, space-y-6, gap-2"
+    tests: ["применяет корректные базовые стили к Chip", "применяет typography для заголовков групп"]
+  
+  AC7_msw_mock:
+    status: PASS
+    evidence: "MSW handler для /api/products/:slug/ настроен с MOCK_PRODUCT_WITH_VARIANTS"
+    tests: []
+  
+  AC8_unit_tests:
+    status: PASS
+    evidence: "37 тестов покрывают рендеринг, взаимодействие, accessibility, стили, edge cases"
+    tests: ["все 37 тестов в ProductOptions.test.tsx"]
+
+# Integration Verification
+integration_verification:
+  IV1_renders_on_page:
+    status: PASS
+    evidence: "ProductSummary интегрирует ProductOptions, передает variants и callbacks"
+  
+  IV2_design_system_compliance:
+    status: PASS
+    evidence: "Стили соответствуют Chip спецификации из front-end-spec.md"
+  
+  IV3_api_contract:
+    status: PASS
+    evidence: "MSW mock возвращает ProductVariantSchema структуру"

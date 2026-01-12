@@ -412,3 +412,32 @@ class TestProductPerformance:
         for item in data:
             assert "name" in item
             assert "retail_price" in item
+
+
+@pytest.mark.django_db
+class TestOnecBrandIdSerializerGuardrail:
+    """Story 13.2: Тест что onec_brand_id не экспонируется в публичных API"""
+
+    def test_onec_brand_id_not_in_product_list_serializer(self, product_factory):
+        """Тест что ProductListSerializer не возвращает onec_brand_id"""
+        product = product_factory.create(
+            onec_brand_id="fb3f263e-dfd0-11ef-8361-fa163ea88911"
+        )
+
+        serializer = ProductListSerializer(product)
+        data = serializer.data
+
+        # onec_brand_id не должно быть в публичном API
+        assert "onec_brand_id" not in data
+
+    def test_onec_brand_id_not_in_product_detail_serializer(self, product_factory):
+        """Тест что ProductDetailSerializer не возвращает onec_brand_id"""
+        product = product_factory.create(
+            onec_brand_id="fb3f263e-dfd0-11ef-8361-fa163ea88911"
+        )
+
+        serializer = ProductDetailSerializer(product)
+        data = serializer.data
+
+        # onec_brand_id не должно быть в публичном API
+        assert "onec_brand_id" not in data

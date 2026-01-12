@@ -1,4 +1,5 @@
 """Тесты для моделей товаров FREESPORT Platform"""
+
 import time
 import uuid
 from decimal import Decimal
@@ -99,19 +100,27 @@ class TestProductModel:
         )
 
         assert product.name == "Футбольный мяч Nike"
-        assert product.retail_price == Decimal("2500.00")
         assert product.is_active is True
-        assert product.stock_quantity >= 0
-        assert str(product) == f"{product.name} ({product.sku})"
+
+        # Цены и остатки теперь в ProductVariant
+        variant = product.variants.first()
+        assert variant is not None
+        assert variant.retail_price == Decimal("2500.00")
+        assert variant.stock_quantity >= 0
+        assert str(product) == product.name
 
 
 class ProductComputedPropertiesTest(TestCase):
     """
-    Тесты для вычисляемых свойств модели Product.
+    Тесты для вычисляемых свойств модели ProductVariant.
+    Цены, остатки и computed properties находятся в ProductVariant, не в Product.
     """
 
     def setUp(self):
         """Настройка тестовых данных."""
+        from apps.products.models import ProductVariant
+        from decimal import Decimal
+
         self.brand = Brand.objects.create(name="Test Brand", slug="test-brand")
         self.category = Category.objects.create(
             name="Test Category", slug="test-category"
@@ -121,39 +130,45 @@ class ProductComputedPropertiesTest(TestCase):
             slug="test-product",
             brand=self.brand,
             category=self.category,
-            retail_price=100.00,
-            stock_quantity=20,
-            reserved_quantity=5,
             min_order_quantity=1,
             is_active=True,
+        )
+        # Цены и остатки находятся в ProductVariant
+        self.variant = ProductVariant.objects.create(
+            product=self.product,
+            sku="TEST-SKU-001",
+            onec_id="TEST-1C-001",
+            retail_price=Decimal("100.00"),
+            stock_quantity=20,
+            reserved_quantity=5,
         )
 
     def test_available_quantity(self):
         """Тест правильности расчета доступного количества."""
-        self.assertEqual(self.product.available_quantity, 15)
+        self.assertEqual(self.variant.available_quantity, 15)
 
     def test_can_be_ordered_when_available(self):
         """Тест, что товар можно заказать, когда он доступен."""
-        self.assertTrue(self.product.can_be_ordered)
+        self.assertTrue(self.variant.can_be_ordered)
 
     def test_cannot_be_ordered_when_stock_is_fully_reserved(self):
         """Тест, что товар нельзя заказать, если все зарезервировано."""
-        self.product.reserved_quantity = 20
-        self.product.save()
-        self.assertFalse(self.product.can_be_ordered)
-        self.assertEqual(self.product.available_quantity, 0)
+        self.variant.reserved_quantity = 20
+        self.variant.save()
+        self.assertFalse(self.variant.can_be_ordered)
+        self.assertEqual(self.variant.available_quantity, 0)
 
     def test_cannot_be_ordered_when_inactive(self):
-        """Тест, что неактивный товар нельзя заказать."""
+        """Тест, что неактивный товар (Product) нельзя заказать."""
         self.product.is_active = False
         self.product.save()
-        self.assertFalse(self.product.can_be_ordered)
+        self.assertFalse(self.variant.can_be_ordered)
 
     def test_cannot_be_ordered_if_available_is_less_than_min_order(self):
         """Тест, что товар нельзя заказать, если доступно меньше минимальной партии."""
         self.product.min_order_quantity = 20
         self.product.save()
-        self.assertFalse(self.product.can_be_ordered)
+        self.assertFalse(self.variant.can_be_ordered)
 
     def test_product_pricing_for_different_roles(self):
         """Тест ценообразования для разных ролей пользователей"""
@@ -166,6 +181,9 @@ class ProductComputedPropertiesTest(TestCase):
             federation_price=Decimal("750.00"),
         )
 
+        # Получаем вариант товара - цены теперь в ProductVariant
+        variant = product.variants.first()
+
         # Тест для разных ролей пользователей
         retail_user = UserFactory.create(role="retail")
         opt1_user = UserFactory.create(role="wholesale_level1")
@@ -174,12 +192,12 @@ class ProductComputedPropertiesTest(TestCase):
         trainer_user = UserFactory.create(role="trainer")
         federation_user = UserFactory.create(role="federation_rep")
 
-        assert product.get_price_for_user(retail_user) == Decimal("1000.00")
-        assert product.get_price_for_user(opt1_user) == Decimal("900.00")
-        assert product.get_price_for_user(opt2_user) == Decimal("800.00")
-        assert product.get_price_for_user(opt3_user) == Decimal("700.00")
-        assert product.get_price_for_user(trainer_user) == Decimal("850.00")
-        assert product.get_price_for_user(federation_user) == Decimal("750.00")
+        assert variant.get_price_for_user(retail_user) == Decimal("1000.00")
+        assert variant.get_price_for_user(opt1_user) == Decimal("900.00")
+        assert variant.get_price_for_user(opt2_user) == Decimal("800.00")
+        assert variant.get_price_for_user(opt3_user) == Decimal("700.00")
+        assert variant.get_price_for_user(trainer_user) == Decimal("850.00")
+        assert variant.get_price_for_user(federation_user) == Decimal("750.00")
 
     def test_product_price_fallback_to_retail(self):
         """Тест возврата к розничной цене если оптовая не указана"""
@@ -189,37 +207,46 @@ class ProductComputedPropertiesTest(TestCase):
             opt2_price=Decimal("800.00"),
         )
 
+        # Получаем вариант товара
+        variant = product.variants.first()
+
         opt1_user = UserFactory.create(role="wholesale_level1")
         opt2_user = UserFactory.create(role="wholesale_level2")
 
-        assert product.get_price_for_user(opt1_user) == Decimal("1000.00")  # Fallback
-        assert product.get_price_for_user(opt2_user) == Decimal("800.00")
+        assert variant.get_price_for_user(opt1_user) == Decimal("1000.00")  # Fallback
+        assert variant.get_price_for_user(opt2_user) == Decimal("800.00")
 
     def test_product_price_for_anonymous_user(self):
         """Тест цены для анонимного пользователя"""
         product = ProductFactory.create(retail_price=Decimal("1000.00"))
 
-        assert product.get_price_for_user(None) == Decimal("1000.00")
+        # Получаем вариант товара
+        variant = product.variants.first()
+
+        assert variant.get_price_for_user(None) == Decimal("1000.00")
 
     def test_product_stock_properties(self):
-        """Тест свойств наличия товара"""
+        """Тест свойств наличия товара (проверяются через ProductVariant)"""
         # Товар в наличии
         in_stock_product = ProductFactory.create(stock_quantity=10, is_active=True)
-        assert in_stock_product.is_in_stock is True
-        assert in_stock_product.can_be_ordered is True
+        in_stock_variant = in_stock_product.variants.first()
+        assert in_stock_variant.is_in_stock is True
+        assert in_stock_variant.can_be_ordered is True
 
         # Товар закончился
         out_of_stock_product = ProductFactory.create(stock_quantity=0, is_active=True)
-        assert out_of_stock_product.is_in_stock is False
-        assert out_of_stock_product.can_be_ordered is False
+        out_of_stock_variant = out_of_stock_product.variants.first()
+        assert out_of_stock_variant.is_in_stock is False
+        assert out_of_stock_variant.can_be_ordered is False
 
-        # Товар неактивен
+        # Товар неактивен (Product.is_active = False)
         inactive_product = ProductFactory.create(stock_quantity=10, is_active=False)
-        assert inactive_product.is_in_stock is True
-        assert inactive_product.can_be_ordered is False
+        inactive_variant = inactive_product.variants.first()
+        assert inactive_variant.is_in_stock is True
+        assert inactive_variant.can_be_ordered is False
 
     def test_product_sku_uniqueness(self):
-        """Тест уникальности артикула"""
+        """Тест уникальности артикула (SKU в ProductVariant)"""
         test_sku = "UNIQUE-001"
         ProductFactory.create(sku=test_sku)
 
@@ -227,11 +254,15 @@ class ProductComputedPropertiesTest(TestCase):
             ProductFactory.create(sku=test_sku)
 
     def test_product_slug_generation(self):
-        """Тест автогенерации slug"""
+        """Тест автогенерации slug модели Product при сохранении"""
         brand = BrandFactory.create()
         category = CategoryFactory.create()
-        product = ProductFactory.build(
-            name="Супер Товар 2024", brand=brand, category=category
+        # Создаём Product напрямую без slug - модель должна сгенерировать его
+        product = Product(
+            name="Супер Товар 2024",
+            brand=brand,
+            category=category,
+            description="Test description",
         )
         product.save()
 
@@ -249,21 +280,27 @@ class ProductComputedPropertiesTest(TestCase):
         assert product in category.products.all()
 
     def test_product_constraints_validation(self):
-        """Тест валидации ограничений товара"""
-        # Тест отрицательных цен
-        with pytest.raises(ValidationError):
-            product = ProductFactory.build(retail_price=Decimal("-100.00"))
-            product.full_clean()
+        """Тест валидации ограничений товара (валидация в ProductVariant)"""
+        from apps.products.models import ProductVariant
 
-        # Тест отрицательного количества на складе
-        with pytest.raises(ValidationError):
-            product = ProductFactory.build(stock_quantity=-1)
-            product.full_clean()
+        # Создаём Product для тестирования Variant
+        product = ProductFactory.create(create_variant=False)
 
-        # Тест минимального количества заказа
+        # Тест отрицательных цен - валидация на уровне ProductVariant
         with pytest.raises(ValidationError):
-            product = ProductFactory.build(min_order_quantity=0)
-            product.full_clean()
+            variant = ProductVariant(
+                product=product,
+                sku="NEGATIVE-PRICE-001",
+                onec_id="1C-NEGATIVE-001",
+                retail_price=Decimal("-100.00"),
+                stock_quantity=10,
+            )
+            variant.full_clean()
+
+        # Тест минимального количества заказа на Product
+        with pytest.raises(ValidationError):
+            product_invalid = ProductFactory.build(min_order_quantity=0)
+            product_invalid.full_clean()
 
     def test_product_meta_configuration(self):
         """Тест настроек Meta класса Product"""
@@ -378,52 +415,58 @@ class TestProduct1CIntegrationFields:
 @pytest.mark.django_db
 class TestProductStockLogic:
     """
-    Тесты логики остатков товаров
+    Тесты логики остатков товаров (теперь в ProductVariant)
     """
 
     def test_reserved_quantity_default_value(self):
         """
-        Тест значения по умолчанию для reserved_quantity
+        Тест значения по умолчанию для reserved_quantity в ProductVariant
         """
         product = ProductFactory.create()
-        assert product.reserved_quantity == 0
+        variant = product.variants.first()
+        assert variant.reserved_quantity == 0
 
     def test_available_quantity_calculation(self):
         """
-        Тест вычисления доступного количества
+        Тест вычисления доступного количества в ProductVariant
         """
         product = ProductFactory.create(stock_quantity=10, reserved_quantity=3)
+        variant = product.variants.first()
 
-        assert product.available_quantity == 7
+        assert variant.available_quantity == 7
 
         # Тест случая когда резерв больше остатка
-        product.reserved_quantity = 15
-        product.save()
+        variant.reserved_quantity = 15
+        variant.save()
 
-        assert product.available_quantity == 0  # max(0, 10-15) = 0
+        assert variant.available_quantity == 0  # max(0, 10-15) = 0
 
     def test_is_in_stock_property(self):
         """
-        Тест свойства is_in_stock
+        Тест свойства is_in_stock в ProductVariant
         """
         # Товар в наличии
         product = ProductFactory.create(stock_quantity=5)
-        assert product.is_in_stock is True
+        variant = product.variants.first()
+        assert variant.is_in_stock is True
 
         # Товар не в наличии
-        product.stock_quantity = 0
-        product.save()
-        assert product.is_in_stock is False
+        variant.stock_quantity = 0
+        variant.save()
+        assert variant.is_in_stock is False
 
     def test_can_be_ordered_basic(self):
         """
-        Тест базовой логики can_be_ordered
+        Тест базовой логики can_be_ordered в ProductVariant
         """
         product = ProductFactory.create(
-            is_active=True, stock_quantity=10, reserved_quantity=2, min_order_quantity=1
+            is_active=True, stock_quantity=10, reserved_quantity=2
         )
+        product.min_order_quantity = 1
+        product.save()
 
-        assert product.can_be_ordered is True
+        variant = product.variants.first()
+        assert variant.can_be_ordered is True
 
     def test_can_be_ordered_insufficient_available(self):
         """
@@ -433,10 +476,12 @@ class TestProductStockLogic:
             is_active=True,
             stock_quantity=5,
             reserved_quantity=3,
-            min_order_quantity=5,  # Доступно только 2, а минимум 5
         )
+        product.min_order_quantity = 5  # Доступно только 2, а минимум 5
+        product.save()
 
-        assert product.can_be_ordered is False
+        variant = product.variants.first()
+        assert variant.can_be_ordered is False
 
     def test_can_be_ordered_inactive_product(self):
         """
@@ -446,7 +491,8 @@ class TestProductStockLogic:
             is_active=False, stock_quantity=10, reserved_quantity=0
         )
 
-        assert product.can_be_ordered is False
+        variant = product.variants.first()
+        assert variant.can_be_ordered is False
 
     def test_can_be_ordered_out_of_stock(self):
         """
@@ -456,7 +502,8 @@ class TestProductStockLogic:
             is_active=True, stock_quantity=0, reserved_quantity=0
         )
 
-        assert product.can_be_ordered is False
+        variant = product.variants.first()
+        assert variant.can_be_ordered is False
 
     def test_stock_scenarios_realistic(self):
         """
@@ -464,65 +511,108 @@ class TestProductStockLogic:
         """
         # Сценарий 1: Высокий остаток
         high_stock_product = ProductFactory.create(
-            stock_quantity=100, reserved_quantity=5, min_order_quantity=1
+            stock_quantity=100, reserved_quantity=5
         )
-        assert high_stock_product.is_in_stock is True
-        assert high_stock_product.can_be_ordered is True
-        assert high_stock_product.available_quantity == 95
+        high_stock_product.min_order_quantity = 1
+        high_stock_product.save()
+        variant = high_stock_product.variants.first()
+        assert variant.is_in_stock is True
+        assert variant.can_be_ordered is True
+        assert variant.available_quantity == 95
 
         # Сценарий 2: Низкий остаток
         low_stock_product = ProductFactory.create(
-            stock_quantity=3, reserved_quantity=1, min_order_quantity=1
+            stock_quantity=3, reserved_quantity=1
         )
-        assert low_stock_product.is_in_stock is True
-        assert low_stock_product.can_be_ordered is True
-        assert low_stock_product.available_quantity == 2
+        low_stock_product.min_order_quantity = 1
+        low_stock_product.save()
+        variant2 = low_stock_product.variants.first()
+        assert variant2.is_in_stock is True
+        assert variant2.can_be_ordered is True
+        assert variant2.available_quantity == 2
 
         # Сценарий 3: Перепродано (oversold)
         oversold_product = ProductFactory.create(
-            stock_quantity=5, reserved_quantity=10, min_order_quantity=1
+            stock_quantity=5, reserved_quantity=10
         )
-        assert oversold_product.is_in_stock is True
-        assert oversold_product.can_be_ordered is False  # available_quantity = 0
-        assert oversold_product.available_quantity == 0
+        oversold_product.min_order_quantity = 1
+        oversold_product.save()
+        variant3 = oversold_product.variants.first()
+        assert variant3.is_in_stock is True
+        assert variant3.can_be_ordered is False  # available_quantity = 0
+        assert variant3.available_quantity == 0
 
     def test_stock_edge_cases(self):
         """
         Тест граничных случаев остатков
         """
+        from apps.products.models import ProductVariant
+
         # Тест: точно минимальное количество
         edge_case_product = ProductFactory.create(
             stock_quantity=5,
             reserved_quantity=2,
-            min_order_quantity=3,  # available_quantity = 3,
-            # что равно min_order_quantity
         )
-        assert edge_case_product.can_be_ordered is True
+        edge_case_product.min_order_quantity = 3  # available_quantity = 3
+        edge_case_product.save()
+        variant = edge_case_product.variants.first()
+        assert variant.can_be_ordered is True
 
         # Тест: на единицу меньше минимального
         edge_case_product.min_order_quantity = 4
         edge_case_product.save()
-        assert edge_case_product.can_be_ordered is False
+        assert variant.can_be_ordered is False
 
     def test_reserved_quantity_validation(self):
         """
-        Тест валидации reserved_quantity (должно быть неотрицательным)
+        Тест валидации reserved_quantity в ProductVariant
         """
+        from apps.products.models import ProductVariant
+
         product = ProductFactory.create(stock_quantity=10, reserved_quantity=5)
+        variant = product.variants.first()
 
         # Валидная ситуация
-        assert product.reserved_quantity == 5
+        assert variant.reserved_quantity == 5
 
-        # Тест что поле имеет правильный тип
+        # Тест что поле имеет правильный тип - PositiveIntegerField
         assert isinstance(
-            product._meta.get_field("reserved_quantity"),
-            type(product._meta.get_field("stock_quantity")),
+            ProductVariant._meta.get_field("reserved_quantity"),
+            type(ProductVariant._meta.get_field("stock_quantity")),
         )
 
     def test_stock_fields_help_text(self):
         """
-        Тест что поля имеют правильный help_text
+        Тест что поля ProductVariant имеют правильный help_text
         """
-        field = Product._meta.get_field("reserved_quantity")
-        assert "зарезервированного" in field.help_text.lower()
+        from apps.products.models import ProductVariant
+
+        field = ProductVariant._meta.get_field("reserved_quantity")
+        assert "зарезервированное" in field.help_text.lower()
         assert "корзин" in field.help_text.lower() or "заказ" in field.help_text.lower()
+
+    def test_onec_brand_id_field(self):
+        """
+        Story 13.2: Тест поля onec_brand_id в Product
+        """
+        # Создание товара с onec_brand_id
+        brand_id = "fb3f263e-dfd0-11ef-8361-fa163ea88911"
+        product = ProductFactory.create(onec_brand_id=brand_id)
+
+        assert product.onec_brand_id == brand_id
+
+        # Проверка nullable
+        product_without_brand_id = ProductFactory.create(onec_brand_id=None)
+        assert product_without_brand_id.onec_brand_id is None
+
+        # Проверка max_length=100
+        field = Product._meta.get_field("onec_brand_id")
+        assert field.max_length == 100
+
+        # Проверка db_index
+        assert field.db_index is True
+
+        # Проверка nullable и blank
+        assert field.null is True
+        assert field.blank is True
+

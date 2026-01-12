@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../whiteport-design-studio"
+		}
+	],
+	"settings": {
+		"window.zoomPerWindow": true,
+		"workbench.colorTheme": "Default High Contrast"
+	}
+}

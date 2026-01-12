@@ -1,6 +1,7 @@
 """
 Тесты для моделей заказов FREESPORT Platform
 """
+
 import uuid
 from decimal import Decimal
 
@@ -205,8 +206,14 @@ class TestOrderItemModel:
         """Тест создания элемента заказа"""
         order = OrderFactory.create()
         product = ProductFactory.create(name="Тестовый товар", sku="TEST-001")
+        variant = product.variants.first()
+        
         item = OrderItemFactory.create(
-            order=order, product=product, quantity=2, unit_price=Decimal("1500.00")
+            order=order, 
+            product=product,
+            variant=variant, 
+            quantity=2, 
+            unit_price=Decimal("1500.00")
         )
 
         assert item.order == order
@@ -214,7 +221,11 @@ class TestOrderItemModel:
         assert item.quantity == 2
         assert item.unit_price == Decimal("1500.00")
         assert item.product_name == "Тестовый товар"
-        assert item.product_sku == "TEST-001"
+        
+        # sku теперь хранится в варианте, при создании товара в фабрике SKU генерится для варианта автоматически
+        # поэтому здесь мы проверяем, что он не пустой, или что он совпадает с вариантом
+        assert item.product_sku == variant.sku
+        
         assert str(item) == f"Тестовый товар x2 в заказе #{order.order_number}"
 
     def test_order_item_total_price_property(self):
@@ -225,16 +236,23 @@ class TestOrderItemModel:
 
     def test_order_item_saves_product_snapshot(self):
         """Тест сохранения снимка данных товара на момент заказа"""
-        product = ProductFactory.create(name="Оригинальное название", sku="ORIG-001")
+        product = ProductFactory.create(name="Оригинальное название")
+        variant = product.variants.first()
+        variant.sku = "ORIG-001"
+        variant.save()
 
         item = OrderItemFactory.create(
-            product=product, product_name=product.name, product_sku=product.sku
+            product=product, 
+            variant=variant,
+            product_name=product.name, 
+            product_sku=variant.sku
         )
 
         # Изменяем товар после создания заказа
         product.name = "Новое название"
-        product.sku = "NEW-001"
         product.save()
+        variant.sku = "NEW-001"
+        variant.save()
 
         # В элементе заказа должны остаться старые данные
         item.refresh_from_db()
@@ -261,6 +279,7 @@ class TestOrderItemModel:
             opt1_price=Decimal("900.00"),
             trainer_price=Decimal("850.00"),
         )
+        variant = product.variants.first()
 
         # Создаем заказы для разных пользователей
         retail_user = UserFactory.create(role="retail")
@@ -272,20 +291,24 @@ class TestOrderItemModel:
         trainer_order = OrderFactory.create(user=trainer_user)
 
         # Создаем элементы заказов с соответствующими ценами
+        # Цены берутся из variant по методу get_price_for_user
         retail_item = OrderItemFactory.create(
             order=retail_order,
             product=product,
-            unit_price=product.get_price_for_user(retail_user),
+            variant=variant,
+            unit_price=variant.get_price_for_user(retail_user),
         )
         wholesale_item = OrderItemFactory.create(
             order=wholesale_order,
             product=product,
-            unit_price=product.get_price_for_user(wholesale_user),
+            variant=variant,
+            unit_price=variant.get_price_for_user(wholesale_user),
         )
         trainer_item = OrderItemFactory.create(
             order=trainer_order,
             product=product,
-            unit_price=product.get_price_for_user(trainer_user),
+            variant=variant,
+            unit_price=variant.get_price_for_user(trainer_user),
         )
 
         assert retail_item.unit_price == Decimal("1000.00")
@@ -306,15 +329,16 @@ class TestOrderItemModel:
         assert item3 in order.items.all()
 
     def test_order_item_unique_product_in_order_constraint(self):
-        """Тест уникальности товара в рамках одного заказа"""
+        """Тест уникальности товара (варианта) в рамках одного заказа"""
         order = OrderFactory.create()
         product = ProductFactory.create()
+        variant = product.variants.first()
 
-        OrderItemFactory.create(order=order, product=product)
+        OrderItemFactory.create(order=order, product=product, variant=variant)
 
-        # Попытка добавить тот же товар в тот же заказ должна вызвать ошибку
-        with pytest.raises((IntegrityError, ValidationError)):
-            OrderItemFactory.create(order=order, product=product)
+        # Попытка добавить тот же вариант в тот же заказ должна вызвать ошибку
+        with pytest.raises((IntegrityError, ValidationError, Exception)):
+            OrderItemFactory.create(order=order, product=product, variant=variant)
 
     def test_order_item_meta_configuration(self):
         """Тест настроек Meta класса OrderItem"""

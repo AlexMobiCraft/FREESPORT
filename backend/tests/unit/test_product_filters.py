@@ -2,6 +2,7 @@
 Unit-тесты для фильтров товаров (Story 2.9: filtering-api)
 Тестируем фильтрацию по размерам, брендам, ценам, наличию
 """
+
 from unittest.mock import Mock, patch
 
 import pytest
@@ -132,13 +133,10 @@ class TestProductFilterBrandFilter:
 class TestProductFilterPriceFilters:
     """Unit-тесты для ценовых фильтров"""
 
-    def __init__(self):
-        """Инициализация класса"""
-        self.factory = RequestFactory()
-
-    def setup_method(self):
+    @pytest.fixture(autouse=True)
+    def setup(self):
         """Настройка для каждого теста"""
-        pass
+        self.factory = RequestFactory()
 
     def test_filter_min_price_validation(self):
         """Тест валидации минимальной цены"""
@@ -267,6 +265,13 @@ class TestProductFilterIntegration:
             "is_featured",
             "search",
             "size",
+            # Story 11.0: Маркетинговые фильтры
+            "is_hit",
+            "is_new",
+            "is_sale",
+            "is_promo",
+            "is_premium",
+            "has_discount",
         ]
 
         assert set(ProductFilter.Meta.fields) == set(expected_fields)

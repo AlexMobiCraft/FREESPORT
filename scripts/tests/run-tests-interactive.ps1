@@ -22,10 +22,10 @@ $scenarios = @(
     },
     [pscustomobject]@{
         Id = 2
-        Title = "Story 3.1.2 — import_catalog_from_1c"
-        Description = "tests/integration/test_management_commands/test_import_catalog_from_1c.py"
+        Title = "Epic 27 — VariantImportProcessor"
+        Description = "tests/integration/test_variant_import.py"
         PytestArgs = @(
-            "tests/integration/test_management_commands/test_import_catalog_from_1c.py",
+            "tests/integration/test_variant_import.py",
             "-v",
             "--migrations"
         )

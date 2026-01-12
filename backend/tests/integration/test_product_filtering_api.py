@@ -1,7 +1,4 @@
-"""
-Интеграционные тесты для API фильтрации товаров (Story 2.9: filtering-api)
-Тесты с реальными данными согласно стандартам тестирования FREESPORT
-"""
+import uuid
 from decimal import Decimal
 
 import pytest
@@ -10,7 +7,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from apps.products.models import Brand, Category, Product
+from apps.products.models import Brand, Category, Product, ProductVariant
 from tests.conftest import get_unique_suffix
 
 User = get_user_model()
@@ -46,13 +43,19 @@ class TestProductFilteringAPI:
             brand=self.brand_nike,
             category=self.category,
             description="Nike T-shirt XL размер",
+            is_active=True,
+            specifications={"size": "XL", "color": "black", "material": "cotton"},
+            onec_id=f"PROD-1-{suffix}",
+        )
+        ProductVariant.objects.create(
+            product=self.product1,
             sku=f"NIKE-XL-{suffix}",
+            onec_id=f"VAR-1-{suffix}",
             retail_price=Decimal("2000.00"),
             opt1_price=Decimal("1800.00"),
             trainer_price=Decimal("1600.00"),
             stock_quantity=10,
             is_active=True,
-            specifications={"size": "XL", "color": "black", "material": "cotton"},
         )
 
         self.product2 = Product.objects.create(
@@ -61,13 +64,19 @@ class TestProductFilteringAPI:
             brand=self.brand_adidas,
             category=self.category,
             description="Adidas Hoodie M размер",
+            is_active=True,
+            specifications={"sizes": ["M", "L"], "color": "blue"},
+            onec_id=f"PROD-2-{suffix}",
+        )
+        ProductVariant.objects.create(
+            product=self.product2,
             sku=f"ADIDAS-M-{suffix}",
+            onec_id=f"VAR-2-{suffix}",
             retail_price=Decimal("3500.00"),
             opt1_price=Decimal("3200.00"),
             trainer_price=Decimal("3000.00"),
             stock_quantity=5,
             is_active=True,
-            specifications={"sizes": ["M", "L"], "color": "blue"},
         )
 
         self.product3 = Product.objects.create(
@@ -76,13 +85,19 @@ class TestProductFilteringAPI:
             brand=self.brand_nike,
             category=self.category,
             description="Nike кроссовки 42 размер",
+            is_active=True,
+            specifications={"размер": "42", "тип": "кроссовки"},
+            onec_id=f"PROD-3-{suffix}",
+        )
+        ProductVariant.objects.create(
+            product=self.product3,
             sku=f"NIKE-SHOES-42-{suffix}",
+            onec_id=f"VAR-3-{suffix}",
             retail_price=Decimal("8000.00"),
             opt1_price=Decimal("7200.00"),
             trainer_price=Decimal("6800.00"),
             stock_quantity=0,  # Нет в наличии
             is_active=True,
-            specifications={"размер": "42", "тип": "кроссовки"},
         )
 
         self.product4 = Product.objects.create(
@@ -91,26 +106,49 @@ class TestProductFilteringAPI:
             brand=self.brand_adidas,
             category=self.category,
             description="Adidas шорты S размер",
-            sku=f"ADIDAS-S-{suffix}",
-            retail_price=Decimal("1500.00"),
-            stock_quantity=20,
             is_active=False,  # Неактивный товар
             specifications={"размеры": ["S", "M", "L"]},
+            onec_id=f"PROD-4-{suffix}",
+        )
+        ProductVariant.objects.create(
+            product=self.product4,
+            sku=f"ADIDAS-S-{suffix}",
+            onec_id=f"VAR-4-{suffix}",
+            retail_price=Decimal("1500.00"),
+            stock_quantity=20,
+            is_active=True,
         )
 
         # Создаем пользователей разных ролей
         self.retail_user = User.objects.create_user(
-            email=f"retail{suffix}@test.com", password="testpass123", role="retail"
+            email=f"retail{suffix}@test.com",
+            password="testpass123",
+            role="retail",
+            is_active=True,
+            is_verified=True,
+            verification_status="verified",
         )
 
         self.wholesale_user = User.objects.create_user(
             email=f"wholesale{suffix}@test.com",
             password="testpass123",
             role="wholesale_level1",
+            is_active=True,
+            is_verified=True,
+            verification_status="verified",
+            company_name=f"Company-{suffix}",
+            tax_id="1234567890",
         )
 
         self.trainer_user = User.objects.create_user(
-            email=f"trainer{suffix}@test.com", password="testpass123", role="trainer"
+            email=f"trainer{suffix}@test.com",
+            password="testpass123",
+            role="trainer",
+            is_active=True,
+            is_verified=True,
+            verification_status="verified",
+            company_name=f"Trainer-{suffix}",
+            tax_id="1234567891",
         )
 
         self.client = APIClient()
@@ -142,7 +180,7 @@ class TestProductFilteringAPI:
         # Проверяем что нашелся товар с размером M в массиве
         found_product2 = False
         for result in results:
-            if result["sku"] == self.product2.sku:
+            if result["sku"] == self.product2.variants.first().sku:
                 found_product2 = True
                 assert "M" in result["specifications"]["sizes"]
         assert found_product2
@@ -402,11 +440,17 @@ class TestProductFilteringPerformance:
                 brand=brand,
                 category=self.category,
                 description=f"Test product {i}",
+                is_active=True,
+                specifications={"size": size, "test_field": f"value{i}"},
+                onec_id=f"PROD-PERF-{i}-{suffix}",
+            )
+            ProductVariant.objects.create(
+                product=product,
                 sku=f"SKU-{i}-{suffix}",
+                onec_id=f"VAR-PERF-{i}-{suffix}",
                 retail_price=Decimal(str(1000 + i * 100)),
                 stock_quantity=i % 20 + 1,
                 is_active=True,
-                specifications={"size": size, "test_field": f"value{i}"},
             )
             self.products.append(product)
 

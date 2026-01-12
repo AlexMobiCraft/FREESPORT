@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     "apps.orders",
     "apps.pages",
     "apps.common",
+    "apps.integrations.apps.IntegrationsConfig",
 ]
 
 
@@ -176,3 +177,27 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 # НАСТРОЙКА ПЕРВИЧНОГО КЛЮЧА (DEFAULT PRIMARY KEY)
 # ==============================================================================
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+
+# ==============================================================================
+# EMAIL НАСТРОЙКИ
+# ==============================================================================
+# Используем console backend для разработки, SMTP для продакшена
+EMAIL_BACKEND = os.environ.get(
+    "EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend"
+)
+EMAIL_HOST = os.environ.get("EMAIL_HOST", "smtp.gmail.com")
+EMAIL_PORT = int(os.environ.get("EMAIL_PORT", "587"))
+EMAIL_USE_TLS = os.environ.get("EMAIL_USE_TLS", "True") == "True"
+EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
+DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "noreply@freesport.com")
+
+
+# ==============================================================================
+# ИНТЕГРАЦИЯ С 1С (1C INTEGRATION)
+# ==============================================================================
+# Путь к директории с данными для импорта из 1С
+# В Docker контейнере это будет /app/data/import_1c
+# В локальной разработке это BASE_DIR.parent / "data" / "import_1c"
+ONEC_DATA_DIR = os.environ.get("ONEC_DATA_DIR", str(BASE_DIR / "data" / "import_1c"))

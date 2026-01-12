@@ -2,6 +2,7 @@
 API Views для заказов FREESPORT
 Поддерживает создание заказов из корзины и просмотр деталей
 """
+
 from drf_spectacular.utils import OpenApiExample, OpenApiResponse, extend_schema
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
@@ -20,7 +21,15 @@ class OrderViewSet(viewsets.ModelViewSet):
     ViewSet для управления заказами
     """
 
-    permission_classes = [permissions.IsAuthenticated]
+    def get_permissions(self):
+        """
+        Настройка прав доступа:
+        - create: Доступно всем (включая гостей)
+        - остальные: Только авторизованные пользователи
+        """
+        if self.action == "create":
+            return [permissions.AllowAny()]
+        return [permissions.IsAuthenticated()]
 
     def get_serializer_class(self):
         """Выбор сериализатора в зависимости от действия"""

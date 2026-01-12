@@ -14,14 +14,14 @@ class Migration(migrations.Migration):
         migrations.AddConstraint(
             model_name="cartitem",
             constraint=CheckConstraint(
-                check=Q(quantity__gte=1), name="cart_items_quantity_positive"
+                condition=Q(quantity__gte=1), name="cart_items_quantity_positive"
             ),
         ),
         # Бизнес-правило: у корзины должен быть либо пользователь, либо session_key
         migrations.AddConstraint(
             model_name="cart",
             constraint=CheckConstraint(
-                check=Q(user__isnull=False) | Q(session_key__isnull=False),
+                condition=Q(user__isnull=False) | Q(session_key__isnull=False),
                 name="carts_user_or_session_required",
             ),
         ),

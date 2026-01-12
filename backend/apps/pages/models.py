@@ -1,6 +1,7 @@
 """
 Модели для статических страниц
 """
+
 import bleach
 from django.core.validators import RegexValidator
 from django.db import models

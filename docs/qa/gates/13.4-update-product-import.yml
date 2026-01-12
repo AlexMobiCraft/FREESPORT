@@ -1,0 +1,35 @@
+schema: 1
+story: '13.4'
+story_title: 'Обновление импорта товаров'
+gate: PASS
+status_reason: 'Все критерии приемки выполнены, тесты проходят, код соответствует стандартам.'
+reviewer: 'Quinn (Test Architect)'
+updated: '2025-11-24T21:30:00Z'
+
+top_issues: []
+waiver: { active: false }
+
+evidence:
+  tests_reviewed: 9
+  risks_identified: 0
+  trace:
+    ac_covered: [1, 2, 3, 4, 5, 6, 7]
+    ac_gaps: []
+
+nfr_validation:
+  security:
+    status: PASS
+    notes: 'Логирование безопасно, PII не раскрываются'
+  performance:
+    status: PASS
+    notes: 'Используется select_related для оптимизации'
+  reliability:
+    status: PASS
+    notes: 'Fallback-механизм обеспечивает устойчивость импорта'
+  maintainability:
+    status: PASS
+    notes: 'Код чистый, типизированный'
+
+recommendations:
+  immediate: []
+  future: []

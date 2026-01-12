@@ -2,6 +2,7 @@
 Модели заказов для платформы FREESPORT
 Поддерживает B2B и B2C заказы с различными способами оплаты и доставки
 """
+
 from __future__ import annotations
 
 import uuid
@@ -17,6 +18,7 @@ if TYPE_CHECKING:
     from django.db.models.manager import RelatedManager
 
     from apps.products.models import Product as ProductType
+    from apps.products.models import ProductVariant as ProductVariantType
     from apps.users.models import User as UserType
 
 User = get_user_model()
@@ -66,7 +68,7 @@ class Order(models.Model):
         ("pickup", "Самовывоз"),
         ("courier", "Курьерская доставка"),
         ("post", "Почтовая доставка"),
-        ("transport", "Транспортная компания"),
+        ("transport_company", "Транспортная компания"),
     ]
 
     PAYMENT_METHODS = [
@@ -257,11 +259,13 @@ class OrderItem(models.Model):
     if TYPE_CHECKING:
         order: Order
         product: ProductType | None
+        variant: ProductVariantType | None
         quantity: int
         unit_price: Decimal
         total_price: Decimal
         product_name: str
         product_sku: str
+        variant_info: str
         created_at: datetime
         updated_at: datetime
 
@@ -275,6 +279,17 @@ class OrderItem(models.Model):
         "ProductType | None",
         models.ForeignKey(
             "products.Product", on_delete=models.CASCADE, verbose_name="Товар"
+        ),
+    )
+    variant = cast(
+        "ProductVariantType | None",
+        models.ForeignKey(
+            "products.ProductVariant",
+            on_delete=models.SET_NULL,
+            null=True,
+            blank=True,
+            verbose_name="Вариант товара",
+            help_text="SKU-вариант товара (размер, цвет)",
         ),
     )
     quantity = cast(
@@ -303,6 +318,15 @@ class OrderItem(models.Model):
     # Снимок данных о продукте на момент заказа
     product_name = cast(str, models.CharField("Название товара", max_length=300))
     product_sku = cast(str, models.CharField("Артикул товара", max_length=100))
+    variant_info = cast(
+        str,
+        models.CharField(
+            "Информация о варианте",
+            max_length=200,
+            blank=True,
+            help_text="Размер, цвет и др. характеристики варианта",
+        ),
+    )
 
     created_at = cast(
         datetime, models.DateTimeField("Дата создания", auto_now_add=True)
@@ -315,9 +339,9 @@ class OrderItem(models.Model):
         verbose_name = "Элемент заказа"
         verbose_name_plural = "Элементы заказа"
         db_table = "order_items"
-        unique_together = ("order", "product")
+        unique_together = ("order", "variant")
         indexes = [
-            models.Index(fields=["order", "product"]),
+            models.Index(fields=["order", "variant"]),
         ]
 
     def save(self, *args: Any, **kwargs: Any) -> None:
@@ -325,10 +349,20 @@ class OrderItem(models.Model):
         self.total_price = self.unit_price * self.quantity
 
         # Сохраняем снимок данных продукта
-        product = self.product
-        if product and not self.product_name:
-            self.product_name = getattr(product, "name", self.product_name)
-            self.product_sku = getattr(product, "sku", self.product_sku)
+        if self.product and not self.product_name:
+            self.product_name = getattr(self.product, "name", self.product_name)
+
+        if self.variant:
+            if not self.product_sku:
+                self.product_sku = getattr(self.variant, "sku", self.product_sku)
+            if not self.variant_info:
+                # Формируем информацию о варианте
+                parts = []
+                if self.variant.color_name:
+                    parts.append(f"Цвет: {self.variant.color_name}")
+                if self.variant.size_value:
+                    parts.append(f"Размер: {self.variant.size_value}")
+                self.variant_info = ", ".join(parts)
 
         super().save(*args, **kwargs)
 

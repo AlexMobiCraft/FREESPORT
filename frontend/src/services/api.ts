@@ -2,28 +2,27 @@
  * API клиент для взаимодействия с Django backend
  * Настройка Axios с JWT токенами и обработкой ошибок
  */
-import axios from "axios";
-import type { AuthTokens, ApiResponse } from "@/types";
+import axios from 'axios';
+import type { AuthTokens, ApiResponse } from '@/types';
 
 // Конфигурация API
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001/api/v1";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api/v1';
 
 // Создание Axios инстанса
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
   headers: {
-    "Content-Type": "application/json",
+    'Content-Type': 'application/json',
   },
 });
 
 // Управление токенами в localStorage
 export const tokenStorage = {
   get(): AuthTokens | null {
-    if (typeof window === "undefined") return null;
+    if (typeof window === 'undefined') return null;
 
-    const accessToken = localStorage.getItem("access_token");
-    const refreshToken = localStorage.getItem("refresh_token");
+    const accessToken = localStorage.getItem('access_token');
+    const refreshToken = localStorage.getItem('refresh_token');
 
     if (accessToken && refreshToken) {
       return {
@@ -36,23 +35,23 @@ export const tokenStorage = {
   },
 
   set(tokens: AuthTokens): void {
-    if (typeof window === "undefined") return;
+    if (typeof window === 'undefined') return;
 
-    localStorage.setItem("access_token", tokens.access);
-    localStorage.setItem("refresh_token", tokens.refresh);
+    localStorage.setItem('access_token', tokens.access);
+    localStorage.setItem('refresh_token', tokens.refresh);
   },
 
   clear(): void {
-    if (typeof window === "undefined") return;
+    if (typeof window === 'undefined') return;
 
-    localStorage.removeItem("access_token");
-    localStorage.removeItem("refresh_token");
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
   },
 };
 
 // Request interceptor для добавления JWT токена
 apiClient.interceptors.request.use(
-  (config) => {
+  config => {
     const tokens = tokenStorage.get();
 
     if (tokens?.access) {
@@ -62,17 +61,17 @@ apiClient.interceptors.request.use(
 
     return config;
   },
-  (error) => {
+  error => {
     return Promise.reject(error);
-  },
+  }
 );
 
 // Response interceptor для обработки ошибок и обновления токенов
 apiClient.interceptors.response.use(
-  (response) => {
+  response => {
     return response;
   },
-  async (error) => {
+  async error => {
     const originalRequest = error.config;
 
     // Если получили 401 и это не повторный запрос
@@ -84,12 +83,9 @@ apiClient.interceptors.response.use(
       if (tokens?.refresh) {
         try {
           // Попытка обновить access token
-          const response = await axios.post(
-            `${API_BASE_URL}/auth/token/refresh/`,
-            {
-              refresh: tokens.refresh,
-            },
-          );
+          const response = await axios.post(`${API_BASE_URL}/auth/token/refresh/`, {
+            refresh: tokens.refresh,
+          });
 
           const newTokens = response.data as AuthTokens;
           tokenStorage.set(newTokens);
@@ -102,8 +98,8 @@ apiClient.interceptors.response.use(
           // Refresh токен недействителен, очищаем и перенаправляем на логин
           tokenStorage.clear();
 
-          if (typeof window !== "undefined") {
-            window.location.href = "/auth/login";
+          if (typeof window !== 'undefined') {
+            window.location.href = '/login';
           }
 
           return Promise.reject(refreshError);
@@ -112,7 +108,7 @@ apiClient.interceptors.response.use(
     }
 
     return Promise.reject(error);
-  },
+  }
 );
 
 // Типизированные API методы
@@ -177,6 +173,6 @@ export const api = {
       }
     }
 
-    return new Error(axiosError.message || "Произошла неизвестная ошибка");
+    return new Error(axiosError.message || 'Произошла неизвестная ошибка');
   },
 };

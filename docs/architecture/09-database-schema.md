@@ -26,6 +26,23 @@ CREATE INDEX idx_users_email ON users_user(email);
 CREATE INDEX idx_users_role ON users_user(role);
 CREATE INDEX idx_users_company ON users_user(company_name) WHERE company_name IS NOT NULL;
 
+-- Company (B2B requisites)
+CREATE TABLE users_company (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER UNIQUE NOT NULL REFERENCES users_user(id) ON DELETE CASCADE,
+    legal_name VARCHAR(255),
+    tax_id VARCHAR(12),
+    kpp VARCHAR(9),
+    legal_address TEXT,
+    bank_name VARCHAR(200),
+    bank_bik VARCHAR(9),
+    account_number VARCHAR(20),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX idx_company_user ON users_company(user_id);
+
 -- Brands
 CREATE TABLE products_brand (
     id SERIAL PRIMARY KEY,
@@ -54,6 +71,37 @@ CREATE TABLE products_category (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Banners for Hero Section
+CREATE TABLE banners (
+    id SERIAL PRIMARY KEY,
+    title VARCHAR(200) NOT NULL,
+    subtitle VARCHAR(500),
+    image VARCHAR(255) NOT NULL,
+    image_alt VARCHAR(255),
+    cta_text VARCHAR(50),
+    cta_link VARCHAR(200),
+    
+    -- Targeting
+    show_to_guests BOOLEAN DEFAULT FALSE,
+    show_to_authenticated BOOLEAN DEFAULT FALSE,
+    show_to_trainers BOOLEAN DEFAULT FALSE,
+    show_to_wholesale BOOLEAN DEFAULT FALSE,
+    show_to_federation BOOLEAN DEFAULT FALSE,
+    
+    -- Management
+    is_active BOOLEAN DEFAULT TRUE,
+    priority INTEGER DEFAULT 0,
+    start_date TIMESTAMP WITH TIME ZONE,
+    end_date TIMESTAMP WITH TIME ZONE,
+    
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX idx_banners_active ON banners(is_active) WHERE is_active = true;
+CREATE INDEX idx_banners_priority ON banners(priority);
+CREATE INDEX idx_banners_dates ON banners(start_date, end_date);
 
 -- Unified Product table (representing SKU)
 CREATE TABLE products_product (
@@ -394,20 +442,23 @@ $$ LANGUAGE plpgsql STABLE;
 #### Важные архитектурные решения
 
 **1. Композитный FOREIGN KEY для секционированных таблиц:**
+
 - `orders_orderitem` включает `order_created_at` для корректной работы с секционированной `orders_order`
 - Это обеспечивает referential integrity на уровне БД
 
 **2. Секционирование:**
+
 - `products_product` - по hash от `brand_id` для равномерного распределения
 - `orders_order` - по range от `created_at` для эффективного архивирования
 
 **3. Ценообразование:**
+
 - Multi-tier pricing с поддержкой всех типов пользователей
 - RRP/MSRP поля для B2B пользователей (требование FR5)
 
 **4. Соответствие ФЗ-152:**
+
 - Audit log с `ON DELETE SET NULL` для сохранения аудита
 - Система согласий (consent management)
 
 ---
-

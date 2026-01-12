@@ -3,6 +3,7 @@
 ## Обзор
 
 FREESPORT - это современная API-First E-commerce платформа для B2B/B2C продаж спортивных товаров, включающая:
+
 - **Backend**: Django 5.2 + Django REST Framework
 - **Frontend**: Next.js 14+ + TypeScript
 - **Database**: PostgreSQL 15+
@@ -13,12 +14,14 @@ FREESPORT - это современная API-First E-commerce платформ�
 ## Требования к серверу
 
 ### Минимальные системные требования
+
 - **CPU**: 2 ядра
 - **RAM**: 4 ГБ
 - **Storage**: 20 ГБ SSD
 - **OS**: Ubuntu 20.04+ / CentOS 8+ / Debian 11+
 
 ### Рекомендуемые системные требования для production
+
 - **CPU**: 4+ ядер
 - **RAM**: 8+ ГБ
 - **Storage**: 50+ ГБ SSD
@@ -28,13 +31,15 @@ FREESPORT - это современная API-First E-commerce платформ�
 
 ### 1.1 Обновление системы
 
-#### Для Ubuntu/Debian:
+#### Для Ubuntu/Debian
+
 ```bash
 sudo apt update && sudo apt upgrade -y
 sudo apt install -y curl wget gnupg lsb-release software-properties-common ca-certificates
 ```
 
-#### Для CentOS/RHEL:
+#### Для CentOS/RHEL
+
 ```bash
 sudo yum update -y
 sudo yum install -y curl wget gnupg
@@ -42,7 +47,8 @@ sudo yum install -y curl wget gnupg
 
 ### 1.2 Настройка файрвола
 
-#### Ubuntu (UFW):
+#### Ubuntu (UFW)
+
 ```bash
 sudo ufw allow 22/tcp
 sudo ufw allow 80/tcp
@@ -50,7 +56,8 @@ sudo ufw allow 443/tcp
 sudo ufw --force enable
 ```
 
-#### CentOS (firewalld):
+#### CentOS (firewalld)
+
 ```bash
 sudo firewall-cmd --permanent --add-service=ssh
 sudo firewall-cmd --permanent --add-service=http
@@ -70,7 +77,8 @@ sudo su - freesport
 
 ### 2.1 Установка Docker Engine
 
-#### Для Ubuntu:
+#### Для Ubuntu
+
 ```bash
 # Добавление официального GPG ключа Docker
 sudo mkdir -m 0755 -p /etc/apt/keyrings
@@ -87,7 +95,8 @@ sudo apt update
 sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 ```
 
-#### Для CentOS/RHEL:
+#### Для CentOS/RHEL
+
 ```bash
 # Добавление репозитория Docker
 sudo yum install -y yum-utils
@@ -550,6 +559,7 @@ echo "0 4 * * 0 /path/to/freesport/scripts/system-update.sh" | crontab -
 ## Полезные команды
 
 ### Управление контейнерами
+
 ```bash
 # Просмотр запущенных контейнеров
 docker compose -f docker-compose.prod.yml ps
@@ -569,6 +579,7 @@ docker system prune -a
 ```
 
 ### Работа с базой данных
+
 ```bash
 # Подключение к базе данных
 docker compose -f docker-compose.prod.yml exec db psql -U postgres -d freesport
@@ -581,6 +592,7 @@ docker compose -f docker-compose.prod.yml exec -T db psql -U postgres freesport 
 ```
 
 ### Отладка
+
 ```bash
 # Вход в контейнер backend
 docker compose -f docker-compose.prod.yml exec backend bash
@@ -592,17 +604,42 @@ docker compose -f docker-compose.prod.yml exec frontend sh
 docker stats
 ```
 
+### Ручное обновление Prod-окружения
+
+```bash
+git pull
+
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml down -v # УДАЛЯЕТ ВСЕ
+
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml up -d --build --force-recreate backend nginx
+
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec backend python manage.py migrate --no-input
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec backend python manage.py collectstatic --no-input
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec backend python manage.py createsuperuser
+
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml up -d --build frontend
+
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml restart nginx
+
+# Перезапустить всё
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml up -d
+```
+
 ## Возможные проблемы и их решение
 
 ### Проблема: Недостаточно прав для Docker
+
 **Решение:**
+
 ```bash
 sudo usermod -aG docker $USER
 newgrp docker
 ```
 
 ### Проблема: Контейнеры не могут подключиться к сети
+
 **Решение:**
+
 ```bash
 # Проверка сетевых настроек
 docker network ls
@@ -615,7 +652,9 @@ docker compose -f docker-compose.prod.yml up -d
 ```
 
 ### Проблема: Недостаточно места на диске
+
 **Решение:**
+
 ```bash
 # Очистка Docker
 docker system prune -a
@@ -626,7 +665,9 @@ sudo journalctl --vacuum-time=7d
 ```
 
 ### Проблема: База данных не запускается
+
 **Решение:**
+
 ```bash
 # Проверка логов контейнера БД
 docker compose -f docker-compose.prod.yml logs db
@@ -640,6 +681,7 @@ sudo chown -R 999:999 postgres_data/
 После выполнения всех этих шагов у вас будет полностью настроенное окружение для развертывания и работы с FREESPORT Platform. Регулярно выполняйте обновления и резервные копирования для обеспечения стабильной работы системы.
 
 Для дополнительной информации обратитесь к:
+
 - [Официальной документации Docker](https://docs.docker.com/)
 - [Документации проекта FREESPORT](../../README.md)
 - [API документации](../api-spec.yaml)

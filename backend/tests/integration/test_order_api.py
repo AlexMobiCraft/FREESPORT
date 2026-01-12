@@ -1,22 +1,49 @@
 import pytest
+import uuid
 from django.urls import reverse
 from rest_framework import status
 
 from apps.cart.models import Cart, CartItem
 from apps.orders.models import Order, OrderItem
-from tests.conftest import ProductFactory, UserFactory, sample_image
+from decimal import Decimal
+from django.contrib.auth import get_user_model
+from apps.products.models import Brand, Category, Product, ProductVariant
+
+User = get_user_model()
 
 pytestmark = pytest.mark.django_db
 
 
 @pytest.fixture
-def product(sample_image):
-    return ProductFactory.create(stock_quantity=10, main_image=sample_image)
+def variant(sample_image):
+    brand = Brand.objects.create(
+        name=f"Brand-{uuid.uuid4()}", slug=f"brand-{uuid.uuid4()}"
+    )
+    category = Category.objects.create(
+        name=f"Cat-{uuid.uuid4()}", slug=f"cat-{uuid.uuid4()}"
+    )
+    product = Product.objects.create(
+        name="Test Product",
+        slug=f"product-{uuid.uuid4()}",
+        brand=brand,
+        category=category,
+        is_active=True,
+    )
+    return ProductVariant.objects.create(
+        product=product,
+        sku=f"SKU-{uuid.uuid4()}",
+        onec_id=f"1C-{uuid.uuid4()}",
+        retail_price=Decimal("100.00"),
+        stock_quantity=10,
+        is_active=True,
+    )
 
 
 @pytest.fixture
 def authenticated_client(db, api_client):
-    user = UserFactory.create()
+    user = User.objects.create_user(
+        email=f"user-{uuid.uuid4()}@example.com", password="testpass"
+    )
     from rest_framework_simplejwt.tokens import RefreshToken
 
     refresh = RefreshToken.for_user(user)
@@ -26,9 +53,14 @@ def authenticated_client(db, api_client):
 
 
 @pytest.fixture
-def cart_with_item(authenticated_client, product):
+def cart_with_item(authenticated_client, variant):
     cart = Cart.objects.create(user=authenticated_client.user)
-    CartItem.objects.create(cart=cart, product=product, quantity=1)
+    CartItem.objects.create(
+        cart=cart,
+        variant=variant,
+        quantity=1,
+        price_snapshot=variant.retail_price,
+    )
     return cart
 
 
@@ -94,7 +126,9 @@ def test_user_cannot_see_other_users_order(
     order_id = create_response.data["id"]
 
     # Create and authenticate a second user
-    other_user = UserFactory.create()
+    other_user = User.objects.create_user(
+        email=f"other-{uuid.uuid4()}@example.com", password="testpass"
+    )
     from rest_framework_simplejwt.tokens import RefreshToken
 
     refresh = RefreshToken.for_user(other_user)

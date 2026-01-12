@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Вход и Регистрация - FREESPORT</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;700&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined"
+      rel="stylesheet"
+    />
+    <script id="tailwind-config">
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              primary: '#137fec',
+              'background-light': '#f6f7f8',
+              'background-dark': '#101922',
+            },
+            fontFamily: {
+              display: ['Lexend', 'sans-serif'],
+            },
+            borderRadius: { DEFAULT: '0.25rem', lg: '0.5rem', xl: '0.75rem', full: '9999px' },
+          },
+        },
+      };
+    </script>
+    <style>
+      body {
+        font-family: 'Lexend', sans-serif;
+      }
+    </style>
+  </head>
+  <body class="bg-background-light dark:bg-background-dark font-display">
+    <div
+      class="relative flex min-h-screen w-full flex-col items-center justify-center bg-background-light dark:bg-background-dark p-4 group/design-root overflow-x-hidden"
+    >
+      <div class="layout-container flex h-full grow flex-col w-full max-w-md">
+        <div class="flex flex-1 flex-col items-center justify-center py-5">
+          <div class="layout-content-container flex w-full flex-col max-w-[480px] flex-1">
+            <h1
+              class="text-[#111418] dark:text-white tracking-light text-[32px] font-bold leading-tight px-4 text-center pb-3 pt-6 font-display"
+            >
+              FREESPORT
+            </h1>
+            <p
+              class="text-[#617589] dark:text-gray-300 text-base font-normal leading-normal pb-3 pt-1 px-4 text-center font-display"
+            >
+              Войдите или зарегистрируйтесь, чтобы продолжить
+            </p>
+            <div class="flex px-4 py-3">
+              <div
+                class="flex h-10 flex-1 items-center justify-center rounded-lg bg-gray-200 dark:bg-gray-700/50 p-1"
+              >
+                <label
+                  class="flex cursor-pointer h-full grow items-center justify-center overflow-hidden rounded-lg px-2 has-[:checked]:bg-white dark:has-[:checked]:bg-gray-900 has-[:checked]:shadow-[0_0_4px_rgba(0,0,0,0.1)] has-[:checked]:text-[#111418] dark:has-[:checked]:text-white text-[#617589] dark:text-gray-400 text-sm font-medium leading-normal"
+                >
+                  <span class="truncate">Вход</span>
+                  <input
+                    checked=""
+                    class="invisible w-0"
+                    name="auth-toggle"
+                    type="radio"
+                    value="Вход"
+                  />
+                </label>
+                <label
+                  class="flex cursor-pointer h-full grow items-center justify-center overflow-hidden rounded-lg px-2 has-[:checked]:bg-white dark:has-[:checked]:bg-gray-900 has-[:checked]:shadow-[0_0_4px_rgba(0,0,0,0.1)] has-[:checked]:text-[#111418] dark:has-[:checked]:text-white text-[#617589] dark:text-gray-400 text-sm font-medium leading-normal"
+                >
+                  <span class="truncate">Регистрация</span>
+                  <input
+                    class="invisible w-0"
+                    name="auth-toggle"
+                    type="radio"
+                    value="Регистрация"
+                  />
+                </label>
+              </div>
+            </div>
+            <div class="flex flex-col gap-4 px-4 py-3">
+              <label class="flex flex-col min-w-40 flex-1">
+                <p
+                  class="text-[#111418] dark:text-gray-200 text-base font-medium leading-normal pb-2 font-display"
+                >
+                  E-mail
+                </p>
+                <input
+                  class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-[#111418] dark:text-white focus:outline-0 focus:ring-2 focus:ring-black/50 dark:focus:ring-white/50 border border-[#dbe0e6] dark:border-gray-600 bg-white dark:bg-background-dark focus:border-black dark:focus:border-white h-14 placeholder:text-[#617589] p-[15px] text-base font-normal leading-normal font-display"
+                  placeholder="Введите ваш e-mail"
+                  value=""
+                />
+              </label>
+              <label class="flex flex-col min-w-40 flex-1">
+                <p
+                  class="text-[#111418] dark:text-gray-200 text-base font-medium leading-normal pb-2 font-display"
+                >
+                  Пароль
+                </p>
+                <div class="relative flex w-full flex-1 items-center">
+                  <input
+                    class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-[#111418] dark:text-white focus:outline-0 focus:ring-2 focus:ring-black/50 dark:focus:ring-white/50 border border-[#dbe0e6] dark:border-gray-600 bg-white dark:bg-background-dark focus:border-black dark:focus:border-white h-14 placeholder:text-[#617589] p-[15px] pr-12 text-base font-normal leading-normal font-display"
+                    placeholder="Введите ваш пароль"
+                    type="password"
+                    value=""
+                  />
+                  <button
+                    class="absolute right-0 flex h-full items-center justify-center px-3.5 text-[#617589] dark:text-gray-400"
+                    data-icon="Eye"
+                    data-size="24px"
+                    data-weight="regular"
+                  >
+                    <span class="material-symbols-outlined text-2xl">visibility</span>
+                  </button>
+                </div>
+              </label>
+            </div>
+            <div class="flex justify-end px-4 pt-1 pb-3">
+              <a class="text-sm font-medium text-black dark:text-white hover:underline" href="#"
+                >Забыли пароль?</a
+              >
+            </div>
+            <div class="px-4 py-3">
+              <button
+                class="flex h-14 w-full items-center justify-center rounded-lg bg-black text-white dark:bg-white dark:text-black text-base font-bold leading-normal transition-colors hover:bg-gray-800 dark:hover:bg-gray-200"
+              >
+                Войти
+              </button>
+            </div>
+            <div class="flex items-center gap-4 px-4 py-3">
+              <hr class="flex-1 border-t border-gray-200 dark:border-gray-700" />
+              <p class="text-sm text-[#617589] dark:text-gray-400">Или войдите через</p>
+              <hr class="flex-1 border-t border-gray-200 dark:border-gray-700" />
+            </div>
+            <div class="grid grid-cols-3 gap-4 px-4 py-3">
+              <button
+                class="flex h-12 items-center justify-center rounded-lg border border-[#dbe0e6] dark:border-gray-700 bg-white dark:bg-gray-800/50 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+              >
+                <img
+                  alt="Google logo"
+                  class="h-6 w-6"
+                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuAjjItHH1-6sIh5eABCJ4FDVxjDoYQ8Sj-LJSuuZQiRFSA3NO2cz5jM2PFLAq_9lZD-Ewy9U3YJiqAgfowHHmv-OHiaKU4tmsYVE_kLNA3jnasKiK99OeJm3YjA0JbCG3pxbxdo8x6dAKAGkGc4du__1lhPuKgXaLXnsW6O9q99YFjD0XEBm5I60bwUDwcIbluMvxhibBHMlDxjlTr70V9cwYqfIlEuvUoxk2fqydZMKU0-4yBF8pxQSu5tT5kd7lq7kF6ZWYQ9zvM"
+                />
+              </button>
+              <button
+                class="flex h-12 items-center justify-center rounded-lg border border-[#dbe0e6] dark:border-gray-700 bg-white dark:bg-gray-800/50 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+              >
+                <img
+                  alt="VK logo"
+                  class="h-6 w-6"
+                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuAXLkqgI0Wjbe59IpdrXUWHrRVxeXt0qlHDVOJYCEw93e_rfIotNg-j-S5ip4CvoCuyA7IUczuC3RGkbelHa83krDWjgLqEDGaScI1tACZiZpIVhdq-8_6tj347ShEB3AADbZDoce1V2_j_L1rwN8gItgz1Lmw9zDAqYE2EkP8ueJR6DjfQEaJxC4nm3wDEJIArQuJ0mGNhbWvy0snRbOIvpnPHsdJGvx3BPIZhsD1b-Tcv6jfEa79Wl5ZuAzKNSDpkQ3FFXw6eJ5w"
+                />
+              </button>
+              <button
+                class="flex h-12 items-center justify-center rounded-lg border border-[#dbe0e6] dark:border-gray-700 bg-white dark:bg-gray-800/50 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+              >
+                <img
+                  alt="Yandex logo"
+                  class="h-6 w-6"
+                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuCEJRKdHuWu1ffOBOYh9hTYu9uT92cNS_Cs5M23B5iujNgyESUAdx_LUec98180E-a87jTFxNHN--Ry3Jd1Q1L66_UYzQhJFYdFH_-tD14HpmDy97SchlQizWg2-uw_VnuVrbcpsEe8A7jqeUEEcpg6lxt5pSTeKtQQ0WybNuHk6MzmJpL9ruoU-lw8Ilcsi0RU46z3pC41mIUE6D7NIGTKp3SHrK37vVzI1suMHORefPT2ASHxiAFFwVGS6v9M7aVxIVXBCdB-jYs"
+                />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

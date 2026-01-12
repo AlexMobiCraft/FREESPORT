@@ -2,10 +2,13 @@
 Базовые настройки Django для платформы FREESPORT
 Общая конфигурация для всех окружений
 """
+
 import os
 import sys
 from datetime import timedelta
 from pathlib import Path
+
+from decouple import config, Csv
 
 # Временно отключаем патч для исправления проблем с кодировкой psycopg2 на Windows
 # try:
@@ -14,7 +17,6 @@ from pathlib import Path
 # except ImportError:
 #     pass  # Патч не применен, но продолжаем работу
 
-from decouple import config
 
 # Настройка кодировки для Windows консоли
 if sys.platform == "win32":
@@ -51,6 +53,7 @@ DJANGO_APPS = [
 THIRD_PARTY_APPS = [
     "rest_framework",
     "rest_framework_simplejwt",
+    "rest_framework_simplejwt.token_blacklist",  # Story 30.1: JWT Token Blacklist
     "corsheaders",
     "django_redis",
     "drf_spectacular",
@@ -66,6 +69,9 @@ LOCAL_APPS = [
     "apps.cart",
     "apps.pages",
     "apps.common",
+    "apps.integrations.apps.IntegrationsConfig",
+    "apps.delivery",
+    "apps.banners",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -164,12 +170,19 @@ REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
 
-# Конфигурация JWT согласно Story 1.3
+# ============================================================================
+# JWT Authentication Configuration (Story 1.3, Story 30.1)
+# ============================================================================
+# Story 30.1: JWT Token Blacklist Setup
+# - ROTATE_REFRESH_TOKENS: создаёт новый refresh токен при каждом обновлении
+# - BLACKLIST_AFTER_ROTATION: автоматически добавляет старый токен в blacklist
+# - Требует приложение 'rest_framework_simplejwt.token_blacklist' в INSTALLED_APPS
+# - Таблицы: token_blacklist_outstandingtoken, token_blacklist_blacklistedtoken
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
-    "ROTATE_REFRESH_TOKENS": True,
-    "BLACKLIST_AFTER_ROTATION": True,
+    "ROTATE_REFRESH_TOKENS": True,  # Story 30.1: Ротация refresh токенов
+    "BLACKLIST_AFTER_ROTATION": True,  # Story 30.1: Автоматический blacklist
     "UPDATE_LAST_LOGIN": True,
     "ALGORITHM": "HS256",
     "SIGNING_KEY": SECRET_KEY,
@@ -195,7 +208,7 @@ SIMPLE_JWT = {
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": config("REDIS_URL", default="redis://localhost:6379/0"),
+        "LOCATION": config("REDIS_URL", default="redis://:redis123@redis:6379/0"),
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         },
@@ -204,12 +217,20 @@ CACHES = {
 
 CELERY_BROKER_URL = config(
     "CELERY_BROKER_URL",
-    default=config("REDIS_URL", default="redis://localhost:6379/0"),
+    default=config("REDIS_URL", default="redis://:redis123@redis:6379/0"),
 )
 CELERY_RESULT_BACKEND = config(
     "CELERY_RESULT_BACKEND",
     default=CELERY_BROKER_URL,
 )
+
+# Celery Beat Schedule (Story 29.4 - мониторинг pending верификаций)
+CELERY_BEAT_SCHEDULE = {
+    "monitor-pending-verification-queue": {
+        "task": "apps.users.tasks.monitor_pending_verification_queue",
+        "schedule": 60 * 60 * 8,  # Каждые 8 часов (9:00, 17:00 при запуске в 9:00)
+    },
+}
 
 # Интернационализация
 LANGUAGE_CODE = "ru-ru"
@@ -225,6 +246,24 @@ STATICFILES_DIRS = [BASE_DIR / "static"]
 # Медиа файлы
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+
+# Права доступа для загружаемых файлов
+# Необходимо для корректного чтения файлов Nginx'ом, когда бэкенд и
+# веб-сервер работают от разных пользователей
+FILE_UPLOAD_PERMISSIONS = 0o644
+FILE_UPLOAD_DIRECTORY_PERMISSIONS = 0o755
+
+# Лимит POST/GET параметров для Django Admin с большими inline формами
+# Увеличен для поддержки атрибутов с большим количеством значений
+# (напр. "Размер" с 466+ значениями)
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 5000
+
+# Интеграция с 1С
+# Путь к директории с данными импорта из 1С
+# Поддерживает переменную окружения ONEC_DATA_DIR
+# В Docker контейнере это будет /app/data/import_1c
+# BASE_DIR = /app, поэтому используем BASE_DIR / "data" / "import_1c"
+ONEC_DATA_DIR = os.environ.get("ONEC_DATA_DIR", str(BASE_DIR / "data" / "import_1c"))
 
 # Тип первичного ключа по умолчанию
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
@@ -302,7 +341,147 @@ SPECTACULAR_SETTINGS = {
     },
 }
 
+# Настройки для разрешения конфликтов синхронизации (Story 3.2.2)
+CONFLICT_NOTIFICATION_EMAIL = config(
+    "CONFLICT_NOTIFICATION_EMAIL", default="admin@freesport.ru"
+)
+
+# ============================================================================
+# Email Configuration (Story 29.3)
+# ============================================================================
+
+# Email backend: console для development, smtp для production
+# В development это переопределяется в development.py на console backend
+EMAIL_BACKEND = config(
+    "EMAIL_BACKEND", default="django.core.mail.backends.smtp.EmailBackend"
+)
+
+# SMTP сервер настройки
+EMAIL_HOST = config("EMAIL_HOST", default="smtp.yandex.ru")
+EMAIL_PORT = config("EMAIL_PORT", default=587, cast=int)
+EMAIL_USE_TLS = config("EMAIL_USE_TLS", default=True, cast=bool)
+EMAIL_USE_SSL = config("EMAIL_USE_SSL", default=False, cast=bool)
+
+# Credentials для SMTP (из .env файла)
+EMAIL_HOST_USER = config("EMAIL_HOST_USER", default="")
+EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD", default="")
+
+# Адрес отправителя по умолчанию
+DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="noreply@freesport.ru")
+SERVER_EMAIL = config("SERVER_EMAIL", default=DEFAULT_FROM_EMAIL)
+
+# Парсинг списка администраторов из ADMIN_EMAILS
+# Формат: "Admin Name <admin@example.com>,Another Admin <admin2@example.com>"
+# или просто: "admin@example.com,admin2@example.com"
+_admin_emails_raw = config("ADMIN_EMAILS", default="", cast=Csv())
+ADMINS = [("Admin", email.strip()) for email in _admin_emails_raw if email.strip()]
+
+# Менеджеры получают уведомления о битых ссылках (404)
+MANAGERS = ADMINS
+
+# ============================================================================
+# Logging Configuration (Story 13.2 - NFR8)
+# ============================================================================
+
+LOGS_DIR = BASE_DIR / "logs"
+
+# Создаём директорию логов безопасно
+try:
+    LOGS_DIR.mkdir(exist_ok=True)
+    _base_file_logging_available = LOGS_DIR.exists() and os.access(
+        str(LOGS_DIR), os.W_OK
+    )
+except (OSError, PermissionError):
+    _base_file_logging_available = False
+
+# Базовые handlers (всегда доступны)
+_base_handlers = {
+    "console": {
+        "level": "INFO",
+        "class": "logging.StreamHandler",
+        "formatter": "simple",
+    },
+}
+
+# Добавляем файловые handlers только если директория доступна
+if _base_file_logging_available:
+    _base_handlers["import_file"] = {
+        "level": "INFO",
+        "class": "logging.handlers.RotatingFileHandler",
+        "filename": str(LOGS_DIR / "import_products.log"),
+        "maxBytes": 10 * 1024 * 1024,  # 10 MB
+        "backupCount": 5,
+        "formatter": "verbose",
+        "encoding": "utf-8",
+    }
+    _base_handlers["error_file"] = {
+        "level": "ERROR",
+        "class": "logging.handlers.RotatingFileHandler",
+        "filename": str(LOGS_DIR / "errors.log"),
+        "maxBytes": 10 * 1024 * 1024,  # 10 MB
+        "backupCount": 5,
+        "formatter": "verbose",
+        "encoding": "utf-8",
+    }
+
+# Определяем loggers в зависимости от доступности файлового логирования
+_import_handlers = (
+    ["import_file", "console"] if _base_file_logging_available else ["console"]
+)
+_products_handlers = (
+    ["console", "error_file"] if _base_file_logging_available else ["console"]
+)
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "[{asctime}] {levelname} {name} [{module}:{lineno}] {message}",
+            "style": "{",
+            "datefmt": "%Y-%m-%d %H:%M:%S",
+        },
+        "simple": {
+            "format": "[{asctime}] {levelname} {message}",
+            "style": "{",
+            "datefmt": "%H:%M:%S",
+        },
+    },
+    "handlers": _base_handlers,
+    "loggers": {
+        "django": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": True,
+        },
+        "import_products": {
+            "handlers": _import_handlers,
+            "level": "INFO",
+            "propagate": False,
+        },
+        "apps.products": {
+            "handlers": _products_handlers,
+            "level": "INFO",
+            "propagate": False,
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": "WARNING",
+    },
+}
+
+# ============================================================================
+# Site URL Configuration (Story 29.4)
+# ============================================================================
+
+# URL сайта для использования в email templates и ссылках
+SITE_URL = config("SITE_URL", default="http://localhost:3000")
+
+# ============================================================================
 # Настройки безопасности (переопределяются в продакшене)
+# ============================================================================
+
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = "DENY"

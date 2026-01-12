@@ -1,0 +1,608 @@
+<!doctype html>
+<html class="light" lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>FREESPORT - Поиск</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined"
+      rel="stylesheet"
+    />
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              primary: '#137fec',
+              'background-light': '#f6f7f8',
+              'background-dark': '#101922',
+            },
+            fontFamily: {
+              display: ['Lexend', 'sans-serif'],
+            },
+            borderRadius: {
+              DEFAULT: '0.25rem',
+              lg: '0.5rem',
+              xl: '0.75rem',
+              full: '9999px',
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      .material-symbols-outlined {
+        font-variation-settings:
+          'FILL' 0,
+          'wght' 400,
+          'GRAD' 0,
+          'opsz' 24;
+      }
+    </style>
+  </head>
+  <body
+    class="font-display bg-background-light dark:bg-background-dark text-gray-900 dark:text-gray-100"
+  >
+    <div
+      class="relative flex h-auto min-h-screen w-full flex-col group/design-root overflow-x-hidden"
+    >
+      <header
+        class="sticky top-0 z-20 bg-white/80 dark:bg-background-dark/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-800"
+      >
+        <div class="container mx-auto px-4">
+          <div class="flex items-center justify-between whitespace-nowrap h-16">
+            <div class="flex items-center gap-8">
+              <div class="flex items-center gap-3 text-gray-900 dark:text-white">
+                <span class="material-symbols-outlined text-3xl text-gray-900 dark:text-white"
+                  >directions_run</span
+                >
+                <h2 class="text-xl font-bold tracking-[-0.015em]">FREESPORT</h2>
+              </div>
+              <nav class="hidden lg:flex items-center gap-6">
+                <a
+                  class="text-gray-800 dark:text-gray-200 text-sm font-medium hover:text-gray-900 dark:hover:text-white transition-colors"
+                  href="#"
+                  >Мужчины</a
+                >
+                <a
+                  class="text-gray-800 dark:text-gray-200 text-sm font-medium hover:text-gray-900 dark:hover:text-white transition-colors"
+                  href="#"
+                  >Женщины</a
+                >
+                <a
+                  class="text-gray-800 dark:text-gray-200 text-sm font-medium hover:text-gray-900 dark:hover:text-white transition-colors"
+                  href="#"
+                  >Дети</a
+                >
+                <a
+                  class="text-gray-800 dark:text-gray-200 text-sm font-medium hover:text-gray-900 dark:hover:text-white transition-colors"
+                  href="#"
+                  >Бренды</a
+                >
+                <a
+                  class="text-gray-800 dark:text-gray-200 text-sm font-medium hover:text-gray-900 dark:hover:text-white transition-colors"
+                  href="#"
+                  >Скидки</a
+                >
+              </nav>
+            </div>
+            <div class="flex flex-1 justify-end items-center gap-2">
+              <div class="relative w-full max-w-xs group">
+                <label class="flex flex-col min-w-40 h-10 w-full">
+                  <div class="flex w-full flex-1 items-stretch rounded-lg h-full">
+                    <div
+                      class="text-gray-500 dark:text-gray-400 flex bg-gray-100 dark:bg-gray-800 items-center justify-center pl-3.5 rounded-l-lg"
+                    >
+                      <span class="material-symbols-outlined !text-2xl">search</span>
+                    </div>
+                    <input
+                      class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-r-lg text-gray-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-100 focus:ring-inset border-none bg-gray-100 dark:bg-gray-800 h-full placeholder:text-gray-500 dark:placeholder:text-gray-400 px-4 pl-2 text-sm font-normal"
+                      placeholder="Найти кроссовки, футболку..."
+                      value="кроссовки"
+                    />
+                  </div>
+                </label>
+                <div
+                  class="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl overflow-hidden animate-fade-in-down"
+                >
+                  <ul class="divide-y divide-gray-100 dark:divide-gray-700">
+                    <li>
+                      <a
+                        class="flex items-center gap-4 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                        href="#"
+                      >
+                        <div
+                          class="text-gray-500 dark:text-gray-400 flex items-center justify-center shrink-0"
+                        >
+                          <span class="material-symbols-outlined">search</span>
+                        </div>
+                        <p
+                          class="text-gray-800 dark:text-gray-200 text-sm font-normal flex-1 truncate"
+                        >
+                          кроссовки для бега
+                        </p>
+                        <span
+                          class="material-symbols-outlined text-gray-400 dark:text-gray-500 !text-xl"
+                          >arrow_outward</span
+                        >
+                      </a>
+                    </li>
+                    <li>
+                      <a
+                        class="flex items-center gap-4 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                        href="#"
+                      >
+                        <div
+                          class="bg-center bg-no-repeat aspect-square bg-cover rounded-md size-12"
+                          data-alt="Белые кроссовки Nike на светлом фоне"
+                          style="
+                            background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAuZpt9hegY2GNgSOgaNI1-veCW_OsNJ5Dw4K8dWbcTkqiqyl0gVy2uzW5dGLrPceNYX0IsquBH9bXg9DDVNnT6tZH3YaPsNCjLne6zuvjj73lww3-LW82A0HgdZwYrA29DcLwHToiDcgvCk_ZDQQq27w__xJasoTSfYXRiC6NvPbOe8d2zzx7CwJdmUYXcBWIxKGLt2z1vkQZFqIjEPjy7fmtFuuA7A26ziCXYLzvCv4AiHaKC-CsjoXNWM5ARsD3CMXBUPJL6OMs');
+                          "
+                        ></div>
+                        <div class="flex flex-col justify-center flex-1 min-w-0">
+                          <p class="text-gray-900 dark:text-white text-sm font-medium line-clamp-1">
+                            Кроссовки Nike Air Zoom Pegasus
+                          </p>
+                          <p
+                            class="text-gray-600 dark:text-gray-400 text-sm font-normal line-clamp-1"
+                          >
+                            ₽12,999
+                          </p>
+                        </div>
+                        <span
+                          class="material-symbols-outlined text-gray-400 dark:text-gray-500 !text-xl"
+                          >arrow_outward</span
+                        >
+                      </a>
+                    </li>
+                    <li>
+                      <a
+                        class="flex items-center gap-4 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                        href="#"
+                      >
+                        <div
+                          class="bg-center bg-no-repeat aspect-square bg-cover rounded-md size-12"
+                          data-alt="Черные кроссовки Adidas на темном фоне"
+                          style="
+                            background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuB8oQJtqiZo_wObuaCEpcLa5uK13rTaqxkg7TH8h312Oc79NhyQfuvsq7GkehC6GvQd_LZCGOkoXT1BayeKvisgPFGIumKNZfnbrGHK2-LdghjjQe9BP-52ShUOmphkLZLcrE8CoP04v-f0yJm4PAQf4SLRGLzWDDOc4EsKVk_FinsLqiXaugHb53N8SXYk2KFK67F3gf2RTzVeEriNr7RqR_-AXBuHofwBFGXMeC_0kZK2NWFq1zKv_WFIvm-SEQFjGiHSL67waxU');
+                          "
+                        ></div>
+                        <div class="flex flex-col justify-center flex-1 min-w-0">
+                          <p class="text-gray-900 dark:text-white text-sm font-medium line-clamp-1">
+                            Кроссовки Adidas Ultraboost
+                          </p>
+                          <p
+                            class="text-gray-600 dark:text-gray-400 text-sm font-normal line-clamp-1"
+                          >
+                            ₽15,499
+                          </p>
+                        </div>
+                        <span
+                          class="material-symbols-outlined text-gray-400 dark:text-gray-500 !text-xl"
+                          >arrow_outward</span
+                        >
+                      </a>
+                    </li>
+                    <li>
+                      <a
+                        class="flex items-center gap-4 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                        href="#"
+                      >
+                        <div
+                          class="text-gray-500 dark:text-gray-400 flex items-center justify-center shrink-0"
+                        >
+                          <span class="material-symbols-outlined">style</span>
+                        </div>
+                        <p
+                          class="text-gray-800 dark:text-gray-200 text-sm font-normal flex-1 truncate"
+                        >
+                          Коллекция: Футбол
+                        </p>
+                        <span
+                          class="material-symbols-outlined text-gray-400 dark:text-gray-500 !text-xl"
+                          >arrow_outward</span
+                        >
+                      </a>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+              <div class="flex gap-1.5">
+                <button
+                  class="flex cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 w-10 bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                >
+                  <span class="material-symbols-outlined !text-2xl">favorite</span>
+                </button>
+                <button
+                  class="flex cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 w-10 bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                >
+                  <span class="material-symbols-outlined !text-2xl">shopping_bag</span>
+                </button>
+                <button
+                  class="flex cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 w-10 bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                >
+                  <span class="material-symbols-outlined !text-2xl">person</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </header>
+      <main class="container mx-auto px-4 py-8">
+        <div class="mb-6">
+          <nav aria-label="Breadcrumb">
+            <ol class="flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400">
+              <li><a class="hover:underline" href="#">Главная</a></li>
+              <li><span class="material-symbols-outlined !text-base">chevron_right</span></li>
+              <li class="font-medium text-gray-800 dark:text-gray-200">Поиск</li>
+            </ol>
+          </nav>
+        </div>
+        <div class="flex items-baseline justify-between mb-6">
+          <h1 class="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
+            Результаты по запросу: "кроссовки"
+          </h1>
+          <p class="text-sm text-gray-600 dark:text-gray-400 shrink-0">Найдено 128 товаров</p>
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          <aside class="col-span-1">
+            <div class="sticky top-24">
+              <div class="flex items-center justify-between mb-4">
+                <h2 class="text-xl font-semibold">Фильтры</h2>
+                <button class="text-sm text-gray-600 dark:text-gray-400 hover:underline">
+                  Сбросить
+                </button>
+              </div>
+              <div class="space-y-6">
+                <div class="border-b border-gray-200 dark:border-gray-700 pb-6">
+                  <h3 class="font-semibold mb-3">Категория</h3>
+                  <div class="space-y-2">
+                    <label class="flex items-center gap-3 text-sm">
+                      <input
+                        class="form-checkbox h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-gray-900 focus:ring-gray-900 dark:text-white dark:focus:ring-white bg-transparent dark:bg-transparent"
+                        type="checkbox"
+                      />
+                      <span>Лайфстайл</span>
+                    </label>
+                    <label class="flex items-center gap-3 text-sm">
+                      <input
+                        checked=""
+                        class="form-checkbox h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-gray-900 focus:ring-gray-900 dark:text-white dark:focus:ring-white bg-transparent dark:bg-transparent"
+                        type="checkbox"
+                      />
+                      <span>Бег</span>
+                    </label>
+                    <label class="flex items-center gap-3 text-sm">
+                      <input
+                        class="form-checkbox h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-gray-900 focus:ring-gray-900 dark:text-white dark:focus:ring-white bg-transparent dark:bg-transparent"
+                        type="checkbox"
+                      />
+                      <span>Баскетбол</span>
+                    </label>
+                    <label class="flex items-center gap-3 text-sm">
+                      <input
+                        class="form-checkbox h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-gray-900 focus:ring-gray-900 dark:text-white dark:focus:ring-white bg-transparent dark:bg-transparent"
+                        type="checkbox"
+                      />
+                      <span>Футбол</span>
+                    </label>
+                  </div>
+                </div>
+                <div class="border-b border-gray-200 dark:border-gray-700 pb-6">
+                  <h3 class="font-semibold mb-3">Цена</h3>
+                  <div class="flex items-center gap-3">
+                    <input
+                      class="form-input w-full rounded-md border-gray-300 dark:border-gray-600 bg-transparent dark:bg-transparent focus:ring-gray-900 focus:border-gray-900 dark:focus:ring-gray-100 dark:focus:border-gray-100 text-sm"
+                      placeholder="От"
+                      type="number"
+                      value="5000"
+                    />
+                    <span class="text-gray-400">-</span>
+                    <input
+                      class="form-input w-full rounded-md border-gray-300 dark:border-gray-600 bg-transparent dark:bg-transparent focus:ring-gray-900 focus:border-gray-900 dark:focus:ring-gray-100 dark:focus:border-gray-100 text-sm"
+                      placeholder="До"
+                      type="number"
+                      value="25000"
+                    />
+                  </div>
+                </div>
+                <div class="border-b border-gray-200 dark:border-gray-700 pb-6">
+                  <h3 class="font-semibold mb-3">Бренд</h3>
+                  <div class="space-y-2">
+                    <label class="flex items-center gap-3 text-sm">
+                      <input
+                        checked=""
+                        class="form-checkbox h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-gray-900 focus:ring-gray-900 dark:text-white dark:focus:ring-white bg-transparent dark:bg-transparent"
+                        type="checkbox"
+                      />
+                      <span>Nike</span>
+                    </label>
+                    <label class="flex items-center gap-3 text-sm">
+                      <input
+                        checked=""
+                        class="form-checkbox h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-gray-900 focus:ring-gray-900 dark:text-white dark:focus:ring-white bg-transparent dark:bg-transparent"
+                        type="checkbox"
+                      />
+                      <span>Adidas</span>
+                    </label>
+                    <label class="flex items-center gap-3 text-sm">
+                      <input
+                        class="form-checkbox h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-gray-900 focus:ring-gray-900 dark:text-white dark:focus:ring-white bg-transparent dark:bg-transparent"
+                        type="checkbox"
+                      />
+                      <span>Puma</span>
+                    </label>
+                  </div>
+                </div>
+                <div>
+                  <h3 class="font-semibold mb-3">Опции</h3>
+                  <div class="space-y-3">
+                    <label class="flex items-center justify-between text-sm">
+                      <span>Со скидкой</span>
+                      <input
+                        class="form-checkbox h-5 w-9 appearance-none rounded-full bg-gray-300 dark:bg-gray-600 checked:bg-gray-900 dark:checked:bg-white focus:ring-gray-900 dark:focus:ring-white focus:ring-offset-0 indeterminate:bg-gray-300 shrink-0"
+                        role="switch"
+                        type="checkbox"
+                      />
+                    </label>
+                    <label class="flex items-center justify-between text-sm">
+                      <span>В наличии</span>
+                      <input
+                        checked=""
+                        class="form-checkbox h-5 w-9 appearance-none rounded-full bg-gray-300 dark:bg-gray-600 checked:bg-gray-900 dark:checked:bg-white focus:ring-gray-900 dark:focus:ring-white focus:ring-offset-0 indeterminate:bg-gray-300 shrink-0"
+                        role="switch"
+                        type="checkbox"
+                      />
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </aside>
+          <div class="col-span-1 lg:col-span-3">
+            <div class="flex justify-end mb-4">
+              <div class="relative">
+                <select
+                  class="form-select appearance-none rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 pr-8 text-sm focus:ring-gray-900 focus:border-gray-900 dark:focus:ring-white dark:focus:border-white"
+                >
+                  <option>Сортировать: Популярное</option>
+                  <option>Сортировать: Сначала дешевле</option>
+                  <option>Сортировать: Сначала дороже</option>
+                  <option>Сортировать: Новинки</option>
+                </select>
+                <span
+                  class="material-symbols-outlined pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 !text-xl text-gray-500"
+                  >unfold_more</span
+                >
+              </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+              <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden group">
+                <div class="relative">
+                  <div
+                    class="aspect-square w-full bg-cover bg-center"
+                    data-alt="Беговые кроссовки Nike красного цвета"
+                    style="
+                      background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCv7mt_dgETHZsGj2W5oUtl0pCFpk48rdx1bJcaRAxDDR34VxwzlbxVdqYprzd5olTzfGR0z2kAOfCwQQqHHE27PRhUwpX76L85ljJEBWSSUewNSQNAyykWXDGfPxHrVOBr2T2kUrxAV6JBgqfzuy3ZFgtboQfEyxC7MmHerV0QtOu-DD4VyKRAzyq_1Fgfb3QlKmSPTeGEvFmT6rX9v9wrXKlF7kUqX2cSy5jC6yo82F3jEsofKBMhanyKtG4wSfoE1gjP8NHNnLU');
+                    "
+                  ></div>
+                  <div
+                    class="absolute top-3 left-3 bg-gray-900 text-white text-xs font-bold px-2 py-1 rounded-full"
+                  >
+                    -20%
+                  </div>
+                </div>
+                <div class="p-4">
+                  <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">Nike</p>
+                  <h3 class="font-semibold text-gray-900 dark:text-white truncate">
+                    Nike Air Zoom Pegasus
+                  </h3>
+                  <div class="flex items-baseline gap-2 mt-2">
+                    <p class="text-lg font-bold text-gray-900 dark:text-white">₽10,399</p>
+                    <p class="text-sm text-gray-500 line-through">₽12,999</p>
+                  </div>
+                  <button
+                    class="mt-4 w-full flex items-center justify-center gap-2 rounded-lg bg-gray-900 text-white dark:bg-white dark:text-gray-900 h-10 text-sm font-bold hover:bg-gray-700 dark:hover:bg-gray-200 transition-colors"
+                  >
+                    <span class="material-symbols-outlined !text-xl">add_shopping_cart</span>
+                    <span>В корзину</span>
+                  </button>
+                </div>
+              </div>
+              <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden group">
+                <div
+                  class="aspect-square w-full bg-cover bg-center"
+                  data-alt="Черные кроссовки Adidas с белыми полосками"
+                  style="
+                    background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDWrMrPUMsuPoJ9vtE2lCIHax80so4jpg6_gN7AB3Xe2dqu3KVkyYX0uAyD7wkYqmYJaFPLyseMFIgiY6lI1P_MWJj2I8h7p3LwH-jTyhNS4mSAQR_wDqeQNBWuVyoUeS-115dCVIAIweL1AJv4L_1eABhi6Kh80gqB1tMxpqhqR4Vaj0x-UQu2Heln2KHtya4u-kudEHJf7bbaMLb05yK8wXzM4JvSABmDQK3u0WEdoDX3HpEg0SlYHfTbKAaQ7r5oj6ocQQCYWyE');
+                  "
+                ></div>
+                <div class="p-4">
+                  <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">Adidas</p>
+                  <h3 class="font-semibold text-gray-900 dark:text-white truncate">
+                    Adidas Ultraboost 22
+                  </h3>
+                  <div class="flex items-baseline gap-2 mt-2">
+                    <p class="text-lg font-bold text-gray-900 dark:text-white">₽15,499</p>
+                  </div>
+                  <button
+                    class="mt-4 w-full flex items-center justify-center gap-2 rounded-lg bg-gray-900 text-white dark:bg-white dark:text-gray-900 h-10 text-sm font-bold hover:bg-gray-700 dark:hover:bg-gray-200 transition-colors"
+                  >
+                    <span class="material-symbols-outlined !text-xl">add_shopping_cart</span>
+                    <span>В корзину</span>
+                  </button>
+                </div>
+              </div>
+              <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden group">
+                <div
+                  class="aspect-square w-full bg-cover bg-center"
+                  data-alt="Разноцветные кроссовки Nike на белом фоне"
+                  style="
+                    background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuA2bBhf-8xbpUPlye11NgQzYbveECLumrfujOtLlw8IP6GUWTqI2KvU-1CqxybXHVNFqxCJl84CdchXusUQ8nAEZiq97-2DiQd_tWdVP1NmzBnupM3MtwXwQk-XkPoNR5g0F-1hrpkd_ujHzu94I6HLHMOR_pUsOznRubfsMdUgpa46_D4DeEWHqVW8YDuKdMRjEZpNjbdLyfuhm1kpKDE7_5s-j59HLipCS9TY8Q8gPSmr9OlJPSdAFqC0Fq4-67Vrw83gvJaBQMc');
+                  "
+                ></div>
+                <div class="p-4">
+                  <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">Nike</p>
+                  <h3 class="font-semibold text-gray-900 dark:text-white truncate">
+                    Nike Air Force 1 '07
+                  </h3>
+                  <div class="flex items-baseline gap-2 mt-2">
+                    <p class="text-lg font-bold text-gray-900 dark:text-white">₽11,999</p>
+                  </div>
+                  <button
+                    class="mt-4 w-full flex items-center justify-center gap-2 rounded-lg bg-gray-900 text-white dark:bg-white dark:text-gray-900 h-10 text-sm font-bold hover:bg-gray-700 dark:hover:bg-gray-200 transition-colors"
+                  >
+                    <span class="material-symbols-outlined !text-xl">add_shopping_cart</span>
+                    <span>В корзину</span>
+                  </button>
+                </div>
+              </div>
+              <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden group">
+                <div
+                  class="aspect-square w-full bg-cover bg-center"
+                  data-alt="Белые кроссовки Puma с черным логотипом"
+                  style="
+                    background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAgqfKZN1yMWKgQdamXJcRyjKPjc12Ndt6qZaRCAYYzlbngvtbVY6ipX5XS9ErbQ2V4jpv4ufsES6Zd7i_NeVad4OXYWqp03fmIjYAl28CfgaUcsVCAaHf1eABK49_pF01o-9BkegQ8Dqab2RGi4F9qTCUOuGSa44VFWsI3YFv5dUaXudKN-bIdce4ViDnwLpIhh2U1xIQXxaVglNN6_T-6_MZp3TwxnIbnsufqX6JMx5UUZ6xdizanoAnRo2CID-xo72AzqHYKlkY');
+                  "
+                ></div>
+                <div class="p-4">
+                  <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">Puma</p>
+                  <h3 class="font-semibold text-gray-900 dark:text-white truncate">
+                    Puma Suede Classic
+                  </h3>
+                  <div class="flex items-baseline gap-2 mt-2">
+                    <p class="text-lg font-bold text-gray-900 dark:text-white">₽8,999</p>
+                  </div>
+                  <button
+                    class="mt-4 w-full flex items-center justify-center gap-2 rounded-lg bg-gray-900 text-white dark:bg-white dark:text-gray-900 h-10 text-sm font-bold hover:bg-gray-700 dark:hover:bg-gray-200 transition-colors"
+                  >
+                    <span class="material-symbols-outlined !text-xl">add_shopping_cart</span>
+                    <span>В корзину</span>
+                  </button>
+                </div>
+              </div>
+              <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden group">
+                <div class="relative">
+                  <div
+                    class="aspect-square w-full bg-cover bg-center"
+                    data-alt="Черно-белые кроссовки Adidas"
+                    style="
+                      background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDHp9RwiSbhPtbeQSq1cIuXmqqHxoGdMVm0mnHTvfsixUtsxdcQHSZkTz5owcogzutBTK8mikgXJEMRFseGVY200N6TUTOdVr9R7tee-r4jobWRTJBtM5DtZGjeozKGar8oc4_O96GcPapcrMkz5sBfdH2rHR5jctFdfHvT5ZrmdYxZLVDbRwX9EeKyIfme-q1P1NI0Wd409BNklfJRwNwBVoP_lqz-7eFB_U-9suz1XVX5DOJf4SBTNRuM10M0P23k7jz18DBFCt4');
+                    "
+                  ></div>
+                  <div
+                    class="absolute top-3 left-3 bg-gray-900 text-white text-xs font-bold px-2 py-1 rounded-full"
+                  >
+                    НОВИНКА
+                  </div>
+                </div>
+                <div class="p-4">
+                  <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">Adidas</p>
+                  <h3 class="font-semibold text-gray-900 dark:text-white truncate">
+                    Adidas Forum Low
+                  </h3>
+                  <div class="flex items-baseline gap-2 mt-2">
+                    <p class="text-lg font-bold text-gray-900 dark:text-white">₽13,499</p>
+                  </div>
+                  <button
+                    class="mt-4 w-full flex items-center justify-center gap-2 rounded-lg bg-gray-900 text-white dark:bg-white dark:text-gray-900 h-10 text-sm font-bold hover:bg-gray-700 dark:hover:bg-gray-200 transition-colors"
+                  >
+                    <span class="material-symbols-outlined !text-xl">add_shopping_cart</span>
+                    <span>В корзину</span>
+                  </button>
+                </div>
+              </div>
+              <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden group">
+                <div
+                  class="aspect-square w-full bg-cover bg-center"
+                  data-alt="Кроссовки Nike для бега в желто-черных цветах"
+                  style="
+                    background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuACzDLgA_uMaIVj1j8eD4CkVOz2z9GOZCil_GcQc68jpdF4tblaQHafgEckFX7K88yIhJ5Dqis6GokJr3tQKbCvQtyfgkDpZgXdfCTh-NXo06A_FkMZG7xYfQF5Sb1b7Ent0AuO7Vedt1pHNC3vTeOntiuZ2lIpXz5xZ6vJNnptPmEguYpV3vVteVcv5FZa518uHhNavEarIDSoETReQIjG7Kcbivjkdoq9JrEjy3pHMoUtbYfZd6iRvHNaMHSJh4MuyRR_R3IhPbg');
+                  "
+                ></div>
+                <div class="p-4">
+                  <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">Nike</p>
+                  <h3 class="font-semibold text-gray-900 dark:text-white truncate">
+                    Nike React Infinity Run
+                  </h3>
+                  <div class="flex items-baseline gap-2 mt-2">
+                    <p class="text-lg font-bold text-gray-900 dark:text-white">₽14,999</p>
+                  </div>
+                  <button
+                    class="mt-4 w-full flex items-center justify-center gap-2 rounded-lg bg-gray-900 text-white dark:bg-white dark:text-gray-900 h-10 text-sm font-bold hover:bg-gray-700 dark:hover:bg-gray-200 transition-colors"
+                  >
+                    <span class="material-symbols-outlined !text-xl">add_shopping_cart</span>
+                    <span>В корзину</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+            <nav aria-label="Pagination" class="flex items-center justify-center mt-10">
+              <ul class="inline-flex items-center -space-x-px">
+                <li>
+                  <a
+                    class="flex items-center justify-center w-9 h-9 ml-0 leading-tight text-gray-500 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-l-lg hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-700 dark:hover:text-white"
+                    href="#"
+                  >
+                    <span class="material-symbols-outlined !text-xl">chevron_left</span>
+                  </a>
+                </li>
+                <li>
+                  <a
+                    aria-current="page"
+                    class="flex items-center justify-center w-9 h-9 leading-tight text-white bg-gray-900 border border-gray-900 dark:bg-white dark:text-gray-900 dark:border-white"
+                    href="#"
+                    >1</a
+                  >
+                </li>
+                <li>
+                  <a
+                    class="flex items-center justify-center w-9 h-9 leading-tight text-gray-500 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-700 dark:hover:text-white"
+                    href="#"
+                    >2</a
+                  >
+                </li>
+                <li>
+                  <a
+                    class="flex items-center justify-center w-9 h-9 leading-tight text-gray-500 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-700 dark:hover:text-white"
+                    href="#"
+                    >3</a
+                  >
+                </li>
+                <li>
+                  <span
+                    class="flex items-center justify-center w-9 h-9 leading-tight text-gray-500 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700"
+                    >...</span
+                  >
+                </li>
+                <li>
+                  <a
+                    class="flex items-center justify-center w-9 h-9 leading-tight text-gray-500 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-700 dark:hover:text-white"
+                    href="#"
+                    >11</a
+                  >
+                </li>
+                <li>
+                  <a
+                    class="flex items-center justify-center w-9 h-9 leading-tight text-gray-500 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-r-lg hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-700 dark:hover:text-white"
+                    href="#"
+                  >
+                    <span class="material-symbols-outlined !text-xl">chevron_right</span>
+                  </a>
+                </li>
+              </ul>
+            </nav>
+          </div>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>

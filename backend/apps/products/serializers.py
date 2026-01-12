@@ -1,12 +1,235 @@
 """
 Serializers для каталога товаров
 """
-from typing import Any
+
+from __future__ import annotations
+
+from decimal import Decimal
+from typing import TYPE_CHECKING, Any
 
 from django.db.models import Count, Q
 from rest_framework import serializers
 
-from .models import Brand, Category, Product, ProductImage
+from .models import (
+    Attribute,
+    AttributeValue,
+    Brand,
+    Category,
+    ColorMapping,
+    Product,
+    ProductImage,
+    ProductVariant,
+)
+
+
+class AttributeValueSerializer(serializers.ModelSerializer):
+    """
+    Serializer для значений атрибутов товара
+
+    Возвращает структурированную информацию об атрибутах:
+    - name: Название атрибута (из связанного Attribute)
+    - value: Значение атрибута
+    - slug: URL-совместимый идентификатор
+    - type: Тип атрибута для будущей логики фильтрации
+    """
+
+    name = serializers.CharField(source="attribute.name", read_only=True)
+    slug = serializers.CharField(source="attribute.slug", read_only=True)
+    type = serializers.CharField(source="attribute.type", read_only=True)
+
+    class Meta:
+        model = AttributeValue
+        fields = ["name", "value", "slug", "type"]
+        read_only_fields = fields
+
+
+if TYPE_CHECKING:
+    from apps.users.models import User
+
+
+class ProductVariantSerializer(serializers.ModelSerializer):
+    """
+    Serializer для ProductVariant с роле-ориентированной ценой
+
+    Поля:
+    - current_price: цена для текущего пользователя (роле-ориентированная)
+    - color_hex: hex-код цвета из ColorMapping
+    - is_in_stock: computed property из модели
+    - available_quantity: computed property из модели
+    - attributes: объединенный список атрибутов (вариант + продукт с наследованием)
+    """
+
+    current_price = serializers.SerializerMethodField()
+    color_hex = serializers.SerializerMethodField()
+    is_in_stock = serializers.BooleanField(read_only=True)
+    available_quantity = serializers.IntegerField(read_only=True)
+    attributes = serializers.SerializerMethodField()
+    main_image = serializers.SerializerMethodField()
+    gallery_images = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ProductVariant
+        fields = [
+            "id",
+            "sku",
+            "color_name",
+            "size_value",
+            "current_price",
+            "color_hex",
+            "stock_quantity",
+            "is_in_stock",
+            "available_quantity",
+            "main_image",
+            "gallery_images",
+            "attributes",
+        ]
+        read_only_fields = fields  # Все поля read-only
+
+    def get_main_image(self, obj: ProductVariant) -> str | None:
+        """
+        Получить URL основного изображения варианта
+
+        Args:
+            obj: ProductVariant instance
+
+        Returns:
+            str | None: URL изображения или None (относительный путь с /media/)
+        """
+        if obj.main_image:
+            # Возвращаем относительный URL с /media/ префиксом
+            # Nginx обработает этот путь
+            return obj.main_image.url
+        return None
+
+    def get_gallery_images(self, obj: ProductVariant) -> list[str]:
+        """
+        Получить список URL галереи изображений варианта
+
+        Пути в gallery_images хранятся как относительные от /media/:
+        - /products/variants/... → /media/products/variants/...
+
+        Дубликаты и main_image исключаются из результата.
+
+        Args:
+            obj: ProductVariant instance
+
+        Returns:
+            list[str]: Список уникальных URL изображений с /media/ префиксом
+        """
+        if not obj.gallery_images or not isinstance(obj.gallery_images, list):
+            return []
+
+        # Получаем main_image для исключения дубликатов
+        main_image_url = obj.main_image.url if obj.main_image else None
+        # Извлекаем имя файла из main_image для сравнения
+        main_image_filename = main_image_url.split("/")[-1] if main_image_url else None
+
+        seen_filenames = set()
+        if main_image_filename:
+            seen_filenames.add(main_image_filename)
+
+        result = []
+        for img_url in obj.gallery_images:
+            if not img_url:
+                continue
+
+            # Извлекаем имя файла для проверки дубликатов
+            filename = img_url.split("/")[-1]
+            if filename in seen_filenames:
+                continue
+            seen_filenames.add(filename)
+
+            # Добавляем /media/ префикс если путь относительный
+            if img_url.startswith("/products/"):
+                result.append(f"/media{img_url}")
+            elif not img_url.startswith("/media/") and not img_url.startswith(
+                ("http://", "https://")
+            ):
+                result.append(f"/media/{img_url.lstrip('/')}")
+            else:
+                result.append(img_url)
+
+        return result
+
+    def get_current_price(self, obj: ProductVariant) -> str:
+        """
+        Получить роле-ориентированную цену для текущего пользователя
+
+        Args:
+            obj: ProductVariant instance
+
+        Returns:
+            str: Цена как строка (сериализация Decimal)
+        """
+        request = self.context.get("request")
+        user: User | None = getattr(request, "user", None) if request else None
+
+        price: Decimal = obj.get_price_for_user(user)
+        return str(price)  # Сериализация Decimal → str
+
+    def get_color_hex(self, obj: ProductVariant) -> str | None:
+        """
+        Получить hex-код цвета из ColorMapping
+
+        Args:
+            obj: ProductVariant instance
+
+        Returns:
+            str | None: Hex-код цвета или None если маппинг не найден
+        """
+        if not obj.color_name:
+            return None
+
+        # Кэшируем ColorMapping для избежания N+1 queries
+        if not hasattr(self, "_color_mapping_cache"):
+            self._color_mapping_cache = {
+                mapping.name: mapping.hex_code for mapping in ColorMapping.objects.all()
+            }
+
+        return self._color_mapping_cache.get(obj.color_name)
+
+    def get_attributes(self, obj: ProductVariant) -> list[dict[str, Any]]:
+        """
+        Получить атрибуты варианта с наследованием от продукта
+
+        Логика наследования:
+        1. Получаем атрибуты продукта
+        2. Получаем атрибуты варианта
+        3. Объединяем: если вариант имеет значение атрибута,
+           оно переопределяет значение продукта
+        4. Возвращаем комбинированный список
+
+        Args:
+            obj: ProductVariant instance
+
+        Returns:
+            list[dict]: Список атрибутов с полями name, value, slug, type
+        """
+        # Словарь для хранения атрибутов (ключ = attribute_id)
+        attributes_dict: dict[int, AttributeValue] = {}
+
+        # 1. Добавляем атрибуты продукта (базовые значения)
+        if hasattr(obj.product, "prefetched_attributes"):
+            # Используем prefetched данные если доступны
+            for attr_value in obj.product.prefetched_attributes:
+                attributes_dict[attr_value.attribute_id] = attr_value
+        else:
+            # Fallback на прямой запрос
+            for attr_value in obj.product.attributes.select_related("attribute").all():
+                attributes_dict[attr_value.attribute_id] = attr_value
+
+        # 2. Переопределяем атрибутами варианта (приоритет выше)
+        if hasattr(obj, "prefetched_attributes"):
+            # Используем prefetched данные если доступны
+            for attr_value in obj.prefetched_attributes:
+                attributes_dict[attr_value.attribute_id] = attr_value
+        else:
+            # Fallback на прямой запрос
+            for attr_value in obj.attributes.select_related("attribute").all():
+                attributes_dict[attr_value.attribute_id] = attr_value
+
+        # 3. Сериализуем объединенный список
+        return AttributeValueSerializer(list(attributes_dict.values()), many=True).data
 
 
 class ProductImageSerializer(serializers.ModelSerializer):
@@ -124,17 +347,37 @@ class CategorySerializer(serializers.ModelSerializer):
 
 class ProductListSerializer(serializers.ModelSerializer):
     """
-    Serializer для списка товаров с ролевым ценообразованием
+    Serializer для списка товаров (базовая модель Product)
+
+    Примечание: Product - это базовая модель товара без цен и остатков.
+    Цены и остатки хранятся в ProductVariant.
+    Для получения вариантов используйте вложенное поле 'variants'
+    в ProductDetailSerializer.
+
+    Вычисляемые поля для обратной совместимости (данные из вариантов):
+    - retail_price, opt1_price, opt2_price, opt3_price: цены из первого варианта
+    - stock_quantity: суммарное количество на складе по всем вариантам
+    - is_in_stock: есть ли хотя бы один вариант в наличии
+    - main_image: изображение из первого варианта или base_images
+    - can_be_ordered: можно ли заказать товар
     """
 
     brand = BrandSerializer(read_only=True)
     category: Any = serializers.StringRelatedField(read_only=True)
-    current_price = serializers.SerializerMethodField()
-    price_type = serializers.SerializerMethodField()
-    can_be_ordered = serializers.BooleanField(read_only=True)
     specifications = serializers.JSONField(read_only=True)
+    attributes = serializers.SerializerMethodField()
 
-    # Дополнительные поля для B2B пользователей
+    # Вычисляемые поля для обратной совместимости с frontend
+    retail_price = serializers.SerializerMethodField()
+    opt1_price = serializers.SerializerMethodField()
+    opt2_price = serializers.SerializerMethodField()
+    opt3_price = serializers.SerializerMethodField()
+    stock_quantity = serializers.SerializerMethodField()
+    is_in_stock = serializers.SerializerMethodField()
+    main_image = serializers.SerializerMethodField()
+    can_be_ordered = serializers.SerializerMethodField()
+    current_price = serializers.SerializerMethodField()
+    sku = serializers.SerializerMethodField()
     rrp = serializers.SerializerMethodField()
     msrp = serializers.SerializerMethodField()
 
@@ -144,77 +387,193 @@ class ProductListSerializer(serializers.ModelSerializer):
             "id",
             "name",
             "slug",
-            "sku",
             "brand",
             "category",
+            "description",
             "short_description",
-            "main_image",
-            "current_price",
-            "price_type",
+            "specifications",
+            "base_images",
+            "is_featured",
+            # Story 11.0: Маркетинговые флаги для бейджей
+            "is_hit",
+            "is_new",
+            "is_sale",
+            "is_promo",
+            "is_premium",
+            "discount_percent",
+            "created_at",
+            "attributes",
+            # Вычисляемые поля из вариантов (обратная совместимость)
             "retail_price",
+            "opt1_price",
+            "opt2_price",
+            "opt3_price",
+            "stock_quantity",
+            "is_in_stock",
+            "main_image",
+            "can_be_ordered",
+            "current_price",
+            "sku",
             "rrp",
             "msrp",
-            "specifications",
-            "stock_quantity",
-            "min_order_quantity",
-            "can_be_ordered",
-            "is_featured",
-            "created_at",
+        ]
+        read_only_fields = [
+            "is_hit",
+            "is_new",
+            "is_sale",
+            "is_promo",
+            "is_premium",
+            "discount_percent",
         ]
 
-    def get_current_price(self, obj):
-        """Получить текущую цену для пользователя на основе его роли"""
-        request = self.context.get("request")
-        if not request or not request.user.is_authenticated:
-            return f"{obj.retail_price:.2f}"
+    def _get_first_variant(self, obj: Product) -> "ProductVariant | None":
+        """Получить первый вариант товара с ценой > 0 (кэшированный или из БД)"""
+        # Используем prefetched данные, фильтруя варианты с ценой > 0
+        if hasattr(obj, "first_variant_list") and obj.first_variant_list:
+            valid_variants = [v for v in obj.first_variant_list if v.retail_price > 0]
+            if valid_variants:
+                return valid_variants[0]
+        # Fallback на прямой запрос с фильтрацией
+        return obj.variants.filter(retail_price__gt=0).order_by("retail_price").first()
 
-        price = obj.get_price_for_user(request.user)
+    def get_retail_price(self, obj: Product) -> float:
+        """Получить розничную цену из первого варианта"""
+        variant = self._get_first_variant(obj)
+        if variant:
+            return float(variant.retail_price)
+        return 0.0
+
+    def get_current_price(self, obj: Product) -> str:
+        """Получить актуальную цену на основе роли пользователя"""
+        request = self.context.get("request")
+        user = getattr(request, "user", None) if request else None
+        variant = self._get_first_variant(obj)
+        if not variant:
+            return "0.00"
+
+        price = variant.get_price_for_user(user)
         return f"{price:.2f}"
 
-    def get_price_type(self, obj):
-        """Получить тип цены для пользователя"""
-        request = self.context.get("request")
-        if not request or not request.user.is_authenticated:
-            return "retail"
-
-        return request.user.role
-
-    def get_rrp(self, obj):
-        """RRP отображается только для B2B пользователей"""
-        request = self.context.get("request")
-        if (
-            request
-            and request.user.is_authenticated
-            and request.user.is_b2b_user
-            and obj.recommended_retail_price
-        ):
-            return f"{obj.recommended_retail_price:.2f}"
-        return None
-
-    def get_msrp(self, obj):
-        """MSRP отображается только для B2B пользователей"""
-        request = self.context.get("request")
-        if (
-            request
-            and request.user.is_authenticated
-            and request.user.is_b2b_user
-            and obj.max_suggested_retail_price
-        ):
-            return f"{obj.max_suggested_retail_price:.2f}"
-        return None
-
     def to_representation(self, instance):
-        """Conditionally remove rrp and msrp for non-B2B users."""
-        ret = super().to_representation(instance)
+        """Логика скрытия полей для разных ролей"""
+        data = super().to_representation(instance)
         request = self.context.get("request")
-        if (
-            not request
-            or not request.user.is_authenticated
-            or not request.user.is_b2b_user
-        ):
-            ret.pop("rrp", None)
-            ret.pop("msrp", None)
-        return ret
+        user = getattr(request, "user", None) if request else None
+
+        # Определяем роль пользователя (по умолчанию retail для анонимов)
+        role = "retail"
+        if user and user.is_authenticated:
+            role = getattr(user, "role", "retail")
+
+        # Скрываем RRP и MSRP для розничных пользователей и гостей
+        if role == "retail":
+            data.pop("rrp", None)
+            data.pop("msrp", None)
+        return data
+
+    def get_sku(self, obj: Product) -> str:
+        """Получить артикул первого варианта"""
+        variant = self._get_first_variant(obj)
+        return variant.sku if variant else ""
+
+    def get_rrp(self, obj: Product) -> float:
+        """Получить РРЦ первого варианта"""
+        variant = self._get_first_variant(obj)
+        return float(variant.rrp) if variant and variant.rrp else 0.0
+
+    def get_msrp(self, obj: Product) -> float:
+        """Получить МРЦ первого варианта"""
+        variant = self._get_first_variant(obj)
+        return float(variant.msrp) if variant and variant.msrp else 0.0
+
+    def get_opt1_price(self, obj: Product) -> float:
+        """Получить оптовую цену уровня 1 из первого варианта"""
+        variant = self._get_first_variant(obj)
+        if variant and variant.opt1_price:
+            return float(variant.opt1_price)
+        return 0.0
+
+    def get_opt2_price(self, obj: Product) -> float:
+        """Получить оптовую цену уровня 2 из первого варианта"""
+        variant = self._get_first_variant(obj)
+        if variant and variant.opt2_price:
+            return float(variant.opt2_price)
+        return 0.0
+
+    def get_opt3_price(self, obj: Product) -> float:
+        """Получить оптовую цену уровня 3 из первого варианта"""
+        variant = self._get_first_variant(obj)
+        if variant and variant.opt3_price:
+            return float(variant.opt3_price)
+        return 0.0
+
+    def get_stock_quantity(self, obj: Product) -> int:
+        """Получить суммарное количество на складе по всем вариантам"""
+        # Используем аннотированное значение если доступно
+        if hasattr(obj, "total_stock") and obj.total_stock is not None:
+            return obj.total_stock
+        # Fallback на агрегацию
+        from django.db.models import Sum
+
+        result = obj.variants.aggregate(total=Sum("stock_quantity"))
+        return result["total"] or 0
+
+    def get_is_in_stock(self, obj: Product) -> bool:
+        """Проверить наличие товара (любой вариант в наличии)"""
+        # Используем аннотированное значение если доступно
+        if hasattr(obj, "has_stock"):
+            return obj.has_stock
+        # Используем prefetched данные
+        if hasattr(obj, "first_variant_list") and obj.first_variant_list:
+            return any(v.stock_quantity > 0 for v in obj.first_variant_list)
+        # Fallback на проверку в БД
+        return obj.variants.filter(stock_quantity__gt=0).exists()
+
+    def get_main_image(self, obj: Product) -> str | None:
+        """
+        Получить основное изображение из первого варианта или base_images
+
+        Возвращает относительный URL с /media/ префиксом
+        """
+        variant = self._get_first_variant(obj)
+        if variant and variant.main_image:
+            # Возвращаем URL, а не ImageField объект
+            return variant.main_image.url
+        # Fallback на base_images
+        if obj.base_images and isinstance(obj.base_images, list) and obj.base_images:
+            img_url = obj.base_images[0]
+            # Добавляем /media/ префикс если путь начинается с /products/
+            if img_url.startswith("/products/"):
+                return f"/media{img_url}"
+            elif not img_url.startswith("/media/") and not img_url.startswith(
+                ("http://", "https://")
+            ):
+                return f"/media/{img_url.lstrip('/')}"
+            return img_url
+        return None
+
+    def get_can_be_ordered(self, obj: Product) -> bool:
+        """Проверить можно ли заказать товар"""
+        return self.get_is_in_stock(obj)
+
+    def get_attributes(self, obj: Product) -> list[dict[str, Any]]:
+        """
+        Получить атрибуты продукта
+
+        Args:
+            obj: Product instance
+
+        Returns:
+            list[dict]: Список атрибутов с полями name, value, slug, type
+        """
+        if hasattr(obj, "prefetched_attributes"):
+            # Используем prefetched данные если доступны
+            attr_values = obj.prefetched_attributes
+        else:
+            # Fallback на прямой запрос
+            attr_values = obj.attributes.select_related("attribute").all()
+
+        return AttributeValueSerializer(attr_values, many=True).data
 
 
 class ProductDetailSerializer(ProductListSerializer):
@@ -225,8 +584,8 @@ class ProductDetailSerializer(ProductListSerializer):
     images = serializers.SerializerMethodField()
     related_products = serializers.SerializerMethodField()
     category_breadcrumbs = serializers.SerializerMethodField()
-    discount_percent = serializers.SerializerMethodField()
     specifications = serializers.JSONField(read_only=True)
+    variants = ProductVariantSerializer(many=True, read_only=True)
 
     class Meta(ProductListSerializer.Meta):
         fields = ProductListSerializer.Meta.fields + [
@@ -235,42 +594,52 @@ class ProductDetailSerializer(ProductListSerializer):
             "images",
             "related_products",
             "category_breadcrumbs",
-            "discount_percent",
             "seo_title",
             "seo_description",
+            "variants",
         ]
 
+    def to_representation(self, instance):
+        """Гарантируем использование логики скрытия полей из родительского класса"""
+        return super().to_representation(instance)
+
     def get_images(self, obj):
-        """Получить галерею изображений включая основное"""
+        """
+        Получить галерею изображений из base_images
+
+        Product использует base_images (JSONField) - список URL изображений из 1С.
+        Первое изображение считается основным.
+
+        Пути в base_images хранятся как относительные от /media/:
+        - /products/base/... → /media/products/base/...
+        """
         images = []
         request = self.context.get("request")
 
-        # Основное изображение
-        if obj.main_image:
-            url = obj.main_image.url
-            if request and hasattr(request, "build_absolute_uri"):
-                url = request.build_absolute_uri(url)
-
-            images.append(
-                {
-                    "url": url,
-                    "alt_text": f"{obj.name} - основное изображение",
-                    "is_main": True,
-                }
-            )
-
-        # Дополнительные изображения из gallery_images
-        if obj.gallery_images:
-            for idx, img_url in enumerate(obj.gallery_images):
+        # base_images - это список URL изображений
+        if obj.base_images and isinstance(obj.base_images, list):
+            for idx, img_url in enumerate(obj.base_images):
                 url = img_url
-                if request and hasattr(request, "build_absolute_uri"):
-                    url = request.build_absolute_uri(url)
+
+                # Формируем абсолютный URL от корня сервера
+                if not img_url.startswith(("http://", "https://")):
+                    # Добавляем /media/ префикс если путь начинается с /products/
+                    if img_url.startswith("/products/"):
+                        img_url = f"/media{img_url}"
+                    elif not img_url.startswith("/media/"):
+                        img_url = f"/media/{img_url.lstrip('/')}"
+
+                    # Строим абсолютный URL от корня
+                    if request and hasattr(request, "build_absolute_uri"):
+                        url = request.build_absolute_uri(img_url)
+                    else:
+                        url = img_url
 
                 images.append(
                     {
                         "url": url,
-                        "alt_text": f"{obj.name} - изображение {idx + 2}",
-                        "is_main": False,
+                        "alt_text": f"{obj.name} - изображение {idx + 1}",
+                        "is_main": idx == 0,  # Первое изображение - основное
                     }
                 )
 
@@ -314,23 +683,6 @@ class ProductDetailSerializer(ProductListSerializer):
 
         return breadcrumbs
 
-    def get_discount_percent(self, obj):
-        """Рассчитать процент скидки относительно розничной цены"""
-        request = self.context.get("request")
-        user = request.user if request else None
-
-        if not user or not user.is_authenticated:
-            return None
-
-        current_price = obj.get_price_for_user(user)
-
-        # Всегда рассчитываем скидку относительно розничной цены
-        if current_price < obj.retail_price:
-            discount = ((obj.retail_price - current_price) / obj.retail_price) * 100
-            return round(discount, 1)
-
-        return None
-
 
 class CategoryTreeSerializer(serializers.ModelSerializer):
     """
@@ -363,3 +715,49 @@ class CategoryTreeSerializer(serializers.ModelSerializer):
         )
 
         return CategoryTreeSerializer(children, many=True, context=self.context).data
+
+
+class AttributeValueFilterSerializer(serializers.ModelSerializer):
+    """
+    Serializer для значений атрибутов в фильтрах каталога.
+
+    Используется для endpoint /api/v1/catalog/filters/ для построения
+    фильтров на фронтенде на основе активных атрибутов.
+    """
+
+    class Meta:
+        model = AttributeValue
+        fields = ["id", "value", "slug"]
+
+
+class AttributeFilterSerializer(serializers.ModelSerializer):
+    """
+    Serializer для атрибутов в фильтрах каталога.
+
+    Возвращает список активных атрибутов с их значениями для построения
+    фильтров в каталоге товаров.
+
+    Fields:
+    - id: ID атрибута
+    - name: Название атрибута
+    - slug: URL-совместимый идентификатор
+    - values: Список значений атрибута
+    """
+
+    values = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Attribute
+        fields = ["id", "name", "slug", "values"]
+
+    def get_values(self, obj: Attribute) -> list[dict[str, Any]]:
+        """
+        Получить все значения атрибута.
+
+        Args:
+            obj: Attribute instance
+
+        Returns:
+            List[dict]: Список значений атрибута
+        """
+        return AttributeValueFilterSerializer(obj.values.all(), many=True).data

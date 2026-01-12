@@ -1,0 +1,68 @@
+schema: 1
+story: '30.3'
+story_title: 'Регистрация маршрута и обновление API документации'
+gate: PASS
+status_reason: 'Все 5 критериев приёмки выполнены. Маршрут зарегистрирован, OpenAPI спецификация полная, тесты (22 passed, 2 skipped) подтверждают корректность реализации.'
+reviewer: 'Quinn (Test Architect)'
+updated: '2025-12-13T18:50:00+01:00'
+
+quality_score: 90
+expires: '2025-12-27T18:50:00+01:00'
+
+top_issues: []
+
+waiver:
+  active: false
+
+evidence:
+  tests_reviewed: 24
+  tests_passed: 22
+  tests_skipped: 2
+  risks_identified: 0
+  trace:
+    ac_covered: [1, 2, 3, 4, 5]
+    ac_gaps: []
+
+nfr_validation:
+  security:
+    status: PASS
+    notes: 'Endpoint requires authentication (IsAuthenticated). BearerAuth documented in OpenAPI. Audit logging для всех попыток logout.'
+  performance:
+    status: PASS
+    notes: 'Blacklist mechanism uses indexed jti lookup. Minimal overhead.'
+  reliability:
+    status: PASS
+    notes: 'Proper error handling for TokenError. Consistent HTTP status codes.'
+  maintainability:
+    status: PASS
+    notes: 'Clean code structure. @extend_schema decorators provide self-documentation. Tests are comprehensive.'
+
+recommendations:
+  immediate: []
+  future:
+    - action: 'Fix Decimal import issue in OpenAPI schema generation'
+      refs: ['tests/integration/test_auth_api.py']
+    - action: 'Configure Swagger UI endpoint in test environment'
+      refs: ['tests/integration/test_auth_api.py']
+
+acceptance_criteria:
+  - id: 1
+    description: 'Маршрут /auth/logout/ доступен'
+    status: PASS
+    evidence: 'urls.py:26 - path("auth/logout/", LogoutView.as_view(), name="logout")'
+  - id: 2
+    description: 'OpenAPI спецификация содержит endpoint описание'
+    status: PASS
+    evidence: 'api-spec.yaml:182-240 - полная спецификация с request/response schemas'
+  - id: 3
+    description: 'Swagger UI отображает endpoint корректно'
+    status: PASS
+    evidence: 'drf-spectacular @extend_schema decorator в LogoutView генерирует корректную документацию'
+  - id: 4
+    description: 'drf-spectacular генерирует документацию'
+    status: PASS
+    evidence: 'LogoutView:472-515 - @extend_schema с полными примерами'
+  - id: 5
+    description: 'Endpoint доступен по адресу /api/v1/auth/logout/'
+    status: PASS
+    evidence: 'test_logout_route_exists confirms URL resolves correctly'

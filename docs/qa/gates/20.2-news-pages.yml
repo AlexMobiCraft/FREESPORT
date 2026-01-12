@@ -1,0 +1,40 @@
+schema: 1
+story: '20.2'
+story_title: 'Frontend страницы новостей'
+gate: PASS
+status_reason: 'Implementation is robust, well-tested (66 tests passed), and follows project standards. SEO and performance optimizations are correctly applied.'
+reviewer: 'Quinn (Test Architect)'
+updated: '2025-12-27T12:30:00Z'
+
+top_issues: []
+waiver: { active: false }
+
+quality_score: 90
+expires: '2026-01-10T12:30:00Z'
+
+evidence:
+  tests_reviewed: 66
+  risks_identified: 1
+  trace:
+    ac_covered: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+    ac_gaps: []
+
+nfr_validation:
+  security:
+    status: CONCERNS
+    notes: 'Using dangerouslySetInnerHTML for news content. Backend sanitation check recommended.'
+  performance:
+    status: PASS
+    notes: 'Server Components and next/image used correctly.'
+  reliability:
+    status: PASS
+    notes: 'Proper error handling and empty states implemented.'
+  maintainability:
+    status: PASS
+    notes: 'Code is clean and follows established patterns.'
+
+recommendations:
+  immediate: []
+  future:
+    - action: 'Verify backend HTML sanitation for news content'
+      refs: ['apps.common.models.News']

@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Избранное - FREESPORT</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;700;900&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined"
+      rel="stylesheet"
+    />
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              primary: '#007BFF', // This is no longer used for buttons, but kept for potential other elements
+              'background-light': '#F5F5F7',
+              'background-dark': '#101922',
+            },
+            fontFamily: {
+              display: ['Lexend', 'sans-serif'],
+            },
+            borderRadius: {
+              DEFAULT: '0.25rem',
+              lg: '0.5rem',
+              xl: '0.75rem',
+              full: '9999px',
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      .material-symbols-outlined {
+        font-variation-settings:
+          'FILL' 0,
+          'wght' 400,
+          'GRAD' 0,
+          'opsz' 24;
+      }
+    </style>
+  </head>
+  <body class="bg-background-light dark:bg-background-dark font-display">
+    <div class="relative flex min-h-screen w-full flex-col group/design-root overflow-x-hidden">
+      <div class="flex flex-col lg:flex-row flex-1">
+        <aside
+          class="w-full lg:w-64 xl:w-72 flex-shrink-0 bg-white dark:bg-background-dark border-b lg:border-b-0 lg:border-r border-gray-200 dark:border-gray-700"
+        >
+          <div class="flex h-full flex-col justify-between p-4">
+            <div class="flex flex-col gap-4">
+              <div class="flex items-center gap-3">
+                <div
+                  class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-12"
+                  data-alt="User avatar with abstract gradient"
+                  style="
+                    background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuB5j07uAUf8PlgNKowzTbn-PJc7k2sE86oV_clGYydOUxF84r4yPXHW1OCAK7B4Rplz9gYkCdzeNQIkvmKQxTTB-TQUy-UpxRypmnc8PDy5MSQRR7GBQxWF3890fvPcSw5-ZCpq6tTdB-F1uU4HjyKPn1ychsewZd5DOHmS5Tjg9_71-rGe1CXDvIJ3onaDDRS_x_xDbFrMNDQMIFg3WDMuYaH8kCYhasnHIihbu8ZzgnMKoOllIjLK8VORGjZ-XhcVwDxhaFjQsgo');
+                  "
+                ></div>
+                <div class="flex flex-col">
+                  <h1 class="text-[#212121] dark:text-white text-base font-bold">Антон Петров</h1>
+                  <p class="text-gray-500 dark:text-gray-400 text-sm font-normal">
+                    anton.petrov@email.com
+                  </p>
+                </div>
+              </div>
+              <div class="flex flex-col gap-2 mt-4">
+                <a
+                  class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10"
+                  href="#"
+                >
+                  <span class="material-symbols-outlined text-gray-800 dark:text-gray-200"
+                    >package_2</span
+                  >
+                  <p class="text-[#212121] dark:text-white text-sm font-medium">Мои заказы</p>
+                </a>
+                <a
+                  class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10"
+                  href="#"
+                >
+                  <span class="material-symbols-outlined text-gray-800 dark:text-gray-200"
+                    >person</span
+                  >
+                  <p class="text-[#212121] dark:text-white text-sm font-medium">Личные данные</p>
+                </a>
+                <a
+                  class="flex items-center gap-3 px-3 py-2 rounded-lg bg-gray-100 dark:bg-white/10 text-gray-900 dark:text-white"
+                  href="#"
+                >
+                  <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1"
+                    >favorite</span
+                  >
+                  <p class="font-bold text-sm">Избранное</p>
+                </a>
+                <a
+                  class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10"
+                  href="#"
+                >
+                  <span class="material-symbols-outlined text-gray-800 dark:text-gray-200"
+                    >location_on</span
+                  >
+                  <p class="text-[#212121] dark:text-white text-sm font-medium">Адреса доставки</p>
+                </a>
+              </div>
+            </div>
+            <div class="flex flex-col gap-1 mt-8">
+              <a
+                class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10"
+                href="#"
+              >
+                <span class="material-symbols-outlined text-gray-800 dark:text-gray-200"
+                  >logout</span
+                >
+                <p class="text-[#212121] dark:text-white text-sm font-medium">Выход</p>
+              </a>
+            </div>
+          </div>
+        </aside>
+        <main class="flex-1 p-4 sm:p-6 lg:p-8">
+          <div class="max-w-7xl mx-auto">
+            <div class="flex flex-wrap justify-between gap-3 mb-4">
+              <h1
+                class="text-[#212121] dark:text-white text-4xl font-black leading-tight tracking-[-0.033em] min-w-72"
+              >
+                Избранное
+              </h1>
+            </div>
+            <div class="flex gap-2 sm:gap-3 py-3 overflow-x-auto">
+              <button
+                class="flex h-10 shrink-0 items-center justify-center gap-x-2 rounded-lg bg-white dark:bg-gray-800 pl-4 pr-3 border border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700"
+              >
+                <p class="text-[#212121] dark:text-white text-sm font-medium">
+                  Сортировать по: Новизне
+                </p>
+                <span class="material-symbols-outlined text-[#212121] dark:text-white text-xl"
+                  >expand_more</span
+                >
+              </button>
+              <button
+                class="flex h-10 shrink-0 items-center justify-center gap-x-2 rounded-lg bg-white dark:bg-gray-800 pl-4 pr-3 border border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700"
+              >
+                <p class="text-[#212121] dark:text-white text-sm font-medium">Категория</p>
+                <span class="material-symbols-outlined text-[#212121] dark:text-white text-xl"
+                  >expand_more</span
+                >
+              </button>
+              <button
+                class="flex h-10 shrink-0 items-center justify-center gap-x-2 rounded-lg bg-white dark:bg-gray-800 pl-4 pr-3 border border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700"
+              >
+                <p class="text-[#212121] dark:text-white text-sm font-medium">Бренд</p>
+                <span class="material-symbols-outlined text-[#212121] dark:text-white text-xl"
+                  >expand_more</span
+                >
+              </button>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 pt-4">
+              <div
+                class="flex flex-col group relative overflow-hidden rounded-lg bg-white dark:bg-background-dark shadow-sm border border-gray-200 dark:border-gray-800"
+              >
+                <div class="absolute top-3 right-3 z-10">
+                  <button
+                    class="flex items-center justify-center size-8 rounded-full bg-white/50 dark:bg-black/50 backdrop-blur-sm text-red-500 hover:bg-white dark:hover:bg-black"
+                  >
+                    <span
+                      class="material-symbols-outlined text-xl"
+                      style="font-variation-settings: 'FILL' 1"
+                      >favorite</span
+                    >
+                  </button>
+                </div>
+                <div
+                  class="w-full bg-center bg-no-repeat aspect-square bg-cover"
+                  data-alt="Кроссовки Nike Air Zoom в белом цвете"
+                  style="
+                    background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDGTR57YZQiS9fP8xOCEp6fQhIBxeyspoRQTUtHNKOiEUStfDq87nh_i4N_nyJrcK6B1VzGTTTdf6K0hragpfCGifrLxp3M34bzi4dtDgwFazoq4v0WuLCP5XxzKxfSeHM-m-qo6e027lQQcONDUBSlQt-45H_bl_888bDDO1fGdGDkboiFNxuYM9cSifo0r0ikZu9-3BoPxdcnTP-R49zao93rc9mXXI1QfLgCQ2owXJi89OnaM0nl1WZLDSiO5UAI-GGL2MsF6YY');
+                  "
+                ></div>
+                <div class="p-4 flex flex-col flex-grow">
+                  <p
+                    class="text-[#212121] dark:text-white text-base font-bold leading-normal flex-grow"
+                  >
+                    Кроссовки Nike Air Zoom
+                  </p>
+                  <p
+                    class="text-gray-600 dark:text-gray-400 text-sm font-normal leading-normal mt-1"
+                  >
+                    8 990 ₽
+                  </p>
+                  <button
+                    class="mt-4 flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-gray-900 text-white text-sm font-bold tracking-wide hover:bg-gray-700 dark:bg-white dark:text-black dark:hover:bg-gray-200 transition-colors"
+                  >
+                    <span class="truncate">В корзину</span>
+                  </button>
+                </div>
+              </div>
+              <div
+                class="flex flex-col group relative overflow-hidden rounded-lg bg-white dark:bg-background-dark shadow-sm border border-gray-200 dark:border-gray-800"
+              >
+                <div class="absolute top-3 right-3 z-10">
+                  <button
+                    class="flex items-center justify-center size-8 rounded-full bg-white/50 dark:bg-black/50 backdrop-blur-sm text-red-500 hover:bg-white dark:hover:bg-black"
+                  >
+                    <span
+                      class="material-symbols-outlined text-xl"
+                      style="font-variation-settings: 'FILL' 1"
+                      >favorite</span
+                    >
+                  </button>
+                </div>
+                <div
+                  class="w-full bg-center bg-no-repeat aspect-square bg-cover"
+                  data-alt="Черная спортивная футболка Adidas Techfit"
+                  style="
+                    background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuC99ia8j-jVNsJXoZMXXAu7vYLkikwlFZChRwGy69RuJyRUfXevL9KuIcqolP_R_agwInonf-80Qiyp_0OFe5kxbAMLJBoKDZtI6Gv9os0Ll_FUFd_IZzwt9S68-1cKnykpi5ZP-MxUl2cEwk_Ribxy0jsc--2GO0OTqBFCrhIDhnsETzTsAzLxee1pCYb9MRlIoCzM8RrgeyFbbqFTPqP_DdQAHfHQhGuXm5T_Iwh9rECcQHwLbNenfAXSZQdXVi6P7CxSXQdmkws');
+                  "
+                ></div>
+                <div class="p-4 flex flex-col flex-grow">
+                  <p
+                    class="text-[#212121] dark:text-white text-base font-bold leading-normal flex-grow"
+                  >
+                    Футболка Adidas Techfit
+                  </p>
+                  <p
+                    class="text-gray-600 dark:text-gray-400 text-sm font-normal leading-normal mt-1"
+                  >
+                    3 490 ₽
+                  </p>
+                  <button
+                    class="mt-4 flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-gray-900 text-white text-sm font-bold tracking-wide hover:bg-gray-700 dark:bg-white dark:text-black dark:hover:bg-gray-200 transition-colors"
+                  >
+                    <span class="truncate">В корзину</span>
+                  </button>
+                </div>
+              </div>
+              <div
+                class="flex flex-col group relative overflow-hidden rounded-lg bg-white dark:bg-background-dark shadow-sm border border-gray-200 dark:border-gray-800"
+              >
+                <div class="absolute top-3 right-3 z-10">
+                  <button
+                    class="flex items-center justify-center size-8 rounded-full bg-white/50 dark:bg-black/50 backdrop-blur-sm text-red-500 hover:bg-white dark:hover:bg-black"
+                  >
+                    <span
+                      class="material-symbols-outlined text-xl"
+                      style="font-variation-settings: 'FILL' 1"
+                      >favorite</span
+                    >
+                  </button>
+                </div>
+                <div
+                  class="w-full bg-center bg-no-repeat aspect-square bg-cover"
+                  data-alt="Темно-серые леггинсы Puma Fit"
+                  style="
+                    background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuC-PI9xXPIzZBT5_ZVKAcsrOII-DdjoEpdvnTD7qCqqYOXQWi5jICwsVAkbyPQq-eE3IfaRlSqKhDtjrd9NBuONLr-PRgYvXWNt-FofSLQL9n-Nj90w_aoJY4nQ5fgkKHax4z-dnGxMdC1vlEU1Oj7IVKDXmqUnioaKmraDlUANPzaJDryZORKx1OUYI_qkgcJeuy_ZjoUhtKExcEWf1bsCML__Lulwgl2Enh1zY4MyK5PRmuc3kcIjvEfaDTKAWkP8fj7oCpm9qOw');
+                  "
+                ></div>
+                <div class="p-4 flex flex-col flex-grow">
+                  <p
+                    class="text-[#212121] dark:text-white text-base font-bold leading-normal flex-grow"
+                  >
+                    Леггинсы Puma Fit
+                  </p>
+                  <p
+                    class="text-gray-600 dark:text-gray-400 text-sm font-normal leading-normal mt-1"
+                  >
+                    4 200 ₽
+                  </p>
+                  <button
+                    class="mt-4 flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-gray-900 text-white text-sm font-bold tracking-wide hover:bg-gray-700 dark:bg-white dark:text-black dark:hover:bg-gray-200 transition-colors"
+                  >
+                    <span class="truncate">В корзину</span>
+                  </button>
+                </div>
+              </div>
+              <div
+                class="flex flex-col group relative overflow-hidden rounded-lg bg-white dark:bg-background-dark shadow-sm border border-gray-200 dark:border-gray-800"
+              >
+                <div class="absolute top-3 right-3 z-10">
+                  <button
+                    class="flex items-center justify-center size-8 rounded-full bg-white/50 dark:bg-black/50 backdrop-blur-sm text-red-500 hover:bg-white dark:hover:bg-black"
+                  >
+                    <span
+                      class="material-symbols-outlined text-xl"
+                      style="font-variation-settings: 'FILL' 1"
+                      >favorite</span
+                    >
+                  </button>
+                </div>
+                <div
+                  class="w-full bg-center bg-no-repeat aspect-square bg-cover"
+                  data-alt="Прозрачная бутылка для воды Nalgene"
+                  style="
+                    background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAGsfMq5DR0Su7vYzhiok0g--RoFhrWTPYzDRHMiLO3HozU3swWIZw6xoQv-A46_WDhgcVjt5NZCaamnLYxM74hh-WQy4ZSq5DBwyQq-SeQ7gt8_yCfGfrrEEkl_c1lzzNWAix6VDb6jeliFFfKoUDZgu-5Q1opBj4wdUaZpLUvdcb4iZ48Dr3kWViwySA87zbquRy4tkilpcBA5tPMRu8zKzQwbJKbN2__JxVk49lCWjH_QJVlAmvn7U4dl6EXZUfKE3VS2PMrKZw');
+                  "
+                ></div>
+                <div class="p-4 flex flex-col flex-grow">
+                  <p
+                    class="text-[#212121] dark:text-white text-base font-bold leading-normal flex-grow"
+                  >
+                    Бутылка для воды Nalgene
+                  </p>
+                  <p
+                    class="text-gray-600 dark:text-gray-400 text-sm font-normal leading-normal mt-1"
+                  >
+                    1 500 ₽
+                  </p>
+                  <button
+                    class="mt-4 flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-gray-900 text-white text-sm font-bold tracking-wide hover:bg-gray-700 dark:bg-white dark:text-black dark:hover:bg-gray-200 transition-colors"
+                  >
+                    <span class="truncate">В корзину</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </body>
+</html>

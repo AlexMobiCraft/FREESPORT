@@ -1,7 +1,9 @@
 """
 Настройки Django для staging окружения FREESPORT
 """
+
 import os
+
 from .base import *
 
 # ВНИМАНИЕ: не используйте debug=True в продакшене!

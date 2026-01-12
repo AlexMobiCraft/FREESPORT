@@ -1,0 +1,73 @@
+# Quality Gate Decision for Story 11.3
+schema: 1
+story: "11.3"
+story_title: "Backend API Design для Story 11.3 - Форма подписки на рассылку и блок новостей"
+gate: CONCERNS
+status_reason: "Реализация высокого качества с отличной типизацией и тестами. Единственная проблема - отсутствие rate limiting для production, что создает риск SPAM атак."
+reviewer: "Quinn (Test Architect)"
+updated: "2025-11-18T17:45:00Z"
+
+# Issues
+top_issues:
+  - id: "SEC-001"
+    severity: medium
+    finding: "Отсутствует rate limiting для /subscribe endpoint"
+    suggested_action: "Добавить DRF throttling для production перед deploy (10 requests/hour для анонимных пользователей)"
+    refs:
+      - "backend/apps/common/views.py:306-393"
+      - "docs/stories/epic-11/11.3-backend-api-design.md:1799-1815"
+
+# Always present but only active when WAIVED
+waiver:
+  active: false
+
+# Quality score
+quality_score: 90  # 100 - (10 × 1 CONCERN)
+
+# NFR Validation
+nfr_validation:
+  security:
+    status: CONCERNS
+    notes: "Rate limiting отсутствует для production. Email normalization и IP tracking реализованы корректно."
+  performance:
+    status: PASS
+    notes: "Database indexes оптимизированы. Composite index (is_published, published_at) для новостей. Pagination встроена."
+  reliability:
+    status: PASS
+    notes: "Database constraint для data consistency. Soft delete pattern реализован. Error handling с правильными HTTP кодами."
+  maintainability:
+    status: PASS
+    notes: "Отличная документация, типизация везде, следует Django best practices."
+
+# Evidence
+evidence:
+  tests_reviewed: 14
+  risks_identified: 1
+  trace:
+    ac_covered: [1, 2, 3, 4, 5]  # Newsletter Model, News Model, Subscribe, Unsubscribe, News List
+    ac_gaps: []
+
+# Recommendations
+recommendations:
+  immediate:
+    - action: "Добавить rate limiting через DRF throttling перед production deploy"
+      refs:
+        - "backend/freesport/settings/production.py"
+      details: |
+        REST_FRAMEWORK = {
+          'DEFAULT_THROTTLE_CLASSES': ['rest_framework.throttling.AnonRateThrottle'],
+          'DEFAULT_THROTTLE_RATES': {'anon': '10/hour'}
+        }
+  future:
+    - action: "Рассмотреть token-based unsubscribe для Story 11.4"
+      refs:
+        - "docs/stories/epic-11/11.3-backend-api-design.md:1844-1873"
+      details: "Генерация UUID токена при подписке для one-click unsubscribe (RFC 8058 compliance)"
+
+# Code changes made during review
+refactoring_performed:
+  - file: "backend/apps/common/models.py"
+    change: "Заменил check на condition в CheckConstraint"
+    why: "Исправление Django 6.0 deprecation warning"
+    how: "Улучшает forward compatibility с Django 6.0"
+    line: 528

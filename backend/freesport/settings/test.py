@@ -1,4 +1,5 @@
 """Настройки окружения для тестов FREESPORT."""
+
 # pylint: disable=wildcard-import, unused-wildcard-import
 import os
 from typing import Any  # pylint: disable=unused-import
@@ -51,6 +52,8 @@ DATABASES = {
         ),
         "HOST": _get_env_value("DB_HOST", ("POSTGRES_HOST", "PGHOST"), "127.0.0.1"),
         "PORT": int(_get_env_value("DB_PORT", ("POSTGRES_PORT", "PGPORT"), "5432")),
+        "ATOMIC_REQUESTS": True,  # Оборачиваем каждый запрос в транзакцию
+        "CONN_MAX_AGE": 0,  # Закрываем соединения после каждого запроса в тестах
         "OPTIONS": {
             "client_encoding": "UTF8",
             "connect_timeout": 10,
@@ -80,9 +83,29 @@ PASSWORD_HASHERS = [
 # которая хранит письма в памяти.
 EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
 
+# Значения по умолчанию для email уведомлений в тестовой среде
+CONFLICT_NOTIFICATION_EMAIL = os.environ.get(
+    "CONFLICT_NOTIFICATION_EMAIL",
+    "alex.mobicraft@gmail.com",
+)
+DEFAULT_FROM_EMAIL = os.environ.get(
+    "DEFAULT_FROM_EMAIL",
+    "admin@freesport.ru",
+)
+
 # Отключаем логирование в консоль, чтобы вывод тестов был чистым.
 LOGGING: dict[str, Any] = {}
 
 # Гарантированно отключаем Django Debug Toolbar в тестах,
 # даже если он был добавлен в другом файле настроек.
 INSTALLED_APPS = [app for app in INSTALLED_APPS if app != "debug_toolbar"]
+if (
+    "apps.integrations" not in INSTALLED_APPS
+    and "apps.integrations.apps.IntegrationsConfig" not in INSTALLED_APPS
+):
+    INSTALLED_APPS.append("apps.integrations")
+if (
+    "apps.integrations" not in INSTALLED_APPS
+    and "apps.integrations.apps.IntegrationsConfig" not in INSTALLED_APPS
+):
+    INSTALLED_APPS.append("apps.integrations")

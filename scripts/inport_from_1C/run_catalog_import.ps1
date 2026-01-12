@@ -77,7 +77,7 @@ try {
     docker compose -f $ComposeFile run --rm backend python manage.py migrate
 
     Write-Host "⬇️ Запуск полного импорта каталога из 1С..." -ForegroundColor Cyan
-    docker compose -f $ComposeFile run --rm backend python manage.py import_catalog_from_1c --data-dir $DataDir
+    docker compose -f $ComposeFile run --rm backend python manage.py import_products_from_1c --data-dir $DataDir
 
     Write-Host "✅ Импорт завершён." -ForegroundColor Green
 }

@@ -1,12 +1,15 @@
 """
 Serializers для API управления пользователями
 """
+
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 
-from .models import Address, Company, Favorite, User
 from apps.orders.models import Order
+
+from .models import Address, Company, Favorite, User
+from .tasks import send_admin_verification_email, send_user_pending_email
 
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
@@ -39,7 +42,6 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             "email": {"required": True},
             "first_name": {"required": True},
-            "last_name": {"required": True},
         }
 
     def validate_email(self, value):
@@ -96,10 +98,24 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         # Создаем пользователя
         user = User.objects.create_user(password=password, **validated_data)
 
-        # B2B пользователи требуют верификации
-        if user.role != "retail":
+        # Устанавливаем статусы на основе роли
+        if user.role == "retail":
+            # Розничные покупатели получают немедленный доступ
+            user.is_active = True
+            user.verification_status = "verified"
+            user.is_verified = True
+        else:
+            # B2B пользователи требуют верификации
+            user.is_active = False
+            user.verification_status = "pending"
             user.is_verified = False
-            user.save()
+
+        user.save()
+
+        # Асинхронная отправка email уведомлений для B2B (Story 29.4)
+        if user.role != "retail":
+            send_admin_verification_email.delay(user.id)
+            send_user_pending_email.delay(user.id)
 
         return user
 
@@ -114,28 +130,32 @@ class UserLoginSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         """Валидация данных для входа"""
+        from django.contrib.auth import get_user_model
+
+        User = get_user_model()
         email = attrs.get("email")
         password = attrs.get("password")
 
         if email and password:
-            # Аутентификация пользователя
-            user = authenticate(
-                request=self.context.get("request"),
-                username=email,
-                password=password,
-            )
-
-            if not user:
+            # Epic 29.2: Получаем пользователя напрямую (включая неактивных)
+            # для проверки verification_status в UserLoginView
+            try:
+                user = User.objects.get(email=email)
+            except User.DoesNotExist:
                 raise serializers.ValidationError(
                     "Неверный email или пароль.",
                     code="authorization",
                 )
 
-            if not user.is_active:
+            # Проверяем пароль
+            if not user.check_password(password):
                 raise serializers.ValidationError(
-                    "Аккаунт пользователя деактивирован.",
+                    "Неверный email или пароль.",
                     code="authorization",
                 )
+
+            # Примечание: Проверка is_active и verification_status выполняется
+            # в UserLoginView для обеспечения правильной обработк (403 для pending)
 
             attrs["user"] = user
             return attrs
@@ -321,7 +341,7 @@ class FavoriteSerializer(serializers.ModelSerializer):
         decimal_places=2,
         read_only=True,
     )
-    product_image = serializers.CharField(source="product.main_image", read_only=True)
+    product_image = serializers.SerializerMethodField()
     product_slug = serializers.CharField(source="product.slug", read_only=True)
     product_sku = serializers.CharField(source="product.sku", read_only=True)
 
@@ -338,6 +358,22 @@ class FavoriteSerializer(serializers.ModelSerializer):
             "created_at",
         ]
         read_only_fields = ["id", "created_at"]
+
+    def get_product_image(self, obj) -> str | None:
+        """
+        Получить изображение товара из ProductVariant или Product.base_images.
+        Epic 13/14: изображения хранятся в ProductVariant.main_image
+        с fallback на Product.base_images.
+        """
+        product = obj.product
+        # Пробуем получить изображение из первого активного варианта
+        first_variant = product.variants.filter(is_active=True).first()
+        if first_variant and first_variant.main_image:
+            return str(first_variant.main_image)
+        # Fallback на base_images
+        if product.base_images and len(product.base_images) > 0:
+            return product.base_images[0]
+        return None
 
 
 class FavoriteCreateSerializer(serializers.ModelSerializer):
@@ -409,3 +445,60 @@ class OrderHistorySerializer(serializers.ModelSerializer):
     def get_items_count(self, obj: Order) -> int:
         """Получение количества товаров в заказе"""
         return int(obj.total_items)
+
+
+class PasswordResetRequestSerializer(serializers.Serializer):
+    """
+    Serializer для запроса на сброс пароля
+    """
+
+    email = serializers.EmailField()
+
+    def validate_email(self, value: str) -> str:
+        """Нормализация email"""
+        return value.lower()
+
+
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    """
+    Serializer для подтверждения сброса пароля
+    """
+
+    uid = serializers.CharField()
+    token = serializers.CharField()
+    new_password = serializers.CharField(
+        write_only=True,
+        validators=[validate_password],
+        style={"input_type": "password"},
+    )
+
+    def validate_new_password(self, value: str) -> str:
+        """Валидация нового пароля"""
+        return value
+
+
+class ValidateTokenSerializer(serializers.Serializer):
+    """
+    Serializer для валидации токена сброса пароля
+    """
+
+    uid = serializers.CharField()
+    token = serializers.CharField()
+
+
+class LogoutSerializer(serializers.Serializer):
+    """
+    Serializer для logout endpoint.
+
+    Валидирует refresh token для его инвалидации через blacklist механизм.
+    """
+
+    refresh = serializers.CharField(
+        required=True, help_text="Refresh token для инвалидации"
+    )
+
+    def validate_refresh(self, value: str) -> str:
+        """Валидация refresh токена"""
+        if not value:
+            raise serializers.ValidationError("Refresh token не может быть пустым")
+        return value

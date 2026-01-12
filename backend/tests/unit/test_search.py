@@ -1,6 +1,7 @@
 """
 Unit тесты для search functionality (Story 2.8)
 """
+
 from unittest.mock import Mock
 
 import pytest

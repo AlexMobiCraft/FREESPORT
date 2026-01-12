@@ -1,0 +1,105 @@
+# Quality Gate Decision - Story 28.4: Protected Routes
+# Reviewed by Quinn (Test Architect)
+
+schema: 1
+story: "28.4"
+story_title: "Защищенные маршруты и управление сессиями"
+gate: CONCERNS
+status_reason: "Implementation is solid with excellent architecture, but 2 failing tests in AuthProvider need attention before marking as Done. Core functionality verified, Middleware robust, comprehensive test coverage attempted."
+reviewer: "Quinn (Test Architect)"
+updated: "2025-12-10T17:25:00+01:00"
+
+waiver: { active: false }
+
+top_issues:
+  - id: "TEST-001"
+    severity: medium
+    finding: "2 failing tests in AuthProvider.test.tsx - test setup/teardown issues preventing proper test isolation"
+    suggested_action: "Fix test isolation - ensure localStorage and authStore are properly reset between tests. Investigate React context hook usage in TestComponent."
+    suggested_owner: dev
+  - id: "TEST-002"
+    severity: low
+    finding: "3 E2E scenarios skipped in middleware tests (authenticated user redirects from auth routes)"
+    suggested_action: "Consider implementing E2E tests with Playwright to cover authenticated user redirect scenarios from /login, /register, /password-reset"
+    suggested_owner: dev
+  - id: "DOC-001"
+    severity: low
+    finding: "Cookie sync strategy could be better documented in authStore.ts"
+    suggested_action: "Add inline comment explaining why cookies are needed for Edge Runtime middleware compatibility"
+    suggested_owner: dev
+
+risk_summary:
+  totals: { critical: 0, high: 0, medium: 1, low: 2 }
+  recommendations:
+    must_fix:
+      - "Fix 2 failing AuthProvider tests before production deployment"
+    monitor:
+      - "Track E2E test coverage for auth flows"
+
+# Quality metrics
+quality_score: 82
+# Calculation: 100 - (10 × CONCERNS) = 100 - (10 × 2 medium issues as CONCERNS) = 80, +2 for excellent architecture
+expires: "2025-12-24T00:00:00Z"
+
+# Evidence
+evidence:
+  tests_reviewed: 23
+  tests_passed: 18
+  tests_skipped: 3
+  tests_failed: 2
+  files_reviewed: 8
+  trace:
+    ac_covered: [1.1, 1.2, 1.3, 1.4, 2.1, 2.2, 2.3, 2.4, 3.1, 3.2, 3.3, 3.4, 3.5, 4.1, 4.2, 4.3, 5.1, 5.2]
+    ac_gaps: [6.1] # Minor: "No flash of unauthorized content" - требует manual verification
+
+# NFR Validation
+nfr_validation:
+  security:
+    status: PASS
+    notes: |
+      ✅ JWT tokens correctly handled (access in memory, refresh in localStorage+cookies)
+      ✅ Middleware prevents unauthorized access to protected routes
+      ✅ logout() properly clears all tokens from all storage locations
+      ✅ No XSS vulnerabilities (React auto-escaping)
+      ✅ Edge Runtime compatible (no Node.js APIs)
+  performance:
+    status: PASS
+    notes: |
+      ✅ AuthProvider initialization with retry logic (exponential backoff)
+      ✅ Minimal re-renders - proper React Context usage
+      ✅ Middleware runs on Edge Runtime (faster than Node.js)
+      ⚠️ Could optimize: Consider caching /auth/me/ response for short TTL
+  reliability:
+    status: PASS
+    notes: |
+      ✅ Network error handling with 3 retries
+      ✅ Graceful degradation on auth failure (logout)
+      ✅ Prevents infinite redirect loops
+      ✅ localStorage fallback if cookies disabled
+  maintainability:
+    status: PASS
+    notes: |
+      ✅ Clean separation of concerns (Middleware, AuthProvider, authStore)
+      ✅ Excellent TypeScript typing
+      ✅ Comprehensive inline documentation
+      ✅ Clear error messages and logging
+  accessibility:
+    status: PASS
+    notes: |
+      ✅ Loading state has proper ARIA semantics
+      ✅ No accessibility barriers in auth flow
+
+# Recommendations
+recommendations:
+  immediate:
+    - action: "Fix 2 failing tests in AuthProvider.test.tsx"
+      refs: ["frontend/src/providers/__tests__/AuthProvider.test.tsx:239-266", "frontend/src/providers/__tests__/AuthProvider.test.tsx:269-292"]
+    - action: "Verify 'no flash of unauthorized content' manually on protected routes"
+      refs: ["AC 6.1"]
+  future:
+    - action: "Implement E2E tests for authenticated user redirects (3 skipped scenarios)"
+      refs: ["frontend/src/__tests__/middleware.test.ts:118-128"]
+    - action: "Consider short-lived caching for /auth/me/ response to reduce API calls"
+      refs: ["frontend/src/providers/AuthProvider.tsx:63"]
+    - action: "Add cross-tab synchronization for logout events (localStorage events)"
+      refs: ["docs/stories/epic-28/28.4.protected-routes.md:805-815"]

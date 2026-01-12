@@ -1,0 +1,379 @@
+name: Deploy to Server
+
+on:
+  workflow_dispatch:
+    inputs:
+      skip_tests:
+        description: 'Пропустить тесты (только для hotfix)'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  REGISTRY: ghcr.io
+  BACKEND_IMAGE: ghcr.io/${{ github.repository }}/backend
+  FRONTEND_IMAGE: ghcr.io/${{ github.repository }}/frontend
+
+jobs:
+  # Определение окружения
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      environment: production
+      should_deploy: true
+    steps:
+      - name: Выбор production окружения
+        run: |
+          echo "environment=production" >> $GITHUB_OUTPUT
+          echo "should_deploy=true" >> $GITHUB_OUTPUT
+
+  # Тестирование перед деплоем
+  test:
+    needs: setup
+    if: needs.setup.outputs.should_deploy == 'true' && github.event.inputs.skip_tests != 'true'
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: freesport_test
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements.txt') }}
+
+      - name: Install backend dependencies
+        run: |
+          cd backend
+          python -m venv venv
+          source venv/bin/activate
+          pip install -r requirements.txt
+          pip install pytest-django pytest-cov
+
+      - name: Create test .env
+        run: |
+          cd backend
+          cat > .env << EOF
+          SECRET_KEY=test-secret-key
+          DB_NAME=freesport_test
+          DB_USER=postgres
+          DB_PASSWORD=postgres
+          DB_HOST=localhost
+          DB_PORT=5432
+          REDIS_URL=redis://localhost:6379/0
+          DJANGO_SETTINGS_MODULE=freesport.settings.test
+          EOF
+
+      - name: Run backend tests
+        env:
+          DJANGO_SETTINGS_MODULE: freesport.settings.test
+        run: |
+          cd backend
+          source venv/bin/activate
+          python manage.py migrate --noinput
+          pytest --ignore=tests/integration/test_management_commands/test_import_customers.py \
+                 --ignore=tests/unit/test_services/test_customer_parser.py \
+                 -m "not integration and not data_dependent" \
+                 --cov=. --cov-fail-under=60
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm ci --prefer-offline --no-audit
+
+      - name: Run frontend tests
+        run: |
+          cd frontend
+          npm run test:coverage
+        env:
+          CI: true
+
+  # Сборка Docker образов
+  build:
+    needs: [setup, test]
+    if: always() && needs.setup.outputs.should_deploy == 'true' && (needs.test.result == 'success' || needs.test.result == 'skipped')
+    runs-on: ubuntu-latest
+    outputs:
+      backend_tag: ${{ steps.meta-backend.outputs.tags }}
+      frontend_tag: ${{ steps.meta-frontend.outputs.tags }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for Backend
+        id: meta-backend
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.BACKEND_IMAGE }}
+          tags: |
+            type=sha,prefix=
+            type=raw,value=production
+
+      - name: Extract metadata for Frontend
+        id: meta-frontend
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.FRONTEND_IMAGE }}
+          tags: |
+            type=sha,prefix=
+            type=raw,value=production
+
+      - name: Build and push Backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: backend
+          file: backend/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta-backend.outputs.tags }}
+          labels: ${{ steps.meta-backend.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            DJANGO_SETTINGS_MODULE=freesport.settings.production
+
+      - name: Build and push Frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: frontend
+          file: frontend/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta-frontend.outputs.tags }}
+          labels: ${{ steps.meta-frontend.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}
+            NODE_ENV=production
+
+  # Деплой на production
+  deploy-production:
+    needs: [setup, build]
+    if: needs.setup.outputs.environment == 'production'
+    runs-on: ubuntu-latest
+    environment: production
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Add server to known hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.PRODUCTION_SERVER_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Create backup before deploy
+        env:
+          SERVER_HOST: ${{ secrets.PRODUCTION_SERVER_HOST }}
+          SERVER_USER: ${{ secrets.PRODUCTION_SERVER_USER }}
+          DEPLOY_PATH: ${{ secrets.PRODUCTION_DEPLOY_PATH }}
+        run: |
+          ssh $SERVER_USER@$SERVER_HOST << 'ENDSSH'
+            set -e
+            cd $DEPLOY_PATH
+            
+            echo "💾 Создание резервной копии базы данных..."
+            BACKUP_FILE="backup_$(date +%Y%m%d_%H%M%S).sql"
+            docker compose -f docker/docker-compose.prod.yml exec -T db pg_dump -U postgres freesport > "backups/$BACKUP_FILE"
+            
+            # Сохраняем только последние 5 бэкапов
+            ls -t backups/*.sql | tail -n +6 | xargs -r rm
+            
+            echo "✅ Резервная копия создана: $BACKUP_FILE"
+          ENDSSH
+
+      - name: Deploy to production server
+        env:
+          SERVER_HOST: ${{ secrets.PRODUCTION_SERVER_HOST }}
+          SERVER_USER: ${{ secrets.PRODUCTION_SERVER_USER }}
+          DEPLOY_PATH: ${{ secrets.PRODUCTION_DEPLOY_PATH }}
+          BACKEND_IMAGE: ${{ env.BACKEND_IMAGE }}:production
+          FRONTEND_IMAGE: ${{ env.FRONTEND_IMAGE }}:production
+        run: |
+          ssh $SERVER_USER@$SERVER_HOST << 'ENDSSH'
+            set -e
+            cd $DEPLOY_PATH
+            
+            echo "📥 Обновление кода из Git..."
+            git fetch origin main
+            git checkout main
+            git pull origin main
+            
+            echo "🔐 Авторизация в GitHub Container Registry..."
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            
+            echo "📦 Загрузка новых образов..."
+            docker pull $BACKEND_IMAGE
+            docker pull $FRONTEND_IMAGE
+            
+            echo "🔄 Обновление переменных окружения..."
+            export BACKEND_IMAGE=$BACKEND_IMAGE
+            export FRONTEND_IMAGE=$FRONTEND_IMAGE
+            
+            echo "🚀 Перезапуск сервисов (zero-downtime)..."
+            # Сначала обновляем backend и celery
+            docker compose -f docker/docker-compose.prod.yml up -d --no-deps --force-recreate backend
+            sleep 15
+            
+            # Проверяем здоровье backend
+            if ! docker compose -f docker/docker-compose.prod.yml exec -T backend python manage.py check --deploy; then
+              echo "❌ Backend health check failed, rolling back..."
+              docker compose -f docker/docker-compose.prod.yml up -d --no-deps backend
+              exit 1
+            fi
+            
+            # Обновляем остальные сервисы
+            docker compose -f docker/docker-compose.prod.yml up -d --no-deps --force-recreate frontend celery celery-beat
+            
+            echo "⏳ Ожидание запуска сервисов..."
+            sleep 30
+            
+            echo "🔄 Выполнение миграций..."
+            docker compose -f docker/docker-compose.prod.yml exec -T backend python manage.py migrate --noinput
+            
+            echo "📁 Сбор статических файлов..."
+            docker compose -f docker/docker-compose.prod.yml exec -T backend python manage.py collectstatic --noinput
+            
+            echo "🔧 Проверка конфигурации Nginx (production с SSL)..."
+            docker compose -f docker/docker-compose.prod.yml exec -T nginx nginx -t
+            
+            echo "🔄 Перезагрузка Nginx..."
+            docker compose -f docker/docker-compose.prod.yml exec -T nginx nginx -s reload
+            
+            echo "🧹 Очистка старых образов..."
+            docker image prune -f
+            
+            echo "✅ Деплой на production завершен!"
+          ENDSSH
+
+      - name: Health check production
+        env:
+          PRODUCTION_URL: ${{ secrets.PRODUCTION_URL }}
+        run: |
+          echo "🔍 Проверка работоспособности production..."
+          
+          # Проверка API
+          for i in {1..10}; do
+            if curl -sf "$PRODUCTION_URL/api/v1/health/" > /dev/null; then
+              echo "✅ API доступен"
+              API_OK=true
+              break
+            fi
+            echo "⏳ Попытка $i/10..."
+            sleep 15
+          done
+          
+          if [ "$API_OK" != "true" ]; then
+            echo "❌ API недоступен после деплоя"
+            exit 1
+          fi
+          
+          # Проверка Frontend
+          for i in {1..10}; do
+            if curl -sf "$PRODUCTION_URL" > /dev/null; then
+              echo "✅ Frontend доступен"
+              FRONTEND_OK=true
+              break
+            fi
+            echo "⏳ Попытка $i/10..."
+            sleep 15
+          done
+          
+          if [ "$FRONTEND_OK" != "true" ]; then
+            echo "❌ Frontend недоступен после деплоя"
+            exit 1
+          fi
+          
+          echo "✅ Все проверки пройдены успешно!"
+
+      - name: Notify production deployment
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const status = '${{ job.status }}';
+            const emoji = status === 'success' ? '✅' : '❌';
+            const message = status === 'success' 
+              ? 'Production deployment completed successfully!'
+              : 'Production deployment failed!';
+            
+            // Создаем issue для отслеживания деплоя
+            if (status !== 'success') {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: `${emoji} Production Deployment Failed - ${new Date().toISOString()}`,
+                body: `## Deployment Failed\n\n**Commit:** ${context.sha}\n**Actor:** ${context.actor}\n**Workflow Run:** ${context.runId}\n\nPlease investigate and fix the issue.`,
+                labels: ['deployment', 'urgent']
+              });
+            }
+            
+            console.log(`${emoji} ${message}`);
+
+  # Rollback (ручной запуск)
+  rollback:
+    if: github.event_name == 'workflow_dispatch' && failure()
+    needs: [deploy-production]
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Rollback notification
+        run: |
+          echo "⚠️ Деплой завершился с ошибкой"
+          echo "Для отката используйте предыдущий стабильный образ"
+          echo "Команда: docker compose -f docker/docker-compose.prod.yml up -d --force-recreate"

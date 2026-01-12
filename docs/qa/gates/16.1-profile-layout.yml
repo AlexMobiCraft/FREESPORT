@@ -1,0 +1,91 @@
+schema: 1
+story: '16.1'
+story_title: 'Layout личного кабинета и страница профиля'
+gate: PASS
+status_reason: 'Все 7 AC выполнены. Код качественный, тесты покрывают критические сценарии. CSS использует семантические классы.'
+reviewer: 'Quinn (Test Architect)'
+updated: '2025-12-16T17:46:00+01:00'
+
+top_issues: []
+waiver:
+  active: false
+
+quality_score: 100
+expires: '2025-12-30T17:46:00+01:00'
+
+evidence:
+  tests_reviewed: 25
+  risks_identified: 0
+  trace:
+    ac_covered: [1, 2, 3, 4, 5, 6, 7]
+    ac_gaps: []
+
+nfr_validation:
+  security:
+    status: PASS
+    notes: 'Auth защита через middleware, email readonly, JWT handling через interceptors'
+  performance:
+    status: PASS
+    notes: 'Loading states, isDirty check предотвращает лишние запросы'
+  reliability:
+    status: PASS
+    notes: 'Error handling с toast уведомлениями, Zod валидация на клиенте'
+  maintainability:
+    status: PASS
+    notes: 'Чёткая структура компонентов, TypeScript типизация, документация на уровне функций'
+
+recommendations:
+  immediate: []
+  future:
+    - action: 'Использовать verification_status enum вместо is_verified boolean для отображения статуса pending'
+      refs: ['frontend/src/components/business/ProfileForm/ProfileForm.tsx:266']
+
+# Requirements Traceability
+traceability:
+  AC1_responsive_layout:
+    tests:
+      - 'ProfileLayout.test.tsx: renders with correct CSS grid classes for desktop'
+      - 'ProfileLayout.test.tsx: renders mobile tabs navigation'
+      - 'ProfileLayout.test.tsx: renders desktop sidebar'
+      - 'edit-profile.spec.ts: displays sidebar navigation on desktop'
+      - 'edit-profile.spec.ts: displays tab navigation on mobile'
+    status: COVERED
+
+  AC2_form_loads_user_data:
+    tests:
+      - 'ProfileForm.test.tsx: loads and displays current user data'
+      - 'ProfileForm.test.tsx: shows loading state initially'
+      - 'edit-profile.spec.ts: displays current user data in form fields'
+    status: COVERED
+
+  AC3_success_toast:
+    tests:
+      - 'ProfileForm.test.tsx: submits form and shows success toast'
+      - 'ProfileForm.test.tsx: shows error toast on submission failure'
+      - 'edit-profile.spec.ts: successfully updates profile and shows toast notification'
+    status: COVERED
+
+  AC4_b2b_fields:
+    tests:
+      - 'ProfileForm.test.tsx: shows B2B fields for wholesale users'
+      - 'ProfileForm.test.tsx: does not show B2B fields for retail users'
+      - 'edit-profile.spec.ts: displays B2B fields for wholesale users'
+      - 'edit-profile.spec.ts: shows verification badge for B2B users'
+    status: COVERED
+
+  AC5_auth_redirect:
+    tests:
+      - 'edit-profile.spec.ts: redirects unauthenticated users to login page'
+      - 'edit-profile.spec.ts: allows authenticated users to access profile page'
+    status: COVERED
+
+  AC6_no_hardcoded_hex:
+    verification: 'Manual code review - all colors use semantic CSS classes (bg-primary, text-neutral-*, etc.)'
+    status: COVERED
+
+  AC7_test_coverage:
+    tests:
+      - 'ProfileLayout.test.tsx: 11 unit tests'
+      - 'ProfileForm.test.tsx: 14 unit tests'
+      - 'edit-profile.spec.ts: E2E tests for critical flows'
+    status: COVERED

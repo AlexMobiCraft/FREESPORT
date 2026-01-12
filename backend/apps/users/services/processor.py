@@ -1,6 +1,7 @@
 """
 Процессор данных клиентов для импорта в систему
 """
+
 from __future__ import annotations
 
 import logging
@@ -14,6 +15,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.common.models import CustomerSyncLog
+from apps.users.models import Company
 
 if TYPE_CHECKING:
     from apps.products.models import ImportSession
@@ -91,8 +93,8 @@ class CustomerDataProcessor:
                         self._log_operation(
                             user=None,
                             onec_id=onec_id,
-                            operation_type=CustomerSyncLog.OperationType.ERROR,
-                            status=CustomerSyncLog.StatusType.FAILED,
+                            operation_type="error",
+                            status="failed",
                             error_message=f"Невалидный формат email: {email}",
                         )
                         return None
@@ -110,8 +112,8 @@ class CustomerDataProcessor:
                     self._log_operation(
                         user=user,
                         onec_id=onec_id,
-                        operation_type=CustomerSyncLog.OperationType.UPDATED,
-                        status=CustomerSyncLog.StatusType.SUCCESS,
+                        operation_type="updated",
+                        status="success",
                         details={
                             "previous_role": existing_user.role,
                             "new_role": role,
@@ -123,8 +125,8 @@ class CustomerDataProcessor:
                     self._log_operation(
                         user=user,
                         onec_id=onec_id,
-                        operation_type=CustomerSyncLog.OperationType.CREATED,
-                        status=CustomerSyncLog.StatusType.SUCCESS,
+                        operation_type="created",
+                        status="success",
                         details={
                             "role": role,
                             "has_email": bool(email),
@@ -137,8 +139,8 @@ class CustomerDataProcessor:
                         self._log_operation(
                             user=user,
                             onec_id=onec_id,
-                            operation_type=CustomerSyncLog.OperationType.CREATED,
-                            status=CustomerSyncLog.StatusType.WARNING,
+                            operation_type="created",
+                            status="warning",
                             details={"notes": "Клиент создан без email адреса"},
                         )
 
@@ -149,8 +151,8 @@ class CustomerDataProcessor:
             self._log_operation(
                 user=None,
                 onec_id=onec_id,
-                operation_type=CustomerSyncLog.OperationType.ERROR,
-                status=CustomerSyncLog.StatusType.FAILED,
+                operation_type="error",
+                status="failed",
                 error_message=str(e),
             )
             return None
@@ -196,9 +198,9 @@ class CustomerDataProcessor:
             else:
                 # Проверяем логи на наличие записи с типом SKIPPED
                 skipped_log = CustomerSyncLog.objects.filter(
-                    session=self.session,
+                    session=str(self.session.pk),
                     onec_id=onec_id,
-                    operation_type=CustomerSyncLog.OperationType.SKIPPED,
+                    operation_type="skipped",
                 ).exists()
 
                 if skipped_log:
@@ -262,9 +264,47 @@ class CustomerDataProcessor:
         except ValidationError:
             return False
 
-    def _create_customer(
-        self, customer_data: dict[str, Any], role: str
-    ) -> User:
+    def _normalize_phone(self, phone: str) -> str:
+        """
+        Нормализует телефон из формата 1С в формат приложения.
+
+        Извлекает только цифры и берет первый телефон если их несколько.
+        Конвертирует в формат +7XXXXXXXXXX.
+
+        Args:
+            phone: Телефон в любом формате (например, "8-982-911-00-98",
+                   "8-961-205-46-21")
+
+        Returns:
+            str: Нормализованный телефон в формате +7XXXXXXXXXX или пустая строка
+        """
+        if not phone:
+            return ""
+
+        # Берем первый телефон если их несколько (разделены запятой)
+        first_phone = phone.split(",")[0].strip()
+
+        # Извлекаем только цифры
+        digits = "".join(c for c in first_phone if c.isdigit())
+
+        # Если номер начинается с 8 и имеет 11 цифр, конвертируем в +7
+        if digits.startswith("8") and len(digits) == 11:
+            return f"+7{digits[1:]}"
+
+        # Если номер начинается с 7 и имеет 11 цифр, добавляем +
+        if digits.startswith("7") and len(digits) == 11:
+            return f"+{digits}"
+
+        # Если 10 цифр, добавляем +7
+        if len(digits) == 10:
+            return f"+7{digits}"
+
+        # Если не удалось нормализовать, возвращаем пустую строку
+        # Это предотвратит ошибку валидации
+        logger.warning(f"Не удалось нормализовать телефон: {phone}")
+        return ""
+
+    def _create_customer(self, customer_data: dict[str, Any], role: str) -> User:
         """
         Создает нового пользователя из данных клиента.
 
@@ -278,7 +318,9 @@ class CustomerDataProcessor:
         email = customer_data.get("email", "").strip()
         first_name = customer_data.get("first_name", "").strip()
         last_name = customer_data.get("last_name", "").strip()
-        phone = customer_data.get("phone", "").strip()
+        phone = self._normalize_phone(
+            customer_data.get("phone", "")
+        )  # Нормализация телефона
         company_name = customer_data.get("company_name", "").strip()
         tax_id = customer_data.get("tax_id", "").strip()
         onec_id = customer_data.get("onec_id")
@@ -307,6 +349,11 @@ class CustomerDataProcessor:
             last_sync_at=timezone.now(),
         )
 
+        # Создаем объект Company для B2B клиентов (юр.лиц и ИП)
+        customer_type = customer_data.get("customer_type", "")
+        if customer_type in ["legal_entity", "individual_entrepreneur"]:
+            self._create_or_update_company(user, customer_data)
+
         logger.info(f"Создан новый пользователь: {user.email or onec_id} (role={role})")
         return user
 
@@ -328,7 +375,10 @@ class CustomerDataProcessor:
         user.first_name = customer_data.get("first_name", user.first_name)
         user.last_name = customer_data.get("last_name", user.last_name)
         user.role = role
-        user.phone = customer_data.get("phone", user.phone)
+        # Нормализуем телефон перед обновлением
+        phone = customer_data.get("phone", "")
+        if phone:
+            user.phone = self._normalize_phone(phone)
         user.company_name = customer_data.get("company_name", user.company_name)
         user.tax_id = customer_data.get("tax_id", user.tax_id)
         # Обновляем onec_id если его не было (дубликат найден по email)
@@ -339,7 +389,14 @@ class CustomerDataProcessor:
 
         user.save()
 
-        logger.info(f"Обновлен пользователь: {user.email or user.onec_id} (role={role})")
+        # Создаем/обновляем объект Company для B2B клиентов
+        customer_type = customer_data.get("customer_type", "")
+        if customer_type in ["legal_entity", "individual_entrepreneur"]:
+            self._create_or_update_company(user, customer_data)
+
+        logger.info(
+            f"Обновлен пользователь: {user.email or user.onec_id} (role={role})"
+        )
         return user
 
     def _log_operation(
@@ -362,12 +419,59 @@ class CustomerDataProcessor:
             error_message: Сообщение об ошибке
             details: Дополнительные детали операции
         """
+        import uuid
+
         CustomerSyncLog.objects.create(
-            session=self.session,
-            user=user,
+            session=str(self.session.pk),  # CharField - преобразуем ID в строку
+            customer=user,  # Поле называется customer, не user
             onec_id=onec_id,
             operation_type=operation_type,
             status=status,
             error_message=error_message,
             details=details or {},
+            correlation_id=uuid.uuid4(),  # Обязательное поле UUID
         )
+
+    def _create_or_update_company(
+        self, user: User, customer_data: dict[str, Any]
+    ) -> Company:
+        """
+        Создает или обновляет объект Company для B2B клиента.
+
+        Args:
+            user: Пользователь-владелец компании
+            customer_data: Словарь с данными клиента из парсера
+
+        Returns:
+            Company: Созданный или обновленный объект компании
+        """
+        # Получаем данные компании из customer_data
+        legal_name = customer_data.get("full_name", "") or customer_data.get("name", "")
+        tax_id = customer_data.get("tax_id", "").strip()
+        kpp = customer_data.get("kpp", "").strip()
+        legal_address = customer_data.get("address", "").strip()
+
+        # Пытаемся найти существующую компанию
+        try:
+            company = Company.objects.get(user=user)
+            # Обновляем данные компании
+            company.legal_name = legal_name
+            company.tax_id = tax_id
+            company.kpp = kpp
+            company.legal_address = legal_address
+            company.save()
+            logger.debug(f"Обновлена компания для пользователя {user.onec_id}")
+        except Company.DoesNotExist:
+            # Создаем новую компанию
+            company = Company.objects.create(
+                user=user,
+                legal_name=legal_name,
+                tax_id=tax_id,
+                kpp=kpp,
+                legal_address=legal_address,
+            )
+            logger.info(
+                f"Создана компания '{legal_name}' для пользователя {user.onec_id}"
+            )
+
+        return company

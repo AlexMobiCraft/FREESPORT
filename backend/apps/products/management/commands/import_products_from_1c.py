@@ -1,0 +1,702 @@
+"""
+Management команда для импорта каталога товаров из 1С с поддержкой ProductVariant
+
+Story 13.2: Рефакторинг импорта из 1С для ProductVariant
+
+Новый workflow импорта:
+1. goods.xml → Product (базовая информация, base_images)
+2. offers.xml → ProductVariant (SKU, характеристики)
+3. Default variants → ProductVariant для товаров без вариантов
+4. prices.xml → ProductVariant (цены)
+5. rests.xml → ProductVariant (остатки)
+"""
+
+from __future__ import annotations
+
+import os
+from pathlib import Path
+from typing import cast
+
+from django.core.management import call_command
+from django.core.management.base import BaseCommand, CommandError
+from tqdm import tqdm
+
+from apps.products.models import Brand, Category, ImportSession, Product, ProductVariant
+from apps.products.services.parser import XMLDataParser
+from apps.products.services.variant_import import VariantImportProcessor
+
+
+class Command(BaseCommand):
+    """
+    Импорт каталога товаров из XML файлов 1С (CommerceML 3.1) с поддержкой
+    ProductVariant
+
+    Использование:
+        python manage.py import_products_from_1c --data-dir /path/to/1c/data
+        python manage.py import_products_from_1c --data-dir /path --dry-run
+        python manage.py import_products_from_1c --data-dir /path --batch-size=500
+        python manage.py import_products_from_1c --data-dir /path --file-type=goods
+        python manage.py import_products_from_1c --data-dir /path --clear-existing
+        python manage.py import_products_from_1c --data-dir /path --variants-only
+    """
+
+    help = (
+        "Импорт каталога товаров из файлов 1С (CommerceML 3.1) "
+        "с поддержкой ProductVariant"
+    )
+
+    def add_arguments(self, parser):
+        """Добавление аргументов команды"""
+        parser.add_argument(
+            "--data-dir",
+            type=str,
+            default=None,
+            help=(
+                "Путь к директории с XML файлами из 1С. "
+                "Если не указан, используется ONEC_DATA_DIR из settings."
+            ),
+        )
+        parser.add_argument(
+            "--dry-run",
+            action="store_true",
+            help="Тестовый запуск без записи в БД",
+        )
+        parser.add_argument(
+            "--batch-size",
+            type=int,
+            default=500,
+            help="Размер пакета для bulk операций (default: 500, NFR4)",
+        )
+        parser.add_argument(
+            "--skip-validation",
+            action="store_true",
+            help="Пропустить валидацию данных для ускорения импорта",
+        )
+        parser.add_argument(
+            "--file-type",
+            type=str,
+            choices=["goods", "offers", "prices", "rests", "all"],
+            default="all",
+            help="Выборочный импорт конкретного типа файлов (default: all)",
+        )
+        parser.add_argument(
+            "--clear-existing",
+            action="store_true",
+            help=(
+                "Очистить существующие данные перед импортом "
+                "(ВНИМАНИЕ: удалит все товары и варианты)"
+            ),
+        )
+        parser.add_argument(
+            "--skip-backup",
+            action="store_true",
+            help="Пропустить создание backup перед импортом",
+        )
+        parser.add_argument(
+            "--skip-images",
+            action="store_true",
+            help="Пропустить импорт изображений товаров (только метаданные)",
+        )
+        parser.add_argument(
+            "--skip-default-variants",
+            action="store_true",
+            help="Пропустить создание default variants для товаров без вариантов",
+        )
+        parser.add_argument(
+            "--variants-only",
+            action="store_true",
+            help=(
+                "Импортировать только варианты (offers.xml, prices.xml, rests.xml) "
+                "без пересоздания базовых товаров (goods.xml). "
+                "Требует предварительно импортированного каталога товаров."
+            ),
+        )
+        parser.add_argument(
+            "--celery-task-id",
+            type=str,
+            default=None,
+            help=(
+                "ID Celery задачи для связи с существующей сессией импорта. "
+                "Если указан, команда использует существующую сессию вместо "
+                "создания новой."
+            ),
+        )
+
+    def handle(self, *args, **options):
+        """Основная логика команды"""
+        from django.conf import settings
+
+        data_dir = options["data_dir"]
+        if not data_dir:
+            data_dir = settings.ONEC_DATA_DIR
+
+        dry_run = options.get("dry_run", False)
+        batch_size = options.get("batch_size", 500)
+        skip_validation = options.get("skip_validation", False)
+        file_type = options.get("file_type", "all")
+        clear_existing = options.get("clear_existing", False)
+        skip_backup = options.get("skip_backup", False)
+        skip_images = options.get("skip_images", False)
+        skip_default_variants = options.get("skip_default_variants", False)
+        variants_only = options.get("variants_only", False)
+        celery_task_id = options.get("celery_task_id", None)
+
+        # --variants-only переопределяет file_type
+        if variants_only:
+            file_type = "offers"  # Импортировать только offers + prices + rests
+
+        # Валидация директории
+        if not os.path.exists(data_dir):
+            raise CommandError(f"Директория не найдена: {data_dir}")
+
+        if not os.path.isdir(data_dir):
+            raise CommandError(f"Путь не является директорией: {data_dir}")
+
+        # Валидация структуры директории
+        if file_type == "all":
+            required_subdirs = ["goods", "offers", "prices", "rests", "priceLists"]
+            for subdir in required_subdirs:
+                subdir_path = os.path.join(data_dir, subdir)
+                if not os.path.exists(subdir_path):
+                    raise CommandError(
+                        f"Отсутствует обязательная поддиректория: {subdir}"
+                    )
+        elif file_type == "offers" or variants_only:
+            # Для --variants-only нужны только offers, prices, rests
+            required_subdirs = ["offers", "prices", "rests"]
+            for subdir in required_subdirs:
+                subdir_path = os.path.join(data_dir, subdir)
+                if not os.path.exists(subdir_path):
+                    raise CommandError(
+                        f"Отсутствует обязательная поддиректория для "
+                        f"импорта вариантов: {subdir}"
+                    )
+
+        if dry_run:
+            self.stdout.write(
+                self.style.WARNING("🔍 DRY RUN MODE: Изменения не будут сохранены в БД")
+            )
+            return self._dry_run_import(data_dir)
+
+        # Автоматический backup перед полным импортом
+        if not dry_run and file_type == "all" and not skip_backup:
+            self.stdout.write(
+                self.style.WARNING("\n💾 Создание backup перед импортом...")
+            )
+            try:
+                call_command("backup_db")
+                self.stdout.write(self.style.SUCCESS("✅ Backup создан успешно"))
+            except Exception as e:
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"⚠️ Не удалось создать backup: {e}. Продолжаем импорт..."
+                    )
+                )
+
+        # Очистка существующих данных
+        if clear_existing:
+            self._clear_existing_data()
+
+        # Вывод параметров импорта
+        self.stdout.write("\n" + "=" * 60)
+        if variants_only:
+            self.stdout.write("📊 ПАРАМЕТРЫ ИМПОРТА (Только варианты):")
+        else:
+            self.stdout.write("📊 ПАРАМЕТРЫ ИМПОРТА (ProductVariant mode):")
+        self.stdout.write(f"   Директория: {data_dir}")
+        self.stdout.write(f"   Тип файлов: {file_type}")
+        self.stdout.write(f"   Variants only: {variants_only}")
+        self.stdout.write(f"   Batch size: {batch_size}")
+        self.stdout.write(f"   Skip validation: {skip_validation}")
+        self.stdout.write(f"   Skip backup: {skip_backup}")
+        self.stdout.write(f"   Skip images: {skip_images}")
+        self.stdout.write(f"   Skip default variants: {skip_default_variants}")
+        self.stdout.write("=" * 60)
+
+        # Создание или получение существующей сессии импорта
+        session_type = (
+            ImportSession.ImportType.VARIANTS
+            if variants_only
+            else ImportSession.ImportType.CATALOG
+        )
+
+        session = None
+        if celery_task_id:
+            # Ищем существующую сессию по celery_task_id
+            try:
+                session = ImportSession.objects.get(celery_task_id=celery_task_id)
+                session.status = ImportSession.ImportStatus.IN_PROGRESS
+                session.save(update_fields=["status"])
+                self.stdout.write(
+                    self.style.SUCCESS(
+                        f"\n✅ Используется существующая сессия импорта ID: {session.pk}"
+                    )
+                )
+            except ImportSession.DoesNotExist:
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"\n⚠️ Сессия с celery_task_id={celery_task_id} не найдена, "
+                        f"создаём новую"
+                    )
+                )
+
+        if session is None:
+            session = ImportSession.objects.create(
+                import_type=session_type,
+                status=ImportSession.ImportStatus.STARTED,
+                celery_task_id=celery_task_id,
+            )
+            self.stdout.write(
+                self.style.SUCCESS(f"\n✅ Создана сессия импорта ID: {session.pk}")
+            )
+
+        session_id = cast(int, session.pk)
+
+        try:
+            # Инициализация парсера и процессора
+            parser = XMLDataParser()
+
+            # VariantImportProcessor для Product + ProductVariant
+            # + Categories + Brands + PriceTypes
+            # (методы process_categories, process_brands, process_price_types
+            # мигрированы в Story 27.1)
+            variant_processor = VariantImportProcessor(
+                session_id=session_id,
+                batch_size=batch_size,
+                skip_validation=skip_validation,
+            )
+
+            # ШАГ 0.5: Загрузка категорий из groups.xml
+            if file_type in ["all", "goods"]:
+                self._import_categories(data_dir, parser, variant_processor)
+
+            # ШАГ 0.6: Загрузка брендов из propertiesGoods.xml
+            if file_type in ["all", "goods"]:
+                self._import_brands(data_dir, parser, variant_processor)
+
+            # ШАГ 1: Загрузка типов цен из priceLists*.xml
+            if file_type in ["all", "prices"]:
+                self._import_price_types(data_dir, parser, variant_processor)
+
+            # ШАГ 2: Парсинг goods.xml → Product (базовая информация)
+            if file_type in ["all", "goods"]:
+                self._import_products_from_goods(
+                    data_dir, parser, variant_processor, skip_images
+                )
+
+            # ШАГ 3: Парсинг offers.xml → ProductVariant
+            if file_type in ["all", "offers"]:
+                self._import_variants_from_offers(
+                    data_dir, parser, variant_processor, skip_images
+                )
+
+            # ШАГ 3.5: Создание default variants для товаров без вариантов
+            if file_type in ["all", "offers"] and not skip_default_variants:
+                self._create_default_variants(variant_processor)
+
+            # ШАГ 4: Парсинг prices.xml → ProductVariant (цены)
+            if file_type in ["all", "prices", "offers"]:
+                self._import_variant_prices(data_dir, parser, variant_processor)
+
+            # ШАГ 5: Парсинг rests.xml → ProductVariant (остатки)
+            if file_type in ["all", "rests", "offers"]:
+                self._import_variant_stocks(data_dir, parser, variant_processor)
+
+            # Финализация сессии
+            variant_processor.finalize_session(
+                status=ImportSession.ImportStatus.COMPLETED
+            )
+
+            # Вывод статистики
+            self._print_stats(variant_processor.get_stats())
+
+        except Exception as e:
+            self.stdout.write(self.style.ERROR(f"\n❌ ОШИБКА ИМПОРТА: {e}"))
+            session.status = ImportSession.ImportStatus.FAILED
+            session.error_message = str(e)
+            session.save()
+            raise CommandError(f"Импорт завершился с ошибкой: {e}")
+
+    def _import_categories(
+        self, data_dir: str, parser: XMLDataParser, processor: VariantImportProcessor
+    ):
+        """Импорт категорий из groups.xml"""
+        self.stdout.write("\n📁 Шаг 0.5: Загрузка категорий...")
+        groups_files = self._collect_xml_files(data_dir, "groups", "groups.xml")
+
+        if groups_files:
+            total_categories = 0
+            for file_path in groups_files:
+                categories_data = parser.parse_groups_xml(file_path)
+                result = processor.process_categories(categories_data)
+                total_categories += result["created"] + result["updated"]
+                self.stdout.write(
+                    f"   • {Path(file_path).name}: категорий {len(categories_data)}"
+                )
+
+                if result["cycles_detected"] > 0:
+                    self.stdout.write(
+                        self.style.WARNING(
+                            f"   ⚠️ Обнаружено циклических ссылок: "
+                            f"{result['cycles_detected']}"
+                        )
+                    )
+
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f"   ✅ Загружено категорий (всего): {total_categories}"
+                )
+            )
+        else:
+            self.stdout.write(self.style.WARNING("   ⚠️ Файлы groups.xml не найдены"))
+
+    def _import_brands(
+        self, data_dir: str, parser: XMLDataParser, processor: VariantImportProcessor
+    ):
+        """Импорт брендов из propertiesGoods.xml"""
+        self.stdout.write("\n🏷️  Шаг 0.6: Загрузка брендов...")
+        properties_files = self._collect_xml_files(
+            data_dir, "propertiesGoods", "propertiesGoods.xml"
+        )
+
+        if properties_files:
+            total_brands = 0
+            total_mappings = 0
+            for file_path in properties_files:
+                brands_data = parser.parse_properties_goods_xml(file_path)
+                result = processor.process_brands(brands_data)
+                total_brands += result["brands_created"]
+                total_mappings += result["mappings_created"]
+                self.stdout.write(
+                    f"   • {Path(file_path).name}: брендов {len(brands_data)}"
+                )
+
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f"   ✅ Создано брендов: {total_brands}, маппингов: {total_mappings}"
+                )
+            )
+        else:
+            self.stdout.write(
+                self.style.WARNING("   ⚠️ Файлы propertiesGoods*.xml не найдены")
+            )
+
+    def _import_price_types(
+        self, data_dir: str, parser: XMLDataParser, processor: VariantImportProcessor
+    ):
+        """Импорт типов цен из priceLists.xml"""
+        self.stdout.write("\n📋 Шаг 1: Загрузка типов цен...")
+        price_list_files = self._collect_xml_files(
+            data_dir, "priceLists", "priceLists.xml"
+        )
+
+        if price_list_files:
+            total_price_types = 0
+            for file_path in price_list_files:
+                price_types_data = parser.parse_price_lists_xml(file_path)
+                for price_type in price_types_data:
+                    processor.process_price_types([price_type])
+                total_price_types += len(price_types_data)
+                self.stdout.write(
+                    f"   • {Path(file_path).name}: типов цен {len(price_types_data)}"
+                )
+
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f"   ✅ Загружено типов цен (всего): {total_price_types}"
+                )
+            )
+        else:
+            self.stdout.write(
+                self.style.WARNING("   ⚠️ Файлы priceLists*.xml не найдены")
+            )
+
+    def _import_products_from_goods(
+        self,
+        data_dir: str,
+        parser: XMLDataParser,
+        processor: VariantImportProcessor,
+        skip_images: bool,
+    ):
+        """Импорт Product из goods.xml (AC1)"""
+        self.stdout.write("\n📦 Шаг 2: Создание Product из goods.xml...")
+        goods_files = self._collect_xml_files(data_dir, "goods", "goods.xml")
+
+        if not goods_files:
+            raise CommandError("Файлы goods.xml или goods_*.xml не найдены")
+
+        for file_path in goods_files:
+            goods_data = parser.parse_goods_xml(file_path)
+            base_dir = os.path.join(data_dir, "goods", "import_files")
+
+            for goods_item in tqdm(
+                goods_data, desc=f"   Обработка {Path(file_path).name}"
+            ):
+                processor.process_product_from_goods(
+                    goods_item,
+                    base_dir=base_dir,
+                    skip_images=skip_images,
+                )
+
+            self.stdout.write(f"   • {Path(file_path).name}: товаров {len(goods_data)}")
+
+        stats = processor.get_stats()
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"   ✅ Создано: {stats['products_created']}, "
+                f"обновлено: {stats['products_updated']}"
+            )
+        )
+
+    def _import_variants_from_offers(
+        self,
+        data_dir: str,
+        parser: XMLDataParser,
+        processor: VariantImportProcessor,
+        skip_images: bool,
+    ):
+        """Импорт ProductVariant из offers.xml (AC2, AC3, AC4)"""
+        self.stdout.write("\n🎁 Шаг 3: Создание ProductVariant из offers.xml...")
+        offers_files = self._collect_xml_files(data_dir, "offers", "offers.xml")
+
+        if not offers_files:
+            raise CommandError("Файлы offers.xml или offers_*.xml не найдены")
+
+        for file_path in offers_files:
+            offers_data = parser.parse_offers_xml(file_path)
+            base_dir = os.path.join(data_dir, "offers", "import_files")
+
+            for offer_item in tqdm(
+                offers_data, desc=f"   Обработка {Path(file_path).name}"
+            ):
+                processor.process_variant_from_offer(
+                    offer_item,
+                    base_dir=base_dir,
+                    skip_images=skip_images,
+                )
+
+            self.stdout.write(
+                f"   • {Path(file_path).name}: предложений {len(offers_data)}"
+            )
+
+        stats = processor.get_stats()
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"   ✅ Создано вариантов: {stats['variants_created']}, "
+                f"обновлено: {stats['variants_updated']}, "
+                f"пропущено: {stats['skipped']}"
+            )
+        )
+
+    def _create_default_variants(self, processor: VariantImportProcessor):
+        """Создание default variants для товаров без вариантов (AC5)"""
+        self.stdout.write("\n🔄 Шаг 3.5: Создание default variants...")
+        count = processor.create_default_variants()
+        self.stdout.write(self.style.SUCCESS(f"   ✅ Создано default variants: {count}"))
+
+    def _import_variant_prices(
+        self,
+        data_dir: str,
+        parser: XMLDataParser,
+        processor: VariantImportProcessor,
+    ):
+        """Импорт цен в ProductVariant из prices.xml (AC7)"""
+        self.stdout.write("\n💰 Шаг 4: Обновление цен ProductVariant из prices.xml...")
+        prices_files = self._collect_xml_files(data_dir, "prices", "prices.xml")
+
+        if not prices_files:
+            self.stdout.write(self.style.WARNING("   ⚠️ Файлы prices.xml не найдены"))
+            return
+
+        for file_path in prices_files:
+            prices_data = parser.parse_prices_xml(file_path)
+
+            for price_item in tqdm(
+                prices_data, desc=f"   Обработка {Path(file_path).name}"
+            ):
+                processor.update_variant_prices(price_item)
+
+            self.stdout.write(
+                f"   • {Path(file_path).name}: записей цен {len(prices_data)}"
+            )
+
+        stats = processor.get_stats()
+        self.stdout.write(
+            self.style.SUCCESS(f"   ✅ Обновлено цен: {stats['prices_updated']}")
+        )
+
+    def _import_variant_stocks(
+        self,
+        data_dir: str,
+        parser: XMLDataParser,
+        processor: VariantImportProcessor,
+    ):
+        """Импорт остатков в ProductVariant из rests.xml (AC8)"""
+        self.stdout.write(
+            "\n📊 Шаг 5: Обновление остатков ProductVariant из rests.xml..."
+        )
+        rests_files = self._collect_xml_files(data_dir, "rests", "rests.xml")
+
+        if not rests_files:
+            self.stdout.write(self.style.WARNING("   ⚠️ Файлы rests.xml не найдены"))
+            return
+
+        for file_path in rests_files:
+            rests_data = parser.parse_rests_xml(file_path)
+
+            for rest_item in tqdm(
+                rests_data, desc=f"   Обработка {Path(file_path).name}"
+            ):
+                processor.update_variant_stock(rest_item)
+
+            self.stdout.write(
+                f"   • {Path(file_path).name}: записей остатков {len(rests_data)}"
+            )
+
+        stats = processor.get_stats()
+        self.stdout.write(
+            self.style.SUCCESS(f"   ✅ Обновлено остатков: {stats['stocks_updated']}")
+        )
+
+    def _clear_existing_data(self):
+        """Очистка существующих данных"""
+        self.stdout.write(
+            self.style.WARNING(
+                "\n⚠️ ВНИМАНИЕ: Удаление всех существующих товаров, вариантов, "
+                "категорий и брендов..."
+            )
+        )
+        confirm = input("Вы уверены? Введите 'yes' для подтверждения: ")
+
+        if confirm.lower() == "yes":
+            ProductVariant.objects.all().delete()
+            Product.objects.all().delete()
+            Category.objects.all().delete()
+            Brand.objects.all().delete()
+            self.stdout.write(self.style.SUCCESS("✅ Данные очищены"))
+        else:
+            self.stdout.write(self.style.ERROR("❌ Очистка отменена"))
+            raise CommandError("Очистка данных отменена пользователем")
+
+    def _print_stats(self, stats: dict):
+        """Вывод статистики импорта"""
+        self.stdout.write("\n" + "=" * 60)
+        self.stdout.write(self.style.SUCCESS("✅ ИМПОРТ ЗАВЕРШЕН УСПЕШНО"))
+        self.stdout.write("=" * 60)
+        self.stdout.write("\n📊 СТАТИСТИКА:")
+        self.stdout.write(
+            f"   Products создано:        {stats.get('products_created', 0)}"
+        )
+        self.stdout.write(
+            f"   Products обновлено:      {stats.get('products_updated', 0)}"
+        )
+        self.stdout.write(
+            f"   Variants создано:        {stats.get('variants_created', 0)}"
+        )
+        self.stdout.write(
+            f"   Variants обновлено:      {stats.get('variants_updated', 0)}"
+        )
+        self.stdout.write(
+            f"   Default variants:        {stats.get('default_variants_created', 0)}"
+        )
+        self.stdout.write(
+            f"   Цен обновлено:           {stats.get('prices_updated', 0)}"
+        )
+        self.stdout.write(
+            f"   Остатков обновлено:      {stats.get('stocks_updated', 0)}"
+        )
+        self.stdout.write(f"   Пропущено:               {stats.get('skipped', 0)}")
+        self.stdout.write(f"   Предупреждений:          {stats.get('warnings', 0)}")
+        self.stdout.write(f"   Ошибок:                  {stats.get('errors', 0)}")
+
+        self.stdout.write("\n📸 ИЗОБРАЖЕНИЯ:")
+        self.stdout.write(
+            f"   Скопировано:             {stats.get('images_copied', 0)}"
+        )
+        self.stdout.write(
+            f"   Пропущено (существуют):  {stats.get('images_skipped', 0)}"
+        )
+        self.stdout.write(
+            f"   Ошибок:                  {stats.get('images_errors', 0)}"
+        )
+        self.stdout.write("=" * 60)
+
+    def _collect_xml_files(
+        self, base_dir: str, subdir: str, filename: str
+    ) -> list[str]:
+        """Сбор XML файлов из директории"""
+        base_path = Path(base_dir) / subdir
+        if not base_path.exists():
+            return []
+
+        collected: list[Path] = []
+        prefix = filename.replace(".xml", "")
+
+        # Прямой файл
+        direct_file = base_path / filename
+        if direct_file.exists():
+            collected.append(direct_file)
+
+        # Сегментированные файлы
+        for segmented_file in sorted(base_path.glob(f"{prefix}_*.xml")):
+            if segmented_file not in collected:
+                collected.append(segmented_file)
+
+        # Legacy путь
+        legacy_file = base_path / "import_files" / filename
+        if legacy_file.exists() and legacy_file not in collected:
+            collected.append(legacy_file)
+
+        return [str(path) for path in collected]
+
+    def _dry_run_import(self, data_dir: str) -> None:
+        """Тестовый запуск импорта без записи в БД"""
+        parser = XMLDataParser()
+
+        self.stdout.write("\n📋 Проверка priceLists.xml...")
+        price_list_files = self._collect_xml_files(
+            data_dir, "priceLists", "priceLists.xml"
+        )
+        if price_list_files:
+            total = sum(len(parser.parse_price_lists_xml(f)) for f in price_list_files)
+            self.stdout.write(f"   ✅ Найдено типов цен: {total}")
+        else:
+            self.stdout.write("   ⚠️ Файлы не найдены")
+
+        self.stdout.write("\n📦 Проверка goods.xml...")
+        goods_files = self._collect_xml_files(data_dir, "goods", "goods.xml")
+        if goods_files:
+            total = sum(len(parser.parse_goods_xml(f)) for f in goods_files)
+            self.stdout.write(f"   ✅ Найдено товаров (Product): {total}")
+        else:
+            self.stdout.write("   ❌ Файлы не найдены")
+
+        self.stdout.write("\n🎁 Проверка offers.xml...")
+        offers_files = self._collect_xml_files(data_dir, "offers", "offers.xml")
+        if offers_files:
+            total = sum(len(parser.parse_offers_xml(f)) for f in offers_files)
+            self.stdout.write(f"   ✅ Найдено предложений (ProductVariant): {total}")
+        else:
+            self.stdout.write("   ❌ Файлы не найдены")
+
+        self.stdout.write("\n💰 Проверка prices.xml...")
+        prices_files = self._collect_xml_files(data_dir, "prices", "prices.xml")
+        if prices_files:
+            total = sum(len(parser.parse_prices_xml(f)) for f in prices_files)
+            self.stdout.write(f"   ✅ Найдено записей цен: {total}")
+        else:
+            self.stdout.write("   ⚠️ Файлы не найдены")
+
+        self.stdout.write("\n📊 Проверка rests.xml...")
+        rests_files = self._collect_xml_files(data_dir, "rests", "rests.xml")
+        if rests_files:
+            total = sum(len(parser.parse_rests_xml(f)) for f in rests_files)
+            self.stdout.write(f"   ✅ Найдено записей остатков: {total}")
+        else:
+            self.stdout.write("   ⚠️ Файлы не найдены")
+
+        self.stdout.write("\n" + "=" * 60)
+        self.stdout.write(
+            self.style.SUCCESS("✅ DRY RUN ЗАВЕРШЕН: Структура файлов корректна")
+        )
+        self.stdout.write("=" * 60)

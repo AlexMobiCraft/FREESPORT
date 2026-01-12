@@ -1,0 +1,146 @@
+# Quality Gate Decision: Story 3.5.1 - Monitoring System
+
+schema: 1
+story: "3.5.1"
+story_title: "monitoring-system"
+gate: CONCERNS
+status_reason: "Критические компоненты реализованы качественно с полной типизацией и хорошим покрытием тестами, но отсутствуют production-ready элементы (Prometheus/Grafana, Celery tasks, production тестирование)"
+reviewer: "Quinn (Test Architect)"
+updated: "2025-10-30T20:37:00Z"
+
+waiver:
+  active: false
+
+# Идентифицированные проблемы
+top_issues:
+  - id: "INFRA-001"
+    severity: medium
+    finding: "Отсутствует интеграция с Prometheus/Grafana (Tasks 6-7)"
+    suggested_action: "Создать конфигурационные файлы для Prometheus и Grafana dashboards перед production деплоем"
+    suggested_owner: dev
+
+  - id: "CELERY-001"
+    severity: medium
+    finding: "Не реализованы Celery periodic tasks для автоматического мониторинга (Task 8)"
+    suggested_action: "Добавить Celery Beat задачи для периодических проверок health и метрик"
+    suggested_owner: dev
+
+  - id: "TEST-001"
+    severity: medium
+    finding: "Отсутствует тестирование в production-подобном окружении с реальными данными"
+    suggested_action: "Провести интеграционное тестирование с полным стеком (PostgreSQL, Redis, Celery)"
+    suggested_owner: dev
+
+  - id: "PERF-001"
+    severity: low
+    finding: "Percentile calculation использует прямой SQL вместо ORM"
+    suggested_action: "Рассмотреть использование Django Aggregation с Percentile (Django 4.2+) для лучшей поддерживаемости"
+    suggested_owner: dev
+
+# Сводка рисков
+risk_summary:
+  totals:
+    critical: 0
+    high: 0
+    medium: 3
+    low: 1
+  recommendations:
+    must_fix:
+      - "Добавить Prometheus/Grafana конфигурацию перед production"
+      - "Реализовать Celery periodic tasks для автоматизации мониторинга"
+    monitor:
+      - "Производительность percentile расчетов на больших датасетах"
+      - "Кэширование метрик под нагрузкой"
+
+# Трассировка покрытия Acceptance Criteria тестами
+evidence:
+  tests_reviewed: 24
+  risks_identified: 4
+  trace:
+    ac_covered: [1, 2, 3, 4, 5]  # AC 1-5 полностью покрыты тестами
+    ac_gaps: [6, 7]  # AC 6-7 частично реализованы (нет Prometheus/Grafana интеграции)
+
+# Валидация Non-Functional Requirements
+nfr_validation:
+  security:
+    status: PASS
+    notes: |
+      ✓ API endpoints защищены IsAdminUser permission
+      ✓ Чувствительные данные не логируются в алерты
+      ✓ Environment variables для конфигурации секретов
+      ✓ Нет hardcoded credentials
+
+  performance:
+    status: CONCERNS
+    notes: |
+      ✓ Кэширование метрик (5 мин TTL для операций, 1 мин для health)
+      ✓ Использование агрегационных запросов Django ORM
+      ✓ Percentile calculation оптимизирован через PostgreSQL
+      ⚠ Отсутствует тестирование производительности под нагрузкой
+      ⚠ Нет benchmarking для больших объемов данных (>100K логов)
+
+  reliability:
+    status: PASS
+    notes: |
+      ✓ Комплексная обработка ошибок с fallback механизмами
+      ✓ Health checks для всех критических компонентов
+      ✓ Alert deduplication через cooldown механизм
+      ✓ Retry логика для внешних API вызовов (1C API)
+      ✓ Graceful degradation (1C API опционален)
+
+  maintainability:
+    status: PASS
+    notes: |
+      ✓ Отличная типизация (type hints для всех методов)
+      ✓ Детальная документация в docstrings
+      ✓ Логирование с контекстом для debugging
+      ✓ Модульная архитектура (CustomerSyncMonitor, AlertManager, HealthCheck)
+      ✓ Следование DRY принципу
+      ✓ Comprehensive unit и integration тесты (24 теста)
+
+# Качественная оценка
+quality_score: 75
+# Расчет: 100 - (10 × 3 medium) - (5 × 1 low) = 65, +10 за отличную типизацию и архитектуру
+
+# Рекомендации
+recommendations:
+  immediate:  # Must fix перед production
+    - action: "Создать Prometheus scrape config и alert rules"
+      refs:
+        - "docker/prometheus/prometheus.yml"
+        - "docker/prometheus/alerts.yml"
+
+    - action: "Реализовать Grafana dashboard provisioning"
+      refs:
+        - "backend/grafana/dashboards/customer-sync-dashboard.json"
+
+    - action: "Добавить Celery Beat tasks для автоматизации"
+      refs:
+        - "backend/apps/common/tasks.py"
+
+    - action: "Провести load testing с реальными объемами данных"
+      refs:
+        - "backend/tests/performance/test_monitoring_load.py"
+
+  future:  # Nice to have для следующих итераций
+    - action: "Рассмотреть миграцию percentile calculation на Django ORM Percentile aggregate"
+      refs:
+        - "backend/apps/common/services/customer_sync_monitor.py:130-164"
+
+    - action: "Добавить мониторинг Celery workers (check_celery_workers placeholder)"
+      refs:
+        - "backend/apps/common/services/customer_sync_monitor.py:555-568"
+
+    - action: "Реализовать historical trending для метрик (суточные/недельные агрегаты)"
+      refs:
+        - "backend/apps/common/services/customer_sync_monitor.py"
+
+    - action: "Добавить экспорт метрик в формате JSON для внешних систем"
+      refs:
+        - "backend/apps/common/views.py"
+
+# История изменений gate (append-only)
+history:
+  - at: "2025-10-30T20:37:00Z"
+    gate: CONCERNS
+    note: "Первичный QA review - критические задачи выполнены качественно, но отсутствуют production-ready компоненты"

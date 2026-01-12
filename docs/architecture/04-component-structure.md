@@ -150,6 +150,35 @@ backend/
 └── manage.py                         # Django CLI
 ```
 
+#### Security & Rate Limiting
+
+**Django Admin Rate Limiting Strategy:**
+
+Для Django Admin применяется встроенная защита Django + дополнительные меры:
+
+1. **Django встроенная защита:**
+   - CSRF protection (включен по умолчанию)
+   - Session-based authentication с timeout
+   - Permission-based access control
+
+2. **Rate Limiting подход (для будущей реализации):**
+   - **Уровень приложения:** Django-ratelimit middleware для ограничения запросов к admin endpoints
+   - **Уровень веб-сервера:** Nginx rate limiting для защиты от DDoS
+   - **Рекомендуемые лимиты:**
+     - Admin login: 5 попыток / 5 минут
+     - Bulk actions: 10 операций / минуту
+     - API endpoints: 100 запросов / минуту
+
+3. **Текущая реализация (MVP):**
+   - Permissions check на уровне admin actions (`@admin.action(permissions=['users.change_user'])`)
+   - Input validation для предотвращения некорректных массовых операций
+   - AuditLog для отслеживания всех критичных действий
+
+4. **Планируемые улучшения:**
+   - Интеграция django-ratelimit для admin endpoints
+   - Мониторинг подозрительной активности через AuditLog
+   - Автоматическая блокировка IP при превышении лимитов
+
 #### Views Architecture Pattern (Реализовано в Story 2.3)
 
 **Модульная организация views для масштабируемости:**

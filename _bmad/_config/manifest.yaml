@@ -1,0 +1,15 @@
+installation:
+  version: 6.0.0-alpha.22
+  installDate: 2026-01-01T18:56:46.612Z
+  lastUpdated: 2026-01-01T18:56:46.612Z
+modules:
+  - core
+  - bmb
+  - bmm
+  - cis
+ides:
+  - claude-code
+  - antigravity
+  - windsurf
+  - gemini
+  - kilo

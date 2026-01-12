@@ -48,7 +48,7 @@
 make test
 
 # Или напрямую через Docker Compose
-docker-compose -f docker-compose.test.yml up --build --abort-on-container-exit
+docker compose -f docker-compose.test.yml up --build --abort-on-container-exit
 
 # Windows скрипт
 scripts\test.bat
@@ -279,19 +279,19 @@ pytest --cov=apps --cov-report=term-missing --cov-config=.coveragerc
 echo [INFO] Запуск тестов FREESPORT Platform в Docker...
 
 :: Остановка предыдущих контейнеров
-docker-compose -f docker-compose.test.yml down --remove-orphans --volumes
+docker compose -f docker-compose.test.yml down --remove-orphans --volumes
 
 :: Сборка тестовых образов
-docker-compose -f docker-compose.test.yml build --no-cache
+docker compose -f docker-compose.test.yml build --no-cache
 
 :: Запуск тестов
-docker-compose -f docker-compose.test.yml up --abort-on-container-exit --exit-code-from backend
+docker compose -f docker-compose.test.yml up --abort-on-container-exit --exit-code-from backend
 
 :: Сохранение кода выхода
 set TEST_EXIT_CODE=%errorlevel%
 
 :: Остановка контейнеров
-docker-compose -f docker-compose.test.yml down
+docker compose -f docker-compose.test.yml down
 
 :: Копирование отчетов
 docker run --rm -v freesport_test_coverage:/coverage -v "%cd%":/host alpine cp -r /coverage/. /host/htmlcov/ 2>nul
@@ -317,15 +317,15 @@ echo "[INFO] Запуск тестов FREESPORT Platform в Docker..."
 cd "$(dirname "$0")/.."
 
 # Остановка предыдущих контейнеров
-docker-compose -f docker-compose.test.yml down --remove-orphans --volumes
+docker compose -f docker-compose.test.yml down --remove-orphans --volumes
 
 # Сборка и запуск тестов
-docker-compose -f docker-compose.test.yml up --build --abort-on-container-exit --exit-code-from backend
+docker compose -f docker-compose.test.yml up --build --abort-on-container-exit --exit-code-from backend
 
 TEST_EXIT_CODE=$?
 
 # Очистка
-docker-compose -f docker-compose.test.yml down
+docker compose -f docker-compose.test.yml down
 
 # Копирование отчетов
 docker run --rm -v freesport_test_coverage:/coverage -v "$(pwd)":/host alpine sh -c "cp -r /coverage/. /host/htmlcov/ 2>/dev/null || true"
@@ -345,25 +345,25 @@ exit $TEST_EXIT_CODE
 ```makefile
 # Все тесты
 test:
-	docker-compose -f docker-compose.test.yml down --remove-orphans --volumes
-	docker-compose -f docker-compose.test.yml up --build --abort-on-container-exit --exit-code-from backend
-	docker-compose -f docker-compose.test.yml down
+	docker compose -f docker-compose.test.yml down --remove-orphans --volumes
+	docker compose -f docker-compose.test.yml up --build --abort-on-container-exit --exit-code-from backend
+	docker compose -f docker-compose.test.yml down
 
 # Unit тесты
 test-unit:
-	docker-compose -f docker-compose.test.yml down --remove-orphans
-	docker-compose -f docker-compose.test.yml run --rm backend pytest -v -m unit --cov=apps --cov-report=term-missing
-	docker-compose -f docker-compose.test.yml down
+	docker compose -f docker-compose.test.yml down --remove-orphans
+	docker compose -f docker-compose.test.yml run --rm backend pytest -v -m unit --cov=apps --cov-report=term-missing
+	docker compose -f docker-compose.test.yml down
 
 # Интеграционные тесты
 test-integration:
-	docker-compose -f docker-compose.test.yml down --remove-orphans
-	docker-compose -f docker-compose.test.yml run --rm backend pytest -v -m integration --cov=apps --cov-report=term-missing
-	docker-compose -f docker-compose.test.yml down
+	docker compose -f docker-compose.test.yml down --remove-orphans
+	docker compose -f docker-compose.test.yml run --rm backend pytest -v -m integration --cov=apps --cov-report=term-missing
+	docker compose -f docker-compose.test.yml down
 
 # Быстрые тесты (без пересборки)
 test-fast:
-	docker-compose -f docker-compose.test.yml run --rm backend pytest -v --tb=short
+	docker compose -f docker-compose.test.yml run --rm backend pytest -v --tb=short
 ```
 
 ## Мониторинг и отладка тестов
@@ -372,26 +372,26 @@ test-fast:
 
 ```bash
 # Просмотр логов тестов
-docker-compose -f docker-compose.test.yml logs backend
+docker compose -f docker-compose.test.yml logs backend
 
 # Запуск с подробными логами
-docker-compose -f docker-compose.test.yml up --build
+docker compose -f docker-compose.test.yml up --build
 
 # Отладка конкретного теста
-docker-compose -f docker-compose.test.yml run --rm backend pytest -v -s tests/test_specific.py::test_function
+docker compose -f docker-compose.test.yml run --rm backend pytest -v -s tests/test_specific.py::test_function
 ```
 
 ### Отладка в интерактивном режиме
 
 ```bash
 # Shell в тестовом контейнере
-docker-compose -f docker-compose.test.yml run --rm backend bash
+docker compose -f docker-compose.test.yml run --rm backend bash
 
 # Подключение к тестовой БД
-docker-compose -f docker-compose.test.yml exec db psql -U postgres -d freesport_test
+docker compose -f docker-compose.test.yml exec db psql -U postgres -d freesport_test
 
 # Проверка Redis
-docker-compose -f docker-compose.test.yml exec redis redis-cli -a redis123
+docker compose -f docker-compose.test.yml exec redis redis-cli -a redis123
 ```
 
 ### Производительность тестов
@@ -444,7 +444,7 @@ codecov -f coverage.xml
 **1. Контейнеры не останавливаются**
 ```bash
 # Принудительная остановка
-docker-compose -f docker-compose.test.yml down --remove-orphans --volumes
+docker compose -f docker-compose.test.yml down --remove-orphans --volumes
 docker stop $(docker ps -aq)
 docker rm $(docker ps -aq)
 ```
@@ -462,13 +462,13 @@ lsof -i :5433
 **3. Ошибки БД подключения**
 ```bash
 # Проверка health check
-docker-compose -f docker-compose.test.yml ps
+docker compose -f docker-compose.test.yml ps
 
 # Логи БД
-docker-compose -f docker-compose.test.yml logs db
+docker compose -f docker-compose.test.yml logs db
 
 # Ручная проверка подключения
-docker-compose -f docker-compose.test.yml exec db pg_isready -U postgres -d freesport_test
+docker compose -f docker-compose.test.yml exec db pg_isready -U postgres -d freesport_test
 ```
 
 **4. Медленные тесты**

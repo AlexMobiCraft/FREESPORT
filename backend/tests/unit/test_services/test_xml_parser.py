@@ -1,6 +1,7 @@
 """
 Unit-тесты для XMLDataParser
 """
+
 import os
 import tempfile
 from decimal import Decimal
@@ -241,3 +242,425 @@ class TestXMLDataParser:
         assert (
             parser._map_price_type_to_field("Неизвестный тип") == "retail_price"
         )  # fallback
+
+
+@pytest.mark.unit
+class TestXMLDataParserImageParsing:
+    """Unit-тесты парсинга изображений из goods.xml"""
+
+    def test_parse_goods_xml_with_single_image(self, tmp_path):
+        """Парсинг товара с одним изображением"""
+        from tests.conftest import get_unique_suffix
+
+        # ARRANGE - подготовка данных
+        unique_id = get_unique_suffix()
+        xml_content = f"""<?xml version="1.0" encoding="UTF-8"?>
+<Каталог>
+    <Товары>
+        <Товар>
+            <Ид>{unique_id}</Ид>
+            <Наименование>Test Product</Наименование>
+            <Картинка>import_files/73/image1.png</Картинка>
+        </Товар>
+    </Товары>
+</Каталог>
+"""
+
+        test_file = tmp_path / "goods.xml"
+        test_file.write_text(xml_content, encoding="utf-8")
+
+        # ACT - выполнение действия
+        parser = XMLDataParser()
+        goods_list = parser.parse_goods_xml(str(test_file))
+
+        # ASSERT - проверка результата
+        assert len(goods_list) == 1
+        goods_data = goods_list[0]
+
+        assert goods_data["id"] == unique_id
+        assert "images" in goods_data
+        assert len(goods_data["images"]) == 1
+        assert goods_data["images"][0] == "import_files/73/image1.png"
+
+    def test_parse_goods_xml_with_multiple_images(self, tmp_path):
+        """Парсинг товара с несколькими изображениями"""
+        from tests.conftest import get_unique_suffix
+
+        # ARRANGE - подготовка данных
+        unique_id = get_unique_suffix()
+        xml_content = f"""<?xml version="1.0" encoding="UTF-8"?>
+<Каталог>
+    <Товары>
+        <Товар>
+            <Ид>{unique_id}</Ид>
+            <Наименование>Test Product</Наименование>
+            <Картинка>import_files/73/image1.png</Картинка>
+            <Картинка>import_files/73/image2.jpg</Картинка>
+            <Картинка>import_files/73/image3.webp</Картинка>
+        </Товар>
+    </Товары>
+</Каталог>
+"""
+
+        test_file = tmp_path / "goods.xml"
+        test_file.write_text(xml_content, encoding="utf-8")
+
+        # ACT - выполнение действия
+        parser = XMLDataParser()
+        goods_list = parser.parse_goods_xml(str(test_file))
+
+        # ASSERT - проверка результата
+        assert len(goods_list) == 1
+        goods_data = goods_list[0]
+
+        assert goods_data["id"] == unique_id
+        assert "images" in goods_data
+        assert len(goods_data["images"]) == 3
+        assert "import_files/73/image1.png" in goods_data["images"]
+        assert "import_files/73/image2.jpg" in goods_data["images"]
+        assert "import_files/73/image3.webp" in goods_data["images"]
+
+    def test_parse_goods_xml_with_no_images(self, tmp_path):
+        """Парсинг товара без изображений"""
+        from tests.conftest import get_unique_suffix
+
+        # ARRANGE
+        unique_id = get_unique_suffix()
+        xml_content = f"""<?xml version="1.0" encoding="UTF-8"?>
+<Каталог>
+    <Товары>
+        <Товар>
+            <Ид>{unique_id}</Ид>
+            <Наименование>Test Product</Наименование>
+        </Товар>
+    </Товары>
+</Каталог>
+"""
+
+        test_file = tmp_path / "goods.xml"
+        test_file.write_text(xml_content, encoding="utf-8")
+
+        # ACT
+        parser = XMLDataParser()
+        goods_list = parser.parse_goods_xml(str(test_file))
+
+        # ASSERT - поле images не должно присутствовать
+        assert len(goods_list) == 1
+        goods_data = goods_list[0]
+        assert "images" not in goods_data
+
+    def test_parse_goods_xml_with_invalid_image_extension(self, tmp_path):
+        """Парсинг товара с невалидным расширением файла"""
+        from tests.conftest import get_unique_suffix
+
+        # ARRANGE
+        unique_id = get_unique_suffix()
+        xml_content = f"""<?xml version="1.0" encoding="UTF-8"?>
+<Каталог>
+    <Товары>
+        <Товар>
+            <Ид>{unique_id}</Ид>
+            <Наименование>Test Product</Наименование>
+            <Картинка>import_files/73/valid_image.png</Картинка>
+            <Картинка>import_files/73/invalid.exe</Картинка>
+            <Картинка>import_files/73/document.txt</Картинка>
+            <Картинка>import_files/73/valid_image2.jpg</Картинка>
+        </Товар>
+    </Товары>
+</Каталог>
+"""
+
+        test_file = tmp_path / "goods.xml"
+        test_file.write_text(xml_content, encoding="utf-8")
+
+        # ACT
+        parser = XMLDataParser()
+        goods_list = parser.parse_goods_xml(str(test_file))
+
+        # ASSERT - только валидные изображения должны остаться
+        assert len(goods_list) == 1
+        goods_data = goods_list[0]
+        assert "images" in goods_data
+        assert len(goods_data["images"]) == 2  # Только .png и .jpg
+        assert "import_files/73/valid_image.png" in goods_data["images"]
+        assert "import_files/73/valid_image2.jpg" in goods_data["images"]
+        assert "import_files/73/invalid.exe" not in goods_data["images"]
+        assert "import_files/73/document.txt" not in goods_data["images"]
+
+    def test_parse_goods_xml_with_duplicate_image_paths(self, tmp_path):
+        """Дедупликация дублирующихся путей изображений"""
+        from tests.conftest import get_unique_suffix
+
+        # ARRANGE
+        unique_id = get_unique_suffix()
+        xml_content = f"""<?xml version="1.0" encoding="UTF-8"?>
+<Каталог>
+    <Товары>
+        <Товар>
+            <Ид>{unique_id}</Ид>
+            <Наименование>Test Product</Наименование>
+            <Картинка>import_files/73/image1.png</Картинка>
+            <Картинка>import_files/73/image1.png</Картинка>
+            <Картинка>import_files/73/image2.jpg</Картинка>
+            <Картинка>import_files/73/image1.png</Картинка>
+        </Товар>
+    </Товары>
+</Каталог>
+"""
+
+        test_file = tmp_path / "goods.xml"
+        test_file.write_text(xml_content, encoding="utf-8")
+
+        # ACT
+        parser = XMLDataParser()
+        goods_list = parser.parse_goods_xml(str(test_file))
+
+        # ASSERT - дубликаты должны быть удалены
+        assert len(goods_list) == 1
+        goods_data = goods_list[0]
+        assert len(goods_data["images"]) == 2  # Не 4!
+        assert "import_files/73/image1.png" in goods_data["images"]
+        assert "import_files/73/image2.jpg" in goods_data["images"]
+
+    def test_validate_image_path_normalization(self):
+        """Валидация и нормализация путей изображений"""
+        # ARRANGE
+        parser = XMLDataParser()
+
+        # ACT & ASSERT - тестируем нормализацию
+        assert (
+            parser._validate_image_path("  import_files/73/image.png  ")
+            == "import_files/73/image.png"
+        )
+        assert (
+            parser._validate_image_path("import_files\\73\\image.jpg")
+            == "import_files/73/image.jpg"
+        )
+
+        # ACT & ASSERT - тестируем валидацию расширений
+        assert parser._validate_image_path("import_files/73/image.png") is not None
+        assert parser._validate_image_path("import_files/73/image.jpg") is not None
+        assert parser._validate_image_path("import_files/73/image.JPEG") is not None
+        assert parser._validate_image_path("import_files/73/image.webp") is not None
+        assert (
+            parser._validate_image_path("import_files/73/image.exe") is None
+        )  # Невалидное расширение
+        assert parser._validate_image_path("") is None  # Пустой путь
+        assert parser._validate_image_path("   ") is None  # Только пробелы
+
+    def test_validate_image_path_supported_extensions(self):
+        """Тест поддерживаемых расширений изображений"""
+        # ARRANGE
+        parser = XMLDataParser()
+
+        # ACT & ASSERT - все поддерживаемые расширения
+        valid_extensions = [".jpg", ".jpeg", ".png", ".webp", ".JPG", ".PNG", ".WEBP"]
+        for ext in valid_extensions:
+            path = f"import_files/73/test{ext}"
+            assert (
+                parser._validate_image_path(path) is not None
+            ), f"Extension {ext} should be valid"
+
+        # ACT & ASSERT - невалидные расширения
+        invalid_extensions = [".gif", ".bmp", ".svg", ".exe", ".txt", ".pdf"]
+        for ext in invalid_extensions:
+            path = f"import_files/73/test{ext}"
+            assert (
+                parser._validate_image_path(path) is None
+            ), f"Extension {ext} should be invalid"
+
+    def test_parse_goods_xml_with_real_data(self):
+        """Парсинг реального XML из data/import_1c/goods/"""
+        # ARRANGE
+        real_file = (
+            "data/import_1c/goods/goods_1_1_27c08306-a0aa-453b-b436-f9b494ceb889.xml"
+        )
+
+        # ACT
+        parser = XMLDataParser()
+        goods_list = parser.parse_goods_xml(real_file)
+
+        # ASSERT
+        assert len(goods_list) > 0, "Должен распарсить хотя бы один товар"
+
+        # Проверяем что хотя бы один товар имеет изображения
+        products_with_images = [
+            g for g in goods_list if "images" in g and len(g["images"]) > 0
+        ]
+
+        if len(products_with_images) > 0:
+            # Проверяем формат путей изображений
+            for product in products_with_images:
+                for image_path in product["images"]:
+                    assert image_path.startswith(
+                        "import_files/"
+                    ), f"Путь должен начинаться с 'import_files/': {image_path}"
+                    assert any(
+                        image_path.lower().endswith(ext)
+                        for ext in [".jpg", ".jpeg", ".png", ".webp"]
+                    ), f"Невалидное расширение: {image_path}"
+
+
+@pytest.mark.unit
+class TestXMLDataParserBrandParsing:
+    """Unit-тесты парсинга brand_id из goods.xml (Story 13.4)"""
+
+    def test_parse_goods_xml_with_brand_id(self, tmp_path):
+        """Парсинг товара с brand_id из свойства 'Бренд'"""
+        from tests.conftest import get_unique_suffix
+
+        # ARRANGE
+        unique_id = get_unique_suffix()
+        brand_uuid = "fb3f263e-dfd0-11ef-8361-fa163ea88911"
+        xml_content = f"""<?xml version="1.0" encoding="UTF-8"?>
+<Каталог>
+    <Товары>
+        <Товар>
+            <Ид>{unique_id}</Ид>
+            <Наименование>Nike Football</Наименование>
+            <ЗначенияСвойств>
+                <ЗначенияСвойства>
+                    <Ид>Бренд</Ид>
+                    <Значение>{brand_uuid}</Значение>
+                </ЗначенияСвойства>
+                <ЗначенияСвойства>
+                    <Ид>Цвет</Ид>
+                    <Значение>Белый</Значение>
+                </ЗначенияСвойства>
+            </ЗначенияСвойств>
+        </Товар>
+    </Товары>
+</Каталог>
+"""
+
+        test_file = tmp_path / "goods.xml"
+        test_file.write_text(xml_content, encoding="utf-8")
+
+        # ACT
+        parser = XMLDataParser()
+        goods_list = parser.parse_goods_xml(str(test_file))
+
+        # ASSERT
+        assert len(goods_list) == 1
+        goods_data = goods_list[0]
+        assert goods_data["id"] == unique_id
+        assert "brand_id" in goods_data
+        assert goods_data["brand_id"] == brand_uuid
+
+    def test_parse_goods_xml_without_brand_id(self, tmp_path):
+        """Парсинг товара без brand_id (свойство 'Бренд' отсутствует)"""
+        from tests.conftest import get_unique_suffix
+
+        # ARRANGE
+        unique_id = get_unique_suffix()
+        xml_content = f"""<?xml version="1.0" encoding="UTF-8"?>
+<Каталог>
+    <Товары>
+        <Товар>
+            <Ид>{unique_id}</Ид>
+            <Наименование>Generic Product</Наименование>
+            <ЗначенияСвойств>
+                <ЗначенияСвойства>
+                    <Ид>Цвет</Ид>
+                    <Значение>Черный</Значение>
+                </ЗначенияСвойства>
+            </ЗначенияСвойств>
+        </Товар>
+    </Товары>
+</Каталог>
+"""
+
+        test_file = tmp_path / "goods.xml"
+        test_file.write_text(xml_content, encoding="utf-8")
+
+        # ACT
+        parser = XMLDataParser()
+        goods_list = parser.parse_goods_xml(str(test_file))
+
+        # ASSERT
+        assert len(goods_list) == 1
+        goods_data = goods_list[0]
+        assert "brand_id" not in goods_data
+
+    def test_parse_goods_xml_with_empty_brand_uuid(self, tmp_path):
+        """Парсинг товара с пустым UUID бренда (00000000-0000-0000-0000-000000000000)"""
+        from tests.conftest import get_unique_suffix
+
+        # ARRANGE
+        unique_id = get_unique_suffix()
+        xml_content = f"""<?xml version="1.0" encoding="UTF-8"?>
+<Каталог>
+    <Товары>
+        <Товар>
+            <Ид>{unique_id}</Ид>
+            <Наименование>Product Without Brand</Наименование>
+            <ЗначенияСвойств>
+                <ЗначенияСвойства>
+                    <Ид>Бренд</Ид>
+                    <Значение>00000000-0000-0000-0000-000000000000</Значение>
+                </ЗначенияСвойства>
+            </ЗначенияСвойств>
+        </Товар>
+    </Товары>
+</Каталог>
+"""
+
+        test_file = tmp_path / "goods.xml"
+        test_file.write_text(xml_content, encoding="utf-8")
+
+        # ACT
+        parser = XMLDataParser()
+        goods_list = parser.parse_goods_xml(str(test_file))
+
+        # ASSERT - пустой UUID должен игнорироваться
+        assert len(goods_list) == 1
+        goods_data = goods_list[0]
+        assert "brand_id" not in goods_data
+
+    def test_parse_goods_xml_with_multiple_properties(self, tmp_path):
+        """Парсинг товара с несколькими свойствами, включая бренд"""
+        from tests.conftest import get_unique_suffix
+
+        # ARRANGE
+        unique_id = get_unique_suffix()
+        brand_uuid = "adidas-uuid-12345"
+        xml_content = f"""<?xml version="1.0" encoding="UTF-8"?>
+<Каталог>
+    <Товары>
+        <Товар>
+            <Ид>{unique_id}</Ид>
+            <Наименование>Adidas Sneakers</Наименование>
+            <ЗначенияСвойств>
+                <ЗначенияСвойства>
+                    <Ид>Размер</Ид>
+                    <Значение>42</Значение>
+                </ЗначенияСвойства>
+                <ЗначенияСвойства>
+                    <Ид>Бренд</Ид>
+                    <Значение>{brand_uuid}</Значение>
+                </ЗначенияСвойства>
+                <ЗначенияСвойства>
+                    <Ид>Цвет</Ид>
+                    <Значение>Синий</Значение>
+                </ЗначенияСвойства>
+                <ЗначенияСвойства>
+                    <Ид>Материал</Ид>
+                    <Значение>Кожа</Значение>
+                </ЗначенияСвойства>
+            </ЗначенияСвойств>
+        </Товар>
+    </Товары>
+</Каталог>
+"""
+
+        test_file = tmp_path / "goods.xml"
+        test_file.write_text(xml_content, encoding="utf-8")
+
+        # ACT
+        parser = XMLDataParser()
+        goods_list = parser.parse_goods_xml(str(test_file))
+
+        # ASSERT
+        assert len(goods_list) == 1
+        goods_data = goods_list[0]
+        assert goods_data["brand_id"] == brand_uuid

@@ -1,6 +1,7 @@
 """
 URL конфигурация для проекта FREESPORT
 """
+
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
@@ -11,8 +12,15 @@ from drf_spectacular.views import (
     SpectacularSwaggerView,
 )
 
+from apps.common.admin import monitoring_dashboard_view
+
 urlpatterns = [
     # Админ панель Django
+    path(
+        "admin/monitoring/",
+        monitoring_dashboard_view,
+        name="admin_monitoring_dashboard",
+    ),
     path("admin/", admin.site.urls),
     # API документация
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
@@ -29,6 +37,8 @@ urlpatterns = [
     path("api/v1/", include("apps.orders.urls")),
     path("api/v1/cart/", include("apps.cart.urls")),
     path("api/v1/", include("apps.pages.urls")),
+    path("api/v1/delivery/", include("apps.delivery.urls")),
+    path("api/v1/", include("apps.banners.urls")),
 ]
 
 # Статические и медиа файлы в режиме разработки
@@ -40,4 +50,6 @@ if settings.DEBUG:
     if "debug_toolbar" in settings.INSTALLED_APPS:
         import debug_toolbar
 
-        urlpatterns.append(path("__debug__/", include(debug_toolbar.urls)))
+        urlpatterns.append(
+            path("__debug__/", include(debug_toolbar.urls, namespace="djdt"))
+        )

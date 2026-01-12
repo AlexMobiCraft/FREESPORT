@@ -1,19 +1,31 @@
-import type { Metadata } from "next";
-import { Inter } from "next/font/google";
-import "./globals.css";
-import Header from "@/components/layout/Header";
-import Footer from "@/components/layout/Footer";
+import type { Metadata } from 'next';
+import { Inter, Roboto_Condensed } from 'next/font/google';
+import './globals.css';
+import Header from '@/components/layout/Header';
+import Footer from '@/components/layout/Footer';
+import LayoutWrapper from '@/components/layout/LayoutWrapper';
+import Providers from '@/components/providers/Providers';
 
 const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin", "cyrillic"],
+  variable: '--font-inter',
+  subsets: ['latin', 'cyrillic'],
 });
 
+const robotoCondensed = Roboto_Condensed({
+  variable: '--font-roboto-condensed',
+  subsets: ['latin', 'cyrillic'],
+  weight: ['400', '700', '900'],
+  style: ['normal'],
+});
+
+const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+
 export const metadata: Metadata = {
-  title: "FREESPORT Platform | B2B/B2C спортивные товары",
+  title: 'FREESPORT Platform | B2B/B2C спортивные товары',
   description:
-    "Ведущая платформа продаж спортивных товаров. B2B/B2C решения для тренеров, федераций и дистрибьюторов.",
-  keywords: "спорт, товары, оптом, B2B, B2C, тренажеры, спортивный инвентарь",
+    'Ведущая платформа продаж спортивных товаров. B2B/B2C решения для тренеров, федераций и дистрибьюторов.',
+  keywords: 'спорт, товары, оптом, B2B, B2C, тренажеры, спортивный инвентарь',
+  metadataBase: new URL(appUrl),
 };
 
 export default function RootLayout({
@@ -22,13 +34,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ru">
-      <body className={`${inter.variable} font-sans antialiased`}>
-        <div className="min-h-screen flex flex-col">
-          <Header />
-          <main className="flex-grow">{children}</main>
-          <Footer />
-        </div>
+    <html lang="ru" suppressHydrationWarning>
+      <body className={`${inter.variable} ${robotoCondensed.variable} font-sans antialiased`}>
+        <Providers>
+          <LayoutWrapper header={<Header />} footer={<Footer />}>
+            {children}
+          </LayoutWrapper>
+        </Providers>
       </body>
     </html>
   );

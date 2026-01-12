@@ -2,6 +2,7 @@
 Django management command для проверки полноты API документации.
 Проверяет что все ViewSets имеют @extend_schema декораторы и proper описания.
 """
+
 import inspect
 from typing import Any, Dict, List
 

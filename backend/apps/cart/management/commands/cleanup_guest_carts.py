@@ -1,6 +1,7 @@
 """
 Команда для очистки старых гостевых корзин
 """
+
 from datetime import timedelta
 
 from django.core.management.base import BaseCommand

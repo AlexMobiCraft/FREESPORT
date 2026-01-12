@@ -1,6 +1,7 @@
 """
 Настройки Django для продакшена FREESPORT
 """
+
 from .base import *
 
 # БЕЗОПАСНОСТЬ: Debug должен быть False в продакшене!
@@ -37,6 +38,10 @@ SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 X_FRAME_OPTIONS = "DENY"
 
+# Настройки обратного прокси для корректного определения HTTPS
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+USE_X_FORWARDED_HOST = True
+
 # Настройки CORS для продакшена
 # Домены фронтенда настраиваются через переменные окружения
 CORS_ALLOWED_ORIGINS = config("CORS_ALLOWED_ORIGINS", default="").split(",")
@@ -59,7 +64,7 @@ CACHES = {
     }
 }
 
-# Логирование для продакшена
+# Логирование для продакшена (только console для Docker)
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -74,21 +79,14 @@ LOGGING = {
             "class": "logging.StreamHandler",
             "formatter": "verbose",
         },
-        "file": {
-            "class": "logging.handlers.RotatingFileHandler",
-            "filename": BASE_DIR / "logs" / "django.log",
-            "maxBytes": 1024 * 1024 * 15,  # 15MB
-            "backupCount": 10,
-            "formatter": "verbose",
-        },
     },
     "loggers": {
         "django": {
-            "handlers": ["console", "file"],
+            "handlers": ["console"],
             "level": "INFO",
         },
         "freesport": {
-            "handlers": ["console", "file"],
+            "handlers": ["console"],
             "level": "WARNING",
         },
     },
@@ -100,7 +98,22 @@ EMAIL_HOST = config("EMAIL_HOST", default="")
 EMAIL_PORT = config("EMAIL_PORT", default=587, cast=int)
 EMAIL_HOST_USER = config("EMAIL_HOST_USER", default="")
 EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD", default="")
-EMAIL_USE_TLS = True
+EMAIL_USE_TLS = config("EMAIL_USE_TLS", default=True, cast=bool)
+EMAIL_USE_SSL = config("EMAIL_USE_SSL", default=False, cast=bool)
 
 # Домен для email будет настраиваться через переменные
-DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="noreply@example.com")
+DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="noreply@freesport.ru")
+SERVER_EMAIL = config("SERVER_EMAIL", default="admin@freesport.ru")
+
+# Rate limiting для защиты от SPAM (Story 11.3 - SEC-001)
+REST_FRAMEWORK = {
+    **REST_FRAMEWORK,  # Наследуем настройки из base.py
+    "DEFAULT_THROTTLE_CLASSES": [
+        "apps.common.throttling.ProxyAwareAnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "1000/day",  # SPAM protection для /subscribe endpoint
+        "user": "10000/day",  # Для авторизованных пользователей
+    },
+}

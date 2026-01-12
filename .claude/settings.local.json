@@ -1,31 +1,13 @@
 {
   "permissions": {
     "allow": [
-      "Bash(docker-compose:*)",
-      "Bash(mkdir:*)",
-      "Bash(dir:*)",
-      "Bash(ls:*)",
-      "Bash(grep:*)",
-      "Read(/C:\\Users\\38670\\DEV_WEB\\FREESPORT/*)",
-      "Bash(make test:*)",
-      "mcp__firecrawl__firecrawl_scrape",
-      "mcp__firecrawl__firecrawl_search",
+      "Bash(npm run test:e2e:*)",
+      "Bash(npm install:*)",
+      "Bash(npx playwright:*)",
+      "Bash(findstr:*)",
+      "Bash(docker ps:*)",
       "Bash(curl:*)",
-      "Bash(cat:*)",
-      "Bash(find:*)",
-      "Bash(python -m pytest:*)",
-      "Bash(python manage.py shell -c \"from apps.common.models import ImportSession; print(''ImportSession ImportType.CUSTOMERS:'', ''CUSTOMERS'' in [x[0] for x in ImportSession.ImportType.choices])\")",
-      "Bash(python manage.py shell:*)"
-    ],
-    "deny": [],
-    "ask": [],
-    "additionalDirectories": [
-      "C:\\Users\\38670\\DEV_WEB\\FREESPORT"
+      "Bash(docker logs:*)"
     ]
-  },
-  "statusLine": {
-    "type": "command",
-    "command": "ccusage statusline",
-    "padding": 0
   }
 }

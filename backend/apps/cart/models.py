@@ -2,6 +2,7 @@
 Модели корзины покупок для платформы FREESPORT
 Поддерживает как авторизованных, так и гостевых пользователей
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -12,6 +13,8 @@ from django.db import models
 from django.db.models import Q
 
 if TYPE_CHECKING:
+    from decimal import Decimal
+
     from django.db.models import QuerySet
 
 User = get_user_model()
@@ -69,15 +72,13 @@ class Cart(models.Model):
         return result or 0
 
     @property
-    def total_amount(self):
-        """Общая стоимость товаров в корзине"""
+    def total_amount(self) -> "Decimal":
+        """Общая стоимость товаров в корзине на основе снимков цен"""
         from decimal import Decimal
 
         total = Decimal("0")
-        for item in self.items.select_related("product").all():
-            user = self.user
-            price = item.product.get_price_for_user(user)
-            total += price * item.quantity
+        for item in self.items.all():
+            total += item.total_price
         return total
 
     def clear(self):
@@ -89,17 +90,26 @@ class Cart(models.Model):
 
 class CartItem(models.Model):
     """
-    Элемент корзины - товар с количеством
+    Элемент корзины - вариант товара (ProductVariant) с количеством
     """
 
     cart = models.ForeignKey(
         Cart, on_delete=models.CASCADE, related_name="items", verbose_name="Корзина"
     )
-    product = models.ForeignKey(
-        "products.Product", on_delete=models.CASCADE, verbose_name="Товар"
+    variant = models.ForeignKey(
+        "products.ProductVariant",
+        on_delete=models.CASCADE,
+        verbose_name="Вариант товара",
+        help_text="SKU-вариант товара с конкретными характеристиками (цвет, размер)",
     )
     quantity = models.PositiveIntegerField(
         "Количество", default=1, validators=[MinValueValidator(1)]
+    )
+    price_snapshot = models.DecimalField(
+        "Снимок цены",
+        max_digits=10,
+        decimal_places=2,
+        help_text="Цена варианта на момент добавления в корзину",
     )
     added_at = models.DateTimeField("Дата добавления", auto_now_add=True)
     updated_at = models.DateTimeField("Дата обновления", auto_now=True)
@@ -108,40 +118,42 @@ class CartItem(models.Model):
         verbose_name = "Элемент корзины"
         verbose_name_plural = "Элементы корзины"
         db_table = "cart_items"
-        unique_together = ("cart", "product")
+        unique_together = ("cart", "variant")
         indexes = [
             models.Index(fields=["cart", "added_at"]),
         ]
 
-    def __str__(self):
-        return f"{self.product.name} x{self.quantity} в корзине"
+    def __str__(self) -> str:
+        product_name = self.variant.product.name
+        variant_info = []
+        if self.variant.color_name:
+            variant_info.append(self.variant.color_name)
+        if self.variant.size_value:
+            variant_info.append(self.variant.size_value)
+        variant_str = f" ({', '.join(variant_info)})" if variant_info else ""
+        return f"{product_name}{variant_str} x{self.quantity} в корзине"
 
     @property
-    def total_price(self):
-        """Стоимость этого элемента корзины"""
-        user = self.cart.user
-        price = self.product.get_price_for_user(user)
-        return price * self.quantity
+    def total_price(self) -> "Decimal":
+        """Стоимость этого элемента корзины на основе снимка цены"""
+        return self.price_snapshot * self.quantity
 
-    def clean(self):
+    def clean(self) -> None:
         """Валидация элемента корзины"""
         from django.core.exceptions import ValidationError
 
-        # Проверяем, что товар активен
-        if not self.product.is_active:
+        # Проверяем, что товар и вариант активны
+        if not self.variant.product.is_active:
             raise ValidationError("Товар неактивен")
 
+        if not self.variant.is_active:
+            raise ValidationError("Вариант товара неактивен")
+
         # Проверяем наличие на складе
-        if self.quantity > self.product.stock_quantity:
+        if self.quantity > self.variant.stock_quantity:
             raise ValidationError(
                 f"Недостаточно товара на складе. "
-                f"Доступно: {self.product.stock_quantity}"
-            )
-
-        # Проверяем минимальное количество заказа
-        if self.quantity < self.product.min_order_quantity:
-            raise ValidationError(
-                f"Минимальное количество заказа: {self.product.min_order_quantity}"
+                f"Доступно: {self.variant.stock_quantity}"
             )
 
     def save(self, *args, **kwargs):

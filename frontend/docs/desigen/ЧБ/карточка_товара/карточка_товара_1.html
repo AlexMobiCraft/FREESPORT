@@ -1,0 +1,479 @@
+<!doctype html>
+<html class="light" lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>FREESPORT - Карточка товара</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;700;900&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined"
+      rel="stylesheet"
+    />
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              primary: '#111418',
+              'background-light': '#f6f7f8',
+              'background-dark': '#101922',
+              'text-light-primary': '#111418',
+              'text-dark-primary': '#f6f7f8',
+              'text-light-secondary': '#617589',
+              'text-dark-secondary': '#a0aec0',
+              'border-light': '#f0f2f4',
+              'border-dark': '#2d3748',
+              'surface-light': '#ffffff',
+              'surface-dark': '#1a202c',
+            },
+            fontFamily: {
+              display: ['Lexend', 'sans-serif'],
+            },
+            borderRadius: {
+              DEFAULT: '0.25rem',
+              lg: '0.5rem',
+              xl: '0.75rem',
+              full: '9999px',
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      .material-symbols-outlined {
+        font-variation-settings:
+          'FILL' 0,
+          'wght' 400,
+          'GRAD' 0,
+          'opsz' 24;
+      }
+    </style>
+  </head>
+  <body
+    class="font-display bg-background-light dark:bg-background-dark text-text-light-primary dark:text-text-dark-primary"
+  >
+    <div class="relative flex min-h-screen w-full flex-col group/design-root overflow-x-hidden">
+      <header
+        class="w-full bg-surface-light dark:bg-surface-dark border-b border-border-light dark:border-border-dark sticky top-0 z-50"
+      >
+        <div class="container mx-auto px-4">
+          <div class="flex items-center justify-between whitespace-nowrap py-3">
+            <div class="flex items-center gap-8">
+              <div
+                class="flex items-center gap-2 text-text-light-primary dark:text-text-dark-primary"
+              >
+                <svg
+                  class="h-8 w-8 text-primary dark:text-text-dark-primary"
+                  fill="none"
+                  viewBox="0 0 48 48"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    d="M39.5563 34.1455V13.8546C39.5563 15.708 36.8773 17.3437 32.7927 18.3189C30.2914 18.916 27.263 19.2655 24 19.2655C20.737 19.2655 17.7086 18.916 15.2073 18.3189C11.1227 17.3437 8.44365 15.708 8.44365 13.8546V34.1455C8.44365 35.9988 11.1227 37.6346 15.2073 38.6098C17.7086 39.2069 20.737 39.5564 24 39.5564C27.263 39.5564 30.2914 39.2069 32.7927 38.6098C36.8773 37.6346 39.5563 35.9988 39.5563 34.1455Z"
+                    fill="currentColor"
+                  ></path>
+                  <path
+                    clip-rule="evenodd"
+                    d="M10.4485 13.8519C10.4749 13.9271 10.6203 14.246 11.379 14.7361C12.298 15.3298 13.7492 15.9145 15.6717 16.3735C18.0007 16.9296 20.8712 17.2655 24 17.2655C27.1288 17.2655 29.9993 16.9296 32.3283 16.3735C34.2508 15.9145 35.702 15.3298 36.621 14.7361C37.3796 14.246 37.5251 13.9271 37.5515 13.8519C37.5287 13.7876 37.4333 13.5973 37.0635 13.2931C36.5266 12.8516 35.6288 12.3647 34.343 11.9175C31.79 11.0295 28.1333 10.4437 24 10.4437C19.8667 10.4437 16.2099 11.0295 13.657 11.9175C12.3712 12.3647 11.4734 12.8516 10.9365 13.2931C10.5667 13.5973 10.4713 13.7876 10.4485 13.8519ZM37.5563 18.7877C36.3176 19.3925 34.8502 19.8839 33.2571 20.2642C30.5836 20.9025 27.3973 21.2655 24 21.2655C20.6027 21.2655 17.4164 20.9025 14.7429 20.2642C13.1498 19.8839 11.6824 19.3925 10.4436 18.7877V34.1275C10.4515 34.1545 10.5427 34.4867 11.379 35.027C12.298 35.6207 13.7492 36.2054 15.6717 36.6644C18.0007 37.2205 20.8712 37.5564 24 37.5564C27.1288 37.5564 29.9993 37.2205 32.3283 36.6644C34.2508 36.2054 35.702 35.6207 36.621 35.027C37.4573 34.4867 37.5485 34.1546 37.5563 34.1275V18.7877ZM41.5563 13.8546V34.1455C41.5563 36.1078 40.158 37.5042 38.7915 38.3869C37.3498 39.3182 35.4192 40.0389 33.2571 40.5551C30.5836 41.1934 27.3973 41.5564 24 41.5564C20.6027 41.5564 17.4164 41.1934 14.7429 40.5551C12.5808 40.0389 10.6502 39.3182 9.20848 38.3869C7.84205 37.5042 6.44365 36.1078 6.44365 34.1455L6.44365 13.8546C6.44365 12.2684 7.37223 11.0454 8.39581 10.2036C9.43325 9.3505 10.8137 8.67141 12.343 8.13948C15.4203 7.06909 19.5418 6.44366 24 6.44366C28.4582 6.44366 32.5797 7.06909 35.657 8.13948C37.1863 8.67141 38.5667 9.3505 39.6042 10.2036C40.6278 11.0454 41.5563 12.2684 41.5563 13.8546Z"
+                    fill="currentColor"
+                    fill-rule="evenodd"
+                  ></path>
+                </svg>
+                <h2 class="text-xl font-black tracking-tighter">FREESPORT</h2>
+              </div>
+              <nav class="hidden lg:flex items-center gap-6">
+                <a
+                  class="text-sm font-medium hover:text-primary dark:hover:text-text-dark-primary"
+                  href="#"
+                  >Мужчины</a
+                >
+                <a
+                  class="text-sm font-medium hover:text-primary dark:hover:text-text-dark-primary"
+                  href="#"
+                  >Женщины</a
+                >
+                <a
+                  class="text-sm font-medium hover:text-primary dark:hover:text-text-dark-primary"
+                  href="#"
+                  >Дети</a
+                >
+                <a
+                  class="text-sm font-medium hover:text-primary dark:hover:text-text-dark-primary"
+                  href="#"
+                  >Бренды</a
+                >
+                <a
+                  class="text-sm font-medium text-text-light-secondary dark:text-text-dark-secondary hover:text-text-light-primary dark:hover:text-text-dark-primary"
+                  href="#"
+                  >Скидки</a
+                >
+              </nav>
+            </div>
+            <div class="flex flex-1 justify-end items-center gap-4">
+              <label class="relative hidden sm:block w-full max-w-xs">
+                <span
+                  class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-text-light-secondary dark:text-text-dark-secondary"
+                  >search</span
+                >
+                <input
+                  class="form-input w-full rounded-lg border-none bg-background-light dark:bg-background-dark py-2 pl-10 pr-4 text-sm placeholder:text-text-light-secondary dark:placeholder:text-text-dark-secondary focus:ring-2 focus:ring-primary dark:focus:ring-text-dark-primary"
+                  placeholder="Поиск по каталогу"
+                  type="search"
+                />
+              </label>
+              <div class="flex items-center gap-2">
+                <button
+                  class="flex h-10 w-10 cursor-pointer items-center justify-center rounded-lg bg-background-light dark:bg-background-dark hover:bg-border-light dark:hover:bg-border-dark text-text-light-primary dark:text-text-dark-primary"
+                >
+                  <span class="material-symbols-outlined">favorite</span>
+                </button>
+                <button
+                  class="flex h-10 w-10 cursor-pointer items-center justify-center rounded-lg bg-background-light dark:bg-background-dark hover:bg-border-light dark:hover:bg-border-dark text-text-light-primary dark:text-text-dark-primary"
+                >
+                  <span class="material-symbols-outlined">shopping_bag</span>
+                </button>
+                <div
+                  class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10"
+                  data-alt="User avatar placeholder"
+                  style="
+                    background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDpjNDeKpmCoiU6VW-M1Fwed6-2hcb6VZmLRxHekECLEBwjuiuqdkljt4tgWwmk0tYG_FQAdg6s10_jJgovCWsNxT4ZdEOAPAbAVt3paRvTXT52IBE_8XwhmxqpLjRyJYB76IWl-jCcPEPsq7I98e1rh5wuIJ4Dyyn-0x16xkQFx7u0VAT5MIbYvO3ttGvU9mFvA36z8nBCnailLrFKKmKYOHvjJafkPkvDmrA8dsm0k1hU29Z-HItgMvtWIowcZVqE_qS0wgLDAtM');
+                  "
+                ></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </header>
+      <main class="flex-1">
+        <div class="container mx-auto px-4 py-8">
+          <div class="flex flex-wrap gap-2 mb-8">
+            <a
+              class="text-sm text-text-light-secondary dark:text-text-dark-secondary hover:text-primary dark:hover:text-text-dark-primary"
+              href="#"
+              >Главная</a
+            >
+            <span class="text-sm text-text-light-secondary dark:text-text-dark-secondary">/</span>
+            <a
+              class="text-sm text-text-light-secondary dark:text-text-dark-secondary hover:text-primary dark:hover:text-text-dark-primary"
+              href="#"
+              >Мужская одежда</a
+            >
+            <span class="text-sm text-text-light-secondary dark:text-text-dark-secondary">/</span>
+            <span class="text-sm text-text-light-primary dark:text-text-dark-primary font-medium"
+              >Спортивная куртка</span
+            >
+          </div>
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16">
+            <div class="flex flex-col gap-4">
+              <div
+                class="w-full bg-center bg-no-repeat aspect-[4/5] bg-cover rounded-xl bg-gray-200"
+                data-alt="Main view of a waterproof sports jacket"
+                style="
+                  background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCpV7uVvgLqF5-U6gCJOQnOXaruHp8M2HIux_VpOAEPIcFAwp0TcwGcTpaz2luxf5xzdBCo_ErP8Fgw4BQni1ubHnb9xmGg-RTQCLYCL8a3RGzzl3FQA2oinKHiWWeW7CDpYjJo4wfD6a30TTYXUgYl7fsdz-DzdrAUAKOMc2dEA9bHevXfJW5BtWCcVXbRuo5Vok3Bj9Z7O-40CohuGziuO5EPfcRzAQy8f0NMiN8JT1WX7aLJSLTe_mPwFCvHtAYdY50GHpJYwk8');
+                "
+              ></div>
+              <div class="grid grid-cols-5 gap-4">
+                <div
+                  class="w-full bg-center bg-no-repeat aspect-square bg-cover rounded-lg ring-2 ring-primary dark:ring-text-dark-primary"
+                  data-alt="Waterproof jacket thumbnail 1"
+                  style="
+                    background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDdTfd2vMTLP003m8McFG-ajznF8lutRgKKrfadG6C8ZFQGKG1CbpZfKxwDajIh59Kztg42vcfXvwulh45PmBdlbaJjfrr_XmydHCsPa9vRTjd-JgO9DAvV-ai1M3EweXbJPMNaogOrY84rb5uClOadlY_nsdkOA2TIztQsl8TtNIsOTPYKl3nd_fCrEnfJIntvdW0709ZvBztL4cNjE1nzw4MSWzTs6LCLaTr7RYfbkxAUooXwhUSZjeCCpIjQNkMwxoP0n2KTH1U');
+                  "
+                ></div>
+                <div
+                  class="w-full bg-center bg-no-repeat aspect-square bg-cover rounded-lg opacity-70 hover:opacity-100 cursor-pointer"
+                  data-alt="Waterproof jacket thumbnail 2"
+                  style="
+                    background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAhteo3ClrPTm93uxpFy3syaKhLVZjCzO8ut2YkB2FgKFaj3fk-2UkI-vYV-gkzXLA6J7tYR8eZjD1Yxs3XEHw2j6prPJuOD6tB_D34P7K1tXiTue84ISpoNMi0j3li0FuAc8cz3PIFvhG9NkJPK35KCjgE4xvtam1pOGN2UAg_hDoKb7uYg6dLLskvqeXoYsVkP4diAM8XPECO2HRbs6Otkzru2BUmzvyRVqd-Xjq-tOvUUA8zeoxIaNqqNoANu_ySHCZUp-BRgzI');
+                  "
+                ></div>
+                <div
+                  class="w-full bg-center bg-no-repeat aspect-square bg-cover rounded-lg opacity-70 hover:opacity-100 cursor-pointer"
+                  data-alt="Waterproof jacket thumbnail 3"
+                  style="
+                    background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBLPBT6DrDA6VrT7zrCsnfXIb_dXf_1UxB-GePBLle7wI0eaAi3LqWvdfWrWO98XctQ2pGbDxR30H_N7A2OkRSUqhz21ec78bS4oUg0L5SvS8ATyK-glJCfPsGKXUqKtMRPwMZ_-yddy1f3yThi8v3FCVmgrqnN4frbEVQGfLjhuXAyYNhS_cwF3roY2d6TzPfpZ8fjbjKxz7p0psl4zcbz5_OkP6zX3yhi5bO8c1C1KhBUrVZPCj1woHAoa8fRAUZa20ADHIalNvY');
+                  "
+                ></div>
+                <div
+                  class="w-full bg-center bg-no-repeat aspect-square bg-cover rounded-lg opacity-70 hover:opacity-100 cursor-pointer"
+                  data-alt="Waterproof jacket thumbnail 4"
+                  style="
+                    background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDAAXw37YzKFxKbQQzaked5MEBsmBIEDGcEwapZkUKi22uRyXguVOnvHrycyFvvhiOMzNrTXkiElEryQV-0NXRljoQsYNOB9XX0KZfxRdch7dIPd-GgNJUIUbJWInWj3Q-56KrmSs8duzZbDzrGuSVPBHo2OC0tJNrlnbhvO3_rLeLxWLN_IMPZv1eKi92XOjTGy4jAl1bxlz1pXhJVzY8-XiyYR2Tfdn05F9OiEZpRV2n7KtGFRO6mgubiFg5OsaxDh4NBuwiutWc');
+                  "
+                ></div>
+                <div
+                  class="w-full bg-center bg-no-repeat aspect-square bg-cover rounded-lg opacity-70 hover:opacity-100 cursor-pointer"
+                  data-alt="Waterproof jacket thumbnail 5"
+                  style="
+                    background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDR17ei0LEHzZt7osnbL9qByTVhAW9I5H5MHv5X_wpJGyfmBGgRf6A3h-WfBwnfibulbTvypuzfH29g_NUnGKcNwHwLFBcVMbwnwnEkY8FjrFAiDNzS5MUUqbjZB8_GURZNWSf8zyrpDj754jWnnB1aDFqznjdPDpGl2p3knvoQqi6CR6Fku6AjIbhA6whZzboYEyRj53zNCFj0X7lG8owHaRQ25f0GkYiyX04PyyOEgNkgTYb8hT71ZBXof8qPOM8FXfTJBHN68v8');
+                  "
+                ></div>
+              </div>
+            </div>
+            <div class="flex flex-col gap-6 pt-4">
+              <div class="flex flex-col gap-2">
+                <p
+                  class="text-sm font-medium text-text-light-secondary dark:text-text-dark-secondary"
+                >
+                  Артикул: V-48573 | Бренд: FREESPORT
+                </p>
+                <h1 class="text-4xl font-black leading-tight tracking-tighter">
+                  Водонепроницаемая спортивная куртка 'VECTOR'
+                </h1>
+                <div class="flex items-center gap-2 mt-2">
+                  <div
+                    class="flex items-center text-text-light-secondary dark:text-text-dark-secondary"
+                  >
+                    <span
+                      class="material-symbols-outlined !text-xl"
+                      style="font-variation-settings: 'FILL' 1"
+                      >star</span
+                    >
+                    <span
+                      class="material-symbols-outlined !text-xl"
+                      style="font-variation-settings: 'FILL' 1"
+                      >star</span
+                    >
+                    <span
+                      class="material-symbols-outlined !text-xl"
+                      style="font-variation-settings: 'FILL' 1"
+                      >star</span
+                    >
+                    <span
+                      class="material-symbols-outlined !text-xl"
+                      style="font-variation-settings: 'FILL' 1"
+                      >star</span
+                    >
+                    <span class="material-symbols-outlined !text-xl">star</span>
+                  </div>
+                  <a
+                    class="text-sm text-text-light-secondary dark:text-text-dark-secondary hover:underline"
+                    href="#reviews"
+                    >122 отзыва</a
+                  >
+                </div>
+              </div>
+              <div class="flex items-baseline gap-4">
+                <p class="text-4xl font-bold text-primary dark:text-text-dark-primary">7 990 ₽</p>
+                <p
+                  class="text-xl line-through text-text-light-secondary dark:text-text-dark-secondary"
+                >
+                  9 990 ₽
+                </p>
+                <div
+                  class="px-2 py-1 bg-gray-100 dark:bg-border-dark text-text-light-secondary dark:text-text-dark-secondary text-sm font-bold rounded"
+                >
+                  -20%
+                </div>
+              </div>
+              <div
+                class="flex flex-col gap-4 border-t border-b border-border-light dark:border-border-dark py-6"
+              >
+                <div>
+                  <h3 class="text-base font-bold mb-3">
+                    Цвет: <span class="font-normal">Темно-синий</span>
+                  </h3>
+                  <div class="flex gap-3">
+                    <button
+                      class="size-8 rounded-full bg-blue-900 ring-2 ring-primary dark:ring-text-dark-primary ring-offset-2 ring-offset-background-light dark:ring-offset-background-dark"
+                    ></button>
+                    <button
+                      class="size-8 rounded-full bg-gray-800 hover:ring-2 hover:ring-primary dark:hover:ring-text-dark-primary"
+                    ></button>
+                    <button
+                      class="size-8 rounded-full bg-green-700 hover:ring-2 hover:ring-primary dark:hover:ring-text-dark-primary"
+                    ></button>
+                  </div>
+                </div>
+                <div>
+                  <div class="flex justify-between items-center mb-3">
+                    <h3 class="text-base font-bold">Размер:</h3>
+                    <a
+                      class="text-sm font-medium text-primary dark:text-text-dark-primary hover:underline"
+                      href="#"
+                      >Таблица размеров</a
+                    >
+                  </div>
+                  <div class="grid grid-cols-4 sm:grid-cols-6 gap-2">
+                    <button
+                      class="border border-border-light dark:border-border-dark rounded-lg py-2 text-sm font-medium hover:border-primary dark:hover:border-text-dark-primary"
+                    >
+                      S
+                    </button>
+                    <button
+                      class="border border-primary dark:border-text-dark-primary bg-primary dark:bg-text-dark-primary rounded-lg py-2 text-sm font-bold text-background-light dark:text-background-dark"
+                    >
+                      M
+                    </button>
+                    <button
+                      class="border border-border-light dark:border-border-dark rounded-lg py-2 text-sm font-medium hover:border-primary dark:hover:border-text-dark-primary"
+                    >
+                      L
+                    </button>
+                    <button
+                      class="border border-border-light dark:border-border-dark rounded-lg py-2 text-sm font-medium hover:border-primary dark:hover:border-text-dark-primary"
+                    >
+                      XL
+                    </button>
+                    <button
+                      class="border border-border-light dark:border-border-dark rounded-lg py-2 text-sm font-medium hover:border-primary dark:hover:border-text-dark-primary"
+                    >
+                      XXL
+                    </button>
+                    <button
+                      class="border border-border-light dark:border-border-dark rounded-lg py-2 text-sm font-medium opacity-50 cursor-not-allowed"
+                      disabled=""
+                    >
+                      XXXL
+                    </button>
+                  </div>
+                </div>
+                <p
+                  class="text-sm font-medium text-green-600 dark:text-green-400 flex items-center gap-2"
+                >
+                  <span class="material-symbols-outlined !text-lg">check_circle</span> В наличии
+                </p>
+              </div>
+              <div class="flex flex-col sm:flex-row gap-4">
+                <button
+                  class="flex-1 flex items-center justify-center gap-2 bg-primary dark:bg-text-dark-primary text-background-light dark:text-background-dark font-bold py-3 px-6 rounded-lg hover:bg-opacity-90 dark:hover:bg-opacity-90 transition-colors"
+                >
+                  <span class="material-symbols-outlined">shopping_bag</span>
+                  Добавить в корзину
+                </button>
+                <button
+                  class="flex items-center justify-center gap-2 border border-border-light dark:border-border-dark font-bold py-3 px-6 rounded-lg hover:bg-border-light dark:hover:bg-border-dark transition-colors"
+                >
+                  <span class="material-symbols-outlined">favorite</span>
+                  В избранное
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="mt-16">
+            <div class="border-b border-border-light dark:border-border-dark">
+              <nav aria-label="Tabs" class="-mb-px flex gap-6">
+                <a
+                  class="whitespace-nowrap py-4 px-1 border-b-2 border-primary dark:border-text-dark-primary font-bold text-primary dark:text-text-dark-primary text-base"
+                  href="#"
+                  >Описание</a
+                >
+                <a
+                  class="whitespace-nowrap py-4 px-1 border-b-2 border-transparent text-text-light-secondary dark:text-text-dark-secondary hover:border-gray-300 dark:hover:border-gray-600 hover:text-text-light-primary dark:hover:text-text-dark-primary font-medium text-base"
+                  href="#"
+                  >Характеристики</a
+                >
+                <a
+                  class="whitespace-nowrap py-4 px-1 border-b-2 border-transparent text-text-light-secondary dark:text-text-dark-secondary hover:border-gray-300 dark:hover:border-gray-600 hover:text-text-light-primary dark:hover:text-text-dark-primary font-medium text-base"
+                  href="#"
+                  id="reviews"
+                  >Отзывы (122)</a
+                >
+              </nav>
+            </div>
+            <div
+              class="py-8 prose prose-lg dark:prose-invert max-w-none text-text-light-secondary dark:text-text-dark-secondary"
+            >
+              <p>
+                Спортивная куртка 'VECTOR' — это идеальное сочетание стиля, комфорта и технологий.
+                Созданная для активных людей, она обеспечивает надежную защиту от ветра и влаги
+                благодаря мембранной ткани StormShield. Эргономичный крой не сковывает движения, а
+                система вентиляции на спине и подмышках позволяет поддерживать оптимальный
+                микроклимат во время интенсивных тренировок.
+              </p>
+              <ul>
+                <li>Технология StormShield для защиты от непогоды.</li>
+                <li>Легкий и дышащий материал.</li>
+                <li>Регулируемый капюшон и манжеты.</li>
+                <li>Проклеенные швы для максимальной водонепроницаемости.</li>
+                <li>Светоотражающие элементы для безопасности в темное время суток.</li>
+              </ul>
+              <p>
+                Идеально подходит для бега, велоспорта, хайкинга и повседневной носки в переменчивую
+                погоду.
+              </p>
+            </div>
+          </div>
+          <div class="mt-16">
+            <h2 class="text-3xl font-black mb-6">С этим товаром покупают</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              <div class="flex flex-col gap-3 group">
+                <div
+                  class="w-full bg-center bg-no-repeat aspect-[4/5] bg-cover rounded-xl bg-gray-200 overflow-hidden"
+                >
+                  <img
+                    alt="Red running shoes"
+                    class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuA7ejoCF2xGVk7-msqiOUldHWlh7bH3xH_0_K9sZ8JBHKl_axRarbAdnhML5w4lkT47gyjcrheqlEWElcYGJZVjZ_ZrSwCHU7U7cON17NS3OAzRyW-Enfu2ucsTV32WPZpnSXJoBfaaW0LvMFaiFG-Xq1nuYQUUVKw31HRREOo9ZlTgsMKQeb6QRI2w3JE5kRiTL-tgM84IzWGTlCMVKeAe0JkhNCMuTuycTw50lr2wuZtO623FeziVM6m_rduWuCu8XAVMRHUaeHo"
+                  />
+                </div>
+                <div class="flex flex-col">
+                  <h3 class="font-bold text-lg">Кроссовки 'BLAZE'</h3>
+                  <p class="text-text-light-secondary dark:text-text-dark-secondary">Для бега</p>
+                  <p class="font-bold mt-1">6 490 ₽</p>
+                </div>
+              </div>
+              <div class="flex flex-col gap-3 group">
+                <div
+                  class="w-full bg-center bg-no-repeat aspect-[4/5] bg-cover rounded-xl bg-gray-200 overflow-hidden"
+                >
+                  <img
+                    alt="Black sports leggings"
+                    class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuB2mvob2lMMowdplCjlmTxtrN4vnEPaPCv-UUBi0RWbGYWXA-RyCVrIYnEh2nT9aAveHLX8gVRrwxQWZ9ljzWvdcYCPP1oUuJ6MLZnOUNZzgLQPz9kZzlXj9SSYvEdkgO7D8jCcolOVZeHQz3BkJQFFl7J4p7qTo264MOYs3b0M1cYV7zggQyNWsKI9b48DBHkoGL9NNIALaYMjZCK4jWVCSaWxxwl9xAqGrvuCrnDn8SVkdMzm8unq5_h_dUSqwftbSNbcgGCRi0s"
+                  />
+                </div>
+                <div class="flex flex-col">
+                  <h3 class="font-bold text-lg">Леггинсы 'FLEX'</h3>
+                  <p class="text-text-light-secondary dark:text-text-dark-secondary">
+                    Компрессионные
+                  </p>
+                  <p class="font-bold mt-1">3 990 ₽</p>
+                </div>
+              </div>
+              <div class="flex flex-col gap-3 group">
+                <div
+                  class="w-full bg-center bg-no-repeat aspect-[4/5] bg-cover rounded-xl bg-gray-200 overflow-hidden"
+                >
+                  <img
+                    alt="Gray sports backpack"
+                    class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuAutFhpMm-TMO_5CqfASlKiidpwzDZZSQh1UVFzutU02ZQ27W7Pb9wQoDu8RmjGBiSgdIRC3TIvya71c-wOyBiweIgVWKB2Fbt6kTIVvtihzUDqyCK5WPN6L9JIIGTLShNfR9rOKgcv_QEjA6mTWhn8kQxH1SeAyyW9h2vkoIkCIG3rjsJw4njC0mdcfhhi-BOCc24vUtKBq14mUHSe7ipTPQGn6CtxFB49FPOHITHrEC7Kci2P1aGiRvIWL-q1umNDfZVdrMoa7vQ"
+                  />
+                </div>
+                <div class="flex flex-col">
+                  <h3 class="font-bold text-lg">Рюкзак 'URBAN' 25L</h3>
+                  <p class="text-text-light-secondary dark:text-text-dark-secondary">Городской</p>
+                  <p class="font-bold mt-1">4 500 ₽</p>
+                </div>
+              </div>
+              <div class="flex flex-col gap-3 group">
+                <div
+                  class="w-full bg-center bg-no-repeat aspect-[4/5] bg-cover rounded-xl bg-gray-200 overflow-hidden"
+                >
+                  <img
+                    alt="Sports water bottle"
+                    class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuCGj4RFHQsuchoWx1jBTjcO1qtWkFcxmU6DTGAz2rCVTOYPSGpXjASKw8DCBIB8cUlmCdRlD7wnkVIe_5J2UaeiVYCfALEpliri8p-TRHsQa-gQQzReRwliQfbiuPYZc8ExXuCNmW6egYQYyi4w7GxgdKYT8YOvAN7rsGJNpIrcb83P2ixGVokdQEto7YbtxTtbbANmZ1plAlQoSoMKcqy9nHGTEtEEfTULP8jq8jUaHbYA2N8ETHMoZBIg3ooMZCA1Y28EDzfa_tE"
+                  />
+                </div>
+                <div class="flex flex-col">
+                  <h3 class="font-bold text-lg">Бутылка 'HYDRO' 750ml</h3>
+                  <p class="text-text-light-secondary dark:text-text-dark-secondary">Аксессуары</p>
+                  <p class="font-bold mt-1">1 290 ₽</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>

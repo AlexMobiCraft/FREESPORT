@@ -1,6 +1,8 @@
 """
 XMLDataParser - парсер для XML файлов из 1С (CommerceML 3.1)
 """
+
+import logging
 import os
 from decimal import Decimal
 from typing import Any, Iterator, TypedDict, cast
@@ -8,6 +10,15 @@ from xml.etree.ElementTree import Element, ElementTree
 
 import defusedxml.ElementTree as ET
 from django.conf import settings
+
+logger = logging.getLogger(__name__)
+
+
+class PropertyValueData(TypedDict):
+    """Данные значения свойства из goods.xml"""
+
+    property_id: str  # GUID атрибута (Ид)
+    value_id: str  # GUID значения атрибута (Значение)
 
 
 class GoodsData(TypedDict, total=False):
@@ -17,7 +28,9 @@ class GoodsData(TypedDict, total=False):
     article: str
     category_id: str
     category_name: str
+    brand_id: str
     images: list[str]
+    property_values: list[PropertyValueData]  # Значения свойств товара
 
 
 class OfferCharacteristic(TypedDict):
@@ -62,6 +75,13 @@ class CategoryData(TypedDict, total=False):
     name: str
     parent_id: str
     description: str
+
+
+class BrandData(TypedDict):
+    """Данные бренда из propertiesGoods.xml"""
+
+    id: str
+    name: str
 
 
 class XMLDataParser:
@@ -153,8 +173,56 @@ class XMLDataParser:
             return child.text.strip()
         return default
 
+    def _validate_image_path(self, path: str) -> str | None:
+        """
+        Валидация и нормализация пути к изображению.
+
+        Args:
+            path: Относительный путь к изображению из XML
+
+        Returns:
+            Нормализованный путь или None если путь невалиден
+
+        Supported extensions: .jpg, .jpeg, .png, .webp (case-insensitive)
+        """
+        if not path or not isinstance(path, str):
+            return None
+
+        # Нормализация: убираем пробелы, заменяем backslash на forward slash
+        normalized = path.strip().replace("\\", "/")
+
+        if not normalized:
+            return None
+
+        # Валидация расширения
+        valid_extensions = {".jpg", ".jpeg", ".png", ".webp"}
+        _, ext = os.path.splitext(normalized.lower())
+
+        if ext not in valid_extensions:
+            return None
+
+        return normalized
+
     def parse_goods_xml(self, file_path: str) -> list[GoodsData]:
-        """Парсинг goods.xml - базовые товары"""
+        """
+        Парсинг goods.xml - базовые товары.
+
+        Извлекает информацию о товарах из XML файла в формате CommerceML 3.1,
+        включая валидацию и нормализацию путей к изображениям.
+
+        Args:
+            file_path: Путь к goods.xml файлу
+
+        Returns:
+            Список словарей GoodsData с данными товаров
+
+        Обработка изображений:
+            - Извлекаются все теги <Картинка> для каждого товара
+            - Пути валидируются на корректность расширения (.jpg, .jpeg, .png, .webp)
+            - Пути нормализуются (замена \\ на /, удаление пробелов)
+            - Дублирующиеся пути автоматически дедуплицируются
+            - Невалидные пути логируются как WARNING и пропускаются
+        """
         tree = self._safe_parse_xml(file_path)
         root = cast(Element, tree.getroot())
 
@@ -175,11 +243,60 @@ class XMLDataParser:
                 if category_name:
                     goods_data["category_name"] = category_name
 
-            image_elements = self._find_children(product_element, "Картинка")
+            # Извлечение ID бренда и значений свойств из ЗначенияСвойств
+            properties_values_element = self._find_child(
+                product_element, "ЗначенияСвойств"
+            )
+            property_values_list: list[PropertyValueData] = []
+
+            if properties_values_element is not None:
+                for property_value in self._find_children(
+                    properties_values_element, "ЗначенияСвойства"
+                ):
+                    property_id = self._find_text(property_value, "Ид")
+                    value_id = self._find_text(property_value, "Значение")
+
+                    # Свойство "Бренд" имеет Ид="Бренд"
+                    if property_id == "Бренд":
+                        if (
+                            value_id
+                            and value_id != "00000000-0000-0000-0000-000000000000"
+                        ):
+                            goods_data["brand_id"] = value_id
+
+                    # Собираем все свойства (включая бренд) для связывания атрибутов
+                    # Фильтруем пустые GUID значения (AC: Task 1.4)
+                    if (
+                        property_id
+                        and value_id
+                        and value_id != "00000000-0000-0000-0000-000000000000"
+                    ):
+                        property_values_list.append(
+                            {
+                                "property_id": property_id,
+                                "value_id": value_id,
+                            }
+                        )
+
+            if property_values_list:
+                goods_data["property_values"] = property_values_list
+
+            # Извлечение и валидация путей изображений с дедупликацией
+            image_elements = product_element.findall(".//Картинка")
+
             if image_elements:
-                goods_data["images"] = [
-                    image.text.strip() for image in image_elements if image.text
-                ]
+                validated_images = []
+                seen_paths: set[str] = set()  # Для дедупликации
+
+                for image in image_elements:
+                    if image.text:
+                        validated_path = self._validate_image_path(image.text.strip())
+                        if validated_path and validated_path not in seen_paths:
+                            validated_images.append(validated_path)
+                            seen_paths.add(validated_path)
+
+                if validated_images:
+                    goods_data["images"] = validated_images
 
             if goods_data.get("id"):  # Только если есть ID
                 goods_list.append(goods_data)
@@ -400,3 +517,48 @@ class XMLDataParser:
         else:
             # По умолчанию - розничная цена
             return "retail_price"
+
+    def parse_properties_goods_xml(self, file_path: str) -> list[BrandData]:
+        """
+        Парсинг propertiesGoods.xml - свойства товаров (бренды)
+
+        Извлекает список брендов из свойства "Бренд" в файлах propertiesGoods.
+        Структура: <Классификатор><Свойства><Свойство><ВариантыЗначений><Справочник>
+        """
+        tree = self._safe_parse_xml(file_path)
+        root = cast(Element, tree.getroot())
+
+        brands_list: list[BrandData] = []
+        brands_seen: set[str] = set()  # Для дедупликации
+
+        # Ищем свойство с названием "Бренд"
+        for property_element in root.findall(".//Свойство"):
+            property_name = self._find_text(property_element, "Наименование")
+
+            if property_name == "Бренд":
+                # Извлекаем варианты значений (бренды)
+                variants_element = self._find_child(
+                    property_element, "ВариантыЗначений"
+                )
+                if variants_element is not None:
+                    for variant_element in self._find_children(
+                        variants_element, "Справочник"
+                    ):
+                        brand_id = self._find_text(variant_element, "ИдЗначения")
+                        brand_name = self._find_text(variant_element, "Значение")
+
+                        # Пропускаем "Без Бренда" и дубликаты
+                        if (
+                            brand_id
+                            and brand_name
+                            and brand_name != "Без Бренда"
+                            and brand_id not in brands_seen
+                        ):
+                            brands_seen.add(brand_id)
+                            brand_data: BrandData = {
+                                "id": brand_id,
+                                "name": brand_name.strip(),
+                            }
+                            brands_list.append(brand_data)
+
+        return brands_list

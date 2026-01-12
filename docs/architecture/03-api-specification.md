@@ -56,6 +56,21 @@ paths:
                     type: string
                   user:
                     $ref: '#/components/schemas/User'
+        '401':
+          description: Invalid credentials
+        '403':
+          description: Account pending verification (Epic 29.2)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+                    example: "Ваша учетная запись находится на проверке"
+                  code:
+                    type: string
+                    example: "account_pending_verification"
 
   /auth/refresh/:
     post:
@@ -147,6 +162,164 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProductDetail'
+
+  # Catalog Filters (Story 14.3)
+  /catalog/filters/:
+    get:
+      tags: [Catalog Filters]
+      summary: Получение списка атрибутов для фильтрации товаров
+      description: |
+        Возвращает активные атрибуты с их значениями для построения UI фильтров в каталоге.
+        Staff users могут использовать include_inactive=true для просмотра всех атрибутов.
+      parameters:
+        - name: include_inactive
+          in: query
+          description: Включить неактивные атрибуты (только для staff users)
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Список атрибутов для фильтрации
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AttributeFilter'
+
+  # Banners API
+  /banners/active/:
+    get:
+      tags: [Banners]
+      summary: Получить активные баннеры для текущего пользователя
+      description: |
+        Возвращает список активных баннеров, отфильтрованных по роли пользователя.
+        Для неавторизованных пользователей возвращаются баннеры с show_to_guests=true.
+      security: []  # Опциональная авторизация
+      responses:
+        '200':
+          description: Список баннеров
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Banner'
+
+  # News API
+  /news/:
+    get:
+      tags: [News]
+      summary: Get list of published news
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: News list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: integer
+                  next:
+                    type: string
+                    nullable: true
+                  previous:
+                    type: string
+                    nullable: true
+                  results:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/News'
+
+  /news/{slug}/:
+    get:
+      tags: [News]
+      summary: Get news details by slug
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: News details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NewsDetail'
+        '404':
+          description: News not found
+
+  # Blog API
+  /blog/:
+    get:
+      tags: [Blog]
+      summary: Get list of published blog posts
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: Blog posts list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: integer
+                  next:
+                    type: string
+                    nullable: true
+                  previous:
+                    type: string
+                    nullable: true
+                  results:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/BlogPost'
+
+  /blog/{slug}/:
+    get:
+      tags: [Blog]
+      summary: Get blog post details by slug
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Blog post details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BlogPostDetail'
+        '404':
+          description: Blog post not found
 
   # Cart Management
   /cart/:
@@ -621,6 +794,36 @@ components:
           type: string
           format: date-time
 
+    Company:
+      type: object
+      description: Реквизиты компании для B2B пользователей
+      properties:
+        id:
+          type: integer
+        legal_name:
+          type: string
+          description: Юридическое название
+        tax_id:
+          type: string
+          description: ИНН
+        kpp:
+          type: string
+          description: КПП
+        legal_address:
+          type: string
+          description: Юридический адрес
+        bank_name:
+          type: string
+          description: Название банка
+        bank_bik:
+          type: string
+          description: БИК банка
+        account_number:
+          type: string
+          description: Расчётный счёт
+        created_at:
+          type: string
+
     Product:
       type: object
       properties:
@@ -678,6 +881,116 @@ components:
               type: number
             federation_price:
               type: number
+
+    # Catalog Filter Schemas (Story 14.3)
+    AttributeFilter:
+      type: object
+      description: Атрибут для фильтрации товаров в каталоге
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+          description: Название атрибута
+        slug:
+          type: string
+          description: URL-совместимый идентификатор
+        values:
+          type: array
+          description: Список значений атрибута
+          items:
+            $ref: '#/components/schemas/AttributeValueFilter'
+
+    AttributeValueFilter:
+      type: object
+      description: Значение атрибута для фильтра
+      properties:
+        id:
+          type: integer
+        value:
+          type: string
+          description: Отображаемое значение
+        slug:
+          type: string
+          description: URL-совместимый идентификатор значения
+
+    # News Schemas
+    News:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        slug:
+          type: string
+        short_description:
+          type: string
+        image:
+          type: string
+          format: uri
+        published_at:
+          type: string
+          format: date-time
+
+    NewsDetail:
+      allOf:
+        - $ref: '#/components/schemas/News'
+        - type: object
+          properties:
+            content:
+              type: string
+
+    # Blog Schemas
+    BlogPost:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        slug:
+          type: string
+        subtitle:
+          type: string
+        excerpt:
+          type: string
+        image:
+          type: string
+          format: uri
+        author:
+          type: string
+        category:
+          type: object
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+            slug:
+              type: string
+          nullable: true
+        published_at:
+          type: string
+          format: date-time
+
+    BlogPostDetail:
+      allOf:
+        - $ref: '#/components/schemas/BlogPost'
+        - type: object
+          properties:
+            content:
+              type: string
+            meta_title:
+              type: string
+            meta_description:
+              type: string
+            created_at:
+              type: string
+              format: date-time
+            updated_at:
+              type: string
+              format: date-time
 
     # 1C Integration Schemas
     Customer1C:
@@ -1034,7 +1347,6 @@ components:
 
 ## Особенности API интеграции с 1С
 
-
 ### Аутентификация
 
 - **JWT Bearer Token**: Для пользовательских операций
@@ -1074,14 +1386,17 @@ components:
 - **500 Internal Server Error**: Внутренняя ошибка сервера
 
 #### Pagination
+
 Все endpoints с множественными результатами поддерживают pagination:
+
 - `page`: номер страницы (по умолчанию 1)
 - `page_size`: размер страницы (по умолчанию 20, максимум 200)
 
 #### Фильтрация
+
 Поддерживается фильтрация по:
+
 - Времени модификации (`modified_since`, `created_since`)
 - Статусу синхронизации (`sync_status`, `export_status`)
 - Типу операции (`operation_type`, `conflict_type`)
 - Статусу разрешения (`is_resolved`)
-

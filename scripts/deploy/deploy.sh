@@ -1,297 +1,93 @@
 #!/bin/bash
 
-# Скрипт автоматического развертывания FREESPORT Platform
-# Использование: ./scripts/deploy/deploy.sh [init|update|backup]
+# Скрипт для развертывания проекта FREESPORT на сервере.
+# Запускается непосредственно на сервере в директории проекта.
+#
+# Использование:
+#   ./scripts/deploy/deploy.sh
+#   ./scripts/deploy/deploy.sh develop
+#   BRANCH=feature/x ./scripts/deploy/deploy.sh
 
-set -e
+# --- Конфигурация ---
+# Ветка Git по умолчанию
+DEFAULT_BRANCH="develop"
+# Файл для сборки образов
+COMPOSE_BUILD_FILE="docker/docker-compose.build.yml"
+# Файл для запуска контейнеров
+COMPOSE_PROD_FILE="docker/docker-compose.prod.yml"
+# Файл с переменными окружения
+ENV_FILE=".env.prod"
 
-# Цвета для вывода
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
-
-# Функция вывода сообщений
-log_info() {
-    echo -e "${GREEN}[INFO]${NC} $1"
+# --- Функции ---
+# Вывод сообщений
+log() {
+  echo "--- $1 ---"
 }
 
-log_warn() {
-    echo -e "${YELLOW}[WARN]${NC} $1"
-}
+# --- Логика скрипта ---
+set -e # Прерывать выполнение при любой ошибке
 
-log_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
-}
+# 1. Определение ветки
+if [ -z "$1" ]; then
+    BRANCH=$DEFAULT_BRANCH
+else
+    BRANCH=$1
+fi
+log "Используется ветка: $BRANCH"
 
-# Проверка наличия необходимых утилит
-check_requirements() {
-    log_info "Проверка системных требований..."
-    
-    if ! command -v docker &> /dev/null; then
-        log_error "Docker не установлен. Пожалуйста, установите Docker."
-        exit 1
-    fi
-    
-    if ! command -v docker-compose &> /dev/null && ! docker compose version &> /dev/null; then
-        log_error "Docker Compose не установлен. Пожалуйста, установите Docker Compose."
-        exit 1
-    fi
-    
-    if ! command -v git &> /dev/null; then
-        log_error "Git не установлен. Пожалуйста, установите Git."
-        exit 1
-    fi
-    
-    log_info "Все требования выполнены."
-}
+# 2. Проверка файла .env
+if [ ! -f "$ENV_FILE" ]; then
+    log "Файл окружения '$ENV_FILE' не найден. Пожалуйста, создайте его."
+    exit 1
+fi
+log "Используется файл окружения: $ENV_FILE"
 
-# Инициализация проекта
-init_project() {
-    log_info "Инициализация проекта..."
-    
-    # Проверка наличия файла .env.prod
-    if [ ! -f .env.prod ]; then
-        log_warn "Файл .env.prod не найден. Создание из шаблона..."
-        cp .env.prod.example .env.prod
-        log_warn "Пожалуйста, отредактируйте файл .env.prod и установите реальные значения."
-        log_warn "Особенно обратите внимание на SECRET_KEY, пароли и доменные имена."
-        read -p "Нажмите Enter после редактирования .env.prod..."
-    fi
-    
-    # Создание необходимых директорий
-    log_info "Создание директорий..."
-    mkdir -p data/import_1c
-    mkdir -p logs/{nginx,backend,frontend}
-    mkdir -p docker/ssl
-    
-    # Сборка и запуск контейнеров
-    log_info "Сборка Docker образов..."
-    docker compose -f docker/docker-compose.prod.yml build
-    
-    log_info "Запуск контейнеров..."
-    docker compose -f docker/docker-compose.prod.yml up -d
-    
-    # Ожидание запуска базы данных
-    log_info "Ожидание запуска базы данных..."
-    sleep 30
-    
-    # Выполнение миграций
-    log_info "Выполнение миграций базы данных..."
-    docker compose -f docker/docker-compose.prod.yml exec -T backend python manage.py migrate
-    
-    # Создание суперпользователя
-    log_info "Создание суперпользователя..."
-    docker compose -f docker/docker-compose.prod.yml exec -T backend python manage.py createsuperuser || log_warn "Не удалось создать суперпользователя. Вы можете сделать это позже с помощью команды: docker compose -f docker/docker-compose.prod.yml exec backend python manage.py createsuperuser"
-    
-    # Сбор статических файлов
-    log_info "Сбор статических файлов..."
-    docker compose -f docker/docker-compose.prod.yml exec -T backend python manage.py collectstatic --noinput
-    
-    log_info "Инициализация завершена!"
-    log_info "Проверьте работу сайта по адресу: https://freesport.ru"
-}
+# 3. Обновление из Git
+log "Обновление кода из Git (ветка $BRANCH)..."
+git fetch origin
+git checkout "$BRANCH"
+git pull origin "$BRANCH"
+log "Код успешно обновлен."
 
-# Обновление проекта
-update_project() {
-    log_info "Обновление проекта..."
-    
-    # Скачивание последних изменений
-    log_info "Скачивание последних изменений из репозитория..."
-    git pull origin main
-    
-    # Создание резервной копии
-    log_info "Создание резервной копии..."
-    backup_project
-    
-    # Пересборка и перезапуск контейнеров
-    log_info "Пересборка Docker образов..."
-    docker compose -f docker/docker-compose.prod.yml build
-    
-    log_info "Перезапуск контейнеров..."
-    docker compose -f docker/docker-compose.prod.yml up -d
-    
-    # Ожидание запуска сервисов
-    log_info "Ожидание запуска сервисов..."
-    sleep 30
-    
-    # Выполнение миграций
-    log_info "Выполнение миграций базы данных..."
-    docker compose -f docker/docker-compose.prod.yml exec -T backend python manage.py migrate
-    
-    # Сбор статических файлов
-    log_info "Сбор статических файлов..."
-    docker compose -f docker/docker-compose.prod.yml exec -T backend python manage.py collectstatic --noinput
-    
-    log_info "Обновление завершено!"
-}
+# 3.5. Настройка прав доступа (Fix for PermissionError)
+log "Настройка прав доступа к директориям данных..."
+# Создаем директории, если они не существуют
+mkdir -p data/prod/static data/prod/media backend/logs
 
-# Создание резервной копии
-backup_project() {
-    log_info "Создание резервной копии..."
-    
-    BACKUP_DIR="backups/$(date +%Y%m%d_%H%M%S)"
-    mkdir -p "$BACKUP_DIR"
-    
-    # Резервное копирование базы данных
-    log_info "Резервное копирование базы данных..."
-    docker compose -f docker/docker-compose.prod.yml exec -T db pg_dump -U postgres freesport > "$BACKUP_DIR/database.sql"
-    
-    # Резервное копирование медиа файлов
-    log_info "Резервное копирование медиа файлов..."
-    tar -czf "$BACKUP_DIR/media.tar.gz" data/ || log_warn "Не удалось создать архив медиа файлов"
-    
-    # Резервное копирование конфигурации
-    log_info "Резервное копирование конфигурации..."
-    cp .env.prod "$BACKUP_DIR/"
-    
-    log_info "Резервная копия создана в директории: $BACKUP_DIR"
-}
+# Устанавливаем владельца 1000:1000 (пользователь внутри контейнера)
+# Используем sudo, так как скрипт может быть запущен от пользователя freesport
+if command -v sudo >/dev/null 2>&1; then
+    sudo chown -R 1000:1000 data/prod/static data/prod/media backend/logs
+else
+    # Если sudo нет (например, запущен от root), выполняем напрямую
+    chown -R 1000:1000 data/prod/static data/prod/media backend/logs
+fi
+log "Права доступа настроены."
 
-# Восстановление из резервной копии
-restore_project() {
-    if [ -z "$1" ]; then
-        log_error "Укажите директорию резервной копии. Использование: $0 restore /path/to/backup"
-        exit 1
-    fi
-    
-    BACKUP_DIR="$1"
-    
-    if [ ! -d "$BACKUP_DIR" ]; then
-        log_error "Директория резервной копии не найдена: $BACKUP_DIR"
-        exit 1
-    fi
-    
-    log_info "Восстановление из резервной копии: $BACKUP_DIR"
-    
-    # Остановка контейнеров
-    log_info "Остановка контейнеров..."
-    docker compose -f docker/docker-compose.prod.yml down
-    
-    # Восстановление конфигурации
-    if [ -f "$BACKUP_DIR/.env.prod" ]; then
-        log_info "Восстановление конфигурации..."
-        cp "$BACKUP_DIR/.env.prod" .env.prod
-    fi
-    
-    # Запуск контейнеров
-    log_info "Запуск контейнеров..."
-    docker compose -f docker/docker-compose.prod.yml up -d
-    
-    # Ожидание запуска базы данных
-    log_info "Ожидание запуска базы данных..."
-    sleep 30
-    
-    # Восстановление базы данных
-    if [ -f "$BACKUP_DIR/database.sql" ]; then
-        log_info "Восстановление базы данных..."
-        docker compose -f docker/docker-compose.prod.yml exec -T db psql -U postgres -c "DROP DATABASE IF EXISTS freesport;"
-        docker compose -f docker/docker-compose.prod.yml exec -T db psql -U postgres -c "CREATE DATABASE freesport;"
-        docker compose -f docker/docker-compose.prod.yml exec -T db psql -U postgres freesport < "$BACKUP_DIR/database.sql"
-    fi
-    
-    # Восстановление медиа файлов
-    if [ -f "$BACKUP_DIR/media.tar.gz" ]; then
-        log_info "Восстановление медиа файлов..."
-        tar -xzf "$BACKUP_DIR/media.tar.gz"
-    fi
-    
-    log_info "Восстановление завершено!"
-}
+# 4. Сборка новых Docker образов
+log "Сборка Docker образов из '$COMPOSE_BUILD_FILE'..."
+docker compose --env-file "$ENV_FILE" -f "$COMPOSE_BUILD_FILE" build --no-cache
+log "Образы успешно собраны."
 
-# Проверка статуса
-check_status() {
-    log_info "Проверка статуса сервисов..."
-    
-    # Проверка статуса контейнеров
-    docker compose -f docker/docker-compose.prod.yml ps
-    
-    # Проверка доступности сайта
-    if command -v curl &> /dev/null; then
-        log_info "Проверка доступности сайта..."
-        if curl -f -s https://freesport.ru > /dev/null; then
-            log_info "Сайт доступен"
-        else
-            log_warn "Сайт недоступен"
-        fi
-        
-        # Проверка работы API
-        log_info "Проверка работы API..."
-        if curl -f -s https://freesport.ru/api/v1/health/ > /dev/null; then
-            log_info "API доступен"
-        else
-            log_warn "API недоступен"
-        fi
-    fi
-}
+# 5. Остановка старых контейнеров и запуск новых
+log "Перезапуск сервисов из '$COMPOSE_PROD_FILE'..."
+docker compose --env-file "$ENV_FILE" -f "$COMPOSE_PROD_FILE" down -v
+docker compose --env-file "$ENV_FILE" -f "$COMPOSE_PROD_FILE" up -d
+log "Сервисы успешно перезапущены."
 
-# Очистка
-cleanup() {
-    log_info "Очистка системы..."
-    
-    # Остановка контейнеров
-    docker compose -f docker/docker-compose.prod.yml down
-    
-    # Удаление неиспользуемых образов
-    docker image prune -f
-    
-    # Удаление неиспользуемых томов
-    docker volume prune -f
-    
-    log_info "Очистка завершена!"
-}
+# 6. Выполнение миграций базы данных
+log "Выполнение миграций Django..."
+docker compose --env-file "$ENV_FILE" -f "$COMPOSE_PROD_FILE" exec -T backend python manage.py migrate --no-input
+log "Миграции успешно выполнены."
 
-# Показать справку
-show_help() {
-    echo "Использование: $0 [КОМАНДА]"
-    echo ""
-    echo "Команды:"
-    echo "  init     - Инициализация проекта"
-    echo "  update   - Обновление проекта"
-    echo "  backup   - Создание резервной копии"
-    echo "  restore  - Восстановление из резервной копии"
-    echo "  status   - Проверка статуса сервисов"
-    echo "  cleanup  - Очистка системы"
-    echo "  help     - Показать эту справку"
-    echo ""
-    echo "Примеры:"
-    echo "  $0 init"
-    echo "  $0 update"
-    echo "  $0 restore backups/20231201_120000"
-}
+# 7. Сбор статических файлов (опционально, но рекомендуется)
+log "Сбор статических файлов Django..."
+docker compose --env-file "$ENV_FILE" -f "$COMPOSE_PROD_FILE" exec -T backend python manage.py collectstatic --no-input
+log "Статические файлы собраны."
 
-# Основная логика
-case "$1" in
-    init)
-        check_requirements
-        init_project
-        ;;
-    update)
-        check_requirements
-        update_project
-        ;;
-    backup)
-        check_requirements
-        backup_project
-        ;;
-    restore)
-        check_requirements
-        restore_project "$2"
-        ;;
-    status)
-        check_requirements
-        check_status
-        ;;
-    cleanup)
-        check_requirements
-        cleanup
-        ;;
-    help|--help|-h)
-        show_help
-        ;;
-    *)
-        log_error "Неизвестная команда: $1"
-        show_help
-        exit 1
-        ;;
-esac
+# 8. Очистка старых образов
+log "Очистка неиспользуемых Docker образов..."
+docker image prune -f
+log "Очистка завершена."
+
+log "Развертывание успешно завершено!"

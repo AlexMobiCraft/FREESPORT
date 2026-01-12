@@ -56,7 +56,17 @@ class User(AbstractUser):
     if TYPE_CHECKING:
         # Type hints для автогенерируемых Django методов
         def get_role_display(self) -> str:
-            ...
+            """Отображение названия роли пользователя"""
+            role_map = {
+                "retail": "Розничный покупатель",
+                "wholesale_level1": "Оптовик уровень 1",
+                "wholesale_level2": "Оптовик уровень 2",
+                "wholesale_level3": "Оптовик уровень 3",
+                "trainer": "Тренер/Фитнес-клуб",
+                "federation_rep": "Представитель федерации",
+                "admin": "Администратор",
+            }
+            return role_map.get(self.role, self.role)
 
     # Роли пользователей согласно архитектурной документации
     ROLE_CHOICES = [
@@ -86,7 +96,10 @@ class User(AbstractUser):
         message="Номер телефона должен быть в формате: '+79001234567'",
     )
     phone = models.CharField(
-        "Номер телефона", validators=[phone_regex], max_length=12, blank=True
+        "Номер телефона",
+        validators=[phone_regex],
+        max_length=255,  # Увеличено для поддержки нескольких телефонов из 1С
+        blank=True,
     )
 
     # B2B поля
@@ -119,6 +132,12 @@ class User(AbstractUser):
         ("conflict", "Конфликт данных"),
     ]
 
+    VERIFICATION_STATUS_CHOICES = [
+        ("unverified", "Не верифицирован"),
+        ("verified", "Верифицирован"),
+        ("pending", "Ожидает верификации"),
+    ]
+
     onec_id = models.CharField(
         "ID в 1С",
         max_length=100,
@@ -126,6 +145,13 @@ class User(AbstractUser):
         null=True,
         unique=True,
         help_text="Уникальный идентификатор клиента в 1С",
+    )
+    onec_guid = models.UUIDField(
+        "GUID в 1С",
+        blank=True,
+        null=True,
+        unique=True,
+        help_text="Уникальный GUID клиента в 1С",
     )
     sync_status = models.CharField(
         "Статус синхронизации",
@@ -150,10 +176,23 @@ class User(AbstractUser):
         blank=True,
         help_text="Дата и время последней синхронизации с 1С",
     )
+    last_sync_from_1c = models.DateTimeField(
+        "Последняя синхронизация из 1С",
+        null=True,
+        blank=True,
+        help_text="Дата и время последнего импорта данных из 1С",
+    )
     sync_error_message = models.TextField(
         "Ошибка синхронизации",
         blank=True,
         help_text="Сообщение об ошибке при синхронизации с 1С",
+    )
+    verification_status = models.CharField(
+        "Статус верификации",
+        max_length=20,
+        choices=VERIFICATION_STATUS_CHOICES,
+        default="unverified",
+        help_text="Статус верификации клиента из 1С",
     )
 
     USERNAME_FIELD = "email"
@@ -218,10 +257,10 @@ class Company(models.Model):
         verbose_name="Пользователь",
     )
 
-    legal_name = models.CharField("Юридическое название", max_length=255)
-    tax_id = models.CharField("ИНН", max_length=12, unique=True)
+    legal_name = models.CharField("Юридическое название", max_length=255, blank=True)
+    tax_id = models.CharField("ИНН", max_length=12, blank=True)
     kpp = models.CharField("КПП", max_length=9, blank=True)
-    legal_address = models.TextField("Юридический адрес")
+    legal_address = models.TextField("Юридический адрес", blank=True)
 
     # Банковские реквизиты
     bank_name = models.CharField("Название банка", max_length=200, blank=True)
@@ -266,6 +305,7 @@ class Address(models.Model):
     city = models.CharField("Город", max_length=100)
     street = models.CharField("Улица", max_length=200)
     building = models.CharField("Дом", max_length=10)
+    building_section = models.CharField("Корпус/строение", max_length=20, blank=True)
     apartment = models.CharField("Квартира/офис", max_length=10, blank=True)
     postal_code = models.CharField("Почтовый индекс", max_length=6)
 
@@ -304,6 +344,8 @@ class Address(models.Model):
     def full_address(self) -> str:
         """Полный адрес строкой"""
         parts = [self.postal_code, self.city, self.street, self.building]
+        if self.building_section:
+            parts.append(f"корп. {self.building_section}")
         if self.apartment:
             parts.append(f"кв. {self.apartment}")
         return ", ".join(parts)

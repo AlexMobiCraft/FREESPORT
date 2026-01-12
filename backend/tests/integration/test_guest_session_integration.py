@@ -1,13 +1,15 @@
 """
 Integration тесты гостевых сессий
 """
+
 import pytest
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from rest_framework.test import APIClient
 
 from apps.cart.models import Cart, CartItem
-from apps.products.models import Brand, Category, Product
+from apps.products.models import Brand, Category, Product, ProductVariant
+from django.urls import reverse
 
 User = get_user_model()
 
@@ -26,9 +28,14 @@ class GuestSessionIntegrationTest(TestCase):
             slug="test-product",
             category=self.category,
             brand=self.brand,
+            is_active=True,
+        )
+        self.variant = ProductVariant.objects.create(
+            product=self.product,
             retail_price=100.00,
             stock_quantity=10,
             is_active=True,
+            sku="GUEST-TEST-001",
         )
 
     def test_guest_cart_functionality(self):
@@ -36,7 +43,7 @@ class GuestSessionIntegrationTest(TestCase):
         client = APIClient()
 
         # Добавляем товар как гость
-        data = {"product": self.product.id, "quantity": 2}
+        data = {"variant_id": self.variant.id, "quantity": 2}
         response = client.post("/api/v1/cart/items/", data)
         self.assertEqual(response.status_code, 201)
 
@@ -62,7 +69,7 @@ class GuestSessionIntegrationTest(TestCase):
         client = APIClient()
 
         # Первый запрос: добавляем товар
-        data = {"product": self.product.id, "quantity": 1}
+        data = {"variant_id": self.variant.id, "quantity": 1}
         client.post("/api/v1/cart/items/", data)
 
         # Второй запрос: проверяем, что товар остался
@@ -84,7 +91,7 @@ class GuestSessionIntegrationTest(TestCase):
         client = APIClient()
 
         # Добавляем товар как гость
-        data = {"product": self.product.id, "quantity": 3}
+        data = {"variant_id": self.variant.id, "quantity": 3}
         guest_response = client.post("/api/v1/cart/items/", data)
         self.assertEqual(guest_response.status_code, 201)
 
@@ -112,11 +119,11 @@ class GuestSessionIntegrationTest(TestCase):
         client2 = APIClient()
 
         # Первый гость добавляет товар
-        data1 = {"product": self.product.id, "quantity": 1}
+        data1 = {"variant_id": self.variant.id, "quantity": 1}
         client1.post("/api/v1/cart/items/", data1)
 
         # Второй гость добавляет товар
-        data2 = {"product": self.product.id, "quantity": 2}
+        data2 = {"variant_id": self.variant.id, "quantity": 2}
         client2.post("/api/v1/cart/items/", data2)
 
         # Проверяем, что корзины изолированы
@@ -135,7 +142,7 @@ class GuestSessionIntegrationTest(TestCase):
         client = APIClient()
 
         # Создаем гостевую корзину
-        data = {"product": self.product.id, "quantity": 1}
+        data = {"variant_id": self.variant.id, "quantity": 1}
         client.post("/api/v1/cart/items/", data)
 
         # Получаем созданную корзину
@@ -158,7 +165,7 @@ class GuestSessionIntegrationTest(TestCase):
         client = APIClient()
 
         # Добавляем товар как гость
-        data = {"product": self.product.id, "quantity": 1}
+        data = {"variant_id": self.variant.id, "quantity": 1}
         client.post("/api/v1/cart/items/", data)
 
         # Проверяем, что цена розничная
@@ -177,7 +184,8 @@ class GuestSessionIntegrationTest(TestCase):
         self.assertEqual(catalog_response.status_code, 200)
 
         # Детальная страница товара
-        product_response = client.get(f"/api/v1/products/{self.product.id}/")
+        url = reverse("products:product-detail", kwargs={"slug": self.product.slug})
+        product_response = client.get(url)
         self.assertEqual(product_response.status_code, 200)
 
         # Гости видят розничные цены
@@ -193,12 +201,15 @@ class GuestSessionIntegrationTest(TestCase):
         client = APIClient()
 
         # Проверяем валидацию остатков для гостей
-        data = {"product": self.product.id, "quantity": 15}  # больше stock_quantity=10
+        data = {
+            "variant_id": self.variant.id,
+            "quantity": 15,
+        }  # больше stock_quantity=10
         response = client.post("/api/v1/cart/items/", data)
         self.assertEqual(response.status_code, 400)
 
         # Проверяем валидацию минимального количества
         # (для этого товара min_order_quantity=1, должно пройти)
-        valid_data = {"product": self.product.id, "quantity": 1}
+        valid_data = {"variant_id": self.variant.id, "quantity": 1}
         valid_response = client.post("/api/v1/cart/items/", valid_data)
         self.assertEqual(valid_response.status_code, 201)

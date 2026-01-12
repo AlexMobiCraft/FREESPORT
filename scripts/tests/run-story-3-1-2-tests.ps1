@@ -1,4 +1,4 @@
-# Скрипт запускает тесты Story 3.1.2 (команда import_catalog_from_1c)
+# Скрипт запускает тесты Epic 27 (VariantImportProcessor / import_products_from_1c)
 param(
     [Parameter(ValueFromRemainingArguments = $true)]
     [string[]]$AdditionalPytestArgs = @()
@@ -12,7 +12,7 @@ if (-not (Test-Path -LiteralPath $runnerPath)) {
 }
 
 $defaultPytestArgs = @(
-    "tests/integration/test_management_commands/test_import_catalog_from_1c.py",
+    "tests/integration/test_variant_import.py",
     "-v",
     "--migrations"
 )

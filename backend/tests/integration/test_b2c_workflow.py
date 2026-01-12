@@ -1,12 +1,13 @@
 """
 Integration тесты B2C workflow
 """
+
 import pytest
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from rest_framework.test import APIClient
 
-from apps.products.models import Brand, Category, Product
+from apps.products.models import Brand, Category, Product, ProductVariant
 from apps.users.models import Favorite
 
 User = get_user_model()
@@ -37,9 +38,15 @@ class B2CWorkflowTest(TestCase):
             slug="running-shoes",
             category=self.category,
             brand=self.brand,
+            is_active=True,
+        )
+        self.variant = ProductVariant.objects.create(
+            product=self.product,
+            sku="B2C-RUN-001",
+            color_name="Red",
+            size_value="42",
             retail_price=150.00,
             stock_quantity=20,
-            min_order_quantity=1,
             is_active=True,
         )
         # Очищаем все избранное и связанные данные
@@ -58,16 +65,16 @@ class B2CWorkflowTest(TestCase):
         self.assertEqual(dashboard_response.status_code, 200)
 
         # 2. Просмотр детального товара (без RRP/MSRP для B2C)
-        product_response = self.client.get(f"/api/v1/products/{self.product.id}/")
+        product_response = self.client.get(f"/api/v1/products/{self.product.slug}/")
         self.assertEqual(product_response.status_code, 200)
-        self.assertEqual(float(product_response.data["current_price"]), 150.00)
+        self.assertEqual(float(product_response.data["retail_price"]), 150.00)
 
         # B2C пользователи не должны видеть оптовые поля
         self.assertNotIn("rrp", product_response.data)
         self.assertNotIn("msrp", product_response.data)
 
         # 3. Добавление товара в корзину
-        cart_data = {"product": self.product.id, "quantity": 2}
+        cart_data = {"variant_id": self.variant.id, "quantity": 2}
         cart_response = self.client.post("/api/v1/cart/items/", cart_data)
         self.assertEqual(cart_response.status_code, 201)
 
@@ -108,12 +115,12 @@ class B2CWorkflowTest(TestCase):
         self.assertEqual(catalog_response.status_code, 200)
 
         # 2. Просмотр товара с розничными ценами
-        product_response = self.client.get(f"/api/v1/products/{self.product.id}/")
+        product_response = self.client.get(f"/api/v1/products/{self.product.slug}/")
         self.assertEqual(product_response.status_code, 200)
-        self.assertEqual(float(product_response.data["current_price"]), 150.00)
+        self.assertEqual(float(product_response.data["retail_price"]), 150.00)
 
         # 3. Добавление в гостевую корзину
-        cart_data = {"product": self.product.id, "quantity": 1}
+        cart_data = {"variant_id": self.variant.id, "quantity": 1}
         cart_response = self.client.post("/api/v1/cart/items/", cart_data)
         self.assertEqual(cart_response.status_code, 201)
 
@@ -139,7 +146,7 @@ class B2CWorkflowTest(TestCase):
 
         # Добавляем товар в корзину
         self.client.post(
-            "/api/v1/cart/items/", {"product": self.product.id, "quantity": 1}
+            "/api/v1/cart/items/", {"variant_id": self.variant.id, "quantity": 1}
         )
 
         # Тестируем B2C способы оплаты
@@ -159,7 +166,8 @@ class B2CWorkflowTest(TestCase):
 
                 # Восстанавливаем корзину для следующего теста
                 self.client.post(
-                    "/api/v1/cart/items/", {"product": self.product.id, "quantity": 1}
+                    "/api/v1/cart/items/",
+                    {"variant_id": self.variant.id, "quantity": 1},
                 )
 
     def test_b2c_delivery_methods(self):
@@ -168,7 +176,7 @@ class B2CWorkflowTest(TestCase):
 
         # Добавляем товар
         self.client.post(
-            "/api/v1/cart/items/", {"product": self.product.id, "quantity": 1}
+            "/api/v1/cart/items/", {"variant_id": self.variant.id, "quantity": 1}
         )
 
         # Тестируем B2C способы доставки
@@ -187,7 +195,8 @@ class B2CWorkflowTest(TestCase):
 
                 # Восстанавливаем корзину
                 self.client.post(
-                    "/api/v1/cart/items/", {"product": self.product.id, "quantity": 1}
+                    "/api/v1/cart/items/",
+                    {"variant_id": self.variant.id, "quantity": 1},
                 )
 
     def test_b2c_order_without_minimum_quantity(self):
@@ -196,7 +205,7 @@ class B2CWorkflowTest(TestCase):
 
         # B2C пользователи могут заказывать по 1 штуке
         cart_data = {
-            "product": self.product.id,
+            "variant_id": self.variant.id,
             "quantity": 1,  # Минимальное количество для retail
         }
         response = self.client.post("/api/v1/cart/items/", cart_data)
@@ -237,7 +246,7 @@ class B2CWorkflowTest(TestCase):
 
         # Создаем первый заказ
         self.client.post(
-            "/api/v1/cart/items/", {"product": self.product.id, "quantity": 1}
+            "/api/v1/cart/items/", {"variant_id": self.variant.id, "quantity": 1}
         )
 
         order_data = {
@@ -251,7 +260,7 @@ class B2CWorkflowTest(TestCase):
         # Проверяем, что можем легко повторить заказ
         # (добавляя тот же товар снова)
         repeat_cart = self.client.post(
-            "/api/v1/cart/items/", {"product": self.product.id, "quantity": 1}
+            "/api/v1/cart/items/", {"variant_id": self.variant.id, "quantity": 1}
         )
         self.assertEqual(repeat_cart.status_code, 201)
 

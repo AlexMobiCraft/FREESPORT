@@ -14,38 +14,39 @@ class Migration(migrations.Migration):
         migrations.AddConstraint(
             model_name="order",
             constraint=CheckConstraint(
-                check=Q(total_amount__gte=0), name="orders_total_amount_positive"
+                condition=Q(total_amount__gte=0), name="orders_total_amount_positive"
             ),
         ),
         migrations.AddConstraint(
             model_name="order",
             constraint=CheckConstraint(
-                check=Q(discount_amount__gte=0), name="orders_discount_amount_positive"
+                condition=Q(discount_amount__gte=0),
+                name="orders_discount_amount_positive",
             ),
         ),
         migrations.AddConstraint(
             model_name="order",
             constraint=CheckConstraint(
-                check=Q(delivery_cost__gte=0), name="orders_delivery_cost_positive"
+                condition=Q(delivery_cost__gte=0), name="orders_delivery_cost_positive"
             ),
         ),
         # Check constraints для элементов заказа
         migrations.AddConstraint(
             model_name="orderitem",
             constraint=CheckConstraint(
-                check=Q(quantity__gte=1), name="order_items_quantity_positive"
+                condition=Q(quantity__gte=1), name="order_items_quantity_positive"
             ),
         ),
         migrations.AddConstraint(
             model_name="orderitem",
             constraint=CheckConstraint(
-                check=Q(unit_price__gte=0), name="order_items_unit_price_positive"
+                condition=Q(unit_price__gte=0), name="order_items_unit_price_positive"
             ),
         ),
         migrations.AddConstraint(
             model_name="orderitem",
             constraint=CheckConstraint(
-                check=Q(total_price__gte=0), name="order_items_total_price_positive"
+                condition=Q(total_price__gte=0), name="order_items_total_price_positive"
             ),
         ),
         # Бизнес-правило: общая цена = единичная цена * количество

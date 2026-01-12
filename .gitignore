@@ -4,12 +4,13 @@
 # Environment variables and secrets
 .env
 .env.local
-.env.production
+#.env.prod
 .env.staging
 *.key
 *.pem
 *.p12
 nul
+celerybeat-schedule*
 
 # IDE and Editor files
 .vscode/
@@ -20,7 +21,7 @@ nul
 #.windsurf
 #.bmad-core
 #.bmad-infrastructure-devops
-#.kilocodemodes
+.kilocodemodes
 #.roomodes
 .web-bundles/
 *~
@@ -42,6 +43,7 @@ yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
 .pnpm-debug.log*
+playwright-report/
 
 # Runtime data
 pids
@@ -68,6 +70,7 @@ docker-compose.override.yml
 *.tmp
 *.temp
 /tmp/
+nul
 
 # Build artifacts
 dist/
@@ -168,3 +171,11 @@ dmypy.json
 # Обменные файлы
 .\data\import_1c
 data/import_1c/
+backend/celerybeat-schedule.dat
+import_1c.tar.gz
+
+# GitHub Actions logs
+.github/logs_*/
+test_output.txt
+role_test_debug.txt
+detail_test_debug.txt

@@ -1,211 +1,155 @@
 /**
- * Zustand store для управления аутентификацией
- * Состояние пользователя и JWT токенов
+ * Auth Store - управление аутентификацией и пользователем
+ *
+ * @security
+ * - Access token хранится ТОЛЬКО в memory (Zustand store)
+ * - Refresh token хранится в localStorage И cookies (для middleware)
+ * - Tokens очищаются при logout
  */
-import { create } from "zustand";
-import { devtools } from "zustand/middleware";
-import type { User, AuthTokens } from "@/types";
-import { tokenStorage } from "@/services/api";
+
+import { create } from 'zustand';
+import { devtools } from 'zustand/middleware';
+import type { User } from '@/types/api';
+
+/**
+ * Утилита для установки cookie (для синхронизации с middleware)
+ */
+function setCookie(name: string, value: string, days: number = 30) {
+  const expires = new Date();
+  expires.setTime(expires.getTime() + days * 24 * 60 * 60 * 1000);
+  document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/;SameSite=Lax`;
+}
+
+/**
+ * Утилита для удаления cookie
+ */
+function deleteCookie(name: string) {
+  document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;`;
+}
 
 interface AuthState {
+  accessToken: string | null;
   user: User | null;
-  tokens: AuthTokens | null;
   isAuthenticated: boolean;
-  isLoading: boolean;
+
+  // Actions
+  setTokens: (access: string, refresh: string) => void;
+  setUser: (user: User) => void;
+  logout: (skipServerLogout?: boolean) => Promise<void>;
+  getRefreshToken: () => string | null;
 }
 
-interface AuthActions {
-  // Авторизация пользователя
-  login: (user: User, tokens: AuthTokens) => void;
-
-  // Выход из системы
-  logout: () => void;
-
-  // Обновление данных пользователя
-  updateUser: (user: Partial<User>) => void;
-
-  // Обновление токенов
-  updateTokens: (tokens: AuthTokens) => void;
-
-  // Инициализация состояния из localStorage
-  initializeAuth: () => void;
-
-  // Установка состояния загрузки
-  setLoading: (loading: boolean) => void;
-}
-
-type AuthStore = AuthState & AuthActions;
-
-// Начальное состояние
-const initialState: AuthState = {
-  user: null,
-  tokens: null,
-  isAuthenticated: false,
-  isLoading: true,
-};
-
-// Создание Zustand store
-export const useAuthStore = create<AuthStore>()(
+export const useAuthStore = create<AuthState>()(
   devtools(
-    (set, get) => ({
-      ...initialState,
+    set => ({
+      accessToken: null,
+      user: null,
+      isAuthenticated: false,
 
-      login: (user: User, tokens: AuthTokens) => {
-        // Сохранение токенов в localStorage
-        tokenStorage.set(tokens);
+      setTokens: (access: string, refresh: string) => {
+        // Refresh token в localStorage для persistence
+        localStorage.setItem('refreshToken', refresh);
 
-        set(
-          {
-            user,
-            tokens,
-            isAuthenticated: true,
-            isLoading: false,
-          },
-          false,
-          "auth/login",
-        );
+        /**
+         * Cookie Sync Strategy (Story 28.4)
+         *
+         * WHY: Next.js Middleware runs on Edge Runtime и НЕ имеет доступа к localStorage.
+         * Для проверки аутентификации на protected routes middleware нужен доступ к
+         * refresh token через cookies.
+         *
+         * IMPLEMENTATION:
+         * - localStorage: Primary storage для client-side JavaScript
+         * - Cookie: Fallback для Edge Runtime middleware (читается через request.cookies)
+         * - Оба синхронизируются при login/logout для консистентности
+         *
+         * SECURITY:
+         * - Cookie НЕ HttpOnly (доступен JS), т.к. middleware - это только UX improvement
+         * - Реальная валидация токенов происходит на backend при каждом API request
+         * - SameSite=Lax для CSRF protection
+         */
+        setCookie('refreshToken', refresh, 30);
+
+        // Access token ТОЛЬКО в memory
+        set({
+          accessToken: access,
+          isAuthenticated: true,
+        });
       },
 
-      logout: () => {
-        // Очистка localStorage
-        tokenStorage.clear();
-
-        set(
-          {
-            user: null,
-            tokens: null,
-            isAuthenticated: false,
-            isLoading: false,
-          },
-          false,
-          "auth/logout",
-        );
+      setUser: (user: User) => {
+        set({ user });
       },
 
-      updateUser: (userData: Partial<User>) => {
-        const { user } = get();
+      /**
+       * Выход из системы с инвалидацией токена на сервере
+       * Story 31.2 - AC 5, 6: Async logout с вызовом backend API
+       *
+       * @param skipServerLogout - Если true, пропускает попытку выхода на сервере.
+       * Используется когда известно, что токены уже невалидны (например, при ответе 401),
+       * чтобы избежать бесконечного цикла запросов.
+       *
+       * Fail-safe: Локальная очистка ВСЕГДА происходит, даже при ошибке API
+       */
+      logout: async (skipServerLogout?: boolean) => {
+        const refreshToken = localStorage.getItem('refreshToken');
 
-        if (user) {
-          set(
-            {
-              user: { ...user, ...userData },
-            },
-            false,
-            "auth/updateUser",
-          );
-        }
-      },
-
-      updateTokens: (tokens: AuthTokens) => {
-        // Обновление токенов в localStorage
-        tokenStorage.set(tokens);
-
-        set(
-          {
-            tokens,
-          },
-          false,
-          "auth/updateTokens",
-        );
-      },
-
-      initializeAuth: () => {
-        try {
-          const storedTokens = tokenStorage.get();
-
-          if (storedTokens) {
-            set(
-              {
-                tokens: storedTokens,
-                isAuthenticated: true,
-                isLoading: false,
-              },
-              false,
-              "auth/initialize",
-            );
-
-            // TODO: Здесь можно добавить запрос для получения данных пользователя
-            // из backend по токену
-          } else {
-            set(
-              {
-                isLoading: false,
-              },
-              false,
-              "auth/initialize",
-            );
+        // Попытка инвалидировать токен на сервере
+        if (refreshToken && !skipServerLogout) {
+          try {
+            // Динамический импорт для избежания circular dependency
+            const { default: authService } = await import('../services/authService');
+            await authService.logoutFromServer(refreshToken);
+          } catch (error) {
+            // Fail-safe: логируем ошибку, но продолжаем локальную очистку
+            console.error('Server logout failed, proceeding with local cleanup:', error);
           }
-        } catch (error) {
-          console.error("Ошибка инициализации аутентификации:", error);
-
-          set(
-            {
-              user: null,
-              tokens: null,
-              isAuthenticated: false,
-              isLoading: false,
-            },
-            false,
-            "auth/initializeError",
-          );
         }
+
+        // Локальная очистка ВСЕГДА выполняется (fail-safe)
+        localStorage.removeItem('refreshToken');
+        deleteCookie('refreshToken');
+        set({
+          accessToken: null,
+          user: null,
+          isAuthenticated: false,
+        });
       },
 
-      setLoading: (loading: boolean) => {
-        set(
-          {
-            isLoading: loading,
-          },
-          false,
-          "auth/setLoading",
-        );
+      getRefreshToken: () => {
+        return localStorage.getItem('refreshToken');
       },
     }),
-    {
-      name: "auth-store",
-      // Сериализация только публичных полей для devtools
-      serialize: {
-        options: {
-          user: true,
-          isAuthenticated: true,
-          isLoading: true,
-          // Не сериализуем токены для безопасности
-          tokens: false,
-        },
-      },
-    },
-  ),
+    { name: 'AuthStore' }
+  )
 );
 
-// Селекторы для удобного доступа к состоянию
+const B2B_ROLES: Array<User['role']> = [
+  'wholesale_level1',
+  'wholesale_level2',
+  'wholesale_level3',
+  'trainer',
+  'federation_rep',
+  'admin',
+];
+
 export const authSelectors = {
-  // Текущий пользователь
-  useUser: () => useAuthStore((state) => state.user),
-
-  // Статус аутентификации
-  useIsAuthenticated: () => useAuthStore((state) => state.isAuthenticated),
-
-  // Состояние загрузки
-  useIsLoading: () => useAuthStore((state) => state.isLoading),
-
-  // Роль пользователя
-  useUserRole: () => useAuthStore((state) => state.user?.role),
-
-  // Проверка роли B2B
+  /**
+   * Возвращает актуальный флаг аутентификации пользователя
+   */
+  useIsAuthenticated: () => useAuthStore(state => state.isAuthenticated),
+  /**
+   * Возвращает текущего пользователя из стора
+   */
+  useUser: () => useAuthStore(state => state.user),
+  /**
+   * Определяет, относится ли пользователь к B2B сегменту
+   */
   useIsB2BUser: () =>
-    useAuthStore((state) => {
+    useAuthStore(state => {
       const role = state.user?.role;
-      return role
-        ? [
-            "wholesale_level1",
-            "wholesale_level2",
-            "wholesale_level3",
-            "trainer",
-            "federation_rep",
-          ].includes(role)
-        : false;
+      const isVerified = state.user?.is_verified;
+      // Story 29.2: Неверифицированные B2B пользователи считаются розничными
+      // B2B функционал доступен только при is_verified=true
+      return role && B2B_ROLES.includes(role) && isVerified === true;
     }),
-
-  // Проверка роли админа
-  useIsAdmin: () => useAuthStore((state) => state.user?.role === "admin"),
 };

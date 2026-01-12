@@ -1,6 +1,7 @@
 """
 Отладочный тест для проблемы с очисткой корзины
 """
+
 from decimal import Decimal
 
 import pytest
