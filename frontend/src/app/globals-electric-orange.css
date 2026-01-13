@@ -155,7 +155,10 @@
 /* ============================================
    ROOT STYLES
    ============================================ */
-:root {
+/* ============================================
+   ROOT STYLES
+   ============================================ */
+.theme-electric {
   --background: var(--bg-body);
   --foreground: var(--color-text-primary);
   color-scheme: dark;
@@ -170,9 +173,7 @@
   --color-primary: #ff6b00;
   --bg-card: #1a1a1a;
   --bg-card-hover: #222222;
-}
 
-body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-body);

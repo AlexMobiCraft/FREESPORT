@@ -79,7 +79,7 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess }) =
         }
 
         // Редирект на главную если верифицирован сразу (редкий случай)
-        router.push('/test');
+        router.push('/home');
       }
     } catch (error: unknown) {
       // AC 5: Обработка ошибок API
@@ -144,7 +144,7 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess }) =
 
         <Button
           type="button"
-          onClick={() => router.push('/test')}
+          onClick={() => router.push('/home')}
           variant="secondary"
           className="w-full"
         >

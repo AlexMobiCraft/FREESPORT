@@ -1,28 +1,15 @@
-import type { Metadata } from 'next';
-import { HomePage } from '@/components/home/HomePage';
+import { redirect } from 'next/navigation';
 
-export const metadata: Metadata = {
-  title: 'FREESPORT - Спортивные товары оптом и в розницу',
-  description:
-    'Платформа для оптовых и розничных продаж спортивных товаров. Широкий ассортимент, выгодные условия для бизнеса.',
-  keywords:
-    'спортивные товары оптом, спортивные товары в розницу, FREESPORT, спортивная экипировка',
-  openGraph: {
-    title: 'FREESPORT - Спортивные товары оптом и в розницу',
-    description:
-      'Платформа для оптовых и розничных продаж спортивных товаров. Широкий ассортимент, выгодные условия для бизнеса.',
-    images: ['/og-image.jpg'],
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'FREESPORT - Спортивные товары оптом и в розницу',
-    description:
-      'Платформа для оптовых и розничных продаж спортивных товаров. Широкий ассортимент, выгодные условия для бизнеса.',
-  },
-};
+const THEME_ROUTES = {
+  coming_soon: '/coming-soon',
+  blue: '/home',
+  electric_orange: '/electric',
+} as const;
 
-export const revalidate = 3600; // ISR: обновление каждый час
+type ThemeKey = keyof typeof THEME_ROUTES;
 
-export default function Home() {
-  return <HomePage />;
+export default function RootPage() {
+  const activeTheme = (process.env.ACTIVE_THEME || 'coming_soon') as ThemeKey;
+  const targetRoute = THEME_ROUTES[activeTheme] || '/coming-soon';
+  redirect(targetRoute);
 }

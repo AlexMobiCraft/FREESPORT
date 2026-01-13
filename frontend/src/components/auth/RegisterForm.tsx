@@ -95,7 +95,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
       }
 
       // Story 28.1 AC 2: Редирект на главную после успешной регистрации
-      router.push('/test');
+      router.push('/home');
     } catch (error: unknown) {
       // AC 4: Обработка ошибок API
       const err = error as {

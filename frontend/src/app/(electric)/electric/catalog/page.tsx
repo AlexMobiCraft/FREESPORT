@@ -170,7 +170,7 @@ const ElectricCatalogPage: React.FC = () => {
   // Breadcrumb items (excluding "СПОРТ")
   const breadcrumbItems = useMemo(() => {
     const base = [
-      { label: 'Главная', href: '/' },
+      { label: 'Главная', href: '/electric' },
       { label: 'Каталог', href: '/electric/catalog' },
     ];
 
@@ -437,10 +437,9 @@ const ElectricCatalogPage: React.FC = () => {
                   className={`
                     px-3 py-1.5 md:px-4 md:py-2 text-xs md:text-sm font-medium uppercase tracking-wide whitespace-nowrap
                     border transition-all duration-200 flex-shrink-0
-                    ${
-                      quickFilter === key
-                        ? 'bg-[var(--color-primary)] text-[var(--color-text-inverse)] border-[var(--color-primary)]'
-                        : 'bg-transparent text-[var(--color-text-secondary)] border-[var(--border-default)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]'
+                    ${quickFilter === key
+                      ? 'bg-[var(--color-primary)] text-[var(--color-text-inverse)] border-[var(--color-primary)]'
+                      : 'bg-transparent text-[var(--color-text-secondary)] border-[var(--border-default)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]'
                     }
                   `}
                   style={{ transform: 'skewX(-12deg)' }}
@@ -611,7 +610,7 @@ const ElectricCatalogPage: React.FC = () => {
                       inStock={product.is_in_stock}
                       onAddToCart={() => handleAddToCart(product.id)}
                       isFavorite={false}
-                      onToggleFavorite={() => {}}
+                      onToggleFavorite={() => { }}
                     />
                   );
                 })}

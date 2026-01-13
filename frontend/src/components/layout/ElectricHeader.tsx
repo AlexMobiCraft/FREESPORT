@@ -14,9 +14,11 @@ const ElectricHeader: React.FC = () => {
 
   // Navigation Links
   const navLinks = [
-    { label: 'КАТАЛОГ', href: '/catalog' },
-    { label: 'БРЕНДЫ', href: '/brands' },
-    { label: 'НОВОСТИ', href: '/news' },
+    { label: 'ГЛАВНАЯ', href: '/electric' },
+    { label: 'КАТАЛОГ', href: '/electric/catalog' },
+    { label: 'НОВОСТИ', href: '/electric/news' },
+    { label: 'БЛОГ', href: '/electric/blog' },
+    { label: 'ПАРТНЁРАМ', href: '/electric/partners' },
   ];
 
   return (
@@ -24,7 +26,7 @@ const ElectricHeader: React.FC = () => {
       <div className="max-w-[1200px] mx-auto px-5">
         <div className="flex items-center justify-between h-[80px]">
           {/* Logo Area */}
-          <Link href="/electric-orange-test" className="flex items-center -ml-2 group">
+          <Link href="/electric" className="flex items-center -ml-2 group">
             {/* Logo Image */}
             <div className="relative h-8 w-auto transform -skew-x-12 transition-transform group-hover:scale-105">
               <Image

@@ -60,7 +60,7 @@ const Header: React.FC = () => {
 
   // Навигационные элементы
   const navigationItems = [
-    { href: '/test', label: 'Главная' },
+    { href: '/home', label: 'Главная' },
     { href: '/catalog', label: 'Каталог' },
     { href: '/news', label: 'Новости' },
     { href: '/blog', label: 'Блог' },
@@ -68,7 +68,7 @@ const Header: React.FC = () => {
   ];
 
   const isActivePage = (href: string) => {
-    if (href === '/test') return pathname === href;
+    if (href === '/home') return pathname === href;
     return pathname.startsWith(href);
   };
 
@@ -78,7 +78,7 @@ const Header: React.FC = () => {
         <div className="flex justify-between items-center h-[60px]">
           {/* Логотип */}
           <div className="flex-shrink-0">
-            <Link href="/test" className="flex items-center gap-2">
+            <Link href="/home" className="flex items-center gap-2">
               <Image
                 src="/Freesport_logo.svg"
                 alt="FREESPORT"

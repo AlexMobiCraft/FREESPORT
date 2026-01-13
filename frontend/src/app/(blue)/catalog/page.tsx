@@ -9,6 +9,7 @@ import React, { useCallback, useEffect, useMemo, useState, Suspense } from 'reac
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import Button from '@/components/ui/Button';
+import { Checkbox } from '@/components/ui/Checkbox';
 import { SearchAutocomplete } from '@/components/business/SearchAutocomplete';
 import { Grid2x2, List } from 'lucide-react';
 import { ProductCard as BusinessProductCard } from '@/components/business/ProductCard/ProductCard';
@@ -365,7 +366,7 @@ const CatalogContent: React.FC = () => {
 
   const breadcrumbSegments = useMemo(() => {
     const base = [
-      { label: 'Главная', href: '/test' },
+      { label: 'Главная', href: '/home' },
       { label: 'Каталог', href: '/catalog' },
     ];
 
@@ -854,7 +855,7 @@ const CatalogContent: React.FC = () => {
               <div className="space-y-2 text-sm text-gray-600">
                 <details open>
                   <summary className="cursor-pointer font-medium text-gray-900">Бренд</summary>
-                  <div className="mt-2 space-y-1">
+                  <div className="mt-2 flex flex-col gap-1">
                     {isBrandsLoading && <p className="text-xs text-gray-400">Загрузка...</p>}
                     {brandsError && <p className="text-xs text-red-500">{brandsError}</p>}
                     {!isBrandsLoading && !brandsError && brands.length === 0 && (
@@ -863,15 +864,13 @@ const CatalogContent: React.FC = () => {
                     {!isBrandsLoading &&
                       !brandsError &&
                       brands.map(brand => (
-                        <label key={brand.id} className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            className="rounded"
+                        <div key={brand.id}>
+                          <Checkbox
+                            label={brand.name}
                             checked={selectedBrandIds.has(brand.id)}
                             onChange={() => handleBrandToggle(brand.id)}
                           />
-                          <span>{brand.name}</span>
-                        </label>
+                        </div>
                       ))}
                   </div>
                 </details>
@@ -879,18 +878,14 @@ const CatalogContent: React.FC = () => {
 
               {/* Чекбокс "В наличии" */}
               <div className="pt-2 border-t border-gray-100">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="rounded"
-                    checked={inStock}
-                    onChange={e => {
-                      setInStock(e.target.checked);
-                      setPage(1);
-                    }}
-                  />
-                  <span className="text-sm text-gray-700">В наличии</span>
-                </label>
+                <Checkbox
+                  label="В наличии"
+                  checked={inStock}
+                  onChange={e => {
+                    setInStock(e.target.checked);
+                    setPage(1);
+                  }}
+                />
               </div>
 
               <div className="flex flex-col gap-3">
@@ -913,18 +908,16 @@ const CatalogContent: React.FC = () => {
               <div className="flex items-center gap-3">
                 <div className="inline-flex items-center rounded-full bg-gray-100 p-1">
                   <button
-                    className={`flex items-center gap-1 rounded-full px-3 py-2 text-sm font-medium ${
-                      viewMode === 'grid' ? 'bg-white text-gray-900 shadow' : 'text-gray-500'
-                    }`}
+                    className={`flex items-center gap-1 rounded-full px-3 py-2 text-sm font-medium ${viewMode === 'grid' ? 'bg-white text-gray-900 shadow' : 'text-gray-500'
+                      }`}
                     onClick={() => setViewMode('grid')}
                   >
                     <Grid2x2 className="h-4 w-4" />
                     <span className="hidden sm:inline">Сетка</span>
                   </button>
                   <button
-                    className={`flex items-center gap-1 rounded-full px-3 py-2 text-sm font-medium ${
-                      viewMode === 'list' ? 'bg-white text-gray-900 shadow' : 'text-gray-500'
-                    }`}
+                    className={`flex items-center gap-1 rounded-full px-3 py-2 text-sm font-medium ${viewMode === 'list' ? 'bg-white text-gray-900 shadow' : 'text-gray-500'
+                      }`}
                     onClick={() => setViewMode('list')}
                   >
                     <List className="h-4 w-4" />
