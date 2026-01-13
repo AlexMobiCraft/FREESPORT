@@ -32,7 +32,7 @@ import { HitsSection } from '@/components/home/HitsSection';
 // TODO: Refactor these with variant="electric" support
 import { NewsSection } from '@/components/home/NewsSection';
 import { BlogSection } from '@/components/home/BlogSection';
-import { SubscribeNewsSection } from '@/components/home/SubscribeNewsSection';
+import { ElectricSubscribeSection } from '@/components/home/ElectricSubscribeSection';
 
 // ISR: ревалидация каждый час
 export const revalidate = 3600;
@@ -121,16 +121,13 @@ export default function ElectricHomePage() {
       <ElectricCategorySection />
 
       {/* 7. Новости — Refactored with variant */}
-      <NewsSection variant="electric" viewAllLink="/news" />
+      <NewsSection variant="electric" viewAllLink="/electric/news" />
 
       {/* 8. Наш блог — Refactored with variant */}
-      <BlogSection variant="electric" viewAllLink="/blog" />
+      <BlogSection variant="electric" viewAllLink="/electric/blog" />
 
-      {/* 9. Подписка — Pending refactoring, using default style wrapped */}
-      {/* TODO: Refactor SubscribeNewsSection with variant="electric" */}
-      <section className="py-12">
-        <SubscribeNewsSection />
-      </section>
+      {/* 9. Подписка */}
+      <ElectricSubscribeSection />
     </main>
   );
 }
