@@ -42,9 +42,9 @@ const DEFAULT_COLUMNS: FooterColumn[] = [
   {
     title: 'Контакты',
     links: [
-      { label: '+7 (495) 123-45-67', href: 'tel:+74951234567' },
+      { label: '+7 968 273-21-68', href: 'tel:+79682732168' },
       { label: 'info@freesport.ru', href: 'mailto:info@freesport.ru' },
-      { label: 'Москва, ул. Примерная, д. 1', href: '#' },
+      { label: 'г. Ставрополь, ул. Коломийцева, 40/1', href: '#' },
     ],
   },
 ];
