@@ -29,7 +29,7 @@
 | 5 | Распродажа | `SaleSection` | `ElectricProductSection` | ✅ Временно |
 | 6 | Категории | `CategoriesSection` | `ElectricCategorySection` | ✅ Создан |
 | 7 | Новости | `NewsSection` | `NewsSection variant="electric"` | ✅ Рефакторнут |
-| 8 | **Наш блог** | `BlogSection` | `BlogSection variant="electric"` | ✅ Рефакторнут |
+| 8 | **Блог** | `BlogSection` | `BlogSection variant="electric"` | ✅ Рефакторнут |
 | 9 | Подписка | `SubscribeNewsSection` | `SubscribeNewsSection variant="electric"` | ⏳ Pending |
 
 ---
