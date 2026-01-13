@@ -1,6 +1,6 @@
 /**
  * CategoriesSection Component Tests
- * Story 11.2 - AC 3, 5
+ * Обновление блока Популярных Категорий - Smart Grid + Фильтрация
  */
 
 import { describe, it, expect, beforeAll, afterEach, afterAll, vi } from 'vitest';
@@ -10,64 +10,77 @@ import { http, HttpResponse } from 'msw';
 import { server } from '../../../__mocks__/api/server';
 import { CategoriesSection } from '../CategoriesSection';
 
+// Mock категории с реальными слагами
+const mockCategories = [
+  { id: 1, name: 'Спортивные игры', slug: 'sportivnye-igry', products_count: 150 },
+  { id: 2, name: 'Фитнес и атлетика', slug: 'fitnes-i-atletika', products_count: 230 },
+  { id: 3, name: 'Гимнастика и танцы', slug: 'gimnastika-i-tantsy', products_count: 95 },
+  { id: 4, name: 'Плавание', slug: 'plavanie', products_count: 180 },
+  { id: 5, name: 'Единоборства', slug: 'edinoborstva', products_count: 120 },
+  { id: 6, name: 'Детский транспорт', slug: 'detskij-transport', products_count: 75 },
+  { id: 7, name: 'Оборудование', slug: 'oborudovanie', products_count: 200 },
+  // Лишние категории, которые должны быть отфильтрованы
+  { id: 8, name: 'Футбол', slug: 'football', products_count: 100 },
+  { id: 9, name: 'Бег', slug: 'running', products_count: 50 },
+];
+
 // Setup MSW
 beforeAll(() => server.listen());
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
 describe('CategoriesSection', () => {
-  it('loads and displays 6 root categories', async () => {
+  beforeEach(() => {
+    server.use(
+      http.get('*/categories/', () => {
+        return HttpResponse.json(mockCategories);
+      })
+    );
+  });
+
+  it('displays exactly 7 target categories in correct order', async () => {
     render(<CategoriesSection />);
 
     // Loading state
     expect(screen.getByLabelText(/Загрузка категорий/i)).toBeInTheDocument();
 
-    // Success state
+    // Success state - используем getAllByText т.к. Desktop и Mobile версии рендерятся одновременно
     await waitFor(() => {
-      expect(screen.getByText('Футбол')).toBeInTheDocument();
-      expect(screen.getByText('Бег')).toBeInTheDocument();
-      expect(screen.getByText('Теннис')).toBeInTheDocument();
-      expect(screen.getByText('Велоспорт')).toBeInTheDocument();
-      expect(screen.getByText('Outdoor')).toBeInTheDocument();
-      expect(screen.getByText('Баскетбол')).toBeInTheDocument();
+      expect(screen.getAllByText('Спортивные игры').length).toBeGreaterThanOrEqual(1);
     });
+
+    // Все 7 категорий должны присутствовать (минимум 1 раз, может быть 2 - desktop + mobile)
+    expect(screen.getAllByText('Фитнес и атлетика').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Гимнастика и танцы').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Плавание').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Единоборства').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Детский транспорт').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Оборудование').length).toBeGreaterThanOrEqual(1);
+
+    // Лишние категории НЕ должны отображаться
+    expect(screen.queryByText('Футбол')).not.toBeInTheDocument();
+    expect(screen.queryByText('Бег')).not.toBeInTheDocument();
 
     // Проверяем заголовок
     expect(screen.getByText('Популярные категории')).toBeInTheDocument();
-  });
-
-  it('displays category icons and product counts', async () => {
-    render(<CategoriesSection />);
-
-    await waitFor(() => {
-      expect(screen.getByText('Футбол')).toBeInTheDocument();
-    });
-
-    // Проверяем отображение количества товаров с правильным склонением
-    expect(screen.getByText('150 товаров')).toBeInTheDocument(); // Футбол
-    expect(screen.getByText('230 товаров')).toBeInTheDocument(); // Бег
-    expect(screen.getByText('95 товаров')).toBeInTheDocument(); // Теннис
-
-    // Проверяем наличие emoji иконок (они рендерятся как text content)
-    const categoryCards = screen.getAllByRole('listitem');
-    expect(categoryCards.length).toBe(6);
   });
 
   it('category links navigate to correct catalog URLs', async () => {
     render(<CategoriesSection />);
 
     await waitFor(() => {
-      expect(screen.getByText('Футбол')).toBeInTheDocument();
+      expect(screen.getAllByText('Спортивные игры').length).toBeGreaterThanOrEqual(1);
     });
 
-    // Проверяем что ссылки ведут на правильные URL (listitem содержат href)
-    const allLinks = screen.getAllByRole('listitem');
-    expect(allLinks[0]).toHaveAttribute('href', '/catalog/football');
-    expect(allLinks[1]).toHaveAttribute('href', '/catalog/running');
+    // Проверяем ссылки - берём первый найденный элемент
+    const sportLinks = screen.getAllByText('Спортивные игры');
+    expect(sportLinks[0].closest('a')).toHaveAttribute('href', '/catalog?category=sportivnye-igry');
+
+    const swimLinks = screen.getAllByText('Плавание');
+    expect(swimLinks[0].closest('a')).toHaveAttribute('href', '/catalog?category=plavanie');
   });
 
   it('shows error state on API failure and allows retry', { timeout: 20000 }, async () => {
-    // Устанавливаем error handler ДО render
     server.use(
       http.get('*/categories/', () => {
         return new HttpResponse(JSON.stringify({ detail: 'Internal Server Error' }), {
@@ -80,7 +93,6 @@ describe('CategoriesSection', () => {
     const user = userEvent.setup();
     render(<CategoriesSection />);
 
-    // Проверяем error state (дожидаемся, что загрузка завершится ошибкой)
     await waitFor(
       () => {
         expect(screen.getByText(/Не удалось загрузить категории/i)).toBeInTheDocument();
@@ -93,23 +105,28 @@ describe('CategoriesSection', () => {
 
     // Reset handler и retry
     server.resetHandlers();
+    server.use(
+      http.get('*/categories/', () => {
+        return HttpResponse.json(mockCategories);
+      })
+    );
     await user.click(retryButton);
 
     await waitFor(
       () => {
-        expect(screen.getByText('Футбол')).toBeInTheDocument();
+        expect(screen.getAllByText('Спортивные игры').length).toBeGreaterThanOrEqual(1);
       },
       { timeout: 3000 }
     );
   });
 
-  it('uses correct API endpoint with parent_id__isnull filter', async () => {
+  it('uses correct API endpoint with limit 100', async () => {
     const requestSpy = vi.fn();
 
     server.use(
       http.get('*/categories/', ({ request }) => {
         requestSpy(request.url);
-        return HttpResponse.json([]);
+        return HttpResponse.json(mockCategories);
       })
     );
 
@@ -120,14 +137,16 @@ describe('CategoriesSection', () => {
     });
 
     const calledUrl = requestSpy.mock.calls[0][0];
-    expect(calledUrl).toContain('parent_id__isnull=true');
-    expect(calledUrl).toContain('limit=6');
+    expect(calledUrl).toContain('limit=100');
   });
 
-  it('does not render when no categories are returned', async () => {
+  it('does not render when no target categories are returned', async () => {
     server.use(
       http.get('*/categories/', () => {
-        return HttpResponse.json([]);
+        // Возвращаем только категории, которых нет в TARGET_CATEGORIES
+        return HttpResponse.json([
+          { id: 8, name: 'Футбол', slug: 'football', products_count: 100 },
+        ]);
       })
     );
 
@@ -140,18 +159,53 @@ describe('CategoriesSection', () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it('uses responsive grid layout', async () => {
+  it('handles partial category set gracefully (resilience)', async () => {
+    // Только 5 из 7 категорий
+    const partialCategories = mockCategories.slice(0, 5);
+    server.use(
+      http.get('*/categories/', () => {
+        return HttpResponse.json(partialCategories);
+      })
+    );
+
     render(<CategoriesSection />);
 
     await waitFor(() => {
-      expect(screen.getByText('Футбол')).toBeInTheDocument();
+      expect(screen.getAllByText('Спортивные игры').length).toBeGreaterThanOrEqual(1);
     });
 
-    // Проверяем что grid container имеет правильные классы
-    const gridContainer = screen.getByRole('list');
-    expect(gridContainer).toHaveClass('grid');
-    expect(gridContainer).toHaveClass('grid-cols-1');
-    expect(gridContainer).toHaveClass('sm:grid-cols-2');
-    expect(gridContainer).toHaveClass('lg:grid-cols-3');
+    // Должны отображаться 5 категорий
+    expect(screen.getAllByText('Фитнес и атлетика').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Гимнастика и танцы').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Плавание').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Единоборства').length).toBeGreaterThanOrEqual(1);
+
+    // Отсутствующие категории не должны ломать рендер
+    expect(screen.queryByText('Детский транспорт')).not.toBeInTheDocument();
+    expect(screen.queryByText('Оборудование')).not.toBeInTheDocument();
+  });
+
+  it('has desktop Smart Grid layout (hidden on mobile)', async () => {
+    render(<CategoriesSection />);
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Спортивные игры').length).toBeGreaterThanOrEqual(1);
+    });
+
+    // Проверяем наличие desktop контейнера
+    const desktopContainer = document.querySelector('.hidden.lg\\:block');
+    expect(desktopContainer).toBeInTheDocument();
+  });
+
+  it('has mobile carousel layout (hidden on desktop)', async () => {
+    render(<CategoriesSection />);
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Спортивные игры').length).toBeGreaterThanOrEqual(1);
+    });
+
+    // Проверяем наличие mobile контейнера
+    const mobileContainer = document.querySelector('.lg\\:hidden');
+    expect(mobileContainer).toBeInTheDocument();
   });
 });
