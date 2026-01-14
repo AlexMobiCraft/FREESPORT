@@ -8,6 +8,8 @@ const THEME_ROUTES = {
 
 type ThemeKey = keyof typeof THEME_ROUTES;
 
+export const dynamic = 'force-dynamic';
+
 export default function RootPage() {
   const activeTheme = (process.env.ACTIVE_THEME || 'coming_soon') as ThemeKey;
   const targetRoute = THEME_ROUTES[activeTheme] || '/coming-soon';
