@@ -56,24 +56,24 @@ describe('Footer', () => {
     it('renders Information section links', () => {
       render(<Footer />);
 
-      expect(screen.getByRole('link', { name: 'О компании' })).toHaveAttribute('href', '/about');
-      expect(screen.getByRole('link', { name: 'Партнёрам' })).toHaveAttribute('href', '/partners');
+      expect(screen.getByRole('link', { name: 'О нас' })).toHaveAttribute('href', '/about');
       expect(screen.getByRole('link', { name: 'Доставка' })).toHaveAttribute('href', '/delivery');
+      expect(screen.getByRole('link', { name: 'Возврат' })).toHaveAttribute('href', '/returns');
     });
 
     it('renders Каталог column links', () => {
       render(<Footer />);
 
-      expect(screen.getByRole('link', { name: 'Товары' })).toHaveAttribute('href', '/catalog');
-      expect(screen.getByRole('link', { name: 'Бренды' })).toHaveAttribute('href', '/brands');
-      expect(screen.getByRole('link', { name: 'Акции' })).toHaveAttribute('href', '/promotions');
+      expect(screen.getByRole('link', { name: 'Каталог' })).toHaveAttribute('href', '/catalog');
+      expect(screen.getByRole('link', { name: 'Новости' })).toHaveAttribute('href', '/news');
+      expect(screen.getByRole('link', { name: 'Блог' })).toHaveAttribute('href', '/blog');
     });
 
     it('renders Контакты column with tel: and mailto: links', () => {
       render(<Footer />);
 
-      const phoneLink = screen.getByRole('link', { name: '+7 (495) 123-45-67' });
-      expect(phoneLink).toHaveAttribute('href', 'tel:+74951234567');
+      const phoneLink = screen.getByRole('link', { name: '+7 968 273-21-68' });
+      expect(phoneLink).toHaveAttribute('href', 'tel:+79682732168');
 
       const emailLink = screen.getByRole('link', { name: 'info@freesport.ru' });
       expect(emailLink).toHaveAttribute('href', 'mailto:info@freesport.ru');
@@ -106,7 +106,7 @@ describe('Footer', () => {
     it('applies hover styles to column links', () => {
       render(<Footer />);
 
-      const link = screen.getByRole('link', { name: 'Товары' });
+      const link = screen.getByRole('link', { name: 'Каталог' });
       expect(link).toHaveClass('hover:text-white', 'transition-colors');
     });
   });
@@ -319,7 +319,7 @@ describe('Footer', () => {
     it('applies transition effects for hover states', () => {
       render(<Footer />);
 
-      const link = screen.getByRole('link', { name: 'Товары' });
+      const link = screen.getByRole('link', { name: 'Каталог' });
       expect(link).toHaveClass('transition-colors');
     });
   });

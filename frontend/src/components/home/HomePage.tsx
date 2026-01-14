@@ -1,17 +1,18 @@
 /**
- * HomePage - Главная страница с полной интеграцией секций
- * Story 19.2 - Homepage Teasers Integration
+ * HomePage - Главная страница
  *
  * Порядок секций:
  * 1. HeroSection (баннеры)
- * 2. CategoriesSection (категории)
- * 3. WhyFreesportSection ← НОВЫЙ (после категорий)
- * 4. HitsSection (хиты продаж)
- * 5. NewArrivalsSection (новинки)
- * 6. PromoSection / SaleSection (акции/распродажа)
- * 7. DeliveryTeaser ← НОВЫЙ (перед Footer)
- * 8. AboutTeaser ← НОВЫЙ (перед Footer)
- * 9. Footer
+ * 2. HitsSection (хиты продаж)
+ * 3. NewArrivalsSection (новинки)
+ * 4. PromoSection (акция)
+ * 5. SaleSection (распродажа)
+ * 6. NewsSection (новости)
+ * 7. BlogSection (блог)
+ * 8. SubscribeNewsSection (подписка)
+ * 9. WhyFreesportSection (почему выбирают)
+ * 10. DeliveryTeaser (доставка)
+ * 11. AboutTeaser (FREESPORT + ценности)
  */
 
 'use client';
@@ -19,11 +20,14 @@
 import React from 'react';
 import {
   HeroSection,
-  CategoriesSection,
-  WhyFreesportSection,
   HitsSection,
   NewArrivalsSection,
+  PromoSection,
   SaleSection,
+  NewsSection,
+  BlogSection,
+  SubscribeNewsSection,
+  WhyFreesportSection,
   DeliveryTeaser,
   AboutTeaser,
 } from '@/components/home';
@@ -34,25 +38,34 @@ export const HomePage: React.FC = () => {
       {/* 1. Hero Section - Баннеры */}
       <HeroSection />
 
-      {/* 2. Categories Section */}
-      <CategoriesSection />
-
-      {/* 3. Why FREESPORT Section - Новый тизер (Story 19.2) */}
-      <WhyFreesportSection />
-
-      {/* 4. Hits Section - Хиты продаж */}
+      {/* 2. Hits Section - Хиты продаж */}
       <HitsSection />
 
-      {/* 5. New Arrivals Section - Новинки */}
+      {/* 3. New Arrivals Section - Новинки */}
       <NewArrivalsSection />
 
-      {/* 6. Sale Section - Распродажа */}
+      {/* 4. Promo Section - Акция */}
+      <PromoSection />
+
+      {/* 5. Sale Section - Распродажа */}
       <SaleSection />
 
-      {/* 7. Delivery Teaser - Новый тизер (Story 19.2) */}
+      {/* 6. News Section - Новости */}
+      <NewsSection />
+
+      {/* 7. Blog Section - Наш блог */}
+      <BlogSection />
+
+      {/* 8. Subscribe Section - Подписка на новости */}
+      <SubscribeNewsSection />
+
+      {/* 9. Why FREESPORT Section */}
+      <WhyFreesportSection />
+
+      {/* 10. Delivery Teaser - Доставка по России */}
       <DeliveryTeaser />
 
-      {/* 8. About Teaser - Новый тизер (Story 19.2) */}
+      {/* 11. About Teaser - FREESPORT + Наши ценности */}
       <AboutTeaser />
 
       {/* Footer рендерится в layout */}
@@ -61,3 +74,4 @@ export const HomePage: React.FC = () => {
 };
 
 export default HomePage;
+

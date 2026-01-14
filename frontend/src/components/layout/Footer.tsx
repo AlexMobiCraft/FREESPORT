@@ -26,17 +26,17 @@ const DEFAULT_COLUMNS: FooterColumn[] = [
   {
     title: 'Каталог',
     links: [
-      { label: 'Товары', href: '/catalog' },
-      { label: 'Бренды', href: '/brands' },
-      { label: 'Акции', href: '/promotions' },
+      { label: 'Каталог', href: '/catalog' },
+      { label: 'Новости', href: '/news' },
+      { label: 'Блог', href: '/blog' },
     ],
   },
   {
     title: 'Информация',
     links: [
-      { label: 'О компании', href: '/about' },
-      { label: 'Партнёрам', href: '/partners' },
+      { label: 'О нас', href: '/about' },
       { label: 'Доставка', href: '/delivery' },
+      { label: 'Возврат', href: '/returns' },
     ],
   },
   {
