@@ -47,11 +47,11 @@ const VARIANT_STYLES = {
       'absolute top-1/2 -translate-y-1/2 z-10 hidden lg:flex items-center justify-center w-12 h-12 bg-transparent text-primary focus:outline-none',
     navButtonStyle: {},
     skeleton:
-      'flex-shrink-0 w-[200px] snap-start rounded-2xl bg-white p-3 shadow-default animate-pulse',
+      'flex-shrink-0 w-[calc(50%-4px)] md:w-[200px] snap-start rounded-2xl bg-white p-3 shadow-default animate-pulse',
     skeletonInner: 'h-40 rounded-xl bg-neutral-200 mb-4',
     errorButton: 'px-6 py-2 rounded-lg bg-[#0b1220] text-white hover:bg-[#070d19] transition',
     productList: 'flex gap-2 overflow-x-auto snap-x snap-mandatory scrollbar-hide py-2 lg:mx-4',
-    productItem: 'flex-shrink-0 w-[200px] snap-start',
+    productItem: 'flex-shrink-0 w-[calc(50%-4px)] md:w-[200px] snap-start',
     cardWidth: 200,
     gap: 8,
   },
@@ -314,7 +314,7 @@ export const HitsSection: React.FC<HitsSectionProps> = ({
                     inStock={product.is_in_stock}
                     onAddToCart={() => handleAddToCart(product.id)}
                     isFavorite={false}
-                    onToggleFavorite={() => {}}
+                    onToggleFavorite={() => { }}
                   />
                 ) : (
                   <ProductCard product={product} layout="compact" userRole="retail" />

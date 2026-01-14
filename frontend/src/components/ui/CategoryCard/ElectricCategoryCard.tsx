@@ -74,15 +74,15 @@ export function ElectricCategoryCard({
           </p>
         )}
 
-        {/* Arrow Indicator */}
+        {/* Arrow Indicator - Always visible */}
         <div
-          className="mt-2 text-[var(--color-primary)] font-bold uppercase text-sm opacity-0 group-hover:opacity-100 transition-opacity"
+          className="mt-6 text-[var(--color-primary)] font-black uppercase text-sm"
           style={{
             fontFamily: "'Roboto Condensed', sans-serif",
             transform: 'skewX(-12deg)',
           }}
         >
-          <span style={{ transform: 'skewX(12deg)', display: 'inline-block' }}>Перейти →</span>
+          <span style={{ transform: 'skewX(12deg)', display: 'inline-block' }}>ПЕРЕЙТИ &gt;</span>
         </div>
       </div>
 

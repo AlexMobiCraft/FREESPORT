@@ -139,7 +139,7 @@ export const PromoSection: React.FC = () => {
           {Array.from({ length: 4 }).map((_, index) => (
             <div
               key={index}
-              className="flex-shrink-0 w-[200px] snap-start rounded-2xl bg-white p-3 shadow-default animate-pulse"
+              className="flex-shrink-0 w-[calc(50%-4px)] md:w-[200px] snap-start rounded-2xl bg-white p-3 shadow-default animate-pulse"
             >
               <div className="h-40 rounded-xl bg-neutral-200 mb-4" />
               <div className="h-4 bg-neutral-200 rounded mb-2" />
@@ -171,7 +171,7 @@ export const PromoSection: React.FC = () => {
           role="list"
         >
           {products.map(product => (
-            <div key={product.id} className="flex-shrink-0 w-[200px] snap-start" role="listitem">
+            <div key={product.id} className="flex-shrink-0 w-[calc(50%-4px)] md:w-[200px] snap-start" role="listitem">
               <ProductCard product={product} layout="compact" userRole="retail" />
             </div>
           ))}
