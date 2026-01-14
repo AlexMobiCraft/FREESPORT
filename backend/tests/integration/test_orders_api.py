@@ -344,3 +344,44 @@ class TestOrderAPI:
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert "Минимальное количество для заказа" in str(response.data)
+
+    def test_filter_orders_by_status(self, db):
+        """Тест фильтрации заказов по статусу"""
+        self.client.force_authenticate(user=self.user)
+
+        # Create orders with different statuses
+        Order.objects.create(
+            user=self.user,
+            status="pending",
+            delivery_address="Pending Order",
+            delivery_method="courier",
+            payment_method="card",
+            total_amount=Decimal("100.00"),
+        )
+        Order.objects.create(
+            user=self.user,
+            status="shipped",
+            delivery_address="Shipped Order",
+            delivery_method="courier",
+            payment_method="card",
+            total_amount=Decimal("200.00"),
+        )
+
+        url = reverse("orders:order-list")
+
+        # Filter by pending
+        response = self.client.get(url, {"status": "pending"})
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.data["results"]) == 1
+        assert response.data["results"][0]["status"] == "pending"
+
+        # Filter by shipped
+        response = self.client.get(url, {"status": "shipped"})
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.data["results"]) == 1
+        assert response.data["results"][0]["status"] == "shipped"
+
+        # Filter by all (no filter)
+        response = self.client.get(url)
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.data["results"]) == 2
