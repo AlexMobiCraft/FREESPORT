@@ -304,6 +304,7 @@ class OrderCreateSerializer(serializers.ModelSerializer):
             "courier": 500,
             "post": 300,
             "transport_company": 1000,
+            "transport_schedule": 1000,
         }
         return delivery_costs.get(delivery_method, 0)
 
