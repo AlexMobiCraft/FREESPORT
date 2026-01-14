@@ -10,6 +10,8 @@ export type { ButtonProps } from './Button/Button';
 export { Input } from './Input/Input';
 export type { InputProps } from './Input/Input';
 
+export { PhoneInput } from './Input/PhoneInput';
+
 export { Select } from './Select/Select';
 export type { SelectProps, SelectOption } from './Select/Select';
 

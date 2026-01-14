@@ -15,6 +15,7 @@ import apiClient from '@/services/api-client';
 
 import { useAuthStore, authSelectors } from '@/stores/authStore';
 import { useToast } from '@/components/ui/Toast/ToastProvider';
+import { Input, PhoneInput } from '@/components/ui';
 import { profileSchema, ProfileFormData, defaultProfileValues } from './schema';
 import type { User } from '@/types/api';
 
@@ -181,7 +182,7 @@ const ProfileForm: React.FC = () => {
             readOnly
             disabled
             className="
-              w-full h-10 px-4 rounded-md border border-neutral-400
+              w-full h-10 px-4 rounded-sm border border-neutral-400
               bg-neutral-200 text-neutral-600 cursor-not-allowed
               text-body-m
             "
@@ -199,7 +200,7 @@ const ProfileForm: React.FC = () => {
             type="text"
             {...register('first_name')}
             className={`
-              w-full h-10 px-4 rounded-md border text-body-m
+              w-full h-10 px-4 rounded-sm border text-body-m
               bg-neutral-100 transition-colors
               focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary
               ${errors.first_name ? 'border-danger' : 'border-neutral-400'}
@@ -220,7 +221,7 @@ const ProfileForm: React.FC = () => {
             type="text"
             {...register('last_name')}
             className={`
-              w-full h-10 px-4 rounded-md border text-body-m
+              w-full h-10 px-4 rounded-sm border text-body-m
               bg-neutral-100 transition-colors
               focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary
               ${errors.last_name ? 'border-danger' : 'border-neutral-400'}
@@ -232,24 +233,11 @@ const ProfileForm: React.FC = () => {
         </div>
 
         {/* Телефон */}
-        <div>
-          <label htmlFor="phone" className="block text-body-s text-neutral-700 mb-1">
-            Телефон *
-          </label>
-          <input
-            id="phone"
-            type="tel"
-            {...register('phone')}
-            placeholder="+79001234567"
-            className={`
-              w-full h-10 px-4 rounded-md border text-body-m
-              bg-neutral-100 transition-colors
-              focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary
-              ${errors.phone ? 'border-danger' : 'border-neutral-400'}
-            `}
-          />
-          {errors.phone && <p className="mt-1 text-caption text-danger">{errors.phone.message}</p>}
-        </div>
+        <PhoneInput
+          {...register('phone')}
+          label="Телефон *"
+          error={errors.phone?.message}
+        />
       </div>
 
       {/* B2B поля - только для B2B пользователей */}
@@ -270,7 +258,7 @@ const ProfileForm: React.FC = () => {
               type="text"
               {...register('company_name')}
               className={`
-                w-full h-10 px-4 rounded-md border text-body-m
+                w-full h-10 px-4 rounded-sm border text-body-m
                 bg-neutral-100 transition-colors
                 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary
                 ${errors.company_name ? 'border-danger' : 'border-neutral-400'}
@@ -292,7 +280,7 @@ const ProfileForm: React.FC = () => {
               {...register('tax_id')}
               placeholder="10 или 12 цифр"
               className={`
-                w-full h-10 px-4 rounded-md border text-body-m
+                w-full h-10 px-4 rounded-sm border text-body-m
                 bg-neutral-100 transition-colors
                 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary
                 ${errors.tax_id ? 'border-danger' : 'border-neutral-400'}
@@ -311,7 +299,7 @@ const ProfileForm: React.FC = () => {
           type="submit"
           disabled={isLoading || !isDirty}
           className={`
-            w-full sm:w-auto h-10 px-6 rounded-md text-body-m font-medium
+            w-full sm:w-auto h-10 px-6 rounded-sm text-body-m font-medium
             transition-colors duration-150
             ${
               isLoading || !isDirty

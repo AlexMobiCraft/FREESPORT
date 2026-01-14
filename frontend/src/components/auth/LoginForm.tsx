@@ -88,7 +88,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ redirectUrl, onSuccess }) 
       {/* AC 4: Отображение API ошибок */}
       {apiError && (
         <div
-          className="p-4 rounded-md bg-[var(--color-accent-danger)]/10 border border-[var(--color-accent-danger)]"
+          className="p-4 rounded-sm bg-[var(--color-accent-danger)]/10 border border-[var(--color-accent-danger)]"
           role="alert"
           aria-live="assertive"
         >

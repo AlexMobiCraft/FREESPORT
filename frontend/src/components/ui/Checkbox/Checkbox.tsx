@@ -48,7 +48,7 @@ export const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
             className={cn(
               // Базовые стили
               'relative flex items-center justify-center',
-              'w-5 h-5 rounded-md', // 6px radius
+              'w-5 h-5 rounded-sm', // 6px radius
               'border-[1.5px] border-[#B9C3D6]', // Design System v2.0 border
               'bg-white',
               'cursor-pointer',

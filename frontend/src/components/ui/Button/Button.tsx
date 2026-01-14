@@ -79,9 +79,9 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
           ],
 
           // Размеры
-          size === 'small' && 'h-10 px-6 typo-body-s rounded-md',
-          size === 'medium' && 'h-11 px-7 typo-body-m rounded-md',
-          size === 'large' && 'h-12 px-8 typo-body-l rounded-lg',
+          size === 'small' && 'h-10 px-6 typo-body-s rounded-sm',
+          size === 'medium' && 'h-11 px-7 typo-body-m rounded-sm',
+          size === 'large' && 'h-12 px-8 typo-body-l rounded-sm',
 
           className
         )}

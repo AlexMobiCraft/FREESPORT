@@ -19,6 +19,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/Input/Input';
+import { PhoneInput } from '@/components/ui/Input/PhoneInput';
 import { Button } from '@/components/ui/Button/Button';
 import authService from '@/services/authService';
 import { b2bRegisterSchema, type B2BRegisterFormData } from '@/schemas/authSchemas';
@@ -209,9 +210,8 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess }) =
           placeholder="company@example.com"
         />
 
-        <Input
+        <PhoneInput
           label="Телефон"
-          type="tel"
           {...register('phone')}
           error={errors.phone?.message}
           disabled={isSubmitting}

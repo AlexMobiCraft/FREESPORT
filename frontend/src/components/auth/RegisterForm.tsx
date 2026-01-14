@@ -135,7 +135,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
       {/* Story 28.1 AC 4: Отображение API ошибок */}
       {apiError && (
         <div
-          className="p-4 rounded-md bg-[var(--color-accent-danger)]/10 border border-[var(--color-accent-danger)]"
+          className="p-4 rounded-sm bg-[var(--color-accent-danger)]/10 border border-[var(--color-accent-danger)]"
           role="alert"
           aria-live="assertive"
         >
@@ -175,7 +175,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
           {...register('role')}
           disabled={isSubmitting}
           aria-label="Выберите тип аккаунта"
-          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-[var(--color-primary-500)] focus:ring-offset-2 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full px-3 py-2 border border-gray-300 rounded-sm shadow-sm focus:ring-2 focus:ring-[var(--color-primary-500)] focus:ring-offset-2 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {ROLE_OPTIONS.map(option => (
             <option key={option.value} value={option.value}>

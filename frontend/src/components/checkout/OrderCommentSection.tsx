@@ -47,7 +47,7 @@ export function OrderCommentSection({ form }: OrderCommentSectionProps) {
           maxLength={maxLength}
           placeholder="Укажите дополнительную информацию для доставки или пожелания к заказу..."
           className={`
-            block w-full rounded-md border px-3 py-2 text-sm shadow-sm
+            block w-full rounded-sm border px-3 py-2 text-sm shadow-sm
             transition-colors duration-200
             placeholder:text-gray-400
             focus:outline-none focus:ring-2 focus:ring-offset-1

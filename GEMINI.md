@@ -162,8 +162,15 @@ frontend/src/app/
 
 Set `ACTIVE_THEME` in `.env` to control root URL (`/`) redirect:
 - `coming_soon` → `/coming-soon` (placeholder page)
-- `blue` → `/catalog` (Blue Theme)
+- `blue` → `/home` (Blue Theme - Main Page)
 - `electric_orange` → `/electric` (Electric Orange Theme)
+
+> [!IMPORTANT]
+> In production, ensure `ACTIVE_THEME` is explicitly set in `.env.prod`. If not set, it defaults to `coming_soon`.
+
+### **Performance & Troubleshooting**
+
+- **SSR Throttle Limits:** To prevent `429 Too Many Requests` during Server-Side Rendering (where the Frontend container makes multiple rapid requests to the Backend), the `anon` throttle rate in `production.py` is increased to `6000/min`.
 
 ### **Key Routes**
 

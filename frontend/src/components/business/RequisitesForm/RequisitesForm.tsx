@@ -160,7 +160,7 @@ const RequisitesForm: React.FC = () => {
             type="text"
             {...register('legal_name')}
             className={`
-              w-full h-10 px-4 rounded-md border text-body-m
+              w-full h-10 px-4 rounded-sm border text-body-m
               bg-neutral-100 transition-colors
               focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary
               ${errors.legal_name ? 'border-danger' : 'border-neutral-400'}
@@ -180,7 +180,7 @@ const RequisitesForm: React.FC = () => {
               type="text"
               {...register('tax_id')}
               className={`
-                w-full h-10 px-4 rounded-md border text-body-m
+                w-full h-10 px-4 rounded-sm border text-body-m
                 bg-neutral-100 transition-colors
                 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary
                 ${errors.tax_id ? 'border-danger' : 'border-neutral-400'}
@@ -198,7 +198,7 @@ const RequisitesForm: React.FC = () => {
               type="text"
               {...register('kpp')}
               className={`
-                w-full h-10 px-4 rounded-md border text-body-m
+                w-full h-10 px-4 rounded-sm border text-body-m
                 bg-neutral-100 transition-colors
                 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary
                 ${errors.kpp ? 'border-danger' : 'border-neutral-400'}
@@ -219,7 +219,7 @@ const RequisitesForm: React.FC = () => {
             {...register('legal_address')}
             rows={3}
             className={`
-              w-full px-4 py-2 rounded-md border text-body-m
+              w-full px-4 py-2 rounded-sm border text-body-m
               bg-neutral-100 transition-colors resize-none
               focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary
               ${errors.legal_address ? 'border-danger' : 'border-neutral-400'}
@@ -243,7 +243,7 @@ const RequisitesForm: React.FC = () => {
             type="text"
             {...register('bank_name')}
             className={`
-              w-full h-10 px-4 rounded-md border text-body-m
+              w-full h-10 px-4 rounded-sm border text-body-m
               bg-neutral-100 transition-colors
               focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary
               ${errors.bank_name ? 'border-danger' : 'border-neutral-400'}
@@ -263,7 +263,7 @@ const RequisitesForm: React.FC = () => {
               type="text"
               {...register('bank_bik')}
               className={`
-                w-full h-10 px-4 rounded-md border text-body-m
+                w-full h-10 px-4 rounded-sm border text-body-m
                 bg-neutral-100 transition-colors
                 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary
                 ${errors.bank_bik ? 'border-danger' : 'border-neutral-400'}
@@ -281,7 +281,7 @@ const RequisitesForm: React.FC = () => {
               type="text"
               {...register('account_number')}
               className={`
-                w-full h-10 px-4 rounded-md border text-body-m
+                w-full h-10 px-4 rounded-sm border text-body-m
                 bg-neutral-100 transition-colors
                 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary
                 ${errors.account_number ? 'border-danger' : 'border-neutral-400'}
@@ -299,7 +299,7 @@ const RequisitesForm: React.FC = () => {
           type="submit"
           disabled={isLoading || !isDirty}
           className={`
-            w-full sm:w-auto h-10 px-6 rounded-md text-body-m font-medium
+            w-full sm:w-auto h-10 px-6 rounded-sm text-body-m font-medium
             transition-colors duration-150
             ${
               isLoading || !isDirty

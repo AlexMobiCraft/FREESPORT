@@ -147,7 +147,7 @@ export const SelectDropdown = React.forwardRef<HTMLDivElement, SelectDropdownPro
             onKeyDown={handleKeyDown}
             className={cn(
               // Базовые стили - Design System v2.0
-              'w-full h-10 px-4 rounded-md', // 40px height, 16px padding, 6px radius
+              'w-full h-10 px-4 rounded-sm', // 40px height, 16px padding, 6px radius
               'flex items-center justify-between',
               'text-body-m text-left',
               'bg-white',
