@@ -608,6 +608,32 @@ class BlogPost(models.Model):
     meta_description = models.TextField("SEO описание", blank=True)
 ```
 
+#### Получатели уведомлений
+```python
+class NotificationRecipient(TimeStampedModel):
+    """
+    Получатель email-уведомлений системы.
+    Позволяет гибко управлять списком получателей различных типов уведомлений
+    через Django Admin без необходимости менять settings.ADMINS.
+    """
+    email = models.EmailField("Email", unique=True)
+    name = models.CharField("Имя", max_length=100, blank=True)
+    is_active = models.BooleanField("Активен", default=True)
+    
+    # Типы уведомлений
+    notify_new_orders = models.BooleanField("Новые заказы", default=False)
+    notify_order_cancelled = models.BooleanField("Отмена заказов", default=False)
+    notify_user_verification = models.BooleanField("Верификация B2B", default=False)
+    notify_pending_queue = models.BooleanField("Alert очереди", default=False)
+    notify_low_stock = models.BooleanField("Малый остаток", default=False)
+    notify_daily_summary = models.BooleanField("Ежедневный отчёт", default=False)
+```
+
+**Использование:**
+- Заменяет жёстко заданный `settings.ADMINS` для уведомлений
+- Получатели настраиваются через Django Admin
+- Каждый получатель может подписаться на разные типы уведомлений
+
 ### Обновленная диаграмма связей
 
 Диаграмма связей обновлена для включения новых моделей интеграции с 1С и дедупликации атрибутов:

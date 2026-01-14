@@ -731,3 +731,88 @@ class BlogPost(models.Model):
         from django.urls import reverse
 
         return reverse("blog-detail", kwargs={"slug": self.slug})
+
+
+class NotificationRecipient(TimeStampedModel):
+    """
+    Получатель email-уведомлений системы.
+    
+    Позволяет гибко управлять списком получателей различных типов уведомлений
+    через Django Admin без необходимости менять settings.ADMINS.
+    """
+
+    email = models.EmailField(
+        _("Email"),
+        unique=True,
+        db_index=True,
+        help_text="Email адрес получателя уведомлений",
+    )
+    name = models.CharField(
+        _("Имя"),
+        max_length=100,
+        blank=True,
+        help_text="Имя получателя для персонализации писем",
+    )
+    is_active = models.BooleanField(
+        _("Активен"),
+        default=True,
+        db_index=True,
+        help_text="Флаг активности получателя",
+    )
+
+    # Типы уведомлений о заказах
+    notify_new_orders = models.BooleanField(
+        _("Новые заказы"),
+        default=False,
+        help_text="Уведомления о новых заказах",
+    )
+    notify_order_cancelled = models.BooleanField(
+        _("Отмена заказов"),
+        default=False,
+        help_text="Уведомления об отмене заказов",
+    )
+
+    # Типы уведомлений о пользователях
+    notify_user_verification = models.BooleanField(
+        _("Верификация B2B"),
+        default=False,
+        help_text="Уведомления о новых заявках на верификацию B2B партнёров",
+    )
+    notify_pending_queue = models.BooleanField(
+        _("Alert очереди"),
+        default=False,
+        help_text="Уведомления о превышении очереди pending верификаций",
+    )
+
+    # Типы уведомлений о товарах и отчётах
+    notify_low_stock = models.BooleanField(
+        _("Малый остаток"),
+        default=False,
+        help_text="Уведомления о малом остатке товаров",
+    )
+    notify_daily_summary = models.BooleanField(
+        _("Ежедневный отчёт"),
+        default=False,
+        help_text="Ежедневные сводные отчёты",
+    )
+
+    class Meta:
+        verbose_name = _("Получатель уведомлений")
+        verbose_name_plural = _("Получатели уведомлений")
+        ordering = ["email"]
+        indexes = [
+            models.Index(fields=["is_active", "notify_new_orders"]),
+            models.Index(fields=["is_active", "notify_user_verification"]),
+        ]
+
+    def __str__(self) -> str:
+        if self.name:
+            return f"{self.name} <{self.email}>"
+        return self.email
+
+    def clean(self):
+        """Валидация email адреса."""
+        super().clean()
+        if self.email:
+            self.email = self.email.lower().strip()
+
