@@ -302,10 +302,7 @@ const CategoryTree: React.FC<{
                     : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900')
                 }
               >
-                <span className="flex items-center gap-2">
-                  {node.icon && <span>{node.icon}</span>}
-                  <span>{node.label}</span>
-                </span>
+                {node.label}
               </button>
             </div>
             {hasChildren && isExpanded && (
@@ -821,24 +818,30 @@ const CatalogContent: React.FC = () => {
         <div className="mt-8 grid gap-8 lg:grid-cols-[280px_1fr]">
           <aside className="space-y-8">
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-              <h2 className="text-base font-semibold text-gray-900 mb-4">Категории</h2>
-              {isCategoriesLoading ? (
-                <div className="space-y-2">
-                  {Array.from({ length: 6 }).map((_, index) => (
-                    <div key={index} className="h-4 bg-gray-100 rounded animate-pulse" />
-                  ))}
+              <details>
+                <summary className="cursor-pointer text-base font-semibold text-gray-900">
+                  Категории
+                </summary>
+                <div className="mt-4">
+                  {isCategoriesLoading ? (
+                    <div className="space-y-2">
+                      {Array.from({ length: 6 }).map((_, index) => (
+                        <div key={index} className="h-4 bg-gray-100 rounded animate-pulse" />
+                      ))}
+                    </div>
+                  ) : categoriesError ? (
+                    <p className="text-sm text-red-600">{categoriesError}</p>
+                  ) : (
+                    <CategoryTree
+                      nodes={categoryTree}
+                      activeId={activeCategoryId}
+                      expandedKeys={expandedKeys}
+                      onToggle={handleToggle}
+                      onSelect={handleSelectCategory}
+                    />
+                  )}
                 </div>
-              ) : categoriesError ? (
-                <p className="text-sm text-red-600">{categoriesError}</p>
-              ) : (
-                <CategoryTree
-                  nodes={categoryTree}
-                  activeId={activeCategoryId}
-                  expandedKeys={expandedKeys}
-                  onToggle={handleToggle}
-                  onSelect={handleSelectCategory}
-                />
-              )}
+              </details>
             </div>
 
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-6">
