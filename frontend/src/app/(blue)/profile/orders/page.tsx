@@ -10,6 +10,7 @@ import React, { useEffect, useState, useCallback, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { OrdersList } from '@/components/business/OrdersList';
 import { Spinner } from '@/components/ui';
+import Button from '@/components/ui/Button';
 import ordersService from '@/services/ordersService';
 import type { Order, OrderStatus } from '@/types/order';
 
@@ -133,12 +134,14 @@ function OrdersPageContent() {
       {error && (
         <div className="p-4 mb-6 bg-accent-danger/10 border border-accent-danger rounded-md">
           <p className="text-body-m text-accent-danger">{error}</p>
-          <button
+          <Button
+            variant="tertiary"
+            size="small"
             onClick={fetchOrders}
-            className="mt-2 text-body-s font-medium text-primary hover:underline"
+            className="mt-2"
           >
             Попробовать снова
-          </button>
+          </Button>
         </div>
       )}
 

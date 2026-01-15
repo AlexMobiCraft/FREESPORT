@@ -6,7 +6,8 @@
 'use client';
 
 import { useEffect } from 'react';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import Button from '@/components/ui/Button';
 
 interface ErrorProps {
   error: Error & { digest?: string };
@@ -14,6 +15,8 @@ interface ErrorProps {
 }
 
 export default function ProductError({ error, reset }: ErrorProps) {
+  const router = useRouter();
+
   useEffect(() => {
     // Логируем ошибку на клиенте
     console.error('Product page error:', error);
@@ -46,19 +49,13 @@ export default function ProductError({ error, reset }: ErrorProps) {
         </p>
 
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <button
-            onClick={reset}
-            className="px-6 py-3 bg-primary-600 text-white font-medium rounded-lg hover:bg-primary-700 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
-          >
+          <Button onClick={reset} variant="primary">
             Попробовать снова
-          </button>
+          </Button>
 
-          <Link
-            href="/catalog"
-            className="px-6 py-3 bg-neutral-100 text-neutral-900 font-medium rounded-lg hover:bg-neutral-200 transition-colors focus:outline-none focus:ring-2 focus:ring-neutral-500 focus:ring-offset-2"
-          >
+          <Button onClick={() => router.push('/catalog')} variant="secondary">
             Вернуться в каталог
-          </Link>
+          </Button>
         </div>
 
         {process.env.NODE_ENV === 'development' && error.message && (

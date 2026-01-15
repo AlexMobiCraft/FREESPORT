@@ -14,6 +14,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { FavoritesList } from '@/components/business/FavoritesList';
+import Button from '@/components/ui/Button';
 import { favoriteService } from '@/services/favoriteService';
 import { useCartStore } from '@/stores/cartStore';
 import type { Favorite, FavoriteWithAvailability } from '@/types/favorite';
@@ -138,9 +139,14 @@ export default function FavoritesPage() {
         </h1>
         <div className="bg-[var(--color-accent-danger-bg)] text-[var(--color-accent-danger)] p-4 rounded-lg">
           {error}
-          <button onClick={fetchFavorites} className="ml-4 underline hover:no-underline">
+          <Button
+            variant="tertiary"
+            size="small"
+            onClick={fetchFavorites}
+            className="ml-4"
+          >
             Попробовать снова
-          </button>
+          </Button>
         </div>
       </div>
     );

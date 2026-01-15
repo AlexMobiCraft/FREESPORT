@@ -17,6 +17,7 @@ import { toast } from 'sonner';
 import { AddressList } from '@/components/business/AddressList';
 import { AddressModal } from '@/components/business/AddressModal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog/ConfirmDialog';
+import Button from '@/components/ui/Button';
 import { addressService, AddressValidationError } from '@/services/addressService';
 import type { Address, AddressFormData } from '@/types/address';
 
@@ -200,9 +201,14 @@ export default function AddressesPage() {
         </h1>
         <div className="bg-[var(--color-accent-danger-bg)] text-[var(--color-accent-danger)] p-4 rounded-lg">
           {error}
-          <button onClick={fetchAddresses} className="ml-4 underline hover:no-underline">
+          <Button
+            variant="tertiary"
+            size="small"
+            onClick={fetchAddresses}
+            className="ml-4"
+          >
             Попробовать снова
-          </button>
+          </Button>
         </div>
       </div>
     );

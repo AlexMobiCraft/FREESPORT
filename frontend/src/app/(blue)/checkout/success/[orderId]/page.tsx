@@ -11,10 +11,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams, notFound } from 'next/navigation';
+import { useParams, notFound, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import OrderSuccessView from '@/components/checkout/OrderSuccessView';
 import ordersService from '@/services/ordersService';
+import Button from '@/components/ui/Button';
 import type { Order } from '@/types/order';
 
 /**
@@ -101,6 +102,8 @@ function OrderLoadingView() {
  * Компонент отображения ошибки загрузки заказа
  */
 function OrderErrorView({ orderId }: { orderId: string }) {
+  const router = useRouter();
+
   return (
     <div className="container mx-auto px-4 py-8 max-w-3xl">
       <div className="text-center">
@@ -125,18 +128,18 @@ function OrderErrorView({ orderId }: { orderId: string }) {
           Не удалось загрузить информацию о заказе #{orderId}. Попробуйте обновить страницу.
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <Link
-            href={`/checkout/success/${orderId}`}
-            className="inline-flex items-center justify-center px-6 py-3 border border-primary text-primary font-medium rounded-lg hover:bg-primary-subtle transition-colors"
+          <Button
+            onClick={() => window.location.reload()}
+            variant="secondary"
           >
             Повторить попытку
-          </Link>
-          <Link
-            href="/catalog"
-            className="inline-flex items-center justify-center px-6 py-3 bg-primary text-white font-medium rounded-lg hover:bg-primary-hover transition-colors"
+          </Button>
+          <Button
+            onClick={() => router.push('/catalog')}
+            variant="primary"
           >
             Перейти в каталог
-          </Link>
+          </Button>
         </div>
       </div>
     </div>
