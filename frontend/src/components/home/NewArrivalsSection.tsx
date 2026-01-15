@@ -101,7 +101,7 @@ export const NewArrivalsSection: React.FC = () => {
 
   return (
     <section
-      className="max-w-[1316px] mx-auto px-3 md:px-4 lg:px-6 relative"
+      className="max-w-[1316px] mx-auto px-3 md:px-4 lg:px-6 py-12 relative"
       aria-labelledby="new-arrivals-heading"
     >
       {/* Заголовок секции - headline-l */}

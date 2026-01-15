@@ -47,7 +47,7 @@ const DEFAULT_PRICE_RANGE: PriceRange = { min: PRICE_MIN, max: PRICE_MAX };
 const PRICE_STEP = 500;
 const PAGE_SIZE = 12;
 const MAX_VISIBLE_PAGES = 5;
-const DEFAULT_ORDERING = '-created_at';
+const DEFAULT_ORDERING = 'name';
 const DEFAULT_CATEGORY_LABEL = 'Спорт';
 
 const CATEGORY_ICON_MAP: Record<string, string> = {

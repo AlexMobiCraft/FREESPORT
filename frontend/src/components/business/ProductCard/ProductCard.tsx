@@ -32,6 +32,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Heart } from 'lucide-react';
 import { ProductBadge } from '@/components/common/ProductBadge';
+import Button from '@/components/ui/Button';
 import type { Product } from '@/types/api';
 import { cn } from '@/utils/cn';
 
@@ -476,22 +477,15 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
 
                 {/* Кнопка "В корзину" */}
                 {isInStock && onAddToCart && (
-                  <button
+                  <Button
+                    variant="secondary"
+                    size="small"
                     onClick={handleAddToCart}
-                    className={cn(
-                      'mt-3 py-2 px-4 rounded-[8px]',
-                      'bg-[var(--color-primary)] text-white',
-                      'hover:bg-[var(--color-primary-hover)]',
-                      'transition-colors duration-200',
-                      'text-body-s font-medium',
-                      'focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-offset-2',
-                      'whitespace-nowrap'
-                    )}
-                    type="button"
+                    className="mt-3"
                     aria-label={`Добавить ${product.name} в корзину`}
                   >
                     В корзину
-                  </button>
+                  </Button>
                 )}
               </div>
             </div>
@@ -627,21 +621,15 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
 
             {/* Кнопка "В корзину" */}
             {isInStock && onAddToCart && (
-              <button
+              <Button
+                variant="secondary"
+                size="medium"
                 onClick={handleAddToCart}
-                className={cn(
-                  'w-full py-2.5 px-4 rounded-[8px]',
-                  'bg-[var(--color-primary)] text-white',
-                  'hover:bg-[var(--color-primary-hover)]',
-                  'transition-colors duration-200',
-                  'text-body-m font-medium',
-                  'focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-offset-2'
-                )}
-                type="button"
+                className="w-full"
                 aria-label={`Добавить ${product.name} в корзину`}
               >
                 В корзину
-              </button>
+              </Button>
             )}
 
             {/* Статус наличия */}

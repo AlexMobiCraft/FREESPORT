@@ -62,6 +62,14 @@ if (platform === 'linux' && arch === 'x64') {
   for (const pkg of packages) {
     const spec = `${pkg.name}@${pkg.version}`;
     try {
+      try {
+        require.resolve(pkg.name);
+        console.log(`✅ ${pkg.name} is already installed.`);
+        continue;
+      } catch (e) {
+        // Module not found, proceed to install
+      }
+
       console.log(`Installing ${spec}...`);
       execSync(`npm install ${spec} --no-save --force`, { stdio: 'inherit' });
       console.log(`✅ ${spec} installed successfully.`);

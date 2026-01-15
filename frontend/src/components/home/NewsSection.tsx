@@ -14,6 +14,7 @@ import Link from 'next/link';
 import { NewsCard } from './NewsCard';
 import { ElectricNewsCard } from '@/components/ui/NewsCard/ElectricNewsCard';
 import { ElectricButton } from '@/components/ui/Button/ElectricButton';
+import Button from '@/components/ui/Button';
 import { newsService } from '@/services/newsService';
 import type { NewsItem } from '@/types/api';
 import { NewsSkeletonLoader } from '@/components/common/NewsSkeletonLoader';
@@ -203,17 +204,14 @@ export const NewsSection: React.FC<NewsSectionProps> = ({
 
   // Default variant
   return (
-    <section className="max-w-[1280px] mx-auto px-3 md:px-4 lg:px-6" aria-labelledby="news-heading">
+    <section className="max-w-[1280px] mx-auto px-3 md:px-4 lg:px-6 py-12" aria-labelledby="news-heading">
       {/* Header with button */}
       <div className="flex items-center justify-between mb-8">
         <h2 id="news-heading" className="text-3xl font-bold text-text-primary">
           {title}
         </h2>
-        <Link
-          href={viewAllLink}
-          className="inline-flex items-center px-6 py-2 bg-primary text-white font-medium rounded-lg hover:bg-primary-dark transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
-        >
-          Все новости
+        <Link href={viewAllLink}>
+          <Button variant="primary">Все новости</Button>
         </Link>
       </div>
 

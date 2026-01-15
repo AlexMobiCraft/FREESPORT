@@ -1033,7 +1033,7 @@ large:  height: 56px, text: body-l
 
 // Размеры кнопки:
 height: 40px
-radius: 4px
+radius: 16px
 paddingHorizontal: 24px
 
 // Интерактивность:

@@ -55,8 +55,8 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
           variant === 'secondary' && [
             'bg-neutral-100 text-primary border border-primary',
             'shadow-default',
-            'hover:bg-primary-subtle hover:-translate-y-0.5',
-            'active:bg-primary-subtle/80 active:translate-y-0',
+            'hover:bg-primary hover:text-white hover:-translate-y-0.5 hover:shadow-hover',
+            'active:bg-primary-active active:translate-y-0',
             'focus:ring-primary',
           ],
           variant === 'tertiary' && [
@@ -79,9 +79,9 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
           ],
 
           // Размеры
-          size === 'small' && 'h-10 px-6 typo-body-s rounded-[4px]',
-          size === 'medium' && 'h-10 px-6 typo-body-m rounded-[4px]',
-          size === 'large' && 'h-14 px-6 typo-body-l rounded-[4px]',
+          size === 'small' && 'h-10 px-6 typo-body-s rounded-2xl',
+          size === 'medium' && 'h-10 px-6 typo-body-m rounded-2xl',
+          size === 'large' && 'h-14 px-6 typo-body-l rounded-2xl',
 
           className
         )}

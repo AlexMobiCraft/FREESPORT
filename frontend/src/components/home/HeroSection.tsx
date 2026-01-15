@@ -174,7 +174,7 @@ const HeroSection = () => {
                 <Button
                   variant="primary"
                   size="large"
-                  className="h-14 rounded-2xl shadow-[0_0_30px_rgba(8,145,178,0.35)]"
+                  className="shadow-[0_0_30px_rgba(8,145,178,0.35)]"
                 >
                   {bannerContent.cta.text}
                 </Button>
@@ -229,7 +229,7 @@ const HeroSection = () => {
               <Button
                 variant="primary"
                 size="large"
-                className="h-14 rounded-2xl shadow-[0_0_30px_rgba(8,145,178,0.35)]"
+                className="shadow-[0_0_30px_rgba(8,145,178,0.35)]"
               >
                 {currentBanner.cta_text}
               </Button>
