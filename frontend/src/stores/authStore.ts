@@ -119,7 +119,12 @@ export const useAuthStore = create<AuthState>()(
       },
 
       getRefreshToken: () => {
-        return localStorage.getItem('refreshToken');
+        const token = localStorage.getItem('refreshToken');
+        // Fix: фильтруем невалидные значения, которые могли попасть ранее
+        if (!token || token === 'undefined' || token === 'null' || token.trim() === '') {
+          return null;
+        }
+        return token;
       },
     }),
     { name: 'AuthStore' }

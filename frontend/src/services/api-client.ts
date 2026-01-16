@@ -95,7 +95,8 @@ const retryRequest = async (config: AxiosRequestConfig, retryCount = 0): Promise
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const token = useAuthStore.getState().accessToken;
-    if (token && config.headers) {
+    // Fix: проверяем на строку "undefined", которая могла попасть из localStorage
+    if (token && token !== 'undefined' && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;

@@ -5,7 +5,7 @@ created: '2026-01-16T09:55:41+01:00'
 status: 'completed'
 stepsCompleted: [1, 2, 3, 4]
 tech_stack: ['Django', 'DRF', 'SimpleJWT', 'Next.js', 'Zustand']
-files_to_modify: ['backend/apps/users/views/authentication.py', 'frontend/src/services/authService.ts', 'frontend/src/services/api-client.ts']
+files_to_modify: ['backend/apps/users/views/authentication.py', 'frontend/src/services/authService.ts', 'frontend/src/services/api-client.ts', 'frontend/src/stores/authStore.ts']
 code_patterns: ['JWT Authentication', 'Interceptors', 'Service Pattern', 'Defensive Programming']
 test_patterns: ['Integration Tests', 'Vitest']
 ---
@@ -97,3 +97,85 @@ test_patterns: ['Integration Tests', 'Vitest']
     -   Регистрация розничного пользователя.
     -   Регистрация оптового пользователя.
     -   Проверка DevTools (Network, Application).
+
+---
+
+## Hotfix 2026-01-16: Глобальные 401 на публичных эндпоинтах
+
+### Симптомы
+
+После первоначальной имплементации спеки обнаружена регрессия:
+- **ВСЕ публичные эндпоинты** (`/banners/`, `/products/`, `/blog/`, `/news/`) возвращали 401 Unauthorized.
+- Ошибка возникала даже для неаутентифицированных пользователей.
+- Backend views имели `permission_classes = [AllowAny]`, но 401 всё равно возвращался.
+
+### Root Cause Analysis
+
+1. **Request Interceptor не проверял токен на `"undefined"`:**
+   ```typescript
+   // БЫЛО (api-client.ts, строка 97-99):
+   const token = useAuthStore.getState().accessToken;
+   if (token && config.headers) {
+     config.headers.Authorization = `Bearer ${token}`;
+   }
+   ```
+   Если `token = "undefined"` (строка, не `undefined`), условие `if (token)` = `true`, и отправлялся невалидный header `Authorization: Bearer undefined`.
+
+2. **SimpleJWT возвращает 401 при невалидном токене ДО проверки permissions:**
+   Даже если View имеет `AllowAny`, SimpleJWT сначала пытается валидировать токен из `Authorization` header. Если токен невалиден — возвращается 401.
+
+3. **`getRefreshToken()` возвращал строку `"undefined"`:**
+   ```typescript
+   // БЫЛО (authStore.ts):
+   getRefreshToken: () => {
+     return localStorage.getItem('refreshToken'); // Может вернуть "undefined"
+   }
+   ```
+
+### Исправления
+
+#### 1. Request Interceptor (`api-client.ts`)
+
+```diff
+apiClient.interceptors.request.use(
+  (config: InternalAxiosRequestConfig) => {
+    const token = useAuthStore.getState().accessToken;
+-   if (token && config.headers) {
++   // Fix: проверяем на строку "undefined", которая могла попасть из localStorage
++   if (token && token !== 'undefined' && config.headers) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  error => Promise.reject(error)
+);
+```
+
+#### 2. getRefreshToken (`authStore.ts`)
+
+```diff
+getRefreshToken: () => {
+- return localStorage.getItem('refreshToken');
++ const token = localStorage.getItem('refreshToken');
++ // Fix: фильтруем невалидные значения, которые могли попасть ранее
++ if (!token || token === 'undefined' || token === 'null' || token.trim() === '') {
++   return null;
++ }
++ return token;
+},
+```
+
+### Verification
+
+- ✅ Публичные эндпоинты загружаются без 401.
+- ✅ Баннеры, продукты, новости, блог отображаются корректно.
+- ✅ localStorage очищен от невалидных значений.
+
+### Lessons Learned
+
+> [!IMPORTANT]
+> При работе с токенами всегда проверяйте на строковые `"undefined"` и `"null"` — они могут попасть из localStorage, если ранее сохранялись невалидные значения.
+
+> [!TIP]
+> SimpleJWT валидирует токен ДО проверки permission_classes. Невалидный `Authorization` header = 401, даже для `AllowAny` endpoints.
+
