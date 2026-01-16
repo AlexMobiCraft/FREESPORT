@@ -33,10 +33,8 @@ class TestProductBadgeFields:
         product = ProductFactory.create(
             name="Test Product",
             slug="test-product",
-            sku="TEST-001",
             brand=brand,
             category=category,
-            retail_price=Decimal("100.00"),
         )
 
         assert product.is_hit is False
@@ -51,10 +49,8 @@ class TestProductBadgeFields:
         product = ProductFactory.create(
             name="Super Product",
             slug="super-product",
-            sku="SUPER-001",
             brand=brand,
             category=category,
-            retail_price=Decimal("200.00"),
             is_hit=True,
             is_new=True,
             is_sale=True,
@@ -76,10 +72,8 @@ class TestProductBadgeFields:
         product_min = ProductFactory.create(
             name="Product Min",
             slug="product-min",
-            sku="MIN-001",
             brand=brand,
             category=category,
-            retail_price=Decimal("100.00"),
             discount_percent=0,
         )
         assert product_min.discount_percent == 0
@@ -88,10 +82,8 @@ class TestProductBadgeFields:
         product_max = ProductFactory.create(
             name="Product Max",
             slug="product-max",
-            sku="MAX-001",
             brand=brand,
             category=category,
-            retail_price=Decimal("100.00"),
             discount_percent=100,
         )
         assert product_max.discount_percent == 100
@@ -100,10 +92,8 @@ class TestProductBadgeFields:
         product_mid = ProductFactory.create(
             name="Product Mid",
             slug="product-mid",
-            sku="MID-001",
             brand=brand,
             category=category,
-            retail_price=Decimal("100.00"),
             discount_percent=50,
         )
         assert product_mid.discount_percent == 50
@@ -113,10 +103,8 @@ class TestProductBadgeFields:
         product = ProductFactory.build(
             name="Product Invalid",
             slug="product-invalid",
-            sku="INV-001",
             brand=brand,
             category=category,
-            retail_price=Decimal("100.00"),
             discount_percent=101,  # Превышает максимум
         )
 
@@ -130,10 +118,8 @@ class TestProductBadgeFields:
         product = ProductFactory.create(
             name="Product No Discount",
             slug="product-no-discount",
-            sku="ND-001",
             brand=brand,
             category=category,
-            retail_price=Decimal("100.00"),
             discount_percent=None,
         )
 
@@ -144,10 +130,8 @@ class TestProductBadgeFields:
         product = ProductFactory.create(
             name="Multi Badge Product",
             slug="multi-badge",
-            sku="MULTI-001",
             brand=brand,
             category=category,
-            retail_price=Decimal("150.00"),
             is_hit=True,
             is_sale=True,
             discount_percent=30,
@@ -165,10 +149,8 @@ class TestProductBadgeFields:
         product = ProductFactory.create(
             name="Updatable Product",
             slug="updatable",
-            sku="UPD-001",
             brand=brand,
             category=category,
-            retail_price=Decimal("100.00"),
         )
 
         # Изначально все False/None
@@ -188,25 +170,34 @@ class TestProductBadgeFields:
 
     def test_db_indexes_exist_for_badge_fields(self, brand, category):
         """Тест: проверка что индексы созданы для boolean полей"""
+        from apps.products.factories import ProductVariantFactory
+        from decimal import Decimal
+
         # Создаём товары с разными флагами
-        ProductFactory.create(
+        hit_product = ProductFactory.create(
             name="Hit Product",
             slug="hit-product",
-            sku="HIT-001",
             brand=brand,
             category=category,
-            retail_price=Decimal("100.00"),
             is_hit=True,
         )
+        ProductVariantFactory.create(
+            product=hit_product,
+            sku="HIT-001",
+            retail_price=Decimal("100.00"),
+        )
 
-        ProductFactory.create(
+        new_product = ProductFactory.create(
             name="New Product",
             slug="new-product",
-            sku="NEW-001",
             brand=brand,
             category=category,
-            retail_price=Decimal("100.00"),
             is_new=True,
+        )
+        ProductVariantFactory.create(
+            product=new_product,
+            sku="NEW-001",
+            retail_price=Decimal("100.00"),
         )
 
         # Проверяем что фильтрация работает корректно (косвенно проверяет индексы)
@@ -224,29 +215,23 @@ class TestProductBadgeFields:
         ProductFactory.create(
             name="Regular",
             slug="regular",
-            sku="REG-001",
             brand=brand,
             category=category,
-            retail_price=Decimal("100.00"),
         )
 
         ProductFactory.create(
             name="Hit",
             slug="hit",
-            sku="HIT-001",
             brand=brand,
             category=category,
-            retail_price=Decimal("100.00"),
             is_hit=True,
         )
 
         ProductFactory.create(
             name="Sale",
             slug="sale",
-            sku="SALE-001",
             brand=brand,
             category=category,
-            retail_price=Decimal("100.00"),
             is_sale=True,
             discount_percent=50,
         )

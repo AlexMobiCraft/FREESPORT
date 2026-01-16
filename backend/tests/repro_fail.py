@@ -1,7 +1,7 @@
-
 import pytest
 from tests.conftest import ProductFactory
 from decimal import Decimal
+
 
 @pytest.mark.django_db
 def test_repro():

@@ -187,7 +187,8 @@ class TestExecuteImportType:
         data_dir = "/path/to/data"
         task_id = "test-task-123"
 
-        # Указываем настройку ONEC_DATA_DIR, так как она используется внутри _execute_import_type
+        # Указываем настройку ONEC_DATA_DIR, так как она используется
+        # внутри _execute_import_type
         # для типа customers
         with patch.object(settings, "ONEC_DATA_DIR", data_dir), patch(
             "apps.integrations.tasks.Path"

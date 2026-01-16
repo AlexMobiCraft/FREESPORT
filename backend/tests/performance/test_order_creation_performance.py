@@ -106,7 +106,8 @@ class OrderCreationPerformanceTest(TestCase):
         # Добавляем 5 разных товаров в корзину
         for i in range(5):
             self.client.post(
-                "/api/v1/cart/items/", {"variant_id": self.products[i].id, "quantity": 2}
+                "/api/v1/cart/items/",
+                {"variant_id": self.products[i].id, "quantity": 2},
             )
 
         # Создаем заказ
@@ -336,7 +337,8 @@ class OrderCreationPerformanceTest(TestCase):
         # Добавляем несколько товаров
         for i in range(5):
             self.client.post(
-                "/api/v1/cart/items/", {"variant_id": self.products[i].id, "quantity": 2}
+                "/api/v1/cart/items/",
+                {"variant_id": self.products[i].id, "quantity": 2},
             )
 
         tracemalloc.start()

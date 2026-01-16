@@ -521,9 +521,7 @@ class TestProductStockLogic:
         assert variant.available_quantity == 95
 
         # Сценарий 2: Низкий остаток
-        low_stock_product = ProductFactory.create(
-            stock_quantity=3, reserved_quantity=1
-        )
+        low_stock_product = ProductFactory.create(stock_quantity=3, reserved_quantity=1)
         low_stock_product.min_order_quantity = 1
         low_stock_product.save()
         variant2 = low_stock_product.variants.first()
@@ -532,9 +530,7 @@ class TestProductStockLogic:
         assert variant2.available_quantity == 2
 
         # Сценарий 3: Перепродано (oversold)
-        oversold_product = ProductFactory.create(
-            stock_quantity=5, reserved_quantity=10
-        )
+        oversold_product = ProductFactory.create(stock_quantity=5, reserved_quantity=10)
         oversold_product.min_order_quantity = 1
         oversold_product.save()
         variant3 = oversold_product.variants.first()
@@ -615,4 +611,3 @@ class TestProductStockLogic:
         # Проверка nullable и blank
         assert field.null is True
         assert field.blank is True
-

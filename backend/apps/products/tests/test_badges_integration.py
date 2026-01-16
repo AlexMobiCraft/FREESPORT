@@ -32,19 +32,15 @@ class TestBadgesIntegration:
         hit = ProductFactory.create(
             name="Hit",
             slug="hit",
-            sku="HIT",
             brand=brand,
             category=category,
-            retail_price=Decimal("100"),
             is_hit=True,
         )
         regular = ProductFactory.create(
             name="Regular",
             slug="regular",
-            sku="REG",
             brand=brand,
             category=category,
-            retail_price=Decimal("100"),
         )
 
         # Фильтр должен вернуть только хит
@@ -57,10 +53,8 @@ class TestBadgesIntegration:
         product = ProductFactory.create(
             name="Product",
             slug="product",
-            sku="PROD",
             brand=brand,
             category=category,
-            retail_price=Decimal("100"),
             is_hit=True,
             discount_percent=25,
         )
@@ -80,10 +74,8 @@ class TestBadgesIntegration:
         combo = ProductFactory.create(
             name="Combo",
             slug="combo",
-            sku="COMBO",
             brand=brand,
             category=category,
-            retail_price=Decimal("100"),
             is_hit=True,
             is_sale=True,
         )
@@ -91,10 +83,8 @@ class TestBadgesIntegration:
         hit_only = ProductFactory.create(
             name="Hit",
             slug="hit",
-            sku="HIT",
             brand=brand,
             category=category,
-            retail_price=Decimal("100"),
             is_hit=True,
         )
 

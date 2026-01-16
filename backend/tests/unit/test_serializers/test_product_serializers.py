@@ -36,33 +36,39 @@ class TestProductListSerializer:
     """Тесты сериализатора списка товаров"""
 
     def test_product_list_serialization(
-        self, category_factory, brand_factory, product_factory
+        self, category_factory, brand_factory, product_variant_factory
     ):
         """Тест сериализации товара в списке"""
         category = category_factory.create(name="Спорт")
         brand = brand_factory.create(name="Nike")
-        product = product_factory.create(
-            name="Кроссовки",
-            category=category,
-            brand=brand,
+        variant = product_variant_factory.create(
+            product__name="Кроссовки",
+            product__category=category,
+            product__brand=brand,
             retail_price=Decimal("5000.00"),
-            is_active=True,
+            product__is_active=True,
         )
+        product = variant.product
 
         serializer = ProductListSerializer(product)
         data = serializer.data
 
         assert data["name"] == "Кроссовки"
-        assert data["retail_price"] == "5000.00"
+        assert float(data["retail_price"]) == 5000.00
         assert (
             data["category"] == "Спорт"
         )  # StringRelatedField возвращает __str__ модели
         assert data["brand"]["name"] == "Nike"
 
-    def test_product_list_with_user_context(self, user_factory, product_factory):
+    def test_product_list_with_user_context(
+        self, user_factory, product_variant_factory
+    ):
         """Тест сериализации с контекстом пользователя"""
         user = user_factory.create()
-        product = product_factory.create(name="Товар", retail_price=Decimal("1000.00"))
+        variant = product_variant_factory.create(
+            product__name="Товар", retail_price=Decimal("1000.00")
+        )
+        product = variant.product
 
         # Тест для retail пользователя
         class MockRequest:
@@ -79,12 +85,13 @@ class TestProductListSerializer:
         data = serializer.data
         assert "current_price" in data
 
-    def test_product_list_b2b_pricing(self, user_factory, product_factory):
+    def test_product_list_b2b_pricing(self, user_factory, product_variant_factory):
         """Тест отображения B2B цен"""
         user = user_factory.create(role="wholesale_level1")
-        product = product_factory.create(
-            name="B2B Товар", retail_price=Decimal("1000.00")
+        variant = product_variant_factory.create(
+            product__name="B2B Товар", retail_price=Decimal("1000.00")
         )
+        product = variant.product
 
         class MockRequest:
             def __init__(self, user):
@@ -99,10 +106,13 @@ class TestProductListSerializer:
         data = serializer.data
         assert "current_price" in data  # Поле существует в сериализаторе
 
-    def test_product_list_filtering(self, user_factory, product_factory):
+    def test_product_list_filtering(self, user_factory, product_variant_factory):
         """Тест фильтрации товаров"""
         user = user_factory.create()
-        product = product_factory.create(name="Активный товар", is_active=True)
+        variant = product_variant_factory.create(
+            product__name="Активный товар", product__is_active=True
+        )
+        product = variant.product
 
         serializer = ProductListSerializer(product)
         data = serializer.data
@@ -130,7 +140,7 @@ class TestProductDetailSerializer:
             description="Спортивная футболка",
             category=category,
             brand=brand,
-            gallery_images=[
+            base_images=[
                 "/media/products/img1.jpg"
             ],  # Добавляем изображения в JSON поле
         )
@@ -344,47 +354,47 @@ class TestProductSearchAndFiltering:
     """Тесты поиска и фильтрации товаров"""
 
     def test_price_range_filtering(
-        self, category_factory, brand_factory, product_factory
+        self, category_factory, brand_factory, product_variant_factory
     ):
         """Тест фильтрации по диапазону цен"""
         category = category_factory.create(name="Тест")
         brand = brand_factory.create(name="Тест")
-        cheap_product = product_factory.create(
-            name="Дешевый",
-            category=category,
-            brand=brand,
+        cheap_variant = product_variant_factory.create(
+            product__name="Дешевый",
+            product__category=category,
+            product__brand=brand,
             retail_price=Decimal("100.00"),
         )
-        expensive_product = product_factory.create(
-            name="Дорогой",
-            category=category,
-            brand=brand,
+        expensive_variant = product_variant_factory.create(
+            product__name="Дорогой",
+            product__category=category,
+            product__brand=brand,
             retail_price=Decimal("1000.00"),
         )
 
         # Тест сериализации в контексте фильтрации
-        serializer1 = ProductListSerializer(cheap_product)
-        serializer2 = ProductListSerializer(expensive_product)
+        serializer1 = ProductListSerializer(cheap_variant.product)
+        serializer2 = ProductListSerializer(expensive_variant.product)
 
         data1 = serializer1.data
         data2 = serializer2.data
 
-        assert Decimal(data1["retail_price"]) < Decimal(data2["retail_price"])
+        assert float(data1["retail_price"]) < float(data2["retail_price"])
 
-    def test_category_filtering(self, category_factory, product_factory):
+    def test_category_filtering(self, category_factory, product_variant_factory):
         """Тест фильтрации по категориям"""
         sport_category = category_factory.create(name="Спорт")
         fashion_category = category_factory.create(name="Мода")
 
-        sport_product = product_factory.create(
-            name="Спортивный товар", category=sport_category
+        sport_variant = product_variant_factory.create(
+            product__name="Спортивный товар", product__category=sport_category
         )
-        fashion_product = product_factory.create(
-            name="Модный товар", category=fashion_category
+        fashion_variant = product_variant_factory.create(
+            product__name="Модный товар", product__category=fashion_category
         )
 
-        sport_serializer = ProductListSerializer(sport_product)
-        fashion_serializer = ProductListSerializer(fashion_product)
+        sport_serializer = ProductListSerializer(sport_variant.product)
+        fashion_serializer = ProductListSerializer(fashion_variant.product)
 
         sport_data = sport_serializer.data
         fashion_data = fashion_serializer.data
@@ -398,12 +408,15 @@ class TestProductPerformance:
     """Тесты производительности сериализаторов"""
 
     def test_bulk_serialization_performance(
-        self, category_factory, brand_factory, product_factory
+        self, category_factory, brand_factory, product_variant_factory
     ):
         """Тест производительности массовой сериализации"""
         category = category_factory.create(name="Тест")
         brand = brand_factory.create(name="Тест")
-        products = product_factory.create_batch(10, category=category, brand=brand)
+        variants = product_variant_factory.create_batch(
+            10, product__category=category, product__brand=brand
+        )
+        products = [v.product for v in variants]
 
         serializer = ProductListSerializer(products, many=True)
         data = serializer.data

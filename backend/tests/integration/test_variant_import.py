@@ -750,7 +750,8 @@ class TestHybridImagesLogic(TransactionTestCase):
 
         # Создание процессора
         self.processor = VariantImportProcessor(session_id=self.session.pk)
-        # Отключаем проверку размера изображений для тестов (иначе dummy jpg пропускается)
+        # Отключаем проверку размера изображений для тестов
+        # (иначе dummy jpg пропускается)
         self.processor.MIN_IMAGE_SIZE_BYTES = 0
 
     def _create_xml_file(self, content: str, filename: str) -> str:

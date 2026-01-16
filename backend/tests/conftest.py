@@ -148,8 +148,10 @@ def create_factories():
         min_order_quantity = 1
 
         # Параметры для варианта
-        # Объявляем их как Transient поля (не сохраняются в модели, но передаются в kwargs)
-        # В factory_boy для DjangoModelFactory это просто поля, которые мы должны исключить
+        # Объявляем их как Transient поля (не сохраняются в модели,
+        # но передаются в kwargs)
+        # В factory_boy для DjangoModelFactory это просто поля,
+        # которые мы должны исключить
         # из создания модели вручную в _create
         retail_price = Decimal("1000.00")
         opt1_price = None
@@ -159,7 +161,7 @@ def create_factories():
         federation_price = None
         stock_quantity = 100
         create_variant = True
-        
+
         @classmethod
         def _get_variant_fields(cls):
             return [
@@ -183,7 +185,7 @@ def create_factories():
                 elif hasattr(cls, param):
                     val = getattr(cls, param)
                     if not isinstance(val, (factory.declarations.BaseDeclaration)):
-                         variant_params[param] = val
+                        variant_params[param] = val
             return variant_params
 
         @classmethod
@@ -212,7 +214,7 @@ def create_factories():
             if should_create_variant:
                 # Добавляем product в параметры
                 variant_params["product"] = product
-                
+
                 # Обеспечиваем дефолты если они не были извлечены
                 if "stock_quantity" not in variant_params:
                     variant_params["stock_quantity"] = 100
@@ -220,7 +222,7 @@ def create_factories():
                     variant_params["retail_price"] = Decimal("1000.00")
 
                 ProductVariantFactory.create(**variant_params)
-            
+
             return product
 
     class ProductVariantFactory(factory.django.DjangoModelFactory):
@@ -379,6 +381,7 @@ def create_factories():
         "BrandFactory": BrandFactory,
         "CategoryFactory": CategoryFactory,
         "ProductFactory": ProductFactory,
+        "ProductVariantFactory": ProductVariantFactory,
         "ProductImageFactory": ProductImageFactory,
         "CartFactory": CartFactory,
         "CartItemFactory": CartItemFactory,
@@ -421,6 +424,7 @@ AddressFactory = FactoryWrapper("AddressFactory")
 BrandFactory = FactoryWrapper("BrandFactory")
 CategoryFactory = FactoryWrapper("CategoryFactory")
 ProductFactory = FactoryWrapper("ProductFactory")
+ProductVariantFactory = FactoryWrapper("ProductVariantFactory")
 ProductImageFactory = FactoryWrapper("ProductImageFactory")
 CartFactory = FactoryWrapper("CartFactory")
 CartItemFactory = FactoryWrapper("CartItemFactory")
@@ -481,6 +485,11 @@ def category_factory():
 @pytest.fixture
 def product_factory():
     return ProductFactory
+
+
+@pytest.fixture
+def product_variant_factory():
+    return ProductVariantFactory
 
 
 @pytest.fixture
