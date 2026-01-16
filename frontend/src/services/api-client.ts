@@ -132,8 +132,9 @@ apiClient.interceptors.response.use(
 
       const refreshToken = useAuthStore.getState().getRefreshToken();
 
-      if (!refreshToken) {
-        // No refresh token - logout (skip server logout)
+      // Fix: явно проверяем на строковое "undefined", которое могло попасть ранее
+      if (!refreshToken || refreshToken === 'undefined') {
+        // No valid refresh token - logout (skip server logout)
         useAuthStore.getState().logout(true);
         processQueue(error, null);
         isRefreshing = false;

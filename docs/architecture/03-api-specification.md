@@ -24,6 +24,53 @@ security:
 
 paths:
   # Authentication Endpoints
+  /auth/register/:
+    post:
+      tags: [Authentication]
+      summary: User registration
+      description: Register new user. Tokens returned only for active users (Retail). B2B users require verification.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+                first_name:
+                  type: string
+                last_name:
+                  type: string
+                role:
+                  type: string
+                  enum: [retail, wholesale_level1, trainer]
+              required: [email, password, first_name, last_name, role]
+      responses:
+        '201':
+          description: Registration successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  access:
+                    type: string
+                    description: Only for verified users
+                  refresh:
+                    type: string
+                    description: Only for verified users
+                  user:
+                    $ref: '#/components/schemas/User'
+        '400':
+          description: Validation error
+
   /auth/login/:
     post:
       tags: [Authentication]

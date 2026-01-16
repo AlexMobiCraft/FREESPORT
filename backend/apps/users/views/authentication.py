@@ -53,9 +53,12 @@ class UserRegistrationView(APIView):
                 description="Пользователь успешно зарегистрирован",
                 examples=[
                     OpenApiExample(
-                        name="successful_registration",
+                        name="successful_registration_retail",
+                        summary="Retail user (auto-login)",
                         value={
                             "message": "Пользователь успешно зарегистрирован",
+                            "access": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
+                            "refresh": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
                             "user": {
                                 "id": 1,
                                 "email": "user@example.com",
@@ -65,7 +68,22 @@ class UserRegistrationView(APIView):
                                 "is_verified": True,
                             },
                         },
-                    )
+                    ),
+                    OpenApiExample(
+                        name="successful_registration_b2b",
+                        summary="B2B user (pending verification)",
+                        value={
+                            "message": "Пользователь успешно зарегистрирован",
+                            "user": {
+                                "id": 2,
+                                "email": "b2b@example.com",
+                                "first_name": "Petr",
+                                "last_name": "Ivanov",
+                                "role": "wholesale_level1",
+                                "is_verified": False,
+                            },
+                        },
+                    ),
                 ],
             ),
             400: OpenApiResponse(
@@ -90,20 +108,26 @@ class UserRegistrationView(APIView):
         if serializer.is_valid():
             user = serializer.save()
 
-            return Response(
-                {
-                    "message": "Пользователь успешно зарегистрирован",
-                    "user": {
-                        "id": user.id,
-                        "email": user.email,
-                        "first_name": user.first_name,
-                        "last_name": user.last_name,
-                        "role": user.role,
-                        "is_verified": user.is_verified,
-                    },
+            response_data = {
+                "message": "Пользователь успешно зарегистрирован",
+                "user": {
+                    "id": user.id,
+                    "email": user.email,
+                    "first_name": user.first_name,
+                    "last_name": user.last_name,
+                    "role": user.role,
+                    "is_verified": user.is_verified,
                 },
-                status=status.HTTP_201_CREATED,
-            )
+            }
+
+            # Генерируем токены только для активных и верифицированных пользователей (B2C)
+            # SimpleJWT не выдаст токен для is_active=False
+            if user.is_active and user.is_verified:
+                refresh = RefreshToken.for_user(user)
+                response_data["refresh"] = str(refresh)
+                response_data["access"] = str(refresh.access_token)  # type: ignore[attr-defined]
+
+            return Response(response_data, status=status.HTTP_201_CREATED)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
