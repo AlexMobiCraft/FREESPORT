@@ -12,13 +12,13 @@ export interface User {
   last_name: string;
   phone: string;
   role:
-    | 'retail'
-    | 'wholesale_level1'
-    | 'wholesale_level2'
-    | 'wholesale_level3'
-    | 'trainer'
-    | 'federation_rep'
-    | 'admin';
+  | 'retail'
+  | 'wholesale_level1'
+  | 'wholesale_level2'
+  | 'wholesale_level3'
+  | 'trainer'
+  | 'federation_rep'
+  | 'admin';
   company_name?: string;
   tax_id?: string;
   is_verified?: boolean;
@@ -326,6 +326,8 @@ export interface ProductVariant {
   stock_quantity: number;
   is_in_stock: boolean;
   available_quantity: number;
+  rrp?: string;
+  msrp?: string;
   main_image?: string | null;
   gallery_images?: string[];
 }

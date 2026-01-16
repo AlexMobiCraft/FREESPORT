@@ -15,8 +15,10 @@ import type { ProductDetail } from '@/types/api';
 import type { UserRole } from '@/utils/pricing';
 import { useCartStore } from '@/stores/cartStore';
 import { useToast } from '@/components/ui/Toast';
+import { formatPrice } from '@/utils/pricing';
 import ProductInfo from './ProductInfo';
-import { ProductOptions, type ProductVariant, type SelectedOptions } from './ProductOptions';
+import { ProductOptions, type SelectedOptions } from './ProductOptions';
+import type { ProductVariant } from '@/types/api';
 
 /**
  * Расширенный интерфейс товара с вариантами
@@ -306,7 +308,7 @@ export default function ProductSummary({
   return (
     <div className="space-y-4" data-testid="product-summary">
       {/* Основная информация о товаре */}
-      <ProductInfo product={product} userRole={userRole} />
+      <ProductInfo product={product} userRole={userRole} selectedVariant={selectedVariant} />
 
       {/* Выбор вариантов (если есть) */}
       {variants.length > 0 && (
@@ -326,11 +328,19 @@ export default function ProductSummary({
             <span className="text-neutral-600">Артикул варианта:</span>
             <span className="font-medium text-neutral-900">{selectedVariant.sku}</span>
           </div>
-          {selectedVariant.current_price && (
+          {selectedVariant.rrp && (
             <div className="flex items-center justify-between text-sm mt-1">
-              <span className="text-neutral-600">Цена:</span>
-              <span className="font-bold text-neutral-900">
-                {parseFloat(selectedVariant.current_price).toLocaleString('ru-RU')} ₽
+              <span className="text-neutral-600">РРЦ:</span>
+              <span className="font-medium text-neutral-900">
+                {formatPrice(parseFloat(selectedVariant.rrp), product.price?.currency || 'RUB')}
+              </span>
+            </div>
+          )}
+          {selectedVariant.msrp && (
+            <div className="flex items-center justify-between text-sm mt-1">
+              <span className="text-neutral-600">МРЦ:</span>
+              <span className="font-medium text-neutral-900">
+                {formatPrice(parseFloat(selectedVariant.msrp), product.price?.currency || 'RUB')}
               </span>
             </div>
           )}
@@ -368,11 +378,10 @@ export default function ProductSummary({
           h-14 px-6 text-lg font-medium rounded-2xl transition-all duration-150
           focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#0060FF]/60
           flex items-center justify-center gap-2
-          ${
-            canAddToCart && (variants.length === 0 || selectedVariant) && !isLoading
+          ${canAddToCart && (variants.length === 0 || selectedVariant) && !isLoading
               ? 'bg-[#0060FF] text-white hover:bg-[#0047CC] active:bg-[#0037A6] shadow-[0_4px_12px_rgba(0,96,255,0.28)]'
               : 'bg-[#E3E8F2] text-[#8F9BB3] cursor-not-allowed'
-          }
+            }
         `}
           data-testid="add-to-cart-button"
         >

@@ -6,17 +6,27 @@
 import React from 'react';
 import type { ProductDetail } from '@/types/api';
 import { formatPrice, getPriceForRole, type UserRole } from '@/utils/pricing';
+import type { ProductVariant } from '@/types/api';
 
 interface ProductInfoProps {
   product: ProductDetail;
   userRole?: UserRole;
+  selectedVariant?: ProductVariant | null;
 }
 
-export default function ProductInfo({ product, userRole = 'guest' }: ProductInfoProps) {
+export default function ProductInfo({ product, userRole = 'guest', selectedVariant }: ProductInfoProps) {
   // Защита от undefined для product.price
   const defaultPrice = { retail: 0, currency: 'RUB' };
   const price = product.price || defaultPrice;
-  const currentPrice = getPriceForRole(price, userRole);
+
+  // Используем цену варианта, если он выбран, иначе базовую цену для роли
+  const displayedPrice =
+    selectedVariant && selectedVariant.current_price
+      ? parseFloat(selectedVariant.current_price)
+      : getPriceForRole(price, userRole);
+
+  // Используем артикул варианта, если он выбран
+  const displayedSku = selectedVariant?.sku || product.sku;
 
   // Определяем статус наличия
   const getStockStatus = () => {
@@ -109,7 +119,7 @@ export default function ProductInfo({ product, userRole = 'guest' }: ProductInfo
       {/* SKU и Бренд */}
       <div className="flex items-center gap-4 text-base text-neutral-600">
         <span>
-          Артикул: <span className="font-medium">{product.sku}</span>
+          Артикул: <span className="font-medium">{displayedSku}</span>
         </span>
         {product.brand && (
           <>
@@ -127,7 +137,7 @@ export default function ProductInfo({ product, userRole = 'guest' }: ProductInfo
       {/* Цена */}
       <div className="py-4">
         <div className="text-4xl font-bold text-neutral-900">
-          {formatPrice(currentPrice, price.currency)}
+          {formatPrice(displayedPrice, price.currency)}
         </div>
       </div>
 

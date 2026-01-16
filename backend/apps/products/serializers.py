@@ -79,11 +79,39 @@ class ProductVariantSerializer(serializers.ModelSerializer):
             "stock_quantity",
             "is_in_stock",
             "available_quantity",
+            "rrp",
+            "msrp",
             "main_image",
             "gallery_images",
             "attributes",
         ]
         read_only_fields = fields  # Все поля read-only
+
+    def to_representation(self, instance: ProductVariant) -> dict[str, Any]:
+        """Логика скрытия полей RRP/MSRP для разных ролей"""
+        data: dict[str, Any] = super().to_representation(instance)
+        request = self.context.get("request")
+        user = getattr(request, "user", None) if request else None
+
+        # Определяем роль (retail для анонимов)
+        role = "retail"
+        if user and user.is_authenticated:
+            role = getattr(user, "role", "retail")
+
+        # RRP/MSRP видят только оптовики (1-3), тренеры и админы
+        # Представители федерации, розница и гости НЕ видят
+        allowed_roles = [
+            "wholesale_level1",
+            "wholesale_level2",
+            "wholesale_level3",
+            "trainer",
+            "admin",
+        ]
+        if role not in allowed_roles:
+            data.pop("rrp", None)
+            data.pop("msrp", None)
+
+        return data
 
     def get_main_image(self, obj: ProductVariant) -> str | None:
         """
@@ -465,8 +493,15 @@ class ProductListSerializer(serializers.ModelSerializer):
         if user and user.is_authenticated:
             role = getattr(user, "role", "retail")
 
-        # Скрываем RRP и MSRP для розничных пользователей и гостей
-        if role == "retail":
+        # Скрываем RRP и MSRP для розничных пользователей, гостей и федераций
+        allowed_roles = [
+            "wholesale_level1",
+            "wholesale_level2",
+            "wholesale_level3",
+            "trainer",
+            "admin",
+        ]
+        if role not in allowed_roles:
             data.pop("rrp", None)
             data.pop("msrp", None)
         return data

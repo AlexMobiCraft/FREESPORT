@@ -11,7 +11,7 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import type { ProductImage } from '@/types/api';
-import type { ProductVariant } from './ProductOptions';
+import type { ProductVariant } from '@/types/api';
 import { normalizeImageUrl } from '@/utils/media';
 
 interface ProductImageGalleryProps {
@@ -180,11 +180,10 @@ export default function ProductImageGallery({
             <button
               key={`${image.image}-${index}`}
               onClick={() => setSelectedImage(image)}
-              className={`aspect-square rounded-lg border overflow-hidden transition-all hover:border-primary-500 ${
-                image.image === selectedImage.image
+              className={`aspect-square rounded-lg border overflow-hidden transition-all hover:border-primary-500 ${image.image === selectedImage.image
                   ? 'border-primary-500 border-2 ring-2 ring-primary-200'
                   : 'border-neutral-200'
-              }`}
+                }`}
               aria-label={`Показать изображение ${index + 1}`}
             >
               <div className="relative w-full h-full">
