@@ -8,12 +8,7 @@ import { Metadata } from 'next';
 import Link from 'next/link';
 import { Store, Globe, Dumbbell, Heart, Trophy, GraduationCap, UserCheck } from 'lucide-react';
 import {
-    FeatureCard,
-    ProcessSteps,
-    Accordion,
-    InfoPanel,
     Breadcrumb,
-    Button,
 } from '@/components/ui';
 import type { ProcessStep, AccordionItemData } from '@/components/ui';
 

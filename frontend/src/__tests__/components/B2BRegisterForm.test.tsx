@@ -86,6 +86,7 @@ describe('B2BRegisterForm', () => {
           first_name: 'B2B',
           role: 'wholesale_level1',
           is_verified: true, // Auto-verified for immediate redirect test
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any
       });
 

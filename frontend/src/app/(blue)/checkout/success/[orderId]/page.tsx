@@ -12,7 +12,6 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, notFound, useRouter } from 'next/navigation';
-import Link from 'next/link';
 import OrderSuccessView from '@/components/checkout/OrderSuccessView';
 import ordersService from '@/services/ordersService';
 import Button from '@/components/ui/Button';

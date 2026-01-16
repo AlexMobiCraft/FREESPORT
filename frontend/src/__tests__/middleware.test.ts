@@ -34,6 +34,7 @@ describe('Middleware', () => {
     } as unknown as NextRequest;
     
     // Helper needed because NextRequest clone() is complex to mock fully
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     req.nextUrl.clone = () => new URL(url.toString()) as any;
     
     return req;
@@ -44,6 +45,7 @@ describe('Middleware', () => {
     middleware(req);
 
     expect(NextResponse.redirect).toHaveBeenCalled();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const redirectUrl = (NextResponse.redirect as any).mock.calls[0][0];
     expect(redirectUrl.pathname).toBe('/login');
     expect(redirectUrl.searchParams.get('next')).toBe('/profile');
@@ -61,6 +63,7 @@ describe('Middleware', () => {
     middleware(req);
 
     expect(NextResponse.redirect).toHaveBeenCalled();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const redirectUrl = (NextResponse.redirect as any).mock.calls[0][0];
     expect(redirectUrl.pathname).toBe('/');
   });
@@ -70,6 +73,7 @@ describe('Middleware', () => {
     middleware(req);
 
     expect(NextResponse.redirect).toHaveBeenCalled();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const callArgs = (NextResponse.redirect as any).mock.calls[0];
     // NextResponse.redirect(new URL(...))
     const redirectUrl = callArgs[0];
@@ -86,11 +90,13 @@ describe('Middleware', () => {
       },
       url: url.toString(),
     } as unknown as NextRequest;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     req.nextUrl.clone = () => new URL(url.toString()) as any;
 
     middleware(req);
 
     expect(NextResponse.redirect).toHaveBeenCalled();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const redirectUrl = (NextResponse.redirect as any).mock.calls[0][0];
     expect(redirectUrl.pathname).toBe('/checkout');
   });
@@ -100,6 +106,7 @@ describe('Middleware', () => {
     middleware(req);
 
     expect(NextResponse.redirect).toHaveBeenCalled();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const redirectUrl = (NextResponse.redirect as any).mock.calls[0][0];
     expect(redirectUrl.pathname).toBe('/');
   });
@@ -109,6 +116,7 @@ describe('Middleware', () => {
     middleware(req);
 
     expect(NextResponse.redirect).toHaveBeenCalled();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const redirectUrl = (NextResponse.redirect as any).mock.calls[0][0];
     expect(redirectUrl.pathname).toBe('/');
   });

@@ -15,7 +15,7 @@ import apiClient from '@/services/api-client';
 
 import { useAuthStore, authSelectors } from '@/stores/authStore';
 import { useToast } from '@/components/ui/Toast/ToastProvider';
-import { Input, PhoneInput } from '@/components/ui';
+import { PhoneInput } from '@/components/ui';
 import { profileSchema, ProfileFormData, defaultProfileValues } from './schema';
 import type { User } from '@/types/api';
 
