@@ -13,6 +13,11 @@ services:
       - ./init-db.sql:/docker-entrypoint-initdb.d/
     networks:
       - freesport-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     restart: unless-stopped
 
   redis:
@@ -23,6 +28,11 @@ services:
       - redis_data:/data
     networks:
       - freesport-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     restart: unless-stopped
 
   backend:
@@ -77,6 +87,11 @@ services:
       - redis
     networks:
       - freesport-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     restart: unless-stopped
 
   frontend:
@@ -106,6 +121,11 @@ services:
         condition: service_healthy
     networks:
       - freesport-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     restart: unless-stopped
 
   nginx:
@@ -127,6 +147,11 @@ services:
         condition: service_healthy
     networks:
       - freesport-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     restart: unless-stopped
 
   celery:
@@ -167,6 +192,11 @@ services:
       - redis
     networks:
       - freesport-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     restart: unless-stopped
 
   celery-beat:
@@ -203,6 +233,11 @@ services:
       - redis
     networks:
       - freesport-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     restart: unless-stopped
 
 volumes:
