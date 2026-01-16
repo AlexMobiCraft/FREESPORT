@@ -65,6 +65,8 @@ interface ApiProductDetailResponse {
     stock_quantity: number;
     is_in_stock: boolean;
     available_quantity: number;
+    rrp?: string;
+    msrp?: string;
     main_image?: string | null;
     gallery_images?: string[];
   }>;
@@ -139,7 +141,11 @@ function adaptProductToDetail(apiProduct: ApiProductDetailResponse): ProductDeta
     },
     is_in_stock: apiProduct.is_in_stock,
     can_be_ordered: apiProduct.can_be_ordered,
-    variants: apiProduct.variants,
+    variants: (apiProduct.variants || []).map(v => ({
+      ...v,
+      rrp: v.rrp,
+      msrp: v.msrp,
+    })),
   };
 }
 
@@ -271,8 +277,10 @@ class ProductsService {
    * GET /products/{slug}/
    * Адаптирует данные из формата API в формат ProductDetail
    */
-  async getProductBySlug(slug: string): Promise<ProductDetail> {
-    const response = await apiClient.get<ApiProductDetailResponse>(`/products/${slug}/`);
+  async getProductBySlug(slug: string, headers?: Record<string, string>): Promise<ProductDetail> {
+    const response = await apiClient.get<ApiProductDetailResponse>(`/products/${slug}/`, {
+      headers,
+    });
     return adaptProductToDetail(response.data);
   }
 }

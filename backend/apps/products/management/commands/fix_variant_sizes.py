@@ -14,7 +14,9 @@ Management команда для очистки некорректных зна�
 """
 
 import re
+
 from django.core.management.base import BaseCommand
+
 from apps.products.models import ProductVariant
 
 

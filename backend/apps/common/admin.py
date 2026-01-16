@@ -13,16 +13,8 @@ from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
 from django.utils import timezone
 
-from .models import (
-    AuditLog,
-    BlogPost,
-    CustomerSyncLog,
-    News,
-    Newsletter,
-    NotificationRecipient,
-    SyncConflict,
-    SyncLog,
-)
+from .models import (AuditLog, BlogPost, CustomerSyncLog, News, Newsletter,
+                     NotificationRecipient, SyncConflict, SyncLog)
 from .services import CustomerSyncMonitor
 
 
@@ -575,4 +567,3 @@ class NotificationRecipientAdmin(admin.ModelAdmin):
             },
         ),
     )
-

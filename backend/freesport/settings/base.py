@@ -8,7 +8,7 @@ import sys
 from datetime import timedelta
 from pathlib import Path
 
-from decouple import config, Csv
+from decouple import Csv, config
 
 # Временно отключаем патч для исправления проблем с кодировкой psycopg2 на Windows
 # try:
@@ -152,6 +152,7 @@ AUTH_PASSWORD_VALIDATORS = [
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "rest_framework.authentication.SessionAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [
         # Changed from IsAuthenticated to AllowAny (fix: 401 on public endpoints)

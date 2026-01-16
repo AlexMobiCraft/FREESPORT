@@ -4,11 +4,12 @@ Views для аутентификации пользователей
 
 import logging
 
-from django.contrib.auth import get_user_model
+from django.contrib.auth import get_user_model, login, logout
 from django.utils import timezone
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
-from drf_spectacular.utils import OpenApiExample, OpenApiResponse, extend_schema
+from drf_spectacular.utils import (OpenApiExample, OpenApiResponse,
+                                   extend_schema)
 from rest_framework import permissions, status
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.generics import GenericAPIView
@@ -20,14 +21,9 @@ from rest_framework_simplejwt.tokens import RefreshToken
 logger = logging.getLogger("apps.users.auth")
 
 # User model is used in the code
-from ..serializers import (
-    LogoutSerializer,
-    PasswordResetConfirmSerializer,
-    PasswordResetRequestSerializer,
-    UserLoginSerializer,
-    UserRegistrationSerializer,
-    ValidateTokenSerializer,
-)
+from ..serializers import (LogoutSerializer, PasswordResetConfirmSerializer,
+                           PasswordResetRequestSerializer, UserLoginSerializer,
+                           UserRegistrationSerializer, ValidateTokenSerializer)
 from ..tasks import send_password_reset_email
 from ..tokens import password_reset_token
 
@@ -40,6 +36,7 @@ class UserRegistrationView(APIView):
     """
 
     permission_classes = [permissions.AllowAny]
+    authentication_classes = []
 
     @extend_schema(
         summary="Регистрация пользователя",
@@ -138,6 +135,7 @@ class UserLoginView(APIView):
     """
 
     permission_classes = [permissions.AllowAny]
+    authentication_classes = []
 
     @extend_schema(
         summary="Вход пользователя",
@@ -227,6 +225,14 @@ class UserLoginView(APIView):
                 },
             )
 
+            # Story 12.1: Log in session for SSR auth
+            # Это создаст sessionid cookie, необходимую для Next.js SSR запросов.
+            # ВАЖНО: UserLoginSerializer не использует authenticate(), поэтому для работы login()
+            # нам нужно явно указать backend, иначе возникнет AttributeError.
+            if not hasattr(user, "backend"):
+                user.backend = "django.contrib.auth.backends.ModelBackend"
+            login(request, user)
+
             return Response(
                 {
                     "access": access_token,
@@ -252,6 +258,7 @@ class PasswordResetRequestView(APIView):
     """
 
     permission_classes = [permissions.AllowAny]
+    authentication_classes = []
 
     @extend_schema(
         summary="Запрос на сброс пароля",
@@ -320,6 +327,7 @@ class ValidateTokenView(APIView):
     """
 
     permission_classes = [permissions.AllowAny]
+    authentication_classes = []
 
     @extend_schema(
         summary="Валидация токена сброса пароля",
@@ -391,6 +399,7 @@ class PasswordResetConfirmView(APIView):
     """
 
     permission_classes = [permissions.AllowAny]
+    authentication_classes = []
 
     @extend_schema(
         summary="Подтверждение сброса пароля",
@@ -566,6 +575,9 @@ class LogoutView(GenericAPIView):
 
             # Добавляем токен в blacklist
             token.blacklist()
+
+            # Story 12.1: Logout session as well
+            logout(request)
 
             # Audit logging - успешный logout
             logger.info(

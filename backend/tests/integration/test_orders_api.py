@@ -12,8 +12,6 @@ from rest_framework.test import APIClient
 
 from apps.cart.models import Cart, CartItem
 from apps.orders.models import Order, OrderItem
-from apps.cart.models import Cart, CartItem
-from apps.orders.models import Order, OrderItem
 from apps.products.models import Brand, Category, Product, ProductVariant
 
 User = get_user_model()

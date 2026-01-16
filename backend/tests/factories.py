@@ -1,17 +1,12 @@
 import uuid
+
 import factory
 from django.utils.text import slugify
 from factory.django import DjangoModelFactory
 
-from apps.products.models import (
-    Attribute,
-    AttributeValue,
-    Brand,
-    Brand1CMapping,
-    Category,
-    Product,
-    ProductVariant,
-)
+from apps.products.models import (Attribute, AttributeValue, Brand,
+                                  Brand1CMapping, Category, Product,
+                                  ProductVariant)
 from apps.users.models import User
 
 

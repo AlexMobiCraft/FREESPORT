@@ -170,8 +170,9 @@ class TestProductBadgeFields:
 
     def test_db_indexes_exist_for_badge_fields(self, brand, category):
         """Тест: проверка что индексы созданы для boolean полей"""
-        from apps.products.factories import ProductVariantFactory
         from decimal import Decimal
+
+        from apps.products.factories import ProductVariantFactory
 
         # Создаём товары с разными флагами
         hit_product = ProductFactory.create(

@@ -736,7 +736,7 @@ class BlogPost(models.Model):
 class NotificationRecipient(TimeStampedModel):
     """
     Получатель email-уведомлений системы.
-    
+
     Позволяет гибко управлять списком получателей различных типов уведомлений
     через Django Admin без необходимости менять settings.ADMINS.
     """
@@ -815,4 +815,3 @@ class NotificationRecipient(TimeStampedModel):
         super().clean()
         if self.email:
             self.email = self.email.lower().strip()
-

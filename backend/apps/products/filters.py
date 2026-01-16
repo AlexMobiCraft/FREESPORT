@@ -8,7 +8,8 @@ from typing import TYPE_CHECKING, Any
 
 import django_filters
 from django.conf import settings
-from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector
+from django.contrib.postgres.search import (SearchQuery, SearchRank,
+                                            SearchVector)
 from django.db import connection
 from django.db.models import Q, QuerySet
 
@@ -403,12 +404,11 @@ class ProductFilter(django_filters.FilterSet):
             return queryset
 
         # Импортируем необходимые модели
+        # Проверяем тип базы данных
+        from django.db import connection
         from django.db.models import Exists, OuterRef
 
         from .models import ProductVariant
-
-        # Проверяем тип базы данных
-        from django.db import connection
 
         # Subquery для поиска по SKU в вариантах
         sku_subquery = ProductVariant.objects.filter(

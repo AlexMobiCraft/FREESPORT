@@ -50,6 +50,12 @@ CORS_ALLOWED_ORIGINS = [
 
 CORS_ALLOW_CREDENTIALS = True
 
+# Story 12.1: Allow CSRF for Session Auth from frontend
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+
 # Настройки Debug Toolbar
 INTERNAL_IPS = [
     "127.0.0.1",

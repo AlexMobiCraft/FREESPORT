@@ -5,7 +5,8 @@ from __future__ import annotations
 import pytest
 from django.db import IntegrityError
 
-from apps.products.models import Attribute, AttributeValue, Product, ProductVariant
+from apps.products.models import (Attribute, AttributeValue, Product,
+                                  ProductVariant)
 from tests.conftest import get_unique_suffix
 
 

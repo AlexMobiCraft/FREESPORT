@@ -7,10 +7,10 @@ Unit тесты для модели NotificationRecipient и Celery tasks уве
 - Интеграцию с существующими tasks (user_verification, pending_queue)
 """
 
-import pytest
-from unittest.mock import patch, MagicMock
 from decimal import Decimal
+from unittest.mock import MagicMock, patch
 
+import pytest
 from django.core.exceptions import ValidationError
 
 from apps.common.models import NotificationRecipient
@@ -101,7 +101,9 @@ class TestNotificationRecipientModel:
         assert recipient.notify_low_stock is False
         assert recipient.notify_daily_summary is False
 
-    def test_filter_by_notification_type(self, notification_recipient, inactive_recipient):
+    def test_filter_by_notification_type(
+        self, notification_recipient, inactive_recipient
+    ):
         """Тест фильтрации по типу уведомления."""
         # Только активные получатели с notify_new_orders
         active_order_recipients = NotificationRecipient.objects.filter(
@@ -169,9 +171,7 @@ class TestSendOrderNotificationEmail:
         mock_send_mail.assert_not_called()
 
     @patch("apps.orders.tasks.send_mail")
-    def test_skip_inactive_recipients(
-        self, mock_send_mail, inactive_recipient, order
-    ):
+    def test_skip_inactive_recipients(self, mock_send_mail, inactive_recipient, order):
         """Неактивные получатели не получают уведомления."""
         result = send_order_notification_email(order.id)
 
@@ -184,7 +184,9 @@ class TestSendOrderNotificationEmail:
         assert result is False
 
     @patch("apps.orders.tasks.send_mail")
-    def test_multiple_recipients(self, mock_send_mail, notification_recipient, order, db):
+    def test_multiple_recipients(
+        self, mock_send_mail, notification_recipient, order, db
+    ):
         """Отправка нескольким получателям."""
         # Создаём второго получателя
         NotificationRecipient.objects.create(

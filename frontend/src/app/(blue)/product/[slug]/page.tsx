@@ -8,6 +8,7 @@
 
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import { cookies } from 'next/headers';
 import productsService from '@/services/productsService';
 import ProductBreadcrumbs from '@/components/product/ProductBreadcrumbs';
 import ProductPageClient from '@/components/product/ProductPageClient';
@@ -63,9 +64,14 @@ export default async function ProductPage({ params }: ProductPageProps) {
   let userRole: UserRole = 'guest';
 
   try {
+    // Получаем сессию для авторизованного запроса
+    const cookieStore = await cookies();
+    const sessionId = cookieStore.get('sessionid')?.value;
+    const headers = sessionId ? { Cookie: `sessionid=${sessionId}` } : undefined;
+
     // Загружаем данные товара и роль пользователя параллельно
     [product, userRole] = await Promise.all([
-      productsService.getProductBySlug(slug),
+      productsService.getProductBySlug(slug, headers),
       getUserRole(),
     ]);
   } catch (error) {

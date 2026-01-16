@@ -8,18 +8,16 @@ Unit тесты для Celery email tasks (Story 29.4).
 - Retry логику при SMTP ошибках
 """
 
-import pytest
-from unittest.mock import patch, MagicMock
 from smtplib import SMTPException
+from unittest.mock import MagicMock, patch
 
+import pytest
 from django.utils import timezone
 
 from apps.users.models import User
-from apps.users.tasks import (
-    send_admin_verification_email,
-    send_user_pending_email,
-    monitor_pending_verification_queue,
-)
+from apps.users.tasks import (monitor_pending_verification_queue,
+                              send_admin_verification_email,
+                              send_user_pending_email)
 from tests.factories import UserFactory
 
 

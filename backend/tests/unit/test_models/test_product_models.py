@@ -11,7 +11,8 @@ from django.test import TestCase
 from django.utils import timezone
 
 from apps.products.models import Brand, Category, Product
-from tests.factories import BrandFactory, CategoryFactory, ProductFactory, UserFactory
+from tests.factories import (BrandFactory, CategoryFactory, ProductFactory,
+                             UserFactory)
 
 
 @pytest.mark.django_db
@@ -118,8 +119,9 @@ class ProductComputedPropertiesTest(TestCase):
 
     def setUp(self):
         """Настройка тестовых данных."""
-        from apps.products.models import ProductVariant
         from decimal import Decimal
+
+        from apps.products.models import ProductVariant
 
         self.brand = Brand.objects.create(name="Test Brand", slug="test-brand")
         self.category = Category.objects.create(

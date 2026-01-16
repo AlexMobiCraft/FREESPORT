@@ -7,9 +7,9 @@ class UsersConfig(AppConfig):
     verbose_name = "Пользователи"
 
     def ready(self):
-        import apps.users.signals  # noqa
-
         # Переименование блока "Пользователи и группы" в админке
         from django.contrib.auth.apps import AuthConfig
+
+        import apps.users.signals  # noqa
 
         AuthConfig.verbose_name = "Группы пользователей"
