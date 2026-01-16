@@ -45,9 +45,11 @@ const ROLE_OPTIONS = [
 export interface RegisterFormProps {
   /** Callback после успешной регистрации (optional) */
   onSuccess?: () => void;
+  /** URL для редиректа после успешной регистрации */
+  redirectUrl?: string;
 }
 
-export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
+export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectUrl }) => {
   const router = useRouter();
   const [apiError, setApiError] = useState<string | null>(null);
 
@@ -94,8 +96,9 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
         onSuccess();
       }
 
-      // Story 28.1 AC 2: Редирект на главную после успешной регистрации
-      router.push('/home');
+      // Story 28.1 AC 2: Редирект на главную (или redirectUrl) после успешной регистрации
+      const targetUrl = redirectUrl || '/';
+      router.push(targetUrl);
     } catch (error: unknown) {
       // AC 4: Обработка ошибок API
       const err = error as {
