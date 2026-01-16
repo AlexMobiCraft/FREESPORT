@@ -98,6 +98,7 @@ describe('B2BRegisterForm', () => {
       await user.type(screen.getByLabelText(/название компании/i), 'ООО Тест');
       await user.type(screen.getByLabelText(/^инн$/i), '1234567890');
       await user.type(screen.getByLabelText(/^огрн$/i), '1234567890123');
+      await user.type(screen.getByLabelText(/юридический адрес/i), 'г. Москва, ул. Примерная, д. 1');
       await user.type(screen.getByLabelText(/^пароль$/i), 'SecurePass123');
       await user.type(screen.getByLabelText(/подтверждение пароля/i), 'SecurePass123');
 
