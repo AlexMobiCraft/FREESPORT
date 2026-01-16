@@ -31,6 +31,7 @@ import { Input } from '@/components/ui/Input/Input';
 import { Button } from '@/components/ui/Button/Button';
 import { RoleInfoPanel } from '@/components/auth/RoleInfoPanel';
 import authService from '@/services/authService';
+import { isSafeRedirectUrl } from '@/utils/urlUtils';
 import { registerSchema, type RegisterFormData } from '@/schemas/authSchemas';
 import type { RegisterRequest } from '@/types/api';
 
@@ -97,7 +98,8 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
       }
 
       // Story 28.1 AC 2: Редирект на главную (или redirectUrl) после успешной регистрации
-      const targetUrl = redirectUrl || '/';
+      // Security: Validate redirectUrl to prevent open redirects
+      const targetUrl = isSafeRedirectUrl(redirectUrl) ? redirectUrl! : '/';
       router.push(targetUrl);
     } catch (error: unknown) {
       // AC 4: Обработка ошибок API

@@ -7,6 +7,7 @@
 
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { isSafeRedirectUrl } from '@/utils/urlUtils';
 
 /**
  * Проверяет, является ли маршрут защищенным
@@ -52,6 +53,13 @@ export function middleware(request: NextRequest) {
   // Если пользователь авторизован и пытается открыть auth route - редирект на главную
   if (isAuthRoute(pathname) && isAuthenticated) {
     const url = request.nextUrl.clone();
+    const nextParam = url.searchParams.get('next') || url.searchParams.get('redirect');
+
+    // Если есть next/redirect параметр и он валидный
+    if (isSafeRedirectUrl(nextParam)) {
+      return NextResponse.redirect(new URL(nextParam!, request.url));
+    }
+
     url.pathname = '/';
     return NextResponse.redirect(url);
   }

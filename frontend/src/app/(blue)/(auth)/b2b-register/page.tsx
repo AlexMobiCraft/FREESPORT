@@ -10,9 +10,47 @@
 
 'use client';
 
-import React from 'react';
+import React, { Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { B2BRegisterForm } from '@/components/auth/B2BRegisterForm';
+
+function B2BRegisterContent() {
+  const searchParams = useSearchParams();
+  const redirectUrl = searchParams.get('next') || searchParams.get('redirect') || undefined;
+
+  return (
+    <div className="bg-white rounded-lg shadow-[var(--shadow-default)] p-8">
+      <B2BRegisterForm redirectUrl={redirectUrl} />
+
+      {/* AC 3: Ссылка на B2C регистрацию */}
+      <div className="mt-6 pt-6 border-t border-gray-200 text-center">
+        <p className="text-body-s text-[var(--color-text-muted)]">
+          Не бизнес-клиент?{' '}
+          <Link
+            href="/register"
+            className="font-medium text-primary hover:text-primary-hover transition-colors"
+          >
+            Обычная регистрация
+          </Link>
+        </p>
+      </div>
+
+      {/* Link to Login */}
+      <div className="mt-4 text-center">
+        <p className="text-body-s text-[var(--color-text-muted)]">
+          Уже есть аккаунт?{' '}
+          <Link
+            href="/login"
+            className="font-medium text-primary hover:text-primary-hover transition-colors"
+          >
+            Войти
+          </Link>
+        </p>
+      </div>
+    </div>
+  );
+}
 
 export default function B2BRegisterPage() {
   return (
@@ -45,36 +83,10 @@ export default function B2BRegisterPage() {
           </p>
         </div>
 
-        {/* B2B Register Form */}
-        <div className="bg-white rounded-lg shadow-[var(--shadow-default)] p-8">
-          <B2BRegisterForm />
-
-          {/* AC 3: Ссылка на B2C регистрацию */}
-          <div className="mt-6 pt-6 border-t border-gray-200 text-center">
-            <p className="text-body-s text-[var(--color-text-muted)]">
-              Не бизнес-клиент?{' '}
-              <Link
-                href="/register"
-                className="font-medium text-primary hover:text-primary-hover transition-colors"
-              >
-                Обычная регистрация
-              </Link>
-            </p>
-          </div>
-
-          {/* Link to Login */}
-          <div className="mt-4 text-center">
-            <p className="text-body-s text-[var(--color-text-muted)]">
-              Уже есть аккаунт?{' '}
-              <Link
-                href="/login"
-                className="font-medium text-primary hover:text-primary-hover transition-colors"
-              >
-                Войти
-              </Link>
-            </p>
-          </div>
-        </div>
+        {/* B2B Register Form with Suspense */}
+        <Suspense fallback={<div className="bg-white rounded-lg shadow p-8 h-[800px] animate-pulse" />}>
+          <B2BRegisterContent />
+        </Suspense>
 
         {/* Дополнительная информация о преимуществах */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">

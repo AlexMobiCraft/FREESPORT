@@ -22,15 +22,18 @@ import { Input } from '@/components/ui/Input/Input';
 import { PhoneInput } from '@/components/ui/Input/PhoneInput';
 import { Button } from '@/components/ui/Button/Button';
 import authService from '@/services/authService';
+import { isSafeRedirectUrl } from '@/utils/urlUtils';
 import { b2bRegisterSchema, type B2BRegisterFormData } from '@/schemas/authSchemas';
 import type { RegisterRequest } from '@/types/api';
 
 export interface B2BRegisterFormProps {
   /** Callback после успешной регистрации (optional) */
   onSuccess?: () => void;
+  /** URL для редиректа после успешной регистрации */
+  redirectUrl?: string;
 }
 
-export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess }) => {
+export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, redirectUrl }) => {
   const router = useRouter();
   const [apiError, setApiError] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
@@ -80,7 +83,8 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess }) =
         }
 
         // Редирект на главную (корень) если верифицирован сразу
-        router.push('/');
+        const targetUrl = isSafeRedirectUrl(redirectUrl) ? redirectUrl! : '/';
+        router.push(targetUrl);
       }
     } catch (error: unknown) {
       // AC 5: Обработка ошибок API
