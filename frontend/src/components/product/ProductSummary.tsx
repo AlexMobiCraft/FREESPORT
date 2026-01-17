@@ -107,6 +107,12 @@ export default function ProductSummary({
   // Варианты товара (если есть) - мемоизируем для стабильности ссылки
   const variants = useMemo(() => product.variants || [], [product.variants]);
 
+  // RRP/MSRP видят только оптовики (1-3), тренеры и админы
+  const canSeeRrpMsrp = useMemo(() =>
+    ['wholesale_level1', 'wholesale_level2', 'wholesale_level3', 'trainer', 'admin'].includes(userRole),
+    [userRole]
+  );
+
   // Ref для callback чтобы избежать лишних перерендеров
   const onVariantChangeRef = useRef(onVariantChange);
   onVariantChangeRef.current = onVariantChange;
@@ -328,19 +334,19 @@ export default function ProductSummary({
             <span className="text-neutral-600">Артикул варианта:</span>
             <span className="font-medium text-neutral-900">{selectedVariant.sku}</span>
           </div>
-          {selectedVariant.rrp && (
+          {canSeeRrpMsrp && parseFloat(selectedVariant.rrp || '0') > 0 && (
             <div className="flex items-center justify-between text-sm mt-1">
               <span className="text-neutral-600">РРЦ:</span>
               <span className="font-medium text-neutral-900">
-                {formatPrice(parseFloat(selectedVariant.rrp), product.price?.currency || 'RUB')}
+                {formatPrice(parseFloat(selectedVariant.rrp!), product.price?.currency || 'RUB')}
               </span>
             </div>
           )}
-          {selectedVariant.msrp && (
+          {canSeeRrpMsrp && parseFloat(selectedVariant.msrp || '0') > 0 && (
             <div className="flex items-center justify-between text-sm mt-1">
               <span className="text-neutral-600">МРЦ:</span>
               <span className="font-medium text-neutral-900">
-                {formatPrice(parseFloat(selectedVariant.msrp), product.price?.currency || 'RUB')}
+                {formatPrice(parseFloat(selectedVariant.msrp!), product.price?.currency || 'RUB')}
               </span>
             </div>
           )}

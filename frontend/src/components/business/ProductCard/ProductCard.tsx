@@ -35,6 +35,7 @@ import { ProductBadge } from '@/components/common/ProductBadge';
 import Button from '@/components/ui/Button';
 import type { Product } from '@/types/api';
 import { cn } from '@/utils/cn';
+import { formatPrice } from '@/utils/pricing';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
 const MEDIA_BASE_URL =
@@ -448,32 +449,19 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
                 </p>
 
                 {/* RRP/MSRP для B2B */}
-                {mode === 'b2b' &&
-                  showRRP &&
-                  (product as Product & { recommended_retail_price?: number })
-                    .recommended_retail_price !== undefined && (
-                    <p className="text-body-s text-[var(--color-text-secondary)] mt-1">
-                      РРЦ:{' '}
-                      {(
-                        (product as Product & { recommended_retail_price?: number })
-                          .recommended_retail_price ?? 0
-                      ).toLocaleString('ru-RU')}{' '}
-                      ₽
-                    </p>
-                  )}
-                {mode === 'b2b' &&
-                  showMSRP &&
-                  (product as Product & { max_suggested_retail_price?: number })
-                    .max_suggested_retail_price !== undefined && (
-                    <p className="text-body-s text-[var(--color-text-secondary)] mt-1">
-                      MSRP:{' '}
-                      {(
-                        (product as Product & { max_suggested_retail_price?: number })
-                          .max_suggested_retail_price ?? 0
-                      ).toLocaleString('ru-RU')}{' '}
-                      ₽
-                    </p>
-                  )}
+                {(mode === 'b2b' || userRole !== 'retail') && (product.rrp || product.msrp) && (
+                                              <div className="mt-1 space-y-0.5">
+                                                {product.rrp && product.rrp > 0 && (
+                                                  <p className="text-body-s text-[var(--color-text-secondary)]">
+                                                    РРЦ: {formatPrice(product.rrp)}
+                                                  </p>
+                                                )}
+                                                {product.msrp && product.msrp > 0 && (
+                                                  <p className="text-body-s text-[var(--color-text-secondary)]">
+                                                    МРЦ: {formatPrice(product.msrp)}
+                                                  </p>
+                                                )}
+                                              </div>                )}
 
                 {/* Кнопка "В корзину" */}
                 {isInStock && onAddToCart && (
@@ -591,32 +579,20 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
               </p>
 
               {/* RRP/MSRP для B2B */}
-              {mode === 'b2b' &&
-                showRRP &&
-                (product as Product & { recommended_retail_price?: number })
-                  .recommended_retail_price !== undefined && (
-                  <p className="text-body-s text-[var(--color-text-secondary)] mt-1">
-                    РРЦ:{' '}
-                    {(
-                      (product as Product & { recommended_retail_price?: number })
-                        .recommended_retail_price ?? 0
-                    ).toLocaleString('ru-RU')}{' '}
-                    ₽
-                  </p>
-                )}
-              {mode === 'b2b' &&
-                showMSRP &&
-                (product as Product & { max_suggested_retail_price?: number })
-                  .max_suggested_retail_price !== undefined && (
-                  <p className="text-body-s text-[var(--color-text-secondary)] mt-1">
-                    MSRP:{' '}
-                    {(
-                      (product as Product & { max_suggested_retail_price?: number })
-                        .max_suggested_retail_price ?? 0
-                    ).toLocaleString('ru-RU')}{' '}
-                    ₽
-                  </p>
-                )}
+              {(mode === 'b2b' || userRole !== 'retail') && (product.rrp || product.msrp) && (
+                <div className="mt-1 space-y-0.5">
+                  {product.rrp && product.rrp > 0 && (
+                    <p className="text-body-s text-[var(--color-text-secondary)]">
+                      РРЦ: {formatPrice(product.rrp)}
+                    </p>
+                  )}
+                  {product.msrp && product.msrp > 0 && (
+                    <p className="text-body-s text-[var(--color-text-secondary)]">
+                      МРЦ: {formatPrice(product.msrp)}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Кнопка "В корзину" */}

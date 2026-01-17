@@ -503,15 +503,15 @@ class ProductListSerializer(serializers.ModelSerializer):
         variant = self._get_first_variant(obj)
         return variant.sku if variant else ""
 
-    def get_rrp(self, obj: Product) -> float:
+    def get_rrp(self, obj: Product) -> float | None:
         """Получить РРЦ первого варианта"""
         variant = self._get_first_variant(obj)
-        return float(variant.rrp) if variant and variant.rrp else 0.0
+        return float(variant.rrp) if variant and variant.rrp else None
 
-    def get_msrp(self, obj: Product) -> float:
+    def get_msrp(self, obj: Product) -> float | None:
         """Получить МРЦ первого варианта"""
         variant = self._get_first_variant(obj)
-        return float(variant.msrp) if variant and variant.msrp else 0.0
+        return float(variant.msrp) if variant and variant.msrp else None
 
     def get_opt1_price(self, obj: Product) -> float:
         """Получить оптовую цену уровня 1 из первого варианта"""

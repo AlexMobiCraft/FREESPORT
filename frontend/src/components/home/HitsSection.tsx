@@ -23,6 +23,7 @@ import { ProductCard } from '@/components/business/ProductCard/ProductCard';
 import ElectricProductCard from '@/components/ui/ProductCard/ElectricProductCard';
 import { ElectricButton } from '@/components/ui/Button/ElectricButton';
 import { useCartStore } from '@/stores/cartStore';
+import { useAuthStore } from '@/stores/authStore';
 import { useToast } from '@/components/ui/Toast';
 import productsService from '@/services/productsService';
 import type { Product } from '@/types/api';
@@ -96,6 +97,11 @@ export const HitsSection: React.FC<HitsSectionProps> = ({
   // Electric variant needs cart functionality
   const { addItem } = useCartStore();
   const { success, error: toastError } = useToast();
+
+  // Auth integration
+  const user = useAuthStore(state => state.user);
+  const userRole = user?.role || 'guest';
+  const isB2B = ['wholesale_level1', 'wholesale_level2', 'wholesale_level3', 'trainer', 'federation_rep', 'admin'].includes(userRole);
 
   const styles = VARIANT_STYLES[variant];
   const isElectric = variant === 'electric';
@@ -310,6 +316,8 @@ export const HitsSection: React.FC<HitsSectionProps> = ({
                         ? Math.round(product.retail_price / (1 - product.discount_percent / 100))
                         : undefined
                     }
+                    rrp={isB2B ? product.rrp : undefined}
+                    msrp={isB2B ? product.msrp : undefined}
                     badge="hit"
                     inStock={product.is_in_stock}
                     onAddToCart={() => handleAddToCart(product.id)}
@@ -317,7 +325,12 @@ export const HitsSection: React.FC<HitsSectionProps> = ({
                     onToggleFavorite={() => { }}
                   />
                 ) : (
-                  <ProductCard product={product} layout="compact" userRole="retail" />
+                  <ProductCard
+                    product={product}
+                    layout="compact"
+                    userRole={userRole}
+                    mode={isB2B ? 'b2b' : 'b2c'}
+                  />
                 )}
               </div>
             );

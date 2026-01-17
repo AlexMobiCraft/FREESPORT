@@ -21,6 +21,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ProductCard } from '@/components/business/ProductCard/ProductCard';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useAuthStore } from '@/stores/authStore';
 import productsService from '@/services/productsService';
 import type { Product } from '@/types/api';
 
@@ -34,6 +35,11 @@ export const NewArrivalsSection: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
+
+  // Auth integration
+  const user = useAuthStore(state => state.user);
+  const userRole = user?.role || 'guest';
+  const isB2B = ['wholesale_level1', 'wholesale_level2', 'wholesale_level3', 'trainer', 'federation_rep', 'admin'].includes(userRole);
 
   const fetchNewArrivals = async () => {
     try {
@@ -173,7 +179,12 @@ export const NewArrivalsSection: React.FC = () => {
         >
           {products.map(product => (
             <div key={product.id} className="flex-shrink-0 w-[calc(50%-4px)] md:w-[200px] snap-start" role="listitem">
-              <ProductCard product={product} layout="compact" userRole="retail" />
+              <ProductCard
+                product={product}
+                layout="compact"
+                userRole={userRole}
+                mode={isB2B ? 'b2b' : 'b2c'}
+              />
             </div>
           ))}
         </div>

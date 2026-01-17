@@ -72,6 +72,8 @@ export interface Product {
   is_promo: boolean;
   is_premium: boolean;
   discount_percent: number | null;
+  rrp?: number;
+  msrp?: number;
   rating?: number;
   reviews_count?: number;
   created_at?: string;

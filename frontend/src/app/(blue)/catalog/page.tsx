@@ -18,6 +18,7 @@ import categoriesService from '@/services/categoriesService';
 import brandsService from '@/services/brandsService';
 import type { Product, CategoryTree as CategoryTreeResponse, Brand } from '@/types/api';
 import { useCartStore } from '@/stores/cartStore';
+import { useAuthStore } from '@/stores/authStore';
 import { useToast } from '@/components/ui/Toast';
 
 type PriceRange = {
@@ -349,6 +350,11 @@ const CatalogContent: React.FC = () => {
   const [isProductsLoading, setIsProductsLoading] = useState(false);
   const [productsError, setProductsError] = useState<string | null>(null);
   const [inStock, setInStock] = useState(true); // По умолчанию показываем только товары в наличии
+
+  // Auth integration
+  const user = useAuthStore(state => state.user);
+  const userRole = user?.role || 'guest';
+  const isB2B = ['wholesale_level1', 'wholesale_level2', 'wholesale_level3', 'trainer', 'federation_rep', 'admin'].includes(userRole);
 
   // Cart integration
   const { addItem } = useCartStore();
@@ -737,6 +743,8 @@ const CatalogContent: React.FC = () => {
               key={product.id}
               product={product}
               layout="list"
+              userRole={userRole}
+              mode={isB2B ? 'b2b' : 'b2c'}
               onAddToCart={handleAddToCart}
             />
           ))}
@@ -751,6 +759,8 @@ const CatalogContent: React.FC = () => {
             key={product.id}
             product={product}
             layout="grid"
+            userRole={userRole}
+            mode={isB2B ? 'b2b' : 'b2c'}
             onAddToCart={handleAddToCart}
           />
         ))}

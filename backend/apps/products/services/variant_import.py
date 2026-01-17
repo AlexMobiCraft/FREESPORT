@@ -1008,6 +1008,11 @@ class VariantImportProcessor:
                     field_name = price_type.product_field
                     price_updates[field_name] = price_value
 
+            # Story 3.1.4: Auto-populate RRP from Retail Price if not provided
+            # This ensures B2B users always have a baseline for comparison
+            if "retail_price" in price_updates and "rrp" not in price_updates:
+                price_updates["rrp"] = price_updates["retail_price"]
+
             # Применяем обновления цен
             fields_to_update: list[str] = []
             for field_name, value in price_updates.items():
