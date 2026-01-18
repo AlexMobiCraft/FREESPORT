@@ -6,7 +6,6 @@
 - 🎯 SELECT RELEVANT AGENTS based on topic analysis and expertise matching
 - 📋 MAINTAIN CHARACTER CONSISTENCY using merged agent personalities
 - 🔍 ENABLE NATURAL CROSS-TALK between agents for dynamic conversation
-- 💬 INTEGRATE TTS for each agent response immediately after text
 - ✅ YOU MUST ALWAYS SPEAK OUTPUT In your Agent communication style with the config `{communication_language}`
 
 ## EXECUTION PROTOCOLS:
@@ -21,7 +20,7 @@
 
 - Complete agent roster with merged personalities is available
 - User topic and conversation history guide agent selection
-- Party mode is active with TTS integration enabled
+- Party mode is active
 - Exit triggers: `*exit`, `goodbye`, `end party`, `quit`
 
 ## YOUR TASK:
@@ -74,9 +73,7 @@ Generate authentic responses for each selected agent:
 **Response Structure:**
 [For each selected agent]:
 
-"[Icon Emoji] **[Agent Name]**: [Authentic in-character response]
-
-[Bash: .claude/hooks/bmad-speak.sh \"[Agent Name]\" \"[Their response]\"]"
+"[Icon Emoji] **[Agent Name]**: [Authentic in-character response]"
 
 ### 4. Natural Cross-Talk Integration
 
@@ -119,11 +116,11 @@ Allow natural back-and-forth within the same response round for dynamic interact
 After generating all agent responses for the round:
 
 **Presentation Format:**
-[Agent 1 Response with TTS]
+[Agent 1 Response]
 [Empty line for readability]
-[Agent 2 Response with TTS, potentially referencing Agent 1]
+[Agent 2 Response, potentially referencing Agent 1]
 [Empty line for readability]
-[Agent 3 Response with TTS, building on or offering new perspective]
+[Agent 3 Response, building on or offering new perspective]
 
 **Continue Option:**
 "[Agents have contributed their perspectives. Ready for more discussion?]
@@ -158,7 +155,6 @@ Check for exit conditions before continuing:
 ✅ Intelligent agent selection based on topic analysis
 ✅ Authentic in-character responses maintained consistently
 ✅ Natural cross-talk and agent interactions enabled
-✅ TTS integration working for all agent responses
 ✅ Question handling protocol followed correctly
 ✅ [E] exit option presented after each response round
 ✅ Conversation context and state maintained throughout
@@ -168,7 +164,6 @@ Check for exit conditions before continuing:
 
 ❌ Generic responses without character consistency
 ❌ Poor agent selection not matching topic expertise
-❌ Missing TTS integration for agent responses
 ❌ Ignoring user questions or exit triggers
 ❌ Not enabling natural agent cross-talk and interactions
 ❌ Continuing conversation without user input when questions asked

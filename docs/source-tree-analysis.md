@@ -1,80 +1,77 @@
-# Source Tree Analysis
+# Анализ структуры исходного кода (Source Tree Analysis)
 
-## Project Structure Overview
+Этот документ содержит аннотированную структуру проекта FREESPORT, выделяя ключевые компоненты, точки входа и логику взаимодействия между частями.
 
-FREESPORT is a multi-part monorepo consisting of a Django backend and a Next.js frontend, orchestrated via Docker.
+## 📂 Общая структура (Monorepo)
 
-```
-FREESPORT/
-├── backend/                 # Backend Application (Django 5.2)
-│   ├── apps/                # Django Apps (Domain Logic)
-│   ├── freesport/           # Project Configuration
-│   ├── requirements.txt     # Python Dependencies
-│   └── Dockerfile           # Backend Container Definition
-├── frontend/                # Frontend Application (Next.js 15.5)
-│   ├── src/                 # Source Code
-│   │   ├── app/             # App Router Pages & Layouts
-│   │   ├── components/      # React Components
-│   │   └── services/        # API Clients
-│   ├── package.json         # JS Dependencies
-│   └── Dockerfile           # Frontend Container Definition
-├── docker/                  # Infrastructure Configuration
-│   ├── docker-compose.yml   # Dev Orchestration
-│   └── nginx/               # Reverse Proxy Config
-├── docs/                    # Project Documentation (BMAD Standard)
-└── .github/                 # CI/CD Workflows
+```text
+freesport/
+├── backend/                # Django REST Framework API (Бэкенд)
+├── frontend/               # Next.js 15.5 application (Фронтенд)
+├── docker/                 # Конфигурации контейнеризации
+├── docs/                   # Техническая документация (BMAD V6)
+├── scripts/                # Скрипты автоматизации и развертывания
+├── data/                   # Статические данные и файлы импорта
+└── docker-compose.yml      # Оркестрация сервисов
 ```
 
-## Backend Detail (`backend/`)
+---
 
-The backend follows a modular Django app structure.
+## 🐍 Backend Architecture (`backend/`)
 
-```
-backend/
-├── apps/
-│   ├── banners/             # Hero banner management
-│   ├── cart/                # Shopping cart logic (Redis-backed)
-│   ├── common/              # Shared utilities & mixins
-│   ├── delivery/            # Shipping cost calculations (CDEK, Boxberry)
-│   ├── integrations/        # External service integrations
-│   ├── orders/              # Order processing & payment
-│   ├── pages/               # Static content pages management
-│   ├── products/            # Product catalog, prices, variants
-│   └── users/               # Custom user model, B2B roles, auth
-├── freesport/               # Core Settings
-│   ├── settings/            # Split settings (base, dev, prod)
-│   ├── celery.py            # Celery app config
-│   └── urls.py              # Root URL router
-└── manage.py                # CLI Entry Point
-```
+Бэкенд построен на **Django 5.2.7** и **Django REST Framework 3.14**. Используется модульная структура приложений.
 
-## Frontend Detail (`frontend/`)
+### 🏛️ Основные приложения (`backend/apps/`)
 
-The frontend uses Next.js 15 App Router with a feature-based folder structure.
+| Приложение | Описание | Ключевые файлы |
+| :--- | :--- | :--- |
+| **users** | Ролевая система (7 ролей), B2B верификация, профили. | `models.py` (User, Company, Address) |
+| **products** | Каталог товаров, бренды, категории, ролевые цены. | `models.py` (Product, ProductVariant, Attribute) |
+| **cart** | Управление корзиной (гости + авторизованные). | `models.py` (Cart, CartItem) |
+| **orders** | Система заказов, транзакционная логика, история. | `models.py` (Order, OrderItem), `serializers.py` |
+| **integrations** | Обмен данными с 1С (CommerceML), Celery задачи. | `tasks.py` (import logic), `models.py` (Session) |
+| **banners** | Управление Hero-секцией с таргетингом. | `models.py` (Banner) |
+| **common** | Общие утилиты, новости, блог, подписки. | `utils/`, `models.py` (News, BlogPost) |
 
-```
-frontend/
-├── src/
-│   ├── app/                 # Routes
-│   │   ├── (blue)/          # Main Theme Route Group
-│   │   │   ├── catalog/     # Product Catalog
-│   │   │   ├── product/     # Product Details
-│   │   │   └── ...
-│   │   ├── (electric)/      # Alternate Theme Route Group
-│   │   └── api/             # BFF / API Routes
-│   ├── components/
-│   │   ├── business/        # Domain Components (ProductCard, etc.)
-│   │   ├── ui/              # Reusable UI Kit (Button, Input, etc.)
-│   │   └── layout/          # Header, Footer, Wrappers
-│   ├── services/            # API Client Layer (Axios)
-│   ├── store/               # State Management (Zustand)
-│   └── hooks/               # Custom React Hooks
-└── public/                  # Static Assets
-```
+### ⚙️ Инфраструктура Бэкенда
+- **`backend/freesport/`**: Настройки проекта Django.
+- **`backend/tests/`**: Тестовое покрытие (Pytest).
+- **`backend/manage.py`**: Точка входа CLI.
 
-## Key Configuration Files
+---
 
-*   **`backend/requirements.txt`**: Python dependencies.
-*   **`frontend/package.json`**: Node.js dependencies & scripts.
-*   **`frontend/next.config.ts`**: Next.js configuration.
-*   **`docker/docker-compose.yml`**: Main service orchestration.
+## ⚛️ Frontend Architecture (`frontend/`)
+
+Фронтенд реализован на **Next.js 15.5** с использованием **App Router** и **TypeScript**.
+
+### 🧩 Структура исходного кода (`frontend/src/`)
+
+- **`app/`**: Маршрутизация и страницы (Next.js App Router).
+  - `(blue)/`: Основная тема (Синяя).
+  - `(electric)/`: Альтернативная тема (Electric Orange).
+- **`components/`**: Библиотека UI-компонентов.
+  - `ui/`: Атомарные и составные компоненты (Card, Button, ProductCard).
+  - `layout/`: Компоненты разметки (Header, Footer).
+- **`services/`**: Слой взаимодействия с API (Axios).
+  - `api-client.ts`: Конфигурация клиента с поддержкой SSR и Refresh Token.
+- **`stores/`**: Глобальное состояние (Zustand).
+  - `authStore.ts`, `cartStore.ts` (с Optimistic Updates).
+- **`hooks/`**: Кастомные React хуки.
+- **`types/`**: TypeScript интерфейсы (включая автогенерируемые из OpenAPI).
+
+---
+
+## 🔄 Взаимодействие и интеграции
+
+1.  **Frontend <-> Backend**: REST API запросы. В режиме разработки (Docker) фронтенд обращается к бэкенду по внутреннему адресу `http://backend:8000`, в браузере — через Nginx прокси.
+2.  **Backend <-> 1C**: Асинхронный импорт XML-файлов через Celery. Точка входа — `backend/apps/integrations/tasks.py`.
+3.  **Хранение изображений**: Гибридная система. Изображения из 1С копируются в `backend/media/products/` и обслуживаются через Nginx.
+
+---
+
+## 🚀 Точки входа и конфигурация
+
+- **Backend API**: `backend/manage.py runserver` (порт 8001 локально).
+- **Frontend Dev**: `npm run dev` (порт 3000 локально).
+- **Docker Dev**: `docker compose -f docker/docker-compose.yml up`.
+- **Конфигурация**: `.env` файлы в корне и подпапках.
