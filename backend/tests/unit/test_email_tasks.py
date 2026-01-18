@@ -21,15 +21,31 @@ from apps.users.tasks import (monitor_pending_verification_queue,
 from tests.factories import UserFactory
 
 
+@pytest.fixture
+def verification_recipient(db):
+    """Fixture to create a notification recipient for B2B verification."""
+    from apps.common.models import NotificationRecipient
+
+    return NotificationRecipient.objects.create(
+        email="admin@example.com",
+        name="Admin",
+        is_active=True,
+        notify_user_verification=True,
+        notify_pending_queue=True,
+    )
+
+
 @pytest.mark.unit
 @pytest.mark.django_db
 class TestSendAdminVerificationEmail:
     """Unit тесты для send_admin_verification_email task."""
 
     @patch("apps.users.tasks.send_mail")
-    def test_send_admin_verification_email_success(self, mock_send_mail, settings):
+    def test_send_admin_verification_email_success(
+        self, mock_send_mail, settings, verification_recipient
+    ):
         """Успешная отправка email админу при B2B регистрации."""
-        # Настраиваем ADMINS
+        # Настраиваем ADMINS (хотя теперь используется NotificationRecipient)
         settings.ADMINS = [("Admin", "admin@example.com")]
         settings.SITE_URL = "http://localhost:3000"
 
@@ -55,8 +71,11 @@ class TestSendAdminVerificationEmail:
 
     @patch("apps.users.tasks.send_mail")
     def test_send_admin_email_no_admins_configured(self, mock_send_mail, settings):
-        """Пропуск отправки если ADMINS не настроены."""
-        settings.ADMINS = []
+        """Пропуск отправки если нет получателей в БД."""
+        # Очищаем получателей (в этом тесте нам не нужен verification_recipient)
+        from apps.common.models import NotificationRecipient
+
+        NotificationRecipient.objects.all().delete()
 
         user = UserFactory(role="trainer", company_name="Fitness Club")
 
@@ -72,7 +91,9 @@ class TestSendAdminVerificationEmail:
         assert result is False
 
     @patch("apps.users.tasks.send_mail")
-    def test_send_admin_email_with_tax_id(self, mock_send_mail, settings):
+    def test_send_admin_email_with_tax_id(
+        self, mock_send_mail, settings, verification_recipient
+    ):
         """Email с ИНН для wholesale пользователей."""
         settings.ADMINS = [("Admin", "admin@test.com")]
         settings.SITE_URL = "http://localhost"
@@ -160,7 +181,9 @@ class TestMonitorPendingVerificationQueue:
         mock_send_mail.assert_not_called()
 
     @patch("apps.users.tasks.send_mail")
-    def test_alert_above_threshold(self, mock_send_mail, settings):
+    def test_alert_above_threshold(
+        self, mock_send_mail, settings, verification_recipient
+    ):
         """Alert отправляется если pending > threshold."""
         settings.ADMINS = [("Admin", "admin@test.com")]
 
@@ -184,8 +207,10 @@ class TestMonitorPendingVerificationQueue:
 
     @patch("apps.users.tasks.send_mail")
     def test_no_alert_if_no_admins(self, mock_send_mail, settings):
-        """Нет alert если ADMINS не настроены."""
-        settings.ADMINS = []
+        """Нет alert если нет получателей в БД."""
+        from apps.common.models import NotificationRecipient
+
+        NotificationRecipient.objects.all().delete()
 
         for i in range(15):
             UserFactory(
@@ -207,7 +232,21 @@ class TestEmailRetryLogic:
     """Тесты для retry логики при SMTP ошибках."""
 
     @patch("apps.users.tasks.send_mail")
-    def test_smtp_error_triggers_retry(self, mock_send_mail, settings):
+    def test_smtp_error_triggers_retry(
+        self, mock_send_mail, settings, verification_recipient
+    ):
+        """SMTP ошибка должна вызывать retry."""
+        settings.ADMINS = [("Admin", "admin@test.com")]
+        settings.SITE_URL = "http://localhost"
+
+        mock_send_mail.side_effect = SMTPException("Connection refused")
+
+        user = UserFactory(role="trainer", company_name="Test Club")
+
+        # Task должен поднять исключение для retry
+        with pytest.raises(Exception):
+            # Вызываем task напрямую (без .delay) для тестирования
+            send_admin_verification_email(user.id)
         """SMTP ошибка должна вызывать retry."""
         settings.ADMINS = [("Admin", "admin@test.com")]
         settings.SITE_URL = "http://localhost"

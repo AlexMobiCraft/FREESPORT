@@ -233,12 +233,9 @@ class TestXMLDataParser:
         assert parser._map_price_type_to_field("Опт 2") == "opt2_price"
         assert parser._map_price_type_to_field("Опт 3") == "opt3_price"
         assert parser._map_price_type_to_field("Тренерская") == "trainer_price"
-        assert (
-            parser._map_price_type_to_field("РРЦ Рекомендованная")
-            == "recommended_retail_price"
-        )
+        assert parser._map_price_type_to_field("РРЦ Рекомендованная") == "rrp"
+        assert parser._map_price_type_to_field("МРЦ") == "msrp"
         assert parser._map_price_type_to_field("РРЦ") == "retail_price"
-        assert parser._map_price_type_to_field("МРЦ") == "max_suggested_retail_price"
         assert (
             parser._map_price_type_to_field("Неизвестный тип") == "retail_price"
         )  # fallback

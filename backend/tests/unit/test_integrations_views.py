@@ -96,7 +96,7 @@ class TestCreateAndRunImport:
         assert session.import_type == ImportSession.ImportType.CATALOG
         assert session.status == ImportSession.ImportStatus.STARTED
         assert session.celery_task_id == "test-task-id"
-        mock_task.delay.assert_called_once_with(["catalog"], "/path/to/data")
+        mock_task.delay.assert_called_once_with(["catalog"])
 
     @patch("apps.integrations.views.Path")
     @patch("apps.integrations.views.run_selective_import_task")
@@ -118,6 +118,7 @@ class TestCreateAndRunImport:
         # Assert
         assert session.import_type == ImportSession.ImportType.STOCKS
         assert session.celery_task_id == "test-task-id-2"
+        mock_task.delay.assert_called_once_with(["stocks"])
 
     @patch("apps.integrations.views.Path")
     @patch("apps.integrations.views.run_selective_import_task")
@@ -135,6 +136,7 @@ class TestCreateAndRunImport:
         session = _create_and_run_import("prices")
 
         assert session.import_type == ImportSession.ImportType.PRICES
+        mock_task.delay.assert_called_once_with(["prices"])
 
     @patch("apps.integrations.views.Path")
     @patch("apps.integrations.views.run_selective_import_task")
@@ -152,6 +154,7 @@ class TestCreateAndRunImport:
         session = _create_and_run_import("customers")
 
         assert session.import_type == ImportSession.ImportType.CUSTOMERS
+        mock_task.delay.assert_called_once_with(["customers"])
 
     @patch("apps.integrations.views.settings")
     def test_create_import_raises_without_onec_data_dir(self, mock_settings):
@@ -193,7 +196,7 @@ class TestImportFrom1CView:
         # Assert
         assert response.status_code == 200
         assert "import_types" in response.context_data
-        assert len(response.context_data["import_types"]) == 4
+        assert len(response.context_data["import_types"]) == 7
 
         # Проверяем структуру типов импорта
         import_types = response.context_data["import_types"]
@@ -245,7 +248,7 @@ class TestHandleImportRequest:
 
         # Assert
         assert response.status_code == 302  # Redirect
-        assert response.url == "admin:integrations_import_from_1c"
+        assert "/admin/integrations/import_1c/" in response.url
 
     @patch("apps.integrations.views.get_redis_connection")
     @patch("apps.integrations.views._create_and_run_import")
@@ -281,7 +284,7 @@ class TestHandleImportRequest:
 
         # Assert
         assert response.status_code == 302
-        assert "integrationimportsession" in response.url
+        assert "/admin/integrations/session/" in response.url
         mock_validate.assert_called_once_with(["catalog"])
         mock_create_import.assert_called_once_with("catalog")
         mock_lock.release.assert_called_once()
@@ -309,7 +312,7 @@ class TestHandleImportRequest:
 
         # Assert
         assert response.status_code == 302
-        assert response.url == "admin:integrations_import_from_1c"
+        assert "/admin/integrations/import_1c/" in response.url
 
     @patch("apps.integrations.views._validate_dependencies")
     def test_post_with_invalid_dependencies_shows_error(
@@ -330,5 +333,5 @@ class TestHandleImportRequest:
 
         # Assert
         assert response.status_code == 302
-        assert response.url == "admin:integrations_import_from_1c"
+        assert "/admin/integrations/import_1c/" in response.url
         mock_validate.assert_called_once_with(["stocks"])

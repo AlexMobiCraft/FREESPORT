@@ -87,9 +87,10 @@ class TestLoadProductStocksCommand:
         call_command("load_product_stocks", file="test.xml")
 
         # Проверяем обновление
-        product.refresh_from_db()
-        assert product.stock_quantity == 100
-        assert product.last_sync_at is not None
+        variant = product.variants.first()
+        variant.refresh_from_db()
+        assert variant.stock_quantity == 100
+        assert variant.last_sync_at is not None
 
         # Проверяем сессию
         session = ImportSession.objects.latest("started_at")
@@ -157,8 +158,9 @@ class TestLoadProductStocksCommand:
         call_command("load_product_stocks", file="test.xml", dry_run=True)
 
         # Проверяем что данные НЕ изменились
-        product.refresh_from_db()
-        assert product.stock_quantity == 0
+        variant = product.variants.first()
+        variant.refresh_from_db()
+        assert variant.stock_quantity == 0
 
         # Проверяем что сессия отмечена как dry_run
         session = ImportSession.objects.latest("started_at")
@@ -179,9 +181,9 @@ class TestLoadProductStocksCommand:
             stock_quantity=0,
         )
 
-        # Мокируем данные для всех товаров
+        # Мокируем данные для всех вариантов
         mock_parser.return_value = [
-            {"id": product.onec_id, "quantity": i * 10}
+            {"id": product.variants.first().onec_id, "quantity": i * 10}
             for i, product in enumerate(products)
         ]
 
@@ -226,9 +228,9 @@ class TestLoadProductStocksCommand:
 
         call_command("load_product_stocks", file="test.xml")
 
-        product.refresh_from_db()
-        assert product.last_sync_at is not None
-        assert product.stock_quantity == 50
+        variant = product.variants.first()
+        variant.refresh_from_db()
+        assert variant.stock_quantity == 50
 
     @pytest.mark.django_db
     @patch("apps.products.services.parser.XMLDataParser.parse_rests_xml")

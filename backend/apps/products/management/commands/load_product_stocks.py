@@ -13,7 +13,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils import timezone
 
-from apps.products.models import ImportSession, Product
+from apps.products.models import ImportSession, Product, ProductVariant
 from apps.products.services.parser import XMLDataParser
 
 if TYPE_CHECKING:
@@ -106,7 +106,7 @@ class Command(BaseCommand):
             self.stdout.write(f"Найдено записей: {total_records}")
 
             with transaction.atomic():
-                products_to_update: list[Product] = []
+                variants_to_update: list[ProductVariant] = []
                 current_time = timezone.now()
 
                 for item in stock_data:
@@ -131,30 +131,30 @@ class Command(BaseCommand):
                         )
                         continue
 
-                    # Поиск товара по onec_id
+                    # Поиск варианта по onec_id
                     try:
-                        product = Product.objects.get(onec_id=onec_id)
-                        product.stock_quantity = quantity
-                        product.last_sync_at = current_time
-                        products_to_update.append(product)
+                        variant = ProductVariant.objects.get(onec_id=onec_id)
+                        variant.stock_quantity = quantity
+                        variant.last_sync_at = current_time
+                        variants_to_update.append(variant)
                         updated_count += 1
-                    except Product.DoesNotExist:
+                    except ProductVariant.DoesNotExist:
                         not_found_count += 1
                         not_found_skus.append(onec_id)
                         self.stdout.write(
-                            self.style.WARNING(f"Товар не найден: {onec_id}")
+                            self.style.WARNING(f"Вариант не найден: {onec_id}")
                         )
 
                 # Массовое обновление с batch processing
-                if products_to_update:
-                    for i in range(0, len(products_to_update), batch_size):
-                        batch = products_to_update[i : i + batch_size]
-                        Product.objects.bulk_update(
+                if variants_to_update:
+                    for i in range(0, len(variants_to_update), batch_size):
+                        batch = variants_to_update[i : i + batch_size]
+                        ProductVariant.objects.bulk_update(
                             batch, ["stock_quantity", "last_sync_at"]
                         )
                         self.stdout.write(
-                            f"Обновлено {min(i + batch_size, len(products_to_update))} "
-                            f"из {len(products_to_update)} товаров"
+                            f"Обновлено {min(i + batch_size, len(variants_to_update))} "
+                            f"из {len(variants_to_update)} вариантов"
                         )
 
                 # Откат транзакции в режиме dry-run

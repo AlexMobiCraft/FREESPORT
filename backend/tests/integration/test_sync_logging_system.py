@@ -2,6 +2,7 @@
 Integration тесты для системы логирования синхронизации
 """
 
+import uuid
 from datetime import timedelta
 from io import StringIO
 
@@ -51,7 +52,6 @@ class TestSyncLoggingSystem:
                 operation_type=CustomerSyncLog.OperationType.IMPORT_FROM_1C,
                 status=CustomerSyncLog.StatusType.SUCCESS,
                 customer=test_user,
-                customer_email=f"import{i}@test.com",
                 onec_id=f"1C_IMPORT_{i}",
                 duration_ms=100,
                 correlation_id=logger.correlation_id,
@@ -63,7 +63,6 @@ class TestSyncLoggingSystem:
                 operation_type=CustomerSyncLog.OperationType.EXPORT_TO_1C,
                 status=CustomerSyncLog.StatusType.ERROR,
                 customer=test_user,
-                customer_email=f"export{i}@test.com",
                 onec_id=f"1C_EXPORT_{i}",
                 error_message="Connection failed",
                 duration_ms=200,
@@ -187,8 +186,8 @@ class TestSyncLoggingSystem:
                 operation_type=CustomerSyncLog.OperationType.IMPORT_FROM_1C,
                 status=CustomerSyncLog.StatusType.SUCCESS,
                 customer=test_user,
-                customer_email=f"old{i}@test.com",
                 onec_id=f"1C_OLD_{i}",
+                correlation_id=uuid.uuid4(),
             )
             # Принудительно устанавливаем старую дату
             CustomerSyncLog.objects.filter(pk=log.pk).update(created_at=old_date)
@@ -199,8 +198,8 @@ class TestSyncLoggingSystem:
                 operation_type=CustomerSyncLog.OperationType.IMPORT_FROM_1C,
                 status=CustomerSyncLog.StatusType.SUCCESS,
                 customer=test_user,
-                customer_email=f"new{i}@test.com",
                 onec_id=f"1C_NEW_{i}",
+                correlation_id=uuid.uuid4(),
             )
 
         assert CustomerSyncLog.objects.count() == 5
@@ -217,7 +216,9 @@ class TestSyncLoggingSystem:
         # Старые логи должны быть удалены
         assert CustomerSyncLog.objects.count() == 2
         assert (
-            CustomerSyncLog.objects.filter(customer_email__startswith="new").count()
+            CustomerSyncLog.objects.filter(
+                operation_type=CustomerSyncLog.OperationType.IMPORT_FROM_1C
+            ).count()
             == 2
         )
 
@@ -284,9 +285,9 @@ class TestSyncLoggingSystem:
                 operation_type=CustomerSyncLog.OperationType.EXPORT_TO_1C,
                 status=CustomerSyncLog.StatusType.ERROR,
                 customer=test_user,
-                customer_email=f"error{i}@test.com",
                 onec_id=f"1C_ERROR_{i}",
                 error_message="Connection timeout to 1C API",
+                correlation_id=uuid.uuid4(),
             )
 
         generator = SyncReportGenerator()

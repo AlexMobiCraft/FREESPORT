@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import uuid
+from pathlib import Path
 
 from django.conf import settings
 from django.contrib import messages
@@ -238,8 +239,6 @@ def _create_and_run_import(import_type: str) -> ImportSession:
         )
 
     # Проверяем существование директории данных
-    from pathlib import Path
-
     data_path = Path(data_dir)
     if not data_path.exists():
         raise FileNotFoundError(

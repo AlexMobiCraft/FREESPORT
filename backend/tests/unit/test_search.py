@@ -9,7 +9,8 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 
 from apps.products.filters import ProductFilter
-from apps.products.models import Brand, Category, Product
+from tests.factories import ProductFactory
+from apps.products.models import Product
 
 User = get_user_model()
 
@@ -20,46 +21,33 @@ class SearchFilterTest(TestCase):
 
     def setUp(self):
         """Настройка тестовых данных"""
-        # Создаем тестовые объекты
-        self.category = Category.objects.create(
-            name="Футбольная обувь", slug="football-shoes", is_active=True
-        )
-
-        self.brand = Brand.objects.create(name="Nike", slug="nike", is_active=True)
-
         # Товары для тестирования поиска
         self.products = [
-            Product.objects.create(
+            ProductFactory(
                 name="Nike Phantom GT2 Elite FG",
                 sku="NikePhantom001",
                 short_description="Футбольные бутсы для профессионалов",
                 description=(
                     "Высокотехнологичные футбольные бутсы Nike Phantom GT2 " "Elite FG"
                 ),
-                brand=self.brand,
-                category=self.category,
                 retail_price=18999.00,
                 stock_quantity=15,
                 is_active=True,
             ),
-            Product.objects.create(
+            ProductFactory(
                 name="Adidas Predator Freak",
                 sku="AdidasPred001",
                 short_description="Футбольная обувь Adidas",
                 description="Adidas Predator Freak футбольные бутсы",
-                brand=self.brand,  # Используем тот же бренд для простоты
-                category=self.category,
                 retail_price=15999.00,
                 stock_quantity=8,
                 is_active=True,
             ),
-            Product.objects.create(
+            ProductFactory(
                 name="Перчатки вратарские",
                 sku="GKGloves001",
                 short_description="Вратарские перчатки Nike",
                 description="Профессиональные вратарские перчатки",
-                brand=self.brand,
-                category=self.category,
                 retail_price=3999.00,
                 stock_quantity=25,
                 is_active=True,
@@ -130,8 +118,11 @@ class SearchFilterTest(TestCase):
         result = product_filter.filter_search(queryset, "search", "Phantom")
 
         # Должен найтись товар с Phantom в артикуле или названии
-        result_skus = [p.sku for p in result]
-        self.assertIn("NikePhantom001", result_skus)
+        # У продуктов нет поля sku, проверяем через варианты
+        result_has_sku = any(
+            p.variants.filter(sku__icontains="Phantom").exists() for p in result
+        )
+        self.assertTrue(result_has_sku)
 
     def test_search_by_description(self):
         """Тест поиска по описанию"""

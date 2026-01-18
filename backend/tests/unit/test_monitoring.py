@@ -4,6 +4,7 @@ Unit тесты для системы мониторинга синхрониз�
 
 from __future__ import annotations
 
+import uuid
 from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
@@ -26,18 +27,18 @@ class TestCustomerSyncMonitor(TestCase):
     def setUp(self) -> None:
         """Подготовка тестовых данных."""
         self.monitor = CustomerSyncMonitor()
-        self.now = timezone.now()
-        self.start_date = self.now - timedelta(hours=24)
+        self.start_date = timezone.now() - timedelta(hours=24)
 
         # Создаем тестового пользователя
         self.user = User.objects.create_user(
-            email=f"test_{self.now.timestamp()}@example.com",
+            email=f"test_{timezone.now().timestamp()}@example.com",
             password="testpass123",
             role="retail",
         )
 
         # Создаем тестовые логи
         self._create_test_logs()
+        self.now = timezone.now() + timedelta(seconds=1)
 
     def _create_test_logs(self) -> None:
         """Создает тестовые логи синхронизации."""
@@ -47,9 +48,9 @@ class TestCustomerSyncMonitor(TestCase):
                 operation_type=CustomerSyncLog.OperationType.IMPORT_FROM_1C,
                 status=CustomerSyncLog.StatusType.SUCCESS,
                 customer=self.user,
-                customer_email=self.user.email,
                 onec_id=f"1C-{i}",
                 duration_ms=100 + i * 10,
+                correlation_id=uuid.uuid4(),
                 details={"test": "data"},
             )
 
@@ -59,9 +60,9 @@ class TestCustomerSyncMonitor(TestCase):
                 operation_type=CustomerSyncLog.OperationType.IMPORT_FROM_1C,
                 status=CustomerSyncLog.StatusType.ERROR,
                 customer=self.user,
-                customer_email=self.user.email,
                 onec_id=f"1C-ERR-{i}",
                 duration_ms=50 + i * 5,
+                correlation_id=uuid.uuid4(),
                 error_message=f"Test error {i}",
             )
 
@@ -217,7 +218,8 @@ class TestAlertManager(TestCase):
                 operation_type=CustomerSyncLog.OperationType.IMPORT_FROM_1C,
                 status=CustomerSyncLog.StatusType.ERROR,
                 customer=self.user,
-                customer_email=self.user.email,
+                onec_id=f"1C-ERR-{i}",
+                correlation_id=uuid.uuid4(),
                 error_message=f"Test error {i}",
             )
 
@@ -226,15 +228,17 @@ class TestAlertManager(TestCase):
             CustomerSyncLog.objects.create(
                 operation_type=CustomerSyncLog.OperationType.IMPORT_FROM_1C,
                 status=CustomerSyncLog.StatusType.SUCCESS,
+                onec_id=f"1C-OK-{i}",
+                correlation_id=uuid.uuid4(),
                 customer=self.user,
-                customer_email=self.user.email,
             )
 
         mock_send_alert.return_value = True
 
         # Запускаем проверку
-        start_time = self.now - timedelta(hours=1)
-        alert = self.alert_manager._check_high_error_rate(start_time, self.now)
+        check_now = timezone.now() + timedelta(seconds=1)
+        start_time = check_now - timedelta(hours=1)
+        alert = self.alert_manager._check_high_error_rate(start_time, check_now)
 
         # Проверяем что алерт был создан (error rate > 10%)
         self.assertIsNotNone(alert)

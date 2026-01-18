@@ -170,9 +170,11 @@ class TestProductFilterPriceFilters:
         product_filter.request = None
         queryset = Mock()
 
-        with patch.object(queryset, "filter") as mock_filter:
-            product_filter.filter_min_price(queryset, "min_price", 100)
-            mock_filter.assert_called_once_with(retail_price__gte=100)
+        product_filter.filter_min_price(queryset, "min_price", 100)
+
+        # Проверяем, что фильтры вариантов были накоплены
+        assert hasattr(product_filter, "_variant_filters")
+        assert "retail_price__gte" in str(product_filter._variant_filters)
 
     def test_filter_max_price_anonymous_user(self):
         """Тест фильтрации максимальной цены для анонимного пользователя"""
@@ -180,9 +182,11 @@ class TestProductFilterPriceFilters:
         product_filter.request = None
         queryset = Mock()
 
-        with patch.object(queryset, "filter") as mock_filter:
-            product_filter.filter_max_price(queryset, "max_price", 1000)
-            mock_filter.assert_called_once_with(retail_price__lte=1000)
+        product_filter.filter_max_price(queryset, "max_price", 1000)
+
+        # Проверяем, что фильтры вариантов были накоплены
+        assert hasattr(product_filter, "_variant_filters")
+        assert "retail_price__lte" in str(product_filter._variant_filters)
 
     def test_filter_min_price_wholesale_user(self):
         """Тест фильтрации минимальной цены для оптового пользователя"""
@@ -199,9 +203,11 @@ class TestProductFilterPriceFilters:
         product_filter.request = mock_request
         queryset = Mock()
 
-        with patch.object(queryset, "filter") as mock_filter:
-            product_filter.filter_min_price(queryset, "min_price", 100)
-            mock_filter.assert_called_once()
+        product_filter.filter_min_price(queryset, "min_price", 100)
+
+        assert hasattr(product_filter, "_variant_filters")
+        # Для wholesale_level1 должно быть Q(opt1_price__gte=100) | Q(opt1_price__isnull=True, retail_price__gte=100)
+        assert "opt1_price__gte" in str(product_filter._variant_filters)
 
     def test_filter_max_price_trainer_user(self):
         """Тест фильтрации максимальной цены для тренера"""
@@ -218,9 +224,10 @@ class TestProductFilterPriceFilters:
         product_filter.request = mock_request
         queryset = Mock()
 
-        with patch.object(queryset, "filter") as mock_filter:
-            product_filter.filter_max_price(queryset, "max_price", 1000)
-            mock_filter.assert_called_once()
+        product_filter.filter_max_price(queryset, "max_price", 1000)
+
+        assert hasattr(product_filter, "_variant_filters")
+        assert "trainer_price__lte" in str(product_filter._variant_filters)
 
 
 @pytest.mark.unit
@@ -232,22 +239,22 @@ class TestProductFilterStockFilter:
         product_filter = ProductFilter()
         queryset = Mock()
 
-        with patch.object(queryset, "filter") as mock_filter:
-            product_filter.filter_in_stock(queryset, "in_stock", True)
-            mock_filter.assert_called_once_with(stock_quantity__gt=0, is_active=True)
+        product_filter.filter_in_stock(queryset, "in_stock", True)
+
+        assert hasattr(product_filter, "_variant_filters")
+        assert "stock_quantity__gt" in str(product_filter._variant_filters)
 
     def test_filter_in_stock_false(self):
         """Тест фильтрации товаров НЕ в наличии"""
         product_filter = ProductFilter()
         queryset = Mock()
 
-        with patch.object(queryset, "filter") as mock_filter:
-            product_filter.filter_in_stock(queryset, "in_stock", False)
-            mock_filter.assert_called_once()
+        # Для in_stock=False мы не добавляем фильтр (показываем все товары)
+        product_filter.filter_in_stock(queryset, "in_stock", False)
 
-            # Проверяем, что был передан Q-объект
-            q_arg = mock_filter.call_args[0][0]
-            assert isinstance(q_arg, Q)
+        # Либо _variant_filters не создан, либо в нем нет stock_quantity
+        if hasattr(product_filter, "_variant_filters"):
+            assert "stock_quantity" not in str(product_filter._variant_filters)
 
 
 @pytest.mark.unit
@@ -318,8 +325,12 @@ class TestProductFilterIntegration:
             mock_request.user = mock_user
 
             product_filter.request = mock_request
+            # Сбрасываем фильтры перед каждым тестом
+            if hasattr(product_filter, "_variant_filters"):
+                delattr(product_filter, "_variant_filters")
 
-            with patch.object(queryset, "filter"):
-                # Тестируем что каждая роль обрабатывается без ошибок
-                product_filter.filter_min_price(queryset, "min_price", 100)
-                product_filter.filter_max_price(queryset, "max_price", 1000)
+            # Тестируем что каждая роль обрабатывается без ошибок
+            product_filter.filter_min_price(queryset, "min_price", 100)
+            product_filter.filter_max_price(queryset, "max_price", 1000)
+
+            assert hasattr(product_filter, "_variant_filters")

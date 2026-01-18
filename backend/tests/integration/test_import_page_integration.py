@@ -182,7 +182,7 @@ class TestImportPageSubmission:
 
         # Assert
         assert response.status_code == 302
-        assert "integrationimportsession" in response.url
+        assert "/admin/integrations/session/" in response.url
 
         # Проверяем что создалась сессия
         sessions = ImportSession.objects.all()
@@ -193,7 +193,7 @@ class TestImportPageSubmission:
         assert session.celery_task_id == "test-task-123"
 
         # Проверяем что Celery задача была запущена
-        mock_task.delay.assert_called_once_with(["catalog"], str(onec_data_dir))
+        mock_task.delay.assert_called_once_with(["catalog"])
 
     @patch("apps.integrations.views.get_redis_connection")
     @patch("apps.integrations.views.run_selective_import_task")

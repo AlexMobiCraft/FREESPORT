@@ -141,12 +141,14 @@ class CustomerSyncLog(TimeStampedModel):
     operation_type = models.CharField(
         _("Тип операции"),
         max_length=50,
+        choices=OperationType.choices,
         db_index=True,
         help_text="Тип операции с клиентом",
     )
     status = models.CharField(
         _("Статус"),
         max_length=20,
+        choices=StatusType.choices,
         db_index=True,
         help_text="Статус операции",
     )
@@ -361,6 +363,54 @@ class AuditLog(TimeStampedModel):
     def __str__(self) -> str:
         date_str = self.created_at.strftime("%Y-%m-%d %H:%M")
         return f"{self.user} - {self.action} {self.resource_type} ({date_str})"
+
+    @property
+    def changes(self) -> dict:
+        """Получить словарь изменений из деталей."""
+        return self.details.get("changes", {})
+
+    @staticmethod
+    def log_action(
+        user,
+        action: str,
+        resource_type: str,
+        resource_id: Any,
+        details: dict | None = None,
+        changes: dict | None = None,
+        ip_address: str | None = None,
+        user_agent: str = "",
+    ) -> "AuditLog":
+        """
+        Утилита для создания записи в аудит логе.
+
+        Args:
+            user: Пользователь, выполнивший действие
+            action: Тип действия (approve_b2b, reject_b2b, etc.)
+            resource_type: Тип затронутого ресурса (User, Product, etc.)
+            resource_id: ID затронутого ресурса
+            details: Дополнительные детали
+            changes: Словарь изменений (старое -> новое)
+            ip_address: IP адрес клиента
+            user_agent: User Agent строка
+
+        Returns:
+            Созданный объект AuditLog
+        """
+        if details is None:
+            details = {}
+
+        if changes:
+            details["changes"] = changes
+
+        return AuditLog.objects.create(
+            user=user,
+            action=action,
+            resource_type=resource_type,
+            resource_id=str(resource_id),
+            details=details,
+            ip_address=ip_address,
+            user_agent=user_agent,
+        )
 
 
 class Category(models.Model):

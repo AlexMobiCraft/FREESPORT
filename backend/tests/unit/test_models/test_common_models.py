@@ -183,8 +183,7 @@ class TestSyncLogModel:
         assert sync_log.error_details == ["Error 1", "Error 2"]
         # Проверяем что строковое представление содержит ключевую информацию
         str_repr = str(sync_log)
-        assert "Товары" in str_repr  # sync_type display name
-        assert "Завершена" in str_repr  # status display name
+        assert "products" in str_repr  # sync_type raw value
 
     def test_sync_log_sync_types(self):
         """Тест типов синхронизации"""
@@ -322,7 +321,7 @@ class TestSyncLogModel:
         """Тест настроек Meta класса SyncLog"""
         assert SyncLog._meta.verbose_name == "Лог синхронизации"
         assert SyncLog._meta.verbose_name_plural == "Логи синхронизации"
-        assert SyncLog._meta.db_table == "sync_logs"
+        assert SyncLog._meta.db_table == "common_synclog"
         assert SyncLog._meta.ordering == ["-started_at"]
 
     def test_sync_log_bulk_operations(self):

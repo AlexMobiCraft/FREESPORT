@@ -1,3 +1,4 @@
+import time
 import uuid
 
 import factory
@@ -8,6 +9,16 @@ from apps.products.models import (Attribute, AttributeValue, Brand,
                                   Brand1CMapping, Category, Product,
                                   ProductVariant)
 from apps.users.models import User
+
+# Глобальный счетчик для обеспечения уникальности
+_unique_counter = 0
+
+
+def get_unique_suffix():
+    """Генерирует абсолютно уникальный суффикс"""
+    global _unique_counter
+    _unique_counter += 1
+    return f"{int(time.time() * 1000)}-{_unique_counter}-{uuid.uuid4().hex[:6]}"
 
 
 class BrandFactory(DjangoModelFactory):
@@ -31,8 +42,8 @@ class CategoryFactory(DjangoModelFactory):
     class Meta:
         model = Category
 
-    name = factory.Faker("word")
-    slug = factory.LazyAttribute(lambda obj: obj.name.lower())
+    name = factory.LazyFunction(lambda: f"Category-{get_unique_suffix()}")
+    slug = factory.LazyAttribute(lambda obj: slugify(obj.name))
 
 
 class ProductVariantFactory(DjangoModelFactory):

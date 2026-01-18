@@ -61,6 +61,12 @@ class SyncReportGenerator:
 
         # Успешность операций
         success_count = logs.filter(status=CustomerSyncLog.StatusType.SUCCESS).count()
+        error_count = logs.filter(
+            status__in=[
+                CustomerSyncLog.StatusType.ERROR,
+                CustomerSyncLog.StatusType.FAILED,
+            ]
+        ).count()
         success_rate = (
             (success_count / total_operations * 100) if total_operations > 0 else 0
         )
@@ -73,6 +79,7 @@ class SyncReportGenerator:
             "avg_duration_ms": round(avg_duration, 2) if avg_duration else 0,
             "top_errors": top_errors,
             "success_count": success_count,
+            "error_count": error_count,
             "success_rate": round(success_rate, 2),
         }
 

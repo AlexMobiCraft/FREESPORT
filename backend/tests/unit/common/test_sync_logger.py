@@ -57,7 +57,7 @@ class TestCustomerSyncLogger:
         assert log.operation_type == CustomerSyncLog.OperationType.IMPORT_FROM_1C
         assert log.status == CustomerSyncLog.StatusType.SUCCESS
         assert log.customer == test_user
-        assert log.customer_email == "customer@example.com"
+        assert log.customer_email == test_user.email
         assert log.onec_id == "1C_12345"
         assert log.duration_ms == 150
         assert log.correlation_id == sync_logger.correlation_id

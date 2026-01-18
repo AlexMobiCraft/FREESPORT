@@ -94,7 +94,7 @@ class TestCustomerDataProcessor:
         assert log is not None
         assert log.operation_type == CustomerSyncLog.OperationType.CREATED
         assert log.status == CustomerSyncLog.StatusType.SUCCESS
-        assert log.user == user
+        assert log.customer == user
 
     def test_create_new_customer_without_email(self, processor):
         """Тест создания нового клиента без email"""
@@ -290,8 +290,8 @@ class TestCustomerDataProcessor:
 
         log = CustomerSyncLog.objects.filter(onec_id="TEST-LOG-001").first()
         assert log is not None
-        assert log.user == user
-        assert log.session == processor.session
+        assert log.customer == user
+        assert log.session == str(processor.session.pk)
         assert log.operation_type == CustomerSyncLog.OperationType.CREATED
         assert log.status == CustomerSyncLog.StatusType.SUCCESS
         assert log.details == {"test": "data"}
