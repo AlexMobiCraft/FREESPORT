@@ -81,6 +81,19 @@ docker compose --env-file .env -f docker/docker-compose.yml exec frontend npm te
 docker compose --env-file .env -f docker/docker-compose.yml exec backend pytest
 ```
 
+## Deployment
+
+We use a unified shell script for server deployment. See [Detailed Deployment Guide](./deploy/README.md) for production setup.
+
+### Quick Deployment (Server)
+1. SSH into server.
+2. Run `./scripts/deploy/deploy.sh`.
+
+### Key References
+- [Docker Quick Reference](./deploy/DOCKER_QUICK_REFERENCE.md)
+- [Server Setup](./deploy/DOCKER_SETUP.md)
+- [Health Checks](./deploy/health-check.md)
+
 ## Access Points
 
 - **Frontend:** https://localhost (via Nginx) or http://localhost:3000 (Direct)
