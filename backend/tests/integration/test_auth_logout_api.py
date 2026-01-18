@@ -17,7 +17,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.token_blacklist.models import (BlacklistedToken,
                                                              OutstandingToken)
-from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 
 from tests.conftest import get_unique_suffix
 
@@ -357,7 +357,10 @@ class TestLogoutAPITokenValidationErrors:
             format="json",
         )
 
-        # Act - повторный logout
+        # Act - повторный logout (с новым access токеном)
+        new_access = str(RefreshToken.for_user(tokens["user"]).access_token)
+        logout_api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {new_access}")
+
         response = logout_api_client.post(
             get_logout_url,
             data={"refresh": tokens["refresh"]},
@@ -504,7 +507,10 @@ class TestLogoutAPIEdgeCases:
         )
         assert first_response.status_code == status.HTTP_204_NO_CONTENT
 
-        # Act - второй logout
+        # Act - второй logout (с новым access токеном)
+        new_access = str(RefreshToken.for_user(tokens["user"]).access_token)
+        logout_api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {new_access}")
+
         second_response = logout_api_client.post(
             get_logout_url,
             data={"refresh": tokens["refresh"]},
@@ -593,17 +599,19 @@ class TestLogoutAPIEdgeCases:
         # Assert - должен вернуть 400, а не 500
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
-    def test_logout_does_not_affect_access_token_immediately(
+    def test_access_token_rejected_after_logout(
         self,
         logout_api_client,
         authenticated_user_with_tokens,
         get_logout_url,
     ):
-        """Access токен остается валидным сразу после logout.
+        """Access токен отклоняется после logout.
 
-        Примечание: access токен short-lived и продолжает работать
-        до истечения срока действия. Это expected behavior JWT.
-        После logout нельзя получить НОВЫЙ access токен.
+        Story JWT-Blacklist: После logout access токен добавляется
+        в Redis blacklist и не может использоваться для авторизации.
+
+        Это изменение поведения по сравнению со стандартным JWT,
+        где access токен остаётся валидным до истечения TTL.
         """
         # Arrange
         tokens = authenticated_user_with_tokens
@@ -617,8 +625,198 @@ class TestLogoutAPIEdgeCases:
         )
         assert response.status_code == status.HTTP_204_NO_CONTENT
 
-        # Assert - можем использовать тот же access токен для другого запроса
-        # (хотя в реальности клиент должен удалить его после logout)
+        # Assert - access токен больше не работает (Redis blacklist)
         profile_response = logout_api_client.get(reverse("users:profile"))
-        # Access токен все еще валиден (не expired)
+        assert profile_response.status_code == status.HTTP_401_UNAUTHORIZED
+
+
+# =============================================================================
+# Tests: Redis Access Token Blacklist (Story JWT-Blacklist)
+# =============================================================================
+
+
+@pytest.mark.integration
+class TestAccessTokenBlacklist:
+    """Тесты Redis blacklist для access-токенов.
+
+    Story JWT-Blacklist: Проверяют функциональность немедленной
+    инвалидации access-токенов через Redis.
+    """
+
+    def test_access_token_blacklist_stored_in_redis(
+        self,
+        logout_api_client,
+        authenticated_user_with_tokens,
+        get_logout_url,
+    ):
+        """Access token JTI записывается в Redis при logout.
+
+        Проверяет, что после logout access token JTI присутствует
+        в Redis с правильным префиксом.
+        """
+        from django.core.cache import cache
+
+        from apps.users.authentication import ACCESS_BLACKLIST_PREFIX
+
+        # Arrange
+        tokens = authenticated_user_with_tokens
+        logout_api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {tokens['access']}")
+
+        # Получаем JTI из access token (декодируем строку, чтобы получить верный JTI)
+        access_token_obj = AccessToken(tokens["access"])
+        access_jti = access_token_obj["jti"]
+
+        # Act
+        response = logout_api_client.post(
+            get_logout_url,
+            data={"refresh": tokens["refresh"]},
+            format="json",
+        )
+
+        # Assert
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+        # Проверяем что JTI в Redis
+        assert cache.get(f"{ACCESS_BLACKLIST_PREFIX}{access_jti}") is not None
+
+    def test_access_token_blacklist_contains_metadata(
+        self,
+        logout_api_client,
+        authenticated_user_with_tokens,
+        get_logout_url,
+    ):
+        """Redis blacklist содержит metadata для forensics.
+
+        Проверяет, что сохранённые данные содержат user_id, ip, timestamp.
+        """
+        import json
+
+        from django.core.cache import cache
+
+        from apps.users.authentication import ACCESS_BLACKLIST_PREFIX
+
+        # Arrange
+        tokens = authenticated_user_with_tokens
+        logout_api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {tokens['access']}")
+        access_token_obj = AccessToken(tokens["access"])
+        access_jti = access_token_obj["jti"]
+
+        # Act
+        logout_api_client.post(
+            get_logout_url,
+            data={"refresh": tokens["refresh"]},
+            format="json",
+        )
+
+        # Assert
+        blacklist_data = json.loads(cache.get(f"{ACCESS_BLACKLIST_PREFIX}{access_jti}"))
+        assert blacklist_data["blacklisted"] is True
+        assert blacklist_data["user_id"] == tokens["user"].id
+        assert "timestamp" in blacklist_data
+        assert "ip" in blacklist_data
+
+    def test_multiple_access_tokens_can_be_blacklisted(
+        self,
+        logout_api_client,
+        create_test_user,
+        get_logout_url,
+    ):
+        """Несколько access токенов могут быть в blacklist одновременно.
+
+        Проверяет, что при logout разных пользователей все токены
+        добавляются в blacklist независимо.
+        """
+        from django.core.cache import cache
+
+        from apps.users.authentication import ACCESS_BLACKLIST_PREFIX
+
+        # Arrange - создаём двух пользователей с токенами
+        user1 = create_test_user(email="user1@test.com")
+        user2 = create_test_user(email="user2@test.com")
+
+        refresh1 = RefreshToken.for_user(user1)
+        refresh2 = RefreshToken.for_user(user2)
+
+        # Сохраняем access токены чтобы JTI совпадали
+        access1 = str(refresh1.access_token)
+        access2 = str(refresh2.access_token)
+
+        jti1 = AccessToken(access1)["jti"]
+        jti2 = AccessToken(access2)["jti"]
+
+        # Act - logout обоих пользователей
+        logout_api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {access1}")
+        logout_api_client.post(
+            get_logout_url, data={"refresh": str(refresh1)}, format="json"
+        )
+
+        logout_api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {access2}")
+        logout_api_client.post(
+            get_logout_url, data={"refresh": str(refresh2)}, format="json"
+        )
+
+        # Assert - оба токена в blacklist
+        assert cache.get(f"{ACCESS_BLACKLIST_PREFIX}{jti1}") is not None
+        assert cache.get(f"{ACCESS_BLACKLIST_PREFIX}{jti2}") is not None
+
+    def test_blacklisted_access_token_returns_generic_error(
+        self,
+        logout_api_client,
+        authenticated_user_with_tokens,
+        get_logout_url,
+    ):
+        """Blacklisted токен возвращает generic error (security).
+
+        Проверяет, что сообщение об ошибке не раскрывает причину отказа
+        (blacklisted vs expired vs invalid) для предотвращения утечки информации.
+        """
+        # Arrange
+        tokens = authenticated_user_with_tokens
+        logout_api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {tokens['access']}")
+
+        # Act - logout
+        logout_api_client.post(
+            get_logout_url,
+            data={"refresh": tokens["refresh"]},
+            format="json",
+        )
+
+        # Assert - generic error message
+        profile_response = logout_api_client.get(reverse("users:profile"))
+        assert profile_response.status_code == status.HTTP_401_UNAUTHORIZED
+        # Проверяем что сообщение generic (не раскрывает "blacklisted")
+        response_data = profile_response.json()
+        assert "detail" in response_data
+        # Сообщение не должно содержать слово "blacklist"
+        assert "blacklist" not in response_data["detail"].lower()
+
+    def test_new_token_after_logout_works(
+        self,
+        logout_api_client,
+        authenticated_user_with_tokens,
+        get_logout_url,
+    ):
+        """Новый токен после logout работает нормально.
+
+        Проверяет, что блокируется только конкретный токен,
+        а не все токены пользователя.
+        """
+        # Arrange
+        tokens = authenticated_user_with_tokens
+        user = tokens["user"]
+        logout_api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {tokens['access']}")
+
+        # Act - logout
+        logout_api_client.post(
+            get_logout_url,
+            data={"refresh": tokens["refresh"]},
+            format="json",
+        )
+
+        # Создаём новый токен (как при повторном логине)
+        new_refresh = RefreshToken.for_user(user)
+        new_access = str(new_refresh.access_token)
+
+        # Assert - новый токен работает
+        logout_api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {new_access}")
+        profile_response = logout_api_client.get(reverse("users:profile"))
         assert profile_response.status_code == status.HTTP_200_OK

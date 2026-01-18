@@ -151,7 +151,8 @@ AUTH_PASSWORD_VALIDATORS = [
 # Конфигурация Django REST Framework
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        # Story JWT-Blacklist: Кастомный auth с проверкой Redis blacklist
+        "apps.users.authentication.BlacklistCheckJWTAuthentication",
         "rest_framework.authentication.SessionAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [

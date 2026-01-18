@@ -21,6 +21,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 logger = logging.getLogger("apps.users.auth")
 
 # User model is used in the code
+from ..authentication import blacklist_access_token
 from ..serializers import (LogoutSerializer, PasswordResetConfirmSerializer,
                            PasswordResetRequestSerializer, UserLoginSerializer,
                            UserRegistrationSerializer, ValidateTokenSerializer)
@@ -575,6 +576,10 @@ class LogoutView(GenericAPIView):
 
             # Добавляем токен в blacklist
             token.blacklist()
+
+            # Story JWT-Blacklist: Blacklist access token в Redis
+            # Немедленно инвалидирует access-токен (не ждём TTL)
+            blacklist_access_token(request, request.user.id)
 
             # Story 12.1: Logout session as well
             logout(request)
