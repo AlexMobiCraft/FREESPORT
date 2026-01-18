@@ -1,223 +1,57 @@
-# Индекс документации FREESPORT
-
-Добро пожаловать в документацию проекта FREESPORT - API-First E-commerce платформы для B2B/B2C продаж спортивных товаров с интеграцией 1С.
-
-## Корневые документы
-
-### [Project Brief: Интернет портал компании](./Brief.md)
-
-Комплексный бриф проекта по созданию единой API-First платформы для 5 торговых марок с B2B функционалом. Описывает проблематику, архитектурные решения, целевые персоны и техническую базу на Django/React.
-
-### [Product Requirements Document (PRD)](./PRD.md)
-
-Подробные функциональные и нефункциональные требования проекта FREESPORT. Включает цели, бэкграунд, UI/UX спецификацию, технические предположения, временные рамки и детализированные эпики разработки на 28 недель.
-
-### [API Views Документация](./api-views-documentation.md)
-
-Детальное описание всех API endpoints платформы по приложениям. Документирует Products API, Cart API, Orders API, Users API, Common API и Pages API с методами, логикой и особенностями каждого компонента.
-
-### [API Specification (OpenAPI 3.0.3)](./api-spec.yaml)
-
-OpenAPI спецификация FREESPORT Platform API для RESTful взаимодействия B2B/B2C платформы спортивных товаров с JWT аутентификацией и версионированием.
-
-### [Архитектурная документация](./architecture.md)
-
-Масштабная техническая документация системы FREESPORT - API-First E-commerce платформы. Покрывает технологический стек, модели данных, API спецификацию, интеграции, безопасность и производительность.
-
-### [Docker Configuration для FREESPORT Platform](./docker-configuration.md)
-
-Комплексное руководство по Docker конфигурации проекта. Описывает архитектуру контейнеров, исправления инфраструктуры, настройки портов, команды использования и оптимизации для разработки и тестирования.
-
-### [Спецификация UI/UX FREESPORT](./front-end-spec.md)
-
-Комплексная спецификация пользовательского интерфейса и опыта для B2B/B2C платформы. Включает целевые персоны, информационную архитектуру, библиотеку компонентов, каркасы страниц и административную панель с TypeScript интерфейсами.
-
-### [Структура категорий товара](./Структура категорий товара.md)
-
-Иерархическая структура категорий товаров по видам спорта: СПОРТ (туризм, фитнес, плавание, игры, единоборства, гимнастика), ДЕТСКИЙ ТРАНСПОРТ, ОБОРУДОВАНИЕ и СУВЕНИРНАЯ ПРОДУКЦИЯ.
-
-### [Каталог тестов API - Структура и организация](./test-catalog-api.md)
-
-Исчерпывающий обзор организации тестового покрытия API платформы. Описывает структуру тестовых каталогов, типы тестов, соглашения по именованию, конфигурацию pytest и метрики качества.
-
-### [Тестирование в Docker для FREESPORT Platform](./testing-docker.md)
-
-Подробное руководство по настройке и использованию Docker-based тестирования. Покрывает архитектуру тестовой среды, конфигурацию сервисов, автоматизацию, мониторинг и лучшие практики тестирования.
-
-## Architecture
-
-Документы в директории `architecture/` содержат детальную техническую документацию системы:
-
-### [1. Введение](./architecture/01-introduction.md)
-
-Общий обзор архитектуры FREESPORT платформы и основные принципы построения.
-
-### [2. Модели Данных](./architecture/02-data-models.md)
-
-Подробное описание моделей Django с поддержкой B2B/B2C и интеграции с 1С.
-
-### [3. Спецификация API](./architecture/03-api-specification.md)
-
-Полная OpenAPI 3.1 спецификация REST API с поддержкой многоуровневого ценообразования.
-
-### [4. Структура Компонентов](./architecture/04-component-structure.md)
-
-Архитектура Frontend (Next.js) и Backend (Django) компонентов с модульной организацией.
-
-### [5. Технологический Стек](./architecture/05-tech-stack.md)
-
-Детальный обзор используемых технологий: Django 4.2, Next.js 14+, PostgreSQL 15+, Redis 7.0+.
-
-### [6. Высокоуровневая Архитектура](./architecture/06-system-architecture.md)
-
-Системная архитектура с диаграммами развертывания и сетевого взаимодействия.
-
-### [7. Внешние Интеграции](./architecture/07-external-integrations.md)
-
-Интеграция с 1С, ЮКасса, службами доставки с Circuit Breaker Pattern.
-
-### [8. Основные Рабочие Процессы](./architecture/08-workflows.md)
-
-Workflow процессы регистрации, заказов, синхронизации с 1С и разрешения конфликтов.
-
-### [9. Схема Базы Данных](./architecture/09-database-schema.md)
-
-PostgreSQL схема с секционированием, индексами и поддержкой многоуровневого ценообразования.
-
-### [10. Стратегия Тестирования](./architecture/10-testing-strategy.md)
-
-Comprehensive testing strategy с изоляцией тестов, pytest, Factory Boy и Playwright.
-
-### [11. Безопасность и Производительность](./architecture/11-security-performance.md)
-
-Стратегии обеспечения безопасности и оптимизации производительности системы.
-
-### [12. Стратегия Обработки Ошибок](./architecture/12-error-handling.md)
-
-Централизованная система обработки ошибок и мониторинга исключений.
-
-### [13. Мониторинг и Наблюдаемость](./architecture/13-monitoring.md)
-
-Системы мониторинга, метрик и observability для production среды.
-
-### [14. CI/CD и Развертывание](./architecture/14-cicd-deployment.md)
-
-Конфигурация непрерывной интеграции и развертывания с GitHub Actions.
-
-### [15. Руководство по Развертыванию](./architecture/15-deployment-guide.md)
-
-Пошаговое руководство по развертыванию платформы в production среде.
-
-### [16. Руководство по Внедрению ИИ](./architecture/16-ai-implementation-guide.md)
-
-Стратегия интеграции AI/ML возможностей в платформу.
-
-### [17. SLA Производительности](./architecture/17-performance-sla.md)
-
-Соглашение об уровне обслуживания и метрики производительности.
-
-### [18. Workflow B2B Верификации](./architecture/18-b2b-verification-workflow.md)
-
-Процесс верификации B2B пользователей и активации оптовых цен.
-
-### [19. Среда Разработки](./architecture/19-development-environment.md)
-
-Настройка и конфигурация среды разработки.
-
-### [20. Архитектура интеграции с 1С](./architecture/20-1c-integration.md)
-
-Детальная архитектура интеграции с 1С:Управление торговлей с разрешением конфликтов.
-
-### [Стандарты Кодирования](./architecture/coding-standards.md)
-
-Конвенции и стандарты написания кода для проекта.
-
-### [FREESPORT Platform - Архитектурная Документация](./architecture/index.md)
-
-Главная индексная страница архитектурной документации с навигацией.
-
-### [Дерево исходного кода](./architecture/source-tree.md)
-
-Структура каталогов и файлов проекта с описанием назначения.
-
-### [Технологический Стек](./architecture/tech-stack.md)
-
-Подробное описание выбранных технологий и их обоснование.
-
-## Database
-
-Документы в директории `database/` содержат схемы и диаграммы базы данных:
-
-### [FREESPORT База Данных ER-Диаграмма](./database/er-diagram.md)
-
-Подробная ER-диаграмма базы данных с связями между сущностями.
-
-## PRD
-
-Документы в директории `prd/` содержат требования к продукту:
-
-### [Product Requirements Document (PRD)](./prd/index.md)
-
-Основной документ требований к продукту FREESPORT Platform.
-
-### [2. Эпики разработки](./prd/2.md)
-
-Детальное описание эпиков разработки с временными рамками.
-
-### [Epics 1-8](./prd/epics-1-8.md)
-
-Описание основных эпиков проекта от инфраструктуры до интеграций.
-
-### [Goals and Background Context](./prd/goals-and-background-context.md)
-
-Цели проекта, контекст бизнеса и предпосылки создания платформы.
-
-### [Requirements](./prd/requirements.md)
-
-Детальные функциональные и нефункциональные требования к системе.
-
-### [Technical Assumptions](./prd/technical-assumptions.md)
-
-Технические предположения и ограничения проекта.
-
-### [User Interface Design Goals](./prd/user-interface-design-goals.md)
-
-Цели и принципы дизайна пользовательского интерфейса.
-
-## Stories
-
-Документы в директории `stories/` содержат пользовательские истории, сгруппированные по эпикам.
-
-### [Epic 1: Фундамент проекта](./stories/epic-1/)
-
-Задачи, связанные с настройкой проекта, созданием архитектуры и базовой инфраструктуры (Stories 1.1 - 1.9).
-
-### [Epic 2: API Backend](./stories/epic-2/)
-
-Разработка основного функционала API, включая управление пользователями, каталогом, корзиной и заказами (Stories 2.1 - 2.10).
-
-### [Epic 3: Интеграция с 1С](./stories/epic-3/)
-
-Задачи по интеграции с 1С, включая импорт данных, синхронизацию и обработку ошибок (Stories 3.1 - 3.5).
-
----
-
-## Статистика документации
-
-- **Корневые документы:** 12
-- **Архитектура:** 22 документа
-- **База данных:** 1 документ
-- **Решения:** 10 документов
-- **PRD:** 7 документов
-- **Истории:** 20 документов
-
-## Навигация по проекту
-
-Для начала работы с проектом рекомендуется изучить документы в следующем порядке:
-
-1. [Project Brief](./Brief.md) - общее понимание проекта
-2. [PRD](./PRD.md) - требования и цели
-3. [Архитектурная документация](./architecture.md) - техническая архитектура
-4. [Stories](./stories/) - навигация по эпикам и конкретным задачам реализации.
-
-**Последнее обновление:** 06.09.2025
+# FREESPORT Platform Documentation
+
+## Project Overview
+
+- **Type:** Multi-part E-commerce Platform
+- **Architecture:** Headless (Next.js Frontend + Django REST API Backend)
+- **Primary Languages:** TypeScript, Python
+- **Status:** Active Development
+
+## Quick Reference
+
+### Frontend (`/frontend`)
+- **Framework:** Next.js 15.5.7 (App Router)
+- **UI:** React 19.1.0, Tailwind CSS 4
+- **State:** Zustand
+- **Testing:** Vitest, Playwright
+
+### Backend (`/backend`)
+- **Framework:** Django 5.2.7
+- **API:** Django REST Framework 3.14
+- **Database:** PostgreSQL 15
+- **Async:** Celery + Redis
+
+## Documentation Index
+
+### Architecture & Design
+- [Architecture Overview](./architecture.md) _(To be generated)_
+- [Frontend Source Tree](./source-tree-analysis-frontend.md)
+- [Backend Source Tree](./source-tree-analysis-backend.md)
+- [Integration Architecture](./integration-architecture.md)
+- [Data Models](./data-models-backend.md)
+- [API Contracts](./api-contracts-backend.md)
+
+### Guides
+- [Development Guide](./development-guide.md)
+- [Deployment Guide](./deploy/index.md) _(To be generated)_
+- [Testing Guide](./testing-docker.md)
+
+### Product Context
+- [Product Requirements (PRD)](./PRD.md)
+- [Project Brief](./Brief.md)
+- [UI/UX Specification](./front-end-spec.md)
+
+### Existing Docs
+- [API Views Documentation](./api-views-documentation.md)
+- [API Specification (OpenAPI)](./api-spec.yaml)
+- [Docker Configuration](./docker-configuration.md) _(To be generated)_
+- [Architecture Detail](./architecture/index.md)
+
+## Getting Started
+
+1. **Clone repository**
+2. **Setup Environment**: Copy `.env.example` to `.env`
+3. **Start Docker**: `docker compose -f docker/docker-compose.yml up -d`
+4. **Access**:
+   - Frontend: http://localhost:3000
+   - Backend: http://localhost:8000
