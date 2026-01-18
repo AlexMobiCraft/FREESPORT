@@ -1,0 +1,190 @@
+
+> frontend@0.1.0 test
+> cross-env VITEST=true vitest run components/business/ProductCard/__tests__/ProductCard.test.tsx
+
+
+[1m[7m[36m RUN [39m[27m[22m [36mv2.1.5 [39m[90mC:/Users/tkachenko/DEV/FREESPORT/frontend[39m
+
+ [31mÔŁ»[39m src/components/business/ProductCard/__tests__/ProductCard.test.tsx [2m([22m[2m39 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[90m 268[2mms[22m[39m
+[31m   [31m├Ś[31m ProductCard[2m > [22mRole-based Pricing[2m > [22mdisplays MSRP for B2B users when showMSRP is true[90m 18[2mms[22m[31m[39m
+[31m     Ôćĺ Unable to find an element with the text: /MSRP.*1 400/. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[31m
+  [36m<div>[31m
+    [36m<a[31m
+      [33mclass[31m=[32m"block"[31m
+      [33mhref[31m=[32m"/product/test-product"[31m
+    [36m>[31m
+      [36m<div[31m
+        [33maria-label[31m=[32m"đóđżđ▓đ░ĐÇ: Test Product"[31m
+        [33mclass[31m=[32m"bg-white rounded-[12px] shadow-[0_8px_24px_rgba(15,23,42,0.08)] hover:shadow-[0_10px_32px_rgba(15,23,42,0.12)] hover:-translate-y-0.5 transition-all duration-[180ms] ease-[cubic-bezier(0.4,0,0.2,1)] overflow-hidden focus-within:ring-2 focus-within:ring-[var(--color-primary)] focus-within:ring-offset-2 cursor-pointer"[31m
+        [33mrole[31m=[32m"article"[31m
+      [36m>[31m
+        [36m<div[31m
+          [33mclass[31m=[32m"relative w-full aspect-square bg-neutral-100"[31m
+        [36m>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"absolute top-2 left-2 z-10"[31m
+          [36m/>[31m
+          [36m<button[31m
+            [33maria-label[31m=[32m"đöđżđ▒đ░đ▓đŞĐéĐî đ▓ đŞđĚđ▒ĐÇđ░đŻđŻđżđÁ"[31m
+            [33mclass[31m=[32m"absolute top-2 right-2 z-10 p-2 rounded-full bg-white/80 backdrop-blur-sm transition-colors text-neutral-600 hover:text-[#A63232] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"[31m
+            [33mrole[31m=[32m"button"[31m
+          [36m>[31m
+            [36m<svg[31m
+              [33mclass[31m=[32m"w-5 h-5"[31m
+              [33mdata-fill[31m=[32m"none"[31m
+              [33mdata-testid[31m=[32m"heart-icon"[31m
+            [36m/>[31m
+          [36m</button>[31m
+          [36m<img[31m
+            [33malt[31m=[32m"Test Product"[31m
+            [33mclass[31m=[32m"object-cover"[31m
+            [33mdata-fill[31m=[32m"true"[31m
+            [33mloading[31m=[32m"lazy"[31m
+            [33msizes[31m=[32m"(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"[31m
+            [33msrc[31m=[32m"http://localhost:8001/test-image.jpg"[31m
+          [36m/>[31m
+        [36m</div>[31m
+        [36m<div[31m
+          [33mclass[31m=[32m"p-4 flex flex-col"[31m
+        [36m>[31m
+          [36m<p[31m
+            [33mclass[31m=[32m"text-body-s text-[var(--color-text-secondary)] mb-1"[31m
+          [36m>[31m
+            [0mNike[0m
+          [36m</p>[31m
+          [36m<h3[31m
+            [33mclass[31m=[32m"text-body-m font-medium text-[var(--color-text-primary)] mb-2 line-clamp-2 min-h-[48px]"[31m
+            [33mtitle[31m=[32m"Test Product"[31m
+          [36m>[31m
+            [0mTest Product[0m
+          [36m</h3>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"mb-3"[31m
+          [36m>[31m
+            [36m<p[31m
+              [33mclass[31m=[32m"text-title-m font-semibold text-[var(--color-text-primary)]"[31m
+            [36m>[31m
+              [0m1┬á000[0m
+              [0m ÔéŻ[0m
+            [36m</p>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"mt-1 space-y-0.5"[31m
+            [36m>[31m
+              [36m<p[31m
+                [33mclass[31m=[32m"text-body-s text-[var(--color-text-secondary)]"[31m
+              [36m>[31m
+                [0mđťđáđŽ: [0m
+                [0m1┬á400┬áÔéŻ[0m
+              [36m</p>[31m
+            [36m</div>[31m
+          [36m</div>[31m
+        [36m</div>[31m
+      [36m</div>[31m
+    [36m</a>[31m
+  [36m</div>[31m
+[36m</body>[31m[39m
+
+ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ» Failed Tests 1 ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»
+
+ FAIL  src/components/business/ProductCard/__tests__/ProductCard.test.tsx > ProductCard > Role-based Pricing > displays MSRP for B2B users when showMSRP is true
+TestingLibraryElementError: Unable to find an element with the text: /MSRP.*1 400/. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+<body>
+  <div>
+    <a
+      class="block"
+      href="/product/test-product"
+    >
+      <div
+        aria-label="đóđżđ▓đ░ĐÇ: Test Product"
+        class="bg-white rounded-[12px] shadow-[0_8px_24px_rgba(15,23,42,0.08)] hover:shadow-[0_10px_32px_rgba(15,23,42,0.12)] hover:-translate-y-0.5 transition-all duration-[180ms] ease-[cubic-bezier(0.4,0,0.2,1)] overflow-hidden focus-within:ring-2 focus-within:ring-[var(--color-primary)] focus-within:ring-offset-2 cursor-pointer"
+        role="article"
+      >
+        <div
+          class="relative w-full aspect-square bg-neutral-100"
+        >
+          <div
+            class="absolute top-2 left-2 z-10"
+          />
+          <button
+            aria-label="đöđżđ▒đ░đ▓đŞĐéĐî đ▓ đŞđĚđ▒ĐÇđ░đŻđŻđżđÁ"
+            class="absolute top-2 right-2 z-10 p-2 rounded-full bg-white/80 backdrop-blur-sm transition-colors text-neutral-600 hover:text-[#A63232] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+            role="button"
+          >
+            <svg
+              class="w-5 h-5"
+              data-fill="none"
+              data-testid="heart-icon"
+            />
+          </button>
+          <img
+            alt="Test Product"
+            class="object-cover"
+            data-fill="true"
+            loading="lazy"
+            sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
+            src="http://localhost:8001/test-image.jpg"
+          />
+        </div>
+        <div
+          class="p-4 flex flex-col"
+        >
+          <p
+            class="text-body-s text-[var(--color-text-secondary)] mb-1"
+          >
+            Nike
+          </p>
+          <h3
+            class="text-body-m font-medium text-[var(--color-text-primary)] mb-2 line-clamp-2 min-h-[48px]"
+            title="Test Product"
+          >
+            Test Product
+          </h3>
+          <div
+            class="mb-3"
+          >
+            <p
+              class="text-title-m font-semibold text-[var(--color-text-primary)]"
+            >
+              1┬á000
+               ÔéŻ
+            </p>
+            <div
+              class="mt-1 space-y-0.5"
+            >
+              <p
+                class="text-body-s text-[var(--color-text-secondary)]"
+              >
+                đťđáđŽ: 
+                1┬á400┬áÔéŻ
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </a>
+  </div>
+</body>
+ ÔŁ» Object.getElementError node_modules/@testing-library/dom/dist/config.js:37:19
+ ÔŁ» node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+ ÔŁ» node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+ ÔŁ» node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ ÔŁ» src/components/business/ProductCard/__tests__/ProductCard.test.tsx:286:21
+    284|       );
+    285| 
+    286|       expect(screen.getByText(/MSRP.*1 400/)).toBeInTheDocument();
+       |                     ^
+    287|     });
+    288|   });
+
+ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»[1/1]ÔÄ»
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m38 passed[39m[22m[90m (39)[39m
+[2m   Start at [22m 17:38:57
+[2m   Duration [22m 5.21s[2m (transform 404ms, setup 642ms, collect 626ms, tests 268ms, environment 1.32s, prepare 399ms)[22m
+

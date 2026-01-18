@@ -251,9 +251,9 @@ describe('ProductCard', () => {
     });
 
     it('displays RRP for B2B users when showRRP is true', () => {
-      const productWithRRP: Product & { recommended_retail_price: number } = {
+      const productWithRRP = {
         ...mockProduct,
-        recommended_retail_price: 1300,
+        rrp: 1300,
       };
       render(
         <ProductCard
@@ -269,9 +269,9 @@ describe('ProductCard', () => {
     });
 
     it('displays MSRP for B2B users when showMSRP is true', () => {
-      const productWithMSRP: Product & { max_suggested_retail_price: number } = {
+      const productWithMSRP = {
         ...mockProduct,
-        max_suggested_retail_price: 1400,
+        msrp: 1400,
       };
       render(
         <ProductCard
@@ -283,7 +283,7 @@ describe('ProductCard', () => {
         />
       );
 
-      expect(screen.getByText(/MSRP.*1 400/)).toBeInTheDocument();
+      expect(screen.getByText(/МРЦ.*1 400/)).toBeInTheDocument();
     });
   });
 

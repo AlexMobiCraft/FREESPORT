@@ -35,7 +35,8 @@ import { ProductBadge } from '@/components/common/ProductBadge';
 import Button from '@/components/ui/Button';
 import type { Product } from '@/types/api';
 import { cn } from '@/utils/cn';
-import { formatPrice } from '@/utils/pricing';
+import { formatPrice, type UserRole } from '@/utils/pricing';
+export type { UserRole };
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
 const MEDIA_BASE_URL =
@@ -78,17 +79,6 @@ const resolveImageUrl = (path?: string | null): string | null => {
   return path;
 };
 
-/**
- * Роли пользователей для ценообразования
- */
-export type UserRole =
-  | 'retail'
-  | 'wholesale_level1'
-  | 'wholesale_level2'
-  | 'wholesale_level3'
-  | 'trainer'
-  | 'federation_rep'
-  | 'admin';
 
 /**
  * Props компонента ProductCard
@@ -296,7 +286,7 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
 
             {/* Название */}
             <h3
-              className="text-body-s font-medium text-[var(--color-text-primary)] mb-2 line-clamp-2"
+              className="text-body-s font-medium text-[var(--color-text-primary)] mb-2 line-clamp-2 min-h-[40px]"
               title={product.name}
             >
               {product.name}
@@ -406,7 +396,7 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
                 </div>
 
                 {/* Название */}
-                <h3 className="text-body-m font-medium text-[var(--color-text-primary)] mb-2 line-clamp-2">
+                <h3 className="text-body-m font-medium text-[var(--color-text-primary)] mb-2 line-clamp-2 min-h-[48px]">
                   {product.name}
                 </h3>
 
@@ -450,18 +440,18 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
 
                 {/* RRP/MSRP для B2B */}
                 {(mode === 'b2b' || userRole !== 'retail') && (product.rrp || product.msrp) && (
-                                              <div className="mt-1 space-y-0.5">
-                                                {product.rrp && product.rrp > 0 && (
-                                                  <p className="text-body-s text-[var(--color-text-secondary)]">
-                                                    РРЦ: {formatPrice(product.rrp)}
-                                                  </p>
-                                                )}
-                                                {product.msrp && product.msrp > 0 && (
-                                                  <p className="text-body-s text-[var(--color-text-secondary)]">
-                                                    МРЦ: {formatPrice(product.msrp)}
-                                                  </p>
-                                                )}
-                                              </div>                )}
+                  <div className="mt-1 space-y-0.5">
+                    {product.rrp && product.rrp > 0 && (
+                      <p className="text-body-s text-[var(--color-text-secondary)]">
+                        РРЦ: {formatPrice(product.rrp)}
+                      </p>
+                    )}
+                    {product.msrp && product.msrp > 0 && (
+                      <p className="text-body-s text-[var(--color-text-secondary)]">
+                        МРЦ: {formatPrice(product.msrp)}
+                      </p>
+                    )}
+                  </div>)}
 
                 {/* Кнопка "В корзину" */}
                 {isInStock && onAddToCart && (
@@ -561,7 +551,7 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
 
             {/* Название */}
             <h3
-              className="text-body-m font-medium text-[var(--color-text-primary)] mb-2 line-clamp-2"
+              className="text-body-m font-medium text-[var(--color-text-primary)] mb-2 line-clamp-2 min-h-[48px]"
               title={product.name}
             >
               {product.name}

@@ -117,7 +117,7 @@ export const FavoriteProductCard: React.FC<FavoriteProductCardProps> = ({
       <div className="p-4">
         {/* Название */}
         <Link href={`/product/${favorite.product_slug}`}>
-          <h3 className="text-[16px] leading-[24px] font-medium text-[var(--color-text-primary)] mb-1 line-clamp-2 hover:text-[var(--color-primary)] transition-colors">
+          <h3 className="text-[16px] leading-[24px] font-medium text-[var(--color-text-primary)] mb-1 line-clamp-2 min-h-[48px] hover:text-[var(--color-primary)] transition-colors">
             {favorite.product_name}
           </h3>
         </Link>

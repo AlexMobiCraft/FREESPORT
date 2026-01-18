@@ -152,9 +152,8 @@ export function ElectricProductCard({
             </p>
           )}
 
-          {/* Title */}
           <h3
-            className="text-sm md:text-base text-[var(--foreground)] font-medium line-clamp-2 min-h-[32px] md:min-h-[40px] mb-1 md:mb-2"
+            className="text-sm md:text-base text-[var(--foreground)] font-medium line-clamp-2 min-h-[40px] md:min-h-[48px] mb-1 md:mb-2"
             style={{ fontFamily: "'Inter', sans-serif" }}
           >
             {title}
