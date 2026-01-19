@@ -26,25 +26,25 @@ const DEFAULT_COLUMNS: FooterColumn[] = [
   {
     title: 'Каталог',
     links: [
-      { label: 'Товары', href: '/catalog' },
-      { label: 'Бренды', href: '/brands' },
-      { label: 'Акции', href: '/promotions' },
+      { label: 'Каталог', href: '/catalog' },
+      { label: 'Новости', href: '/news' },
+      { label: 'Блог', href: '/blog' },
     ],
   },
   {
     title: 'Информация',
     links: [
-      { label: 'О компании', href: '/about' },
-      { label: 'Партнёрам', href: '/partners' },
+      { label: 'О нас', href: '/about' },
       { label: 'Доставка', href: '/delivery' },
+      { label: 'Возврат', href: '/returns' },
     ],
   },
   {
     title: 'Контакты',
     links: [
-      { label: '+7 (495) 123-45-67', href: 'tel:+74951234567' },
+      { label: '+7 968 273-21-68', href: 'tel:+79682732168' },
       { label: 'info@freesport.ru', href: 'mailto:info@freesport.ru' },
-      { label: 'Москва, ул. Примерная, д. 1', href: '#' },
+      { label: 'г. Ставрополь, ул. Коломийцева, 40/1', href: '#' },
     ],
   },
 ];

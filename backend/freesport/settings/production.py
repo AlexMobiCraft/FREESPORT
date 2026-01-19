@@ -113,7 +113,7 @@ REST_FRAMEWORK = {
         "rest_framework.throttling.UserRateThrottle",
     ],
     "DEFAULT_THROTTLE_RATES": {
-        "anon": "1000/day",  # SPAM protection для /subscribe endpoint
+        "anon": "6000/min",  # Increased to fix SSR 429 errors
         "user": "10000/day",  # Для авторизованных пользователей
     },
 }

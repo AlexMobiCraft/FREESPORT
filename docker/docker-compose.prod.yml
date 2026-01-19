@@ -13,6 +13,11 @@ services:
       - ./init-db.sql:/docker-entrypoint-initdb.d/
     networks:
       - freesport-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     restart: unless-stopped
 
   redis:
@@ -23,6 +28,11 @@ services:
       - redis_data:/data
     networks:
       - freesport-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     restart: unless-stopped
 
   backend:
@@ -77,6 +87,11 @@ services:
       - redis
     networks:
       - freesport-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     restart: unless-stopped
 
   frontend:
@@ -94,8 +109,9 @@ services:
       - NEXT_PUBLIC_MEDIA_URL=${NEXT_PUBLIC_MEDIA_URL}
       - NEXT_PUBLIC_MEDIA_URL_INTERNAL=http://nginx
       - INTERNAL_API_URL=http://backend:8000
+      - ACTIVE_THEME=${ACTIVE_THEME:-coming_soon}
     healthcheck:
-      test: [ "CMD", "node", "-e", "require('http').get('http://localhost:3000/', (r) => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))" ]
+      test: [ "CMD", "node", "-e", "require('http').get('http://localhost:3000/api/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -105,6 +121,11 @@ services:
         condition: service_healthy
     networks:
       - freesport-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     restart: unless-stopped
 
   nginx:
@@ -126,6 +147,11 @@ services:
         condition: service_healthy
     networks:
       - freesport-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     restart: unless-stopped
 
   celery:
@@ -166,6 +192,11 @@ services:
       - redis
     networks:
       - freesport-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     restart: unless-stopped
 
   celery-beat:
@@ -202,6 +233,11 @@ services:
       - redis
     networks:
       - freesport-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     restart: unless-stopped
 
 volumes:

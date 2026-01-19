@@ -31,6 +31,7 @@ import { Input } from '@/components/ui/Input/Input';
 import { Button } from '@/components/ui/Button/Button';
 import { RoleInfoPanel } from '@/components/auth/RoleInfoPanel';
 import authService from '@/services/authService';
+import { isSafeRedirectUrl } from '@/utils/urlUtils';
 import { registerSchema, type RegisterFormData } from '@/schemas/authSchemas';
 import type { RegisterRequest } from '@/types/api';
 
@@ -45,9 +46,11 @@ const ROLE_OPTIONS = [
 export interface RegisterFormProps {
   /** Callback после успешной регистрации (optional) */
   onSuccess?: () => void;
+  /** URL для редиректа после успешной регистрации */
+  redirectUrl?: string;
 }
 
-export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
+export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectUrl }) => {
   const router = useRouter();
   const [apiError, setApiError] = useState<string | null>(null);
 
@@ -94,8 +97,10 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
         onSuccess();
       }
 
-      // Story 28.1 AC 2: Редирект на главную после успешной регистрации
-      router.push('/test');
+      // Story 28.1 AC 2: Редирект на главную (или redirectUrl) после успешной регистрации
+      // Security: Validate redirectUrl to prevent open redirects
+      const targetUrl = isSafeRedirectUrl(redirectUrl) ? redirectUrl! : '/';
+      router.push(targetUrl);
     } catch (error: unknown) {
       // AC 4: Обработка ошибок API
       const err = error as {
@@ -135,7 +140,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
       {/* Story 28.1 AC 4: Отображение API ошибок */}
       {apiError && (
         <div
-          className="p-4 rounded-md bg-[var(--color-accent-danger)]/10 border border-[var(--color-accent-danger)]"
+          className="p-4 rounded-sm bg-[var(--color-accent-danger)]/10 border border-[var(--color-accent-danger)]"
           role="alert"
           aria-live="assertive"
         >
@@ -175,7 +180,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
           {...register('role')}
           disabled={isSubmitting}
           aria-label="Выберите тип аккаунта"
-          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-[var(--color-primary-500)] focus:ring-offset-2 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full px-3 py-2 border border-gray-300 rounded-sm shadow-sm focus:ring-2 focus:ring-[var(--color-primary-500)] focus:ring-offset-2 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {ROLE_OPTIONS.map(option => (
             <option key={option.value} value={option.value}>

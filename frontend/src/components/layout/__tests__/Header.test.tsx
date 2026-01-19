@@ -149,7 +149,9 @@ describe('Header', () => {
       expect(screen.getByRole('link', { name: 'Главная' })).toBeInTheDocument();
       expect(screen.getByRole('link', { name: 'Каталог' })).toBeInTheDocument();
       expect(screen.getByRole('link', { name: 'Новости' })).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: 'Акции' })).toBeInTheDocument();
+      const blogLink = screen.getByRole('link', { name: 'Блог' });
+      expect(blogLink).toBeInTheDocument();
+      expect(blogLink).toHaveAttribute('href', '/blog');
       expect(screen.getByRole('link', { name: 'Партнёрам' })).toBeInTheDocument();
     });
 

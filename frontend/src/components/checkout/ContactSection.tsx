@@ -2,7 +2,7 @@
 
 import { UseFormReturn } from 'react-hook-form';
 import { CheckoutFormData, CheckoutFormInput } from '@/schemas/checkoutSchema';
-import { Input } from '@/components/ui';
+import { Input, PhoneInput } from '@/components/ui';
 
 export interface ContactSectionProps {
   form: UseFormReturn<CheckoutFormInput, unknown, CheckoutFormData>;
@@ -57,10 +57,9 @@ export function ContactSection({ form }: ContactSectionProps) {
 
         {/* Телефон */}
         <div className="md:col-span-2">
-          <Input
+          <PhoneInput
             {...register('phone')}
             label="Телефон"
-            type="tel"
             placeholder="+79001234567"
             error={errors.phone?.message}
             helper="Формат: +7XXXXXXXXXX"

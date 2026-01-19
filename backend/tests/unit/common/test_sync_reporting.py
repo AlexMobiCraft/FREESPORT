@@ -2,6 +2,7 @@
 Unit тесты для SyncReportGenerator
 """
 
+import uuid
 from datetime import date, timedelta
 from unittest.mock import MagicMock, patch
 
@@ -44,24 +45,24 @@ class TestSyncReportGenerator:
                 operation_type=CustomerSyncLog.OperationType.IMPORT_FROM_1C,
                 status=CustomerSyncLog.StatusType.SUCCESS,
                 customer=test_user,
-                customer_email=f"success{i}@test.com",
                 onec_id=f"1C_SUCCESS_{i}",
                 duration_ms=100 + i * 10,
+                correlation_id=uuid.uuid4(),
                 created_at=timezone.make_aware(
                     timezone.datetime.combine(today, timezone.datetime.min.time())
                 ),
             )
 
-        # Ошибки
-        for i in range(3):
+        # Ошибочные операции
+        for i in range(5):
             CustomerSyncLog.objects.create(
                 operation_type=CustomerSyncLog.OperationType.EXPORT_TO_1C,
                 status=CustomerSyncLog.StatusType.ERROR,
                 customer=test_user,
-                customer_email=f"error{i}@test.com",
                 onec_id=f"1C_ERROR_{i}",
-                error_message=f"Test error {i}",
-                duration_ms=50,
+                duration_ms=50 + i * 5,
+                error_message="Connection failed",
+                correlation_id=uuid.uuid4(),
                 created_at=timezone.make_aware(
                     timezone.datetime.combine(today, timezone.datetime.min.time())
                 ),
@@ -86,9 +87,9 @@ class TestSyncReportGenerator:
         today = timezone.now().date()
         report = generator.generate_daily_summary(today)
 
-        assert report["total_operations"] == 13  # 10 успешных + 3 ошибки
+        assert report["total_operations"] == 15  # 10 успешных + 5 ошибок
         assert report["success_count"] == 10
-        assert report["success_rate"] > 70  # ~76.9%
+        assert report["error_count"] == 5
 
     def test_generate_daily_summary_no_data(self, generator):
         """Тест отчета при отсутствии данных"""
@@ -118,8 +119,8 @@ class TestSyncReportGenerator:
         today = timezone.now().date()
         report = generator.generate_weekly_error_analysis(today)
 
-        assert report["total_errors"] == 3
-        assert report["error_rate"] > 0
+        assert report["total_errors"] == 5
+        assert len(report["common_errors"]) > 0
 
     def test_analyze_common_errors(self, generator, test_user):
         """Тест анализа частых ошибок"""
@@ -129,9 +130,9 @@ class TestSyncReportGenerator:
                 operation_type=CustomerSyncLog.OperationType.IMPORT_FROM_1C,
                 status=CustomerSyncLog.StatusType.ERROR,
                 customer=test_user,
-                customer_email=f"test{i}@test.com",
                 onec_id=f"1C_{i}",
                 error_message="Duplicate email detected",
+                correlation_id=uuid.uuid4(),
             )
 
         for i in range(3):
@@ -139,9 +140,9 @@ class TestSyncReportGenerator:
                 operation_type=CustomerSyncLog.OperationType.EXPORT_TO_1C,
                 status=CustomerSyncLog.StatusType.ERROR,
                 customer=test_user,
-                customer_email=f"test{i}@test.com",
                 onec_id=f"1C_{i}",
                 error_message="Connection timeout",
+                correlation_id=uuid.uuid4(),
             )
 
         error_logs = CustomerSyncLog.objects.filter(

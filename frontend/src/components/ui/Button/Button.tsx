@@ -47,16 +47,16 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
           // Варианты
           variant === 'primary' && [
             'bg-primary text-white border border-transparent',
-            'shadow-[0_14px_32px_rgba(11,18,32,0.45)]',
+            'shadow-primary',
             'hover:bg-primary-hover hover:-translate-y-0.5',
             'active:bg-primary-active active:translate-y-0',
             'focus:ring-primary',
           ],
           variant === 'secondary' && [
-            'bg-white text-primary border border-primary',
-            'shadow-[0_8px_24px_rgba(5,18,55,0.08)]',
-            'hover:bg-primary-subtle hover:-translate-y-0.5',
-            'active:bg-primary-subtle/80 active:translate-y-0',
+            'bg-neutral-100 text-primary border border-primary',
+            'shadow-default',
+            'hover:bg-primary hover:text-white hover:-translate-y-0.5 hover:shadow-hover',
+            'active:bg-primary-active active:translate-y-0',
             'focus:ring-primary',
           ],
           variant === 'tertiary' && [
@@ -66,22 +66,22 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
           ],
           variant === 'subtle' && [
             'bg-primary-subtle text-primary',
-            'shadow-[var(--shadow-default)]',
+            'shadow-default',
             'hover:bg-primary-subtle/80 hover:-translate-y-0.5',
             'active:translate-y-0',
           ],
           variant === 'danger' && [
-            'bg-[#C23B3B] text-white',
-            'shadow-[var(--shadow-primary)]',
-            'hover:bg-[#A32F2F] hover:-translate-y-0.5',
-            'active:bg-[#8B2828] active:translate-y-0',
-            'focus:ring-[#C23B3B]',
+            'bg-accent-danger text-white',
+            'shadow-primary',
+            'hover:bg-[#d32f2f] hover:-translate-y-0.5',
+            'active:bg-[#b71c1c] active:translate-y-0',
+            'focus:ring-accent-danger',
           ],
 
           // Размеры
-          size === 'small' && 'h-10 px-6 typo-body-s rounded-md',
-          size === 'medium' && 'h-11 px-7 typo-body-m rounded-md',
-          size === 'large' && 'h-12 px-8 typo-body-l rounded-lg',
+          size === 'small' && 'h-10 px-6 typo-body-s rounded-2xl',
+          size === 'medium' && 'h-10 px-6 typo-body-m rounded-2xl',
+          size === 'large' && 'h-14 px-6 typo-body-l rounded-2xl',
 
           className
         )}

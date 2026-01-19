@@ -21,6 +21,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ProductCard } from '@/components/business/ProductCard/ProductCard';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useAuthStore } from '@/stores/authStore';
 import productsService from '@/services/productsService';
 import type { Product } from '@/types/api';
 
@@ -34,6 +35,11 @@ export const NewArrivalsSection: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
+
+  // Auth integration
+  const user = useAuthStore(state => state.user);
+  const userRole = user?.role || 'guest';
+  const isB2B = ['wholesale_level1', 'wholesale_level2', 'wholesale_level3', 'trainer', 'federation_rep', 'admin'].includes(userRole);
 
   const fetchNewArrivals = async () => {
     try {
@@ -101,7 +107,7 @@ export const NewArrivalsSection: React.FC = () => {
 
   return (
     <section
-      className="max-w-[1316px] mx-auto px-3 md:px-4 lg:px-6 relative"
+      className="max-w-[1316px] mx-auto px-3 md:px-4 lg:px-6 py-12 relative"
       aria-labelledby="new-arrivals-heading"
     >
       {/* Заголовок секции - headline-l */}
@@ -140,7 +146,7 @@ export const NewArrivalsSection: React.FC = () => {
           {Array.from({ length: 4 }).map((_, index) => (
             <div
               key={index}
-              className="flex-shrink-0 w-[200px] snap-start rounded-2xl bg-white p-3 shadow-default animate-pulse"
+              className="flex-shrink-0 w-[calc(50%-4px)] md:w-[200px] snap-start rounded-2xl bg-white p-3 shadow-default animate-pulse"
             >
               <div className="h-40 rounded-xl bg-neutral-200 mb-4" />
               <div className="h-4 bg-neutral-200 rounded mb-2" />
@@ -172,8 +178,13 @@ export const NewArrivalsSection: React.FC = () => {
           role="list"
         >
           {products.map(product => (
-            <div key={product.id} className="flex-shrink-0 w-[200px] snap-start" role="listitem">
-              <ProductCard product={product} layout="compact" userRole="retail" />
+            <div key={product.id} className="flex-shrink-0 w-[calc(50%-4px)] md:w-[200px] snap-start" role="listitem">
+              <ProductCard
+                product={product}
+                layout="compact"
+                userRole={userRole}
+                mode={isB2B ? 'b2b' : 'b2c'}
+              />
             </div>
           ))}
         </div>

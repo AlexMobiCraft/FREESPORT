@@ -157,6 +157,9 @@ class CartItem(models.Model):
             )
 
     def save(self, *args, **kwargs):
+        if self.price_snapshot is None:
+            user = self.cart.user
+            self.price_snapshot = self.variant.get_price_for_user(user)
         self.full_clean()
         super().save(*args, **kwargs)
         # Обновляем время модификации корзины

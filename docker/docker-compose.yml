@@ -116,8 +116,8 @@ services:
       - NEXT_PUBLIC_APP_URL=${SITE_URL:-http://localhost:3000}
       - NEXT_PUBLIC_MEDIA_URL=http://localhost
       - NEXT_PUBLIC_MEDIA_URL_INTERNAL=http://nginx
-    command: >-
-      sh -c "npm install && npm run dev"
+      - ACTIVE_THEME=${ACTIVE_THEME:-coming_soon}
+    command: npm run dev
     volumes:
       - ../frontend:/app
       - frontend_node_modules:/app/node_modules

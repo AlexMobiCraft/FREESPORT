@@ -30,7 +30,7 @@ def send_order_confirmation_email(sender, instance, created, **kwargs):
     if not created:
         return
 
-    # Определяем email получателя
+    # --- Отправка уведомления клиенту ---
     customer_email = None
     if instance.user and hasattr(instance.user, "email"):
         customer_email = instance.user.email
@@ -42,28 +42,43 @@ def send_order_confirmation_email(sender, instance, created, **kwargs):
             f"Не удалось отправить email для заказа {instance.order_number}: "
             "email клиента не указан"
         )
-        return
+    else:
+        # Формируем содержимое письма
+        subject = f"Заказ #{instance.order_number} успешно оформлен - FREESPORT"
 
-    # Формируем содержимое письма
-    subject = f"Заказ #{instance.order_number} успешно оформлен - FREESPORT"
+        # Простое текстовое письмо
+        message = _build_order_email_text(instance)
 
-    # Простое текстовое письмо
-    message = _build_order_email_text(instance)
+        try:
+            send_mail(
+                subject=subject,
+                message=message,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[customer_email],
+                fail_silently=False,
+            )
+            logger.info(
+                f"Email-уведомление о заказе {instance.order_number} "
+                f"отправлено на {customer_email}"
+            )
+        except Exception as e:
+            logger.error(
+                f"Ошибка отправки email для заказа {instance.order_number}: {e}"
+            )
 
+    # --- Отправка уведомления администраторам (async через Celery) ---
     try:
-        send_mail(
-            subject=subject,
-            message=message,
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[customer_email],
-            fail_silently=False,
-        )
+        from apps.orders.tasks import send_order_notification_email
+
+        send_order_notification_email.delay(instance.id)
         logger.info(
-            f"Email-уведомление о заказе {instance.order_number} "
-            f"отправлено на {customer_email}"
+            f"Задача уведомления администраторов о заказе {instance.order_number} "
+            "добавлена в очередь"
         )
     except Exception as e:
-        logger.error(f"Ошибка отправки email для заказа {instance.order_number}: {e}")
+        logger.error(
+            f"Ошибка добавления задачи уведомления для заказа {instance.order_number}: {e}"
+        )
 
 
 def _build_order_email_text(order):

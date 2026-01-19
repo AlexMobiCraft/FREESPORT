@@ -15,24 +15,11 @@ from django.db.models import Count, QuerySet
 from django.http import HttpRequest, HttpResponseRedirect
 from django.shortcuts import render
 
-from .forms import (
-    MergeAttributesActionForm,
-    MergeBrandsActionForm,
-    TransferMappingsActionForm,
-)
-from .models import (
-    Attribute,
-    Attribute1CMapping,
-    AttributeValue,
-    AttributeValue1CMapping,
-    Brand,
-    Brand1CMapping,
-    Category,
-    ColorMapping,
-    Product,
-    ProductImage,
-    ProductVariant,
-)
+from .forms import (MergeAttributesActionForm, MergeBrandsActionForm,
+                    TransferMappingsActionForm)
+from .models import (Attribute, Attribute1CMapping, AttributeValue,
+                     AttributeValue1CMapping, Brand, Brand1CMapping, Category,
+                     ColorMapping, Product, ProductImage, ProductVariant)
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +31,25 @@ class ProductImageInline(admin.TabularInline):
     extra = 1  # Количество пустых форм для добавления
     fields = ("image", "alt_text", "is_main", "sort_order")
     readonly_fields = ("created_at", "updated_at")
+
+
+class ProductVariantInline(admin.TabularInline):
+    """Инлайн для вариантов продукта (Story 13.x)"""
+
+    model = ProductVariant
+    extra = 0
+    fields = (
+        "sku",
+        "color_name",
+        "size_value",
+        "retail_price",
+        "rrp",
+        "msrp",
+        "stock_quantity",
+        "is_active",
+    )
+    readonly_fields = ("created_at", "updated_at")
+    show_change_link = True
 
 
 class Brand1CMappingInline(admin.TabularInline):
@@ -231,6 +237,8 @@ class ProductAdmin(admin.ModelAdmin):
         "brand",
         "category",
         "is_active",
+        "rrp_display",
+        "msrp_display",
         # Story 11.0: Маркетинговые флаги
         "is_hit",
         "is_new",
@@ -264,7 +272,7 @@ class ProductAdmin(admin.ModelAdmin):
         "onec_brand_id",
     )
     raw_id_fields = ("brand", "category")
-    inlines = [ProductImageInline]  # Добавляем инлайн для изображений
+    inlines = [ProductImageInline, ProductVariantInline]  # Добавляем инлайны
     fieldsets = (
         (
             "Основная информация",
@@ -405,13 +413,25 @@ class ProductAdmin(admin.ModelAdmin):
     def unmark_as_premium(
         self, request: HttpRequest, queryset: QuerySet[Product]
     ) -> None:
-        """Массовое действие: снять отметку премиум"""
+        """Массовое действие: снять отметка премиум"""
         updated = queryset.update(is_premium=False)
         self.message_user(request, f"Снята отметка премиум: {updated} товаров")
 
+    @admin.display(description="РРЦ", ordering="variants__rrp")
+    def rrp_display(self, obj: Product) -> str | None:
+        """Отображение РРЦ из первого варианта"""
+        variant = obj.variants.filter(rrp__isnull=False).first()
+        return f"{variant.rrp} ₽" if variant and variant.rrp else "-"
+
+    @admin.display(description="МРЦ", ordering="variants__msrp")
+    def msrp_display(self, obj: Product) -> str | None:
+        """Отображение МРЦ из первого варианта"""
+        variant = obj.variants.filter(msrp__isnull=False).first()
+        return f"{variant.msrp} ₽" if variant and variant.msrp else "-"
+
     def get_queryset(self, request: HttpRequest) -> QuerySet[Product]:
         """Оптимизация запросов"""
-        return super().get_queryset(request).select_related("brand", "category")
+        return super().get_queryset(request).select_related("brand", "category").prefetch_related("variants")
 
 
 @admin.register(ColorMapping)
@@ -433,6 +453,8 @@ class ProductVariantAdmin(admin.ModelAdmin):
         "color_name",
         "size_value",
         "retail_price",
+        "rrp",
+        "msrp",
         "stock_quantity",
         "is_active",
     )
@@ -465,6 +487,8 @@ class ProductVariantAdmin(admin.ModelAdmin):
             {
                 "fields": (
                     "retail_price",
+                    "rrp",
+                    "msrp",
                     "opt1_price",
                     "opt2_price",
                     "opt3_price",

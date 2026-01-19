@@ -69,6 +69,7 @@ class Order(models.Model):
         ("courier", "Курьерская доставка"),
         ("post", "Почтовая доставка"),
         ("transport_company", "Транспортная компания"),
+        ("transport_schedule", "Транспортная компания (по расписанию)"),
     ]
 
     PAYMENT_METHODS = [

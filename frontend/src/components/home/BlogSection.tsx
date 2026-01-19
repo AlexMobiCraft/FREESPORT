@@ -14,6 +14,7 @@ import Link from 'next/link';
 import { BlogPostCard } from './BlogPostCard';
 import { ElectricNewsCard } from '@/components/ui/NewsCard/ElectricNewsCard';
 import { ElectricButton } from '@/components/ui/Button/ElectricButton';
+import Button from '@/components/ui/Button';
 import { blogService } from '@/services/blogService';
 import type { BlogItem } from '@/types/api';
 import { NewsSkeletonLoader } from '@/components/common/NewsSkeletonLoader';
@@ -201,11 +202,16 @@ export const BlogSection: React.FC<BlogSectionProps> = ({
 
   // Default variant
   return (
-    <section className="max-w-[1280px] mx-auto px-3 md:px-4 lg:px-6" aria-labelledby="blog-heading">
-      {/* Header */}
-      <h2 id="blog-heading" className="text-3xl font-bold text-text-primary mb-8">
-        {title}
-      </h2>
+    <section className="max-w-[1280px] mx-auto px-3 md:px-4 lg:px-6 py-12" aria-labelledby="blog-heading">
+      {/* Header with button */}
+      <div className="flex items-center justify-between mb-8">
+        <h2 id="blog-heading" className="text-3xl font-bold text-text-primary">
+          {title}
+        </h2>
+        <Link href={viewAllLink}>
+          <Button variant="primary">Все статьи</Button>
+        </Link>
+      </div>
 
       {isLoading && <NewsSkeletonLoader />}
 

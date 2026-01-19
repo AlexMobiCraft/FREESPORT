@@ -1,6 +1,8 @@
-import pytest
-from tests.conftest import ProductFactory
 from decimal import Decimal
+
+import pytest
+
+from tests.conftest import ProductFactory
 
 
 @pytest.mark.django_db

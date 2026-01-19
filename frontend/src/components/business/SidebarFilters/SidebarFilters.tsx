@@ -171,7 +171,7 @@ export const SidebarFilters = React.forwardRef<HTMLDivElement, SidebarFiltersPro
           {' '}
           {/* 24px spacing между секциями */}
           {/* Категории */}
-          <FilterGroup title="Категории" defaultExpanded={true}>
+          <FilterGroup title="Категории" defaultExpanded={false}>
             <div className="space-y-2">{renderCategories}</div>
           </FilterGroup>
           {/* Бренды */}

@@ -13,15 +13,8 @@ from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
 from django.utils import timezone
 
-from .models import (
-    AuditLog,
-    BlogPost,
-    CustomerSyncLog,
-    News,
-    Newsletter,
-    SyncConflict,
-    SyncLog,
-)
+from .models import (AuditLog, BlogPost, CustomerSyncLog, News, Newsletter,
+                     NotificationRecipient, SyncConflict, SyncLog)
 from .services import CustomerSyncMonitor
 
 
@@ -463,6 +456,103 @@ class BlogPostAdmin(admin.ModelAdmin):
                 "fields": (
                     "is_published",
                     "published_at",
+                )
+            },
+        ),
+        (
+            "Метаданные",
+            {
+                "fields": (
+                    "created_at",
+                    "updated_at",
+                ),
+                "classes": ("collapse",),
+            },
+        ),
+    )
+
+
+# ==================================================================
+# Notification Recipients Admin
+# ==================================================================
+
+
+@admin.register(NotificationRecipient)
+class NotificationRecipientAdmin(admin.ModelAdmin):
+    """Admin интерфейс для управления получателями уведомлений."""
+
+    list_display = [
+        "email",
+        "name",
+        "is_active",
+        "notify_new_orders",
+        "notify_order_cancelled",
+        "notify_user_verification",
+        "notify_pending_queue",
+        "notify_low_stock",
+        "notify_daily_summary",
+        "created_at",
+    ]
+    list_filter = [
+        "is_active",
+        "notify_new_orders",
+        "notify_user_verification",
+        "notify_low_stock",
+        "notify_daily_summary",
+    ]
+    search_fields = [
+        "email",
+        "name",
+    ]
+    list_editable = [
+        "is_active",
+        "notify_new_orders",
+        "notify_order_cancelled",
+        "notify_user_verification",
+        "notify_pending_queue",
+        "notify_low_stock",
+        "notify_daily_summary",
+    ]
+    readonly_fields = [
+        "created_at",
+        "updated_at",
+    ]
+
+    fieldsets = (
+        (
+            "Получатель",
+            {
+                "fields": (
+                    "email",
+                    "name",
+                    "is_active",
+                )
+            },
+        ),
+        (
+            "Уведомления о заказах",
+            {
+                "fields": (
+                    "notify_new_orders",
+                    "notify_order_cancelled",
+                )
+            },
+        ),
+        (
+            "Уведомления о пользователях",
+            {
+                "fields": (
+                    "notify_user_verification",
+                    "notify_pending_queue",
+                )
+            },
+        ),
+        (
+            "Уведомления о товарах и отчётах",
+            {
+                "fields": (
+                    "notify_low_stock",
+                    "notify_daily_summary",
                 )
             },
         ),

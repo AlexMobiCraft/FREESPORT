@@ -11,14 +11,8 @@ import factory
 from django.utils.text import slugify
 from factory import fuzzy
 
-from apps.products.models import (
-    Brand,
-    Brand1CMapping,
-    Category,
-    ColorMapping,
-    Product,
-    ProductVariant,
-)
+from apps.products.models import (Brand, Brand1CMapping, Category,
+                                  ColorMapping, Product, ProductVariant)
 
 # Глобальный счетчик для обеспечения уникальности
 _unique_counter = 0
@@ -68,7 +62,11 @@ class CategoryFactory(factory.django.DjangoModelFactory):
 
 
 class ProductFactory(factory.django.DjangoModelFactory):
-    """Factory для создания тестовых товаров"""
+    """
+    Factory для создания тестовых товаров.
+    Автоматически создает вариант (ProductVariant) с ценами и остатками.
+    Параметры retail_price, stock_quantity и др. передаются в вариант.
+    """
 
     class Meta:
         model = Product
@@ -83,6 +81,39 @@ class ProductFactory(factory.django.DjangoModelFactory):
     # Связи
     category = factory.SubFactory(CategoryFactory)
     brand = factory.SubFactory(BrandFactory)
+
+    # Параметры для варианта (Transient)
+    # Используем post_generation для создания варианта после сохранения продукта
+    @classmethod
+    def _create(cls, model_class, *args, **kwargs):
+        """Извлекаем поля варианта перед созданием продукта"""
+        variant_fields = [
+            "retail_price",
+            "opt1_price",
+            "opt2_price",
+            "opt3_price",
+            "trainer_price",
+            "federation_price",
+            "stock_quantity",
+            "reserved_quantity",
+            "sku",
+            "create_variant",
+            "main_image",
+            "onec_id",  # Принимаем onec_id для варианта
+        ]
+        variant_params = {}
+        for field in variant_fields:
+            if field in kwargs:
+                variant_params[field] = kwargs.pop(field)
+
+        product = super()._create(model_class, *args, **kwargs)
+
+        # Создаем вариант если не отключено
+        if variant_params.get("create_variant", True):
+            variant_params.pop("create_variant", None)
+            ProductVariantFactory.create(product=product, **variant_params)
+
+        return product
 
 
 class ColorMappingFactory(factory.django.DjangoModelFactory):

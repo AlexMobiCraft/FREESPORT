@@ -7,6 +7,7 @@ AC: 1, 3, 6 - Unit-тесты покрывают все методы serializer,
 """
 
 import pytest
+
 from apps.users.serializers import LogoutSerializer
 
 

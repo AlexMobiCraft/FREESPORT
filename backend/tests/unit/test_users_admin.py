@@ -480,8 +480,8 @@ class TestUserAdmin(TestCase):
         """Тест структуры fieldsets"""
         fieldsets = self.admin.fieldsets
 
-        # Проверяем количество секций
-        self.assertEqual(len(fieldsets), 5)
+        # Проверяем количество секций (Story 9.1: 6 секций)
+        self.assertEqual(len(fieldsets), 6)
 
         # Проверяем названия секций
         section_names = [fs[0] for fs in fieldsets]
@@ -575,7 +575,7 @@ class TestAuditLogIntegration(TestCase):
         self.assertEqual(AuditLog.objects.count(), initial_count + 1)
 
         # Проверяем содержимое записи
-        log = AuditLog.objects.latest("timestamp")
+        log = AuditLog.objects.latest("created_at")
         self.assertEqual(log.action, "approve_b2b")
         self.assertEqual(log.resource_type, "User")
         self.assertEqual(log.user, self.superuser)
@@ -595,7 +595,7 @@ class TestAuditLogIntegration(TestCase):
         queryset = User.objects.filter(id=self.b2b_user.id)
         self.admin.approve_b2b_users(request, queryset)
 
-        log = AuditLog.objects.latest("timestamp")
+        log = AuditLog.objects.latest("created_at")
         self.assertIn("email", log.changes)
         self.assertIn("role", log.changes)
         self.assertIn("verified", log.changes)

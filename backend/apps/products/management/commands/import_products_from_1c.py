@@ -21,7 +21,8 @@ from django.core.management import call_command
 from django.core.management.base import BaseCommand, CommandError
 from tqdm import tqdm
 
-from apps.products.models import Brand, Category, ImportSession, Product, ProductVariant
+from apps.products.models import (Brand, Category, ImportSession, Product,
+                                  ProductVariant)
 from apps.products.services.parser import XMLDataParser
 from apps.products.services.variant_import import VariantImportProcessor
 

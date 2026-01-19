@@ -3,23 +3,25 @@ API Views для заказов FREESPORT
 Поддерживает создание заказов из корзины и просмотр деталей
 """
 
-from drf_spectacular.utils import OpenApiExample, OpenApiResponse, extend_schema
+from django_filters.rest_framework import DjangoFilterBackend
+from drf_spectacular.utils import (OpenApiExample, OpenApiResponse,
+                                   extend_schema)
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from .models import Order
-from .serializers import (
-    OrderCreateSerializer,
-    OrderDetailSerializer,
-    OrderListSerializer,
-)
+from .serializers import (OrderCreateSerializer, OrderDetailSerializer,
+                          OrderListSerializer)
 
 
 class OrderViewSet(viewsets.ModelViewSet):
     """
     ViewSet для управления заказами
     """
+
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ["status"]
 
     def get_permissions(self):
         """

@@ -449,8 +449,8 @@ class TestAttributeAdminUI:
         from django.contrib.admin.sites import AdminSite
 
         from apps.products.admin import AttributeAdmin
-
-        from apps.products.models import Attribute1CMapping, AttributeValue1CMapping
+        from apps.products.models import (Attribute1CMapping,
+                                          AttributeValue1CMapping)
 
         # Создаем атрибут с несколькими значениями
         attribute = Attribute.objects.create(name="Тестовый атрибут", type="Справочник")

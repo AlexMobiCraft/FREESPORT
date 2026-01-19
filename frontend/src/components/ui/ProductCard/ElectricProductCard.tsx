@@ -24,6 +24,8 @@ export interface ElectricProductCardProps {
   brand?: string;
   price: number;
   oldPrice?: number;
+  rrp?: number;
+  msrp?: number;
   badge?: 'primary' | 'sale' | 'hit' | 'new';
   isFavorite?: boolean;
   inStock?: boolean;
@@ -44,6 +46,8 @@ export function ElectricProductCard({
   brand,
   price,
   oldPrice,
+  rrp,
+  msrp,
   badge,
   isFavorite = false,
   inStock = true,
@@ -148,9 +152,8 @@ export function ElectricProductCard({
             </p>
           )}
 
-          {/* Title */}
           <h3
-            className="text-sm md:text-base text-[var(--foreground)] font-medium line-clamp-2 min-h-[32px] md:min-h-[40px] mb-1 md:mb-2"
+            className="text-sm md:text-base text-[var(--foreground)] font-medium line-clamp-2 min-h-[40px] md:min-h-[48px] mb-1 md:mb-2"
             style={{ fontFamily: "'Inter', sans-serif" }}
           >
             {title}
@@ -175,6 +178,14 @@ export function ElectricProductCard({
             </span>
           )}
         </div>
+
+        {/* RRP/MSRP labels */}
+        {(rrp || msrp) && (
+          <div className="mb-2 space-y-0.5 text-[10px] md:text-xs text-[var(--color-text-secondary)]">
+            {rrp && <div>РРЦ: {formatPrice(rrp)} ₽</div>}
+            {msrp && <div>МРЦ: {formatPrice(msrp)} ₽</div>}
+          </div>
+        )}
       </div>
 
       {/* Action Buttons - Stack on mobile, row on desktop */}

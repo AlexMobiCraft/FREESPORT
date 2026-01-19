@@ -176,7 +176,7 @@ class TestCustomerConflictResolver:
 
         # Проверяем создание записи в CustomerSyncLog
         log = CustomerSyncLog.objects.filter(
-            user=existing_customer, operation_type="conflict_resolution"
+            customer=existing_customer, operation_type="conflict_resolution"
         ).first()
         assert log is not None
         assert log.status == "success"
@@ -200,10 +200,10 @@ class TestCustomerConflictResolver:
         assert conflict.conflict_type == "customer_data"
         assert conflict.is_resolved is True
 
-        # Проверяем архивные данные
-        assert "email" in conflict.platform_data
-        assert conflict.platform_data["email"] == "test@example.com"
-        assert conflict.onec_data["email"] == "newemail@example.com"
+        # Проверяем архивные данные в details
+        assert "email" in conflict.details["platform_data"]
+        assert conflict.details["platform_data"]["email"] == "test@example.com"
+        assert conflict.details["onec_data"]["email"] == "newemail@example.com"
 
     @patch("apps.users.services.conflict_resolution.send_mail")
     def test_email_notification_sent(

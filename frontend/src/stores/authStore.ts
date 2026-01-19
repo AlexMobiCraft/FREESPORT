@@ -68,6 +68,8 @@ export const useAuthStore = create<AuthState>()(
          * - SameSite=Lax для CSRF protection
          */
         setCookie('refreshToken', refresh, 30);
+        // Story 16.2: Access token в cookies для SSR
+        setCookie('accessToken', access, 30);
 
         // Access token ТОЛЬКО в memory
         set({
@@ -108,6 +110,7 @@ export const useAuthStore = create<AuthState>()(
         // Локальная очистка ВСЕГДА выполняется (fail-safe)
         localStorage.removeItem('refreshToken');
         deleteCookie('refreshToken');
+        deleteCookie('accessToken');
         set({
           accessToken: null,
           user: null,
@@ -116,7 +119,12 @@ export const useAuthStore = create<AuthState>()(
       },
 
       getRefreshToken: () => {
-        return localStorage.getItem('refreshToken');
+        const token = localStorage.getItem('refreshToken');
+        // Fix: фильтруем невалидные значения, которые могли попасть ранее
+        if (!token || token === 'undefined' || token === 'null' || token.trim() === '') {
+          return null;
+        }
+        return token;
       },
     }),
     { name: 'AuthStore' }

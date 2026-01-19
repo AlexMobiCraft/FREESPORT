@@ -10,13 +10,11 @@ import pytest
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
-from apps.orders.serializers import (
-    OrderCreateSerializer,
-    OrderDetailSerializer,
-    OrderItemSerializer,
-    OrderListSerializer,
-)
-from apps.users.serializers import AddressSerializer as DeliveryAddressSerializer
+from apps.orders.serializers import (OrderCreateSerializer,
+                                     OrderDetailSerializer,
+                                     OrderItemSerializer, OrderListSerializer)
+from apps.users.serializers import \
+    AddressSerializer as DeliveryAddressSerializer
 
 User = get_user_model()
 
@@ -74,18 +72,30 @@ class TestOrderDetailSerializer:
         )
 
         order_item_factory.create(
-            order=order, product=product1, quantity=2, unit_price=product1.retail_price
+            order=order,
+            product=product1,
+            variant=product1.variants.first(),
+            quantity=2,
+            unit_price=product1.variants.first().retail_price,
         )
-
         order_item_factory.create(
-            order=order, product=product2, quantity=1, unit_price=product2.retail_price
+            order=order,
+            product=product2,
+            variant=product2.variants.first(),
+            quantity=1,
+            unit_price=product2.variants.first().retail_price,
         )
 
         serializer = OrderDetailSerializer(order)
         data = serializer.data
 
         assert "items" in data
-        assert len(data["items"]) == 2  # type: ignore
+        assert len(data["items"]) == 2
+        # Имена товаров должны быть в ответе через SerializerMethodField
+        # или прямо из OrderItem (если есть depth=1)
+        item_names = [item["product_name"] for item in data["items"]]
+        assert "Товар 1" in item_names
+        assert "Товар 2" in item_names
 
     def test_order_total_calculation(self, order_factory):
         """Тест расчета общей суммы заказа"""
@@ -112,7 +122,11 @@ class TestOrderItemSerializer:
         )
 
         order_item = order_item_factory.create(
-            order=order, product=product, quantity=3, unit_price=product.retail_price
+            order=order,
+            product=product,
+            variant=product.variants.first(),
+            quantity=3,
+            unit_price=product.variants.first().retail_price,
         )
 
         serializer = OrderItemSerializer(order_item)
@@ -218,9 +232,10 @@ class TestOrderCreateSerializer:
         cart = cart_factory.create(user=user)
         cart_item_factory.create(cart=cart, product=product, quantity=5)
 
-        # Теперь уменьшаем stock_quantity, чтобы симулировать недостаток
-        product.stock_quantity = 2
-        product.save()
+        # Теперь уменьшаем stock_quantity варианта, чтобы симулировать недостаток
+        variant = product.variants.first()
+        variant.stock_quantity = 2
+        variant.save()
 
         class MockRequest:
             def __init__(self, user):
@@ -244,7 +259,7 @@ class TestOrderCreateSerializer:
         assert serializer.calculate_delivery_cost("pickup") == 0
         assert serializer.calculate_delivery_cost("courier") == 500
         assert serializer.calculate_delivery_cost("post") == 300
-        assert serializer.calculate_delivery_cost("transport") == 1000
+        assert serializer.calculate_delivery_cost("transport_company") == 1000
 
     def test_order_creation_with_b2b_user(
         self,

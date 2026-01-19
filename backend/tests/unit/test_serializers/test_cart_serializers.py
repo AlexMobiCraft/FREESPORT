@@ -8,12 +8,9 @@ from unittest.mock import Mock
 import pytest
 from django.contrib.auth import get_user_model
 
-from apps.cart.serializers import (
-    CartItemCreateSerializer,
-    CartItemSerializer,
-    CartItemUpdateSerializer,
-    CartSerializer,
-)
+from apps.cart.serializers import (CartItemCreateSerializer,
+                                   CartItemSerializer,
+                                   CartItemUpdateSerializer, CartSerializer)
 
 User = get_user_model()
 
@@ -39,6 +36,7 @@ class TestCartItemSerializer:
         assert data["product"]["name"] == "Тестовый товар"
         assert data["quantity"] == 2
         assert "total_price" in data
+        assert data["unit_price"] == "1000.00"
 
     def test_cart_item_with_user_pricing(
         self, user_factory, product_factory, cart_factory, cart_item_factory
@@ -58,27 +56,35 @@ class TestCartItemSerializer:
         serializer = CartItemSerializer(cart_item, context={"request": mock_request})
         data = serializer.data
 
-        assert "retail_price" in data["product"]
+        # Цена берется из снимка в элементе корзины
+        assert data["unit_price"] == "1000.00"
 
     def test_cart_item_b2b_pricing(
         self, user_factory, product_factory, cart_factory, cart_item_factory
     ):
         """Тест элемента корзины с B2B ценообразованием"""
         user = user_factory.create(role="wholesale_level1")
-        product = product_factory.create(retail_price=Decimal("1000.00"))
+        # Фабрика создаст вариант с opt1_price = 900.00 (по умолчанию в conftest)
+        # Но мы укажем явно
+        product = product_factory.create(
+            retail_price=Decimal("1000.00"), opt1_price=Decimal("800.00")
+        )
         cart = cart_factory.create(user=user)
-        cart_item = cart_item_factory.create(cart=cart, product=product, quantity=5)
+        # При создании через фабрику CartItem, она берет цену из варианта
+        cart_item = cart_item_factory.create(
+            cart=cart,
+            variant=product.variants.first(),
+            quantity=5,
+            price_snapshot=Decimal("800.00"),
+        )
 
         mock_request = Mock()
         mock_request.user = user
-        mock_request.build_absolute_uri = Mock(
-            return_value="http://testserver/media/image.jpg"
-        )
 
         serializer = CartItemSerializer(cart_item, context={"request": mock_request})
         data = serializer.data
 
-        assert "retail_price" in data["product"]  # У нас нет opt1_price поля в модели
+        assert data["unit_price"] == "800.00"
 
 
 @pytest.mark.django_db
@@ -150,15 +156,16 @@ class TestCartItemCreateSerializer:
         user = user_factory.create()
         cart = cart_factory.create(user=user)
         product = product_factory.create(name="Товар для корзины", is_active=True)
+        variant = product.variants.first()
 
-        data = {"product": product.id, "quantity": 2}
+        data = {"variant_id": variant.id, "quantity": 2}
 
         serializer = CartItemCreateSerializer(data=data)
         assert serializer.is_valid(), serializer.errors
 
         cart_item = serializer.save(cart=cart)
         assert cart_item.quantity == 2
-        assert cart_item.product == product
+        assert cart_item.variant == variant
 
     def test_inactive_product_validation(
         self, user_factory, cart_factory, product_factory
@@ -167,12 +174,13 @@ class TestCartItemCreateSerializer:
         user = user_factory.create()
         cart = cart_factory.create(user=user)
         product = product_factory.create(is_active=False)
+        variant = product.variants.first()
 
-        data = {"product": product.id, "quantity": 1}
+        data = {"variant_id": variant.id, "quantity": 1}
 
         serializer = CartItemCreateSerializer(data=data)
         assert not serializer.is_valid()
-        assert "product" in serializer.errors
+        assert "variant_id" in serializer.errors
 
     def test_zero_quantity_validation(
         self, user_factory, cart_factory, product_factory
@@ -181,8 +189,9 @@ class TestCartItemCreateSerializer:
         user = user_factory.create()
         cart = cart_factory.create(user=user)
         product = product_factory.create()
+        variant = product.variants.first()
 
-        data = {"product": product.id, "quantity": 0}
+        data = {"variant_id": variant.id, "quantity": 0}
 
         serializer = CartItemCreateSerializer(data=data)
         assert not serializer.is_valid()
@@ -195,8 +204,9 @@ class TestCartItemCreateSerializer:
         user = user_factory.create()
         cart = cart_factory.create(user=user)
         product = product_factory.create()
+        variant = product.variants.first()
 
-        data = {"product": product.id, "quantity": -1}
+        data = {"variant_id": variant.id, "quantity": -1}
 
         serializer = CartItemCreateSerializer(data=data)
         assert not serializer.is_valid()
@@ -256,12 +266,12 @@ class TestCartIntegration:
         )
 
         # Добавление товаров
-        add_data1 = {"product": product1.id, "quantity": 2}
+        add_data1 = {"variant_id": product1.variants.first().id, "quantity": 2}
         add_serializer1 = CartItemCreateSerializer(data=add_data1)
         assert add_serializer1.is_valid(), add_serializer1.errors
         item1 = add_serializer1.save(cart=cart)
 
-        add_data2 = {"product": product2.id, "quantity": 1}
+        add_data2 = {"variant_id": product2.variants.first().id, "quantity": 1}
         add_serializer2 = CartItemCreateSerializer(data=add_data2)
         assert add_serializer2.is_valid(), add_serializer2.errors
         item2 = add_serializer2.save(cart=cart)

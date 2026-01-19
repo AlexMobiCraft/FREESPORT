@@ -10,14 +10,7 @@
 
 import React, { useCallback, useMemo } from 'react';
 import { cn } from '@/utils/cn';
-import type { components } from '@/types/api.generated';
-
-/**
- * Тип варианта товара из api.generated.ts
- * Включает поля: id, sku, color_name, color_hex, size_value, current_price,
- * stock_quantity, is_in_stock, available_quantity, main_image, gallery_images
- */
-export type ProductVariant = components['schemas']['ProductVariant'];
+import type { ProductVariant } from '@/types/api';
 
 /**
  * Интерфейс выбранных опций

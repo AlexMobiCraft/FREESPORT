@@ -8,14 +8,13 @@ from django.test import TestCase
 from rest_framework.test import APIClient
 
 from apps.cart.models import Cart, CartItem
+from tests.factories import ProductFactory
 from apps.products.models import Brand, Category, Product
 
 User = get_user_model()
 
 
 class UserCartIntegrationTest(TestCase):
-    """Тестирование интеграции пользователей и корзины"""
-
     def setUp(self):
         self.client = APIClient()
 
@@ -30,16 +29,10 @@ class UserCartIntegrationTest(TestCase):
             company_name="Test Company",
         )
 
-        # Создаем товар
-        self.category = Category.objects.create(
-            name="Test Category", slug="test-category"
-        )
-        self.brand = Brand.objects.create(name="Test Brand", slug="test-brand")
-        self.product = Product.objects.create(
+        # Создаем товар через фабрику (она создаст вариант с указанными параметрами)
+        self.product = ProductFactory(
             name="Test Product",
             slug="test-product",
-            category=self.category,
-            brand=self.brand,
             description="Test product for user cart integration",
             retail_price=100.00,
             opt1_price=80.00,
@@ -51,7 +44,8 @@ class UserCartIntegrationTest(TestCase):
     def test_guest_to_user_cart_transfer(self):
         """Перенос корзины при авторизации гостя"""
         # Добавляем товар как гость
-        data = {"product": self.product.id, "quantity": 2}
+        variant = self.product.variants.first()
+        data = {"variant_id": variant.id, "quantity": 2}
         response = self.client.post("/api/v1/cart/items/", data)
         self.assertEqual(response.status_code, 201)
 
@@ -72,7 +66,8 @@ class UserCartIntegrationTest(TestCase):
         # Retail пользователь
         self.client.force_authenticate(user=self.retail_user)
 
-        data = {"product": self.product.id, "quantity": 1}
+        variant = self.product.variants.first()
+        data = {"variant_id": variant.id, "quantity": 1}
         response = self.client.post("/api/v1/cart/items/", data)
 
         cart_response = self.client.get("/api/v1/cart/")
@@ -97,7 +92,8 @@ class UserCartIntegrationTest(TestCase):
         """Изоляция корзин между пользователями"""
         # Добавляем товар для первого пользователя
         self.client.force_authenticate(user=self.retail_user)
-        data = {"product": self.product.id, "quantity": 1}
+        variant = self.product.variants.first()
+        data = {"variant_id": variant.id, "quantity": 1}
         self.client.post("/api/v1/cart/items/", data)
 
         # Переключаемся на второго пользователя
@@ -112,7 +108,8 @@ class UserCartIntegrationTest(TestCase):
         self.client.force_authenticate(user=self.retail_user)
 
         # Добавляем товар
-        data = {"product": self.product.id, "quantity": 2}
+        variant = self.product.variants.first()
+        data = {"variant_id": variant.id, "quantity": 2}
         self.client.post("/api/v1/cart/items/", data)
 
         # Создаем новый клиент (эмуляция новой сессии)

@@ -141,12 +141,14 @@ class CustomerSyncLog(TimeStampedModel):
     operation_type = models.CharField(
         _("Тип операции"),
         max_length=50,
+        choices=OperationType.choices,
         db_index=True,
         help_text="Тип операции с клиентом",
     )
     status = models.CharField(
         _("Статус"),
         max_length=20,
+        choices=StatusType.choices,
         db_index=True,
         help_text="Статус операции",
     )
@@ -361,6 +363,54 @@ class AuditLog(TimeStampedModel):
     def __str__(self) -> str:
         date_str = self.created_at.strftime("%Y-%m-%d %H:%M")
         return f"{self.user} - {self.action} {self.resource_type} ({date_str})"
+
+    @property
+    def changes(self) -> dict:
+        """Получить словарь изменений из деталей."""
+        return self.details.get("changes", {})
+
+    @staticmethod
+    def log_action(
+        user,
+        action: str,
+        resource_type: str,
+        resource_id: Any,
+        details: dict | None = None,
+        changes: dict | None = None,
+        ip_address: str | None = None,
+        user_agent: str = "",
+    ) -> "AuditLog":
+        """
+        Утилита для создания записи в аудит логе.
+
+        Args:
+            user: Пользователь, выполнивший действие
+            action: Тип действия (approve_b2b, reject_b2b, etc.)
+            resource_type: Тип затронутого ресурса (User, Product, etc.)
+            resource_id: ID затронутого ресурса
+            details: Дополнительные детали
+            changes: Словарь изменений (старое -> новое)
+            ip_address: IP адрес клиента
+            user_agent: User Agent строка
+
+        Returns:
+            Созданный объект AuditLog
+        """
+        if details is None:
+            details = {}
+
+        if changes:
+            details["changes"] = changes
+
+        return AuditLog.objects.create(
+            user=user,
+            action=action,
+            resource_type=resource_type,
+            resource_id=str(resource_id),
+            details=details,
+            ip_address=ip_address,
+            user_agent=user_agent,
+        )
 
 
 class Category(models.Model):
@@ -731,3 +781,87 @@ class BlogPost(models.Model):
         from django.urls import reverse
 
         return reverse("blog-detail", kwargs={"slug": self.slug})
+
+
+class NotificationRecipient(TimeStampedModel):
+    """
+    Получатель email-уведомлений системы.
+
+    Позволяет гибко управлять списком получателей различных типов уведомлений
+    через Django Admin без необходимости менять settings.ADMINS.
+    """
+
+    email = models.EmailField(
+        _("Email"),
+        unique=True,
+        db_index=True,
+        help_text="Email адрес получателя уведомлений",
+    )
+    name = models.CharField(
+        _("Имя"),
+        max_length=100,
+        blank=True,
+        help_text="Имя получателя для персонализации писем",
+    )
+    is_active = models.BooleanField(
+        _("Активен"),
+        default=True,
+        db_index=True,
+        help_text="Флаг активности получателя",
+    )
+
+    # Типы уведомлений о заказах
+    notify_new_orders = models.BooleanField(
+        _("Новые заказы"),
+        default=False,
+        help_text="Уведомления о новых заказах",
+    )
+    notify_order_cancelled = models.BooleanField(
+        _("Отмена заказов"),
+        default=False,
+        help_text="Уведомления об отмене заказов",
+    )
+
+    # Типы уведомлений о пользователях
+    notify_user_verification = models.BooleanField(
+        _("Верификация B2B"),
+        default=False,
+        help_text="Уведомления о новых заявках на верификацию B2B партнёров",
+    )
+    notify_pending_queue = models.BooleanField(
+        _("Alert очереди"),
+        default=False,
+        help_text="Уведомления о превышении очереди pending верификаций",
+    )
+
+    # Типы уведомлений о товарах и отчётах
+    notify_low_stock = models.BooleanField(
+        _("Малый остаток"),
+        default=False,
+        help_text="Уведомления о малом остатке товаров",
+    )
+    notify_daily_summary = models.BooleanField(
+        _("Ежедневный отчёт"),
+        default=False,
+        help_text="Ежедневные сводные отчёты",
+    )
+
+    class Meta:
+        verbose_name = _("Получатель уведомлений")
+        verbose_name_plural = _("Получатели уведомлений")
+        ordering = ["email"]
+        indexes = [
+            models.Index(fields=["is_active", "notify_new_orders"]),
+            models.Index(fields=["is_active", "notify_user_verification"]),
+        ]
+
+    def __str__(self) -> str:
+        if self.name:
+            return f"{self.name} <{self.email}>"
+        return self.email
+
+    def clean(self):
+        """Валидация email адреса."""
+        super().clean()
+        if self.email:
+            self.email = self.email.lower().strip()

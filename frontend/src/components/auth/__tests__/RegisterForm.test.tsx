@@ -208,9 +208,9 @@ describe('RegisterForm', () => {
         });
       });
 
-      // Should redirect to home after successful registration
+      // Should redirect to root after successful registration
       await waitFor(() => {
-        expect(mockPush).toHaveBeenCalledWith('/test');
+        expect(mockPush).toHaveBeenCalledWith('/');
       });
     });
 
@@ -249,6 +249,28 @@ describe('RegisterForm', () => {
 
       await waitFor(() => {
         expect(mockOnSuccess).toHaveBeenCalled();
+      });
+    });
+
+    test('should redirect to redirectUrl when provided', async () => {
+      const user = userEvent.setup();
+      const mockRegister = vi.mocked(authService.register);
+      mockRegister.mockResolvedValue({
+        access: 'mock-token',
+        refresh: 'mock-refresh',
+        user: { id: 2, email: 'user@example.com', first_name: 'Test', role: 'retail', is_verified: true, last_name: '', phone: '' },
+      });
+
+      render(<RegisterForm redirectUrl="/custom/path" />);
+
+      await user.type(screen.getByLabelText(/имя/i), 'Test');
+      await user.type(screen.getByLabelText(/^email$/i), 'test@example.com');
+      await user.type(screen.getByLabelText(/^пароль$/i), 'SecurePass123');
+      await user.type(screen.getByLabelText(/подтверждение пароля/i), 'SecurePass123');
+      await user.click(screen.getByRole('button', { name: /зарегистрироваться/i }));
+
+      await waitFor(() => {
+        expect(mockPush).toHaveBeenCalledWith('/custom/path');
       });
     });
   });

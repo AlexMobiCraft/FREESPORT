@@ -45,12 +45,9 @@ class AttributeImportService:
             source: Источник импорта ('goods' или 'offers')
             dry_run: Режим тестирования без записи в БД
         """
-        from apps.products.models import (
-            Attribute,
-            Attribute1CMapping,
-            AttributeValue,
-            AttributeValue1CMapping,
-        )
+        from apps.products.models import (Attribute, Attribute1CMapping,
+                                          AttributeValue,
+                                          AttributeValue1CMapping)
 
         self.attribute_model: type[Attribute] = Attribute
         self.attribute_mapping_model: type[Attribute1CMapping] = Attribute1CMapping
@@ -257,10 +254,8 @@ class AttributeImportService:
         Args:
             properties: Список словарей с данными свойств
         """
-        from apps.products.utils.attributes import (
-            normalize_attribute_name,
-            normalize_attribute_value,
-        )
+        from apps.products.utils.attributes import (normalize_attribute_name,
+                                                    normalize_attribute_value)
 
         if self.dry_run:
             logger.info(

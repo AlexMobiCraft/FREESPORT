@@ -584,7 +584,7 @@ def main():
 
     # Определяем корень проекта
     script_dir = Path(__file__).parent
-    project_root = script_dir.parent
+    project_root = script_dir.parent.parent
 
     exclude_patterns = load_exclude_patterns(project_root, args.exclude)
 

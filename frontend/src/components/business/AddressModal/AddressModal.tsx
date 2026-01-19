@@ -12,7 +12,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { z } from 'zod';
 import { Modal } from '@/components/ui/Modal/Modal';
-import { Input } from '@/components/ui';
+import { Input, PhoneInput } from '@/components/ui';
 import { Button } from '@/components/ui';
 import { addressSchema, defaultAddressFormValues } from '@/schemas/addressSchema';
 import type { Address } from '@/types/address';
@@ -177,7 +177,7 @@ export const AddressModal: React.FC<AddressModalProps> = ({
           name="phone"
           control={control}
           render={({ field }) => (
-            <Input
+            <PhoneInput
               label="Телефон"
               placeholder="+79001234567"
               error={errors.phone?.message}

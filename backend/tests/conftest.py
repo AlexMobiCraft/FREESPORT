@@ -174,6 +174,7 @@ def create_factories():
                 "stock_quantity",
                 "create_variant",
                 "sku",
+                "main_image",
             ]
 
         @classmethod
@@ -417,6 +418,9 @@ class FactoryWrapper:
     def create_batch(self, *args, **kwargs):
         return get_factories()[self.factory_name].create_batch(*args, **kwargs)
 
+    def __call__(self, *args, **kwargs):
+        return self.create(*args, **kwargs)
+
 
 UserFactory = FactoryWrapper("UserFactory")
 CompanyFactory = FactoryWrapper("CompanyFactory")
@@ -432,6 +436,17 @@ OrderFactory = FactoryWrapper("OrderFactory")
 OrderItemFactory = FactoryWrapper("OrderItemFactory")
 AuditLogFactory = FactoryWrapper("AuditLogFactory")
 SyncLogFactory = FactoryWrapper("SyncLogFactory")
+
+
+@pytest.fixture
+def onec_data_dir(settings):
+    """Фикстура для пути к данным 1С"""
+    from pathlib import Path
+
+    base_dir = Path(settings.BASE_DIR)
+    # Путь внутри контейнера или локально
+    data_dir = base_dir / "data" / "import_1c"
+    return str(data_dir)
 
 
 @pytest.fixture

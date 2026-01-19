@@ -74,7 +74,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
           // AC 2.4: Logout при 401/403 (токен истек)
           if (err.response?.status === 401 || err.response?.status === 403) {
-            console.error('Session expired:', error);
+            console.warn('Session expired:', error);
             logout();
             setIsInitialized(true);
             setIsLoading(false);
@@ -90,7 +90,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
             await new Promise(resolve => setTimeout(resolve, delay));
           } else {
             // Все попытки исчерпаны - logout
-            console.error('Auth initialization failed after retries:', error);
+            console.warn('Auth initialization failed after retries:', error);
             logout();
             setIsInitialized(true);
             setIsLoading(false);

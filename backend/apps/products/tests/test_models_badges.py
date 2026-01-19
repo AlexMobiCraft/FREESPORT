@@ -170,19 +170,15 @@ class TestProductBadgeFields:
 
     def test_db_indexes_exist_for_badge_fields(self, brand, category):
         """Тест: проверка что индексы созданы для boolean полей"""
-        from apps.products.factories import ProductVariantFactory
         from decimal import Decimal
 
-        # Создаём товары с разными флагами
+        # Создаём товары с разными флагами и передаем параметры вариантов в фабрику продукта
         hit_product = ProductFactory.create(
             name="Hit Product",
             slug="hit-product",
             brand=brand,
             category=category,
             is_hit=True,
-        )
-        ProductVariantFactory.create(
-            product=hit_product,
             sku="HIT-001",
             retail_price=Decimal("100.00"),
         )
@@ -193,9 +189,6 @@ class TestProductBadgeFields:
             brand=brand,
             category=category,
             is_new=True,
-        )
-        ProductVariantFactory.create(
-            product=new_product,
             sku="NEW-001",
             retail_price=Decimal("100.00"),
         )

@@ -42,17 +42,25 @@ def send_admin_verification_email(self, user_id: int) -> bool:
     try:
         user = User.objects.get(id=user_id)
 
-        # Получаем email администраторов из settings.ADMINS
-        admin_emails = [email for name, email in settings.ADMINS]
+        # Получаем email администраторов из NotificationRecipient
+        from apps.common.models import NotificationRecipient
+
+        admin_emails = list(
+            NotificationRecipient.objects.filter(
+                is_active=True,
+                notify_user_verification=True,
+            ).values_list("email", flat=True)
+        )
 
         if not admin_emails:
             logger.warning(
-                "No admin emails configured. Skipping notification for user %s",
+                "No recipients configured for verification notifications. "
+                "Skipping notification for user %s",
                 user_id,
                 extra={
                     "user_id": user_id,
                     "action": "skip_admin_email",
-                    "reason": "no_admin_emails_configured",
+                    "reason": "no_verification_recipients_configured",
                 },
             )
             return False
@@ -222,8 +230,16 @@ def monitor_pending_verification_queue() -> dict:
             },
         )
 
-        # Отправить alert админам
-        admin_emails = [email for name, email in settings.ADMINS]
+        # Отправить alert получателям с флагом notify_pending_queue
+        from apps.common.models import NotificationRecipient
+
+        admin_emails = list(
+            NotificationRecipient.objects.filter(
+                is_active=True,
+                notify_pending_queue=True,
+            ).values_list("email", flat=True)
+        )
+
         if admin_emails:
             send_mail(
                 subject=(

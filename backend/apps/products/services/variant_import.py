@@ -396,7 +396,8 @@ class VariantImportProcessor:
         Returns:
             Product instance или None при ошибке
         """
-        from apps.products.models import Brand, Brand1CMapping, Category, Product
+        from apps.products.models import (Brand, Brand1CMapping, Category,
+                                          Product)
 
         try:
             parent_id = goods_data.get("id")
@@ -1007,6 +1008,11 @@ class VariantImportProcessor:
                     field_name = price_type.product_field
                     price_updates[field_name] = price_value
 
+            # Story 3.1.4: Auto-populate RRP from Retail Price if not provided
+            # This ensures B2B users always have a baseline for comparison
+            if "retail_price" in price_updates and "rrp" not in price_updates:
+                price_updates["rrp"] = price_updates["retail_price"]
+
             # Применяем обновления цен
             fields_to_update: list[str] = []
             for field_name, value in price_updates.items():
@@ -1106,10 +1112,8 @@ class VariantImportProcessor:
             - Update stats: attributes_linked, attributes_missing
         """
         from apps.products.models import Attribute, AttributeValue
-        from apps.products.utils.attributes import (
-            normalize_attribute_name,
-            normalize_attribute_value,
-        )
+        from apps.products.utils.attributes import (normalize_attribute_name,
+                                                    normalize_attribute_value)
 
         if not characteristics:
             return

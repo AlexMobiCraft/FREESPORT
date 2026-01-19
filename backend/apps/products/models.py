@@ -642,11 +642,11 @@ class PriceType(models.Model):
                 ("trainer_price", "Цена для тренера"),
                 ("federation_price", "Цена для представителя федерации"),
                 (
-                    "recommended_retail_price",
+                    "rrp",
                     "Рекомендованная розничная цена",
                 ),
                 (
-                    "max_suggested_retail_price",
+                    "msrp",
                     "Максимальная рекомендованная цена",
                 ),
             ],

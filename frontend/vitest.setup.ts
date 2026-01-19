@@ -4,6 +4,7 @@
 
 // Установка env переменных для тестов
 process.env.NEXT_PUBLIC_API_URL = 'http://localhost:8001/api/v1';
+process.env.INTERNAL_API_URL = 'http://localhost:8001';
 
 // Подключение дополнительных матчеров для DOM элементов (Vitest версия)
 import '@testing-library/jest-dom/vitest';
@@ -25,8 +26,10 @@ beforeAll(() => server.listen({ onUnhandledRequest: 'warn' }));
 beforeEach(() => {
   // Очистка всех моков перед каждым тестом
   vi.clearAllMocks();
-  // Очистка localStorage перед каждым тестом
-  localStorage.clear();
+  // Очистка localStorage перед каждым тестом (если доступен)
+  if (typeof localStorage !== 'undefined') {
+    localStorage.clear();
+  }
 });
 
 // Сброс handlers после каждого теста

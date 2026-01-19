@@ -1,12 +1,13 @@
-import pytest
 import uuid
+from decimal import Decimal
+
+import pytest
+from django.contrib.auth import get_user_model
 from django.urls import reverse
 from rest_framework import status
 
 from apps.cart.models import Cart, CartItem
 from apps.orders.models import Order, OrderItem
-from decimal import Decimal
-from django.contrib.auth import get_user_model
 from apps.products.models import Brand, Category, Product, ProductVariant
 
 User = get_user_model()

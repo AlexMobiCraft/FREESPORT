@@ -72,7 +72,6 @@ class CustomerSyncLogger:
         return CustomerSyncLog.objects.create(
             operation_type=CustomerSyncLog.OperationType.IMPORT_FROM_1C,
             customer=customer if success else None,
-            customer_email=customer_data.get("email", ""),
             onec_id=customer_data.get("id", ""),
             status=(
                 CustomerSyncLog.StatusType.SUCCESS
@@ -124,7 +123,6 @@ class CustomerSyncLogger:
         return CustomerSyncLog.objects.create(
             operation_type=CustomerSyncLog.OperationType.EXPORT_TO_1C,
             customer=platform_customer,
-            customer_email=platform_customer.email or "",
             onec_id=result.get("onec_id", platform_customer.onec_id or ""),
             status=(
                 CustomerSyncLog.StatusType.SUCCESS
@@ -168,7 +166,6 @@ class CustomerSyncLogger:
         return CustomerSyncLog.objects.create(
             operation_type=CustomerSyncLog.OperationType.CUSTOMER_IDENTIFICATION,
             customer=customer,
-            customer_email=onec_data.get("email", ""),
             onec_id=onec_data.get("onec_id", ""),
             status=(
                 CustomerSyncLog.StatusType.SUCCESS
@@ -217,7 +214,6 @@ class CustomerSyncLogger:
         return CustomerSyncLog.objects.create(
             operation_type=CustomerSyncLog.OperationType.CONFLICT_RESOLUTION,
             customer=existing_customer,
-            customer_email=existing_customer.email or "",
             onec_id=onec_data.get("onec_id", ""),
             status=(
                 CustomerSyncLog.StatusType.SUCCESS
@@ -260,7 +256,6 @@ class CustomerSyncLogger:
         return CustomerSyncLog.objects.create(
             operation_type=CustomerSyncLog.OperationType.SYNC_CHANGES,
             customer=customer,
-            customer_email=customer.email or "",
             onec_id=customer.onec_id or "",
             status=(
                 CustomerSyncLog.StatusType.SUCCESS
@@ -315,7 +310,6 @@ class CustomerSyncLogger:
         return CustomerSyncLog.objects.create(
             operation_type=CustomerSyncLog.OperationType.BATCH_OPERATION,
             customer=None,
-            customer_email="",
             onec_id="",
             status=status,
             details=details,
@@ -350,6 +344,7 @@ class CustomerSyncLogger:
 
         details = {
             "validation_timestamp": timezone.now().isoformat(),
+            "customer_email": customer_email,
             "is_valid": is_valid,
             "errors": errors,
             "warnings": validation_result.get("warnings", []),
@@ -359,7 +354,6 @@ class CustomerSyncLogger:
         return CustomerSyncLog.objects.create(
             operation_type=CustomerSyncLog.OperationType.DATA_VALIDATION,
             customer=None,
-            customer_email=customer_email,
             onec_id=onec_id,
             status=(
                 CustomerSyncLog.StatusType.SUCCESS

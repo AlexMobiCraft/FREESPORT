@@ -6,11 +6,11 @@ Integration тесты для email уведомлений при регистр
 - Retail регистрация НЕ вызывает отправку email
 """
 
-import pytest
 from unittest.mock import patch
 
-from rest_framework.test import APIClient
+import pytest
 from rest_framework import status
+from rest_framework.test import APIClient
 
 from apps.users.models import User
 

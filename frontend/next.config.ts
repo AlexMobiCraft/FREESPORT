@@ -87,6 +87,17 @@ const nextConfig: NextConfig = {
     ];
   },
 
+  // Редиректы для SEO и миграции URL
+  async redirects() {
+    return [
+      {
+        source: '/promotions',
+        destination: '/blog',
+        permanent: true,
+      },
+    ];
+  },
+
   // Заголовки безопасности
   async headers() {
     return [

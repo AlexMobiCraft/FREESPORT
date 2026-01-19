@@ -5,6 +5,7 @@
 
 import logging
 import os
+import uuid
 from typing import Any, Dict, List, Optional
 
 from django.conf import settings
@@ -286,18 +287,18 @@ class CustomerConflictResolver:
         SyncConflict.objects.create(
             conflict_type=conflict_type,
             customer=customer,
-            platform_data=platform_data,  # Архив старых данных
-            onec_data=onec_data,  # Новые данные из 1С
-            conflicting_fields=conflicting_fields,
             resolution_strategy="onec_wins",
             is_resolved=True,  # Автоматически разрешен
-            resolution_details={
+            details={
                 "source": source,
                 "resolved_at": timezone.now().isoformat(),
                 "fields_updated": len(conflicting_fields),
+                "platform_data": platform_data,  # Архив старых данных
+                "onec_data": onec_data,  # Новые данные из 1С
+                "conflicting_fields": conflicting_fields,
+                "resolved_by": "CustomerConflictResolver",
             },
             resolved_at=timezone.now(),
-            resolved_by="CustomerConflictResolver",
         )
 
     def _log_conflict_resolution(
@@ -312,11 +313,12 @@ class CustomerConflictResolver:
             source: Источник конфликта
         """
         CustomerSyncLog.objects.create(
-            session=None,  # Session опционален для conflict resolution
-            user=customer,
+            session="",  # Session опционален для conflict resolution
+            customer=customer,
             onec_id=customer.onec_id or "",
             operation_type=CustomerSyncLog.OperationType.CONFLICT_RESOLUTION,
             status=CustomerSyncLog.StatusType.SUCCESS,
+            correlation_id=uuid.uuid4(),
             details={
                 "conflict_source": source,
                 "resolution_strategy": "onec_wins",
@@ -420,11 +422,12 @@ class CustomerConflictResolver:
             error_message: Сообщение об ошибке
         """
         CustomerSyncLog.objects.create(
-            session=None,  # Session опционален для notification errors
-            user=customer,
+            session="",  # Session опционален для notification errors
+            customer=customer,
             onec_id=customer.onec_id or "",
             operation_type=CustomerSyncLog.OperationType.NOTIFICATION_FAILED,
             status=CustomerSyncLog.StatusType.WARNING,
+            correlation_id=uuid.uuid4(),
             details={"error": error_message},
             error_message=error_message,
         )

@@ -9,6 +9,18 @@
   2. Contains **NO Cyrillic characters** (like `с`, `а`, `о`, `е` which look similar to Latin `c`, `a`, `o`, `e`)
   3. Has **NO leading special characters or whitespace** before the command
 
+# Frontend Development Rules
+
+- **CRITICAL**: After making changes to frontend code (`frontend/src/`), you **MUST** restart the Docker container before verifying the changes in browser:
+  ```bash
+  # Standard restart (for hot-reload issues)
+  docker compose --env-file .env -f docker/docker-compose.yml restart frontend
+  
+  # Full rebuild (when dependencies or config changed)
+  docker compose --env-file .env -f docker/docker-compose.yml up -d --build frontend
+  ```
+- This is required because the frontend runs in a Docker container and changes are not automatically reflected without restart.
+
 # **Project Overview**
 
 This is a full-stack e-commerce platform for selling sporting goods, designed as an API-first solution for both B2B and B2C sales. The project is a monorepo with a Django backend and a Next.js frontend.
@@ -121,12 +133,57 @@ The following services will be started:
 
 ## **Project Structure (Frontend)**
 
-- `/news` — Список новостей с пагинацией.
-- `/news/[slug]` — Детальная страница новости.
-- `/blog` — Список статей блога.
-- `/blog/[slug]` — Детальная страница статьи блога.
-- `services/newsService.ts` — Сервис для News API.
-- `services/blogService.ts` — Сервис для Blog API.
+The frontend uses **Next.js Route Groups** for multi-theme architecture:
+
+```
+frontend/src/app/
+├── layout.tsx              # Root: fonts + html/body (no Header/Footer)
+├── page.tsx                # Dynamic redirect based on ACTIVE_THEME
+├── globals.css             # Blue Theme CSS tokens
+├── globals-electric-orange.css  # Electric Orange CSS tokens
+│
+├── (coming-soon)/          # Route Group: Coming Soon
+│   ├── layout.tsx          # Minimal (no Header/Footer)
+│   └── coming-soon/page.tsx
+│
+├── (blue)/                 # Route Group: Blue Theme
+│   ├── layout.tsx          # globals.css + Header/Footer
+│   ├── catalog/            # /catalog
+│   ├── product/            # /product/[slug]
+│   ├── cart/, checkout/, profile/, news/, blog/, ...
+│   └── (auth)/             # /login, /register
+│
+└── (electric)/             # Route Group: Electric Orange Theme
+    ├── layout.tsx          # globals-electric-orange.css + ElectricHeader/Footer
+    └── electric/           # /electric
+```
+
+### **Theme Switching**
+
+Set `ACTIVE_THEME` in `.env` to control root URL (`/`) redirect:
+- `coming_soon` → `/coming-soon` (placeholder page)
+- `blue` → `/home` (Blue Theme - Main Page)
+- `electric_orange` → `/electric` (Electric Orange Theme)
+
+> [!IMPORTANT]
+> In production, ensure `ACTIVE_THEME` is explicitly set in `.env.prod`. If not set, it defaults to `coming_soon`.
+
+### **Performance & Troubleshooting**
+
+- **SSR Throttle Limits:** To prevent `429 Too Many Requests` during Server-Side Rendering (where the Frontend container makes multiple rapid requests to the Backend), the `anon` throttle rate in `production.py` is increased to `6000/min`.
+
+### **Key Routes**
+
+- `/catalog` — Product catalog (Blue Theme)
+- `/product/[slug]` — Product detail page
+- `/cart`, `/checkout` — Shopping cart and checkout
+- `/news`, `/blog` — Content pages
+- `/electric` — Electric Orange theme demo
+
+### **Services**
+
+- `services/newsService.ts` — News API
+- `services/blogService.ts` — Blog API
 
 ## **Development Conventions**
 

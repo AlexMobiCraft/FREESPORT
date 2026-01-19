@@ -4,9 +4,9 @@ Integration тесты для API мониторинга.
 
 from __future__ import annotations
 
+import uuid
 from datetime import timedelta
 
-import uuid
 import pytest
 from django.contrib.auth import get_user_model
 from django.test import TestCase

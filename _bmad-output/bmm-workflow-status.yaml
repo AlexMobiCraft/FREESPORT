@@ -34,8 +34,8 @@ workflow_status:
         status: "docs/stories"
         note: "Существующие истории найдены в docs/stories"
       - id: "implementation-readiness"
-        status: "required"
-        note: "Финальная проверка перед переходом к новой реализации"
+        status: "_bmad-output/planning-artifacts/implementation-readiness-report-2026-01-18.md"
+        note: "Проверка готовности завершена. Выявлены структурные замечания, принято решение продолжать как есть."
   - phase: 4
     name: "Реализация"
     workflows:

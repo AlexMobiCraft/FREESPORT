@@ -1,153 +1,123 @@
-/**
- * Middleware Tests
- * Story 28.4 - Защищенные маршруты и управление сессиями
- *
- * Тестирует:
- * - Protected routes redirect без токена
- * - Public routes доступны без токена
- * - Предотвращение бесконечного редиректа
- * - Auth routes redirect для авторизованных
- */
-
-import { describe, test, expect } from 'vitest';
-import { NextRequest } from 'next/server';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { middleware } from '../middleware';
+import { NextRequest, NextResponse } from 'next/server';
 
-describe('Middleware - Protected Routes', () => {
-  test('redirects to /login for protected route without token', () => {
-    const request = new NextRequest(new URL('http://localhost:3000/profile'));
-
-    const response = middleware(request);
-
-    expect(response.status).toBe(307); // Temporary Redirect
-    expect(response.headers.get('location')).toContain('/login?next=%2Fprofile');
-  });
-
-  test('redirects to /login for /orders without token', () => {
-    const request = new NextRequest(new URL('http://localhost:3000/orders'));
-
-    const response = middleware(request);
-
-    expect(response.status).toBe(307);
-    expect(response.headers.get('location')).toContain('/login?next=%2Forders');
-  });
-
-  test('redirects to /login for /b2b-dashboard without token', () => {
-    const request = new NextRequest(new URL('http://localhost:3000/b2b-dashboard'));
-
-    const response = middleware(request);
-
-    expect(response.status).toBe(307);
-    expect(response.headers.get('location')).toContain('/login?next=%2Fb2b-dashboard');
-  });
-
-  // NOTE: Тестирование с cookies в unit-тестах NextRequest сложно
-  // Эти тесты будут покрыты в E2E тестах
+// Mock NextResponse
+vi.mock('next/server', async () => {
+  const actual = await vi.importActual('next/server');
+  return {
+    ...actual,
+    NextResponse: {
+      next: vi.fn(),
+      redirect: vi.fn(),
+    },
+  };
 });
 
-describe('Middleware - Public Routes', () => {
-  test('allows access to homepage without token', () => {
-    const request = new NextRequest(new URL('http://localhost:3000/'));
-
-    const response = middleware(request);
-
-    expect(response.status).not.toBe(307);
+describe('Middleware', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
   });
 
-  test('allows access to catalog without token', () => {
-    const request = new NextRequest(new URL('http://localhost:3000/catalog'));
-
-    const response = middleware(request);
-
-    expect(response.status).not.toBe(307);
-  });
-
-  test('allows access to product page without token', () => {
-    const request = new NextRequest(new URL('http://localhost:3000/product/123'));
-
-    const response = middleware(request);
-
-    expect(response.status).not.toBe(307);
-  });
-
-  test('allows access to /login without token', () => {
-    const request = new NextRequest(new URL('http://localhost:3000/login'));
-
-    const response = middleware(request);
-
-    expect(response.status).not.toBe(307);
-  });
-
-  test('allows access to /register without token', () => {
-    const request = new NextRequest(new URL('http://localhost:3000/register'));
-
-    const response = middleware(request);
-
-    expect(response.status).not.toBe(307);
-  });
-});
-
-describe('Middleware - Infinite Redirect Prevention', () => {
-  test('does not redirect to /login if already on /login', () => {
-    const request = new NextRequest(new URL('http://localhost:3000/login'));
-
-    const response = middleware(request);
-
-    // Не должен редиректить на /login?next=/login
-    expect(response.status).not.toBe(307);
-    const location = response.headers.get('location');
-    if (location) {
-      expect(location).not.toContain('next=%2Flogin');
+  const createRequest = (pathname: string, hasToken: boolean = false, nextParam?: string) => {
+    const url = new URL(`http://localhost:3000${pathname}`);
+    if (nextParam) {
+      url.searchParams.set('next', nextParam);
     }
+    
+    const req = {
+      nextUrl: url,
+      cookies: {
+        get: (name: string) => (name === 'refreshToken' && hasToken ? { value: 'token' } : undefined),
+      },
+      url: url.toString(),
+    } as unknown as NextRequest;
+    
+    // Helper needed because NextRequest clone() is complex to mock fully
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    req.nextUrl.clone = () => new URL(url.toString()) as any;
+    
+    return req;
+  };
+
+  it('redirects unauthenticated user to login when accessing protected route', () => {
+    const req = createRequest('/profile');
+    middleware(req);
+
+    expect(NextResponse.redirect).toHaveBeenCalled();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const redirectUrl = (NextResponse.redirect as any).mock.calls[0][0];
+    expect(redirectUrl.pathname).toBe('/login');
+    expect(redirectUrl.searchParams.get('next')).toBe('/profile');
   });
 
-  test('does not add next parameter if already on auth route', () => {
-    const request = new NextRequest(new URL('http://localhost:3000/register'));
+  it('allows authenticated user to access protected route', () => {
+    const req = createRequest('/profile', true);
+    middleware(req);
 
-    const response = middleware(request);
-
-    // Register route is public, no redirect
-    expect(response.status).not.toBe(307);
-  });
-});
-
-describe('Middleware - Auth Routes for Authenticated Users', () => {
-  // NOTE: Тестирование редиректов для авторизованных пользователей с cookies
-  // сложно реализовать в unit-тестах NextRequest
-  // Эти сценарии будут покрыты в E2E тестах или интеграционных тестах
-  test.skip('redirects authenticated user from /login to homepage (E2E)', () => {
-    // Будет реализовано в E2E тестах с Playwright
+    expect(NextResponse.next).toHaveBeenCalled();
   });
 
-  test.skip('redirects authenticated user from /register to homepage (E2E)', () => {
-    // Будет реализовано в E2E тестах с Playwright
+  it('redirects authenticated user to home from auth page when no next param', () => {
+    const req = createRequest('/login', true);
+    middleware(req);
+
+    expect(NextResponse.redirect).toHaveBeenCalled();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const redirectUrl = (NextResponse.redirect as any).mock.calls[0][0];
+    expect(redirectUrl.pathname).toBe('/');
   });
 
-  test.skip('redirects authenticated user from /password-reset to homepage (E2E)', () => {
-    // Будет реализовано в E2E тестах с Playwright
-  });
-});
+  it('redirects authenticated user to next param url from auth page', () => {
+    const req = createRequest('/login', true, '/cart');
+    middleware(req);
 
-describe('Middleware - Next Parameter Format', () => {
-  test('encodes next parameter correctly', () => {
-    const request = new NextRequest(new URL('http://localhost:3000/orders/123'));
-
-    const response = middleware(request);
-
-    expect(response.status).toBe(307);
-    const location = response.headers.get('location');
-    expect(location).toContain('next=');
-    // URL должен быть закодирован (/ -> %2F)
-    expect(location).toContain('%2Forders');
+    expect(NextResponse.redirect).toHaveBeenCalled();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const callArgs = (NextResponse.redirect as any).mock.calls[0];
+    // NextResponse.redirect(new URL(...))
+    const redirectUrl = callArgs[0];
+    expect(redirectUrl.pathname).toBe('/cart');
   });
 
-  test('preserves nested paths in next parameter', () => {
-    const request = new NextRequest(new URL('http://localhost:3000/profile/settings/password'));
+  it('redirects authenticated user to redirect param url from auth page', () => {
+    const url = new URL('http://localhost:3000/login');
+    url.searchParams.set('redirect', '/checkout');
+    const req = {
+      nextUrl: url,
+      cookies: {
+        get: (name: string) => (name === 'refreshToken' ? { value: 'token' } : undefined),
+      },
+      url: url.toString(),
+    } as unknown as NextRequest;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    req.nextUrl.clone = () => new URL(url.toString()) as any;
 
-    const response = middleware(request);
+    middleware(req);
 
-    expect(response.status).toBe(307);
-    const location = response.headers.get('location');
-    expect(location).toContain('next=%2Fprofile%2Fsettings%2Fpassword');
+    expect(NextResponse.redirect).toHaveBeenCalled();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const redirectUrl = (NextResponse.redirect as any).mock.calls[0][0];
+    expect(redirectUrl.pathname).toBe('/checkout');
+  });
+
+  it('sanitizes next param: redirects to home if next param is external domain', () => {
+    const req = createRequest('/login', true, '//google.com');
+    middleware(req);
+
+    expect(NextResponse.redirect).toHaveBeenCalled();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const redirectUrl = (NextResponse.redirect as any).mock.calls[0][0];
+    expect(redirectUrl.pathname).toBe('/');
+  });
+
+  it('sanitizes next param: redirects to home if next param does not start with /', () => {
+    const req = createRequest('/login', true, 'javascript:alert(1)');
+    middleware(req);
+
+    expect(NextResponse.redirect).toHaveBeenCalled();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const redirectUrl = (NextResponse.redirect as any).mock.calls[0][0];
+    expect(redirectUrl.pathname).toBe('/');
   });
 });

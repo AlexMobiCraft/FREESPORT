@@ -25,7 +25,7 @@ export default function ComingSoon() {
     setIsSubmitting(false);
   };
 
-  const progress = 65; // Development progress percentage
+  const progress = 95; // Development progress percentage
 
   return (
     <div className="min-h-screen relative flex items-center justify-center p-4 overflow-hidden">

@@ -173,9 +173,9 @@ class TestDataImportScenario:
         # Проверяем SyncConflict с архивом
         conflict = SyncConflict.objects.get(customer=portal_customer)
         assert conflict.conflict_type == "customer_data"
-        assert conflict.platform_data["email"] == "old@example.com"
-        assert conflict.onec_data["email"] == "new@example.com"
-        assert "email" in conflict.conflicting_fields
+        assert conflict.details["platform_data"]["email"] == "old@example.com"
+        assert conflict.details["onec_data"]["email"] == "new@example.com"
+        assert "email" in conflict.details["conflicting_fields"]
 
     @patch("apps.users.services.conflict_resolution.send_mail")
     def test_import_without_conflicts(self, mock_send_mail, resolver):
@@ -217,7 +217,7 @@ class TestDataImportScenario:
 
         # Проверяем SyncConflict
         conflict = SyncConflict.objects.get(customer=customer)
-        assert len(conflict.conflicting_fields) == 0  # Нет конфликтов
+        assert len(conflict.details["conflicting_fields"]) == 0  # Нет конфликтов
 
 
 @pytest.mark.integration
@@ -357,17 +357,17 @@ class TestAuditTrail:
         # Проверяем SyncConflict
         conflict = SyncConflict.objects.get(customer=customer)
         assert conflict.is_resolved is True
-        assert conflict.resolved_by == "CustomerConflictResolver"
+        assert conflict.details["resolved_by"] == "CustomerConflictResolver"
         assert conflict.resolved_at is not None
-        assert "source" in conflict.resolution_details
+        assert "source" in conflict.details
 
         # Проверяем архивные данные
-        assert conflict.platform_data["first_name"] == "Старое"
-        assert conflict.onec_data["first_name"] == "Новое"
+        assert conflict.details["platform_data"]["first_name"] == "Старое"
+        assert conflict.details["onec_data"]["first_name"] == "Новое"
 
         # Проверяем CustomerSyncLog
         log = CustomerSyncLog.objects.filter(
-            user=customer, operation_type="conflict_resolution"
+            customer=customer, operation_type="conflict_resolution"
         ).first()
         assert log is not None
         assert log.status == "success"
@@ -399,7 +399,7 @@ class TestAuditTrail:
 
         # Получаем архивные данные
         conflict = SyncConflict.objects.get(customer=customer)
-        archived_data = conflict.platform_data
+        archived_data = conflict.details["platform_data"]
 
         # Проверяем что можно откатить
         assert archived_data["first_name"] == "Оригинал"

@@ -23,6 +23,7 @@ import { ProductCard } from '@/components/business/ProductCard/ProductCard';
 import ElectricProductCard from '@/components/ui/ProductCard/ElectricProductCard';
 import { ElectricButton } from '@/components/ui/Button/ElectricButton';
 import { useCartStore } from '@/stores/cartStore';
+import { useAuthStore } from '@/stores/authStore';
 import { useToast } from '@/components/ui/Toast';
 import productsService from '@/services/productsService';
 import type { Product } from '@/types/api';
@@ -40,18 +41,18 @@ export interface HitsSectionProps {
 // Style configurations for variants
 const VARIANT_STYLES = {
   default: {
-    section: 'max-w-[1316px] mx-auto px-3 md:px-4 lg:px-6 relative',
+    section: 'max-w-[1316px] mx-auto px-3 md:px-4 lg:px-6 py-12 relative',
     heading: 'text-3xl font-bold mb-8 text-text-primary',
     headingStyle: {},
     navButton:
       'absolute top-1/2 -translate-y-1/2 z-10 hidden lg:flex items-center justify-center w-12 h-12 bg-transparent text-primary focus:outline-none',
     navButtonStyle: {},
     skeleton:
-      'flex-shrink-0 w-[200px] snap-start rounded-2xl bg-white p-3 shadow-default animate-pulse',
+      'flex-shrink-0 w-[calc(50%-4px)] md:w-[200px] snap-start rounded-2xl bg-white p-3 shadow-default animate-pulse',
     skeletonInner: 'h-40 rounded-xl bg-neutral-200 mb-4',
     errorButton: 'px-6 py-2 rounded-lg bg-[#0b1220] text-white hover:bg-[#070d19] transition',
     productList: 'flex gap-2 overflow-x-auto snap-x snap-mandatory scrollbar-hide py-2 lg:mx-4',
-    productItem: 'flex-shrink-0 w-[200px] snap-start',
+    productItem: 'flex-shrink-0 w-[calc(50%-4px)] md:w-[200px] snap-start',
     cardWidth: 200,
     gap: 8,
   },
@@ -96,6 +97,11 @@ export const HitsSection: React.FC<HitsSectionProps> = ({
   // Electric variant needs cart functionality
   const { addItem } = useCartStore();
   const { success, error: toastError } = useToast();
+
+  // Auth integration
+  const user = useAuthStore(state => state.user);
+  const userRole = user?.role || 'guest';
+  const isB2B = ['wholesale_level1', 'wholesale_level2', 'wholesale_level3', 'trainer', 'federation_rep', 'admin'].includes(userRole);
 
   const styles = VARIANT_STYLES[variant];
   const isElectric = variant === 'electric';
@@ -310,14 +316,21 @@ export const HitsSection: React.FC<HitsSectionProps> = ({
                         ? Math.round(product.retail_price / (1 - product.discount_percent / 100))
                         : undefined
                     }
+                    rrp={isB2B ? product.rrp : undefined}
+                    msrp={isB2B ? product.msrp : undefined}
                     badge="hit"
                     inStock={product.is_in_stock}
                     onAddToCart={() => handleAddToCart(product.id)}
                     isFavorite={false}
-                    onToggleFavorite={() => {}}
+                    onToggleFavorite={() => { }}
                   />
                 ) : (
-                  <ProductCard product={product} layout="compact" userRole="retail" />
+                  <ProductCard
+                    product={product}
+                    layout="compact"
+                    userRole={userRole}
+                    mode={isB2B ? 'b2b' : 'b2c'}
+                  />
                 )}
               </div>
             );

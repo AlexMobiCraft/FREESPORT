@@ -508,12 +508,12 @@ class XMLDataParser:
             return "opt3_price"
         elif "тренер" in name_lower:
             return "trainer_price"
-        elif "ррц" in name_lower and "рекомендован" in name_lower:
-            return "recommended_retail_price"
         elif "ррц" in name_lower:
-            return "retail_price"
+            return "rrp"
         elif "мрц" in name_lower:
-            return "max_suggested_retail_price"
+            return "msrp"
+        elif "рознич" in name_lower:
+            return "retail_price"
         else:
             # По умолчанию - розничная цена
             return "retail_price"

@@ -8,7 +8,7 @@ import sys
 from datetime import timedelta
 from pathlib import Path
 
-from decouple import config, Csv
+from decouple import Csv, config
 
 # Временно отключаем патч для исправления проблем с кодировкой psycopg2 на Windows
 # try:
@@ -151,10 +151,14 @@ AUTH_PASSWORD_VALIDATORS = [
 # Конфигурация Django REST Framework
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        # Story JWT-Blacklist: Кастомный auth с проверкой Redis blacklist
+        "apps.users.authentication.BlacklistCheckJWTAuthentication",
+        "rest_framework.authentication.SessionAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [
-        "rest_framework.permissions.IsAuthenticated",
+        # Changed from IsAuthenticated to AllowAny (fix: 401 on public endpoints)
+        # Protected views must explicitly set permission_classes = [IsAuthenticated]
+        "rest_framework.permissions.AllowAny",
     ],
     "DEFAULT_RENDERER_CLASSES": [
         "rest_framework.renderers.JSONRenderer",
@@ -190,7 +194,7 @@ SIMPLE_JWT = {
     "AUDIENCE": None,
     "ISSUER": None,
     "JWK_URL": None,
-    "LEEWAY": 0,
+    "LEEWAY": 60,  # Fix 401: Allow 60s clock skew
     "AUTH_HEADER_TYPES": ("Bearer",),
     "AUTH_HEADER_NAME": "HTTP_AUTHORIZATION",
     "USER_ID_FIELD": "id",

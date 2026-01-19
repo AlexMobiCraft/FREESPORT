@@ -211,7 +211,7 @@ export const SearchField = React.forwardRef<HTMLInputElement, SearchFieldProps>(
             aria-autocomplete="list"
             className={cn(
               // Базовые стили - Design System v2.0
-              'w-full h-10 pl-10 pr-10 rounded-md', // 40px height, 6px radius
+              'w-full h-10 pl-10 pr-10 rounded-sm', // 40px height, 6px radius
               'text-body-m text-text-primary',
               'bg-white',
               'border border-[#E3E8F2]', // Design System v2.0 border

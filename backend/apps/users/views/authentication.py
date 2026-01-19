@@ -4,11 +4,12 @@ Views для аутентификации пользователей
 
 import logging
 
-from django.contrib.auth import get_user_model
+from django.contrib.auth import get_user_model, login, logout
 from django.utils import timezone
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
-from drf_spectacular.utils import OpenApiExample, OpenApiResponse, extend_schema
+from drf_spectacular.utils import (OpenApiExample, OpenApiResponse,
+                                   extend_schema)
 from rest_framework import permissions, status
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.generics import GenericAPIView
@@ -20,14 +21,10 @@ from rest_framework_simplejwt.tokens import RefreshToken
 logger = logging.getLogger("apps.users.auth")
 
 # User model is used in the code
-from ..serializers import (
-    LogoutSerializer,
-    PasswordResetConfirmSerializer,
-    PasswordResetRequestSerializer,
-    UserLoginSerializer,
-    UserRegistrationSerializer,
-    ValidateTokenSerializer,
-)
+from ..authentication import blacklist_access_token
+from ..serializers import (LogoutSerializer, PasswordResetConfirmSerializer,
+                           PasswordResetRequestSerializer, UserLoginSerializer,
+                           UserRegistrationSerializer, ValidateTokenSerializer)
 from ..tasks import send_password_reset_email
 from ..tokens import password_reset_token
 
@@ -40,6 +37,7 @@ class UserRegistrationView(APIView):
     """
 
     permission_classes = [permissions.AllowAny]
+    authentication_classes = []
 
     @extend_schema(
         summary="Регистрация пользователя",
@@ -53,9 +51,12 @@ class UserRegistrationView(APIView):
                 description="Пользователь успешно зарегистрирован",
                 examples=[
                     OpenApiExample(
-                        name="successful_registration",
+                        name="successful_registration_retail",
+                        summary="Retail user (auto-login)",
                         value={
                             "message": "Пользователь успешно зарегистрирован",
+                            "access": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
+                            "refresh": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
                             "user": {
                                 "id": 1,
                                 "email": "user@example.com",
@@ -65,7 +66,22 @@ class UserRegistrationView(APIView):
                                 "is_verified": True,
                             },
                         },
-                    )
+                    ),
+                    OpenApiExample(
+                        name="successful_registration_b2b",
+                        summary="B2B user (pending verification)",
+                        value={
+                            "message": "Пользователь успешно зарегистрирован",
+                            "user": {
+                                "id": 2,
+                                "email": "b2b@example.com",
+                                "first_name": "Petr",
+                                "last_name": "Ivanov",
+                                "role": "wholesale_level1",
+                                "is_verified": False,
+                            },
+                        },
+                    ),
                 ],
             ),
             400: OpenApiResponse(
@@ -90,20 +106,26 @@ class UserRegistrationView(APIView):
         if serializer.is_valid():
             user = serializer.save()
 
-            return Response(
-                {
-                    "message": "Пользователь успешно зарегистрирован",
-                    "user": {
-                        "id": user.id,
-                        "email": user.email,
-                        "first_name": user.first_name,
-                        "last_name": user.last_name,
-                        "role": user.role,
-                        "is_verified": user.is_verified,
-                    },
+            response_data = {
+                "message": "Пользователь успешно зарегистрирован",
+                "user": {
+                    "id": user.id,
+                    "email": user.email,
+                    "first_name": user.first_name,
+                    "last_name": user.last_name,
+                    "role": user.role,
+                    "is_verified": user.is_verified,
                 },
-                status=status.HTTP_201_CREATED,
-            )
+            }
+
+            # Генерируем токены только для активных и верифицированных пользователей (B2C)
+            # SimpleJWT не выдаст токен для is_active=False
+            if user.is_active and user.is_verified:
+                refresh = RefreshToken.for_user(user)
+                response_data["refresh"] = str(refresh)
+                response_data["access"] = str(refresh.access_token)  # type: ignore[attr-defined]
+
+            return Response(response_data, status=status.HTTP_201_CREATED)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -114,6 +136,7 @@ class UserLoginView(APIView):
     """
 
     permission_classes = [permissions.AllowAny]
+    authentication_classes = []
 
     @extend_schema(
         summary="Вход пользователя",
@@ -203,6 +226,14 @@ class UserLoginView(APIView):
                 },
             )
 
+            # Story 12.1: Log in session for SSR auth
+            # Это создаст sessionid cookie, необходимую для Next.js SSR запросов.
+            # ВАЖНО: UserLoginSerializer не использует authenticate(), поэтому для работы login()
+            # нам нужно явно указать backend, иначе возникнет AttributeError.
+            if not hasattr(user, "backend"):
+                user.backend = "django.contrib.auth.backends.ModelBackend"
+            login(request, user)
+
             return Response(
                 {
                     "access": access_token,
@@ -228,6 +259,7 @@ class PasswordResetRequestView(APIView):
     """
 
     permission_classes = [permissions.AllowAny]
+    authentication_classes = []
 
     @extend_schema(
         summary="Запрос на сброс пароля",
@@ -296,6 +328,7 @@ class ValidateTokenView(APIView):
     """
 
     permission_classes = [permissions.AllowAny]
+    authentication_classes = []
 
     @extend_schema(
         summary="Валидация токена сброса пароля",
@@ -367,6 +400,7 @@ class PasswordResetConfirmView(APIView):
     """
 
     permission_classes = [permissions.AllowAny]
+    authentication_classes = []
 
     @extend_schema(
         summary="Подтверждение сброса пароля",
@@ -542,6 +576,13 @@ class LogoutView(GenericAPIView):
 
             # Добавляем токен в blacklist
             token.blacklist()
+
+            # Story JWT-Blacklist: Blacklist access token в Redis
+            # Немедленно инвалидирует access-токен (не ждём TTL)
+            blacklist_access_token(request, request.user.id)
+
+            # Story 12.1: Logout session as well
+            logout(request)
 
             # Audit logging - успешный logout
             logger.info(

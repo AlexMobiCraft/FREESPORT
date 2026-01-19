@@ -32,8 +32,11 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Heart } from 'lucide-react';
 import { ProductBadge } from '@/components/common/ProductBadge';
+import Button from '@/components/ui/Button';
 import type { Product } from '@/types/api';
 import { cn } from '@/utils/cn';
+import { formatPrice, type UserRole } from '@/utils/pricing';
+export type { UserRole };
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
 const MEDIA_BASE_URL =
@@ -76,17 +79,6 @@ const resolveImageUrl = (path?: string | null): string | null => {
   return path;
 };
 
-/**
- * Роли пользователей для ценообразования
- */
-export type UserRole =
-  | 'retail'
-  | 'wholesale_level1'
-  | 'wholesale_level2'
-  | 'wholesale_level3'
-  | 'trainer'
-  | 'federation_rep'
-  | 'admin';
 
 /**
  * Props компонента ProductCard
@@ -294,7 +286,7 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
 
             {/* Название */}
             <h3
-              className="text-body-s font-medium text-[var(--color-text-primary)] mb-2 line-clamp-2"
+              className="text-body-s font-medium text-[var(--color-text-primary)] mb-2 line-clamp-2 min-h-[40px]"
               title={product.name}
             >
               {product.name}
@@ -404,7 +396,7 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
                 </div>
 
                 {/* Название */}
-                <h3 className="text-body-m font-medium text-[var(--color-text-primary)] mb-2 line-clamp-2">
+                <h3 className="text-body-m font-medium text-[var(--color-text-primary)] mb-2 line-clamp-2 min-h-[48px]">
                   {product.name}
                 </h3>
 
@@ -447,51 +439,31 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
                 </p>
 
                 {/* RRP/MSRP для B2B */}
-                {mode === 'b2b' &&
-                  showRRP &&
-                  (product as Product & { recommended_retail_price?: number })
-                    .recommended_retail_price !== undefined && (
-                    <p className="text-body-s text-[var(--color-text-secondary)] mt-1">
-                      РРЦ:{' '}
-                      {(
-                        (product as Product & { recommended_retail_price?: number })
-                          .recommended_retail_price ?? 0
-                      ).toLocaleString('ru-RU')}{' '}
-                      ₽
-                    </p>
-                  )}
-                {mode === 'b2b' &&
-                  showMSRP &&
-                  (product as Product & { max_suggested_retail_price?: number })
-                    .max_suggested_retail_price !== undefined && (
-                    <p className="text-body-s text-[var(--color-text-secondary)] mt-1">
-                      MSRP:{' '}
-                      {(
-                        (product as Product & { max_suggested_retail_price?: number })
-                          .max_suggested_retail_price ?? 0
-                      ).toLocaleString('ru-RU')}{' '}
-                      ₽
-                    </p>
-                  )}
+                {(mode === 'b2b' || userRole !== 'retail') && (product.rrp || product.msrp) && (
+                  <div className="mt-1 space-y-0.5">
+                    {product.rrp && product.rrp > 0 && (
+                      <p className="text-body-s text-[var(--color-text-secondary)]">
+                        РРЦ: {formatPrice(product.rrp)}
+                      </p>
+                    )}
+                    {product.msrp && product.msrp > 0 && (
+                      <p className="text-body-s text-[var(--color-text-secondary)]">
+                        МРЦ: {formatPrice(product.msrp)}
+                      </p>
+                    )}
+                  </div>)}
 
                 {/* Кнопка "В корзину" */}
                 {isInStock && onAddToCart && (
-                  <button
+                  <Button
+                    variant="secondary"
+                    size="small"
                     onClick={handleAddToCart}
-                    className={cn(
-                      'mt-3 py-2 px-4 rounded-[8px]',
-                      'bg-[var(--color-primary)] text-white',
-                      'hover:bg-[var(--color-primary-hover)]',
-                      'transition-colors duration-200',
-                      'text-body-s font-medium',
-                      'focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-offset-2',
-                      'whitespace-nowrap'
-                    )}
-                    type="button"
+                    className="mt-3"
                     aria-label={`Добавить ${product.name} в корзину`}
                   >
                     В корзину
-                  </button>
+                  </Button>
                 )}
               </div>
             </div>
@@ -579,7 +551,7 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
 
             {/* Название */}
             <h3
-              className="text-body-m font-medium text-[var(--color-text-primary)] mb-2 line-clamp-2"
+              className="text-body-m font-medium text-[var(--color-text-primary)] mb-2 line-clamp-2 min-h-[48px]"
               title={product.name}
             >
               {product.name}
@@ -597,51 +569,33 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
               </p>
 
               {/* RRP/MSRP для B2B */}
-              {mode === 'b2b' &&
-                showRRP &&
-                (product as Product & { recommended_retail_price?: number })
-                  .recommended_retail_price !== undefined && (
-                  <p className="text-body-s text-[var(--color-text-secondary)] mt-1">
-                    РРЦ:{' '}
-                    {(
-                      (product as Product & { recommended_retail_price?: number })
-                        .recommended_retail_price ?? 0
-                    ).toLocaleString('ru-RU')}{' '}
-                    ₽
-                  </p>
-                )}
-              {mode === 'b2b' &&
-                showMSRP &&
-                (product as Product & { max_suggested_retail_price?: number })
-                  .max_suggested_retail_price !== undefined && (
-                  <p className="text-body-s text-[var(--color-text-secondary)] mt-1">
-                    MSRP:{' '}
-                    {(
-                      (product as Product & { max_suggested_retail_price?: number })
-                        .max_suggested_retail_price ?? 0
-                    ).toLocaleString('ru-RU')}{' '}
-                    ₽
-                  </p>
-                )}
+              {(mode === 'b2b' || userRole !== 'retail') && (product.rrp || product.msrp) && (
+                <div className="mt-1 space-y-0.5">
+                  {product.rrp && product.rrp > 0 && (
+                    <p className="text-body-s text-[var(--color-text-secondary)]">
+                      РРЦ: {formatPrice(product.rrp)}
+                    </p>
+                  )}
+                  {product.msrp && product.msrp > 0 && (
+                    <p className="text-body-s text-[var(--color-text-secondary)]">
+                      МРЦ: {formatPrice(product.msrp)}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Кнопка "В корзину" */}
             {isInStock && onAddToCart && (
-              <button
+              <Button
+                variant="secondary"
+                size="medium"
                 onClick={handleAddToCart}
-                className={cn(
-                  'w-full py-2.5 px-4 rounded-[8px]',
-                  'bg-[var(--color-primary)] text-white',
-                  'hover:bg-[var(--color-primary-hover)]',
-                  'transition-colors duration-200',
-                  'text-body-m font-medium',
-                  'focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-offset-2'
-                )}
-                type="button"
+                className="w-full"
                 aria-label={`Добавить ${product.name} в корзину`}
               >
                 В корзину
-              </button>
+              </Button>
             )}
 
             {/* Статус наличия */}

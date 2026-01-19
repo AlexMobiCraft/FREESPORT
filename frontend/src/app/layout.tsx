@@ -1,10 +1,5 @@
 import type { Metadata } from 'next';
 import { Inter, Roboto_Condensed } from 'next/font/google';
-import './globals.css';
-import Header from '@/components/layout/Header';
-import Footer from '@/components/layout/Footer';
-import LayoutWrapper from '@/components/layout/LayoutWrapper';
-import Providers from '@/components/providers/Providers';
 
 const inter = Inter({
   variable: '--font-inter',
@@ -36,11 +31,7 @@ export default function RootLayout({
   return (
     <html lang="ru" suppressHydrationWarning>
       <body className={`${inter.variable} ${robotoCondensed.variable} font-sans antialiased`}>
-        <Providers>
-          <LayoutWrapper header={<Header />} footer={<Footer />}>
-            {children}
-          </LayoutWrapper>
-        </Providers>
+        {children}
       </body>
     </html>
   );

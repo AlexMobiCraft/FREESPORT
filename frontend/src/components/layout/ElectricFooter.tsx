@@ -103,15 +103,15 @@ const ElectricFooter: React.FC = () => {
             <ul className="space-y-3 md:space-y-4 font-inter text-[12px] md:text-[14px] text-[var(--color-text-secondary)]">
               <li className="flex items-start gap-3">
                 <MapPin className="w-5 h-5 text-[var(--color-primary)] mt-0.5 flex-shrink-0" />
-                <span>г. Москва, ул. Спортивная, д. 15, офис 204</span>
+                <span>г. Ставрополь, ул. Коломийцева, 40/1</span>
               </li>
               <li className="flex items-center gap-3">
                 <Phone className="w-5 h-5 text-[var(--color-primary)] flex-shrink-0" />
                 <a
-                  href="tel:+78005553535"
+                  href="tel:+79682732168"
                   className="hover:text-[var(--foreground)] transition-colors"
                 >
-                  +7 (800) 555-35-35
+                  +7 968 273-21-68
                 </a>
               </li>
               <li className="flex items-center gap-3">
