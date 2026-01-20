@@ -59,3 +59,10 @@
     *   **Где:** `frontend/src/stores/authStore.ts:106`.
     *   **Суть:** Ошибки логаута выводятся напрямую в консоль браузера.
     *   **Рекомендация:** Подключить сервис сбора ошибок (Sentry или аналоги) и убрать прямые вызовы `console.error`.
+
+12. **Дублирование логики проверки B2B-ролей (Низкая важность):**
+    *   **Где:** `frontend/src/components/product/ProductInfo.tsx`, `frontend/src/components/product/ProductSummary.tsx`.
+    *   **Суть:** Логика `['wholesale_level1', 'wholesale_level2', 'wholesale_level3', 'trainer', 'admin'].includes(userRole)` повторяется в нескольких файлах.
+    *   **Влияние:** Потенциальная проблема поддержки: при добавлении новой роли придётся обновлять логику в нескольких местах.
+    *   **Рекомендация:** Вынести в общую утилиту, например `canSeeRrp(userRole)` в `utils/pricing.ts`.
+
