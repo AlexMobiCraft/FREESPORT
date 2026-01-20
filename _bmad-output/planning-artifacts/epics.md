@@ -1,11 +1,6 @@
 ---
-stepsCompleted: ["step-01-validate-prerequisites", "step-02-design-epics", "step-03-create-stories", "step-04-final-validation"]
-inputDocuments: 
-  - docs/PRD.md
-  - docs/architecture.md
-  - docs/architecture/
-  - docs/front-end-spec.md
-  - docs/stories/
+stepsCompleted: ['Define Requirements', 'Design Epics', 'Create Stories']
+inputDocuments: ['docs/prd/1c-http-exchange.md', 'docs/integrations/1c/architecture.md']
 ---
 
 # FREESPORT - Epic Breakdown
@@ -13,366 +8,199 @@ inputDocuments:
 ## Overview
 
 This document provides the complete epic and story breakdown for FREESPORT, decomposing the requirements from the PRD, UX Design if it exists, and Architecture requirements into implementable stories.
-Reflecting the actual project structure: **Backend First -> UX -> Frontend**.
 
 ## Requirements Inventory
 
 ### Functional Requirements
 
-FR1: Каталог товаров с многоуровневой структурой.
-FR2: Упрощенная фильтрация товаров (только по цене и размеру).
-FR3: Базовая сортировка товаров (только по цене).
-FR4: Базовый поиск по названию товара.
-FR5: Отображение цен в зависимости от роли (retail, opt1/2/3, trainer, federation) + инфо-цены (RRP/MSRP) для B2B.
-FR6: Корзина с логикой склейки одинаковых позиций (без дубликатов).
-FR7: Процесс оформления заказа (checkout) на одной или двух страницах + "быстрый заказ" для B2C.
-FR8: Базовая админ-панель для управления заказами и пользователями.
-FR9: Двусторонняя интеграция с 1С (остатки, цены, выгрузка заказов, статусы).
-FR10: Ролевая модель пользователей (Оптовый, Тренер, Федерация, Розница).
-FR11: Личный кабинет (Профиль, Мои заказы, Адрес доставки, Избранное).
-FR12: B2B разделы ЛК (Управление компанией, История счетов).
-FR13: Персонализированные рекламные баннеры на главной по ролям.
-FR14: Полная мобильная адаптивность ключевых страниц.
-FR15: Единая дизайн-система для B2B и B2C.
-FR16: Верификация B2B клиентов через загрузку документов и модерацию админом.
+FR1: (Endpoint) Реализовать единую точку входа (endpoint), например `/api/v1/integration/1c/exchange/`.
+FR2: (Authentication - checkauth) Поддержка Basic Auth (login/password). Ответ: `success`, `Cookie_Name`, `Cookie_Value`.
+FR3: (Initialization - init) Прием параметров `zip=yes/no` и `file_limit`. Ответ: `zip=zip` (если поддерживаем) и `file_limit=<bytes>`.
+FR4: (File Upload & Organization - file) Прием бинарного содержимого (chunked upload). Сборка полного файла/архива во временной директории.
+FR5: (Unpacking) Если передан ZIP-архив, он разархивируется с сохранением сложной структуры папок 1С (как описано в Architecture.md: `groups/`, `goods/` и т.д.).
+FR6: (Persistence) Перемещение файлов из временной директории в целевую `MEDIA_ROOT/1c_import/` с сохранением структуры.
+FR7: (Import Trigger - import) Запуск процессинга полученного файла (асинхронно через Celery).
+FR8: (Logging) Полное логирование запросов/ответов.
 
 ### NonFunctional Requirements
 
-NFR1: Скорость загрузки < 3 сек, Google PageSpeed Insights > 70.
-NFR2: Защита от XSS, SQL-инъекций, CSRF.
-NFR3: Использование защищенного соединения HTTPS.
-NFR4: Масштабируемая архитектура.
-NFR5: Соответствие ФЗ-152 "О персональных данных".
-NFR6: Документация API OpenAPI 3.1 (Swagger) с версионированием.
-NFR7: Авторизация через JWT токены.
-NFR8: Отказоустойчивость импорта из 1С (сессии импорта, Circuit Breaker).
-NFR9: Идемпотентность операций синхронизации.
+NFR1: (Iterative Dev) Разработка должна вестись **законченными, проверяемыми этапами** (Stories). Нельзя переходить дальше без верификации предыдущего шага.
+NFR2: (Performance) Обработка загрузки больших файлов (hundreds of MBs) через stream writing без переполнения памяти.
+NFR3: (Security) Доступ к эндпоинту только для пользователей с ролью `admin` или специальным пермишеном.
+
+### Additional Requirements
+
+- **Strict Folder Structure:** The system must respect the CommerceML structure (`goods/`, `offers/`, `propertiesGoods/`, etc.) during unpacking (Source: Architecture.md Appendix A).
+- **Session-Based Import:** Use `ImportSession` model for atomicity during import processing (Source: Architecture.md 2.2).
+- **Service Layer:** Logic should be split between `DataParser` and `DataProcessor` (Source: Architecture.md 2.2).
+- **Response Format:** 1C expects `text/plain` responses separated by newlines, NOT JSON (Source: PRD).
 
 ### FR Coverage Map
 
-FR1: Epic 2 & 10 - Catalog API & UI
-FR2: Epic 2 & 14 - Filtering API & Logic
-FR3: Epic 2 - Sorting API
-FR4: Epic 2 - Search API
-FR5: Epic 2 - Pricing Logic
-FR6: Epic 2 & 26 - Cart API & UI
-FR7: Epic 2 & 15 - Order API & UI
-FR8: Epic 9 - Admin Panel
-FR9: Epic 3 - 1C Integration
-FR10: Epic 2 - User Roles
-FR11: Epic 2 & 23 - User Profile
-FR12: Epic 3 & 8 - B2B Features
-FR13: Epic 17 - Banners
-FR14: Epic 10+ - Mobile Adaptation
-FR15: Epic 10 & 24 - Design System
-FR16: Epic 2 & 29 - B2B Verification
-
-## Epic List (Complete Project Roadmap)
-
-### Phase 1: Foundation & Backend Core
-
-* **Epic 1: Project Foundation & Database** - Setup infrastructure, DB, Monorepo.
-* **Epic 2: Core API Development** - Auth, Users, Catalog, Cart, Orders API.
-* **Epic 3: 1C Integration System** - Import Catalog, Stocks, Customers.
-* **Epic 3.1: 1C Import Refactoring** - Optimization of import scripts.
-* **Epic 4: Pricing Logic** (Reserved) - Advanced pricing rules.
-* **Epic 9: Admin Panel & Operations** - Custom admin for B2B moderation & import monitoring.
-
-### Phase 2: Frontend Foundation & Core UI
-
-* **Epic 10: Frontend Foundation** - UI Kit, State Management, Vitest.
-* **Epic 11: Main Page & CMS** - Hero section, Dynamic blocks.
-* **Epic 12: Product Detail Page UI** - Gallery, Options, Add to Cart.
-* **Epic 13: Product Variants Refactoring** - Backend/Frontend sync for SKU variants.
-* **Epic 14: Attributes & Filters** - EAV models, Faceted search UI.
-* **Epic 15: Checkout & Orders** - Checkout form, Delivery integration.
-* **Epic 16: Shopping Cart Logic** - Frontend cart state & calculations.
-* **Epic 17: Dynamic Banners** - Banner management & display.
-* **Epic 18: Search Functionality** - Global search with history.
-* **Epic 19: Static Pages** - About, Delivery, Partners pages.
-* **Epic 20: News Section** - News list & detail pages.
-* **Epic 21: Blog Section** - Blog implementation.
-
-### Phase 3: Advanced UI & Refinement
-
-* **Epic 22: Auth Flow Refactoring** - Optimization of login/register flows.
-* **Epic 23: User Profile UI** - Personal cabinet implementation.
-* **Epic 24: Design System Update** - New color palette & UI Kit refactor.
-* **Epic 25: Image Import Optimization** - Selective image importing.
-* **Epic 26: Cart Page UI** - Dedicated cart page implementation.
-* **Epic 27: Legacy Code Cleanup** - Removal of deprecated import logic.
-* **Epic 28: Auth UI Core** - Login, Register, Password Reset UI.
-* **Epic 29: B2B Registration Flow** - Role selection & Email verification.
-* **Epic 30: Logout Backend** - JWT Blacklist implementation.
-* **Epic 31: Logout Frontend** - Frontend logout logic.
-
----
-
-## Detailed Stories
-
-### Epic 1: Project Foundation & Database
-
-Establish the technical groundwork.
-
-* **Story 1.1:** Git & Monorepo Setup
-* **Story 1.2:** Dev Environment
-* **Story 1.3:** Django Structure
-* **Story 1.4:** Next.js Structure
-* **Story 1.5:** CI/CD Setup
-* **Story 1.6:** Docker Containers
-* **Story 1.7:** Testing Setup
-* **Story 1.8:** Database Design
-* **Story 1.9:** Design Brief
-
-### Epic 2: Core API Development
-
-Implement essential API endpoints.
-
-* **Story 2.1:** Swagger Docs
-* **Story 2.2:** User Mgmt API
-* **Story 2.3:** Profile API
-* **Story 2.4:** Catalog API
-* **Story 2.5:** Product Detail API
-* **Story 2.6:** Cart API
-* **Story 2.7:** Order API
-* **Story 2.8:** Search API
-* **Story 2.9:** Filter API
-* **Story 2.10:** Pages API
-
-### Epic 3: 1C Integration System
-
-Bidirectional synchronization.
-
-* **Story 3.1:** Import Products Structure
-* **Story 3.2:** Customer Sync
-* **Story 3.3:** Loading Scripts
-* **Story 3.4:** Conflict Resolution
-* **Story 3.5:** Monitoring
-
-### Epic 3.1: 1C Import Refactoring
+FR1: Epic 1 - Endpoint setup
+FR2: Epic 1 - Authentication logic
+FR3: Epic 1 - Initialization response
+FR4: Epic 2 - File upload & streaming
+FR5: Epic 2 - ZIP unpacking
+FR6: Epic 2 - Folder structure persistence
+FR7: Epic 3 - Import task triggering
+FR8: Epic 3 - Action logging
 
-Optimization and cleanup of import logic.
+## Epic List
 
-* **Story 3.1.1:** Refactor Import Structure
-* **Story 3.1.2:** Optimize Loading Scripts
-* **Story 3.1.3:** Catalog Loading Tests
-* **Story 3.1.4:** Fix Price Import Logic (RRP/MSRP)
+### Epic 1: 1C Transport & Authentication
+**Goal:** Enable 1C Enteprise to establish a secure connection with the platform and perform protocol initialization.
+**FRs covered:** FR1, FR2, FR3, NFR3
 
-### Epic 9: Admin Panel & Operations
+### Epic 2: Secure Stream Upload & Structure Handling
+**Goal:** Enable reliable transfer of large data archives and ensuring they are unpacked into the strict directory structure required by the import engine.
+**FRs covered:** FR4, FR5, FR6, NFR2
 
-Custom tools for administration.
+### Epic 3: Asynchronous Import Triggering
+**Goal:** Connect the transport layer to the business logic by triggering specific Celery tasks when import commands are received.
+**FRs covered:** FR7, FR8, NFR1
 
-* **Story 9.1:** User Management Admin
-* **Story 9.2:** Order Management Admin
-* **Story 9.3:** Import Monitoring UI
-* **Story 9.4:** Dashboard Widgets
-* **Story 9.5:** Selective Import UI
-* **Story 9.6:** Import Page Creation
-* **Story 9.7:** Sessions Page Refactor
-* **Story 9.8:** Admin Testing
+## Epic 1: 1C Transport & Authentication
 
-### Epic 10: Frontend Foundation
+Enable 1C Enteprise to establish a secure connection with the platform and perform protocol initialization.
 
-Core frontend architecture.
+### Story 1.1: Setup 1C Exchange Endpoint & Auth
 
-* **Story 10.1:** Env & Layout
-* **Story 10.2:** UI Kit Implementation
-* **Story 10.3:** State Management
-* **Story 10.4:** Vitest Setup
+As a 1C Administrator,
+I want the website to accept connection credentials via standard protocol,
+So that I can establish a secure session for data transfer.
 
-### Epic 11: Main Page & CMS
+**Acceptance Criteria:**
 
-Customer-facing main page.
+**Given** The Django application is running and configured with a 1C technical user
+**When** A GET request is sent to `/api/integration/1c/exchange/` with `?mode=checkauth` and valid Basic Auth headers
+**Then** The response status code should be 200 OK
+**And** The response content-type should be `text/plain`
+**And** The response body must contain exactly "success" followed by the cookie name and cookie value on separate lines
+**And** Invalid credentials should return 401 Unauthorized
 
-* **Story 11.0:** Product Badges
-* **Story 11.1:** Hero Section
-* **Story 11.2:** Dynamic Blocks
-* **Story 11.3:** Subscribe Form
+### Story 1.2: Implement Init Mode Configuration
 
-### Epic 12: Product Detail Page UI
+As a 1C Administrator,
+I want the site to report its capabilities (zip support, file limits),
+So that 1C can optimize the data packet size.
 
-Detailed view of products.
+**Acceptance Criteria:**
 
-* **Story 12.1:** Product Detail View
-* **Story 12.2:** Product Options
-* **Story 12.3:** Add to Cart UI
-* **Story 12.4:** Product Gallery
-* **Story 12.5:** Related Products
-* **Story 12.6:** Responsive Layout
+**Given** An authenticated session with the 1C Exchange Endpoint
+**When** A GET request is sent with `?mode=init`
+**Then** The response should contain `zip=yes` indicating ZIP support
+**And** The response should contain `file_limit=<value>` (e.g., 100MB in bytes)
+**And** The response format must be `text/plain`
 
-### Epic 13: Product Variants Refactoring
+**Test Cases:**
 
-Handling of SKU variants.
+| ID | Scenario | Expected Result |
+|----|----------|-----------------|
+| TC1 | Authenticated request `?mode=init` | 200 OK, `zip=yes\nfile_limit=104857600` |
+| TC2 | Unauthenticated request `?mode=init` | 401 Unauthorized |
+| TC3 | Request from user without `can_exchange_1c` permission | 403 Forbidden |
 
-* **Story 13.1:** Backend Models (ProductVariant)
-* **Story 13.2:** Refactor Import for Variants
-* **Story 13.3:** API Extension
-* **Story 13.4:** Production Migration
-* **Story 13.5:** Variants UI Mock & Integration
+## Epic 2: Secure Stream Upload & Structure Handling
 
-### Epic 14: Attributes & Filters
+Enable reliable transfer of large data archives and ensuring they are unpacked into the strict directory structure required by the import engine.
 
-Advanced product data.
+### Story 2.1: File Stream Upload
 
-* **Story 14.1:** Attribute Models
-* **Story 14.2:** Import Attributes
-* **Story 14.3:** Deduplication
-* **Story 14.4:** Link Attributes
-* **Story 14.5:** API Enhancement
-* **Story 14.6:** Facets UI
+As a System,
+I want to accept large binary files via chunked upload without consuming excessive RAM,
+So that I can receive the full 1C export archive reliably.
 
-### Epic 15: Checkout & Orders
+**Acceptance Criteria:**
 
-Conversion flow.
+**Given** An authenticated session and a binary file to upload
+**When** A POST request is sent to the endpoint with `?mode=file&filename=import.zip` and binary body
+**Then** The file content should be streamed to a temporary file in `MEDIA_ROOT/1c_temp/`
+**And** If multiple requests are sent with the same filename (chunked), the content should be appended correctly
+**And** The response should be `success` upon successful write
 
-* **Story 15.1:** Checkout Form
-* **Story 15.2:** Order API Integration
-* **Story 15.3:** Delivery Integration
-* **Story 15.4:** Success Page
-* **Story 15.5:** E2E Testing
+**Test Cases:**
 
-### Epic 16: Shopping Cart Logic
+| ID | Scenario | Expected Result |
+|----|----------|-----------------|
+| TC6 | Upload interrupted at 50%, then resumed | Temp file preserved, next chunk appends correctly |
+| TC7 | Upload started but no more chunks (timeout) | Temp file cleaned up after configurable TTL |
 
-Frontend cart state.
+### Story 2.2: Zip Unpacking with Structure
 
-* **Story 16.1:** Cart Logic Implementation
-* **Story 16.2:** Add/Remove Items
-* **Story 16.3:** Persistence
+As a Backend Developer,
+I want the system to unpack the uploaded ZIP and distribute files into the specific folders required by the architecture,
+So that the parsing logic can find `goods.xml` in `goods/` and images in their correct paths.
 
-### Epic 17: Dynamic Banners
+**Acceptance Criteria:**
 
-Marketing banners.
-
-* **Story 17.1:** Banner Models (Admin)
-* **Story 17.2:** Banner API
-* **Story 17.3:** Frontend Banner Integration
-* **Story 17.4:** Documentation
-
-### Epic 18: Search Functionality
-
-Global search.
-
-* **Story 18.1:** Header Search Integration
-* **Story 18.2:** Search Results Page
-* **Story 18.3:** Search History
-* **Story 18.4:** Catalog Search Integration
-
-### Epic 19: Static Pages
-
-Informational content.
-
-* **Story 19.1:** Info Page Components
-* **Story 19.2:** Homepage Teasers
-* **Story 19.3:** About Page
-* **Story 19.4:** Partners Page
-* **Story 19.5:** Delivery Page
-* **Story 19.6:** Navigation Update
-
-### Epic 20: News Section
-
-Company news.
-
-* **Story 20.1:** News API
-* **Story 20.2:** News Pages
-* **Story 20.3:** News Teaser
-* **Story 20.4:** Docs Update
-
-### Epic 21: Blog Section
-
-Content marketing.
-
-* **Story 21.1:** Blog Backend Models
-* **Story 21.2:** Blog API
-* **Story 21.3:** Frontend Blog Pages
-* **Story 21.4:** Documentation
-
-### Epic 22: Auth Flow Refactoring
-
-Optimization of existing flows.
-
-* **Story 22.1:** Auth Flow Optimization
-* **Story 22.2:** Register Optimization
-
-### Epic 23: User Profile UI
-
-Personal cabinet.
-
-* **Story 23.1:** Profile Layout
-* **Story 23.2:** Edit Profile Form
-* **Story 23.3:** Change Password Form
-
-### Epic 24: Design System Update
-
-Visual refresh.
-
-* **Story 24.1:** Design Tokens Update
-* **Story 24.2:** UI Kit Refactor
-* **Story 24.3:** Page Components Update
-* **Story 24.4:** Documentation Sync
-* **Story 24.5:** Testing Deployment
-
-### Epic 25: Image Import Optimization
-
-Performance tuning.
-
-* **Story 25.1:** Admin Images Import Type
-* **Story 25.2:** Celery Task Image Import
-* **Story 25.3:** Monitoring
-
-### Epic 26: Cart Page UI
-
-Dedicated cart page.
-
-* **Story 26.1:** Cart Page Layout
-* **Story 26.2:** Cart Item Card
-* **Story 26.3:** Cart Summary
-* **Story 26.4:** Promo Code Integration
-* **Story 26.5:** Cart Page Tests
-
-### Epic 27: Legacy Code Cleanup
-
-Technical debt removal.
-
-* **Story 27.1:** Migrate Missing Methods
-* **Story 27.2:** Unify Image Paths
-* **Story 27.3:** Update Celery Tasks
-* **Story 27.4:** Deprecate Legacy Commands
-* **Story 27.5:** Remove Legacy Code
-* **Story 27.6:** Documentation Audit
-
-### Epic 28: Auth UI Core
-
-Essential auth pages.
-
-* **Story 28.1:** Core Auth Logic
-* **Story 28.2:** B2B Registration Form
-* **Story 28.3:** Password Reset Flow
-* **Story 28.4:** Protected Routes
-* **Story 28.5:** Password Visibility
-
-### Epic 29: B2B Registration Flow
-
-Business specific onboarding.
-
-* **Story 29.1:** Role Selection UI
-* **Story 29.2:** Backend Verification Logic
-* **Story 29.3:** Email Server Configuration
-* **Story 29.4:** Email Notification System
-
-### Epic 30: Logout Backend
-
-Security enhancement.
-
-* **Story 30.1:** JWT Token Blacklist Setup
-* **Story 30.2:** Logout View Serializer
-* **Story 30.3:** Logout API Docs
-* **Story 30.4:** Logout Tests
-
-### Epic 31: Logout Frontend
-
-Security UI.
-
-* **Story 31.1:** Logout Button
-* **Story 31.2:** AuthService Logout
-* **Story 31.3:** Logout Redirect
-* **Story 31.4:** Logout Tests
+**Given** A fully uploaded file in the temporary directory
+**When** The filename ends with `.zip` extension (case-insensitive)
+**Then** The archive must be automatically unpacked upon upload completion
+**And** Files must be moved to `MEDIA_ROOT/1c_import/` PRESERVING the folder structure from the archive
+**And** Existing files in `1c_import/` should be cleaned up or overwritten as per policy
+**And** `goods/goods.xml` should end up at `MEDIA_ROOT/1c_import/goods/goods.xml`
+
+**Given** A fully uploaded file with non-archive extension (e.g., `.xml`)
+**When** The upload completes
+**Then** The file should be moved to the appropriate folder in `MEDIA_ROOT/1c_import/` based on filename:
+- `goods.xml` → `1c_import/goods/goods.xml`
+- `offers.xml` → `1c_import/offers/offers.xml`
+- `prices.xml` → `1c_import/prices/prices.xml`
+- `rests.xml` → `1c_import/rests/rests.xml`
+- `groups.xml` → `1c_import/groups/groups.xml`
+- Other files → `1c_import/<filename>`
+
+**Test Cases (from Party Mode Review):**
+
+| ID | Input | Expected Result |
+|----|-------|-----------------|
+| TC1 | `import.zip` (valid ZIP) | Unpacked to `1c_import/` with folder structure |
+| TC2 | `import.ZIP` (uppercase) | Should also unpack (case-insensitive) |
+| TC3 | `goods.xml` | Moved directly to `1c_import/goods/goods.xml` |
+| TC4 | `fake.zip` (not a valid ZIP) | Error handling, log warning, cleanup temp |
+| TC5 | Corrupted ZIP archive | Graceful failure, cleanup temp, return error |
+
+
+
+## Epic 3: Asynchronous Import Triggering
+
+Connect the transport layer to the business logic by triggering specific Celery tasks when import commands are received.
+
+### Story 3.1: Async Import Orchestration
+
+As a System,
+I want to trigger the import process asynchronously when 1C sends the import command,
+So that the 1C connection doesn't timeout while we process the data.
+
+**Acceptance Criteria:**
+
+**Given** Files are successfully uploaded and unpacked in `MEDIA_ROOT/1c_import/`
+**When** A GET request is sent with `?mode=import&filename=<any_filename>`
+**Then** An `ImportSession` record should be created with status `pending`
+**And** A single universal Celery task `process_1c_import_task` should be dispatched
+**And** The task should analyze `1c_import/` directory and process all available files
+**And** The HTTP response should immediately return `success`
+**And** A log entry should be created recording the import start
+
+**Given** The import task completes successfully
+**Then** The `ImportSession` status should be updated to `completed`
+
+**Given** The import task fails with an error
+**Then** The `ImportSession` status should be updated to `failed` with error details
+**And** Partial changes should be rolled back to maintain data consistency
+
+**Test Cases:**
+
+| ID | Scenario | Expected Result |
+|----|----------|-----------------|
+| TC1 | `mode=import` with valid files in `1c_import/` | 200 success, ImportSession created, task dispatched |
+| TC2 | `mode=import` but `1c_import/` is empty | 200 success, task logs "no files to process" |
+| TC3 | Import task fails mid-process | ImportSession status = `failed`, partial rollback executed |
+| TC4 | Concurrent `mode=import` requests | Each request creates separate ImportSession |
+
+**Architecture Decision (from Party Mode Review):**
+- **Single Task Pattern:** One universal `process_1c_import_task()` analyzes `1c_import/` contents
+- The task orchestrates sub-imports based on files found (goods → offers → prices → rests)
+- **ImportSession** ensures atomicity — all changes can be rolled back on failure
+- This aligns with existing `apps/products/services/import_1c/` architecture (Source: architecture.md 2.2)
