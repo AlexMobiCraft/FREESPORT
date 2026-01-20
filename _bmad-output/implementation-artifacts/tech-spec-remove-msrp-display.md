@@ -2,7 +2,7 @@
 title: 'Remove MSRP Display'
 slug: 'remove-msrp-display'
 created: '2026-01-20'
-status: 'ready-for-dev'
+status: 'implementation-complete'
 stepsCompleted: [1, 2, 3, 4]
 tech_stack: 
   - Next.js
@@ -49,7 +49,7 @@ test_patterns:
 
 # Implementation Plan
 
-- [ ] Task 1: Update `ProductCard` Component
+- [x] Task 1: Update `ProductCard` Component
   - File: `frontend/src/components/business/ProductCard/ProductCard.tsx`
   - Action: 
     - Remove `showMSRP` from `ProductCardProps`.
@@ -59,13 +59,13 @@ test_patterns:
       - Example: `(mode === 'b2b' || userRole !== 'retail') && product.rrp && product.rrp > 0`.
       - This prevents rendering empty containers if MSRP was present but RRP was not.
 
-- [ ] Task 2: Update `ProductCard` Tests
+- [x] Task 2: Update `ProductCard` Tests
   - File: `frontend/src/components/business/ProductCard/__tests__/ProductCard.test.tsx`
   - Action: 
     - Remove the test case `'displays MSRP for B2B users when showMSRP is true'`.
     - Ensure other tests (specifically RRP) pass.
 
-- [ ] Task 3: Update `ElectricProductCard` Component
+- [x] Task 3: Update `ElectricProductCard` Component
   - File: `frontend/src/components/ui/ProductCard/ElectricProductCard.tsx`
   - Action: 
     - Remove `msrp` from `ElectricProductCardProps` interface.
@@ -74,14 +74,14 @@ test_patterns:
     - **CRITICAL**: Clean up the container logic. Check if `rrp || msrp` condition needs simplification to just `rrp`.
       - If `rrp` is missing/zero, do NOT render the container div `mb-2 space-y-0.5 ...`.
 
-- [ ] Task 4: Update `ProductInfo` Component
+- [x] Task 4: Update `ProductInfo` Component
   - File: `frontend/src/components/product/ProductInfo.tsx`
   - Action: 
     - Inside `render()`: Remove the conditional block checking for `msrp` inside the `canSeeRrpMsrp` area.
     - **Refactor**: Rename variable `canSeeRrpMsrp` to `canSeeRrp` to reflect new reality.
     - Update all usages to `canSeeRrp`.
 
-- [ ] Task 5: Update `ProductSummary` Component
+- [x] Task 5: Update `ProductSummary` Component
   - File: `frontend/src/components/product/ProductSummary.tsx`
   - Action: 
     - Remove the JSX block rendering "МРЦ" inside the selected variant info section.
@@ -132,3 +132,14 @@ test_patterns:
     - [ ] Check Product Cards.
     - [ ] **Ghost Element Check**: Verify there are no empty white spaces or weird reserved heights where MSRP used to be.
     - [ ] Verify RRP is still shown if applicable.
+
+# Review Notes
+
+- Adversarial review completed
+- Findings: 3 total, 2 fixed, 1 skipped (tech debt)
+- Resolution approach: Walk-through
+
+# Technical Debt
+
+- [ ] **Refactor B2B role logic**: Extract `canSeeRrp(userRole)` utility to `utils/pricing.ts`. Currently duplicated in `ProductInfo.tsx` and `ProductSummary.tsx`.
+

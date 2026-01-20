@@ -53,8 +53,8 @@ export default function ProductInfo({ product, userRole = 'guest', selectedVaria
 
   const stockStatus = getStockStatus();
 
-  // RRP/MSRP видят только оптовики (1-3), тренеры и админы
-  const canSeeRrpMsrp = ['wholesale_level1', 'wholesale_level2', 'wholesale_level3', 'trainer', 'admin'].includes(userRole);
+  // RRP видят только оптовики (1-3), тренеры и админы
+  const canSeeRrp = ['wholesale_level1', 'wholesale_level2', 'wholesale_level3', 'trainer', 'admin'].includes(userRole);
 
   // Рендеринг рейтинга звездами
   const renderRating = () => {
@@ -142,16 +142,11 @@ export default function ProductInfo({ product, userRole = 'guest', selectedVaria
         <div className="text-4xl font-bold text-neutral-900">
           {formatPrice(displayedPrice, price.currency)}
         </div>
-        {canSeeRrpMsrp && selectedVariant && (parseFloat(selectedVariant.rrp || '0') > 0 || parseFloat(selectedVariant.msrp || '0') > 0) && (
+        {canSeeRrp && selectedVariant && parseFloat(selectedVariant.rrp || '0') > 0 && (
           <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
             {parseFloat(selectedVariant.rrp || '0') > 0 && (
               <span className="text-neutral-500">
                 РРЦ: <span className="font-semibold text-neutral-800">{formatPrice(parseFloat(selectedVariant.rrp!), price.currency)}</span>
-              </span>
-            )}
-            {parseFloat(selectedVariant.msrp || '0') > 0 && (
-              <span className="text-neutral-500">
-                МРЦ: <span className="font-semibold text-neutral-800">{formatPrice(parseFloat(selectedVariant.msrp!), price.currency)}</span>
               </span>
             )}
           </div>

@@ -25,7 +25,6 @@ export interface ElectricProductCardProps {
   price: number;
   oldPrice?: number;
   rrp?: number;
-  msrp?: number;
   badge?: 'primary' | 'sale' | 'hit' | 'new';
   isFavorite?: boolean;
   inStock?: boolean;
@@ -47,7 +46,6 @@ export function ElectricProductCard({
   price,
   oldPrice,
   rrp,
-  msrp,
   badge,
   isFavorite = false,
   inStock = true,
@@ -180,10 +178,9 @@ export function ElectricProductCard({
         </div>
 
         {/* RRP/MSRP labels */}
-        {(rrp || msrp) && (
+        {rrp && (
           <div className="mb-2 space-y-0.5 text-[10px] md:text-xs text-[var(--color-text-secondary)]">
-            {rrp && <div>РРЦ: {formatPrice(rrp)} ₽</div>}
-            {msrp && <div>МРЦ: {formatPrice(msrp)} ₽</div>}
+            <div>РРЦ: {formatPrice(rrp)} ₽</div>
           </div>
         )}
       </div>

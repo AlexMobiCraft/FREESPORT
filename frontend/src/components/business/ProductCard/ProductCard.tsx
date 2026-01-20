@@ -94,8 +94,6 @@ export interface ProductCardProps {
   userRole?: UserRole;
   /** Показывать RRP (Recommended Retail Price) для B2B */
   showRRP?: boolean;
-  /** Показывать MSRP (Max Suggested Retail Price) для B2B */
-  showMSRP?: boolean;
   /** Callback при добавлении в корзину */
   onAddToCart?: (productId: number) => void;
   /** Callback при переключении избранного */
@@ -148,7 +146,6 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
       mode = 'b2c',
       userRole = 'retail',
       showRRP = false,
-      showMSRP = false,
       onAddToCart,
       onToggleFavorite,
       isFavorite = false,
@@ -439,18 +436,11 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
                 </p>
 
                 {/* RRP/MSRP для B2B */}
-                {(mode === 'b2b' || userRole !== 'retail') && (product.rrp || product.msrp) && (
+                {(mode === 'b2b' || userRole !== 'retail') && product.rrp && product.rrp > 0 && (
                   <div className="mt-1 space-y-0.5">
-                    {product.rrp && product.rrp > 0 && (
-                      <p className="text-body-s text-[var(--color-text-secondary)]">
-                        РРЦ: {formatPrice(product.rrp)}
-                      </p>
-                    )}
-                    {product.msrp && product.msrp > 0 && (
-                      <p className="text-body-s text-[var(--color-text-secondary)]">
-                        МРЦ: {formatPrice(product.msrp)}
-                      </p>
-                    )}
+                    <p className="text-body-s text-[var(--color-text-secondary)]">
+                      РРЦ: {formatPrice(product.rrp)}
+                    </p>
                   </div>)}
 
                 {/* Кнопка "В корзину" */}
@@ -569,18 +559,11 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
               </p>
 
               {/* RRP/MSRP для B2B */}
-              {(mode === 'b2b' || userRole !== 'retail') && (product.rrp || product.msrp) && (
+              {(mode === 'b2b' || userRole !== 'retail') && product.rrp && product.rrp > 0 && (
                 <div className="mt-1 space-y-0.5">
-                  {product.rrp && product.rrp > 0 && (
-                    <p className="text-body-s text-[var(--color-text-secondary)]">
-                      РРЦ: {formatPrice(product.rrp)}
-                    </p>
-                  )}
-                  {product.msrp && product.msrp > 0 && (
-                    <p className="text-body-s text-[var(--color-text-secondary)]">
-                      МРЦ: {formatPrice(product.msrp)}
-                    </p>
-                  )}
+                  <p className="text-body-s text-[var(--color-text-secondary)]">
+                    РРЦ: {formatPrice(product.rrp)}
+                  </p>
                 </div>
               )}
             </div>

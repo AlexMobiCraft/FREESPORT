@@ -268,23 +268,7 @@ describe('ProductCard', () => {
       expect(screen.getByText(/РРЦ.*1 300/)).toBeInTheDocument();
     });
 
-    it('displays MSRP for B2B users when showMSRP is true', () => {
-      const productWithMSRP = {
-        ...mockProduct,
-        msrp: 1400,
-      };
-      render(
-        <ProductCard
-          product={productWithMSRP}
-          userRole="wholesale_level1"
-          mode="b2b"
-          showMSRP={true}
-          layout="grid"
-        />
-      );
 
-      expect(screen.getByText(/МРЦ.*1 400/)).toBeInTheDocument();
-    });
   });
 
   describe('Badge Logic', () => {

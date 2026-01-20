@@ -317,7 +317,6 @@ export const HitsSection: React.FC<HitsSectionProps> = ({
                         : undefined
                     }
                     rrp={isB2B ? product.rrp : undefined}
-                    msrp={isB2B ? product.msrp : undefined}
                     badge="hit"
                     inStock={product.is_in_stock}
                     onAddToCart={() => handleAddToCart(product.id)}
