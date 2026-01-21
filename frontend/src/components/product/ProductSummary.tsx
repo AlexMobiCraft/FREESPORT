@@ -18,6 +18,7 @@ import { useToast } from '@/components/ui/Toast';
 import { formatPrice } from '@/utils/pricing';
 import ProductInfo from './ProductInfo';
 import { ProductOptions, type SelectedOptions } from './ProductOptions';
+import { QuantitySelector } from '@/components/cart/QuantitySelector';
 import type { ProductVariant } from '@/types/api';
 
 /**
@@ -204,6 +205,7 @@ export default function ProductSummary({
     (newOptions: SelectedOptions) => {
       setSelectedOptions(newOptions);
       setValidationError(''); // Сбрасываем ошибку при изменении выбора
+      setQuantity(1); // Сбрасываем количество при смене варианта
 
       // Найти новый вариант и уведомить родителя
       if (onVariantChange && variants.length > 0) {
@@ -363,6 +365,20 @@ export default function ProductSummary({
           role="alert"
         >
           {validationError}
+        </div>
+      )}
+
+      {/* Выбор количества */}
+      {canAddToCart && (variants.length === 0 || selectedVariant) && (
+        <div className="flex items-center justify-between py-3 border-t border-neutral-200" data-testid="quantity-selector-wrapper">
+          <span className="text-base font-medium text-neutral-700">Количество:</span>
+          <QuantitySelector
+            value={quantity}
+            min={1}
+            max={selectedVariant?.available_quantity || 99}
+            onChange={setQuantity}
+            isLoading={isLoading}
+          />
         </div>
       )}
 
