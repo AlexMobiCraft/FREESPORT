@@ -14,12 +14,16 @@ import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import type { ProductDetail } from '@/types/api';
 import type { UserRole } from '@/utils/pricing';
 import { useCartStore } from '@/stores/cartStore';
+import { useAuthStore } from '@/stores/authStore';
+import { useFavoritesStore } from '@/stores/favoritesStore';
 import { useToast } from '@/components/ui/Toast';
 import { formatPrice } from '@/utils/pricing';
 import ProductInfo from './ProductInfo';
 import { ProductOptions, type SelectedOptions } from './ProductOptions';
 import { QuantitySelector } from '@/components/cart/QuantitySelector';
 import type { ProductVariant } from '@/types/api';
+import { Heart } from 'lucide-react';
+import { cn } from '@/utils/cn';
 
 /**
  * Расширенный интерфейс товара с вариантами
@@ -104,6 +108,36 @@ export default function ProductSummary({
   // Hooks для работы с корзиной и уведомлениями
   const { addItem, isLoading } = useCartStore();
   const { success, error: toastError } = useToast();
+
+  // Favorites logic
+  const { isAuthenticated } = useAuthStore();
+  const favorites = useFavoritesStore(state => state.favorites);
+  const { toggleFavorite, fetchFavorites } = useFavoritesStore();
+
+  const isFavorite = useMemo(
+    () => favorites.some(f => f.product === product.id),
+    [favorites, product.id]
+  );
+
+  // Fetch favorites on mount if authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchFavorites();
+    }
+  }, [isAuthenticated, fetchFavorites]);
+
+  const handleToggleFavorite = useCallback(async () => {
+    if (!isAuthenticated) {
+      toastError('Пожалуйста, авторизуйтесь для добавления в избранное');
+      return;
+    }
+    try {
+      await toggleFavorite(product.id);
+    } catch (error) {
+      // handled in store
+      toastError('Не удалось обновить избранное');
+    }
+  }, [isAuthenticated, toggleFavorite, product.id, toastError]);
 
   // Варианты товара (если есть) - мемоизируем для стабильности ссылки
   const variants = useMemo(() => product.variants || [], [product.variants]);
@@ -382,21 +416,21 @@ export default function ProductSummary({
         </div>
       )}
 
-      {/* Кнопка добавления в корзину */}
-      <div className="flex justify-center">
+      {/* Кнопки действий */}
+      <div className="flex gap-3">
+        {/* Кнопка добавления в корзину */}
         <button
           type="button"
           onClick={handleAddToCart}
           disabled={!canAddToCart || (variants.length > 0 && !selectedVariant) || isLoading}
-          className={`
-          h-14 px-6 text-lg font-medium rounded-2xl transition-all duration-150
-          focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#0060FF]/60
-          flex items-center justify-center gap-2
-          ${canAddToCart && (variants.length === 0 || selectedVariant) && !isLoading
-              ? 'bg-[#0060FF] text-white hover:bg-[#0047CC] active:bg-[#0037A6] shadow-[0_4px_12px_rgba(0,96,255,0.28)]'
-              : 'bg-[#E3E8F2] text-[#8F9BB3] cursor-not-allowed'
-            }
-        `}
+          className={cn(
+            "flex-1 h-14 px-6 text-lg font-medium rounded-2xl transition-all duration-150",
+            "focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#0060FF]/60",
+            "flex items-center justify-center gap-2",
+            canAddToCart && (variants.length === 0 || selectedVariant) && !isLoading
+              ? "bg-[#0060FF] text-white hover:bg-[#0047CC] active:bg-[#0037A6] shadow-[0_4px_12px_rgba(0,96,255,0.28)]"
+              : "bg-[#E3E8F2] text-[#8F9BB3] cursor-not-allowed"
+          )}
           data-testid="add-to-cart-button"
         >
           {isLoading && (
@@ -422,6 +456,26 @@ export default function ProductSummary({
             </svg>
           )}
           {isLoading ? 'Добавление...' : addToCartButtonText}
+        </button>
+
+        {/* Кнопка избранного */}
+        <button
+          type="button"
+          onClick={handleToggleFavorite}
+          className={cn(
+            "h-14 w-14 rounded-2xl border border-neutral-200 flex items-center justify-center transition-colors shrink-0",
+            "hover:bg-neutral-50 active:bg-neutral-100",
+            "focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#0060FF]/60"
+          )}
+          title={isFavorite ? "Удалить из избранного" : "Добавить в избранное"}
+          aria-label={isFavorite ? "Удалить из избранного" : "Добавить в избранное"}
+        >
+          <Heart
+            className={cn(
+              "w-6 h-6 transition-colors duration-200",
+              isFavorite ? "fill-[#dc2626] text-[#dc2626]" : "text-neutral-400"
+            )}
+          />
         </button>
       </div>
 

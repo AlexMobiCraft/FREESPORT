@@ -19,6 +19,7 @@ import brandsService from '@/services/brandsService';
 import type { Product, CategoryTree as CategoryTreeResponse, Brand } from '@/types/api';
 import { useCartStore } from '@/stores/cartStore';
 import { useAuthStore } from '@/stores/authStore';
+import { useFavoritesStore } from '@/stores/favoritesStore';
 import { useToast } from '@/components/ui/Toast';
 
 type PriceRange = {
@@ -359,6 +360,38 @@ const CatalogContent: React.FC = () => {
   // Cart integration
   const { addItem } = useCartStore();
   const { success, error: toastError } = useToast();
+
+  // Favorites integration
+  const favorites = useFavoritesStore(state => state.favorites);
+  const { toggleFavorite, fetchFavorites } = useFavoritesStore();
+
+  // Fetch favorites on mount or auth change
+  useEffect(() => {
+    if (user) {
+      fetchFavorites();
+    }
+  }, [user, fetchFavorites]);
+
+  const handleToggleFavorite = useCallback(
+    async (productId: number) => {
+      if (!user) {
+        toastError('Пожалуйста, авторизуйтесь');
+        return;
+      }
+      try {
+        await toggleFavorite(productId);
+        // Note: toasts are shown in store actions or we can show them here based on result?
+        // Current store implementation handles state but not toasts internally except errors.
+        // But since we can't easily know if it was added or removed in the toggle result (void),
+        // we might want to check isFavorite status before toggling OR update store to return status.
+        // For now, let's just rely on the UI update.
+        // To verify action we can check if it is NOW in favorites.
+      } catch (error) {
+        // Error is handled in store but we can show toast here if needed
+      }
+    },
+    [user, toggleFavorite, toastError]
+  );
 
   const activePathNodes = useMemo(() => {
     if (!activeCategoryId) {
@@ -746,6 +779,8 @@ const CatalogContent: React.FC = () => {
               userRole={userRole}
               mode={isB2B ? 'b2b' : 'b2c'}
               onAddToCart={handleAddToCart}
+              isFavorite={favorites.some(f => f.product === product.id)}
+              onToggleFavorite={handleToggleFavorite}
             />
           ))}
         </div>
@@ -762,6 +797,8 @@ const CatalogContent: React.FC = () => {
             userRole={userRole}
             mode={isB2B ? 'b2b' : 'b2c'}
             onAddToCart={handleAddToCart}
+            isFavorite={favorites.some(f => f.product === product.id)}
+            onToggleFavorite={handleToggleFavorite}
           />
         ))}
       </div>
