@@ -331,19 +331,17 @@ class UserDashboardSerializer(serializers.Serializer):
 
 class FavoriteSerializer(serializers.ModelSerializer):
     """
-    Serializer для избранных товаров
+    Serializer для избранных товаров.
+    
+    Данные о цене, SKU и изображении получаются из первого активного
+    ProductVariant, т.к. эти поля хранятся на уровне варианта, а не Product.
     """
 
     product_name = serializers.CharField(source="product.name", read_only=True)
-    product_price = serializers.DecimalField(
-        source="product.retail_price",
-        max_digits=10,
-        decimal_places=2,
-        read_only=True,
-    )
+    product_price = serializers.SerializerMethodField()
     product_image = serializers.SerializerMethodField()
     product_slug = serializers.CharField(source="product.slug", read_only=True)
-    product_sku = serializers.CharField(source="product.sku", read_only=True)
+    product_sku = serializers.SerializerMethodField()
 
     class Meta:
         model = Favorite
@@ -359,6 +357,29 @@ class FavoriteSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id", "created_at"]
 
+    def _get_first_active_variant(self, product):
+        """Получить первый активный вариант товара."""
+        return product.variants.filter(is_active=True).first()
+
+    def get_product_price(self, obj) -> str | None:
+        """
+        Получить розничную цену из первого активного варианта товара.
+        Возвращает строку для совместимости с DecimalField.
+        """
+        variant = self._get_first_active_variant(obj.product)
+        if variant and variant.retail_price is not None:
+            return str(variant.retail_price)
+        return None
+
+    def get_product_sku(self, obj) -> str | None:
+        """
+        Получить SKU из первого активного варианта товара.
+        """
+        variant = self._get_first_active_variant(obj.product)
+        if variant:
+            return variant.sku
+        return None
+
     def get_product_image(self, obj) -> str | None:
         """
         Получить изображение товара из ProductVariant или Product.base_images.
@@ -367,7 +388,7 @@ class FavoriteSerializer(serializers.ModelSerializer):
         """
         product = obj.product
         # Пробуем получить изображение из первого активного варианта
-        first_variant = product.variants.filter(is_active=True).first()
+        first_variant = self._get_first_active_variant(product)
         if first_variant and first_variant.main_image:
             return str(first_variant.main_image)
         # Fallback на base_images

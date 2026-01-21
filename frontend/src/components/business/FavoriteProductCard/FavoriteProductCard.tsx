@@ -16,10 +16,46 @@
 import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Heart, ShoppingCart } from 'lucide-react';
+import { Heart } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { Button } from '@/components/ui';
 import type { FavoriteWithAvailability } from '@/types/favorite';
+
+// Формирование полного URL для изображений
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
+const MEDIA_BASE_URL =
+  process.env.NEXT_PUBLIC_MEDIA_URL ||
+  (API_BASE_URL ? API_BASE_URL.replace(/\/api(?:\/v\d+)?\/?$/, '') : '');
+
+const resolveImageUrl = (path?: string | null): string | null => {
+  if (!path) return null;
+  if (/^(data|blob):/i.test(path)) {
+    return path;
+  }
+
+  const publicBase = MEDIA_BASE_URL || '';
+
+  if (/^https?:\/\//i.test(path)) {
+    if (path.startsWith('http://backend:8000')) {
+      return path.replace('http://backend:8000', publicBase);
+    }
+    if (path.startsWith('http://nginx')) {
+      return path.replace('http://nginx', publicBase);
+    }
+    return path;
+  }
+
+  // Путь относительный — добавляем публичный базовый URL
+  if (publicBase) {
+    // Добавляем /media/ если путь не начинается с /
+    if (path.startsWith('/')) {
+      return `${publicBase}${path}`;
+    }
+    return `${publicBase}/media/${path}`;
+  }
+
+  return path;
+};
 
 export interface FavoriteProductCardProps {
   /** Данные избранного товара */
@@ -60,9 +96,9 @@ export const FavoriteProductCard: React.FC<FavoriteProductCardProps> = ({
       {/* Изображение */}
       <Link href={`/product/${favorite.product_slug}`} className="block relative">
         <div className="aspect-square relative bg-[var(--color-neutral-200)]">
-          {favorite.product_image ? (
+          {resolveImageUrl(favorite.product_image) ? (
             <Image
-              src={favorite.product_image}
+              src={resolveImageUrl(favorite.product_image)!}
               alt={favorite.product_name}
               fill
               className="object-cover"
@@ -124,12 +160,14 @@ export const FavoriteProductCard: React.FC<FavoriteProductCardProps> = ({
 
         {/* SKU */}
         <p className="text-[12px] leading-[16px] text-[var(--color-text-muted)] mb-3">
-          Артикул: {favorite.product_sku}
+          Артикул: {favorite.product_sku || '—'}
         </p>
 
         {/* Цена */}
         <p className="text-[20px] leading-[28px] font-semibold text-[var(--color-text-primary)] mb-4">
-          {parseFloat(favorite.product_price).toLocaleString('ru-RU')} ₽
+          {favorite.product_price
+            ? `${parseFloat(favorite.product_price).toLocaleString('ru-RU')} ₽`
+            : 'Цена не указана'}
         </p>
 
         {/* Кнопка "В корзину" (AC: 5) */}
@@ -142,7 +180,7 @@ export const FavoriteProductCard: React.FC<FavoriteProductCardProps> = ({
             loading={isAddingToCart}
             disabled={isAddingToCart}
           >
-            <ShoppingCart className="w-4 h-4 mr-2" />В корзину
+            В корзину
           </Button>
         ) : (
           <Button variant="secondary" size="medium" className="w-full" disabled>
