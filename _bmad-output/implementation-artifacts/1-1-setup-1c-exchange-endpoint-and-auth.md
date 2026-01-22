@@ -1,6 +1,6 @@
 # Story 1.1: Setup 1C Exchange Endpoint & Auth
 
-Status: review
+Status: done
 
 ## Story
 
@@ -145,6 +145,9 @@ class Is1CExchangeUser(BasePermission):
 - Existing integrations code lives in `apps/products/management/commands/` for import
 - This story creates the **transport layer** - а separate concern from import logic
 - Import logic in `apps/products/services/import_1c/` will be triggered by Epic 3
+
+### Discovery: 1C HTTP Methods
+Certain 1C configurations send `checkauth` and `init` requests using **POST** method instead of GET, even if no body is transmitted. The view handles this by aliasing `post` to `get` logic for these modes.
 
 ### References
 

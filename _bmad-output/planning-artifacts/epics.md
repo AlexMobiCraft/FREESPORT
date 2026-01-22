@@ -114,17 +114,29 @@ So that I can receive the full 1C export archive reliably.
 **Acceptance Criteria:**
 
 **Given** An authenticated session and a binary file to upload
-**When** A POST request is sent to the endpoint with `?mode=file&filename=import.zip` and binary body
+**When** A POST request is sent to the endpoint with `?mode=file&filename=import.zip&sessid=<session_key>` and binary body
 **Then** The file content should be streamed to a temporary file in `MEDIA_ROOT/1c_temp/`
 **And** If multiple requests are sent with the same filename (chunked), the content should be appended correctly
 **And** The response should be `success` upon successful write
+
+**Given** A POST request with `?mode=file&filename=X&sessid=<key>`
+**When** The `sessid` parameter does NOT match `request.session.session_key`
+**Then** The response should be 403 Forbidden with `failure\nInvalid session`
+
+**Given** A POST request with `?mode=file` without `sessid` parameter
+**When** The request is processed
+**Then** The response should be 403 Forbidden with `failure\nMissing sessid`
 
 **Test Cases:**
 
 | ID | Scenario | Expected Result |
 |----|----------|-----------------|
-| TC6 | Upload interrupted at 50%, then resumed | Temp file preserved, next chunk appends correctly |
-| TC7 | Upload started but no more chunks (timeout) | Temp file cleaned up after configurable TTL |
+| TC1 | Valid upload with correct sessid | 200 OK, `success` |
+| TC2 | Upload with invalid sessid | 403 Forbidden, `failure\nInvalid session` |
+| TC3 | Upload without sessid param | 403 Forbidden, `failure\nMissing sessid` |
+| TC4 | Upload 250MB as 3 chunks (100+100+50) | All chunks appended correctly |
+| TC5 | Upload interrupted at 50%, then resumed | Temp file preserved, next chunk appends |
+| TC6 | Upload started but no more chunks (timeout) | Temp file cleaned up after TTL |
 
 ### Story 2.2: Zip Unpacking with Structure
 

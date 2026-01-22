@@ -40,5 +40,5 @@ workflow_status:
     name: "Реализация"
     workflows:
       - id: "sprint-planning"
-        status: "required"
-        note: "Необходимо создать формальный sprint-status.yaml"
+        status: "_bmad-output/implementation-artifacts/sprint-status.yaml"
+        note: "Sprint-status.yaml создан и поддерживается"
