@@ -21,6 +21,19 @@ class ICExchangeView(APIView):
         
         return HttpResponse("failure\nUnknown mode", content_type="text/plain", status=400)
 
+    def post(self, request, *args, **kwargs):
+        """
+        Handle POST requests. 
+        Some 1C configurations send checkauth or init via POST.
+        Also handles file uploads (mode=file).
+        """
+        mode = request.query_params.get('mode')
+        
+        if mode == 'checkauth':
+            return self.handle_checkauth(request)
+            
+        return HttpResponse("failure\nUnknown mode (POST)", content_type="text/plain", status=400)
+
     def handle_checkauth(self, request):
         """
         Initializes session and returns cookie info to 1C.
