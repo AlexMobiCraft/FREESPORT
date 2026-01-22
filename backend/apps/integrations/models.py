@@ -17,5 +17,8 @@ class Session(ImportSession):
         app_label = "integrations"
         verbose_name = "Сессия импорта"
         verbose_name_plural = "Сессии импорта"
+        permissions = [
+            ("can_exchange_1c", "Can exchange with 1C"),
+        ]
         # model_name будет 'session' (lowercase имени класса)
         # Итоговый URL: /admin/integrations/session/

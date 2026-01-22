@@ -269,6 +269,13 @@ DATA_UPLOAD_MAX_NUMBER_FIELDS = 5000
 # BASE_DIR = /app, поэтому используем BASE_DIR / "data" / "import_1c"
 ONEC_DATA_DIR = os.environ.get("ONEC_DATA_DIR", str(BASE_DIR / "data" / "import_1c"))
 
+ONEC_EXCHANGE = {
+    'SESSION_COOKIE_NAME': 'FREESPORT_1C_SESSION',
+    'SESSION_LIFETIME_SECONDS': 3600,  # 1 hour
+    'FILE_LIMIT_BYTES': 100 * 1024 * 1024,  # 100MB
+    'ZIP_SUPPORT': True,
+}
+
 # Тип первичного ключа по умолчанию
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 

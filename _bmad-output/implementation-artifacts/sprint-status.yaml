@@ -43,7 +43,7 @@ development_status:
   # FRs: FR1, FR2, FR3, NFR3
   # ========================================
   epic-1: in-progress
-  1-1-setup-1c-exchange-endpoint-and-auth: ready-for-dev
+  1-1-setup-1c-exchange-endpoint-and-auth: review
   1-2-implement-init-mode-configuration: backlog
   epic-1-retrospective: optional
 

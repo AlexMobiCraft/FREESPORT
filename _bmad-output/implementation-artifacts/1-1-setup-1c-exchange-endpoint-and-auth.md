@@ -1,6 +1,6 @@
 # Story 1.1: Setup 1C Exchange Endpoint & Auth
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -32,27 +32,33 @@ so that I can establish a secure session for data transfer.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Create 1C Exchange App Structure** (AC: #1, #3)
-  - [ ] 1.1: Create Django app `apps/integrations/` or extend existing structure
-  - [ ] 1.2: Create `onec_exchange/` submodule with `__init__.py`
-  - [ ] 1.3: Add URL routing for `/api/integration/1c/exchange/`
+- [x] **Task 1: Create 1C Exchange App Structure** (AC: #1, #3)
+  - [x] 1.1: Create Django app `apps/integrations/` or extend existing structure
+  - [x] 1.2: Create `onec_exchange/` submodule with `__init__.py`
+  - [x] 1.3: Add URL routing for `/api/integration/1c/exchange/`
 
-- [ ] **Task 2: Implement ExchangeView** (AC: #1, #2)
-  - [ ] 2.1: Create `ICExchangeView` (APIView from DRF)
-  - [ ] 2.2: Implement mode routing (`mode` query param dispatcher)
-  - [ ] 2.3: Implement `handle_checkauth()` method
-  - [ ] 2.4: Return `text/plain` responses (NOT JSON!)
+- [x] **Task 2: Implement ExchangeView** (AC: #1, #2)
+  - [x] 2.1: Create `ICExchangeView` (APIView from DRF)
+  - [x] 2.2: Implement mode routing (`mode` query param dispatcher)
+  - [x] 2.3: Implement `handle_checkauth()` method
+  - [x] 2.4: Return `text/plain` responses (NOT JSON!)
 
-- [ ] **Task 3: Implement Authentication** (AC: #1, #2, #3)
-  - [ ] 3.1: Create custom `Basic1CAuthentication` class extending DRF's BasicAuthentication
-  - [ ] 3.2: Generate and return session cookie on successful auth
-  - [ ] 3.3: Add permission class restricting to admin or `can_exchange_1c` permission
+- [x] **Task 3: Implement Authentication** (AC: #1, #2, #3)
+  - [x] 3.1: Create custom `Basic1CAuthentication` class extending DRF's BasicAuthentication
+  - [x] 3.2: Generate and return session cookie on successful auth
+  - [x] 3.3: Add permission class restricting to admin or `can_exchange_1c` permission
 
-- [ ] **Task 4: Write Tests** (AC: #1, #2, #3)
-  - [ ] 4.1: Test successful auth with valid credentials
-  - [ ] 4.2: Test 401 on invalid credentials
-  - [ ] 4.3: Test 403 for unauthorized users
-  - [ ] 4.4: Verify response format is `text/plain` with correct structure
+- [x] **Task 4: Write Tests** (AC: #1, #2, #3)
+  - [x] 4.1: Test successful auth with valid credentials
+  - [x] 4.2: Test 401 on invalid credentials
+  - [x] 4.3: Test 403 for unauthorized users
+  - [x] 4.4: Verify response format is `text/plain` with correct structure
+
+- [x] **Review Follow-ups (AI)**
+  - [x] [AI-Review][High] Fix missing permission definition `can_exchange_1c` in `apps/integrations/models.py` [backend/apps/integrations/models.py]
+  - [x] [AI-Review][Medium] Track uncommitted files in git `backend/apps/integrations/onec_exchange/` and `tests/` [git status]
+  - [x] [AI-Review][Low] Remove empty `Basic1CAuthentication` class or implement custom logic [backend/apps/integrations/onec_exchange/authentication.py]
+  - [x] [AI-Review][Low] Ensure strictly 3 lines in response (remove trailing newline) [backend/apps/integrations/onec_exchange/views.py]
 
 ## Dev Notes
 
@@ -78,7 +84,9 @@ backend/
         authentication.py  # Basic1CAuthentication
         permissions.py     # Is1CExchangeUser
         tests/
-          test_checkauth.py
+          unit/
+          integration/
+            test_onec_exchange_api.py
 ```
 
 ### Authentication Flow
@@ -167,14 +175,42 @@ curl -v "http://localhost:8001/api/integration/1c/exchange/?mode=checkauth"
 # Expected: 401 Unauthorized
 ```
 
+## Dev Notes
+
+### Testing
+
+Tests have been structured according to `docs/architecture/10-testing-strategy.md` in `backend/apps/integrations/tests/integration/test_onec_exchange_api.py`.
+
 ## Dev Agent Record
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+Amelia (Developer Agent)
 
 ### Debug Log References
 
+- Encountered `RecursionError` in `Basic1CAuthentication` when calling `login()` within the authenticator. Resolved by moving `login()` to `ICExchangeView.handle_checkauth`.
+- Fixed User creation in tests to match custom User model (email-based, required first/last name).
+
 ### Completion Notes List
 
+- Created `apps/integrations/onec_exchange` submodule.
+- Implemented `ICExchangeView` with `mode=checkauth` support.
+- Configured custom Basic Authentication that establishes a Django session for 1C.
+- Added necessary settings to `base.py`.
+- Verified implementation with 4 unit tests covering auth success, failure, and permission checks.
+- Addressed review findings: fixed permission definition, moved tests to integration folder, updated docs.
+
 ### File List
+
+- `backend/freesport/settings/base.py` (Modified)
+- `backend/freesport/urls.py` (Modified)
+- `backend/apps/integrations/onec_exchange/__init__.py` (New)
+- `backend/apps/integrations/onec_exchange/urls.py` (New)
+- `backend/apps/integrations/onec_exchange/views.py` (New)
+- `backend/apps/integrations/onec_exchange/authentication.py` (New)
+- `backend/apps/integrations/onec_exchange/permissions.py` (New)
+- `backend/apps/integrations/urls.py` (Modified)
+- `backend/apps/integrations/models.py` (Modified)
+- `backend/apps/integrations/migrations/0004_alter_session_options.py` (New)
+- `backend/apps/integrations/tests/integration/test_onec_exchange_api.py` (New - Moved)
