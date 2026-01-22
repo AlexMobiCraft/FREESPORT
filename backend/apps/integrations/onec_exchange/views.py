@@ -44,9 +44,15 @@ class ICExchangeView(APIView):
         """
         # Create a session for subsequent requests
         # In DRF, request is rest_framework.request.Request, underlying is ._request
+        
+        # Ensure backend is set for login to work
+        if not hasattr(request.user, 'backend'):
+            request.user.backend = 'django.contrib.auth.backends.ModelBackend'
+            
         login(request._request, request.user)
         
-        cookie_name = settings.ONEC_EXCHANGE.get('SESSION_COOKIE_NAME', 'FREESPORT_1C_SESSION')
+        # Use the actual Django session cookie name so 1C sends back the correct cookie
+        cookie_name = settings.SESSION_COOKIE_NAME
         session_id = request.session.session_key
         
         # If session_id is still None, ensure it's saved.

@@ -209,21 +209,19 @@ class Test1CInitMode:
         """
         TC3/AC3: User without can_exchange_1c permission returns 403 Forbidden.
         """
-        User.objects.create_user(
+        user = User.objects.create_user(
             email="regular_init@example.com",
             password="password123",
             first_name="Regular",
             last_name="User",
             is_staff=False,
         )
-        auth_header = self._get_auth_header("regular_init@example.com", "password123")
+        
+        # We use force_login to ensure the user IS authenticated but lacks permission.
+        # Checkauth would return 403 and prevent login, leading to 401 here, 
+        # but we want to test the PERMISSION check (403), not authentication.
+        self.client.force_login(user)
 
-        # Authenticate first to get cookie
-        self.client.get(
-            self.url, data={"mode": "checkauth"}, HTTP_AUTHORIZATION=auth_header
-        )
-
-        # Request init with cookie
         response = self.client.get(
             self.url, data={"mode": "init"}
         )

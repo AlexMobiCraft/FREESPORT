@@ -1,6 +1,6 @@
 # Story 1.2: Implement Init Mode Configuration
 
-Status: review
+Status: done
 
 ## Story
 
@@ -207,3 +207,4 @@ Claude Sonnet 4 (Anthropic)
 | Date | Change | Author |
 |------|--------|--------|
 | 2026-01-22 | Story 1.2 implemented: mode=init endpoint with 4-line response | Dev Agent (Claude Sonnet 4) |
+| 2026-01-22 | **CRITICAL FIX**: Fixed 1C Protocol auth flow. Added `CsrfExemptSessionAuthentication` and updated tests to use Cookie-Based auth instead of Basic Auth for `init` mode. Fixed `test_init_no_permission` using `force_login`. | Dev Agent (Code Review Verification) |
