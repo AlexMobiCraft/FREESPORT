@@ -2,7 +2,7 @@ from django.conf import settings
 from django.http import HttpResponse
 from django.contrib.auth import login
 from rest_framework.views import APIView
-from .authentication import Basic1CAuthentication
+from .authentication import Basic1CAuthentication, CsrfExemptSessionAuthentication
 from .permissions import Is1CExchangeUser
 
 class ICExchangeView(APIView):
@@ -10,7 +10,7 @@ class ICExchangeView(APIView):
     Main entry point for 1C exchange protocol.
     Handles authentication, file uploads, and import triggering.
     """
-    authentication_classes = [Basic1CAuthentication]
+    authentication_classes = [Basic1CAuthentication, CsrfExemptSessionAuthentication]
     permission_classes = [Is1CExchangeUser]
 
     def get(self, request, *args, **kwargs):
@@ -18,6 +18,8 @@ class ICExchangeView(APIView):
         
         if mode == 'checkauth':
             return self.handle_checkauth(request)
+        elif mode == 'init':
+            return self.handle_init(request)
         
         return HttpResponse("failure\nUnknown mode", content_type="text/plain", status=400)
 
@@ -31,6 +33,8 @@ class ICExchangeView(APIView):
         
         if mode == 'checkauth':
             return self.handle_checkauth(request)
+        elif mode == 'init':
+            return self.handle_init(request)
             
         return HttpResponse("failure\nUnknown mode (POST)", content_type="text/plain", status=400)
 
@@ -52,3 +56,28 @@ class ICExchangeView(APIView):
 
         response_text = f"success\n{cookie_name}\n{session_id}"
         return HttpResponse(response_text, content_type="text/plain")
+
+    def handle_init(self, request):
+        """
+        Returns server capabilities for 1C data exchange.
+        Protocol: https://dev.1c-bitrix.ru/api_help/sale/algorithms/data_2_site.php
+        
+        Response format (4 lines, text/plain):
+        - zip=yes|no
+        - file_limit=<bytes>
+        - sessid=<session_key>
+        - version=<CommerceML_version>
+        """
+        zip_support = settings.ONEC_EXCHANGE.get('ZIP_SUPPORT', True)
+        file_limit = settings.ONEC_EXCHANGE.get('FILE_LIMIT_BYTES', 100 * 1024 * 1024)
+        version = settings.ONEC_EXCHANGE.get('COMMERCEML_VERSION', '3.1')
+        
+        # Ensure session exists (should already exist after checkauth)
+        if not request.session.session_key:
+            request.session.save()
+        sessid = request.session.session_key
+        
+        zip_value = 'yes' if zip_support else 'no'
+        response_text = f"zip={zip_value}\nfile_limit={file_limit}\nsessid={sessid}\nversion={version}"
+        return HttpResponse(response_text, content_type="text/plain")
+

@@ -272,8 +272,9 @@ ONEC_DATA_DIR = os.environ.get("ONEC_DATA_DIR", str(BASE_DIR / "data" / "import_
 ONEC_EXCHANGE = {
     'SESSION_COOKIE_NAME': 'FREESPORT_1C_SESSION',
     'SESSION_LIFETIME_SECONDS': 3600,  # 1 hour
-    'FILE_LIMIT_BYTES': 100 * 1024 * 1024,  # 100MB
+    'FILE_LIMIT_BYTES': 100 * 1024 * 1024,  # 100MB per chunk
     'ZIP_SUPPORT': True,
+    'COMMERCEML_VERSION': '3.1',  # CommerceML protocol version
 }
 
 # Тип первичного ключа по умолчанию

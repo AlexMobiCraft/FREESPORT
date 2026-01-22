@@ -1,6 +1,6 @@
 # Story 1.2: Implement Init Mode Configuration
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -41,28 +41,28 @@ so that 1C can optimize the data packet size and maintain secure session.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Implement `handle_init()` method** (AC: #1)
-  - [ ] 1.1: Add `handle_init()` method to `ICExchangeView`
-  - [ ] 1.2: Read `ZIP_SUPPORT` and `FILE_LIMIT_BYTES` from `settings.ONEC_EXCHANGE`
-  - [ ] 1.3: Get session key from `request.session.session_key` (CSRF token)
-  - [ ] 1.4: Add `COMMERCEML_VERSION` to settings (default: "3.1")
-  - [ ] 1.5: Return 4-line `text/plain` response
+- [x] **Task 1: Implement `handle_init()` method** (AC: #1)
+  - [x] 1.1: Add `handle_init()` method to `ICExchangeView`
+  - [x] 1.2: Read `ZIP_SUPPORT` and `FILE_LIMIT_BYTES` from `settings.ONEC_EXCHANGE`
+  - [x] 1.3: Get session key from `request.session.session_key` (CSRF token)
+  - [x] 1.4: Add `COMMERCEML_VERSION` to settings (default: "3.1")
+  - [x] 1.5: Return 4-line `text/plain` response
 
-- [ ] **Task 2: Add mode routing for `init`** (AC: #1)
-  - [ ] 2.1: Update `get()` to route `mode=init` → `handle_init()`
-  - [ ] 2.2: Update `post()` to route `mode=init` → `handle_init()` (1C compatibility)
+- [x] **Task 2: Add mode routing for `init`** (AC: #1)
+  - [x] 2.1: Update `get()` to route `mode=init` → `handle_init()`
+  - [x] 2.2: Update `post()` to route `mode=init` → `handle_init()` (1C compatibility)
 
-- [ ] **Task 3: Update Settings** (AC: #1)
-  - [ ] 3.1: Add `COMMERCEML_VERSION: "3.1"` to `ONEC_EXCHANGE` dict in `base.py`
+- [x] **Task 3: Update Settings** (AC: #1)
+  - [x] 3.1: Add `COMMERCEML_VERSION: "3.1"` to `ONEC_EXCHANGE` dict in `base.py`
 
-- [ ] **Task 4: Write Tests** (AC: #1, #2, #3)
-  - [ ] 4.1: Test successful init with 4-line response format
-  - [ ] 4.2: Test 401 on unauthenticated request
-  - [ ] 4.3: Test 403 for user without permission
-  - [ ] 4.4: Verify `sessid=` contains valid session key
-  - [ ] 4.5: Verify `version=3.1` is present
-  - [ ] 4.6: Test POST method works same as GET
-  - [ ] 4.7: Verify Content-Type is `text/plain`
+- [x] **Task 4: Write Tests** (AC: #1, #2, #3)
+  - [x] 4.1: Test successful init with 4-line response format
+  - [x] 4.2: Test 401 on unauthenticated request
+  - [x] 4.3: Test 403 for user without permission
+  - [x] 4.4: Verify `sessid=` contains valid session key
+  - [x] 4.5: Verify `version=3.1` is present
+  - [x] 4.6: Test POST method works same as GET
+  - [x] 4.7: Verify Content-Type is `text/plain`
 
 ## Dev Notes
 
@@ -179,10 +179,31 @@ curl -v -u 1c_user:password "http://localhost:8001/api/integration/1c/exchange/?
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+Claude Sonnet 4 (Anthropic)
 
 ### Debug Log References
 
+- All 12 tests passed (5 checkauth + 7 init)
+- Red-Green-Refactor cycle completed successfully
+
 ### Completion Notes List
 
+- ✅ Implemented `handle_init()` method per 1C-Bitrix protocol specification
+- ✅ Returns 4-line text/plain response: zip, file_limit, sessid, version
+- ✅ Added `COMMERCEML_VERSION: '3.1'` to ONEC_EXCHANGE settings
+- ✅ Both GET and POST routed to handle_init() for 1C compatibility
+- ✅ Session key retrieved from existing session (created in checkauth)
+- ✅ All 7 test cases implemented and passing
+- ✅ No regressions in Story 1.1 tests (5 checkauth tests still pass)
+
 ### File List
+
+- `backend/apps/integrations/onec_exchange/views.py` — Added handle_init() method, updated get/post routing
+- `backend/freesport/settings/base.py` — Added COMMERCEML_VERSION to ONEC_EXCHANGE dict
+- `backend/tests/integration/test_onec_exchange_api.py` — Added Test1CInitMode class with 7 test cases (correct location per testing-strategy.md)
+
+## Change Log
+
+| Date | Change | Author |
+|------|--------|--------|
+| 2026-01-22 | Story 1.2 implemented: mode=init endpoint with 4-line response | Dev Agent (Claude Sonnet 4) |

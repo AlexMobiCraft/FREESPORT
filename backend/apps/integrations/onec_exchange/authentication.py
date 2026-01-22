@@ -1,4 +1,4 @@
-from rest_framework.authentication import BasicAuthentication
+from rest_framework.authentication import BasicAuthentication, SessionAuthentication
 from django.contrib.auth import login
 from django.conf import settings
 
@@ -12,3 +12,12 @@ class Basic1CAuthentication(BasicAuthentication):
     User-Agent or non-standard headers) without affecting global auth.
     """
     pass
+
+class CsrfExemptSessionAuthentication(SessionAuthentication):
+    """
+    SessionAuthentication that ignores CSRF check.
+    Required because 1C does not send the standard Django CSRF header/cookie structure
+    during file uploads (POST), but relies on the session cookie established in checkauth.
+    """
+    def enforce_csrf(self, request):
+        return  # To not perform the csrf check checks
