@@ -265,9 +265,16 @@ DATA_UPLOAD_MAX_NUMBER_FIELDS = 5000
 # Интеграция с 1С
 # Путь к директории с данными импорта из 1С
 # Поддерживает переменную окружения ONEC_DATA_DIR
-# В Docker контейнере это будет /app/data/import_1c
-# BASE_DIR = /app, поэтому используем BASE_DIR / "data" / "import_1c"
 ONEC_DATA_DIR = os.environ.get("ONEC_DATA_DIR", str(BASE_DIR / "data" / "import_1c"))
+
+if sys.version_info >= (3, 8):
+    from typing import TypedDict
+    class OneCExchangeConfig(TypedDict):
+        SESSION_COOKIE_NAME: str
+        SESSION_LIFETIME_SECONDS: int
+        FILE_LIMIT_BYTES: int
+        ZIP_SUPPORT: bool
+        COMMERCEML_VERSION: str
 
 ONEC_EXCHANGE = {
     'SESSION_COOKIE_NAME': 'FREESPORT_1C_SESSION',

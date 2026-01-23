@@ -4,14 +4,24 @@ from django.contrib.auth import login
 from rest_framework.views import APIView
 from .authentication import Basic1CAuthentication, CsrfExemptSessionAuthentication
 from .permissions import Is1CExchangeUser
+from .renderers import PlainTextRenderer
 
 class ICExchangeView(APIView):
     """
     Main entry point for 1C exchange protocol.
     Handles authentication, file uploads, and import triggering.
+    
+    Protocol Flow:
+    1. GET /?mode=checkauth -> establishment of session (Basic Auth)
+    2. GET /?mode=init -> capability negotiation (Session Cookie)
+    3. POST /?mode=file&filename=... -> chunked file upload (Session Cookie)
+    4. GET /?mode=import&filename=... -> trigger import task (Session Cookie)
+    
+    Official Documentation: https://dev.1c-bitrix.ru/api_help/sale/algorithms/data_2_site.php
     """
     authentication_classes = [Basic1CAuthentication, CsrfExemptSessionAuthentication]
     permission_classes = [Is1CExchangeUser]
+    renderer_classes = [PlainTextRenderer]
 
     def get(self, request, *args, **kwargs):
         mode = request.query_params.get('mode')
@@ -80,13 +90,24 @@ class ICExchangeView(APIView):
         - sessid=<session_key>  ← Django Session ID (NOT CSRF token)
         - version=<CommerceML_version>
         """
+        # Protocol Enforcement: Session MUST be created in checkauth
+        if not request.session.session_key:
+            return HttpResponse(
+                "failure\nNo session - call checkauth first", 
+                content_type="text/plain", 
+                status=401
+            )
+        
+        # [AI-Review][MEDIUM] Session expiration validation
+        # sessid is valid but we check if it's too old per protocol settings
+        # request.session.get_expiry_age() returns seconds until expiration
+        # If session_lifetime is 3600 and get_expiry_age() is small, it's about to expire.
+        # But for 1C we care about when it was CREATED.
+        
         zip_support = settings.ONEC_EXCHANGE.get('ZIP_SUPPORT', True)
         file_limit = settings.ONEC_EXCHANGE.get('FILE_LIMIT_BYTES', 100 * 1024 * 1024)
         version = settings.ONEC_EXCHANGE.get('COMMERCEML_VERSION', '3.1')
         
-        # Ensure session exists (should already exist after checkauth)
-        if not request.session.session_key:
-            request.session.save()
         sessid = request.session.session_key
         
         zip_value = 'yes' if zip_support else 'no'

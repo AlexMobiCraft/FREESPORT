@@ -161,11 +161,8 @@ class Test1CInitMode:
         """
         TC1/AC1: Authenticated ?mode=init returns 200 OK with 4-line response.
         Response format: zip=yes, file_limit=X, sessid=X, version=3.1
-        
-        CRITICAL: This test validates the SESSION COOKIE flow. 
-        1. Authenticate via Basic Auth (checkauth) -> sets cookie in client
-        2. Request init via Cookie (NO Basic Auth header) -> must work
         """
+        import re
         auth_header = self._get_auth_header()
 
         # First authenticate to establish session
@@ -174,7 +171,6 @@ class Test1CInitMode:
         )
 
         # Subsequent request uses the cookie automatically managed by APIClient
-        # We explicitly DO NOT send the auth_header here
         response = self.client.get(
             self.url, data={"mode": "init"}
         )
@@ -184,17 +180,12 @@ class Test1CInitMode:
         content = response.content.decode("utf-8").splitlines()
         assert len(content) == 4, f"Expected 4 lines, got {len(content)}: {content}"
 
-        # Validate each line format
-        assert content[0].startswith("zip="), f"Line 1 should be zip=, got: {content[0]}"
-        assert content[1].startswith(
-            "file_limit="
-        ), f"Line 2 should be file_limit=, got: {content[1]}"
-        assert content[2].startswith(
-            "sessid="
-        ), f"Line 3 should be sessid=, got: {content[2]}"
-        assert content[3].startswith(
-            "version="
-        ), f"Line 4 should be version=, got: {content[3]}"
+        # Validate each line format with REGEX (AI-Review LOW priority fix)
+        assert re.match(r'^zip=(yes|no)$', content[0]), f"Line 1 format error: {content[0]}"
+        assert re.match(r'^file_limit=\d+$', content[1]), f"Line 2 format error: {content[1]}"
+        assert re.match(r'^sessid=[a-zA-Z0-9]+$', content[2]), f"Line 3 format error: {content[2]}"
+        assert re.match(r'^version=\d+\.\d+$', content[3]), f"Line 4 format error: {content[3]}"
+        assert content[3] == "version=3.1"
 
     def test_init_unauthenticated(self):
         """
@@ -204,22 +195,36 @@ class Test1CInitMode:
         self.client.logout()
         response = self.client.get(self.url, data={"mode": "init"})
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
+        # With PlainTextRenderer, it returns "failure\n..."
+        assert b"failure" in response.content
+
+    def test_init_basic_auth_no_session(self):
+        """
+        [AI-Review][HIGH] Verify that calling mode=init with Basic Auth 
+        but without a previous checkauth fails (protocol violation).
+        """
+        auth_header = self._get_auth_header()
+        
+        # We explicitly DO NOT call checkauth first
+        response = self.client.get(
+            self.url, data={"mode": "init"}, HTTP_AUTHORIZATION=auth_header
+        )
+        
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+        assert b"No session" in response.content
 
     def test_init_no_permission(self):
         """
         TC3/AC3: User without can_exchange_1c permission returns 403 Forbidden.
         """
+        import uuid
+        email = f"regular_init_{uuid.uuid4().hex[:8]}@example.com"
         user = User.objects.create_user(
-            email="regular_init@example.com",
+            email=email,
             password="password123",
-            first_name="Regular",
-            last_name="User",
             is_staff=False,
         )
         
-        # We use force_login to ensure the user IS authenticated but lacks permission.
-        # Checkauth would return 403 and prevent login, leading to 401 here, 
-        # but we want to test the PERMISSION check (403), not authentication.
         self.client.force_login(user)
 
         response = self.client.get(
@@ -231,16 +236,12 @@ class Test1CInitMode:
     def test_init_post_compatibility(self):
         """
         TC4: POST ?mode=init returns same result as GET (1C compatibility).
-        Must work with Session Auth (Cookie)
         """
         auth_header = self._get_auth_header()
-
-        # First authenticate
         self.client.get(
             self.url, data={"mode": "checkauth"}, HTTP_AUTHORIZATION=auth_header
         )
 
-        # POST without Basic Auth header, using Cookie
         response = self.client.post(
             self.url + "?mode=init"
         )
@@ -249,51 +250,53 @@ class Test1CInitMode:
         content = response.content.decode("utf-8").splitlines()
         assert len(content) == 4
 
-    def test_init_sessid_not_empty(self):
+    def test_full_1c_protocol_flow(self):
         """
-        TC5: Response contains valid non-empty sessid.
-        """
-        auth_header = self._get_auth_header()
-
-        # First authenticate
-        self.client.get(
-            self.url, data={"mode": "checkauth"}, HTTP_AUTHORIZATION=auth_header
-        )
-
-        response = self.client.get(
-            self.url, data={"mode": "init"}
-        )
-
-        content = response.content.decode("utf-8").splitlines()
-        sessid_line = content[2]
-        assert sessid_line.startswith("sessid=")
-        sessid_value = sessid_line.split("=", 1)[1]
-        assert len(sessid_value) > 0, "sessid value should not be empty"
-
-    def test_init_version_line(self):
-        """
-        TC6: Response contains version=3.1 (CommerceML version).
+        [AI-Review][HIGH] Validates the full checkauth -> init sequence.
         """
         auth_header = self._get_auth_header()
-
-        self.client.get(
+        
+        # 1. CheckAuth
+        resp1 = self.client.get(
             self.url, data={"mode": "checkauth"}, HTTP_AUTHORIZATION=auth_header
         )
+        assert resp1.status_code == 200
+        lines1 = resp1.content.decode("utf-8").splitlines()
+        cookie_name = lines1[1]
+        session_id = lines1[2]
+        
+        # 2. Init
+        resp2 = self.client.get(self.url, data={"mode": "init"})
+        assert resp2.status_code == 200
+        lines2 = resp2.content.decode("utf-8").splitlines()
+        assert lines2[2] == f"sessid={session_id}"
+        
+        # Verify cookie is present in client
+        assert self.client.cookies.get(cookie_name).value == session_id
 
-        response = self.client.get(
-            self.url, data={"mode": "init"}
+    def test_checkauth_twice_same_session(self):
+        """
+        [AI-Review][MEDIUM] Calling checkauth twice should preserve/return same session.
+        """
+        auth_header = self._get_auth_header()
+        
+        resp1 = self.client.get(
+            self.url, data={"mode": "checkauth"}, HTTP_AUTHORIZATION=auth_header
         )
-
-        content = response.content.decode("utf-8").splitlines()
-        version_line = content[3]
-        assert version_line == "version=3.1", f"Expected 'version=3.1', got: {version_line}"
+        sessid1 = resp1.content.decode("utf-8").splitlines()[2]
+        
+        resp2 = self.client.get(
+            self.url, data={"mode": "checkauth"}, HTTP_AUTHORIZATION=auth_header
+        )
+        sessid2 = resp2.content.decode("utf-8").splitlines()[2]
+        
+        assert sessid1 == sessid2, "Session ID should be stable across consecutive checkauth calls"
 
     def test_init_content_type(self):
         """
         TC7: Content-Type header is text/plain.
         """
         auth_header = self._get_auth_header()
-
         self.client.get(
             self.url, data={"mode": "checkauth"}, HTTP_AUTHORIZATION=auth_header
         )
