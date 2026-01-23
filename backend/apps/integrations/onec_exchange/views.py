@@ -67,11 +67,17 @@ class ICExchangeView(APIView):
         """
         Returns server capabilities for 1C data exchange.
         Protocol: https://dev.1c-bitrix.ru/api_help/sale/algorithms/data_2_site.php
-        
+
+        IMPORTANT: 'sessid' is Django Session ID (request.session.session_key),
+        NOT a CSRF token. This is required by the 1C protocol to maintain
+        session state across checkauth -> init -> file -> import requests.
+
+        Equivalent to PHP: session_id()
+
         Response format (4 lines, text/plain):
         - zip=yes|no
         - file_limit=<bytes>
-        - sessid=<session_key>
+        - sessid=<session_key>  ← Django Session ID (NOT CSRF token)
         - version=<CommerceML_version>
         """
         zip_support = settings.ONEC_EXCHANGE.get('ZIP_SUPPORT', True)

@@ -7,7 +7,13 @@
       "Bash(findstr:*)",
       "Bash(docker ps:*)",
       "Bash(curl:*)",
-      "Bash(docker logs:*)"
+      "Bash(docker logs:*)",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "Bash(if [ ! -d \"docs/decisions\" ])",
+      "Bash(then mkdir -p docs/decisions)",
+      "Bash(else echo \"Directory exists\")",
+      "Bash(fi)"
     ]
   }
 }
