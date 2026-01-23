@@ -282,6 +282,7 @@ ONEC_EXCHANGE = {
     'FILE_LIMIT_BYTES': 100 * 1024 * 1024,  # 100MB per chunk
     'ZIP_SUPPORT': True,
     'COMMERCEML_VERSION': '3.1',  # CommerceML protocol version
+    'TEMP_DIR': MEDIA_ROOT / '1c_temp',  # Temporary directory for chunked uploads
 }
 
 # Тип первичного ключа по умолчанию

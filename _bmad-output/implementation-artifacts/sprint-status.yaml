@@ -1,6 +1,6 @@
 # Sprint Status - 1C HTTP Exchange Module
 # =========================================
-# generated: 2026-01-19T20:08:00+01:00
+# generated: 2026-01-23T17:35:00+01:00
 # project: FREESPORT
 # project_key: 1C-HTTP-EXCHANGE
 # tracking_system: file-system
@@ -30,7 +30,7 @@
 # - SM typically creates next story ONLY after previous one is 'done' to incorporate learnings
 # - Dev moves story to 'review', then runs code-review (fresh context, ideally different LLM)
 
-generated: "2026-01-19T20:08:00+01:00"
+generated: "2026-01-23T17:35:00+01:00"
 project: "FREESPORT"
 project_key: "1C-HTTP-EXCHANGE"
 tracking_system: "file-system"
@@ -39,28 +39,28 @@ story_location: "{project-root}/_bmad-output/implementation-artifacts"
 development_status:
   # ========================================
   # Epic 1: 1C Transport & Authentication
-  # Goal: Enable 1C to establish secure connection and perform protocol initialization
-  # FRs: FR1, FR2, FR3, NFR3
+  # Goal: Enable 1C Enteprise to establish a secure connection with the platform and perform protocol initialization.
+  # FRs covered: FR1, FR2, FR3, NFR3
   # ========================================
   epic-1: in-progress
   1-1-setup-1c-exchange-endpoint-and-auth: done
-  1-2-implement-init-mode-configuration: done  # Final review passed - 13/13 tests, all issues resolved
-  epic-1-retrospective: optional
+  1-2-implement-init-mode-configuration: done
+  epic-1-retrospective: done
 
   # ========================================
   # Epic 2: Secure Stream Upload & Structure Handling
-  # Goal: Enable reliable transfer of large archives with strict directory structure
-  # FRs: FR4, FR5, FR6, NFR2
+  # Goal: Enable reliable transfer of large data archives and ensuring they are unpacked into the strict directory structure required by the import engine.
+  # FRs covered: FR4, FR5, FR6, NFR2
   # ========================================
-  epic-2: backlog
-  2-1-file-stream-upload: backlog
+  epic-2: in-progress
+  2-1-file-stream-upload: done
   2-2-zip-unpacking-with-structure: backlog
   epic-2-retrospective: optional
 
   # ========================================
   # Epic 3: Asynchronous Import Triggering
-  # Goal: Connect transport layer to business logic via Celery tasks
-  # FRs: FR7, FR8, NFR1
+  # Goal: Connect the transport layer to the business logic by triggering specific Celery tasks when import commands are received.
+  # FRs covered: FR7, FR8, NFR1
   # ========================================
   epic-3: backlog
   3-1-async-import-orchestration: backlog

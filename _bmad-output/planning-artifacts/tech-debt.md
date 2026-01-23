@@ -66,3 +66,8 @@
     *   **Влияние:** Потенциальная проблема поддержки: при добавлении новой роли придётся обновлять логику в нескольких местах.
     *   **Рекомендация:** Вынести в общую утилиту, например `canSeeRrp(userRole)` в `utils/pricing.ts`.
 
+
+13. **1C Integration: Temp File Cleanup (Garbage Collection):**
+    *   **Где:** `backend/apps/products/management/commands/cleanup_1c_temp.py` (To be created).
+    *   **Суть:** Временные файлы в `MEDIA_ROOT/1c_temp/` после завершения импорта или при ошибке остаются на диске. Это может привести к переполнению хранилища.
+    *   **Рекомендация:** Реализовать management command `cleanup_1c_temp`, который удаляет файлы старше 24 часов (TTL). Запустить через Celery Beat.

@@ -13,7 +13,12 @@
       "Bash(if [ ! -d \"docs/decisions\" ])",
       "Bash(then mkdir -p docs/decisions)",
       "Bash(else echo \"Directory exists\")",
-      "Bash(fi)"
+      "Bash(fi)",
+      "Bash(docker compose:*)"
     ]
-  }
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "agentvibes"
+  ]
 }
