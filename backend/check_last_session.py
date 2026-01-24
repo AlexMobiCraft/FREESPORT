@@ -3,7 +3,7 @@ import django
 from django.conf import settings
 
 # Setup Django environment
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'freesport.settings.base')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'freesport.settings.production')
 django.setup()
 
 from apps.products.models import ImportSession, Product, ProductVariant
