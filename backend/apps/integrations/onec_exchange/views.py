@@ -133,30 +133,13 @@ class ICExchangeView(APIView):
             ),
         )
 
-        # Handle ZIP unpacking if needed (Story 2.2)
+        
         import_dir = Path(settings.MEDIA_ROOT) / "1c_import" / sessid
-        if filename.lower().endswith(".zip"):
-            try:
-                file_service = FileStreamService(sessid)
-                file_service.unpack_zip(filename, import_dir)
-                timestamp = timezone.now().strftime("%Y-%m-%d %H:%M:%S")
-                session.report += (
-                    f"[{timestamp}] Архив {filename} успешно распакован "
-                    f"в директорию импорта.\n"
-                )
-                session.save(update_fields=["report"])
-            except Exception as e:
-                logger.exception(f"Failed to unpack {filename}: {e}")
-                session.status = ImportSession.ImportStatus.FAILED
-                session.error_message = f"Ошибка распаковки архива: {e}"
-                session.save(update_fields=["status", "error_message"])
-                return HttpResponse(
-                    f"failure\nUnpack error: {e}", content_type="text/plain"
-                )
 
         # AC 1: Trigger async process_1c_import_task
-        # We pass the full path to the import directory for the task
-        process_1c_import_task.delay(session.pk, str(import_dir))
+        # Story 3.1: We pass the filename to the task so it can handle unpacking asynchronously
+        # This prevents timeouts locally in the view
+        process_1c_import_task.delay(session.pk, str(import_dir), filename)
 
         logger.info(
             f"Import triggered successfully: {filename}, "

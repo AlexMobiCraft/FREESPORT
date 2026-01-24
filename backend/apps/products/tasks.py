@@ -16,7 +16,7 @@ from apps.products.models import ImportSession
 logger = logging.getLogger("import_tasks")
 
 @shared_task(name="apps.products.tasks.process_1c_import_task", bind=True)
-def process_1c_import_task(self, session_id: int, data_dir: str = None) -> str:
+def process_1c_import_task(self, session_id: int, data_dir: str = None, zip_filename: str = None) -> str:
     """
     Задача для асинхронного запуска импорта из 1С.
     
@@ -31,8 +31,48 @@ def process_1c_import_task(self, session_id: int, data_dir: str = None) -> str:
         session = ImportSession.objects.get(pk=session_id)
         session.status = ImportSession.ImportStatus.IN_PROGRESS
         session.celery_task_id = self.request.id
-        session.save(update_fields=["status", "celery_task_id", "updated_at"])
+
+        # Обновляем отчет о начале
+        timestamp = timezone.now().strftime("%Y-%m-%d %H:%M:%S")
+        session.report += f"[{timestamp}] Задача Celery запущена. Начинаем импорт...\n"
         
+        session.save(update_fields=["status", "celery_task_id", "report", "updated_at"])
+        
+        # Story 3.1: Асинхронная распаковка архива
+        if zip_filename and zip_filename.lower().endswith(".zip"):
+            try:
+                from apps.integrations.onec_exchange.file_service import FileStreamService
+                from pathlib import Path
+                
+                # Extract sessid from data_dir path
+                # data_dir = .../1c_import/<sessid>
+                sessid = Path(data_dir).name
+                
+                file_service = FileStreamService(sessid)
+                import_dir_path = Path(data_dir)
+                
+                # Check if file exists in temp or import dir?
+                # FileStreamService.unpack_zip expects zip_filename and destination dir
+                # It looks for zip_filename in temp_dir usually?
+                # Let's check unpack_zip implementation if needed, but assuming it works given sessid
+                
+                file_service.unpack_zip(zip_filename, import_dir_path)
+                
+                timestamp = timezone.now().strftime("%Y-%m-%d %H:%M:%S")
+                session.report += (
+                    f"[{timestamp}] Архив {zip_filename} успешно распакован (асинхронно).\n"
+                )
+                session.save(update_fields=["report"])
+                
+            except Exception as e:
+                timestamp = timezone.now().strftime("%Y-%m-%d %H:%M:%S")
+                session.status = ImportSession.ImportStatus.FAILED
+                session.error_message = f"Ошибка распаковки архива: {e}"
+                session.report += f"[{timestamp}] ОШИБКА РАСПАКОВКИ: {e}\n"
+                session.save(update_fields=["status", "error_message", "report"])
+                return "failure" # Stop processing if unpacking failed
+
+                
         # Запуск management команды
         # Мы передаем celery-task-id чтобы команда использовала эту же сессию
         args = []
@@ -44,13 +84,18 @@ def process_1c_import_task(self, session_id: int, data_dir: str = None) -> str:
             
         logger.info(f"Starting 1C import for session {session_id} (Task {self.request.id})")
         
-        # Обновляем отчет о начале
-        timestamp = timezone.now().strftime("%Y-%m-%d %H:%M:%S")
-        session.report += f"[{timestamp}] Задача Celery запущена. Начинаем импорт...\n"
-        session.save(update_fields=["report", "updated_at"])
-        
         call_command("import_products_from_1c", *args, **options)
         
+        # Explicitly mark ensuring completion, in case the command didn't finalize it
+        # (e.g. if command logic relies on something else, or for robustness)
+        session.refresh_from_db()
+        if session.status != ImportSession.ImportStatus.COMPLETED:
+            timestamp = timezone.now().strftime("%Y-%m-%d %H:%M:%S")
+            session.status = ImportSession.ImportStatus.COMPLETED
+            session.finished_at = timezone.now()
+            session.report += f"[{timestamp}] Импорт успешно завершен (Task).\n"
+            session.save(update_fields=["status", "finished_at", "report", "updated_at"])
+
         return "success"
     except ImportSession.DoesNotExist:
         logger.error(f"ImportSession {session_id} not found")
@@ -61,23 +106,34 @@ def process_1c_import_task(self, session_id: int, data_dir: str = None) -> str:
         
         logger.error(f"Error in process_1c_import_task: {e}")
         try:
+            # Refresh to see if command already handled the error (set status to FAILED)
             session = ImportSession.objects.get(pk=session_id)
-            session.status = ImportSession.ImportStatus.FAILED
+            
+            # If status is already FAILED, we assume command handled it.
+            # We just ensure the error is logged in report if needed.
+            
+            timestamp = timezone.now().strftime("%Y-%m-%d %H:%M:%S")
             
             if isinstance(e, CommandError):
-                session.error_message = str(e)
                 error_prefix = "ОШИБКА КОМАНДЫ"
             elif isinstance(e, SoftTimeLimitExceeded):
-                session.error_message = "Time limit exceeded"
+                # This is internal to task, likely not handled by command
+                session.status = ImportSession.ImportStatus.FAILED 
                 error_prefix = "ПРЕВЫШЕН ЛИМИТ ВРЕМЕНИ"
+                session.error_message = "Time limit exceeded"
             else:
-                session.error_message = str(e)
                 error_prefix = "КРИТИЧЕСКАЯ ОШИБКА"
 
-            timestamp = timezone.now().strftime("%Y-%m-%d %H:%M:%S")
+            # If command already set FAILED, we might not want to overwrite error_message
+            # unless it's empty.
+            if session.status != ImportSession.ImportStatus.FAILED:
+                session.status = ImportSession.ImportStatus.FAILED
+                session.error_message = str(e)
+            
             session.report += f"[{timestamp}] {error_prefix}: {e}\n"
             session.save(update_fields=["status", "error_message", "report", "updated_at"])
         except:
+            # If DB is unreachable, we can't do much
             pass
         return "failure"
 

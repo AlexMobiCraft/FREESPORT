@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 from django.urls import reverse
 from rest_framework.test import APIClient
 from apps.products.models import ImportSession
@@ -112,3 +112,43 @@ class TestICExchangeViewImport:
         
         assert response.status_code == 403
         assert "Invalid session" in response.content.decode()
+
+    @patch('apps.integrations.onec_exchange.views.FileStreamService')
+    @patch('apps.products.tasks.process_1c_import_task.delay')
+    def test_view_delegates_unpacking_to_task(self, mock_task_delay, mock_file_service_cls):
+        """
+        Test that Import1CView does NOT unpack ZIPs synchronously,
+        but passes the filename to the Celery task.
+        """
+        mock_file_service = MagicMock()
+        mock_file_service_cls.return_value = mock_file_service
+        
+        url = reverse('integrations:onec_exchange:exchange')
+        filename = "data.zip"
+        
+        # Ensure session exists (using setup from class)
+        # Note: self.client in TestICExchangeViewImport is setup in setup_method
+        # We can reuse it if we add this method to the class or create a new one.
+        # Adding to TestICExchangeViewImport is better.
+        
+        # We need to make sure we have a valid session in the DB matching the cookie
+        s = SessionStore(session_key=self.session_key)
+        s.save()
+        
+        response = self.client.get(
+            url, 
+            {'mode': 'import', 'filename': filename, 'sessid': self.session_key}
+        )
+        
+        assert response.status_code == 200
+        assert response.content.decode() == "success"
+        
+        # CRITICAL: Verify unpack_zip was NOT called in the view
+        mock_file_service.unpack_zip.assert_not_called()
+        
+        # Verify task was called with filename
+        assert mock_task_delay.called
+        args = mock_task_delay.call_args[0]
+        assert len(args) == 3
+        # args[0] is session_id, args[1] is import_path, args[2] is filename
+        assert args[2] == filename
