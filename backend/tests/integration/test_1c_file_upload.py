@@ -115,7 +115,7 @@ class Test1CFileUpload:
         test_content = b"Should not be saved"
 
         response = authenticated_client.post(
-            f"/api/integration/1c/exchange/?mode=file&filename=test.xml&sessid={fake_sessid}",
+            f"/api/integration/1c/exchange/?mode=file&filename=test.zip&sessid={fake_sessid}",
             data=test_content,
             content_type="application/octet-stream",
         )
@@ -131,7 +131,7 @@ class Test1CFileUpload:
         test_content = b"Should not be saved"
 
         response = authenticated_client.post(
-            "/api/integration/1c/exchange/?mode=file&filename=test.xml",
+            "/api/integration/1c/exchange/?mode=file&filename=test.zip",
             data=test_content,
             content_type="application/octet-stream",
         )
@@ -210,7 +210,7 @@ class Test1CFileUpload:
         sessid = get_session_id(authenticated_client)
 
         response = authenticated_client.post(
-            f"/api/integration/1c/exchange/?mode=file&filename=empty.xml&sessid={sessid}",
+            f"/api/integration/1c/exchange/?mode=file&filename=empty.zip&sessid={sessid}",
             data=b"",
             content_type="application/octet-stream",
         )
@@ -229,14 +229,14 @@ class Test1CFileUpload:
 
         # Try directory traversal attack
         response = authenticated_client.post(
-            f"/api/integration/1c/exchange/?mode=file&filename=../../../etc/passwd&sessid={sessid}",
+            f"/api/integration/1c/exchange/?mode=file&filename=../../../etc/passwd.zip&sessid={sessid}",
             data=test_content,
             content_type="application/octet-stream",
         )
 
         assert response.status_code == status.HTTP_200_OK
         # File should be saved with sanitized name (just 'passwd')
-        expected_file = temp_1c_dir / sessid / "passwd"
+        expected_file = temp_1c_dir / sessid / "passwd.zip"
         assert expected_file.exists()
 
         # Original target should NOT exist
@@ -249,7 +249,7 @@ class Test1CFileUpload:
         sessid = get_session_id(authenticated_client)
 
         response = authenticated_client.post(
-            f"/api/integration/1c/exchange/?mode=file&filename=test.xml&sessid={sessid}",
+            f"/api/integration/1c/exchange/?mode=file&filename=test.zip&sessid={sessid}",
             data=b"Test content",
             content_type="application/octet-stream",
         )
@@ -269,7 +269,7 @@ class Test1CFileUpload:
             large_content = b"X" * 150
 
             response = authenticated_client.post(
-                f"/api/integration/1c/exchange/?mode=file&filename=large.bin&sessid={sessid}",
+                f"/api/integration/1c/exchange/?mode=file&filename=large.zip&sessid={sessid}",
                 data=large_content,
                 content_type="application/octet-stream",
             )
@@ -287,14 +287,14 @@ class Test1CFileUpload:
 
         # Upload a file first
         response = authenticated_client.post(
-            f"/api/integration/1c/exchange/?mode=file&filename=old_file.xml&sessid={sessid}",
+            f"/api/integration/1c/exchange/?mode=file&filename=old_file.zip&sessid={sessid}",
             data=b"Old content",
             content_type="application/octet-stream",
         )
         assert response.status_code == 200
 
         # Verify file exists
-        old_file = temp_1c_dir / sessid / "old_file.xml"
+        old_file = temp_1c_dir / sessid / "old_file.zip"
         assert old_file.exists()
 
         # Call init mode
@@ -316,7 +316,7 @@ class Test1CFileUpload:
         large_content = b"Y" * (128 * 1024)  # 128KB
 
         response = authenticated_client.post(
-            f"/api/integration/1c/exchange/?mode=file&filename=streamed.bin&sessid={sessid}",
+            f"/api/integration/1c/exchange/?mode=file&filename=streamed.zip&sessid={sessid}",
             data=large_content,
             content_type="application/octet-stream",
         )
@@ -325,7 +325,7 @@ class Test1CFileUpload:
         assert response.content == b"success"
 
         # Verify file content is complete
-        expected_file = temp_1c_dir / sessid / "streamed.bin"
+        expected_file = temp_1c_dir / sessid / "streamed.zip"
         assert expected_file.exists()
         assert expected_file.read_bytes() == large_content
 

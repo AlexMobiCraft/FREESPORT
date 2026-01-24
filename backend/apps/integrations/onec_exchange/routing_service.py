@@ -109,7 +109,9 @@ class FileRoutingService:
             filename: Name of the file
 
         Returns:
-            Subdirectory name (e.g., 'goods/', 'import_files/') or '' for root
+            Subdirectory name (e.g., 'goods/', 'import_files/').
+            Returns empty string ('') to indicate the file should be placed in
+            the root of the session import directory (1c_import/<sessid>/).
         """
         safe_filename = Path(filename).name
         suffix = Path(safe_filename).suffix.lower()

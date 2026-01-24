@@ -54,7 +54,7 @@ development_status:
   # ========================================
   epic-2: in-progress
   2-1-file-stream-upload: done
-  2-2-zip-unpacking-with-structure: in-progress
+  2-2-zip-unpacking-with-structure: review
   epic-2-retrospective: optional
 
   # ========================================
