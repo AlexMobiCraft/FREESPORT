@@ -1,6 +1,6 @@
 # Story 2.2: Сохранение файлов и маршрутизация
 
-Status: review
+Status: in-progress
 
 <!-- Примечание: Валидация опциональна. Запустите validate-create-story для проверки качества перед dev-story. -->
 
@@ -92,9 +92,15 @@ Status: review
   - [x] TC8: Изоляция сессий -> файлы не смешиваются между сессиями
   - [x] TC9: Повторная загрузка файла с тем же именем -> перезаписывает существующий
 
-- [x] **Review Follow-ups (AI)**
+- [x] **Review Follow-ups (AI) - Round 1**
   - [x] [AI-Review][Medium] Commit untracked files: routing_service.py, test_file_routing.py, conftest.py
   - [x] [AI-Review][Low] Fix DeprecationWarning: CheckConstraint.check -> condition in apps/cart/models.py
+
+- [ ] **Review Follow-ups (AI) - Round 2** (Code Review 2026-01-24)
+  - [ ] [AI-Review][High] Add integration tests for routing in views.py - verify end-to-end file routing after upload [backend/tests/integration/test_1c_file_upload.py]
+  - [ ] [AI-Review][Medium] Clarify File List: cart/models.py already committed in 00e8c82, cart/views.py shows in git status but not in File List [story documentation]
+  - [ ] [AI-Review][Medium] Consider adding routing failure indication to client response (optional: `success\nwarning: routing failed`) [backend/apps/integrations/onec_exchange/views.py:240-243]
+  - [ ] [AI-Review][Low] Improve docstring for route_file() - clarify that empty string return means "root directory" [backend/apps/integrations/onec_exchange/routing_service.py:104]
 
 ## Заметки для разработчика
 
@@ -216,3 +222,4 @@ N/A
 - 2026-01-23: **[Party Mode Decision]** КП упрощены: XML/images маршрутизируются, ZIP остаётся в temp
 - 2026-01-24: **[Dev Agent]** Реализация завершена: FileRoutingService, 29 тестов, интеграция с views.py
 - 2026-01-24: **[Dev Agent]** Addressed code review findings - 2 items resolved (DeprecationWarning fix, files committed)
+- 2026-01-24: **[Code Review]** Adversarial review completed - 4 action items created (1 High, 2 Medium, 1 Low). Status → in-progress

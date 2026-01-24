@@ -8,8 +8,8 @@ from django.test import TestCase
 from rest_framework.test import APIClient
 
 from apps.cart.models import Cart, CartItem
-from tests.factories import ProductFactory
 from apps.products.models import Brand, Category, Product
+from tests.factories import ProductFactory
 
 User = get_user_model()
 

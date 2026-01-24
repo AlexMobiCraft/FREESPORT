@@ -27,6 +27,7 @@ LOCK_RETRY_INTERVAL = 0.1
 
 class FileLockError(Exception):
     """Raised when file lock cannot be acquired."""
+
     pass
 
 
@@ -64,10 +65,7 @@ class FileLock:
         while time.time() - start < self.timeout:
             try:
                 # O_CREAT | O_EXCL ensures atomic creation - fails if file exists
-                fd = os.open(
-                    str(self.lock_path),
-                    os.O_CREAT | os.O_EXCL | os.O_WRONLY
-                )
+                fd = os.open(str(self.lock_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
                 os.close(fd)
                 self._acquired = True
                 logger.debug(f"Lock acquired: {self.lock_path}")
@@ -126,92 +124,91 @@ class FileWriter:
 class FileStreamService:
     """
     Service for handling chunked file uploads from 1C.
-    
+
     Files are isolated per session to prevent collisions:
     MEDIA_ROOT/1c_temp/<session_id>/<filename>
-    
+
     Usage:
         service = FileStreamService(session_id)
         bytes_written = service.append_chunk('import.zip', binary_content)
     """
-    
+
     def __init__(self, session_id: str):
         """
         Initialize service for a specific session.
-        
+
         Args:
             session_id: Django session key for isolation
         """
         if not session_id:
             raise ValueError("session_id is required for FileStreamService")
-        
+
         self.session_id = session_id
         self.base_dir: Path = settings.ONEC_EXCHANGE.get(
-            'TEMP_DIR', 
-            Path(settings.MEDIA_ROOT) / '1c_temp'
+            "TEMP_DIR", Path(settings.MEDIA_ROOT) / "1c_temp"
         )
         self.session_dir = self.base_dir / session_id
-    
+
     def _ensure_session_dir(self) -> Path:
         """
         Create session-specific directory if it doesn't exist.
-        
+
         Returns:
             Path to session directory
         """
         self.session_dir.mkdir(parents=True, exist_ok=True)
         return self.session_dir
-    
+
     def get_file_path(self, filename: str) -> Path:
         """
         Get full path for a file within the session directory.
-        
+
         Args:
             filename: Name of the file
-            
+
         Returns:
             Full path to the file
         """
         # Sanitize filename to prevent directory traversal
         safe_filename = Path(filename).name
         return self.session_dir / safe_filename
-    
+
     def append_chunk(self, filename: str, content: Union[bytes, memoryview]) -> int:
         """
         Append binary content to a file.
-        
+
         Uses 'ab' (append binary) mode to support chunked uploads.
         If file doesn't exist, it will be created.
-        
+
         Args:
             filename: Name of the file to append to
             content: Binary content to append
-            
+
         Returns:
             Number of bytes written
         """
         self._ensure_session_dir()
         file_path = self.get_file_path(filename)
-        
+
         bytes_written = len(content)
-        
-        with open(file_path, 'ab') as f:
+
+        with open(file_path, "ab") as f:
             f.write(content)
-        
+
         logger.info(
             f"Appended {bytes_written} bytes to {file_path.name} "
             f"(session: {self.session_id[:8]}...)"
         )
-        
+
         return bytes_written
-    
+
     def get_file_size(self, filename: str) -> int:
         """
         Get current size of a file.
-        
+
         Args:
             filename: Name of the file
-            
+
         Returns:
             File size in bytes, or 0 if file doesn't exist
         """
@@ -219,30 +216,30 @@ class FileStreamService:
         if file_path.exists():
             return file_path.stat().st_size
         return 0
-    
+
     def file_exists(self, filename: str) -> bool:
         """
         Check if a file exists in the session directory.
-        
+
         Args:
             filename: Name of the file
-            
+
         Returns:
             True if file exists
         """
         return self.get_file_path(filename).exists()
-    
+
     def list_files(self) -> list[str]:
         """
         List all files in the session directory.
-        
+
         Returns:
             List of filenames
         """
         if not self.session_dir.exists():
             return []
         return [f.name for f in self.session_dir.iterdir() if f.is_file()]
-    
+
     def cleanup_session(self) -> int:
         """
         Remove all files in the session directory.
@@ -301,7 +298,7 @@ class FileStreamService:
         """
         self._ensure_session_dir()
         file_path = self.get_file_path(filename)
-        lock_path = file_path.with_suffix(file_path.suffix + '.lock')
+        lock_path = file_path.with_suffix(file_path.suffix + ".lock")
 
         writer = None
         lock = FileLock(lock_path)
@@ -315,10 +312,10 @@ class FileStreamService:
             fd = os.open(
                 str(file_path),
                 os.O_WRONLY | os.O_CREAT | os.O_APPEND,
-                DEFAULT_FILE_MODE
+                DEFAULT_FILE_MODE,
             )
             try:
-                with os.fdopen(fd, 'ab') as f:
+                with os.fdopen(fd, "ab") as f:
                     writer = FileWriter(f)
                     yield writer
             except Exception:

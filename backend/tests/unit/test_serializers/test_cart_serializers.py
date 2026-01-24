@@ -8,9 +8,12 @@ from unittest.mock import Mock
 import pytest
 from django.contrib.auth import get_user_model
 
-from apps.cart.serializers import (CartItemCreateSerializer,
-                                   CartItemSerializer,
-                                   CartItemUpdateSerializer, CartSerializer)
+from apps.cart.serializers import (
+    CartItemCreateSerializer,
+    CartItemSerializer,
+    CartItemUpdateSerializer,
+    CartSerializer,
+)
 
 User = get_user_model()
 

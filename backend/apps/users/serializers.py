@@ -332,7 +332,7 @@ class UserDashboardSerializer(serializers.Serializer):
 class FavoriteSerializer(serializers.ModelSerializer):
     """
     Serializer для избранных товаров.
-    
+
     Данные о цене, SKU и изображении получаются из первого активного
     ProductVariant, т.к. эти поля хранятся на уровне варианта, а не Product.
     """

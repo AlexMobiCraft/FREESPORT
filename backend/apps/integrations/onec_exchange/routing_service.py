@@ -19,18 +19,18 @@ logger = logging.getLogger(__name__)
 
 # Routing rules for XML files based on filename prefix
 XML_ROUTING_RULES = {
-    'goods': 'goods/',
-    'offers': 'offers/',
-    'prices': 'prices/',
-    'rests': 'rests/',
-    'groups': 'groups/',
+    "goods": "goods/",
+    "offers": "offers/",
+    "prices": "prices/",
+    "rests": "rests/",
+    "groups": "groups/",
 }
 
 # Supported image extensions (case-insensitive)
-IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.webp'}
+IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
 
 # ZIP extensions that should NOT be routed
-ZIP_EXTENSIONS = {'.zip'}
+ZIP_EXTENSIONS = {".zip"}
 
 
 class FileRoutingService:
@@ -63,12 +63,10 @@ class FileRoutingService:
 
         # Get directories from settings
         self.temp_base: Path = settings.ONEC_EXCHANGE.get(
-            'TEMP_DIR',
-            Path(settings.MEDIA_ROOT) / '1c_temp'
+            "TEMP_DIR", Path(settings.MEDIA_ROOT) / "1c_temp"
         )
         self.import_base: Path = settings.ONEC_EXCHANGE.get(
-            'IMPORT_DIR',
-            Path(settings.MEDIA_ROOT) / '1c_import'
+            "IMPORT_DIR", Path(settings.MEDIA_ROOT) / "1c_import"
         )
 
         self.temp_dir = self.temp_base / session_id
@@ -87,7 +85,7 @@ class FileRoutingService:
         safe_filename = Path(filename).name
         return self.temp_dir / safe_filename
 
-    def _ensure_import_dir(self, subdir: str = '') -> Path:
+    def _ensure_import_dir(self, subdir: str = "") -> Path:
         """
         Create import directory (with optional subdirectory) if it doesn't exist.
 
@@ -118,19 +116,19 @@ class FileRoutingService:
         name_lower = safe_filename.lower()
 
         # Check XML routing rules by prefix
-        if suffix == '.xml':
+        if suffix == ".xml":
             for prefix, subdir in XML_ROUTING_RULES.items():
                 if name_lower.startswith(prefix):
-                    return subdir.rstrip('/')
+                    return subdir.rstrip("/")
             # Unknown XML file -> root
-            return ''
+            return ""
 
         # Check image extensions
         if suffix in IMAGE_EXTENSIONS:
-            return 'import_files'
+            return "import_files"
 
         # Other unknown files -> root
-        return ''
+        return ""
 
     def should_route(self, filename: str) -> bool:
         """

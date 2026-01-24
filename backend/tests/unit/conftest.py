@@ -10,7 +10,7 @@ import sys
 import pytest
 
 # Configure Django settings before anything else
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'freesport.settings.development')
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "freesport.settings.development")
 
 # Configure minimal Django settings
 import django
@@ -21,11 +21,11 @@ if not settings.configured:
         DEBUG=True,
         DATABASES={},
         INSTALLED_APPS=[],
-        MEDIA_ROOT='/tmp/media',
+        MEDIA_ROOT="/tmp/media",
         ONEC_EXCHANGE={
-            'TEMP_DIR': '/tmp/1c_temp',
-            'IMPORT_DIR': '/tmp/1c_import',
-        }
+            "TEMP_DIR": "/tmp/1c_temp",
+            "IMPORT_DIR": "/tmp/1c_import",
+        },
     )
 
 

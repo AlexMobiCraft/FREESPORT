@@ -11,12 +11,16 @@ from django.test import RequestFactory
 from rest_framework.test import APIClient
 
 from apps.products.filters import ProductFilter
-from apps.products.models import (Attribute, AttributeValue, Product,
-                                  ProductVariant)
+from apps.products.models import Attribute, AttributeValue, Product, ProductVariant
 from apps.products.services.facets import AttributeFacetService
-from tests.factories import (AttributeFactory, AttributeValueFactory,
-                             BrandFactory, CategoryFactory, ProductFactory,
-                             ProductVariantFactory)
+from tests.factories import (
+    AttributeFactory,
+    AttributeValueFactory,
+    BrandFactory,
+    CategoryFactory,
+    ProductFactory,
+    ProductVariantFactory,
+)
 from tests.utils import get_unique_suffix
 
 

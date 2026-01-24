@@ -396,8 +396,7 @@ class VariantImportProcessor:
         Returns:
             Product instance или None при ошибке
         """
-        from apps.products.models import (Brand, Brand1CMapping, Category,
-                                          Product)
+        from apps.products.models import Brand, Brand1CMapping, Category, Product
 
         try:
             parent_id = goods_data.get("id")
@@ -1112,8 +1111,10 @@ class VariantImportProcessor:
             - Update stats: attributes_linked, attributes_missing
         """
         from apps.products.models import Attribute, AttributeValue
-        from apps.products.utils.attributes import (normalize_attribute_name,
-                                                    normalize_attribute_value)
+        from apps.products.utils.attributes import (
+            normalize_attribute_name,
+            normalize_attribute_value,
+        )
 
         if not characteristics:
             return

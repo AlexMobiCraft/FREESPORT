@@ -8,8 +8,7 @@ from django.contrib.auth import get_user_model, login, logout
 from django.utils import timezone
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
-from drf_spectacular.utils import (OpenApiExample, OpenApiResponse,
-                                   extend_schema)
+from drf_spectacular.utils import OpenApiExample, OpenApiResponse, extend_schema
 from rest_framework import permissions, status
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.generics import GenericAPIView
@@ -22,9 +21,14 @@ logger = logging.getLogger("apps.users.auth")
 
 # User model is used in the code
 from ..authentication import blacklist_access_token
-from ..serializers import (LogoutSerializer, PasswordResetConfirmSerializer,
-                           PasswordResetRequestSerializer, UserLoginSerializer,
-                           UserRegistrationSerializer, ValidateTokenSerializer)
+from ..serializers import (
+    LogoutSerializer,
+    PasswordResetConfirmSerializer,
+    PasswordResetRequestSerializer,
+    UserLoginSerializer,
+    UserRegistrationSerializer,
+    ValidateTokenSerializer,
+)
 from ..tasks import send_password_reset_email
 from ..tokens import password_reset_token
 
@@ -118,12 +122,14 @@ class UserRegistrationView(APIView):
                 },
             }
 
-            # Генерируем токены только для активных и верифицированных пользователей (B2C)
+            # Генерируем токены только для активных
+            # и верифицированных пользователей (B2C)
             # SimpleJWT не выдаст токен для is_active=False
             if user.is_active and user.is_verified:
                 refresh = RefreshToken.for_user(user)
                 response_data["refresh"] = str(refresh)
-                response_data["access"] = str(refresh.access_token)  # type: ignore[attr-defined]
+                # type: ignore[attr-defined]
+                response_data["access"] = str(refresh.access_token)
 
             return Response(response_data, status=status.HTTP_201_CREATED)
 
@@ -228,8 +234,9 @@ class UserLoginView(APIView):
 
             # Story 12.1: Log in session for SSR auth
             # Это создаст sessionid cookie, необходимую для Next.js SSR запросов.
-            # ВАЖНО: UserLoginSerializer не использует authenticate(), поэтому для работы login()
-            # нам нужно явно указать backend, иначе возникнет AttributeError.
+            # ВАЖНО: UserLoginSerializer не использует authenticate(),
+            # поэтому для работы login() нам нужно явно указать backend,
+            # иначе возникнет AttributeError.
             if not hasattr(user, "backend"):
                 user.backend = "django.contrib.auth.backends.ModelBackend"
             login(request, user)

@@ -33,7 +33,7 @@ def temp_1c_dir(tmp_path, monkeypatch):
     temp_dir.mkdir()
 
     # Use monkeypatch.setitem for dict modification (thread-safe, auto-reverted)
-    monkeypatch.setitem(settings.ONEC_EXCHANGE, 'TEMP_DIR', temp_dir)
+    monkeypatch.setitem(settings.ONEC_EXCHANGE, "TEMP_DIR", temp_dir)
     return temp_dir
 
 
@@ -53,16 +53,18 @@ def staff_user(db):
 def authenticated_client(staff_user):
     """Create an API client with an established session (post-checkauth)."""
     client = APIClient()
-    auth_header = (
-        "Basic " + base64.b64encode(b"1c_file@example.com:secure_password_123").decode("ascii")
-    )
+    auth_header = "Basic " + base64.b64encode(
+        b"1c_file@example.com:secure_password_123"
+    ).decode("ascii")
     # Establish session via checkauth
     response = client.get(
         "/api/integration/1c/exchange/",
         data={"mode": "checkauth"},
-        HTTP_AUTHORIZATION=auth_header
+        HTTP_AUTHORIZATION=auth_header,
     )
-    assert response.status_code == 200, f"Failed to establish session: {response.content}"
+    assert (
+        response.status_code == 200
+    ), f"Failed to establish session: {response.content}"
     return client
 
 
@@ -78,7 +80,7 @@ class Test1CFileUpload:
     """
     Tests for Story 2.1: File Stream Upload
     """
-    
+
     def test_tc1_valid_upload_single_chunk(self, authenticated_client, temp_1c_dir):
         """
         TC1/AC1: Valid upload with correct sessid returns 'success'.
@@ -86,24 +88,24 @@ class Test1CFileUpload:
         """
         sessid = get_session_id(authenticated_client)
         assert sessid, "Session ID should be set after checkauth"
-        
+
         # Binary content to upload
         test_content = b"This is test file content for 1C import."
-        
+
         response = authenticated_client.post(
             f"/api/integration/1c/exchange/?mode=file&filename=import.zip&sessid={sessid}",
             data=test_content,
-            content_type="application/octet-stream"
+            content_type="application/octet-stream",
         )
-        
+
         assert response.status_code == status.HTTP_200_OK
         assert response.content == b"success"
-        
+
         # Verify file was created
         expected_file = temp_1c_dir / sessid / "import.zip"
         assert expected_file.exists(), f"File should exist at {expected_file}"
         assert expected_file.read_bytes() == test_content
-    
+
     def test_tc2_upload_invalid_sessid(self, authenticated_client, temp_1c_dir):
         """
         TC2/AC3: Upload with invalid sessid returns 403 with 'failure\\nInvalid session'.
@@ -111,145 +113,149 @@ class Test1CFileUpload:
         # Use a fake sessid that doesn't match the session
         fake_sessid = "invalid_session_id_12345"
         test_content = b"Should not be saved"
-        
+
         response = authenticated_client.post(
             f"/api/integration/1c/exchange/?mode=file&filename=test.xml&sessid={fake_sessid}",
             data=test_content,
-            content_type="application/octet-stream"
+            content_type="application/octet-stream",
         )
-        
+
         assert response.status_code == status.HTTP_403_FORBIDDEN
         content = response.content.decode("utf-8")
         assert content == "failure\nInvalid session"
-    
+
     def test_tc3_upload_missing_sessid(self, authenticated_client, temp_1c_dir):
         """
         TC3/AC4: Upload without sessid param returns 403 with 'failure\\nMissing sessid'.
         """
         test_content = b"Should not be saved"
-        
+
         response = authenticated_client.post(
             "/api/integration/1c/exchange/?mode=file&filename=test.xml",
             data=test_content,
-            content_type="application/octet-stream"
+            content_type="application/octet-stream",
         )
-        
+
         assert response.status_code == status.HTTP_403_FORBIDDEN
         content = response.content.decode("utf-8")
         assert content == "failure\nMissing sessid"
-    
+
     def test_tc4_chunked_upload_append(self, authenticated_client, temp_1c_dir):
         """
         TC4/AC2: Upload 250MB-simulated as 3 chunks - content is appended correctly.
         Tests that multiple POST requests with same filename append the content.
         """
         sessid = get_session_id(authenticated_client)
-        
+
         # Simulate 3 chunks (smaller for test speed)
         chunk1 = b"A" * 1000  # First chunk
         chunk2 = b"B" * 1000  # Second chunk
         chunk3 = b"C" * 1000  # Third chunk
-        
+
         # Send chunk 1
         resp1 = authenticated_client.post(
             f"/api/integration/1c/exchange/?mode=file&filename=large_import.zip&sessid={sessid}",
             data=chunk1,
-            content_type="application/octet-stream"
+            content_type="application/octet-stream",
         )
         assert resp1.status_code == 200
         assert resp1.content == b"success"
-        
+
         # Send chunk 2
         resp2 = authenticated_client.post(
             f"/api/integration/1c/exchange/?mode=file&filename=large_import.zip&sessid={sessid}",
             data=chunk2,
-            content_type="application/octet-stream"
+            content_type="application/octet-stream",
         )
         assert resp2.status_code == 200
-        
+
         # Send chunk 3
         resp3 = authenticated_client.post(
             f"/api/integration/1c/exchange/?mode=file&filename=large_import.zip&sessid={sessid}",
             data=chunk3,
-            content_type="application/octet-stream"
+            content_type="application/octet-stream",
         )
         assert resp3.status_code == 200
-        
+
         # Verify final file size and content
         expected_file = temp_1c_dir / sessid / "large_import.zip"
         assert expected_file.exists()
-        
+
         file_content = expected_file.read_bytes()
-        assert len(file_content) == 3000, f"Expected 3000 bytes, got {len(file_content)}"
+        assert (
+            len(file_content) == 3000
+        ), f"Expected 3000 bytes, got {len(file_content)}"
         assert file_content == chunk1 + chunk2 + chunk3
-    
+
     def test_upload_missing_filename(self, authenticated_client, temp_1c_dir):
         """
         Edge case: Upload without filename param returns 400.
         """
         sessid = get_session_id(authenticated_client)
         test_content = b"Content without filename"
-        
+
         response = authenticated_client.post(
             f"/api/integration/1c/exchange/?mode=file&sessid={sessid}",
             data=test_content,
-            content_type="application/octet-stream"
+            content_type="application/octet-stream",
         )
-        
+
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert b"Missing filename" in response.content
-    
+
     def test_upload_empty_body(self, authenticated_client, temp_1c_dir):
         """
         Edge case: Upload with empty body returns 400.
         """
         sessid = get_session_id(authenticated_client)
-        
+
         response = authenticated_client.post(
             f"/api/integration/1c/exchange/?mode=file&filename=empty.xml&sessid={sessid}",
             data=b"",
-            content_type="application/octet-stream"
+            content_type="application/octet-stream",
         )
-        
+
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert b"Empty body" in response.content
-    
-    def test_upload_directory_traversal_prevention(self, authenticated_client, temp_1c_dir):
+
+    def test_upload_directory_traversal_prevention(
+        self, authenticated_client, temp_1c_dir
+    ):
         """
         Security: Filename with path traversal is sanitized.
         """
         sessid = get_session_id(authenticated_client)
         test_content = b"Malicious content"
-        
+
         # Try directory traversal attack
         response = authenticated_client.post(
             f"/api/integration/1c/exchange/?mode=file&filename=../../../etc/passwd&sessid={sessid}",
             data=test_content,
-            content_type="application/octet-stream"
+            content_type="application/octet-stream",
         )
-        
+
         assert response.status_code == status.HTTP_200_OK
         # File should be saved with sanitized name (just 'passwd')
         expected_file = temp_1c_dir / sessid / "passwd"
         assert expected_file.exists()
-        
+
         # Original target should NOT exist
         assert not (temp_1c_dir.parent.parent.parent / "etc" / "passwd").exists()
-    
+
     def test_content_type_text_plain(self, authenticated_client, temp_1c_dir):
         """
         Response Content-Type is text/plain per 1C protocol.
         """
         sessid = get_session_id(authenticated_client)
-        
+
         response = authenticated_client.post(
             f"/api/integration/1c/exchange/?mode=file&filename=test.xml&sessid={sessid}",
             data=b"Test content",
-            content_type="application/octet-stream"
+            content_type="application/octet-stream",
         )
-        
+
         assert "text/plain" in response["Content-Type"]
-    
+
     def test_file_limit_exceeded(self, authenticated_client, temp_1c_dir):
         """
         File exceeding FILE_LIMIT_BYTES returns 413 with failure message.
@@ -258,70 +264,66 @@ class Test1CFileUpload:
         sessid = get_session_id(authenticated_client)
 
         # Use mock.patch.dict for thread-safe settings override
-        with patch.dict(
-            settings.ONEC_EXCHANGE,
-            {'FILE_LIMIT_BYTES': 100},
-            clear=False
-        ):
+        with patch.dict(settings.ONEC_EXCHANGE, {"FILE_LIMIT_BYTES": 100}, clear=False):
             # Try to upload more than 100 bytes
             large_content = b"X" * 150
 
             response = authenticated_client.post(
                 f"/api/integration/1c/exchange/?mode=file&filename=large.bin&sessid={sessid}",
                 data=large_content,
-                content_type="application/octet-stream"
+                content_type="application/octet-stream",
             )
 
             assert response.status_code == 413
             content = response.content.decode("utf-8")
             assert "failure" in content
             assert "exceeds limit" in content
-    
+
     def test_init_cleans_session_files(self, authenticated_client, temp_1c_dir):
         """
         Calling init mode cleans up any existing files from previous session.
         """
         sessid = get_session_id(authenticated_client)
-        
+
         # Upload a file first
         response = authenticated_client.post(
             f"/api/integration/1c/exchange/?mode=file&filename=old_file.xml&sessid={sessid}",
             data=b"Old content",
-            content_type="application/octet-stream"
+            content_type="application/octet-stream",
         )
         assert response.status_code == 200
-        
+
         # Verify file exists
         old_file = temp_1c_dir / sessid / "old_file.xml"
         assert old_file.exists()
-        
+
         # Call init mode
-        response = authenticated_client.get(
-            "/api/integration/1c/exchange/?mode=init"
-        )
+        response = authenticated_client.get("/api/integration/1c/exchange/?mode=init")
         assert response.status_code == 200
-        
+
         # Verify old file was cleaned up
         assert not old_file.exists()
-    
-    def test_streaming_upload_uses_chunked_reads(self, authenticated_client, temp_1c_dir):
+
+    def test_streaming_upload_uses_chunked_reads(
+        self, authenticated_client, temp_1c_dir
+    ):
         """
         Verify that upload uses streaming reads (doesn't load entire body into memory).
         """
         sessid = get_session_id(authenticated_client)
-        
+
         # Use a larger payload to ensure chunked reading
         large_content = b"Y" * (128 * 1024)  # 128KB
-        
+
         response = authenticated_client.post(
             f"/api/integration/1c/exchange/?mode=file&filename=streamed.bin&sessid={sessid}",
             data=large_content,
-            content_type="application/octet-stream"
+            content_type="application/octet-stream",
         )
-        
+
         assert response.status_code == 200
         assert response.content == b"success"
-        
+
         # Verify file content is complete
         expected_file = temp_1c_dir / sessid / "streamed.bin"
         assert expected_file.exists()
@@ -333,117 +335,117 @@ class TestFileStreamService:
     """
     Unit tests for FileStreamService.
     """
-    
+
     def test_append_chunk_creates_file(self, temp_1c_dir):
         """Service creates file on first append."""
         from apps.integrations.onec_exchange.file_service import FileStreamService
-        
+
         service = FileStreamService("test-session-123")
         content = b"Initial content"
-        
+
         bytes_written = service.append_chunk("new_file.zip", content)
-        
+
         assert bytes_written == len(content)
         expected_path = temp_1c_dir / "test-session-123" / "new_file.zip"
         assert expected_path.exists()
         assert expected_path.read_bytes() == content
-    
+
     def test_append_chunk_appends_to_existing(self, temp_1c_dir):
         """Service appends content to existing file."""
         from apps.integrations.onec_exchange.file_service import FileStreamService
-        
+
         service = FileStreamService("test-session-456")
-        
+
         # First write
         service.append_chunk("append_test.bin", b"First part")
         # Second write - should append
         service.append_chunk("append_test.bin", b" Second part")
-        
+
         expected_path = temp_1c_dir / "test-session-456" / "append_test.bin"
         assert expected_path.read_bytes() == b"First part Second part"
-    
+
     def test_get_file_size(self, temp_1c_dir):
         """Service reports correct file size."""
         from apps.integrations.onec_exchange.file_service import FileStreamService
-        
+
         service = FileStreamService("size-session")
         service.append_chunk("sized.bin", b"0123456789")  # 10 bytes
-        
+
         assert service.get_file_size("sized.bin") == 10
         assert service.get_file_size("nonexistent.bin") == 0
-    
+
     def test_file_exists(self, temp_1c_dir):
         """Service correctly checks file existence."""
         from apps.integrations.onec_exchange.file_service import FileStreamService
-        
+
         service = FileStreamService("exists-session")
-        
+
         assert not service.file_exists("not_created.bin")
-        
+
         service.append_chunk("created.bin", b"exists")
         assert service.file_exists("created.bin")
-    
+
     def test_list_files(self, temp_1c_dir):
         """Service lists all files in session directory."""
         from apps.integrations.onec_exchange.file_service import FileStreamService
-        
+
         service = FileStreamService("list-session")
-        
+
         assert service.list_files() == []
-        
+
         service.append_chunk("file1.xml", b"content1")
         service.append_chunk("file2.xml", b"content2")
-        
+
         files = service.list_files()
         assert len(files) == 2
         assert "file1.xml" in files
         assert "file2.xml" in files
-    
+
     def test_session_id_required(self):
         """Service raises error without session_id."""
         from apps.integrations.onec_exchange.file_service import FileStreamService
-        
+
         with pytest.raises(ValueError, match="session_id is required"):
             FileStreamService("")
-        
+
         with pytest.raises(ValueError, match="session_id is required"):
             FileStreamService(None)
-    
+
     def test_filename_sanitization(self, temp_1c_dir):
         """Service sanitizes filenames to prevent path traversal."""
         from apps.integrations.onec_exchange.file_service import FileStreamService
-        
+
         service = FileStreamService("sanitize-session")
-        
+
         # Attempt path traversal
         service.append_chunk("../../../etc/passwd", b"malicious")
-        
+
         # File should be created with sanitized name
         expected = temp_1c_dir / "sanitize-session" / "passwd"
         assert expected.exists()
-        
+
         # Original target should not be affected
         assert not (temp_1c_dir / ".." / ".." / ".." / "etc" / "passwd").exists()
-    
+
     def test_cleanup_session(self, temp_1c_dir):
         """Service cleans up all files in session directory."""
         from apps.integrations.onec_exchange.file_service import FileStreamService
-        
+
         service = FileStreamService("cleanup-session")
-        
+
         # Create some files
         service.append_chunk("file1.xml", b"content1")
         service.append_chunk("file2.xml", b"content2")
         service.append_chunk("file3.zip", b"content3")
-        
+
         assert len(service.list_files()) == 3
-        
+
         # Cleanup session
         deleted_count = service.cleanup_session()
-        
+
         assert deleted_count == 3
         assert len(service.list_files()) == 0
-    
+
     def test_cleanup_session_empty_dir(self, temp_1c_dir):
         """Cleanup on empty/non-existent session directory returns 0."""
         from apps.integrations.onec_exchange.file_service import FileStreamService
@@ -509,9 +511,9 @@ class TestFileStreamService:
         This verifies the lock file is created and prevents simultaneous access.
         """
         from apps.integrations.onec_exchange.file_service import (
-            FileStreamService,
             FileLock,
             FileLockError,
+            FileStreamService,
         )
 
         service = FileStreamService("lock-test-session")
@@ -529,8 +531,9 @@ class TestFileStreamService:
 
     def test_file_lock_timeout(self, temp_1c_dir):
         """FileLock raises FileLockError when timeout exceeded."""
-        from apps.integrations.onec_exchange.file_service import FileLock, FileLockError
         import os
+
+        from apps.integrations.onec_exchange.file_service import FileLock, FileLockError
 
         lock_path = temp_1c_dir / "test.lock"
 
@@ -550,6 +553,7 @@ class TestFileStreamService:
     def test_file_has_correct_permissions(self, temp_1c_dir):
         """Files created via open_for_write have explicit permissions (0o644)."""
         import stat
+
         from apps.integrations.onec_exchange.file_service import FileStreamService
 
         service = FileStreamService("perms-session")

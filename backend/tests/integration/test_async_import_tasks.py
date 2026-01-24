@@ -9,8 +9,7 @@ import pytest
 from celery.exceptions import Retry
 from django.conf import settings
 
-from apps.integrations.tasks import (_execute_import_type,
-                                     run_selective_import_task)
+from apps.integrations.tasks import _execute_import_type, run_selective_import_task
 
 
 @pytest.mark.integration

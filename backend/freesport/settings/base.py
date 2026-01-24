@@ -269,6 +269,7 @@ ONEC_DATA_DIR = os.environ.get("ONEC_DATA_DIR", str(BASE_DIR / "data" / "import_
 
 if sys.version_info >= (3, 8):
     from typing import TypedDict
+
     class OneCExchangeConfig(TypedDict):
         SESSION_COOKIE_NAME: str
         SESSION_LIFETIME_SECONDS: int
@@ -276,14 +277,16 @@ if sys.version_info >= (3, 8):
         ZIP_SUPPORT: bool
         COMMERCEML_VERSION: str
 
+
 ONEC_EXCHANGE = {
-    'SESSION_COOKIE_NAME': 'FREESPORT_1C_SESSION',
-    'SESSION_LIFETIME_SECONDS': 3600,  # 1 hour
-    'FILE_LIMIT_BYTES': 100 * 1024 * 1024,  # 100MB per chunk
-    'ZIP_SUPPORT': True,
-    'COMMERCEML_VERSION': '3.1',  # CommerceML protocol version
-    'TEMP_DIR': MEDIA_ROOT / '1c_temp',  # Temporary directory for chunked uploads
-    'IMPORT_DIR': MEDIA_ROOT / '1c_import',  # Story 2.2: Directory for routed import files
+    "SESSION_COOKIE_NAME": "FREESPORT_1C_SESSION",
+    "SESSION_LIFETIME_SECONDS": 3600,  # 1 hour
+    "FILE_LIMIT_BYTES": 100 * 1024 * 1024,  # 100MB per chunk
+    "ZIP_SUPPORT": True,
+    "COMMERCEML_VERSION": "3.1",  # CommerceML protocol version
+    "TEMP_DIR": MEDIA_ROOT / "1c_temp",  # Temporary directory for chunked uploads
+    "IMPORT_DIR": MEDIA_ROOT
+    / "1c_import",  # Story 2.2: Directory for routed import files
 }
 
 # Тип первичного ключа по умолчанию

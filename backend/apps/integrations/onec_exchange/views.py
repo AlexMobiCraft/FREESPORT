@@ -1,61 +1,68 @@
 import logging
 
 from django.conf import settings
+from django.contrib.auth import get_backends, login
 from django.http import HttpResponse
-from django.contrib.auth import login, get_backends
 from rest_framework.views import APIView
 
 from .authentication import Basic1CAuthentication, CsrfExemptSessionAuthentication
-from .file_service import FileStreamService, FileLockError
+from .file_service import FileLockError, FileStreamService
 from .permissions import Is1CExchangeUser
 from .renderers import PlainTextRenderer
 from .routing_service import FileRoutingService
 
 logger = logging.getLogger(__name__)
 
+
 class ICExchangeView(APIView):
     """
     Main entry point for 1C exchange protocol.
     Handles authentication, file uploads, and import triggering.
-    
+
     Protocol Flow:
     1. GET /?mode=checkauth -> establishment of session (Basic Auth)
     2. GET /?mode=init -> capability negotiation (Session Cookie)
     3. POST /?mode=file&filename=... -> chunked file upload (Session Cookie)
     4. GET /?mode=import&filename=... -> trigger import task (Session Cookie)
-    
-    Official Documentation: https://dev.1c-bitrix.ru/api_help/sale/algorithms/data_2_site.php
+
+    Official Documentation:
+    https://dev.1c-bitrix.ru/api_help/sale/algorithms/data_2_site.php
     """
+
     authentication_classes = [Basic1CAuthentication, CsrfExemptSessionAuthentication]
     permission_classes = [Is1CExchangeUser]
     renderer_classes = [PlainTextRenderer]
 
     def get(self, request, *args, **kwargs):
-        mode = request.query_params.get('mode')
-        
-        if mode == 'checkauth':
+        mode = request.query_params.get("mode")
+
+        if mode == "checkauth":
             return self.handle_checkauth(request)
-        elif mode == 'init':
+        elif mode == "init":
             return self.handle_init(request)
-        
-        return HttpResponse("failure\nUnknown mode", content_type="text/plain", status=400)
+
+        return HttpResponse(
+            "failure\nUnknown mode", content_type="text/plain", status=400
+        )
 
     def post(self, request, *args, **kwargs):
         """
-        Handle POST requests. 
+        Handle POST requests.
         Some 1C configurations send checkauth or init via POST.
         Also handles file uploads (mode=file).
         """
-        mode = request.query_params.get('mode')
-        
-        if mode == 'checkauth':
+        mode = request.query_params.get("mode")
+
+        if mode == "checkauth":
             return self.handle_checkauth(request)
-        elif mode == 'init':
+        elif mode == "init":
             return self.handle_init(request)
-        elif mode == 'file':
+        elif mode == "file":
             return self.handle_file_upload(request)
-            
-        return HttpResponse("failure\nUnknown mode (POST)", content_type="text/plain", status=400)
+
+        return HttpResponse(
+            "failure\nUnknown mode (POST)", content_type="text/plain", status=400
+        )
 
     def handle_checkauth(self, request):
         """
@@ -63,23 +70,25 @@ class ICExchangeView(APIView):
         """
         # Create a session for subsequent requests
         # In DRF, request is rest_framework.request.Request, underlying is ._request
-        
+
         # Ensure backend is set for login to work
         # Use configured backend from settings instead of hardcoded path
-        if not hasattr(request.user, 'backend'):
+        if not hasattr(request.user, "backend"):
             backends = get_backends()
             if backends:
                 backend = backends[0]
-                request.user.backend = f"{backend.__module__}.{backend.__class__.__name__}"
+                request.user.backend = (
+                    f"{backend.__module__}.{backend.__class__.__name__}"
+                )
             else:
-                request.user.backend = 'django.contrib.auth.backends.ModelBackend'
-            
+                request.user.backend = "django.contrib.auth.backends.ModelBackend"
+
         login(request._request, request.user)
-        
+
         # Use the actual Django session cookie name so 1C sends back the correct cookie
         cookie_name = settings.SESSION_COOKIE_NAME
         session_id = request.session.session_key
-        
+
         # If session_id is still None, ensure it's saved.
         if not session_id:
             request.session.save()
@@ -108,13 +117,13 @@ class ICExchangeView(APIView):
         # Protocol Enforcement: Session MUST be created in checkauth
         if not request.session.session_key:
             return HttpResponse(
-                "failure\nNo session - call checkauth first", 
-                content_type="text/plain", 
-                status=401
+                "failure\nNo session - call checkauth first",
+                content_type="text/plain",
+                status=401,
             )
-        
+
         sessid = request.session.session_key
-        
+
         # Clean up any previous temp files for this session
         # This addresses reuse/retry risk - prevents stale file accumulation
         # and ensures clean slate for new imports
@@ -125,63 +134,62 @@ class ICExchangeView(APIView):
         except Exception as e:
             # Log but don't fail - cleanup is best-effort
             logger.warning(f"Session cleanup failed during init: {e}")
-        
-        zip_support = settings.ONEC_EXCHANGE.get('ZIP_SUPPORT', True)
-        file_limit = settings.ONEC_EXCHANGE.get('FILE_LIMIT_BYTES', 100 * 1024 * 1024)
-        version = settings.ONEC_EXCHANGE.get('COMMERCEML_VERSION', '3.1')
-        
-        zip_value = 'yes' if zip_support else 'no'
-        response_text = f"zip={zip_value}\nfile_limit={file_limit}\nsessid={sessid}\nversion={version}"
+
+        zip_support = settings.ONEC_EXCHANGE.get("ZIP_SUPPORT", True)
+        file_limit = settings.ONEC_EXCHANGE.get("FILE_LIMIT_BYTES", 100 * 1024 * 1024)
+        version = settings.ONEC_EXCHANGE.get("COMMERCEML_VERSION", "3.1")
+
+        zip_value = "yes" if zip_support else "no"
+        response_text = (
+            f"zip={zip_value}\nfile_limit={file_limit}\n"
+            f"sessid={sessid}\nversion={version}"
+        )
         return HttpResponse(response_text, content_type="text/plain")
 
     def handle_file_upload(self, request):
         """
         Handle chunked file uploads from 1C.
-        
+
         Story 2.1: File Stream Upload
-        
+
         Protocol: POST /?mode=file&filename=X&sessid=Y with binary body
-        
+
         AC 1: Stream binary content to 1c_temp/<sessid>/<filename>
         AC 2: Append mode for chunked uploads (multiple requests same filename)
         AC 3: Validate sessid matches request.session.session_key
         AC 4: Return 403 if sessid is missing
-        
+
         NFR2: Memory efficiency - stream body in chunks, never load entirely into RAM
-        
+
         Response format (text/plain):
         - "success" on successful write
         - "failure\n<message>" on error (403 for session issues)
         """
         # AC 4: Check for missing sessid parameter
-        sessid = request.query_params.get('sessid')
+        sessid = request.query_params.get("sessid")
         if not sessid:
             return HttpResponse(
-                "failure\nMissing sessid",
-                content_type="text/plain",
-                status=403
+                "failure\nMissing sessid", content_type="text/plain", status=403
             )
-        
+
         # AC 3: Validate sessid matches current session
         if sessid != request.session.session_key:
             return HttpResponse(
-                "failure\nInvalid session",
-                content_type="text/plain",
-                status=403
+                "failure\nInvalid session", content_type="text/plain", status=403
             )
-        
+
         # Get filename parameter
-        filename = request.query_params.get('filename')
+        filename = request.query_params.get("filename")
         if not filename:
             return HttpResponse(
                 "failure\nMissing filename parameter",
                 content_type="text/plain",
-                status=400
+                status=400,
             )
-        
+
         # Get file size limit from settings
-        file_limit = settings.ONEC_EXCHANGE.get('FILE_LIMIT_BYTES', 100 * 1024 * 1024)
-        
+        file_limit = settings.ONEC_EXCHANGE.get("FILE_LIMIT_BYTES", 100 * 1024 * 1024)
+
         # AC 1 & 2: Stream content to file using append mode
         # NFR2: Stream body in chunks to avoid loading entire request into memory
         try:
@@ -207,16 +215,14 @@ class ICExchangeView(APIView):
                         return HttpResponse(
                             f"failure\nFile exceeds limit of {file_limit} bytes",
                             content_type="text/plain",
-                            status=413
+                            status=413,
                         )
 
                     writer.write(chunk)
 
             if writer.bytes_written == 0:
                 return HttpResponse(
-                    "failure\nEmpty body",
-                    content_type="text/plain",
-                    status=400
+                    "failure\nEmpty body", content_type="text/plain", status=400
                 )
 
             logger.info(
@@ -245,7 +251,7 @@ class ICExchangeView(APIView):
             return HttpResponse(
                 "failure\nFile busy - retry later",
                 content_type="text/plain",
-                status=503  # Service Unavailable - indicates temporary condition
+                status=503,  # Service Unavailable - indicates temporary condition
             )
 
         except Exception as e:
@@ -255,7 +261,5 @@ class ICExchangeView(APIView):
             # Return generic error message to prevent information disclosure
             # Internal details (stack traces, file paths) must not leak to client
             return HttpResponse(
-                "failure\nInternal server error",
-                content_type="text/plain",
-                status=500
+                "failure\nInternal server error", content_type="text/plain", status=500
             )

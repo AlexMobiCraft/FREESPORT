@@ -1,6 +1,6 @@
 # Story 1.1: Setup 1C Exchange Endpoint & Auth
 
-Status: done
+Status: review
 
 ## Story
 
@@ -59,6 +59,11 @@ so that I can establish a secure session for data transfer.
   - [x] [AI-Review][Medium] Track uncommitted files in git `backend/apps/integrations/onec_exchange/` and `tests/` [git status]
   - [x] [AI-Review][Low] Remove empty `Basic1CAuthentication` class or implement custom logic [backend/apps/integrations/onec_exchange/authentication.py]
   - [x] [AI-Review][Low] Ensure strictly 3 lines in response (remove trailing newline) [backend/apps/integrations/onec_exchange/views.py]
+  - [x] [AI-Review][High] Verify and commit `backend/apps/integrations/models.py` (missing permission) and migration.
+  - [x] [AI-Review][High] Verify and commit `backend/freesport/settings/base.py` (missing `ONEC_EXCHANGE` settings).
+  - [x] [AI-Review][Medium] Update Story File List to include `renderers.py`.
+  - [x] [AI-Review][Medium] Investigate unexpected changes in `backend/apps/products/` - verified: unrelated to this story, from other stories in progress.
+  - [x] [AI-Review][Medium] Remove `.claude/settings.local.json` from git tracking.
 
 ## Dev Notes
 
@@ -203,6 +208,14 @@ Amelia (Developer Agent)
 - Added necessary settings to `base.py`.
 - Verified implementation with 4 unit tests covering auth success, failure, and permission checks.
 - Addressed review findings: fixed permission definition, moved tests to integration folder, updated docs.
+- **Session 2026-01-24**: Addressed remaining code review follow-ups:
+  - Verified `models.py` with `can_exchange_1c` permission and migration 0004
+  - Verified `ONEC_EXCHANGE` settings in `base.py`
+  - Added `renderers.py` to File List
+  - Removed `.claude/settings.local.json` from git tracking (added to .gitignore)
+  - Investigated `backend/apps/products/` changes - confirmed unrelated to this story
+  - All 13 integration tests pass (test_onec_exchange_api.py)
+  - All file routing tests pass (test_file_routing.py)
 
 ### File List
 
@@ -213,7 +226,9 @@ Amelia (Developer Agent)
 - `backend/apps/integrations/onec_exchange/views.py` (New)
 - `backend/apps/integrations/onec_exchange/authentication.py` (New)
 - `backend/apps/integrations/onec_exchange/permissions.py` (New)
+- `backend/apps/integrations/onec_exchange/renderers.py` (New)
 - `backend/apps/integrations/urls.py` (Modified)
 - `backend/apps/integrations/models.py` (Modified)
 - `backend/apps/integrations/migrations/0004_alter_session_options.py` (New)
 - `backend/apps/integrations/tests/integration/test_onec_exchange_api.py` (New - Moved)
+- `.gitignore` (Modified - added .claude/settings.local.json)

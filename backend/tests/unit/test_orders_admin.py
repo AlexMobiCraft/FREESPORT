@@ -9,9 +9,9 @@ from django.test import RequestFactory, TestCase
 from apps.common.models import AuditLog
 from apps.orders.admin import OrderAdmin, OrderItemInline
 from apps.orders.models import Order, OrderItem
-from tests.factories import ProductFactory
 from apps.products.models import Brand, Category, Product
 from apps.users.models import User
+from tests.factories import ProductFactory
 
 
 @pytest.mark.django_db

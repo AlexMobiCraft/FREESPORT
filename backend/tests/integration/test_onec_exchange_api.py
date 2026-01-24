@@ -42,10 +42,9 @@ class Test1CCheckAuth:
         """
         AC 1: GET ?mode=checkauth with valid Basic Auth returns 200, text/plain, and success lines.
         """
-        auth_header = (
-            "Basic "
-            + base64.b64encode(b"1c@example.com:secure_password_123").decode("ascii")
-        )
+        auth_header = "Basic " + base64.b64encode(
+            b"1c@example.com:secure_password_123"
+        ).decode("ascii")
 
         response = self.client.get(
             self.url, data={"mode": "checkauth"}, HTTP_AUTHORIZATION=auth_header
@@ -63,8 +62,8 @@ class Test1CCheckAuth:
         """
         AC 2: GET ?mode=checkauth with invalid Basic Auth returns 401.
         """
-        auth_header = (
-            "Basic " + base64.b64encode(b"wrong_user:wrong_pass").decode("ascii")
+        auth_header = "Basic " + base64.b64encode(b"wrong_user:wrong_pass").decode(
+            "ascii"
         )
 
         response = self.client.get(
@@ -91,10 +90,9 @@ class Test1CCheckAuth:
             last_name="User",
             is_staff=False,
         )
-        auth_header = (
-            "Basic "
-            + base64.b64encode(b"regular@example.com:password123").decode("ascii")
-        )
+        auth_header = "Basic " + base64.b64encode(
+            b"regular@example.com:password123"
+        ).decode("ascii")
 
         response = self.client.get(
             self.url, data={"mode": "checkauth"}, HTTP_AUTHORIZATION=auth_header
@@ -118,10 +116,9 @@ class Test1CCheckAuth:
         permission = Permission.objects.get(codename="can_exchange_1c")
         perm_user.user_permissions.add(permission)
 
-        auth_header = (
-            "Basic "
-            + base64.b64encode(b"perm@example.com:password123").decode("ascii")
-        )
+        auth_header = "Basic " + base64.b64encode(
+            b"perm@example.com:password123"
+        ).decode("ascii")
 
         response = self.client.get(
             self.url, data={"mode": "checkauth"}, HTTP_AUTHORIZATION=auth_header
@@ -163,6 +160,7 @@ class Test1CInitMode:
         Response format: zip=yes, file_limit=X, sessid=X, version=3.1
         """
         import re
+
         auth_header = self._get_auth_header()
 
         # First authenticate to establish session
@@ -171,9 +169,7 @@ class Test1CInitMode:
         )
 
         # Subsequent request uses the cookie automatically managed by APIClient
-        response = self.client.get(
-            self.url, data={"mode": "init"}
-        )
+        response = self.client.get(self.url, data={"mode": "init"})
 
         assert response.status_code == status.HTTP_200_OK
 
@@ -181,10 +177,18 @@ class Test1CInitMode:
         assert len(content) == 4, f"Expected 4 lines, got {len(content)}: {content}"
 
         # Validate each line format with REGEX (AI-Review LOW priority fix)
-        assert re.match(r'^zip=(yes|no)$', content[0]), f"Line 1 format error: {content[0]}"
-        assert re.match(r'^file_limit=\d+$', content[1]), f"Line 2 format error: {content[1]}"
-        assert re.match(r'^sessid=[a-zA-Z0-9]+$', content[2]), f"Line 3 format error: {content[2]}"
-        assert re.match(r'^version=\d+\.\d+$', content[3]), f"Line 4 format error: {content[3]}"
+        assert re.match(
+            r"^zip=(yes|no)$", content[0]
+        ), f"Line 1 format error: {content[0]}"
+        assert re.match(
+            r"^file_limit=\d+$", content[1]
+        ), f"Line 2 format error: {content[1]}"
+        assert re.match(
+            r"^sessid=[a-zA-Z0-9]+$", content[2]
+        ), f"Line 3 format error: {content[2]}"
+        assert re.match(
+            r"^version=\d+\.\d+$", content[3]
+        ), f"Line 4 format error: {content[3]}"
         assert content[3] == "version=3.1"
 
     def test_init_unauthenticated(self):
@@ -200,16 +204,16 @@ class Test1CInitMode:
 
     def test_init_basic_auth_no_session(self):
         """
-        [AI-Review][HIGH] Verify that calling mode=init with Basic Auth 
+        [AI-Review][HIGH] Verify that calling mode=init with Basic Auth
         but without a previous checkauth fails (protocol violation).
         """
         auth_header = self._get_auth_header()
-        
+
         # We explicitly DO NOT call checkauth first
         response = self.client.get(
             self.url, data={"mode": "init"}, HTTP_AUTHORIZATION=auth_header
         )
-        
+
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
         assert b"No session" in response.content
 
@@ -218,18 +222,17 @@ class Test1CInitMode:
         TC3/AC3: User without can_exchange_1c permission returns 403 Forbidden.
         """
         import uuid
+
         email = f"regular_init_{uuid.uuid4().hex[:8]}@example.com"
         user = User.objects.create_user(
             email=email,
             password="password123",
             is_staff=False,
         )
-        
+
         self.client.force_login(user)
 
-        response = self.client.get(
-            self.url, data={"mode": "init"}
-        )
+        response = self.client.get(self.url, data={"mode": "init"})
 
         assert response.status_code == status.HTTP_403_FORBIDDEN
 
@@ -242,9 +245,7 @@ class Test1CInitMode:
             self.url, data={"mode": "checkauth"}, HTTP_AUTHORIZATION=auth_header
         )
 
-        response = self.client.post(
-            self.url + "?mode=init"
-        )
+        response = self.client.post(self.url + "?mode=init")
 
         assert response.status_code == status.HTTP_200_OK
         content = response.content.decode("utf-8").splitlines()
@@ -255,7 +256,7 @@ class Test1CInitMode:
         [AI-Review][HIGH] Validates the full checkauth -> init sequence.
         """
         auth_header = self._get_auth_header()
-        
+
         # 1. CheckAuth
         resp1 = self.client.get(
             self.url, data={"mode": "checkauth"}, HTTP_AUTHORIZATION=auth_header
@@ -264,13 +265,13 @@ class Test1CInitMode:
         lines1 = resp1.content.decode("utf-8").splitlines()
         cookie_name = lines1[1]
         session_id = lines1[2]
-        
+
         # 2. Init
         resp2 = self.client.get(self.url, data={"mode": "init"})
         assert resp2.status_code == 200
         lines2 = resp2.content.decode("utf-8").splitlines()
         assert lines2[2] == f"sessid={session_id}"
-        
+
         # Verify cookie is present in client
         assert self.client.cookies.get(cookie_name).value == session_id
 
@@ -279,18 +280,20 @@ class Test1CInitMode:
         [AI-Review][MEDIUM] Calling checkauth twice should preserve/return same session.
         """
         auth_header = self._get_auth_header()
-        
+
         resp1 = self.client.get(
             self.url, data={"mode": "checkauth"}, HTTP_AUTHORIZATION=auth_header
         )
         sessid1 = resp1.content.decode("utf-8").splitlines()[2]
-        
+
         resp2 = self.client.get(
             self.url, data={"mode": "checkauth"}, HTTP_AUTHORIZATION=auth_header
         )
         sessid2 = resp2.content.decode("utf-8").splitlines()[2]
-        
-        assert sessid1 == sessid2, "Session ID should be stable across consecutive checkauth calls"
+
+        assert (
+            sessid1 == sessid2
+        ), "Session ID should be stable across consecutive checkauth calls"
 
     def test_init_content_type(self):
         """
@@ -301,8 +304,6 @@ class Test1CInitMode:
             self.url, data={"mode": "checkauth"}, HTTP_AUTHORIZATION=auth_header
         )
 
-        response = self.client.get(
-            self.url, data={"mode": "init"}
-        )
+        response = self.client.get(self.url, data={"mode": "init"})
 
         assert "text/plain" in response["Content-Type"]

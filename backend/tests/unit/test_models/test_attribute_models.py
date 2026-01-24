@@ -5,12 +5,18 @@ from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 from django.test import TestCase
 
-from apps.products.models import (Attribute, Attribute1CMapping,
-                                  AttributeValue, AttributeValue1CMapping,
-                                  Brand, Category, Product, ProductVariant)
+from apps.products.models import (
+    Attribute,
+    Attribute1CMapping,
+    AttributeValue,
+    AttributeValue1CMapping,
+    Brand,
+    Category,
+    Product,
+    ProductVariant,
+)
 from tests.conftest import get_unique_suffix
-from tests.factories import (BrandFactory, CategoryFactory, ProductFactory,
-                             UserFactory)
+from tests.factories import BrandFactory, CategoryFactory, ProductFactory, UserFactory
 
 
 @pytest.mark.django_db
@@ -137,17 +143,24 @@ class TestAttributeValueModel:
         attribute = Attribute.objects.create(name=f"Атрибут {suffix}")
         onec_id = f"val-duplicate-{suffix}"
 
-        val1 = AttributeValue.objects.create(attribute=attribute, value=f"Val 1 {suffix}")
+        val1 = AttributeValue.objects.create(
+            attribute=attribute, value=f"Val 1 {suffix}"
+        )
         AttributeValue1CMapping.objects.create(
             attribute_value=val1, onec_id=onec_id, onec_value="Val 1", source="goods"
         )
 
-        val2 = AttributeValue.objects.create(attribute=attribute, value=f"Val 2 {suffix}")
+        val2 = AttributeValue.objects.create(
+            attribute=attribute, value=f"Val 2 {suffix}"
+        )
 
         # ACT & ASSERT
         with pytest.raises(IntegrityError):
             AttributeValue1CMapping.objects.create(
-                attribute_value=val2, onec_id=onec_id, onec_value="Val 2", source="goods"
+                attribute_value=val2,
+                onec_id=onec_id,
+                onec_value="Val 2",
+                source="goods",
             )
 
 

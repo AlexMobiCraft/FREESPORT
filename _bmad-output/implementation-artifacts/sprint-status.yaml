@@ -43,7 +43,7 @@ development_status:
   # FRs covered: FR1, FR2, FR3, NFR3
   # ========================================
   epic-1: in-progress
-  1-1-setup-1c-exchange-endpoint-and-auth: done
+  1-1-setup-1c-exchange-endpoint-and-auth: review
   1-2-implement-init-mode-configuration: done
   epic-1-retrospective: done
 
@@ -54,7 +54,7 @@ development_status:
   # ========================================
   epic-2: in-progress
   2-1-file-stream-upload: done
-  2-2-zip-unpacking-with-structure: review
+  2-2-zip-unpacking-with-structure: in-progress
   epic-2-retrospective: optional
 
   # ========================================

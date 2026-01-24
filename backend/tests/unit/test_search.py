@@ -9,8 +9,8 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 
 from apps.products.filters import ProductFilter
-from tests.factories import ProductFactory
 from apps.products.models import Product
+from tests.factories import ProductFactory
 
 User = get_user_model()
 

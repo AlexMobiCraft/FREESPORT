@@ -1,15 +1,17 @@
-import pytest
 from decimal import Decimal
+
+import pytest
+from django.contrib.auth import get_user_model
+
 from apps.products.models import (
-    ProductVariant,
-    PriceType,
-    Product,
     Brand,
     Category,
     ImportSession,
+    PriceType,
+    Product,
+    ProductVariant,
 )
 from apps.products.services.variant_import import VariantImportProcessor
-from django.contrib.auth import get_user_model
 
 User = get_user_model()
 

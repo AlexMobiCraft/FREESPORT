@@ -26,6 +26,9 @@ celerybeat-schedule*
 .web-bundles/
 *~
 
+# Claude Code local settings (user-specific)
+.claude/settings.local.json
+
 # OS generated files
 .DS_Store
 .DS_Store?

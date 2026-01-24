@@ -11,8 +11,14 @@ import pytest
 from django.test import override_settings
 from rest_framework.test import APIClient
 
-from apps.products.models import (Attribute, AttributeValue, Brand, Category,
-                                  Product, ProductVariant)
+from apps.products.models import (
+    Attribute,
+    AttributeValue,
+    Brand,
+    Category,
+    Product,
+    ProductVariant,
+)
 
 
 @pytest.mark.django_db
