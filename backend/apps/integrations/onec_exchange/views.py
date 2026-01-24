@@ -82,13 +82,16 @@ class ICExchangeView(APIView):
         AC 1: Trigger async process_1c_import_task
         AC 1: Return "success" (text/plain)
         """
-        sessid = request.query_params.get("sessid")
+        # Try to get sessid from query param first, then fallback to session key (Standard CommerceML)
+        sessid = request.query_params.get("sessid") or request.session.session_key
         if not sessid:
             return HttpResponse(
                 "failure\nMissing sessid", content_type="text/plain", status=403
             )
 
-        if sessid != request.session.session_key:
+        # If both are present, they MUST match
+        param_sessid = request.query_params.get("sessid")
+        if param_sessid and param_sessid != request.session.session_key:
             return HttpResponse(
                 "failure\nInvalid session", content_type="text/plain", status=403
             )
@@ -182,7 +185,7 @@ class ICExchangeView(APIView):
             request.session.save()
             session_id = request.session.session_key
 
-        response_text = f"success\n{cookie_name}\n{session_id}"
+        response_text = f"success\r\n{cookie_name}\r\n{session_id}"
         return HttpResponse(response_text, content_type="text/plain")
 
     def handle_init(self, request):
@@ -229,8 +232,8 @@ class ICExchangeView(APIView):
 
         zip_value = "yes" if zip_support else "no"
         response_text = (
-            f"zip={zip_value}\nfile_limit={file_limit}\n"
-            f"sessid={sessid}\nversion={version}"
+            f"zip={zip_value}\r\nfile_limit={file_limit}\r\n"
+            f"sessid={sessid}\r\nversion={version}"
         )
         return HttpResponse(response_text, content_type="text/plain")
 
@@ -253,15 +256,16 @@ class ICExchangeView(APIView):
         - "success" on successful write
         - "failure\n<message>" on error (403 for session issues)
         """
-        # AC 4: Check for missing sessid parameter
-        sessid = request.query_params.get("sessid")
+        # Try to get sessid from query param first, then fallback to session key (Standard CommerceML)
+        sessid = request.query_params.get("sessid") or request.session.session_key
         if not sessid:
             return HttpResponse(
                 "failure\nMissing sessid", content_type="text/plain", status=403
             )
 
-        # AC 3: Validate sessid matches current session
-        if sessid != request.session.session_key:
+        # If both are present, they MUST match
+        param_sessid = request.query_params.get("sessid")
+        if param_sessid and param_sessid != request.session.session_key:
             return HttpResponse(
                 "failure\nInvalid session", content_type="text/plain", status=403
             )
