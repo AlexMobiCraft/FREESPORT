@@ -9,6 +9,7 @@ from .authentication import Basic1CAuthentication, CsrfExemptSessionAuthenticati
 from .file_service import FileStreamService, FileLockError
 from .permissions import Is1CExchangeUser
 from .renderers import PlainTextRenderer
+from .routing_service import FileRoutingService
 
 logger = logging.getLogger(__name__)
 
@@ -222,6 +223,18 @@ class ICExchangeView(APIView):
                 f"File upload complete: {filename} ({writer.bytes_written} bytes) "
                 f"session={sessid[:8]}..."
             )
+
+            # Story 2.2: Route file to appropriate import directory
+            # ZIP files stay in temp (for later unpacking in mode=import)
+            # XML and images are routed to 1c_import/<sessid>/<subdir>/
+            try:
+                routing_service = FileRoutingService(sessid)
+                if routing_service.should_route(filename):
+                    routing_service.move_to_import(filename)
+            except Exception as e:
+                # Log routing error but don't fail the upload
+                # File is already saved in temp, routing can be retried
+                logger.warning(f"File routing failed for {filename}: {e}")
 
             # AC 1: Return "success" on successful write
             return HttpResponse("success", content_type="text/plain")
