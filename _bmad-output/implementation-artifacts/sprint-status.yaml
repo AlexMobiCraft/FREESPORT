@@ -62,6 +62,6 @@ development_status:
   # Goal: Connect the transport layer to the business logic by triggering specific Celery tasks when import commands are received.
   # FRs covered: FR7, FR8, NFR1
   # ========================================
-  epic-3: in-progress
+  epic-3: done
   3-1-async-import-orchestration: done
   epic-3-retrospective: optional
