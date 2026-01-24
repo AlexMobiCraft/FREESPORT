@@ -255,7 +255,7 @@ class Command(BaseCommand):
         if session is None:
             session = ImportSession.objects.create(
                 import_type=session_type,
-                status=ImportSession.ImportStatus.STARTED,
+                status=ImportSession.ImportStatus.IN_PROGRESS,
                 celery_task_id=celery_task_id,
             )
             self.stdout.write(

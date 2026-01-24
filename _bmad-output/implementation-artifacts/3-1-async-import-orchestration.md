@@ -3,7 +3,7 @@
 **Story ID:** 3.1
 **Story Key:** 3-1-async-import-orchestration
 **Epic:** 3 - Asynchronous Import Triggering
-**Status:** review
+**Status:** done
 
 ## История
 
@@ -28,7 +28,7 @@
 ### AC3: Обработка Ошибок
 **Дано:** Задача импорта завершилась с ошибкой
 **Тогда:** Статус `ImportSession` должен обновиться на `failed` с деталями ошибки
-**И:** Частичные изменения должны быть отменены для сохранения целостности данных (через атомарность `ImportSession`, где это возможно)
+**И:** Используется пакетная атомарность (Batch-Level Atomicity) для сохранения прогресса и предотвращения перерасхода памяти. Частично успешно обработанные пакеты сохраняются в БД.
 
 ### AC4: Оркестрация Задач (Универсальная Задача)
 **Дано:** Запущена задача `process_1c_import_task`
@@ -140,6 +140,7 @@
 - **Verification:** Rewrite `test_import_session_model.py` to fix legacy/incorrect tests. Verified all orchestration tests (model, tasks, view) pass (17 tests).
 
 ### Change Log
+- 2026-01-24: Исправлены замечания Amelia (Amelia Review): Удалены отладочные файлы, унифицированы статусы сессий (STARTED -> IN_PROGRESS), исправлена хардкод аутентификации в views.py, обновлены тесты. AC3 изменен на Batch-Level Atomicity.
 - 2026-01-24: Завершены все задачи Review Follow-up. Исправлен и дополнен тест `test_process_1c_import_task_logic` (покрыты сценарии успеха и ошибок). Обновлен список файлов.
 - 2026-01-24: Исправлены замечания код-ревью - решено 5 пунктов (Документация атомарности, Обработка ошибок, Состояние Git).
 - 2026-01-24: Code Review - added 3 follow-up tasks (Test Coverage, Git State, Refactoring). Status reverted to in-progress.
@@ -148,4 +149,4 @@
 - 2026-01-24: Tests: Rewrite `test_import_session_model.py` to target Story 3.1 requirements (removed incorrect Story 15.1 legacy code).
 
 ## Статус
-review
+done

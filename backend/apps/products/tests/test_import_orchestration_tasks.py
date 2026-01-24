@@ -143,7 +143,7 @@ class TestImportOrchestrationTasks:
         assert session.celery_task_id == 'task-integration'
 
     @patch('apps.products.tasks.call_command')
-    @patch('apps.integrations.onec_exchange.file_service.FileStreamService')
+    @patch('apps.products.tasks.FileStreamService')
     def test_process_1c_import_task_with_zip_unpacking(self, mock_file_service_cls, mock_call_command):
         """Test import task with synchronous ZIP unpacking."""
         session = ImportSession.objects.create(status=ImportSession.ImportStatus.PENDING)

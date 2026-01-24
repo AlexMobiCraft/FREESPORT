@@ -165,7 +165,11 @@ class ICExchangeView(APIView):
                     f"{backend.__module__}.{backend.__class__.__name__}"
                 )
             else:
-                request.user.backend = "django.contrib.auth.backends.ModelBackend"
+                request.user.backend = (
+                    settings.AUTHENTICATION_BACKENDS[0]
+                    if hasattr(settings, "AUTHENTICATION_BACKENDS") and settings.AUTHENTICATION_BACKENDS
+                    else "django.contrib.auth.backends.ModelBackend"
+                )
 
         login(request._request, request.user)
 
