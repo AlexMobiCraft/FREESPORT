@@ -53,7 +53,7 @@ class TestProductRetrieveWithVariants:
     @pytest.fixture
     def product_with_variants(self, db):
         """Fixture для продукта с несколькими вариантами"""
-        product = ProductFactory()
+        product = ProductFactory(create_variant=False)
 
         # Создаем 3 варианта с разными характеристиками
         ProductVariantFactory(
@@ -234,7 +234,7 @@ class TestProductRetrieveWithVariants:
 
     def test_product_without_variants(self, api_client, db):
         """Тест: продукт без вариантов возвращает пустой массив variants"""
-        product = ProductFactory()  # Без вариантов
+        product = ProductFactory(create_variant=False)  # Без вариантов
 
         url = reverse("products:product-detail", kwargs={"slug": product.slug})
         response = api_client.get(url)
@@ -280,7 +280,7 @@ class TestProductAPIPerformance:
         """
         NFR1: Response time <= 500ms для товара с 100 вариантами
         """
-        product = ProductFactory()
+        product = ProductFactory(create_variant=False)
 
         # Создаем 100 вариантов
         ProductVariantFactory.create_batch(100, product=product)

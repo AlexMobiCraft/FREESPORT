@@ -269,6 +269,38 @@ class FileStreamService:
         )
         return deleted_count
 
+    def unpack_zip(self, filename: str, target_dir: Path) -> list[str]:
+        """
+        Unpack a ZIP file from the session directory to a target directory.
+
+        Story 2.2: Zip Unpacking with Structure
+
+        Args:
+            filename: Name of the ZIP file in session directory
+            target_dir: Path to unpack to
+
+        Returns:
+            List of unpacked files (relative to target_dir)
+        """
+        import zipfile
+
+        file_path = self.get_file_path(filename)
+        if not file_path.exists():
+            raise FileNotFoundError(f"ZIP file not found: {file_path}")
+
+        target_dir.mkdir(parents=True, exist_ok=True)
+        unpacked_files = []
+
+        logger.info(f"Unpacking {filename} to {target_dir}")
+
+        with zipfile.ZipFile(file_path, "r") as zip_ref:
+            # We use extractall but we want to track files
+            zip_ref.extractall(target_dir)
+            unpacked_files = zip_ref.namelist()
+
+        logger.info(f"Unpacked {len(unpacked_files)} files from {filename}")
+        return unpacked_files
+
     @contextmanager
     def open_for_write(self, filename: str) -> Generator[FileWriter, None, None]:
         """

@@ -528,6 +528,7 @@ class ImportSession(models.Model):
         CUSTOMERS = "customers", "Клиенты"
 
     class ImportStatus(models.TextChoices):
+        PENDING = "pending", "В очереди"
         STARTED = "started", "Начато"
         IN_PROGRESS = "in_progress", "В процессе"
         COMPLETED = "completed", "Завершено"
@@ -548,15 +549,29 @@ class ImportSession(models.Model):
             "Статус",
             max_length=20,
             choices=ImportStatus.choices,
-            default=ImportStatus.STARTED,
+            default=ImportStatus.PENDING,
         ),
+    )
+    created_at = cast(
+        datetime, models.DateTimeField("Дата создания", auto_now_add=True)
     )
     started_at = cast(
         datetime, models.DateTimeField("Начало импорта", auto_now_add=True)
     )
+    updated_at = cast(
+        datetime, models.DateTimeField("Дата обновления", auto_now=True)
+    )
     finished_at = cast(
         datetime | None,
         models.DateTimeField("Окончание импорта", null=True, blank=True),
+    )
+    report = cast(
+        str,
+        models.TextField(
+            "Отчет",
+            blank=True,
+            help_text="Текстовый лог/отчет о выполнении",
+        ),
     )
     report_details = cast(
         dict,
@@ -584,10 +599,10 @@ class ImportSession(models.Model):
         verbose_name = "Сессия импорта"
         verbose_name_plural = "Сессии импорта"
         db_table = "import_sessions"
-        ordering = ["-started_at"]
+        ordering = ["-created_at"]
         indexes = [
             models.Index(fields=["import_type", "status"]),
-            models.Index(fields=["-started_at"]),
+            models.Index(fields=["-created_at"]),
         ]
 
     if TYPE_CHECKING:
@@ -603,7 +618,7 @@ class ImportSession(models.Model):
     def __str__(self) -> str:
         return (
             f"{self.get_import_type_display()} - "
-            f"{self.get_status_display()} ({self.started_at})"
+            f"{self.get_status_display()} ({self.created_at})"
         )
 
 

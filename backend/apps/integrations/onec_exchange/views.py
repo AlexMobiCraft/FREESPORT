@@ -1,4 +1,5 @@
 import logging
+from pathlib import Path
 
 from django.conf import settings
 from django.contrib.auth import get_backends, login
@@ -40,6 +41,8 @@ class ICExchangeView(APIView):
             return self.handle_checkauth(request)
         elif mode == "init":
             return self.handle_init(request)
+        elif mode == "import":
+            return self.handle_import(request)
 
         return HttpResponse(
             "failure\nUnknown mode", content_type="text/plain", status=400
@@ -59,10 +62,108 @@ class ICExchangeView(APIView):
             return self.handle_init(request)
         elif mode == "file":
             return self.handle_file_upload(request)
+        elif mode == "import":
+            return self.handle_import(request)
 
         return HttpResponse(
             "failure\nUnknown mode (POST)", content_type="text/plain", status=400
         )
+
+    def handle_import(self, request):
+        """
+        Trigger the import process.
+
+        Story 3.1: Orchestration of Async Import
+
+        Protocol: GET /?mode=import&filename=X&sessid=Y
+
+        AC 1: Check for active sessions (pending or in-progress)
+        AC 1: Create ImportSession with status pending
+        AC 1: Trigger async process_1c_import_task
+        AC 1: Return "success" (text/plain)
+        """
+        sessid = request.query_params.get("sessid")
+        if not sessid:
+            return HttpResponse(
+                "failure\nMissing sessid", content_type="text/plain", status=403
+            )
+
+        if sessid != request.session.session_key:
+            return HttpResponse(
+                "failure\nInvalid session", content_type="text/plain", status=403
+            )
+
+        filename = request.query_params.get("filename")
+        if not filename:
+            return HttpResponse(
+                "failure\nMissing filename parameter",
+                content_type="text/plain",
+                status=400,
+            )
+
+        from django.utils import timezone
+
+        from apps.products.models import ImportSession
+        from apps.products.tasks import process_1c_import_task
+
+        # AC 1: Check for active sessions (pending or in-progress)
+        active_sessions = ImportSession.objects.filter(
+            status__in=[
+                ImportSession.ImportStatus.PENDING,
+                ImportSession.ImportStatus.IN_PROGRESS,
+            ]
+        )
+        if active_sessions.exists():
+            logger.warning(
+                f"Import attempt blocked: another import is in progress "
+                f"(session={sessid[:8]}...)"
+            )
+            # AC 1: return failure with message
+            return HttpResponse(
+                "failure\nImport already in progress", content_type="text/plain"
+            )
+
+        # AC 1: Create ImportSession with status pending
+        session = ImportSession.objects.create(
+            import_type=ImportSession.ImportType.CATALOG,
+            status=ImportSession.ImportStatus.PENDING,
+            report=(
+                f"[{timezone.now().strftime('%Y-%m-%d %H:%M:%S')}] "
+                f"Получена команда import от 1С (файл: {filename})\n"
+            ),
+        )
+
+        # Handle ZIP unpacking if needed (Story 2.2)
+        import_dir = Path(settings.MEDIA_ROOT) / "1c_import" / sessid
+        if filename.lower().endswith(".zip"):
+            try:
+                file_service = FileStreamService(sessid)
+                file_service.unpack_zip(filename, import_dir)
+                timestamp = timezone.now().strftime("%Y-%m-%d %H:%M:%S")
+                session.report += (
+                    f"[{timestamp}] Архив {filename} успешно распакован "
+                    f"в директорию импорта.\n"
+                )
+                session.save(update_fields=["report"])
+            except Exception as e:
+                logger.exception(f"Failed to unpack {filename}: {e}")
+                session.status = ImportSession.ImportStatus.FAILED
+                session.error_message = f"Ошибка распаковки архива: {e}"
+                session.save(update_fields=["status", "error_message"])
+                return HttpResponse(
+                    f"failure\nUnpack error: {e}", content_type="text/plain"
+                )
+
+        # AC 1: Trigger async process_1c_import_task
+        # We pass the full path to the import directory for the task
+        process_1c_import_task.delay(session.pk, str(import_dir))
+
+        logger.info(
+            f"Import triggered successfully: {filename}, "
+            f"session_id={session.pk}, task dispatched"
+        )
+
+        return HttpResponse("success", content_type="text/plain")
 
     def handle_checkauth(self, request):
         """

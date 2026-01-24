@@ -9,6 +9,18 @@ Story 13.2: Рефакторинг импорта из 1С для ProductVariant
 3. Default variants → ProductVariant для товаров без вариантов
 4. prices.xml → ProductVariant (цены)
 5. rests.xml → ProductVariant (остатки)
+
+Strategy: Batch-Level Atomicity
+-------------------------------
+Due to the potentially large size of XML files (hundreds of megabytes) and memory constraints,
+we explicitly avoid wrapping the entire import process in a single atomic transaction.
+Instead, we use batch-level processing where each batch (default 500 items) is processed
+within its own transaction (via VariantImportProcessor).
+
+Trade-offs:
+- Pros: Significantly lower memory usage, resilient to timeouts, partial progress is saved.
+- Cons: Failure mid-import requires a re-run or manual cleanup (ImportSession tracks state).
+- Recovery: ImportSession.report logs progress, allowing analysis of where failure occurred.
 """
 
 from __future__ import annotations
@@ -268,38 +280,48 @@ class Command(BaseCommand):
 
             # ШАГ 0.5: Загрузка категорий из groups.xml
             if file_type in ["all", "goods"]:
+                variant_processor.log_progress("Начало импорта категорий...")
                 self._import_categories(data_dir, parser, variant_processor)
 
             # ШАГ 0.6: Загрузка брендов из propertiesGoods.xml
             if file_type in ["all", "goods"]:
+                variant_processor.log_progress("Начало импорта брендов...")
                 self._import_brands(data_dir, parser, variant_processor)
 
             # ШАГ 1: Загрузка типов цен из priceLists*.xml
             if file_type in ["all", "prices"]:
+                variant_processor.log_progress("Начало импорта типов цен...")
                 self._import_price_types(data_dir, parser, variant_processor)
 
             # ШАГ 2: Парсинг goods.xml → Product (базовая информация)
             if file_type in ["all", "goods"]:
+                variant_processor.log_progress("Начало импорта товаров (goods.xml)...")
                 self._import_products_from_goods(
                     data_dir, parser, variant_processor, skip_images
                 )
 
             # ШАГ 3: Парсинг offers.xml → ProductVariant
             if file_type in ["all", "offers"]:
+                variant_processor.log_progress(
+                    "Начало импорта вариантов (offers.xml)..."
+                )
                 self._import_variants_from_offers(
                     data_dir, parser, variant_processor, skip_images
                 )
 
             # ШАГ 3.5: Создание default variants для товаров без вариантов
             if file_type in ["all", "offers"] and not skip_default_variants:
+                variant_processor.log_progress("Создание дефолтных вариантов...")
                 self._create_default_variants(variant_processor)
 
             # ШАГ 4: Парсинг prices.xml → ProductVariant (цены)
             if file_type in ["all", "prices", "offers"]:
+                variant_processor.log_progress("Обновление цен из prices.xml...")
                 self._import_variant_prices(data_dir, parser, variant_processor)
 
             # ШАГ 5: Парсинг rests.xml → ProductVariant (остатки)
             if file_type in ["all", "rests", "offers"]:
+                variant_processor.log_progress("Обновление остатков из rests.xml...")
                 self._import_variant_stocks(data_dir, parser, variant_processor)
 
             # Финализация сессии
@@ -429,14 +451,19 @@ class Command(BaseCommand):
             goods_data = parser.parse_goods_xml(file_path)
             base_dir = os.path.join(data_dir, "goods", "import_files")
 
-            for goods_item in tqdm(
-                goods_data, desc=f"   Обработка {Path(file_path).name}"
+            for i, goods_item in enumerate(
+                tqdm(goods_data, desc=f"   Обработка {Path(file_path).name}")
             ):
                 processor.process_product_from_goods(
                     goods_item,
                     base_dir=base_dir,
                     skip_images=skip_images,
                 )
+                if (i + 1) % 100 == 0:
+                    processor.log_progress(
+                        f"Обработка товаров ({Path(file_path).name}): "
+                        f"{i + 1} из {len(goods_data)}"
+                    )
 
             self.stdout.write(f"   • {Path(file_path).name}: товаров {len(goods_data)}")
 
@@ -466,14 +493,19 @@ class Command(BaseCommand):
             offers_data = parser.parse_offers_xml(file_path)
             base_dir = os.path.join(data_dir, "offers", "import_files")
 
-            for offer_item in tqdm(
-                offers_data, desc=f"   Обработка {Path(file_path).name}"
+            for i, offer_item in enumerate(
+                tqdm(offer_data, desc=f"   Обработка {Path(file_path).name}")
             ):
                 processor.process_variant_from_offer(
                     offer_item,
                     base_dir=base_dir,
                     skip_images=skip_images,
                 )
+                if (i + 1) % 100 == 0:
+                    processor.log_progress(
+                        f"Обработка вариантов ({Path(file_path).name}): "
+                        f"{i + 1} из {len(offer_data)}"
+                    )
 
             self.stdout.write(
                 f"   • {Path(file_path).name}: предложений {len(offers_data)}"
@@ -511,10 +543,15 @@ class Command(BaseCommand):
         for file_path in prices_files:
             prices_data = parser.parse_prices_xml(file_path)
 
-            for price_item in tqdm(
-                prices_data, desc=f"   Обработка {Path(file_path).name}"
+            for i, price_item in enumerate(
+                tqdm(prices_data, desc=f"   Обработка {Path(file_path).name}")
             ):
                 processor.update_variant_prices(price_item)
+                if (i + 1) % 100 == 0:
+                    processor.log_progress(
+                        f"Обновление цен ({Path(file_path).name}): "
+                        f"{i + 1} из {len(prices_data)}"
+                    )
 
             self.stdout.write(
                 f"   • {Path(file_path).name}: записей цен {len(prices_data)}"
@@ -544,10 +581,15 @@ class Command(BaseCommand):
         for file_path in rests_files:
             rests_data = parser.parse_rests_xml(file_path)
 
-            for rest_item in tqdm(
-                rests_data, desc=f"   Обработка {Path(file_path).name}"
+            for i, rest_item in enumerate(
+                tqdm(rests_data, desc=f"   Обработка {Path(file_path).name}")
             ):
                 processor.update_variant_stock(rest_item)
+                if (i + 1) % 100 == 0:
+                    processor.log_progress(
+                        f"Обновление остатков ({Path(file_path).name}): "
+                        f"{i + 1} из {len(rests_data)}"
+                    )
 
             self.stdout.write(
                 f"   • {Path(file_path).name}: записей остатков {len(rests_data)}"

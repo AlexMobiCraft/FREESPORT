@@ -234,6 +234,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.users.tasks.monitor_pending_verification_queue",
         "schedule": 60 * 60 * 8,  # Каждые 8 часов (9:00, 17:00 при запуске в 9:00)
     },
+    "cleanup-stale-import-sessions": {
+        "task": "apps.products.tasks.cleanup_stale_import_sessions",
+        "schedule": 60 * 60,  # Раз в час (Story 3.1 AC6)
+    },
 }
 
 # Интернационализация

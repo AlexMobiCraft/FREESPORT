@@ -1656,6 +1656,27 @@ class VariantImportProcessor:
         )
         return result
 
+    def log_progress(self, message: str) -> None:
+        """
+        Логирование прогресса в консоль и в поле report модели ImportSession.
+        """
+        from django.db.models import F, Value
+        from django.db.models.functions import Concat
+
+        from apps.products.models import ImportSession
+
+        timestamp = timezone.now().strftime("%Y-%m-%d %H:%M:%S")
+        full_message = f"[{timestamp}] {message}"
+        logger.info(full_message)
+
+        try:
+            ImportSession.objects.filter(pk=self.session_id).update(
+                report=Concat(F("report"), Value(full_message + "\n")),
+                updated_at=timezone.now(),
+            )
+        except Exception as e:
+            logger.error(f"Error updating session report: {e}")
+
     def finalize_session(self, status: str, error_message: str = "") -> None:
         """Завершение сессии импорта"""
         from apps.products.models import ImportSession
@@ -1665,8 +1686,17 @@ class VariantImportProcessor:
             session.status = status
             session.finished_at = timezone.now()
             session.report_details = self.stats
+
+            timestamp = timezone.now().strftime("%Y-%m-%d %H:%M:%S")
+            status_display = dict(ImportSession.ImportStatus.choices).get(
+                status, status
+            )
+            completion_message = f"[{timestamp}] Импорт завершен со статусом: {status_display}\n"
             if error_message:
+                completion_message += f"[{timestamp}] Ошибка: {error_message}\n"
                 session.error_message = error_message
+
+            session.report = (session.report or "") + completion_message
             session.save()
 
             logger.info(

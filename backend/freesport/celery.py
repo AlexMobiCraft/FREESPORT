@@ -33,6 +33,14 @@ app.conf.beat_schedule = {
             "expires": 3500,  # Задача должна выполниться в течение часа
         },
     },
+    # Задача для очистки зависших сессий импорта 1С
+    "cleanup-stale-import-sessions-every-hour": {
+        "task": "apps.products.tasks.cleanup_stale_import_sessions",
+        "schedule": crontab(minute="30", hour="*"),  # Запускать каждые полчаса (в :30)
+        "options": {
+            "expires": 3500,
+        },
+    },
 }
 
 
