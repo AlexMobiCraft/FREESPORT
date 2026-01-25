@@ -236,15 +236,20 @@ class ICExchangeView(APIView):
         - sessid=<session_key>  ← Django Session ID (NOT CSRF token)
         - version=<CommerceML_version>
         """
-        # Protocol Enforcement: Session MUST be created in checkauth
-        if not request.session.session_key:
+        # 1. Extract sessid from URL (Strict Linkage Priority)
+        sessid = request.query_params.get("sessid")
+        
+        # 2. Fallback to Django session if not in URL
+        if not sessid:
+            sessid = request.session.session_key
+
+        # Protocol Enforcement: Session MUST exist
+        if not sessid:
             return HttpResponse(
                 "failure\nNo session - call checkauth first",
                 content_type="text/plain; charset=utf-8",
                 status=401,
             )
-
-        sessid = request.session.session_key
 
         # Clean up any previous temp files for this session
         # This addresses reuse/retry risk - prevents stale file accumulation
