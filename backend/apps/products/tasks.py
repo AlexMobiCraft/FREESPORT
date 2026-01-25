@@ -67,7 +67,7 @@ def process_1c_import_task(
         # Story 3.2: Defered Unpacking
         # If we are in 'all' mode (triggered by complete), we should check if there 
         # are any pending ZIP files in the temp directory that need to be unpacked.
-        temp_dir = Path(settings.ONEC_EXCHANGE.get("TEMP_DIR", settings.MEDIA_ROOT + "/1c_temp")) / session.session_key
+        temp_dir = Path(settings.ONEC_EXCHANGE.get("TEMP_DIR", settings.MEDIA_ROOT / "1c_temp")) / session.session_key
         if temp_dir.exists():
             zip_files = list(temp_dir.glob("*.zip"))
             if zip_files:
