@@ -151,7 +151,7 @@ class ICExchangeView(APIView):
         )
 
         
-        import_dir = Path(settings.MEDIA_ROOT) / "1c_temp" / sessid
+        import_dir = Path(settings.MEDIA_ROOT) / "1c_import" / sessid
 
         # AC 1: Trigger async process_1c_import_task
         # Story 3.1: We pass the filename to the task so it can handle unpacking asynchronously
