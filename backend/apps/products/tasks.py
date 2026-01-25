@@ -62,6 +62,23 @@ def process_1c_import_task(
                 logger.error(f"Unpack failed for session {session_id}: {e}")
                 return "failure"
 
+        # Story 3.2: Defered Unpacking
+        # If we are in 'all' mode (triggered by complete), we should check if there 
+        # are any pending ZIP files in the temp directory that need to be unpacked.
+        temp_dir = Path(settings.ONEC_EXCHANGE.get("TEMP_DIR", settings.MEDIA_ROOT + "/1c_temp")) / session.session_key
+        if temp_dir.exists():
+            zip_files = list(temp_dir.glob("*.zip"))
+            if zip_files:
+                logger.info(f"Found {len(zip_files)} ZIP files in temp. Unpacking...")
+                from apps.integrations.onec_exchange.services import FileStreamService
+                file_service = FileStreamService(session.session_key)
+                for zf in zip_files:
+                    try:
+                        file_service.unpack_zip(zf.name)
+                        logger.info(f"Unpacked: {zf.name}")
+                    except Exception as e:
+                        logger.error(f"Failed to unpack {zf.name}: {e}")
+
         # Story 3.2: Defensive directory creation
         # Ensure import directory and all required subdirectories exist 
         # to satisfy management command validation.
