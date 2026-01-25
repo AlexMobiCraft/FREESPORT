@@ -6,6 +6,7 @@ HOST=${1:-"http://localhost:8001"}
 # Allow credentials via args or env vars. Default to admin/admin (likely wrong for prod)
 USER=${2:-${IC_USER:-"1c_exchange_robot@freesport.ru"}}
 PASS=${3:-${IC_PASS:-"20.robot.20"}}
+API_URL="$HOST/api/integration/1c/exchange/"
 
 echo "Usage: ./verify_1c_session.sh [host] [email] [password]"
 echo "Example: ./verify_1c_session.sh https://website.com admin@example.com mypassword"
