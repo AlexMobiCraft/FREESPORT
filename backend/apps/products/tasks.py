@@ -87,17 +87,33 @@ def process_1c_import_task(
             except Exception as e:
                 logger.warning(f"Failed to list directory contents: {e}")
 
+        # Determine file type based on zip_filename (if provided by 1C)
+        # This prevents running unnecessary steps and allows 1C to trigger 
+        # granular imports (e.g. only stocks or only prices)
+        detected_file_type = "all"
+        if zip_filename:
+            fn_lower = zip_filename.lower()
+            if fn_lower.startswith("goods") or fn_lower.startswith("import") or fn_lower.startswith("propertiesgoods"):
+                detected_file_type = "goods"
+            elif fn_lower.startswith("offers"):
+                detected_file_type = "offers"
+            elif fn_lower.startswith("prices") or fn_lower.startswith("pricelists"):
+                detected_file_type = "prices"
+            elif fn_lower.startswith("rests"):
+                detected_file_type = "rests"
+
         # Запуск management команды
         args = []
         options = {
             "celery_task_id": self.request.id,
+            "file_type": detected_file_type,
         }
         if data_dir:
             options["data_dir"] = data_dir
 
         logger.info(
             f"Starting 1C import for session {session_id} "
-            f"(key={session.session_key})"
+            f"(key={session.session_key}, file_type={detected_file_type}, file={zip_filename})"
         )
         call_command("import_products_from_1c", *args, **options)
 

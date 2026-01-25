@@ -445,7 +445,10 @@ class Command(BaseCommand):
         goods_files = self._collect_xml_files(data_dir, "goods", "goods.xml")
 
         if not goods_files:
-            raise CommandError("Файлы goods.xml или goods_*.xml не найдены")
+            self.stdout.write(
+                self.style.WARNING("   ⚠️ Файлы товаров (goods_*.xml) не найдены. Пропуск шага.")
+            )
+            return
 
         for file_path in goods_files:
             goods_data = parser.parse_goods_xml(file_path)
@@ -487,7 +490,10 @@ class Command(BaseCommand):
         offers_files = self._collect_xml_files(data_dir, "offers", "offers.xml")
 
         if not offers_files:
-            raise CommandError("Файлы offers.xml или offers_*.xml не найдены")
+            self.stdout.write(
+                self.style.WARNING("   ⚠️ Файлы вариантов (offers_*.xml) не найдены. Пропуск шага.")
+            )
+            return
 
         for file_path in offers_files:
             offers_data = parser.parse_offers_xml(file_path)

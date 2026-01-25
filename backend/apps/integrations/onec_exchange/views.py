@@ -46,11 +46,9 @@ class ICExchangeView(APIView):
         elif mode == "query":
             return self.handle_query(request)
         elif mode == "complete":
-            # Story 1.3: Handle 'complete' signal - usually just ack required
-            return HttpResponse("success", content_type="text/plain; charset=utf-8")
+            return self.handle_complete(request)
         elif mode == "deactivate":
-            # Story 1.4: Handle 'deactivate' signal
-            return HttpResponse("success", content_type="text/plain; charset=utf-8")
+            return self.handle_complete(request)
 
         return HttpResponse(
             "failure\nUnknown mode", content_type="text/plain; charset=utf-8", status=400
@@ -73,11 +71,9 @@ class ICExchangeView(APIView):
         elif mode == "import":
             return self.handle_import(request)
         elif mode == "complete":
-            # Story 1.3: Handle 'complete' signal - usually just ack required
-            return HttpResponse("success", content_type="text/plain; charset=utf-8")
+            return self.handle_complete(request)
         elif mode == "deactivate":
-            # Story 1.4: Handle 'deactivate' signal
-            return HttpResponse("success", content_type="text/plain; charset=utf-8")
+            return self.handle_complete(request)
 
         return HttpResponse(
             "failure\nUnknown mode (POST)", content_type="text/plain; charset=utf-8", status=400
@@ -85,111 +81,46 @@ class ICExchangeView(APIView):
 
     def handle_import(self, request):
         """
-        Trigger the import process.
-
-        Story 3.1: Orchestration of Async Import
-
-        Protocol: GET /?mode=import&filename=X&sessid=Y
-
-        AC 1: Check for active sessions (pending or in-progress)
-        AC 1: Create ImportSession with status pending
-        AC 1: Trigger async process_1c_import_task
-        AC 1: Return "success" (text/plain)
+        Acknowledge the import command from 1C.
+        
+        Note: We no longer trigger the task here to avoid race conditions 
+        and missing data. We wait for 'mode=complete'.
         """
-        from datetime import timedelta
-        from django.db import transaction
-        from django.utils import timezone
+        # Just ensure the directory exists and acknowledge
+        sessid = request.query_params.get("sessid") or request.session.session_key
+        if not sessid:
+            return HttpResponse("failure\nMissing sessid", status=403)
+            
+        logger.info(f"Import command acknowledged for session {sessid}. Waiting for complete.")
+        return HttpResponse("success", content_type="text/plain; charset=utf-8")
+
+    def handle_complete(self, request):
+        """
+        Signal from 1C that all files for the current session are uploaded.
+        This is where we trigger the actual processing.
+        """
         from apps.products.models import ImportSession
         from apps.products.tasks import process_1c_import_task
 
-        # 1. Extract sessid & Determine Source
-        sessid = request.query_params.get("sessid")
-        source = "url"
-        
-        # Fallback to Django session key if no param
+        sessid = request.query_params.get("sessid") or request.session.session_key
         if not sessid:
-            sessid = request.session.session_key
-            source = "cookie"
+            return HttpResponse("failure\nMissing sessid", status=403)
 
-        # 2. Strict Linkage & Identification
-        if not sessid:
-            return HttpResponse(
-                "failure\nMissing sessid", content_type="text/plain; charset=utf-8", status=403
-            )
-
-        filename = request.query_params.get("filename")
-        if not filename:
-            return HttpResponse(
-                "failure\nMissing filename parameter",
-                content_type="text/plain; charset=utf-8",
-                status=400,
-            )
-
-        # 3. Concurrency & Idempotency (Atomic Block)
-        with transaction.atomic():
-            # Lazy Expiration: Check for stale IN_PROGRESS sessions (> 2 hours)
-            stale_threshold = timezone.now() - timedelta(hours=2)
-            stale_sessions = ImportSession.objects.select_for_update().filter(
-                session_key=sessid,
-                status=ImportSession.ImportStatus.IN_PROGRESS,
-                updated_at__lt=stale_threshold
-            )
-            for stale_session in stale_sessions:
-                stale_session.status = ImportSession.ImportStatus.FAILED
-                stale_session.error_message = "Session expired (lazy detection)"
-                stale_session.save()
-                logger.warning(
-                    f"Stale session {stale_session.pk} marked as FAILED "
-                    f"during new request (key={sessid})"
-                )
-
-            # Check for active sessions (Idempotency)
-            active_sessions = ImportSession.objects.select_for_update().filter(
-                session_key=sessid,
-                status__in=[
-                    ImportSession.ImportStatus.PENDING,
-                    ImportSession.ImportStatus.IN_PROGRESS,
-                ]
-            )
-            
-            if active_sessions.exists():
-                logger.info(
-                    f"Duplicate import request for active session {sessid} "
-                    f"(source={source}). Ignoring as idempotent success."
-                )
-                return HttpResponse("success", content_type="text/plain; charset=utf-8")
-
-            # Create new session
-            from django.db import IntegrityError
-            try:
-                session = ImportSession.objects.create(
-                    session_key=sessid,
-                    import_type=ImportSession.ImportType.CATALOG,
-                    status=ImportSession.ImportStatus.PENDING,
-                    report=(
-                        f"[{timezone.now().strftime('%Y-%m-%d %H:%M:%S')}] "
-                        f"Получена команда import от 1С (файл: {filename}, source: {source})\n"
-                    ),
-                )
-            except IntegrityError:
-                # This happens if another request won the race and created the session
-                # between our filter() check and create().
-                logger.info(
-                    f"Race condition detected for session {sessid}. "
-                    f"Returning idempotent success."
-                )
-                return HttpResponse("success", content_type="text/plain; charset=utf-8")
-
-        # Trigger async process_1c_import_task
-        import_dir = Path(settings.MEDIA_ROOT) / "1c_import" / sessid
-        # Story 3.1: We pass the filename to the task so it can handle unpacking asynchronously
-        process_1c_import_task.delay(session.pk, str(import_dir), filename)
-
-        logger.info(
-            f"Import triggered successfully: {filename}, "
-            f"session_id={session.pk}, key={sessid} ({source})"
+        # 1. Finalize/Create session record
+        session, created = ImportSession.objects.get_or_create(
+            session_key=sessid,
+            status=ImportSession.ImportStatus.PENDING,
+            defaults={
+                'import_type': ImportSession.ImportType.CATALOG,
+                'report': f"[{timezone.now()}] Получен сигнал complete. Запуск обработки.\n"
+            }
         )
 
+        # 2. Trigger one FULL import task
+        import_dir = Path(settings.MEDIA_ROOT) / "1c_import" / sessid
+        process_1c_import_task.delay(session.pk, str(import_dir))
+
+        logger.info(f"Full import triggered by complete signal. Session: {sessid}")
         return HttpResponse("success", content_type="text/plain; charset=utf-8")
 
     def handle_checkauth(self, request):
