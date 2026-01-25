@@ -48,6 +48,9 @@ class ICExchangeView(APIView):
         elif mode == "complete":
             # Story 1.3: Handle 'complete' signal - usually just ack required
             return HttpResponse("success", content_type="text/html; charset=utf-8")
+        elif mode == "deactivate":
+            # Story 1.4: Handle 'deactivate' signal
+            return HttpResponse("success", content_type="text/html; charset=utf-8")
 
         return HttpResponse(
             "failure\nUnknown mode", content_type="text/html; charset=utf-8", status=400
@@ -71,6 +74,9 @@ class ICExchangeView(APIView):
             return self.handle_import(request)
         elif mode == "complete":
             # Story 1.3: Handle 'complete' signal - usually just ack required
+            return HttpResponse("success", content_type="text/html; charset=utf-8")
+        elif mode == "deactivate":
+            # Story 1.4: Handle 'deactivate' signal
             return HttpResponse("success", content_type="text/html; charset=utf-8")
 
         return HttpResponse(
