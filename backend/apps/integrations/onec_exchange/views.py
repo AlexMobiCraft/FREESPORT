@@ -43,6 +43,8 @@ class ICExchangeView(APIView):
             return self.handle_init(request)
         elif mode == "import":
             return self.handle_import(request)
+        elif mode == "query":
+            return self.handle_query(request)
 
         return HttpResponse(
             "failure\nUnknown mode", content_type="text/plain", status=400
@@ -236,6 +238,24 @@ class ICExchangeView(APIView):
             f"sessid={sessid}\r\nversion={version}"
         )
         return HttpResponse(response_text, content_type="text/plain")
+
+    def handle_query(self, request):
+        """
+        Handle order export requests (mode=query).
+        Protocol: GET /?mode=query
+        Response: XML (CommerceML 2.x/3.x)
+        """
+        # Story 3.2: Order Export
+        # For now, return empty result to satisfy 1C check
+        # and prevent exchange failure (400 Unknown mode).
+        
+        # We must return valid XML
+        xml_content = (
+            '<?xml version="1.0" encoding="UTF-8"?>\n'
+            '<Commerceml version="3.1">\n'
+            '</Commerceml>'
+        )
+        return HttpResponse(xml_content, content_type="application/xml")
 
     def handle_file_upload(self, request):
         """

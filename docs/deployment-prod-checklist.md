@@ -1,6 +1,4 @@
-# Чек-лист Деплоя (Интеграция 1С)
-
-Похоже, что новая функциональность ещё не попала на сервер (ошибка 404), а миграции не применились (нет права `Can exchange with 1C`).
+# Чек-лист Деплоя на продакшн сервер
 
 Выполните эти шаги на сервере по порядку:
 
@@ -24,7 +22,7 @@ docker compose --env-file .env.prod -f docker/docker-compose.prod.yml up -d back
 ```
 
 ## 3. Применение миграций
-Это создаст нужные права в базе данных (`Can exchange with 1C`).
+Это создаст нужные права в базе данных.
 
 ```bash
 docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec backend python manage.py migrate
@@ -36,15 +34,3 @@ docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec backe
 ```bash
 docker compose --env-file .env.prod -f docker/docker-compose.prod.yml restart nginx
 ```
-
-## 5. Проверка прав
-1. Зайдите в Админку Django -> Пользователи -> `1c_exchange_robot`.
-2. В списке прав найдите: `ИНТЕГРАЦИИ | Сессия | Can exchange with 1C`.
-3. Добавьте это право пользователю.
-
-## 6. Тест соединения
-Теперь откройте в браузере:
-`https://freesport.ru/api/integration/1c/exchange/?mode=checkauth`
-
-Должно появиться окно ввода логина/пароля или сообщение `success`.
-После этого проверка в 1С тоже заработает.
