@@ -47,7 +47,7 @@ class ICExchangeView(APIView):
             return self.handle_query(request)
 
         return HttpResponse(
-            "failure\nUnknown mode", content_type="text/plain; charset=utf-8", status=400
+            "failure\nUnknown mode", content_type="text/html; charset=utf-8", status=400
         )
 
     def post(self, request, *args, **kwargs):
@@ -68,7 +68,7 @@ class ICExchangeView(APIView):
             return self.handle_import(request)
 
         return HttpResponse(
-            "failure\nUnknown mode (POST)", content_type="text/plain; charset=utf-8", status=400
+            "failure\nUnknown mode (POST)", content_type="text/html; charset=utf-8", status=400
         )
 
     def handle_import(self, request):
@@ -88,21 +88,21 @@ class ICExchangeView(APIView):
         sessid = request.query_params.get("sessid") or request.session.session_key
         if not sessid:
             return HttpResponse(
-                "failure\nMissing sessid", content_type="text/plain; charset=utf-8", status=403
+                "failure\nMissing sessid", content_type="text/html; charset=utf-8", status=403
             )
 
         # If both are present, they MUST match
         param_sessid = request.query_params.get("sessid")
         if param_sessid and param_sessid != request.session.session_key:
             return HttpResponse(
-                "failure\nInvalid session", content_type="text/plain; charset=utf-8", status=403
+                "failure\nInvalid session", content_type="text/html; charset=utf-8", status=403
             )
 
         filename = request.query_params.get("filename")
         if not filename:
             return HttpResponse(
                 "failure\nMissing filename parameter",
-                content_type="text/plain; charset=utf-8",
+                content_type="text/html; charset=utf-8",
                 status=400,
             )
 
@@ -125,7 +125,7 @@ class ICExchangeView(APIView):
             )
             # AC 1: return failure with message
             return HttpResponse(
-                "failure\nImport already in progress", content_type="text/plain; charset=utf-8"
+                "failure\nImport already in progress", content_type="text/html; charset=utf-8"
             )
 
         # AC 1: Create ImportSession with status pending
@@ -151,7 +151,7 @@ class ICExchangeView(APIView):
             f"session_id={session.pk}, task dispatched"
         )
 
-        return HttpResponse("success", content_type="text/plain; charset=utf-8")
+        return HttpResponse("success", content_type="text/html; charset=utf-8")
 
     def handle_checkauth(self, request):
         """
@@ -188,7 +188,7 @@ class ICExchangeView(APIView):
             session_id = request.session.session_key
 
         response_text = f"success\r\n{cookie_name}\r\n{session_id}"
-        return HttpResponse(response_text, content_type="text/plain; charset=utf-8")
+        return HttpResponse(response_text, content_type="text/html; charset=utf-8")
 
     def handle_init(self, request):
         """
@@ -211,7 +211,7 @@ class ICExchangeView(APIView):
         if not request.session.session_key:
             return HttpResponse(
                 "failure\nNo session - call checkauth first",
-                content_type="text/plain; charset=utf-8",
+                content_type="text/html; charset=utf-8",
                 status=401,
             )
 
@@ -237,7 +237,7 @@ class ICExchangeView(APIView):
             f"zip={zip_value}\r\nfile_limit={file_limit}\r\n"
             f"sessid={sessid}\r\nversion={version}"
         )
-        return HttpResponse(response_text, content_type="text/plain; charset=utf-8")
+        return HttpResponse(response_text, content_type="text/html; charset=utf-8")
 
     def handle_query(self, request):
         """
@@ -280,14 +280,14 @@ class ICExchangeView(APIView):
         sessid = request.query_params.get("sessid") or request.session.session_key
         if not sessid:
             return HttpResponse(
-                "failure\nMissing sessid", content_type="text/plain; charset=utf-8", status=403
+                "failure\nMissing sessid", content_type="text/html; charset=utf-8", status=403
             )
 
         # If both are present, they MUST match
         param_sessid = request.query_params.get("sessid")
         if param_sessid and param_sessid != request.session.session_key:
             return HttpResponse(
-                "failure\nInvalid session", content_type="text/plain; charset=utf-8", status=403
+                "failure\nInvalid session", content_type="text/html; charset=utf-8", status=403
             )
 
         # Get filename parameter
@@ -295,7 +295,7 @@ class ICExchangeView(APIView):
         if not filename:
             return HttpResponse(
                 "failure\nMissing filename parameter",
-                content_type="text/plain; charset=utf-8",
+                content_type="text/html; charset=utf-8",
                 status=400,
             )
 
@@ -326,7 +326,7 @@ class ICExchangeView(APIView):
                     if writer.bytes_written + len(chunk) > file_limit:
                         return HttpResponse(
                             f"failure\nFile exceeds limit of {file_limit} bytes",
-                            content_type="text/plain; charset=utf-8",
+                            content_type="text/html; charset=utf-8",
                             status=413,
                         )
 
@@ -334,7 +334,7 @@ class ICExchangeView(APIView):
 
             if writer.bytes_written == 0:
                 return HttpResponse(
-                    "failure\nEmpty body", content_type="text/plain; charset=utf-8", status=400
+                    "failure\nEmpty body", content_type="text/html; charset=utf-8", status=400
                 )
 
             logger.info(
@@ -355,14 +355,14 @@ class ICExchangeView(APIView):
                 logger.warning(f"File routing failed for {filename}: {e}")
 
             # AC 1: Return "success" on successful write
-            return HttpResponse("success", content_type="text/plain; charset=utf-8")
+            return HttpResponse("success", content_type="text/html; charset=utf-8")
 
         except FileLockError as e:
             # File is being written by another request - retry later
             logger.warning(f"File lock contention for {filename}: {e}")
             return HttpResponse(
                 "failure\nFile busy - retry later",
-                content_type="text/plain; charset=utf-8",
+                content_type="text/html; charset=utf-8",
                 status=503,  # Service Unavailable - indicates temporary condition
             )
 
@@ -373,5 +373,5 @@ class ICExchangeView(APIView):
             # Return generic error message to prevent information disclosure
             # Internal details (stack traces, file paths) must not leak to client
             return HttpResponse(
-                "failure\nInternal server error", content_type="text/plain; charset=utf-8", status=500
+                "failure\nInternal server error", content_type="text/html; charset=utf-8", status=500
             )
