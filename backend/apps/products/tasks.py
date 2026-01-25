@@ -87,7 +87,10 @@ def process_1c_import_task(
         if data_dir:
             options["data_dir"] = data_dir
 
-        logger.info(f"Starting 1C import for session {session_id}")
+        logger.info(
+            f"Starting 1C import for session {session_id} "
+            f"(key={session.session_key})"
+        )
         call_command("import_products_from_1c", *args, **options)
 
         # Финализация сессии (если команда сама не завершила её)

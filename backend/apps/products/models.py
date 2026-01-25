@@ -552,6 +552,17 @@ class ImportSession(models.Model):
             default=ImportStatus.PENDING,
         ),
     )
+    session_key = cast(
+        str | None,
+        models.CharField(
+            "Ключ сессии (SESSID)",
+            max_length=40,
+            db_index=True,
+            blank=True,
+            null=True,
+            help_text="ID сессии из URL (sessid) для отслеживания транзакции",
+        ),
+    )
     created_at = cast(
         datetime, models.DateTimeField("Дата создания", auto_now_add=True)
     )

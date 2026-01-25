@@ -47,13 +47,13 @@ class ICExchangeView(APIView):
             return self.handle_query(request)
         elif mode == "complete":
             # Story 1.3: Handle 'complete' signal - usually just ack required
-            return HttpResponse("success", content_type="text/html; charset=utf-8")
+            return HttpResponse("success", content_type="text/plain; charset=utf-8")
         elif mode == "deactivate":
             # Story 1.4: Handle 'deactivate' signal
-            return HttpResponse("success", content_type="text/html; charset=utf-8")
+            return HttpResponse("success", content_type="text/plain; charset=utf-8")
 
         return HttpResponse(
-            "failure\nUnknown mode", content_type="text/html; charset=utf-8", status=400
+            "failure\nUnknown mode", content_type="text/plain; charset=utf-8", status=400
         )
 
     def post(self, request, *args, **kwargs):
@@ -74,13 +74,13 @@ class ICExchangeView(APIView):
             return self.handle_import(request)
         elif mode == "complete":
             # Story 1.3: Handle 'complete' signal - usually just ack required
-            return HttpResponse("success", content_type="text/html; charset=utf-8")
+            return HttpResponse("success", content_type="text/plain; charset=utf-8")
         elif mode == "deactivate":
             # Story 1.4: Handle 'deactivate' signal
-            return HttpResponse("success", content_type="text/html; charset=utf-8")
+            return HttpResponse("success", content_type="text/plain; charset=utf-8")
 
         return HttpResponse(
-            "failure\nUnknown mode (POST)", content_type="text/html; charset=utf-8", status=400
+            "failure\nUnknown mode (POST)", content_type="text/plain; charset=utf-8", status=400
         )
 
     def handle_import(self, request):
@@ -96,79 +96,91 @@ class ICExchangeView(APIView):
         AC 1: Trigger async process_1c_import_task
         AC 1: Return "success" (text/plain)
         """
-        # Try to get sessid from query param first, then fallback to session key (Standard CommerceML)
-        # Try to get sessid from query param first (Standard CommerceML)
-        # 1C might drop cookies but usually preserves sessid in URL
+        from datetime import timedelta
+        from django.db import transaction
+        from django.utils import timezone
+        from apps.products.models import ImportSession
+        from apps.products.tasks import process_1c_import_task
+
+        # 1. Extract sessid & Determine Source
         sessid = request.query_params.get("sessid")
+        source = "url"
         
         # Fallback to Django session key if no param
         if not sessid:
             sessid = request.session.session_key
+            source = "cookie"
 
+        # 2. Strict Linkage & Identification
         if not sessid:
             return HttpResponse(
-                "failure\nMissing sessid", content_type="text/html; charset=utf-8", status=403
+                "failure\nMissing sessid", content_type="text/plain; charset=utf-8", status=403
             )
-
-        # Removed strict check against request.session.session_key
-        # Reason: If 1C drops cookies, Django generates a new session_key,
-        # but 1C continues sending the original 'sessid' in URL.
-        # We must trust the URL param to ensure all files go to the same directory.
 
         filename = request.query_params.get("filename")
         if not filename:
             return HttpResponse(
                 "failure\nMissing filename parameter",
-                content_type="text/html; charset=utf-8",
+                content_type="text/plain; charset=utf-8",
                 status=400,
             )
 
-        from django.utils import timezone
-
-        from apps.products.models import ImportSession
-        from apps.products.tasks import process_1c_import_task
-
-        # AC 1: Check for active sessions (pending or in-progress)
-        active_sessions = ImportSession.objects.filter(
-            status__in=[
-                ImportSession.ImportStatus.PENDING,
-                ImportSession.ImportStatus.IN_PROGRESS,
-            ]
-        )
-        if active_sessions.exists():
-            logger.warning(
-                f"Import attempt blocked: another import is in progress "
-                f"(session={sessid[:8]}...)"
+        # 3. Concurrency & Idempotency (Atomic Block)
+        with transaction.atomic():
+            # Lazy Expiration: Check for stale IN_PROGRESS sessions (> 2 hours)
+            stale_threshold = timezone.now() - timedelta(hours=2)
+            stale_sessions = ImportSession.objects.select_for_update().filter(
+                session_key=sessid,
+                status=ImportSession.ImportStatus.IN_PROGRESS,
+                updated_at__lt=stale_threshold
             )
-            # AC 1: return failure with message
-            return HttpResponse(
-                "failure\nImport already in progress", content_type="text/html; charset=utf-8"
+            for stale_session in stale_sessions:
+                stale_session.status = ImportSession.ImportStatus.FAILED
+                stale_session.error_message = "Session expired (lazy detection)"
+                stale_session.save()
+                logger.warning(
+                    f"Stale session {stale_session.pk} marked as FAILED "
+                    f"during new request (key={sessid})"
+                )
+
+            # Check for active sessions (Idempotency)
+            active_sessions = ImportSession.objects.select_for_update().filter(
+                session_key=sessid,
+                status__in=[
+                    ImportSession.ImportStatus.PENDING,
+                    ImportSession.ImportStatus.IN_PROGRESS,
+                ]
+            )
+            
+            if active_sessions.exists():
+                logger.info(
+                    f"Duplicate import request for active session {sessid} "
+                    f"(source={source}). Ignoring as idempotent success."
+                )
+                return HttpResponse("success", content_type="text/plain; charset=utf-8")
+
+            # Create new session
+            session = ImportSession.objects.create(
+                session_key=sessid,
+                import_type=ImportSession.ImportType.CATALOG,
+                status=ImportSession.ImportStatus.PENDING,
+                report=(
+                    f"[{timezone.now().strftime('%Y-%m-%d %H:%M:%S')}] "
+                    f"Получена команда import от 1С (файл: {filename}, source: {source})\n"
+                ),
             )
 
-        # AC 1: Create ImportSession with status pending
-        session = ImportSession.objects.create(
-            import_type=ImportSession.ImportType.CATALOG,
-            status=ImportSession.ImportStatus.PENDING,
-            report=(
-                f"[{timezone.now().strftime('%Y-%m-%d %H:%M:%S')}] "
-                f"Получена команда import от 1С (файл: {filename})\n"
-            ),
-        )
-
-        
+        # Trigger async process_1c_import_task
         import_dir = Path(settings.MEDIA_ROOT) / "1c_import" / sessid
-
-        # AC 1: Trigger async process_1c_import_task
         # Story 3.1: We pass the filename to the task so it can handle unpacking asynchronously
-        # This prevents timeouts locally in the view
         process_1c_import_task.delay(session.pk, str(import_dir), filename)
 
         logger.info(
             f"Import triggered successfully: {filename}, "
-            f"session_id={session.pk}, task dispatched"
+            f"session_id={session.pk}, key={sessid} ({source})"
         )
 
-        return HttpResponse("success", content_type="text/html; charset=utf-8")
+        return HttpResponse("success", content_type="text/plain; charset=utf-8")
 
     def handle_checkauth(self, request):
         """
@@ -205,7 +217,7 @@ class ICExchangeView(APIView):
             session_id = request.session.session_key
 
         response_text = f"success\r\n{cookie_name}\r\n{session_id}"
-        return HttpResponse(response_text, content_type="text/html; charset=utf-8")
+        return HttpResponse(response_text, content_type="text/plain; charset=utf-8")
 
     def handle_init(self, request):
         """
@@ -228,7 +240,7 @@ class ICExchangeView(APIView):
         if not request.session.session_key:
             return HttpResponse(
                 "failure\nNo session - call checkauth first",
-                content_type="text/html; charset=utf-8",
+                content_type="text/plain; charset=utf-8",
                 status=401,
             )
 
@@ -254,7 +266,7 @@ class ICExchangeView(APIView):
             f"zip={zip_value}\r\nfile_limit={file_limit}\r\n"
             f"sessid={sessid}\r\nversion={version}"
         )
-        return HttpResponse(response_text, content_type="text/html; charset=utf-8")
+        return HttpResponse(response_text, content_type="text/plain; charset=utf-8")
 
     def handle_query(self, request):
         """
@@ -303,7 +315,7 @@ class ICExchangeView(APIView):
 
         if not sessid:
             return HttpResponse(
-                "failure\nMissing sessid", content_type="text/html; charset=utf-8", status=403
+                "failure\nMissing sessid", content_type="text/plain; charset=utf-8", status=403
             )
 
         # Removed strict check against request.session.session_key to support cookie-less clients
@@ -313,7 +325,7 @@ class ICExchangeView(APIView):
         if not filename:
             return HttpResponse(
                 "failure\nMissing filename parameter",
-                content_type="text/html; charset=utf-8",
+                content_type="text/plain; charset=utf-8",
                 status=400,
             )
 
@@ -344,7 +356,7 @@ class ICExchangeView(APIView):
                     if writer.bytes_written + len(chunk) > file_limit:
                         return HttpResponse(
                             f"failure\nFile exceeds limit of {file_limit} bytes",
-                            content_type="text/html; charset=utf-8",
+                            content_type="text/plain; charset=utf-8",
                             status=413,
                         )
 
@@ -352,7 +364,7 @@ class ICExchangeView(APIView):
 
             if writer.bytes_written == 0:
                 return HttpResponse(
-                    "failure\nEmpty body", content_type="text/html; charset=utf-8", status=400
+                    "failure\nEmpty body", content_type="text/plain; charset=utf-8", status=400
                 )
 
             logger.info(
@@ -373,14 +385,14 @@ class ICExchangeView(APIView):
                 logger.warning(f"File routing failed for {filename}: {e}")
 
             # AC 1: Return "success" on successful write
-            return HttpResponse("success", content_type="text/html; charset=utf-8")
+            return HttpResponse("success", content_type="text/plain; charset=utf-8")
 
         except FileLockError as e:
             # File is being written by another request - retry later
             logger.warning(f"File lock contention for {filename}: {e}")
             return HttpResponse(
                 "failure\nFile busy - retry later",
-                content_type="text/html; charset=utf-8",
+                content_type="text/plain; charset=utf-8",
                 status=503,  # Service Unavailable - indicates temporary condition
             )
 
