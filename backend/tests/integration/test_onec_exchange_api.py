@@ -441,3 +441,46 @@ class TestImportConcurrency:
         
         assert response.status_code == 403
         assert b"Missing sessid" in response.content
+
+    def test_concurrent_import_requests(self):
+        """
+        [AI-Review][CRITICAL] AC 5: Concurrent requests with same sessid -> Only 1 session created.
+        Simulates race condition by bypassing the 'exists' check and hitting the database constraint.
+        """
+        from apps.products.models import ImportSession
+        from django.db import IntegrityError, transaction
+
+        sessid = "concurrent_session"
+
+        # 1. Create first session (simulating Request A winning the race)
+        ImportSession.objects.create(
+            session_key=sessid,
+            status=ImportSession.ImportStatus.IN_PROGRESS,
+            import_type=ImportSession.ImportType.CATALOG
+        )
+
+        # 2. Try to create second session with same key (simulating Request B)
+        # We manually verify that the UniqueConstraint blocks this
+        with pytest.raises(IntegrityError):
+            with transaction.atomic():
+                ImportSession.objects.create(
+                    session_key=sessid,
+                    status=ImportSession.ImportStatus.IN_PROGRESS,
+                    import_type=ImportSession.ImportType.CATALOG
+                )
+        
+        # 3. Verify via View (simulating Request B hitting the API)
+        # The view should handle this gracefully (catch race or see it exists) and return success
+        response = self.client.get(
+            self.url, 
+            data={"mode": "import", "filename": "import.xml", "sessid": sessid},
+            HTTP_AUTHORIZATION=self.auth_header
+        )
+        assert response.status_code == 200
+        assert b"success" in response.content
+        
+        # 4. Verify only 1 session exists
+        assert ImportSession.objects.filter(
+            session_key=sessid, 
+            status__in=[ImportSession.ImportStatus.IN_PROGRESS]
+        ).count() == 1

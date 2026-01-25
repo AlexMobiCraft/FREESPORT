@@ -615,6 +615,19 @@ class ImportSession(models.Model):
             models.Index(fields=["import_type", "status"]),
             models.Index(fields=["-created_at"]),
         ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["session_key"],
+                condition=models.Q(
+                    status__in=[
+                        "pending",
+                        "started",
+                        "in_progress",
+                    ]
+                ),
+                name="unique_active_session_key",
+            )
+        ]
 
     if TYPE_CHECKING:
 
