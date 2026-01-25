@@ -62,6 +62,23 @@ def process_1c_import_task(
                 logger.error(f"Unpack failed for session {session_id}: {e}")
                 return "failure"
 
+        # Story 3.2: Defensive directory creation
+        # Ensure import directory exists even if routing failed or was skipped
+        # This prevents "Directory not found" error from management command
+        if data_dir:
+            import_path = Path(data_dir)
+            if not import_path.exists():
+                logger.warning(f"Import directory {data_dir} missing. Creating it.")
+                import_path.mkdir(parents=True, exist_ok=True)
+            
+            # Debug: Log directory contents to help diagnose "Missing subdir" errors
+            try:
+                files = list(import_path.rglob("*"))
+                file_list = "\n".join([str(f.relative_to(import_path)) for f in files[:20]])
+                logger.info(f"Directory contents ({len(files)} files):\n{file_list}")
+            except Exception as e:
+                logger.warning(f"Failed to list directory contents: {e}")
+
         # Запуск management команды
         args = []
         options = {
