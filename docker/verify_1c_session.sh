@@ -3,9 +3,13 @@
 # Usage: ./verify_1c_session.sh [host]
 
 HOST=${1:-"http://localhost:8001"}
-API_URL="$HOST/api/integration/1c/exchange/"
-USER="admin"
-PASS="admin"  # Replace with actual admin credentials if different
+# Allow credentials via args or env vars. Default to admin/admin (likely wrong for prod)
+USER=${2:-${IC_USER:-"1c_exchange_robot@freesport.ru"}}
+PASS=${3:-${IC_PASS:-"20.robot.20"}}
+
+echo "Usage: ./verify_1c_session.sh [host] [email] [password]"
+echo "Example: ./verify_1c_session.sh https://website.com admin@example.com mypassword"
+
 
 echo "Targeting: $API_URL"
 
