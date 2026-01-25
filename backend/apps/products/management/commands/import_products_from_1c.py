@@ -510,7 +510,7 @@ class Command(BaseCommand):
                 if (i + 1) % 100 == 0:
                     processor.log_progress(
                         f"Обработка вариантов ({Path(file_path).name}): "
-                        f"{i + 1} из {len(offer_data)}"
+                        f"{i + 1} из {len(offers_data)}"
                     )
 
             self.stdout.write(
