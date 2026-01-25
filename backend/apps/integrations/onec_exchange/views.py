@@ -97,18 +97,23 @@ class ICExchangeView(APIView):
         AC 1: Return "success" (text/plain)
         """
         # Try to get sessid from query param first, then fallback to session key (Standard CommerceML)
-        sessid = request.query_params.get("sessid") or request.session.session_key
+        # Try to get sessid from query param first (Standard CommerceML)
+        # 1C might drop cookies but usually preserves sessid in URL
+        sessid = request.query_params.get("sessid")
+        
+        # Fallback to Django session key if no param
+        if not sessid:
+            sessid = request.session.session_key
+
         if not sessid:
             return HttpResponse(
                 "failure\nMissing sessid", content_type="text/html; charset=utf-8", status=403
             )
 
-        # If both are present, they MUST match
-        param_sessid = request.query_params.get("sessid")
-        if param_sessid and param_sessid != request.session.session_key:
-            return HttpResponse(
-                "failure\nInvalid session", content_type="text/html; charset=utf-8", status=403
-            )
+        # Removed strict check against request.session.session_key
+        # Reason: If 1C drops cookies, Django generates a new session_key,
+        # but 1C continues sending the original 'sessid' in URL.
+        # We must trust the URL param to ensure all files go to the same directory.
 
         filename = request.query_params.get("filename")
         if not filename:
@@ -289,18 +294,19 @@ class ICExchangeView(APIView):
         - "failure\n<message>" on error (403 for session issues)
         """
         # Try to get sessid from query param first, then fallback to session key (Standard CommerceML)
-        sessid = request.query_params.get("sessid") or request.session.session_key
+        # Try to get sessid from query param first (Standard CommerceML)
+        sessid = request.query_params.get("sessid")
+
+        # Fallback to Django session key
+        if not sessid:
+            sessid = request.session.session_key
+
         if not sessid:
             return HttpResponse(
                 "failure\nMissing sessid", content_type="text/html; charset=utf-8", status=403
             )
 
-        # If both are present, they MUST match
-        param_sessid = request.query_params.get("sessid")
-        if param_sessid and param_sessid != request.session.session_key:
-            return HttpResponse(
-                "failure\nInvalid session", content_type="text/html; charset=utf-8", status=403
-            )
+        # Removed strict check against request.session.session_key to support cookie-less clients
 
         # Get filename parameter
         filename = request.query_params.get("filename")
