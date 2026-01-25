@@ -19,7 +19,8 @@ echo "----------------------------------------"
 echo "1. Step: CheckAuth (Basic Auth)"
 # -L: Follow redirects (301/302)
 # -k: Insecure (skip SSL validation for localhost)
-response=$(curl -s -L -k -D headers.txt -u "$USER:$PASS" "$API_URL?mode=checkauth")
+# --location-trusted: Re-send auth on redirects
+response=$(curl -s -L --location-trusted -k -D headers.txt -u "$USER:$PASS" "$API_URL?mode=checkauth")
 echo "Response: $response"
 COOKIE_VAL=$(grep -oP 'sessionid=\K[^;]+' headers.txt | tail -n1)
 SESSID=$(echo "$response" | grep -v "^$" | sed -n '3p')
@@ -36,7 +37,7 @@ fi
 echo "----------------------------------------"
 echo "2. Step: Init (URL Param Priority)"
 # We intentionally DO NOT send cookie, only URL param to test strict linkage AC 1
-response=$(curl -s -L -k "$API_URL?mode=init&sessid=$SESSID")
+response=$(curl -s -L --location-trusted -k "$API_URL?mode=init&sessid=$SESSID")
 echo "Response:"
 echo "$response"
 
@@ -51,12 +52,12 @@ echo "----------------------------------------"
 echo "3. Step: Import (Concurrency/Idempotency Check)"
 # Send first import command
 echo "Sending Import #1..."
-curl -s -L -k "$API_URL?mode=import&filename=import.xml&sessid=$SESSID" > /dev/null &
+curl -s -L --location-trusted -k "$API_URL?mode=import&filename=import.xml&sessid=$SESSID" > /dev/null &
 PID1=$!
 
 # Send second import command immediately (Simulate race)
 echo "Sending Import #2 (Duplicate)..."
-response2=$(curl -s -L -k "$API_URL?mode=import&filename=import.xml&sessid=$SESSID")
+response2=$(curl -s -L --location-trusted -k "$API_URL?mode=import&filename=import.xml&sessid=$SESSID")
 echo "Response Import #2: $response2"
 
 wait $PID1
