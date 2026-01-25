@@ -513,26 +513,30 @@ class ProductImage(models.Model):
         super().save(*args, **kwargs)
 
 
+class ImportType(models.TextChoices):
+    CATALOG = "catalog", "Каталог товаров"
+    VARIANTS = "variants", "Варианты товаров"
+    ATTRIBUTES = "attributes", "Атрибуты (справочники)"
+    IMAGES = "images", "Изображения товаров"
+    STOCKS = "stocks", "Остатки товаров"
+    PRICES = "prices", "Цены товаров"
+    CUSTOMERS = "customers", "Клиенты"
+
+
+class ImportStatus(models.TextChoices):
+    PENDING = "pending", "В очереди"
+    STARTED = "started", "Начато"
+    IN_PROGRESS = "in_progress", "В процессе"
+    COMPLETED = "completed", "Завершено"
+    FAILED = "failed", "Ошибка"
+
+
 class ImportSession(models.Model):
     """
     Модель для отслеживания сессий импорта данных из 1С
     """
-
-    class ImportType(models.TextChoices):
-        CATALOG = "catalog", "Каталог товаров"
-        VARIANTS = "variants", "Варианты товаров"
-        ATTRIBUTES = "attributes", "Атрибуты (справочники)"
-        IMAGES = "images", "Изображения товаров"
-        STOCKS = "stocks", "Остатки товаров"
-        PRICES = "prices", "Цены товаров"
-        CUSTOMERS = "customers", "Клиенты"
-
-    class ImportStatus(models.TextChoices):
-        PENDING = "pending", "В очереди"
-        STARTED = "started", "Начато"
-        IN_PROGRESS = "in_progress", "В процессе"
-        COMPLETED = "completed", "Завершено"
-        FAILED = "failed", "Ошибка"
+    ImportType = ImportType
+    ImportStatus = ImportStatus
 
     import_type = cast(
         str,
