@@ -160,15 +160,25 @@ class ICExchangeView(APIView):
                 return HttpResponse("success", content_type="text/plain; charset=utf-8")
 
             # Create new session
-            session = ImportSession.objects.create(
-                session_key=sessid,
-                import_type=ImportSession.ImportType.CATALOG,
-                status=ImportSession.ImportStatus.PENDING,
-                report=(
-                    f"[{timezone.now().strftime('%Y-%m-%d %H:%M:%S')}] "
-                    f"Получена команда import от 1С (файл: {filename}, source: {source})\n"
-                ),
-            )
+            from django.db import IntegrityError
+            try:
+                session = ImportSession.objects.create(
+                    session_key=sessid,
+                    import_type=ImportSession.ImportType.CATALOG,
+                    status=ImportSession.ImportStatus.PENDING,
+                    report=(
+                        f"[{timezone.now().strftime('%Y-%m-%d %H:%M:%S')}] "
+                        f"Получена команда import от 1С (файл: {filename}, source: {source})\n"
+                    ),
+                )
+            except IntegrityError:
+                # This happens if another request won the race and created the session
+                # between our filter() check and create().
+                logger.info(
+                    f"Race condition detected for session {sessid}. "
+                    f"Returning idempotent success."
+                )
+                return HttpResponse("success", content_type="text/plain; charset=utf-8")
 
         # Trigger async process_1c_import_task
         import_dir = Path(settings.MEDIA_ROOT) / "1c_import" / sessid
