@@ -666,28 +666,49 @@ class Command(BaseCommand):
     def _collect_xml_files(
         self, base_dir: str, subdir: str, filename: str
     ) -> list[str]:
-        """Сбор XML файлов из директории"""
+        """
+        Сбор XML файлов из директории с поддержкой альтернативных имен и папок.
+        
+        1C часто присылает 'import.xml' вместо 'goods.xml', и файлы могут 
+        находиться в разных подпапках в зависимости от модуля выгрузки.
+        """
         base_path = Path(base_dir) / subdir
-        if not base_path.exists():
-            return []
-
         collected: list[Path] = []
-        prefix = filename.replace(".xml", "")
+        
+        # Список имен для поиска (переданное имя + стандартные имена 1С)
+        search_filenames = [filename]
+        if filename == "goods.xml" or filename == "groups.xml":
+            search_filenames.append("import.xml")
+        
+        # Список директорий для поиска (переданная + логические альтернативы)
+        search_paths = [base_path]
+        if subdir == "groups":
+            search_paths.append(Path(base_dir) / "goods")
+        
+        for p in search_paths:
+            if not p.exists():
+                continue
+                
+            for fname in search_filenames:
+                prefix = fname.replace(".xml", "")
+                
+                # 1. Прямое совпадение имени
+                for f_case in [fname, fname.capitalize(), fname.lower()]:
+                    direct_file = p / f_case
+                    if direct_file.exists() and direct_file not in collected:
+                        collected.append(direct_file)
 
-        # Прямой файл
-        direct_file = base_path / filename
-        if direct_file.exists():
-            collected.append(direct_file)
+                # 2. Сегментированные файлы (prefix_*.xml) - ищем регистронезависимо
+                # На Linux glob('*.xml') чувствителен к регистру
+                for pattern in [f"{prefix}_*.xml", f"{prefix.capitalize()}_*.xml", f"{prefix.lower()}_*.xml"]:
+                    for segmented_file in sorted(p.glob(pattern)):
+                        if segmented_file not in collected:
+                            collected.append(segmented_file)
 
-        # Сегментированные файлы
-        for segmented_file in sorted(base_path.glob(f"{prefix}_*.xml")):
-            if segmented_file not in collected:
-                collected.append(segmented_file)
-
-        # Legacy путь
-        legacy_file = base_path / "import_files" / filename
-        if legacy_file.exists() and legacy_file not in collected:
-            collected.append(legacy_file)
+                # 3. Legacy путь (подпапка import_files - иногда 1С кладет туда)
+                legacy_file = p / "import_files" / fname
+                if legacy_file.exists() and legacy_file not in collected:
+                    collected.append(legacy_file)
 
         return [str(path) for path in collected]
 

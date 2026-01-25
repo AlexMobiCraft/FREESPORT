@@ -150,6 +150,18 @@ graph TD
 - `units/units.xml`: Справочник единиц измерения.
 - `contragents/contragents.xml`: Справочник контрагентов.
 
+    goods_*.xml
+    contragents_*.xml
+    groups_*.xml
+    offers_*.xml
+    priceLists_*.xml
+    prices_*.xml
+    propertiesGoods_*.xml
+    propertiesOffers_*.xml
+    rests_*.xml
+    storages_*.xml
+    units_*.xml
+
 ### 3.3 Метод передачи данных
 
 - **Файловый обмен:** Данные передаются путем выгрузки файлов из 1С в определенную директорию на сервере FREESPORT.

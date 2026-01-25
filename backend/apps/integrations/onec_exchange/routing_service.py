@@ -20,11 +20,16 @@ logger = logging.getLogger(__name__)
 # Routing rules for XML files based on filename prefix
 XML_ROUTING_RULES = {
     "goods": "goods/",
-    "import": "goods/",  # 1C often sends import.xml instead of goods.xml
     "offers": "offers/",
     "prices": "prices/",
     "rests": "rests/",
     "groups": "groups/",
+    "priceLists": "priceLists/",
+    "propertiesGoods": "propertiesGoods/",
+    "propertiesOffers": "propertiesOffers/",
+    "contragents": "contragents/",
+    "storages": "storages/",
+    "units": "units/",
 }
 
 # Supported image extensions (case-insensitive)
