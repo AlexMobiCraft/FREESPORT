@@ -2,6 +2,8 @@ import logging
 from pathlib import Path
 from typing import Any
 
+from django.conf import settings
+
 from celery import shared_task
 from celery.exceptions import SoftTimeLimitExceeded
 from django.core.management import CommandError, call_command

@@ -500,7 +500,7 @@ class Command(BaseCommand):
             base_dir = os.path.join(data_dir, "offers", "import_files")
 
             for i, offer_item in enumerate(
-                tqdm(offer_data, desc=f"   Обработка {Path(file_path).name}")
+                tqdm(offers_data, desc=f"   Обработка {Path(file_path).name}")
             ):
                 processor.process_variant_from_offer(
                     offer_item,

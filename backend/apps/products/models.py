@@ -620,9 +620,9 @@ class ImportSession(models.Model):
                 fields=["session_key"],
                 condition=models.Q(
                     status__in=[
-                        "pending",
-                        "started",
-                        "in_progress",
+                        ImportStatus.PENDING,
+                        ImportStatus.STARTED,
+                        ImportStatus.IN_PROGRESS,
                     ]
                 ),
                 name="unique_active_session_key",

@@ -84,15 +84,70 @@ class ICExchangeView(APIView):
         """
         Acknowledge the import command from 1C.
         
-        Note: We no longer trigger the task here to avoid race conditions 
-        and missing data. We wait for 'mode=complete'.
+        Story 2.1: Prioritize sessid from URL for strict transaction linkage.
+        Story 3.1: Implement Lazy Expiration and Concurrency protection.
         """
-        # Just ensure the directory exists and acknowledge
-        sessid = request.query_params.get("sessid") or request.session.session_key
+        from datetime import timedelta
+        from django.db import transaction
+        from apps.products.models import ImportSession
+
+        # 1. Extract sessid (URL priority)
+        sessid = request.query_params.get("sessid")
+        source = "URL"
         if not sessid:
+            sessid = request.session.session_key
+            source = "Cookie"
+
+        if not sessid:
+            logger.warning("Import request rejected: No sessid in URL and no session cookie.")
             return HttpResponse("failure\nMissing sessid", status=403)
             
-        logger.info(f"Import command acknowledged for session {sessid}. Waiting for complete.")
+        logger.info(f"Import command received for session {sessid[:8]}... (from {source})")
+
+        # 2. Lazy Expiration & Concurrency Protection
+        with transaction.atomic():
+            # AC 4: Mark sessions IN_PROGRESS older than 2 hours as FAILED
+            stale_threshold = timezone.now() - timedelta(hours=2)
+            stale_count = ImportSession.objects.filter(
+                session_key=sessid,
+                status__in=[
+                    ImportSession.ImportStatus.PENDING,
+                    ImportSession.ImportStatus.STARTED,
+                    ImportSession.ImportStatus.IN_PROGRESS,
+                ],
+                updated_at__lt=stale_threshold
+            ).update(
+                status=ImportSession.ImportStatus.FAILED,
+                error_message="Session expired (stale for > 2 hours)",
+                finished_at=timezone.now()
+            )
+            if stale_count:
+                logger.info(f"Marked {stale_count} stale session(s) as FAILED for {sessid[:8]}...")
+
+            # AC 3 & 5: Check for active session (Idempotency)
+            active_session = ImportSession.objects.select_for_update().filter(
+                session_key=sessid,
+                status__in=[
+                    ImportSession.ImportStatus.PENDING,
+                    ImportSession.ImportStatus.STARTED,
+                    ImportSession.ImportStatus.IN_PROGRESS,
+                ]
+            ).first()
+
+            if active_session:
+                logger.info(f"Active session {active_session.pk} already exists for {sessid[:8]}... Returning success.")
+                return HttpResponse("success", content_type="text/plain; charset=utf-8")
+
+            # 3. Create new session record if none exists
+            logger.info(f"Creating new ImportSession for key: {sessid}")
+            new_session = ImportSession.objects.create(
+                session_key=sessid,
+                status=ImportSession.ImportStatus.PENDING,
+                import_type=ImportSession.ImportType.CATALOG,
+                report=f"[{timezone.now()}] Сессия создана по запросу mode=import. Ожидание mode=complete или новых файлов.\n"
+            )
+            logger.info(f"Created session {new_session.pk} for key {sessid}")
+
         return HttpResponse("success", content_type="text/plain; charset=utf-8")
 
     def handle_complete(self, request):
@@ -100,26 +155,47 @@ class ICExchangeView(APIView):
         Signal from 1C that all files for the current session are uploaded.
         This is where we trigger the actual processing.
         """
+        from django.db import transaction
         from apps.products.models import ImportSession
         from apps.products.tasks import process_1c_import_task
 
+        # 1. Extract sessid
         sessid = request.query_params.get("sessid") or request.session.session_key
         if not sessid:
             return HttpResponse("failure\nMissing sessid", status=403)
 
-        # 1. Finalize/Create session record
-        session, created = ImportSession.objects.get_or_create(
-            session_key=sessid,
-            status=ImportSession.ImportStatus.PENDING,
-            defaults={
-                'import_type': ImportSession.ImportType.CATALOG,
-                'report': f"[{timezone.now()}] Получен сигнал complete. Запуск обработки.\n"
-            }
-        )
+        # 2. Finalize/Trigger session record
+        with transaction.atomic():
+            session = ImportSession.objects.select_for_update().filter(
+                session_key=sessid,
+                status=ImportSession.ImportStatus.PENDING
+            ).first()
 
-        # 2. Trigger one FULL import task
-        import_dir = Path(settings.MEDIA_ROOT) / "1c_import" / sessid
-        process_1c_import_task.delay(session.pk, str(import_dir))
+            if not session:
+                # If no PENDING session found, maybe it's already started or missing
+                # Check for any active session
+                active = ImportSession.objects.filter(
+                    session_key=sessid,
+                    status__in=[ImportSession.ImportStatus.STARTED, ImportSession.ImportStatus.IN_PROGRESS]
+                ).first()
+                if active:
+                    logger.info(f"Complete signal for already active session {active.pk}. Ignoring.")
+                    return HttpResponse("success", content_type="text/plain; charset=utf-8")
+                
+                # If none found, create one (safety fallback)
+                session = ImportSession.objects.create(
+                    session_key=sessid,
+                    status=ImportSession.ImportStatus.PENDING,
+                    import_type=ImportSession.ImportType.CATALOG,
+                    report=f"[{timezone.now()}] Сессия создана по сигналу complete (fallback).\n"
+                )
+            else:
+                session.report += f"[{timezone.now()}] Получен сигнал complete. Запуск обработки.\n"
+                session.save(update_fields=['report'])
+
+            # 3. Trigger one FULL import task
+            import_dir = Path(settings.MEDIA_ROOT) / "1c_import" / sessid
+            process_1c_import_task.delay(session.pk, str(import_dir))
 
         logger.info(f"Full import triggered by complete signal. Session: {sessid}")
         return HttpResponse("success", content_type="text/plain; charset=utf-8")
