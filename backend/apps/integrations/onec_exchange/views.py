@@ -164,6 +164,10 @@ class ICExchangeView(APIView):
         if not sessid:
             return HttpResponse("failure\nMissing sessid", status=403)
 
+        # Story 3.1: Support dry_run mode to skip processing (for verification of transfer)
+        # Check URL parameter FIRST, then check for .dry_run file flag
+        dry_run = request.query_params.get("dry_run") == "1"
+
         # 2. Finalize/Trigger session record
         with transaction.atomic():
             session = ImportSession.objects.select_for_update().filter(
@@ -196,6 +200,18 @@ class ICExchangeView(APIView):
             # 3. Trigger one FULL import task
             # FIXED: Import directory should be shared/root, not session-isolated
             import_dir = Path(settings.MEDIA_ROOT) / "1c_import"
+            
+            # Check for file-flag .dry_run in the import directory
+            if not dry_run and (import_dir / ".dry_run").exists():
+                dry_run = True
+                logger.info(f"Dry run enabled via .dry_run file flag in {import_dir}")
+
+            if dry_run:
+                session.report += f"[{timezone.now()}] DRY RUN: Задача импорта пропущена (включен тестовый режим). Файлы сохранены в {import_dir}.\n"
+                session.save(update_fields=['report'])
+                logger.info(f"Dry run: Import task skipped for session {session.pk}. Files in {import_dir}")
+                return HttpResponse("success", content_type="text/plain; charset=utf-8")
+
             process_1c_import_task.delay(session.pk, str(import_dir))
 
         logger.info(f"Full import triggered by complete signal. Session: {sessid}")

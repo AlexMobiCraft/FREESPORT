@@ -8,6 +8,7 @@ The import system is responsible for synchronizing the product catalog, prices, 
 ## Architecture Diagram
 
 ```mermaid
+
 flowchart TD
     subgraph Commands
         CMD2[import_products_from_1c]
@@ -45,6 +46,7 @@ flowchart TD
 
     style VIP fill:#9f9,stroke:#0c0
     style CMD2 fill:#9f9,stroke:#0c0
+
 ```
 
 ## Key Components
