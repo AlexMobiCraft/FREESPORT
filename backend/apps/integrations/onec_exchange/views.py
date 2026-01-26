@@ -207,6 +207,21 @@ class ICExchangeView(APIView):
                 logger.info(f"Dry run enabled via .dry_run file flag in {import_dir}")
 
             if dry_run:
+                # Story 3.1: Even in dry_run, we want to see the results of transfer.
+                # Unpack ZIP files if any exist for this session.
+                from .file_service import FileStreamService
+                try:
+                    file_service = FileStreamService(sessid)
+                    zip_files = [f for f in file_service.list_files() if f.lower().endswith('.zip')]
+                    
+                    for zf in zip_files:
+                        file_service.unpack_zip(zf, import_dir)
+                        session.report += f"[{timezone.now()}] DRY RUN: Архив {zf} распакован в {import_dir}\n"
+                        logger.info(f"Dry run: Unpacked {zf} to {import_dir}")
+                except Exception as e:
+                    session.report += f"[{timezone.now()}] DRY RUN: Ошибка при распаковке архивов: {e}\n"
+                    logger.error(f"Dry run unpacking error: {e}")
+
                 session.report += f"[{timezone.now()}] DRY RUN: Задача импорта пропущена (включен тестовый режим). Файлы сохранены в {import_dir}.\n"
                 session.save(update_fields=['report'])
                 logger.info(f"Dry run: Import task skipped for session {session.pk}. Files in {import_dir}")

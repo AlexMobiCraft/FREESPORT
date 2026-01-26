@@ -20,11 +20,13 @@ logger = logging.getLogger(__name__)
 # Routing rules for XML files based on filename prefix
 XML_ROUTING_RULES = {
     "goods": "goods/",
+    "import": "goods/",       # Стандартное имя 1С для товаров/групп
     "offers": "offers/",
     "prices": "prices/",
     "rests": "rests/",
     "groups": "groups/",
     "priceLists": "priceLists/",
+    "properties": "propertiesGoods/", # Стандартное имя 1С для свойств
     "propertiesGoods": "propertiesGoods/",
     "propertiesOffers": "propertiesOffers/",
     "contragents": "contragents/",
