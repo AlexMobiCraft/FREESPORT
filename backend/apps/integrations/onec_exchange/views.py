@@ -17,6 +17,17 @@ logger = logging.getLogger(__name__)
 
 
 class ICExchangeView(APIView):
+    def _get_exchange_identity(self, request):
+        """
+        Always use a stable folder for the 1C robot to allow file accumulation.
+        """
+        if request.user.is_authenticated:
+            return "shared_1c_exchange"
+        
+        sessid = request.query_params.get("sessid")
+        if not sessid:
+            sessid = request.session.session_key
+        return sessid
     """
     Main entry point for 1C exchange protocol.
     Handles authentication, file uploads, and import triggering.
@@ -83,32 +94,23 @@ class ICExchangeView(APIView):
     def handle_import(self, request):
         """
         Acknowledge the import command from 1C.
-        
-        Story 2.1: Prioritize sessid from URL for strict transaction linkage.
-        Story 3.1: Implement Lazy Expiration and Concurrency protection.
         """
         from datetime import timedelta
         from django.db import transaction
         from apps.products.models import ImportSession
 
-        # 1. Extract sessid (URL priority)
-        sessid = request.query_params.get("sessid")
-        source = "URL"
+        sessid = self._get_exchange_identity(request)
         if not sessid:
-            sessid = request.session.session_key
-            source = "Cookie"
-
-        if not sessid:
-            logger.warning("Import request rejected: No sessid in URL and no session cookie.")
+            logger.warning("Import request rejected: No identifier found.")
             return HttpResponse("failure\nMissing sessid", status=403)
             
-        logger.info(f"Import command received for session {sessid[:8]}... (from {source})")
+        logger.info(f"Import command received for identity {sessid}")
 
         # 2. Lazy Expiration & Concurrency Protection
         with transaction.atomic():
-            # AC 4: Mark sessions IN_PROGRESS older than 2 hours as FAILED
+            # Mark sessions older than 2 hours as FAILED
             stale_threshold = timezone.now() - timedelta(hours=2)
-            stale_count = ImportSession.objects.filter(
+            ImportSession.objects.filter(
                 session_key=sessid,
                 status__in=[
                     ImportSession.ImportStatus.PENDING,
@@ -121,10 +123,8 @@ class ICExchangeView(APIView):
                 error_message="Session expired (stale for > 2 hours)",
                 finished_at=timezone.now()
             )
-            if stale_count:
-                logger.info(f"Marked {stale_count} stale session(s) as FAILED for {sessid[:8]}...")
 
-            # AC 3 & 5: Check for active session (Idempotency)
+            # Check for active session
             active_session = ImportSession.objects.select_for_update().filter(
                 session_key=sessid,
                 status__in=[
@@ -135,40 +135,55 @@ class ICExchangeView(APIView):
             ).first()
 
             if active_session:
-                logger.info(f"Active session {active_session.pk} already exists for {sessid[:8]}... Returning success.")
+                # Add info about command to report
+                filename = request.query_params.get("filename", "unknown")
+                active_session.report += f"[{timezone.now()}] Получена команда import для файла: {filename}\n"
+                active_session.save(update_fields=['report'])
+                
+                # Check for routing
+                router = FileRoutingService(sessid)
+                if router.should_route(filename):
+                    try:
+                        router.move_to_import(filename)
+                    except Exception as e:
+                        logger.error(f"Routing error: {e}")
+                
                 return HttpResponse("success", content_type="text/plain; charset=utf-8")
 
             # 3. Create new session record if none exists
-            logger.info(f"Creating new ImportSession for key: {sessid}")
             new_session = ImportSession.objects.create(
                 session_key=sessid,
                 status=ImportSession.ImportStatus.PENDING,
                 import_type=ImportSession.ImportType.CATALOG,
                 report=f"[{timezone.now()}] Сессия создана по запросу mode=import. Ожидание mode=complete или новых файлов.\n"
             )
-            logger.info(f"Created session {new_session.pk} for key {sessid}")
+            
+            # Initial routing attempt
+            filename = request.query_params.get("filename")
+            if filename:
+                router = FileRoutingService(sessid)
+                if router.should_route(filename):
+                    try:
+                        router.move_to_import(filename)
+                    except Exception as e:
+                        logger.warning(f"Initial routing fail: {e}")
 
         return HttpResponse("success", content_type="text/plain; charset=utf-8")
 
     def handle_complete(self, request):
         """
-        Signal from 1C that all files for the current session are uploaded.
-        This is where we trigger the actual processing.
+        Signal from 1C that all files for the current cycle are uploaded.
         """
         from django.db import transaction
         from apps.products.models import ImportSession
         from apps.products.tasks import process_1c_import_task
 
-        # 1. Extract sessid
-        sessid = request.query_params.get("sessid") or request.session.session_key
+        sessid = self._get_exchange_identity(request)
         if not sessid:
             return HttpResponse("failure\nMissing sessid", status=403)
 
-        # Story 3.1: Support dry_run mode to skip processing (for verification of transfer)
-        # Check URL parameter FIRST, then check for .dry_run file flag
         dry_run = request.query_params.get("dry_run") == "1"
 
-        # 2. Finalize/Trigger session record
         with transaction.atomic():
             session = ImportSession.objects.select_for_update().filter(
                 session_key=sessid,
@@ -176,60 +191,41 @@ class ICExchangeView(APIView):
             ).first()
 
             if not session:
-                # If no PENDING session found, maybe it's already started or missing
-                # Check for any active session
-                active = ImportSession.objects.filter(
-                    session_key=sessid,
-                    status__in=[ImportSession.ImportStatus.STARTED, ImportSession.ImportStatus.IN_PROGRESS]
-                ).first()
-                if active:
-                    logger.info(f"Complete signal for already active session {active.pk}. Ignoring.")
-                    return HttpResponse("success", content_type="text/plain; charset=utf-8")
-                
-                # If none found, create one (safety fallback)
                 session = ImportSession.objects.create(
                     session_key=sessid,
                     status=ImportSession.ImportStatus.PENDING,
                     import_type=ImportSession.ImportType.CATALOG,
-                    report=f"[{timezone.now()}] Сессия создана по сигналу complete (fallback).\n"
+                    report=f"[{timezone.now()}] Сессия создана по сигналу complete.\n"
                 )
             else:
-                session.report += f"[{timezone.now()}] Получен сигнал complete. Запуск обработки.\n"
+                session.report += f"[{timezone.now()}] Получен сигнал complete.\n"
                 session.save(update_fields=['report'])
 
-            # 3. Trigger one FULL import task
-            # FIXED: Import directory should be shared/root, not session-isolated
             import_dir = Path(settings.MEDIA_ROOT) / "1c_import"
             
-            # Check for file-flag .dry_run in the import directory
+            # Check for file-flag .dry_run
             if not dry_run and (import_dir / ".dry_run").exists():
                 dry_run = True
-                logger.info(f"Dry run enabled via .dry_run file flag in {import_dir}")
 
-            if dry_run:
-                # Story 3.1: Even in dry_run, we want to see the results of transfer.
-                # Unpack ZIP files if any exist for this session.
-                from .file_service import FileStreamService
-                try:
-                    file_service = FileStreamService(sessid)
+            try:
+                file_service = FileStreamService(sessid)
+                if dry_run:
                     zip_files = [f for f in file_service.list_files() if f.lower().endswith('.zip')]
-                    
                     for zf in zip_files:
                         file_service.unpack_zip(zf, import_dir)
-                        session.report += f"[{timezone.now()}] DRY RUN: Архив {zf} распакован в {import_dir}\n"
-                        logger.info(f"Dry run: Unpacked {zf} to {import_dir}")
-                except Exception as e:
-                    session.report += f"[{timezone.now()}] DRY RUN: Ошибка при распаковке архивов: {e}\n"
-                    logger.error(f"Dry run unpacking error: {e}")
+                        session.report += f"[{timezone.now()}] DRY RUN: Архив {zf} распакован.\n"
+                    session.report += f"[{timezone.now()}] DRY RUN: Импорт пропущен.\n"
+                    session.save(update_fields=['report'])
+                else:
+                    process_1c_import_task.delay(session.pk, str(import_dir))
+                
+                # IMPORTANT: Set the flag so the NEXT 'init' starts a clean cycle.
+                file_service.mark_complete()
+                logger.info(f"Exchange cycle marked as complete for {sessid}")
 
-                session.report += f"[{timezone.now()}] DRY RUN: Задача импорта пропущена (включен тестовый режим). Файлы сохранены в {import_dir}.\n"
-                session.save(update_fields=['report'])
-                logger.info(f"Dry run: Import task skipped for session {session.pk}. Files in {import_dir}")
-                return HttpResponse("success", content_type="text/plain; charset=utf-8")
+            except Exception as e:
+                logger.error(f"Complete protocol error: {e}")
 
-            process_1c_import_task.delay(session.pk, str(import_dir))
-
-        logger.info(f"Full import triggered by complete signal. Session: {sessid}")
         return HttpResponse("success", content_type="text/plain; charset=utf-8")
 
     def handle_checkauth(self, request):
@@ -271,56 +267,33 @@ class ICExchangeView(APIView):
 
     def handle_init(self, request):
         """
-        Returns server capabilities for 1C data exchange.
-        Protocol: https://dev.1c-bitrix.ru/api_help/sale/algorithms/data_2_site.php
-
-        IMPORTANT: 'sessid' is Django Session ID (request.session.session_key),
-        NOT a CSRF token. This is required by the 1C protocol to maintain
-        session state across checkauth -> init -> file -> import requests.
-
-        Equivalent to PHP: session_id()
-
-        Response format (4 lines, text/plain):
-        - zip=yes|no
-        - file_limit=<bytes>
-        - sessid=<session_key>  ← Django Session ID (NOT CSRF token)
-        - version=<CommerceML_version>
+        Capability negotiation (mode=init).
+        Implementation of the 'Complete Flag' logic.
         """
-        # 1. Extract sessid from URL (Strict Linkage Priority)
-        sessid = request.query_params.get("sessid")
-        
-        # 2. Fallback to Django session if not in URL
+        sessid = self._get_exchange_identity(request)
         if not sessid:
-            sessid = request.session.session_key
+            return HttpResponse("failure\nNo session", status=401)
 
-        # Protocol Enforcement: Session MUST exist
-        if not sessid:
-            return HttpResponse(
-                "failure\nNo session - call checkauth first",
-                content_type="text/plain; charset=utf-8",
-                status=401,
-            )
-
-        # Clean up any previous temp files for this session
-        # This addresses reuse/retry risk - prevents stale file accumulation
-        # and ensures clean slate for new imports
         try:
             file_service = FileStreamService(sessid)
-            file_service.cleanup_session()
-            logger.info(f"Session cleanup complete for init: {sessid[:8]}...")
+            
+            # If the PREVIOUS exchange was marked as complete, 
+            # this 'init' starts a NEW cycle -> Full Cleanup.
+            if file_service.is_complete():
+                logger.info(f"New exchange cycle detected for {sessid}. Performing full cleanup.")
+                file_service.cleanup_session(force=True)
+                file_service.clear_complete()
+            else:
+                logger.info(f"Continuing existing exchange cycle for {sessid}. Accumulating files.")
         except Exception as e:
-            # Log but don't fail - cleanup is best-effort
-            logger.warning(f"Session cleanup failed during init: {e}")
+            logger.warning(f"Init cleanup logic fail: {e}")
 
         zip_support = settings.ONEC_EXCHANGE.get("ZIP_SUPPORT", True)
         file_limit = settings.ONEC_EXCHANGE.get("FILE_LIMIT_BYTES", 100 * 1024 * 1024)
         version = settings.ONEC_EXCHANGE.get("COMMERCEML_VERSION", "3.1")
 
-        zip_value = "yes" if zip_support else "no"
-        response_text = (
-            f"zip={zip_value}\r\nfile_limit={file_limit}\r\n"
-            f"sessid={sessid}\r\nversion={version}"
-        )
+        response_text = f"zip={'yes' if zip_support else 'no'}\r\nfile_limit={file_limit}\r\n" \
+                        f"sessid={sessid}\r\nversion={version}"
         return HttpResponse(response_text, content_type="text/plain; charset=utf-8")
 
     def handle_query(self, request):
@@ -344,119 +317,45 @@ class ICExchangeView(APIView):
     def handle_file_upload(self, request):
         """
         Handle chunked file uploads from 1C.
-
-        Story 2.1: File Stream Upload
-
-        Protocol: POST /?mode=file&filename=X&sessid=Y with binary body
-
-        AC 1: Stream binary content to 1c_temp/<sessid>/<filename>
-        AC 2: Append mode for chunked uploads (multiple requests same filename)
-        AC 3: Validate sessid matches request.session.session_key
-        AC 4: Return 403 if sessid is missing
-
-        NFR2: Memory efficiency - stream body in chunks, never load entirely into RAM
-
-        Response format (text/plain):
-        - "success" on successful write
-        - "failure\n<message>" on error (403 for session issues)
         """
-        # Try to get sessid from query param first, then fallback to session key (Standard CommerceML)
-        # Try to get sessid from query param first (Standard CommerceML)
-        sessid = request.query_params.get("sessid")
-
-        # Fallback to Django session key
-        if not sessid:
-            sessid = request.session.session_key
-
-        if not sessid:
-            return HttpResponse(
-                "failure\nMissing sessid", content_type="text/plain; charset=utf-8", status=403
-            )
-
-        # Removed strict check against request.session.session_key to support cookie-less clients
-
-        # Get filename parameter
+        sessid = self._get_exchange_identity(request)
         filename = request.query_params.get("filename")
-        if not filename:
-            return HttpResponse(
-                "failure\nMissing filename parameter",
-                content_type="text/plain; charset=utf-8",
-                status=400,
-            )
 
-        # Get file size limit from settings
+        if not sessid or not filename:
+            logger.error("Upload rejected: session or filename missing.")
+            return HttpResponse("failure\nMissing session or filename", status=400)
+
         file_limit = settings.ONEC_EXCHANGE.get("FILE_LIMIT_BYTES", 100 * 1024 * 1024)
 
-        # AC 1 & 2: Stream content to file using append mode
-        # NFR2: Stream body in chunks to avoid loading entire request into memory
         try:
             file_service = FileStreamService(sessid)
-
-            # Chunk size for streaming reads (64KB - balance between memory and I/O)
-            chunk_size = 64 * 1024
-
-            # Access the underlying WSGI request for streaming
-            # DRF wraps Django's HttpRequest; we need the raw stream
             wsgi_request = request._request
-
-            # Use context manager to open file ONCE for all chunks
-            # This avoids repeated open/close cycles for each 64KB chunk
+            
             with file_service.open_for_write(filename) as writer:
+                chunk_size = 64 * 1024
                 while True:
                     chunk = wsgi_request.read(chunk_size)
                     if not chunk:
                         break
-
-                    # Check file size limit before writing
                     if writer.bytes_written + len(chunk) > file_limit:
-                        return HttpResponse(
-                            f"failure\nFile exceeds limit of {file_limit} bytes",
-                            content_type="text/plain; charset=utf-8",
-                            status=413,
-                        )
-
+                        return HttpResponse(f"failure\nFile too large", status=413)
                     writer.write(chunk)
 
             if writer.bytes_written == 0:
-                return HttpResponse(
-                    "failure\nEmpty body", content_type="text/plain; charset=utf-8", status=400
-                )
+                return HttpResponse("failure\nEmpty body", status=400)
 
-            logger.info(
-                f"File upload complete: {filename} ({writer.bytes_written} bytes) "
-                f"session={sessid[:8]}..."
-            )
-
-            # Story 2.2: Route file to appropriate import directory
-            # ZIP files stay in temp (for later unpacking in mode=import)
-            # XML and images are routed to 1c_import/<sessid>/<subdir>/
+            # Accumulate files immediately in import dir to support per-file session mode
             try:
                 routing_service = FileRoutingService(sessid)
                 if routing_service.should_route(filename):
                     routing_service.move_to_import(filename)
             except Exception as e:
-                # Log routing error but don't fail the upload
-                # File is already saved in temp, routing can be retried
-                logger.warning(f"File routing failed for {filename}: {e}")
+                logger.warning(f"Immediate routing failed for {filename}: {e}")
 
-            # AC 1: Return "success" on successful write
             return HttpResponse("success", content_type="text/plain; charset=utf-8")
 
-        except FileLockError as e:
-            # File is being written by another request - retry later
-            logger.warning(f"File lock contention for {filename}: {e}")
-            return HttpResponse(
-                "failure\nFile busy - retry later",
-                content_type="text/plain; charset=utf-8",
-                status=503,  # Service Unavailable - indicates temporary condition
-            )
-
+        except FileLockError:
+            return HttpResponse("failure\nFile busy", status=503)
         except Exception as e:
-            # Log full error details for debugging (server-side only)
-            logger.exception(f"File upload error: {e}")
-
-            # Return generic error message to prevent information disclosure
-            # Internal details (stack traces, file paths) must not leak to client
-            return HttpResponse(
-                "failure\nInternal server error", content_type="text/html; charset=utf-8", status=500
-            )
+            logger.exception(f"Upload error: {e}")
+            return HttpResponse("failure\nInternal error", status=500)

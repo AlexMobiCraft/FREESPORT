@@ -240,34 +240,58 @@ class FileStreamService:
             return []
         return [f.name for f in self.session_dir.iterdir() if f.is_file()]
 
-    def cleanup_session(self) -> int:
+    def cleanup_session(self, force: bool = False) -> int:
         """
-        Remove all files in the session directory.
-
-        Called during 'init' mode to ensure clean slate for new imports.
-        Prevents stale file accumulation from previous/failed uploads.
-
-        Returns:
-            Number of files deleted
+        Remove files in the session directory.
+        
+        Args:
+            force: If True, delete ALL files. If False, only delete files
+                   older than 2 hours (smart cleanup to support 1C multi-session).
         """
         if not self.session_dir.exists():
             return 0
 
+        import time
+        now = time.time()
+        # 2 hours in seconds
+        stale_age = 2 * 60 * 60
+
         deleted_count = 0
         for file_path in self.session_dir.iterdir():
             if file_path.is_file():
-                try:
-                    file_path.unlink()
-                    deleted_count += 1
-                    logger.debug(f"Deleted temp file: {file_path.name}")
-                except OSError as e:
-                    logger.warning(f"Failed to delete {file_path.name}: {e}")
+                # Don't delete .dry_run ever via auto-cleanup
+                if file_path.name == ".dry_run":
+                    continue
+                    
+                is_stale = (now - file_path.stat().st_mtime) > stale_age
+                
+                if force or is_stale:
+                    try:
+                        file_path.unlink()
+                        deleted_count += 1
+                        logger.debug(f"Deleted temp file: {file_path.name}")
+                    except OSError as e:
+                        logger.warning(f"Failed to delete {file_path.name}: {e}")
 
         logger.info(
-            f"Session cleanup: deleted {deleted_count} files "
-            f"(session: {self.session_id[:8]}...)"
+            f"Session cleanup ({'force' if force else 'smart'}): deleted {deleted_count} files "
+            f"(session prefix: {self.session_id[:8]})"
         )
         return deleted_count
+
+    def mark_complete(self):
+        """Place a marker file indicating the exchange cycle is finished."""
+        (self.session_dir / ".exchange_complete").touch()
+
+    def is_complete(self) -> bool:
+        """Check if the previous exchange cycle was finished."""
+        return (self.session_dir / ".exchange_complete").exists()
+
+    def clear_complete(self):
+        """Remove the completion marker."""
+        marker = self.session_dir / ".exchange_complete"
+        if marker.exists():
+            marker.unlink()
 
     def unpack_zip(self, filename: str, target_dir: Path) -> list[str]:
         """

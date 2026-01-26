@@ -147,22 +147,10 @@ class FileRoutingService:
     def should_route(self, filename: str) -> bool:
         """
         Determine if a file should be routed (moved to import directory).
-
-        ZIP files are NOT routed - they stay in temp for later unpacking.
-
-        Args:
-            filename: Name of the file
-
-        Returns:
-            True if file should be routed, False for ZIP files
+        
+        Updated: We now route everything including ZIPs to allow accumulation
+        in shared import directory.
         """
-        safe_filename = Path(filename).name
-        suffix = Path(safe_filename).suffix.lower()
-
-        # ZIP files stay in temp
-        if suffix in ZIP_EXTENSIONS:
-            return False
-
         return True
 
     def move_to_import(self, filename: str) -> Path:
