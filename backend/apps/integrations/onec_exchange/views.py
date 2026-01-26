@@ -137,17 +137,6 @@ class ICExchangeView(APIView):
             if active_session:
                 # Add info about command to report
                 filename = request.query_params.get("filename", "unknown")
-                active_session.report += f"[{timezone.now()}] Получена команда import для файла: {filename}\n"
-                active_session.save(update_fields=['report'])
-                
-                # Check for routing
-                router = FileRoutingService(sessid)
-                if router.should_route(filename):
-                    try:
-                        router.move_to_import(filename)
-                    except Exception as e:
-                        logger.error(f"Routing error: {e}")
-                
                 return HttpResponse("success", content_type="text/plain; charset=utf-8")
 
             # 3. Create new session record if none exists
@@ -155,18 +144,8 @@ class ICExchangeView(APIView):
                 session_key=sessid,
                 status=ImportSession.ImportStatus.PENDING,
                 import_type=ImportSession.ImportType.CATALOG,
-                report=f"[{timezone.now()}] Сессия создана по запросу mode=import. Ожидание mode=complete или новых файлов.\n"
+                report=f"[{timezone.now()}] Сессия создана по запросу mode=import. Ожидание mode=complete.\n"
             )
-            
-            # Initial routing attempt
-            filename = request.query_params.get("filename")
-            if filename:
-                router = FileRoutingService(sessid)
-                if router.should_route(filename):
-                    try:
-                        router.move_to_import(filename)
-                    except Exception as e:
-                        logger.warning(f"Initial routing fail: {e}")
 
         return HttpResponse("success", content_type="text/plain; charset=utf-8")
 
@@ -203,6 +182,19 @@ class ICExchangeView(APIView):
 
             import_dir = Path(settings.MEDIA_ROOT) / "1c_import"
             
+            # Transfer ALL accumulated files from temp to import_dir
+            try:
+                file_service = FileStreamService(sessid)
+                routing_service = FileRoutingService(sessid)
+                files = file_service.list_files()
+                for f in files:
+                    # Move EVERYTHING we have accumulated. 
+                    # ZIPs, XMLs, JPGs - all should be in import_dir for the task/parser.
+                    routing_service.move_to_import(f)
+                logger.info(f"Transferred {len(files)} files to {import_dir} for session {sessid}")
+            except Exception as e:
+                logger.error(f"Failed to transfer files at complete: {e}")
+
             # Check for file-flag .dry_run
             if not dry_run and (import_dir / ".dry_run").exists():
                 dry_run = True
@@ -343,14 +335,6 @@ class ICExchangeView(APIView):
 
             if writer.bytes_written == 0:
                 return HttpResponse("failure\nEmpty body", status=400)
-
-            # Accumulate files immediately in import dir to support per-file session mode
-            try:
-                routing_service = FileRoutingService(sessid)
-                if routing_service.should_route(filename):
-                    routing_service.move_to_import(filename)
-            except Exception as e:
-                logger.warning(f"Immediate routing failed for {filename}: {e}")
 
             return HttpResponse("success", content_type="text/plain; charset=utf-8")
 
