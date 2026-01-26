@@ -76,7 +76,9 @@ class FileRoutingService:
         )
 
         self.temp_dir = self.temp_base / session_id
-        self.import_dir = self.import_base / session_id
+        # FIXED: Import directory should be shared/root, not session-isolated
+        # Parser expects files in data/import_1c/goods, not data/import_1c/<sessid>/goods
+        self.import_dir = self.import_base
 
     def _get_temp_file_path(self, filename: str) -> Path:
         """
@@ -132,8 +134,10 @@ class FileRoutingService:
             return ""
 
         # Check image extensions
+        # Parser expects images in 'goods/import_files/' or 'offers/import_files/'
+        # By default, we route to 'goods/import_files/' as it's the primary location
         if suffix in IMAGE_EXTENSIONS:
-            return "import_files"
+            return "goods/import_files"
 
         # Other unknown files -> root
         return ""

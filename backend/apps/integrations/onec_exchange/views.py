@@ -194,7 +194,8 @@ class ICExchangeView(APIView):
                 session.save(update_fields=['report'])
 
             # 3. Trigger one FULL import task
-            import_dir = Path(settings.MEDIA_ROOT) / "1c_import" / sessid
+            # FIXED: Import directory should be shared/root, not session-isolated
+            import_dir = Path(settings.MEDIA_ROOT) / "1c_import"
             process_1c_import_task.delay(session.pk, str(import_dir))
 
         logger.info(f"Full import triggered by complete signal. Session: {sessid}")

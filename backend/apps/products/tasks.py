@@ -72,12 +72,15 @@ def process_1c_import_task(
             zip_files = list(temp_dir.glob("*.zip"))
             if zip_files:
                 logger.info(f"Found {len(zip_files)} ZIP files in temp. Unpacking...")
-                from apps.integrations.onec_exchange.services import FileStreamService
+                # FileStreamService is already imported at module level
                 file_service = FileStreamService(session.session_key)
+                # FIXED: Import directory should be shared/root, not session-isolated
+                target_import_dir = Path(data_dir) if data_dir else (Path(settings.MEDIA_ROOT) / "1c_import")
+                
                 for zf in zip_files:
                     try:
-                        file_service.unpack_zip(zf.name)
-                        logger.info(f"Unpacked: {zf.name}")
+                        file_service.unpack_zip(zf.name, target_import_dir)
+                        logger.info(f"Unpacked: {zf.name} to {target_import_dir}")
                     except Exception as e:
                         logger.error(f"Failed to unpack {zf.name}: {e}")
 
