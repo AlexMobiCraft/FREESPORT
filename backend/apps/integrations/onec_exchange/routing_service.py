@@ -129,7 +129,10 @@ class FileRoutingService:
 
         # Check XML routing rules by prefix
         if suffix == ".xml":
-            for prefix, subdir in XML_ROUTING_RULES.items():
+            # Sort rules by length of prefix descending to match most specific first
+            # e.g. 'propertiesOffers' (len 16) before 'properties' (len 10)
+            sorted_rules = sorted(XML_ROUTING_RULES.items(), key=lambda x: len(x[0]), reverse=True)
+            for prefix, subdir in sorted_rules:
                 if name_lower.startswith(prefix):
                     return subdir.rstrip("/")
             # Unknown XML file -> root
