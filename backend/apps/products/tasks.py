@@ -65,24 +65,40 @@ def process_1c_import_task(
                 return "failure"
 
         # Story 3.2: Defered Unpacking
-        # If we are in 'all' mode (triggered by complete), we should check if there 
-        # are any pending ZIP files in the temp directory that need to be unpacked.
-        temp_dir = Path(settings.ONEC_EXCHANGE.get("TEMP_DIR", settings.MEDIA_ROOT / "1c_temp")) / session.session_key
-        if temp_dir.exists():
-            zip_files = list(temp_dir.glob("*.zip"))
+        # Files (including ZIPs) are already moved to import_dir by the view (handle_complete).
+        # We need to find them there and unpack.
+        target_import_dir = Path(data_dir) if data_dir else (Path(settings.MEDIA_ROOT) / "1c_import")
+        
+        if target_import_dir.exists():
+            zip_files = list(target_import_dir.glob("*.zip"))
             if zip_files:
-                logger.info(f"Found {len(zip_files)} ZIP files in temp. Unpacking...")
-                # FileStreamService is already imported at module level
-                file_service = FileStreamService(session.session_key)
-                # FIXED: Import directory should be shared/root, not session-isolated
-                target_import_dir = Path(data_dir) if data_dir else (Path(settings.MEDIA_ROOT) / "1c_import")
-                
+                logger.info(f"Found {len(zip_files)} ZIP files in import dir. Unpacking...")
+                import zipfile
+
                 for zf in zip_files:
                     try:
-                        file_service.unpack_zip(zf.name, target_import_dir)
+                        # Direct unpacking to target directory
+                        with zipfile.ZipFile(zf, "r") as zip_ref:
+                            zip_ref.extractall(target_import_dir)
+                            unpacked_files = zip_ref.namelist()
+                        
                         logger.info(f"Unpacked: {zf.name} to {target_import_dir}")
+                        
+                        timestamp = timezone.now().strftime("%Y-%m-%d %H:%M:%S")
+                        session.report += f"[{timestamp}] Архив {zf.name} распакован ({len(unpacked_files)} файлов).\n"
+                        
+                        # Delete the ZIP file after unpacking
+                        try:
+                            zf.unlink()
+                            logger.info(f"Deleted archive: {zf.name}")
+                        except OSError as e:
+                            logger.warning(f"Failed to delete archive {zf.name}: {e}")
+
                     except Exception as e:
                         logger.error(f"Failed to unpack {zf.name}: {e}")
+                        session.report += f"[{timezone.now()}] Ошибка распаковки {zf.name}: {e}\n"
+                
+                session.save(update_fields=["report"])
 
         # Story 3.2: Defensive directory creation
         # Ensure import directory and all required subdirectories exist 
