@@ -75,6 +75,8 @@ def process_1c_import_task(
                 logger.info(f"Found {len(zip_files)} ZIP files in import dir. Unpacking...")
                 import zipfile
 
+                from apps.integrations.onec_exchange.routing_service import XML_ROUTING_RULES
+                
                 for zf in zip_files:
                     try:
                         # Direct unpacking to target directory
@@ -84,8 +86,41 @@ def process_1c_import_task(
                         
                         logger.info(f"Unpacked: {zf.name} to {target_import_dir}")
                         
+                        # Route unpacked files to subdirectories
+                        routed_count = 0
+                        for filename in unpacked_files:
+                            file_path = target_import_dir / filename
+                            if not file_path.exists() or not file_path.is_file():
+                                continue
+                                
+                            # Logic similar to FileRoutingService.route_file
+                            name_lower = filename.lower()
+                            suffix = file_path.suffix.lower()
+                            target_subdir = None
+                            
+                            if suffix == ".xml":
+                                for prefix, subdir in XML_ROUTING_RULES.items():
+                                    if name_lower.startswith(prefix):
+                                        target_subdir = subdir.rstrip("/")
+                                        break
+                            elif suffix in {".jpg", ".jpeg", ".png", ".gif", ".webp"}:
+                                target_subdir = "goods/import_files"
+                                
+                            if target_subdir:
+                                dest_dir = target_import_dir / target_subdir
+                                dest_dir.mkdir(parents=True, exist_ok=True)
+                                dest_path = dest_dir / filename
+                                
+                                try:
+                                    # Move file
+                                    import shutil
+                                    shutil.move(str(file_path), str(dest_path))
+                                    routed_count += 1
+                                except Exception as move_err:
+                                    logger.warning(f"Failed to route {filename}: {move_err}")
+
                         timestamp = timezone.now().strftime("%Y-%m-%d %H:%M:%S")
-                        session.report += f"[{timestamp}] Архив {zf.name} распакован ({len(unpacked_files)} файлов).\n"
+                        session.report += f"[{timestamp}] Архив {zf.name} распакован ({len(unpacked_files)} файлов). Распределено по папкам: {routed_count}.\n"
                         
                         # Delete the ZIP file after unpacking
                         try:
