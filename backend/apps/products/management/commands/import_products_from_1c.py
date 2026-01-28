@@ -498,6 +498,15 @@ class Command(BaseCommand):
         for file_path in offers_files:
             offers_data = parser.parse_offers_xml(file_path)
             base_dir = os.path.join(data_dir, "offers", "import_files")
+            # Fallback: Если папка offers/import_files не существует, пробуем goods/import_files
+            # (так как FileRoutingService по умолчанию кладет все картинки в goods/import_files)
+            if not os.path.exists(base_dir):
+                alt_dir = os.path.join(data_dir, "goods", "import_files")
+                if os.path.exists(alt_dir):
+                    base_dir = alt_dir
+                    self.stdout.write(
+                        f"   ℹ️ Изображения будут загружаться из: {Path(base_dir).relative_to(data_dir)}"
+                    )
 
             for i, offer_item in enumerate(
                 tqdm(offers_data, desc=f"   Обработка {Path(file_path).name}")
