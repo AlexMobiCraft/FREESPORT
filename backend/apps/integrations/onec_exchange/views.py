@@ -93,22 +93,31 @@ class ICExchangeView(APIView):
 
     def handle_import(self, request):
         """
-        Acknowledge the import command from 1C.
+        Handle the import command from 1C.
+        
+        IMPORTANT: In incremental mode ("Выгружать только измененные объекты"),
+        1C does NOT send mode=complete. It expects mode=import to trigger 
+        the actual import processing.
         """
         from datetime import timedelta
         from django.db import transaction
         from apps.products.models import ImportSession
+        from apps.products.tasks import process_1c_import_task
 
         sessid = self._get_exchange_identity(request)
+        filename = request.query_params.get("filename", "unknown")
+        
         if not sessid:
-            logger.warning("Import request rejected: No identifier found.")
+            logger.warning("[IMPORT] Request rejected: No identifier found.")
             return HttpResponse("failure\nMissing sessid", status=403)
             
-        logger.info(f"Import command received for identity {sessid}")
+        logger.info(f"[IMPORT] Received mode=import for sessid={sessid}, filename={filename}")
 
-        # 2. Lazy Expiration & Concurrency Protection
+        import_dir = Path(settings.MEDIA_ROOT) / "1c_import"
+        dry_run = (import_dir / ".dry_run").exists()
+
         with transaction.atomic():
-            # Mark sessions older than 2 hours as FAILED
+            # Lazy Expiration: Mark sessions older than 2 hours as FAILED
             stale_threshold = timezone.now() - timedelta(hours=2)
             ImportSession.objects.filter(
                 session_key=sessid,
@@ -124,7 +133,7 @@ class ICExchangeView(APIView):
                 finished_at=timezone.now()
             )
 
-            # Check for active session
+            # Check for active session - if exists, just acknowledge
             active_session = ImportSession.objects.select_for_update().filter(
                 session_key=sessid,
                 status__in=[
@@ -135,17 +144,65 @@ class ICExchangeView(APIView):
             ).first()
 
             if active_session:
-                # Add info about command to report
-                filename = request.query_params.get("filename", "unknown")
+                logger.info(f"[IMPORT] Active session {active_session.pk} exists, acknowledging")
+                active_session.report += f"[{timezone.now()}] Получен mode=import для {filename} (сессия уже активна)\n"
+                active_session.save(update_fields=['report', 'updated_at'])
                 return HttpResponse("success", content_type="text/plain; charset=utf-8")
 
-            # 3. Create new session record if none exists
-            new_session = ImportSession.objects.create(
+            # Create new session
+            session = ImportSession.objects.create(
                 session_key=sessid,
                 status=ImportSession.ImportStatus.PENDING,
                 import_type=ImportSession.ImportType.CATALOG,
-                report=f"[{timezone.now()}] Сессия создана по запросу mode=import. Ожидание mode=complete.\n"
+                report=f"[{timezone.now()}] Сессия создана по mode=import. Файл: {filename}\n"
             )
+            logger.info(f"[IMPORT] Created session id={session.pk}")
+
+        # Transfer files from temp to import_dir
+        try:
+            file_service = FileStreamService(sessid)
+            routing_service = FileRoutingService(sessid)
+            files = file_service.list_files()
+            logger.info(f"[IMPORT] Files in temp: {files}")
+            
+            transferred_count = 0
+            for f in files:
+                try:
+                    routing_service.move_to_import(f)
+                    transferred_count += 1
+                except Exception as move_err:
+                    logger.error(f"[IMPORT] Failed to move {f}: {move_err}")
+            
+            logger.info(f"[IMPORT] Transferred {transferred_count}/{len(files)} files")
+            session.report += f"[{timezone.now()}] Перенесено файлов: {transferred_count}/{len(files)}\n"
+            session.save(update_fields=['report'])
+            
+        except Exception as e:
+            logger.error(f"[IMPORT] File transfer failed: {e}", exc_info=True)
+            session.report += f"[{timezone.now()}] ОШИБКА переноса: {e}\n"
+            session.save(update_fields=['report'])
+
+        # Trigger import task
+        try:
+            if dry_run:
+                logger.info("[IMPORT] DRY RUN mode - skipping Celery task")
+                session.report += f"[{timezone.now()}] DRY RUN: импорт пропущен\n"
+                session.save(update_fields=['report'])
+            else:
+                logger.info(f"[IMPORT] Dispatching Celery task for session_id={session.pk}")
+                task_result = process_1c_import_task.delay(session.pk, str(import_dir))
+                logger.info(f"[IMPORT] Celery task dispatched: task_id={task_result.id}")
+                session.report += f"[{timezone.now()}] Celery task: {task_result.id}\n"
+                session.save(update_fields=['report'])
+            
+            # Mark exchange cycle complete for this session
+            file_service = FileStreamService(sessid)
+            file_service.mark_complete()
+            
+        except Exception as e:
+            logger.error(f"[IMPORT] Task dispatch failed: {e}", exc_info=True)
+            session.report += f"[{timezone.now()}] ОШИБКА запуска задачи: {e}\n"
+            session.save(update_fields=['report'])
 
         return HttpResponse("success", content_type="text/plain; charset=utf-8")
 
