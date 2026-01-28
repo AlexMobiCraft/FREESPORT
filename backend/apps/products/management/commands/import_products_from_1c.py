@@ -133,6 +133,11 @@ class Command(BaseCommand):
                 "создания новой."
             ),
         )
+        parser.add_argument(
+            "--keep-files",
+            action="store_true",
+            help="Не удалять файлы после успешного импорта (для отладки)",
+        )
 
     def handle(self, *args, **options):
         """Основная логика команды"""
@@ -328,6 +333,10 @@ class Command(BaseCommand):
             variant_processor.finalize_session(
                 status=ImportSession.ImportStatus.COMPLETED
             )
+
+            # Очистка файлов после успешного импорта
+            if not dry_run and not options.get("keep_files", False):
+                self._cleanup_files(data_dir, file_type)
 
             # Вывод статистики
             self._print_stats(variant_processor.get_stats())
@@ -614,6 +623,67 @@ class Command(BaseCommand):
         self.stdout.write(
             self.style.SUCCESS(f"   ✅ Обновлено остатков: {stats['stocks_updated']}")
         )
+
+        if not dry_run and not options.get("keep_files", False):
+            self._cleanup_files(data_dir, file_type)
+
+    def _cleanup_files(self, data_dir: str, file_type: str):
+        """
+        Удаление обработанных файлов после успешного импорта.
+        Удаляет XML файлы и очищает папки с изображениями.
+        """
+        import shutil
+        self.stdout.write(self.style.WARNING("\n🧹 Очистка обработанных файлов..."))
+        
+        # 1. Удаление XML файлов
+        xml_patterns = []
+        if file_type in ["all", "goods"]:
+            xml_patterns.extend(["goods/goods*.xml", "goods/import*.xml", "goods/groups*.xml", "goods/properties*.xml"])
+        if file_type in ["all", "offers"]:
+            xml_patterns.extend(["offers/offers*.xml", "offers/rests*.xml", "offers/prices*.xml", "offers/properties*.xml"])
+        if file_type in ["all", "prices"]:
+            xml_patterns.extend(["prices/prices*.xml", "priceLists/priceLists*.xml"])
+        if file_type in ["all", "rests"]:
+            xml_patterns.extend(["rests/rests*.xml"])
+            
+        deleted_xml_count = 0
+        for pattern in xml_patterns:
+            for file_path in Path(data_dir).glob(pattern):
+                try:
+                    file_path.unlink()
+                    deleted_xml_count += 1
+                except OSError as e:
+                    self.stdout.write(self.style.ERROR(f"   ❌ Ошибка удаления {file_path.name}: {e}"))
+
+        self.stdout.write(f"   ✅ Удалено XML файлов: {deleted_xml_count}")
+
+        # 2. Очистка папок с изображениями (goods/import_files, offers/import_files)
+        # Удаляем сами папки import_files, так как изображения уже скопированы в media/products
+        img_dirs = []
+        if file_type in ["all", "goods"]:
+            img_dirs.append(Path(data_dir) / "goods" / "import_files")
+        if file_type in ["all", "offers"]:
+            img_dirs.append(Path(data_dir) / "offers" / "import_files")
+
+        deleted_img_dir_count = 0
+        for img_dir in img_dirs:
+            if img_dir.exists() and img_dir.is_dir():
+                try:
+                    # Удаляем только файлы внутри папки, сохраняя саму папку
+                    files_deleted = 0
+                    for img_file in img_dir.iterdir():
+                        if img_file.is_file():
+                            try:
+                                img_file.unlink()
+                                files_deleted += 1
+                            except OSError:
+                                pass
+                    
+                    if files_deleted > 0:
+                        self.stdout.write(f"   ✅ Очищена папка {img_dir.relative_to(data_dir)}: удалено {files_deleted} файлов")
+                        deleted_img_dir_count += 1
+                except OSError as e:
+                    self.stdout.write(self.style.ERROR(f"   ❌ Ошибка очистки папки {img_dir.name}: {e}"))
 
     def _clear_existing_data(self):
         """Очистка существующих данных"""

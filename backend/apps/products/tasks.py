@@ -107,7 +107,14 @@ def process_1c_import_task(
                                         target_subdir = subdir.rstrip("/")
                                         break
                             elif suffix in {".jpg", ".jpeg", ".png", ".gif", ".webp"}:
-                                target_subdir = "goods/import_files"
+                                # Story 13.2: Handle images inside import_files folder or at root
+                                if name_lower.startswith("import_files/"):
+                                    # If file is already in import_files/ folder in ZIP,
+                                    # target should be just 'goods' so it lands in goods/import_files/file.jpg
+                                    target_subdir = "goods"
+                                else:
+                                    # If file is at root, put it into import_files
+                                    target_subdir = "goods/import_files"
                                 
                             if target_subdir:
                                 dest_dir = target_import_dir / target_subdir
