@@ -85,7 +85,10 @@ class ICExchangeView(APIView):
         elif mode == "complete":
             return self.handle_complete(request)
         elif mode == "deactivate":
-            return self.handle_complete(request)
+            # mode=deactivate is just a notification that 1C finished exchange
+            # No need to create a session or process anything
+            logger.info("[DEACTIVATE] Exchange completed notification from 1C")
+            return HttpResponse("success", content_type="text/plain; charset=utf-8")
 
         return HttpResponse(
             "failure\nUnknown mode (POST)", content_type="text/plain; charset=utf-8", status=400
