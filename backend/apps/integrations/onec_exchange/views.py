@@ -132,7 +132,7 @@ class ICExchangeView(APIView):
                 finished_at=timezone.now()
             )
 
-            # Check for active session - if exists, just acknowledge
+            # Check for active session
             active_session = ImportSession.objects.select_for_update().filter(
                 session_key=sessid,
                 status__in=[
@@ -143,19 +143,27 @@ class ICExchangeView(APIView):
             ).first()
 
             if active_session:
-                logger.info(f"[IMPORT] Active session {active_session.pk} exists, acknowledging")
-                active_session.report += f"[{timezone.now()}] Получен mode=import для {filename} (сессия уже активна)\n"
-                active_session.save(update_fields=['report', 'updated_at'])
-                return HttpResponse("success", content_type="text/plain; charset=utf-8")
-
-            # Create new session
-            session = ImportSession.objects.create(
-                session_key=sessid,
-                status=ImportSession.ImportStatus.PENDING,
-                import_type=ImportSession.ImportType.CATALOG,
-                report=f"[{timezone.now()}] Сессия создана по mode=import. Файл: {filename}\n"
-            )
-            logger.info(f"[IMPORT] Created session id={session.pk}")
+                # Only skip if session is already being processed (IN_PROGRESS)
+                if active_session.status == ImportSession.ImportStatus.IN_PROGRESS:
+                    logger.info(f"[IMPORT] Session {active_session.pk} is IN_PROGRESS, skipping duplicate")
+                    active_session.report += f"[{timezone.now()}] mode=import для {filename} - сессия уже обрабатывается\n"
+                    active_session.save(update_fields=['report', 'updated_at'])
+                    return HttpResponse("success", content_type="text/plain; charset=utf-8")
+                
+                # For PENDING/STARTED sessions - use them and trigger import
+                session = active_session
+                logger.info(f"[IMPORT] Using existing PENDING session {session.pk}")
+                session.report += f"[{timezone.now()}] Получен mode=import для {filename}, запускаем импорт\n"
+                session.save(update_fields=['report', 'updated_at'])
+            else:
+                # Create new session
+                session = ImportSession.objects.create(
+                    session_key=sessid,
+                    status=ImportSession.ImportStatus.PENDING,
+                    import_type=ImportSession.ImportType.CATALOG,
+                    report=f"[{timezone.now()}] Сессия создана по mode=import. Файл: {filename}\n"
+                )
+                logger.info(f"[IMPORT] Created NEW session id={session.pk}")
 
         # Transfer files from temp to import_dir
         try:
