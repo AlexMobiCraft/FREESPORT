@@ -158,7 +158,10 @@ class ICExchangeView(APIView):
         from apps.products.tasks import process_1c_import_task
 
         sessid = self._get_exchange_identity(request)
+        logger.info(f"[COMPLETE] Received mode=complete for sessid={sessid}")
+        
         if not sessid:
+            logger.warning("[COMPLETE] Rejected: Missing sessid")
             return HttpResponse("failure\nMissing sessid", status=403)
 
         dry_run = request.query_params.get("dry_run") == "1"
@@ -176,9 +179,11 @@ class ICExchangeView(APIView):
                     import_type=ImportSession.ImportType.CATALOG,
                     report=f"[{timezone.now()}] Сессия создана по сигналу complete.\n"
                 )
+                logger.info(f"[COMPLETE] Created NEW session id={session.pk} for sessid={sessid}")
             else:
                 session.report += f"[{timezone.now()}] Получен сигнал complete.\n"
                 session.save(update_fields=['report'])
+                logger.info(f"[COMPLETE] Found EXISTING session id={session.pk}, status={session.status}")
 
             import_dir = Path(settings.MEDIA_ROOT) / "1c_import"
             
@@ -187,36 +192,56 @@ class ICExchangeView(APIView):
                 file_service = FileStreamService(sessid)
                 routing_service = FileRoutingService(sessid)
                 files = file_service.list_files()
+                logger.info(f"[COMPLETE] Files in temp before transfer: {files}")
+                
+                transferred_count = 0
                 for f in files:
-                    # Move EVERYTHING we have accumulated. 
-                    # ZIPs, XMLs, JPGs - all should be in import_dir for the task/parser.
-                    routing_service.move_to_import(f)
-                logger.info(f"Transferred {len(files)} files to {import_dir} for session {sessid}")
+                    try:
+                        routing_service.move_to_import(f)
+                        transferred_count += 1
+                        logger.debug(f"[COMPLETE] Transferred: {f}")
+                    except Exception as move_err:
+                        logger.error(f"[COMPLETE] Failed to move file {f}: {move_err}")
+                
+                logger.info(f"[COMPLETE] Transferred {transferred_count}/{len(files)} files to {import_dir}")
+                session.report += f"[{timezone.now()}] Перенесено файлов: {transferred_count}/{len(files)}\n"
+                session.save(update_fields=['report'])
+                
             except Exception as e:
-                logger.error(f"Failed to transfer files at complete: {e}")
+                logger.error(f"[COMPLETE] Failed to transfer files: {e}", exc_info=True)
+                session.report += f"[{timezone.now()}] ОШИБКА переноса файлов: {e}\n"
+                session.save(update_fields=['report'])
 
             # Check for file-flag .dry_run
             if not dry_run and (import_dir / ".dry_run").exists():
                 dry_run = True
+                logger.info("[COMPLETE] Detected .dry_run flag file")
 
             try:
                 file_service = FileStreamService(sessid)
                 if dry_run:
                     zip_files = [f for f in file_service.list_files() if f.lower().endswith('.zip')]
+                    logger.info(f"[COMPLETE] DRY RUN mode, unpacking {len(zip_files)} ZIPs")
                     for zf in zip_files:
                         file_service.unpack_zip(zf, import_dir)
                         session.report += f"[{timezone.now()}] DRY RUN: Архив {zf} распакован.\n"
                     session.report += f"[{timezone.now()}] DRY RUN: Импорт пропущен.\n"
                     session.save(update_fields=['report'])
                 else:
-                    process_1c_import_task.delay(session.pk, str(import_dir))
+                    logger.info(f"[COMPLETE] Dispatching Celery task for session_id={session.pk}, import_dir={import_dir}")
+                    task_result = process_1c_import_task.delay(session.pk, str(import_dir))
+                    logger.info(f"[COMPLETE] Celery task dispatched: task_id={task_result.id}")
+                    session.report += f"[{timezone.now()}] Celery task запущен: {task_result.id}\n"
+                    session.save(update_fields=['report'])
                 
                 # IMPORTANT: Set the flag so the NEXT 'init' starts a clean cycle.
                 file_service.mark_complete()
-                logger.info(f"Exchange cycle marked as complete for {sessid}")
+                logger.info(f"[COMPLETE] Exchange cycle marked as complete for {sessid}")
 
             except Exception as e:
-                logger.error(f"Complete protocol error: {e}")
+                logger.error(f"[COMPLETE] Protocol error: {e}", exc_info=True)
+                session.report += f"[{timezone.now()}] ОШИБКА: {e}\n"
+                session.save(update_fields=['report'])
 
         return HttpResponse("success", content_type="text/plain; charset=utf-8")
 
