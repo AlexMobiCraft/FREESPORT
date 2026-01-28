@@ -1403,7 +1403,7 @@ class VariantImportProcessor:
         category_map: dict[str, Category] = {}
 
         # ШАГ 1: Создаём/обновляем все категории без parent
-        for category_data in categories_data:
+        for i, category_data in enumerate(categories_data):
             try:
                 onec_id = category_data.get("id")
                 name = category_data.get("name")
@@ -1412,6 +1412,9 @@ class VariantImportProcessor:
                 if not onec_id or not name:
                     result["errors"] += 1
                     continue
+
+                if (i + 1) % 50 == 0:
+                    self.log_progress(f"Обработка категорий: {i + 1}...")
 
                 category, created = Category.objects.update_or_create(
                     onec_id=onec_id,
@@ -1528,8 +1531,11 @@ class VariantImportProcessor:
             "mappings_updated": 0,
         }
 
-        for brand_data in brands_data:
+        for i, brand_data in enumerate(brands_data):
             try:
+                if (i + 1) % 50 == 0:
+                    self.log_progress(f"Обработка брендов: {i + 1}...")
+
                 onec_id = brand_data.get("id")
                 onec_name = brand_data.get("name")
 

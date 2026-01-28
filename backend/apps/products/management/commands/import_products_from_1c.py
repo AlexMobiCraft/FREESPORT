@@ -471,7 +471,7 @@ class Command(BaseCommand):
                     base_dir=base_dir,
                     skip_images=skip_images,
                 )
-                if (i + 1) % 100 == 0:
+                if (i + 1) % 20 == 0:
                     processor.log_progress(
                         f"Обработка товаров ({Path(file_path).name}): "
                         f"{i + 1} из {len(goods_data)}"
@@ -525,7 +525,7 @@ class Command(BaseCommand):
                     base_dir=base_dir,
                     skip_images=skip_images,
                 )
-                if (i + 1) % 100 == 0:
+                if (i + 1) % 20 == 0:
                     processor.log_progress(
                         f"Обработка вариантов ({Path(file_path).name}): "
                         f"{i + 1} из {len(offers_data)}"
@@ -571,7 +571,7 @@ class Command(BaseCommand):
                 tqdm(prices_data, desc=f"   Обработка {Path(file_path).name}")
             ):
                 processor.update_variant_prices(price_item)
-                if (i + 1) % 100 == 0:
+                if (i + 1) % 20 == 0:
                     processor.log_progress(
                         f"Обновление цен ({Path(file_path).name}): "
                         f"{i + 1} из {len(prices_data)}"
@@ -609,7 +609,7 @@ class Command(BaseCommand):
                 tqdm(rests_data, desc=f"   Обработка {Path(file_path).name}")
             ):
                 processor.update_variant_stock(rest_item)
-                if (i + 1) % 100 == 0:
+                if (i + 1) % 20 == 0:
                     processor.log_progress(
                         f"Обновление остатков ({Path(file_path).name}): "
                         f"{i + 1} из {len(rests_data)}"
