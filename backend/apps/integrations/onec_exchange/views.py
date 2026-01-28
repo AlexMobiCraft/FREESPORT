@@ -190,6 +190,77 @@ class ICExchangeView(APIView):
             session.save(update_fields=['report'])
             return HttpResponse("failure\nFile transfer error", content_type="text/plain; charset=utf-8", status=500)
 
+        # Unpack ZIP files and route to subdirectories
+        try:
+            import zipfile
+            import shutil
+            from .routing_service import XML_ROUTING_RULES
+            
+            zip_files = list(import_dir.glob("*.zip"))
+            if zip_files:
+                logger.info(f"[IMPORT] Found {len(zip_files)} ZIP files to unpack")
+                
+                for zf in zip_files:
+                    try:
+                        with zipfile.ZipFile(zf, "r") as zip_ref:
+                            zip_ref.extractall(import_dir)
+                            unpacked_files = zip_ref.namelist()
+                        
+                        logger.info(f"[IMPORT] Unpacked: {zf.name} ({len(unpacked_files)} files)")
+                        
+                        # Route unpacked files to subdirectories
+                        routed_count = 0
+                        for unpacked_name in unpacked_files:
+                            file_path = import_dir / unpacked_name
+                            if not file_path.exists() or not file_path.is_file():
+                                continue
+                            
+                            name_lower = unpacked_name.lower()
+                            suffix = file_path.suffix.lower()
+                            target_subdir = None
+                            
+                            if suffix == ".xml":
+                                # Sort by prefix length descending for specific matching
+                                sorted_rules = sorted(XML_ROUTING_RULES.items(), key=lambda x: len(x[0]), reverse=True)
+                                for prefix, subdir in sorted_rules:
+                                    if name_lower.startswith(prefix):
+                                        target_subdir = subdir.rstrip("/")
+                                        break
+                            elif suffix in {".jpg", ".jpeg", ".png", ".gif", ".webp"}:
+                                if name_lower.startswith("import_files/"):
+                                    target_subdir = "goods"
+                                else:
+                                    target_subdir = "goods/import_files"
+                            
+                            if target_subdir:
+                                dest_dir = import_dir / target_subdir
+                                dest_dir.mkdir(parents=True, exist_ok=True)
+                                dest_path = dest_dir / unpacked_name
+                                try:
+                                    shutil.move(str(file_path), str(dest_path))
+                                    routed_count += 1
+                                except Exception as move_err:
+                                    logger.warning(f"[IMPORT] Failed to route {unpacked_name}: {move_err}")
+                        
+                        session.report += f"[{timezone.now()}] Архив {zf.name}: {len(unpacked_files)} файлов, распределено: {routed_count}\n"
+                        
+                        # Delete ZIP after unpacking
+                        try:
+                            zf.unlink()
+                        except OSError:
+                            pass
+                            
+                    except Exception as unzip_err:
+                        logger.error(f"[IMPORT] Failed to unpack {zf.name}: {unzip_err}")
+                        session.report += f"[{timezone.now()}] Ошибка распаковки {zf.name}: {unzip_err}\n"
+                
+                session.save(update_fields=['report'])
+                
+        except Exception as e:
+            logger.error(f"[IMPORT] ZIP processing failed: {e}", exc_info=True)
+            session.report += f"[{timezone.now()}] Ошибка обработки архивов: {e}\n"
+            session.save(update_fields=['report'])
+
         # Run import SYNCHRONOUSLY so 1C gets real result
         try:
             if dry_run:
