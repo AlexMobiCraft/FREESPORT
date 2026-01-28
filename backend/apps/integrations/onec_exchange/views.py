@@ -102,7 +102,6 @@ class ICExchangeView(APIView):
         from datetime import timedelta
         from django.db import transaction
         from apps.products.models import ImportSession
-        from apps.products.tasks import process_1c_import_task
 
         sessid = self._get_exchange_identity(request)
         filename = request.query_params.get("filename", "unknown")
@@ -181,28 +180,66 @@ class ICExchangeView(APIView):
             logger.error(f"[IMPORT] File transfer failed: {e}", exc_info=True)
             session.report += f"[{timezone.now()}] ОШИБКА переноса: {e}\n"
             session.save(update_fields=['report'])
+            return HttpResponse("failure\nFile transfer error", content_type="text/plain; charset=utf-8", status=500)
 
-        # Trigger import task
+        # Run import SYNCHRONOUSLY so 1C gets real result
         try:
             if dry_run:
-                logger.info("[IMPORT] DRY RUN mode - skipping Celery task")
+                logger.info("[IMPORT] DRY RUN mode - skipping import")
                 session.report += f"[{timezone.now()}] DRY RUN: импорт пропущен\n"
-                session.save(update_fields=['report'])
+                session.status = ImportSession.ImportStatus.COMPLETED
+                session.finished_at = timezone.now()
+                session.save(update_fields=['report', 'status', 'finished_at'])
             else:
-                logger.info(f"[IMPORT] Dispatching Celery task for session_id={session.pk}")
-                task_result = process_1c_import_task.delay(session.pk, str(import_dir))
-                logger.info(f"[IMPORT] Celery task dispatched: task_id={task_result.id}")
-                session.report += f"[{timezone.now()}] Celery task: {task_result.id}\n"
-                session.save(update_fields=['report'])
+                from django.core.management import call_command
+                
+                logger.info(f"[IMPORT] Starting SYNCHRONOUS import for session_id={session.pk}")
+                session.status = ImportSession.ImportStatus.IN_PROGRESS
+                session.report += f"[{timezone.now()}] Начало синхронного импорта...\n"
+                session.save(update_fields=['status', 'report', 'updated_at'])
+                
+                # Determine file type from filename
+                file_type = "all"
+                fn_lower = filename.lower() if filename else ""
+                if fn_lower.startswith("goods") or fn_lower.startswith("import"):
+                    file_type = "goods"
+                elif fn_lower.startswith("offers"):
+                    file_type = "offers"
+                elif fn_lower.startswith("prices") or fn_lower.startswith("pricelists"):
+                    file_type = "prices"
+                elif fn_lower.startswith("rests"):
+                    file_type = "rests"
+                
+                logger.info(f"[IMPORT] Detected file_type={file_type} from filename={filename}")
+                
+                # Run import command synchronously
+                call_command(
+                    "import_products_from_1c",
+                    data_dir=str(import_dir),
+                    file_type=file_type,
+                )
+                
+                # Refresh and finalize session
+                session.refresh_from_db()
+                if session.status != ImportSession.ImportStatus.COMPLETED:
+                    session.status = ImportSession.ImportStatus.COMPLETED
+                    session.finished_at = timezone.now()
+                session.report += f"[{timezone.now()}] Импорт завершен успешно.\n"
+                session.save(update_fields=['status', 'report', 'finished_at', 'updated_at'])
+                
+                logger.info(f"[IMPORT] Import completed successfully for session_id={session.pk}")
             
-            # Mark exchange cycle complete for this session
+            # Mark exchange cycle complete
             file_service = FileStreamService(sessid)
             file_service.mark_complete()
             
         except Exception as e:
-            logger.error(f"[IMPORT] Task dispatch failed: {e}", exc_info=True)
-            session.report += f"[{timezone.now()}] ОШИБКА запуска задачи: {e}\n"
-            session.save(update_fields=['report'])
+            logger.error(f"[IMPORT] Import failed: {e}", exc_info=True)
+            session.status = ImportSession.ImportStatus.FAILED
+            session.error_message = str(e)
+            session.report += f"[{timezone.now()}] ОШИБКА импорта: {e}\n"
+            session.save(update_fields=['status', 'error_message', 'report'])
+            return HttpResponse(f"failure\n{e}", content_type="text/plain; charset=utf-8", status=500)
 
         return HttpResponse("success", content_type="text/plain; charset=utf-8")
 
