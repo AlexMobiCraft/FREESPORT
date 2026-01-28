@@ -624,9 +624,6 @@ class Command(BaseCommand):
             self.style.SUCCESS(f"   ✅ Обновлено остатков: {stats['stocks_updated']}")
         )
 
-        if not dry_run and not options.get("keep_files", False):
-            self._cleanup_files(data_dir, file_type)
-
     def _cleanup_files(self, data_dir: str, file_type: str):
         """
         Удаление обработанных файлов после успешного импорта.
