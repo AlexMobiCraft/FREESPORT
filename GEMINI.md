@@ -1,6 +1,7 @@
 # Gemini Added Memories
 
-- Communicate in Russian.
+- communication_language: Russian
+- document_output_language: Russian
 
 # Command Validation Rules
 

@@ -146,9 +146,48 @@ class TestICExchangeViewImport:
         # CRITICAL: Verify unpack_zip was NOT called in the view
         mock_file_service.unpack_zip.assert_not_called()
         
+        
         # Verify task was called with filename
         assert mock_task_delay.called
         args = mock_task_delay.call_args[0]
         assert len(args) == 3
         # args[0] is session_id, args[1] is import_path, args[2] is filename
         assert args[2] == filename
+
+    @patch('apps.integrations.onec_exchange.views.FileStreamService')
+    def test_complete_after_import_idempotency(self, mock_file_service_cls):
+        """
+        Test that mode=complete does NOT create a new session if the cycle is already marked complete.
+        This prevents the 'Loop' issue where 1C sends complete after import is done.
+        """
+        # Setup FileService mock to report is_complete() = True
+        mock_file_service = MagicMock()
+        mock_file_service.is_complete.return_value = True
+        mock_file_service_cls.return_value = mock_file_service
+
+        url = reverse('integrations:onec_exchange:exchange')
+        
+        # Create a completed session in DB to simulate past state
+        ImportSession.objects.create(
+            session_key=self.session_key,
+            status=ImportSession.ImportStatus.COMPLETED
+        )
+
+        # Make request
+        # Ensure session exists
+        s = SessionStore(session_key=self.session_key)
+        s.save()
+
+        response = self.client.get(
+            url, 
+            {'mode': 'complete', 'sessid': self.session_key}
+        )
+        
+        assert response.status_code == 200
+        assert response.content.decode() == "success"
+        
+        # CRITICAL: Should NOT create a new PENDING session
+        # We started with 1 COMPLETED session. count() should still be 1.
+        # If bug exists: count() will be 2 (one COMPLETED, one new PENDING)
+        assert ImportSession.objects.count() == 1
+        assert ImportSession.objects.first().status == ImportSession.ImportStatus.COMPLETED

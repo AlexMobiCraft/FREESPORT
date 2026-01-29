@@ -340,6 +340,18 @@ class ICExchangeView(APIView):
             logger.warning("[COMPLETE] Rejected: Missing sessid")
             return HttpResponse("failure\nMissing sessid", status=403)
 
+        # Story 3.2: 1C Loop Fix
+        # If the exchange cycle is already marked as complete (by a successful import),
+        # then this 'complete' signal is redundant/late and should be ignored 
+        # to prevent creating an empty session.
+        try:
+            file_service = FileStreamService(sessid)
+            if file_service.is_complete():
+                logger.info(f"[COMPLETE] Cycle already completed for {sessid}. Ignoring duplicate complete signal.")
+                return HttpResponse("success", content_type="text/plain; charset=utf-8")
+        except Exception as e:
+            logger.warning(f"[COMPLETE] Error checking completion status: {e}")
+
         dry_run = request.query_params.get("dry_run") == "1"
 
         with transaction.atomic():

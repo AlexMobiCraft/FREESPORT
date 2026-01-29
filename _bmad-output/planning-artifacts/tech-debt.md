@@ -71,3 +71,8 @@
     *   **Где:** `backend/apps/products/management/commands/cleanup_1c_temp.py` (To be created).
     *   **Суть:** Временные файлы в `MEDIA_ROOT/1c_temp/` после завершения импорта или при ошибке остаются на диске. Это может привести к переполнению хранилища.
     *   **Рекомендация:** Реализовать management command `cleanup_1c_temp`, который удаляет файлы старше 24 часов (TTL). Запустить через Celery Beat.
+
+14. **1C Import Protocol: Strict Session Creation:**
+    *   **Где:** `backend/apps/integrations/onec_exchange/views.py`.
+    *   **Суть:** Нарушение строгой семантики протокола обмена. Сейчас сессия создаётся "лениво" (при `import` или `complete`), вместо строгого создания при `mode=init`. Это приводит к проблемам с пустыми сессиями и требует workaround'ов.
+    *   **Рекомендация:** Переписать логику `ICExchangeView`: создавать сессию строго в `handle_init`, а в остальных методах (`file`, `import`, `complete`) только использовать существующую или возвращать ошибку, если сессии нет.

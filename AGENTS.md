@@ -1,6 +1,7 @@
 # Руководство для AI-агентов проекта FREESPORT
 
-- Communicate in Russian.
+- communication_language: Russian
+- document_output_language: Russian
 
 ## Кастомные маркеры pytest для выборочного запуска тестов
 
