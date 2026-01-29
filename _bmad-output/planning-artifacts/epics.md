@@ -1,218 +1,222 @@
 ---
-stepsCompleted: ['Define Requirements', 'Design Epics', 'Create Stories']
-inputDocuments: ['docs/prd/1c-http-exchange.md', 'docs/integrations/1c/architecture.md']
+stepsCompleted:
+  - step-01-validate-prerequisites
+  - step-02-design-epics
+  - step-03-create-stories
+  - step-04-final-validation
+inputDocuments:
+  - docs/prd/1c-order-exchange.md
+  - docs/integrations/1c/architecture.md
+  - docs/architecture-backend.md
 ---
 
-# FREESPORT - Epic Breakdown
+# FREESPORT - 1C Order Exchange - Epic Breakdown
 
 ## Overview
 
-This document provides the complete epic and story breakdown for FREESPORT, decomposing the requirements from the PRD, UX Design if it exists, and Architecture requirements into implementable stories.
+Декомпозиция требований модуля обмена заказами с 1С (двусторонний обмен: экспорт заказов, импорт статусов) в эпики и user stories.
 
 ## Requirements Inventory
 
 ### Functional Requirements
 
-FR1: (Endpoint) Реализовать единую точку входа (endpoint), например `/api/v1/integration/1c/exchange/`.
-FR2: (Authentication - checkauth) Поддержка Basic Auth (login/password). Ответ: `success`, `Cookie_Name`, `Cookie_Value`.
-FR3: (Initialization - init) Прием параметров `zip=yes/no` и `file_limit`. Ответ: `zip=zip` (если поддерживаем) и `file_limit=<bytes>`.
-FR4: (File Upload & Organization - file) Прием бинарного содержимого (chunked upload). Сборка полного файла/архива во временной директории.
-FR5: (Unpacking) Если передан ZIP-архив, он разархивируется с сохранением сложной структуры папок 1С (как описано в Architecture.md: `groups/`, `goods/` и т.д.).
-FR6: (Persistence) Перемещение файлов из временной директории в целевую `MEDIA_ROOT/1c_import/` с сохранением структуры.
-FR7: (Import Trigger - import) Запуск процессинга полученного файла (асинхронно через Celery).
-FR8: (Logging) Полное логирование запросов/ответов.
+**FR1: Экспорт заказов (Сайт -> 1С)**
+
+- FR1.1: Реализовать `mode=query` для выгрузки заказов в XML (1С запрашивает URL, получает XML)
+- FR1.2: Все новые заказы передаются одним файлом (пакетная передача)
+- FR1.3: Поддержка ZIP-сжатия (`zip=yes`) при запросе от 1С
+- FR1.4: Корневой тег XML: `<КоммерческаяИнформация>` (CommerceML 2.10)
+- FR1.5: Каждый заказ — тег `<Документ>` с `<ХозОперация>Заказ товара</ХозОперация>`
+- FR1.6: Блок `<Контрагенты>` с ИНН (поиск в 1С по ИНН или наименованию)
+- FR1.7: Блок `<Товары>` с `onec_id` для связи товаров
+- FR1.8: Подтверждение `mode=success` — помечать заказы `sent_to_1c=true` только после сигнала
+
+**FR2: Импорт статусов (1С -> Сайт)**
+
+- FR2.1: Обработка файла `orders.xml` через `mode=file` (входящий поток из 1С)
+- FR2.2: Парсинг заказов по `<Номер>` или `<Ид>`
+- FR2.3: Обновление статуса по `<ЗначениеРеквизита>` с маппингом (Отгружен→shipped, Доставлен→delivered и т.д.)
+- FR2.4: Сохранение дат оплаты/отгрузки из реквизитов
+
+**FR3: Модель данных Order**
+
+- FR3.1: Добавить поле `sent_to_1c: BooleanField` в модель Order
+- FR3.2: Добавить поле `sent_to_1c_at: DateTimeField` в модель Order
+- FR3.3: Добавить поле `status_1c: CharField` для оригинального статуса из 1С
 
 ### NonFunctional Requirements
 
-NFR1: (Iterative Dev) Разработка должна вестись **законченными, проверяемыми этапами** (Stories). Нельзя переходить дальше без верификации предыдущего шага.
-NFR2: (Performance) Обработка загрузки больших файлов (hundreds of MBs) через stream writing без переполнения памяти.
-NFR3: (Security) Доступ к эндпоинту только для пользователей с ролью `admin` или специальным пермишеном.
+- NFR1: Формат XML — строго CommerceML 2.10
+- NFR2: Кодировка UTF-8 или windows-1251 (по заголовку 1С), стандартно UTF-8
+- NFR3: Безопасность — аутентификация 1С через технического пользователя `1c_user` (Basic Auth при `mode=checkauth`), все запросы в рамках сессии
+- NFR4: Хранение файлов — XML генерируются "на лету", копии для отладки в `MEDIA_ROOT/1c_exchange/logs/`
 
 ### Additional Requirements
 
-- **Strict Folder Structure:** The system must respect the CommerceML structure (`goods/`, `offers/`, `propertiesGoods/`, etc.) during unpacking (Source: Architecture.md Appendix A).
-- **Session-Based Import:** Use `ImportSession` model for atomicity during import processing (Source: Architecture.md 2.2).
-- **Service Layer:** Logic should be split between `DataParser` and `DataProcessor` (Source: Architecture.md 2.2).
-- **Response Format:** 1C expects `text/plain` responses separated by newlines, NOT JSON (Source: PRD).
+- Service Layer паттерн: бизнес-логика в `services.py`, не во views — OrderExportService, OrderImportService должны быть сервисами
+- Celery: тяжёлые задачи (импорт) через Celery, но `mode=query` — синхронный (1С ждёт HTTP-ответ)
+- ImportSession: операции импорта оборачиваются в сессии для атомарности
+- Parser/Processor разделение: парсинг XML отделён от бизнес-логики обработки
+- Audit Trail: полное логирование всех операций импорта/экспорта
+- Idempotency: повторная обработка не должна нарушать целостность
+- Status Mapping: 6 статусов с маппингом (pending→Принят, shipped→Отгружен и т.д.)
+- Risk mitigations: обработка отсутствия ИНН, защита от дублирования заказов, ZIP для больших XML
 
 ### FR Coverage Map
 
-FR1: Epic 1 - Endpoint setup
-FR2: Epic 1 - Authentication logic
-FR3: Epic 1 - Initialization response
-FR4: Epic 2 - File upload & streaming
-FR5: Epic 2 - ZIP unpacking
-FR6: Epic 2 - Folder structure persistence
-FR7: Epic 3 - Import task triggering
-FR8: Epic 3 - Action logging
+| FR | Epic | Описание |
+|----|------|----------|
+| FR3.1, FR3.2, FR3.3 | Epic 1 | Поля модели Order для отслеживания синхронизации с 1С |
+| FR1.1 | Epic 1 | mode=query endpoint для выгрузки заказов |
+| FR1.2 | Epic 1 | Пакетная передача всех новых заказов одним файлом |
+| FR1.3 | Epic 1 | ZIP-сжатие при запросе от 1С |
+| FR1.4, FR1.5 | Epic 1 | XML структура CommerceML 2.10 (КоммерческаяИнформация, Документ) |
+| FR1.6 | Epic 1 | Контрагенты с ИНН |
+| FR1.7 | Epic 1 | Товары с onec_id |
+| FR1.8 | Epic 1 | mode=success подтверждение отправки |
+| FR2.1 | Epic 2 | Приём orders.xml через mode=file |
+| FR2.2 | Epic 2 | Парсинг заказов по Номер/Ид |
+| FR2.3 | Epic 2 | Маппинг статусов 1С → FREESPORT |
+| FR2.4 | Epic 2 | Сохранение дат оплаты/отгрузки |
 
 ## Epic List
 
-### Epic 1: 1C Transport & Authentication
-**Goal:** Enable 1C Enteprise to establish a secure connection with the platform and perform protocol initialization.
-**FRs covered:** FR1, FR2, FR3, NFR3
+### Epic 1: Экспорт заказов в 1С
 
-### Epic 2: Secure Stream Upload & Structure Handling
-**Goal:** Enable reliable transfer of large data archives and ensuring they are unpacked into the strict directory structure required by the import engine.
-**FRs covered:** FR4, FR5, FR6, NFR2
+Менеджеры 1С автоматически получают заказы покупателей с сайта через стандартный протокол обмена CommerceML 2.10. Заказы содержат данные контрагента (с ИНН), товары (с onec_id) и реквизиты. Поддерживается ZIP-сжатие и подтверждение доставки (mode=success).
 
-### Epic 3: Asynchronous Import Triggering
-**Goal:** Connect the transport layer to the business logic by triggering specific Celery tasks when import commands are received.
-**FRs covered:** FR7, FR8, NFR1
+**FRs covered:** FR3.1, FR3.2, FR3.3, FR1.1, FR1.2, FR1.3, FR1.4, FR1.5, FR1.6, FR1.7, FR1.8
+**NFRs covered:** NFR1, NFR2, NFR3, NFR4
+**Тестирование:** Unit-тесты сервисов (OrderExportService, XML-генерация) + Integration-тесты (mode=query, mode=success endpoints) по стандартам 10-testing-strategy.md
 
-## Epic 1: 1C Transport & Authentication
+#### Story 1.1: Поля модели Order для интеграции с 1С
 
-Enable 1C Enteprise to establish a secure connection with the platform and perform protocol initialization.
-
-### Story 1.1: Setup 1C Exchange Endpoint & Auth
-
-As a 1C Administrator,
-I want the website to accept connection credentials via standard protocol,
-So that I can establish a secure session for data transfer.
+As a **разработчик**,
+I want **добавить поля sent_to_1c, sent_to_1c_at, status_1c в модель Order**,
+So that **система может отслеживать статус синхронизации каждого заказа с 1С**.
 
 **Acceptance Criteria:**
 
-**Given** The Django application is running and configured with a 1C technical user
-**When** A GET request is sent to `/api/integration/1c/exchange/` with `?mode=checkauth` and valid Basic Auth headers
-**Then** The response status code should be 200 OK
-**And** The response content-type should be `text/plain`
-**And** The response body must contain exactly "success" followed by the cookie name and cookie value on separate lines
-**And** Invalid credentials should return 401 Unauthorized
+**Given** модель Order существует
+**When** применяется миграция с новыми полями
+**Then** Order имеет поля: `sent_to_1c` (BooleanField, default=False), `sent_to_1c_at` (DateTimeField, null=True), `status_1c` (CharField, max_length=50, blank=True)
+**And** поля видны в Django Admin
+**And** unit-тест проверяет дефолтные значения полей (FR3.1, FR3.2, FR3.3)
 
-### Story 1.2: Implement Init Mode Configuration
+#### Story 1.2: Сервис генерации XML заказов (OrderExportService)
 
-As a 1C Administrator,
-I want the site to report its capabilities (zip support, file limits),
-So that 1C can optimize the data packet size.
-
-**Acceptance Criteria:**
-
-**Given** An authenticated session with the 1C Exchange Endpoint
-**When** A GET request is sent with `?mode=init`
-**Then** The response should contain `zip=yes` indicating ZIP support
-**And** The response should contain `file_limit=<value>` (e.g., 100MB in bytes)
-**And** The response format must be `text/plain`
-
-**Test Cases:**
-
-| ID | Scenario | Expected Result |
-|----|----------|-----------------|
-| TC1 | Authenticated request `?mode=init` | 200 OK, `zip=yes\nfile_limit=104857600` |
-| TC2 | Unauthenticated request `?mode=init` | 401 Unauthorized |
-| TC3 | Request from user without `can_exchange_1c` permission | 403 Forbidden |
-
-## Epic 2: Secure Stream Upload & Structure Handling
-
-Enable reliable transfer of large data archives and ensuring they are unpacked into the strict directory structure required by the import engine.
-
-### Story 2.1: File Stream Upload
-
-As a System,
-I want to accept large binary files via chunked upload without consuming excessive RAM,
-So that I can receive the full 1C export archive reliably.
+As a **система интеграции**,
+I want **сервис, формирующий XML заказов в формате CommerceML 2.10**,
+So that **1С может распознать и обработать заказы с сайта**.
 
 **Acceptance Criteria:**
 
-**Given** An authenticated session and a binary file to upload
-**When** A POST request is sent to the endpoint with `?mode=file&filename=import.zip&sessid=<session_key>` and binary body
-**Then** The file content should be streamed to a temporary file in `MEDIA_ROOT/1c_temp/`
-**And** If multiple requests are sent with the same filename (chunked), the content should be appended correctly
-**And** The response should be `success` upon successful write
+**Given** существуют неотправленные заказы (sent_to_1c=False) с товарами и контрагентом
+**When** вызывается `OrderExportService.generate_xml()`
+**Then** XML содержит корневой тег `<КоммерческаяИнформация ВерсияСхемы="2.10">` (FR1.4)
+**And** каждый заказ обёрнут в `<Документ>` с `<ХозОперация>Заказ товара</ХозОперация>` (FR1.5)
+**And** блок `<Контрагенты>` содержит `<ИНН>` при наличии tax_id у пользователя, иначе тег опускается (FR1.6)
+**And** блок `<Товары>` содержит `<Ид>` с onec_id каждого товара (FR1.7)
+**And** все заказы передаются одним XML-документом (FR1.2)
+**And** XML кодирован в UTF-8 (NFR2)
+**And** unit-тесты проверяют: корректность XML-структуры, обработку заказа без ИНН, формирование нескольких заказов в одном документе
+**And** сервис реализован в `services.py` согласно Service Layer паттерну
 
-**Given** A POST request with `?mode=file&filename=X&sessid=<key>`
-**When** The `sessid` parameter does NOT match `request.session.session_key`
-**Then** The response should be 403 Forbidden with `failure\nInvalid session`
+#### Story 1.3: View-обработчики mode=query и mode=success
 
-**Given** A POST request with `?mode=file` without `sessid` parameter
-**When** The request is processed
-**Then** The response should be 403 Forbidden with `failure\nMissing sessid`
-
-**Test Cases:**
-
-| ID | Scenario | Expected Result |
-|----|----------|-----------------|
-| TC1 | Valid upload with correct sessid | 200 OK, `success` |
-| TC2 | Upload with invalid sessid | 403 Forbidden, `failure\nInvalid session` |
-| TC3 | Upload without sessid param | 403 Forbidden, `failure\nMissing sessid` |
-| TC4 | Upload 250MB as 3 chunks (100+100+50) | All chunks appended correctly |
-| TC5 | Upload interrupted at 50%, then resumed | Temp file preserved, next chunk appends |
-| TC6 | Upload started but no more chunks (timeout) | Temp file cleaned up after TTL |
-
-### Story 2.2: Zip Unpacking with Structure
-
-As a Backend Developer,
-I want the system to unpack the uploaded ZIP and distribute files into the specific folders required by the architecture,
-So that the parsing logic can find `goods.xml` in `goods/` and images in their correct paths.
+As a **1С система**,
+I want **запрашивать заказы через mode=query и подтверждать получение через mode=success**,
+So that **заказы передаются по стандартному протоколу обмена с гарантией доставки**.
 
 **Acceptance Criteria:**
 
-**Given** A fully uploaded file in the temporary directory
-**When** The filename ends with `.zip` extension (case-insensitive)
-**Then** The archive must be automatically unpacked upon upload completion
-**And** Files must be moved to `MEDIA_ROOT/1c_import/` PRESERVING the folder structure from the archive
-**And** Existing files in `1c_import/` should be cleaned up or overwritten as per policy
-**And** `goods/goods.xml` should end up at `MEDIA_ROOT/1c_import/goods/goods.xml`
+**Given** 1С аутентифицирована через существующий mode=checkauth (NFR3)
+**When** 1С отправляет GET-запрос `?type=sale&mode=query`
+**Then** ответ содержит XML со всеми заказами где sent_to_1c=False (FR1.1)
 
-**Given** A fully uploaded file with non-archive extension (e.g., `.xml`)
-**When** The upload completes
-**Then** The file should be moved to the appropriate folder in `MEDIA_ROOT/1c_import/` based on filename:
-- `goods.xml` → `1c_import/goods/goods.xml`
-- `offers.xml` → `1c_import/offers/offers.xml`
-- `prices.xml` → `1c_import/prices/prices.xml`
-- `rests.xml` → `1c_import/rests/rests.xml`
-- `groups.xml` → `1c_import/groups/groups.xml`
-- Other files → `1c_import/<filename>`
+**Given** 1С запрашивает `?type=sale&mode=query&zip=yes`
+**When** обработчик формирует ответ
+**Then** XML возвращается в ZIP-архиве с Content-Type: application/zip (FR1.3)
 
-**Test Cases (from Party Mode Review):**
+**Given** 1С успешно приняла заказы
+**When** 1С отправляет GET-запрос `?type=sale&mode=success`
+**Then** все ранее выгруженные заказы помечаются sent_to_1c=True и sent_to_1c_at=now() (FR1.8)
 
-| ID | Input | Expected Result |
-|----|-------|-----------------|
-| TC1 | `import.zip` (valid ZIP) | Unpacked to `1c_import/` with folder structure |
-| TC2 | `import.ZIP` (uppercase) | Should also unpack (case-insensitive) |
-| TC3 | `goods.xml` | Moved directly to `1c_import/goods/goods.xml` |
-| TC4 | `fake.zip` (not a valid ZIP) | Error handling, log warning, cleanup temp |
-| TC5 | Corrupted ZIP archive | Graceful failure, cleanup temp, return error |
+**And** копии XML сохраняются в `MEDIA_ROOT/1c_exchange/logs/` для отладки (NFR4)
+**And** integration-тесты: запрос mode=query возвращает валидный XML, mode=success обновляет флаги заказов, zip=yes возвращает архив
 
+#### Story 1.4: Integration-тесты полного цикла экспорта
 
-
-## Epic 3: Asynchronous Import Triggering
-
-Connect the transport layer to the business logic by triggering specific Celery tasks when import commands are received.
-
-### Story 3.1: Async Import Orchestration
-
-As a System,
-I want to trigger the import process asynchronously when 1C sends the import command,
-So that the 1C connection doesn't timeout while we process the data.
+As a **команда разработки**,
+I want **E2E тесты полного цикла экспорта заказов**,
+So that **мы уверены в корректности работы всей цепочки: создание заказа → XML-генерация → HTTP-выгрузка → подтверждение**.
 
 **Acceptance Criteria:**
 
-**Given** Files are successfully uploaded and unpacked in `MEDIA_ROOT/1c_import/`
-**When** A GET request is sent with `?mode=import&filename=<any_filename>`
-**Then** An `ImportSession` record should be created with status `pending`
-**And** A single universal Celery task `process_1c_import_task` should be dispatched
-**And** The task should analyze `1c_import/` directory and process all available files
-**And** The HTTP response should immediately return `success`
-**And** A log entry should be created recording the import start
+**Given** тестовый заказ с товарами (onec_id) и контрагентом (с ИНН и без)
+**When** выполняется полный цикл: query → парсинг XML ответа → success
+**Then** заказ помечен sent_to_1c=True
+**And** XML валиден по схеме CommerceML 2.10
+**And** тесты используют Factory Boy с `get_unique_suffix()`, маркеры `@pytest.mark.integration`, `@pytest.mark.django_db`
+**And** AAA-паттерн (Arrange/Act/Assert) во всех тестах
+**And** покрытие критических модулей >= 90%
 
-**Given** The import task completes successfully
-**Then** The `ImportSession` status should be updated to `completed`
+### Epic 2: Импорт статусов заказов из 1С
 
-**Given** The import task fails with an error
-**Then** The `ImportSession` status should be updated to `failed` with error details
-**And** Partial changes should be rolled back to maintain data consistency
+Покупатели видят актуальный статус своего заказа (обработка, отгрузка, доставка), который автоматически обновляется при получении orders.xml из 1С. Маппинг статусов: Отгружен→shipped, Доставлен→delivered, Отменен→cancelled. Сохраняются даты оплаты и отгрузки.
 
-**Test Cases:**
+**FRs covered:** FR2.1, FR2.2, FR2.3, FR2.4
+**NFRs covered:** NFR1, NFR2, NFR3
+**Тестирование:** Unit-тесты сервисов (OrderStatusImportService, XML-парсинг, маппинг статусов) + Integration-тесты (mode=file endpoint, полный цикл обновления статуса) по стандартам 10-testing-strategy.md
 
-| ID | Scenario | Expected Result |
-|----|----------|-----------------|
-| TC1 | `mode=import` with valid files in `1c_import/` | 200 success, ImportSession created, task dispatched |
-| TC2 | `mode=import` but `1c_import/` is empty | 200 success, task logs "no files to process" |
-| TC3 | Import task fails mid-process | ImportSession status = `failed`, partial rollback executed |
-| TC4 | Concurrent `mode=import` requests | Each request creates separate ImportSession |
+#### Story 2.1: Сервис импорта статусов (OrderStatusImportService)
 
-**Architecture Decision (from Party Mode Review):**
-- **Single Task Pattern:** One universal `process_1c_import_task()` analyzes `1c_import/` contents
-- The task orchestrates sub-imports based on files found (goods → offers → prices → rests)
-- **ImportSession** ensures atomicity — all changes can be rolled back on failure
-- This aligns with existing `apps/products/services/import_1c/` architecture (Source: architecture.md 2.2)
+As a **система интеграции**,
+I want **сервис, парсящий orders.xml из 1С и обновляющий статусы заказов**,
+So that **статусы заказов на сайте соответствуют актуальным данным из 1С**.
+
+**Acceptance Criteria:**
+
+**Given** XML-файл orders.xml в формате CommerceML 2.10 с тегами `<Документ>`
+**When** вызывается `OrderStatusImportService.process(xml_data)`
+**Then** заказ найден по `<Номер>` или `<Ид>` (FR2.2)
+**And** статус обновлён по маппингу: Отгружен→shipped, Доставлен→delivered, ОжидаетОбработки→processing, Отменен→cancelled (FR2.3)
+**And** оригинальный статус из 1С сохранён в поле `status_1c`
+**And** даты оплаты и отгрузки извлечены из `<ЗначениеРеквизита>` и сохранены (FR2.4)
+**And** при неизвестном статусе — логируется предупреждение, заказ не обновляется
+**And** при отсутствии заказа по ID — логируется ошибка, обработка продолжается
+**And** unit-тесты: парсинг XML, маппинг всех 6 статусов, обработка отсутствующего заказа, извлечение дат
+**And** сервис реализован в `services.py`, парсинг XML отделён от бизнес-логики (Parser/Processor)
+
+#### Story 2.2: View-обработчик mode=file для orders.xml
+
+As a **1С система**,
+I want **отправлять файл orders.xml с обновлёнными статусами через mode=file**,
+So that **статусы заказов на сайте обновляются автоматически при обработке в 1С**.
+
+**Acceptance Criteria:**
+
+**Given** 1С аутентифицирована через существующий mode=checkauth (NFR3)
+**When** 1С отправляет POST `?type=sale&mode=file&filename=orders.xml` с XML в теле запроса
+**Then** файл распознаётся как orders.xml (по filename) и маршрутизируется в OrderStatusImportService (FR2.1)
+**And** ответ: `success` при успешной обработке
+**And** обработка идемпотентна — повторная отправка того же файла не ломает данные
+**And** копия файла сохраняется в `MEDIA_ROOT/1c_exchange/logs/` для отладки (NFR4)
+**And** integration-тесты: POST с XML обновляет статус заказа в БД, повторная отправка не создаёт ошибок
+
+#### Story 2.3: Integration-тесты полного цикла импорта статусов
+
+As a **команда разработки**,
+I want **E2E тесты полного цикла: экспорт заказа → симуляция ответа 1С → импорт статуса**,
+So that **двусторонний обмен заказами с 1С работает корректно от начала до конца**.
+
+**Acceptance Criteria:**
+
+**Given** заказ экспортирован в 1С (sent_to_1c=True)
+**When** 1С отправляет orders.xml со статусом «Отгружен» для этого заказа
+**Then** статус заказа обновлён на `shipped`, `status_1c` = «Отгружен»
+**And** тест проверяет все 4 статуса маппинга (processing, shipped, delivered, cancelled)
+**And** тест проверяет извлечение дат оплаты и отгрузки
+**And** тест проверяет обработку невалидного XML (ошибка парсинга, неизвестный заказ)
+**And** Factory Boy с `get_unique_suffix()`, маркеры `@pytest.mark.integration`, `@pytest.mark.django_db`
+**And** AAA-паттерн во всех тестах
