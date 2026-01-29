@@ -299,6 +299,7 @@ class ICExchangeView(APIView):
                     "import_products_from_1c",
                     data_dir=str(import_dir),
                     file_type=file_type,
+                    import_session_id=session.pk,
                 )
                 
                 # Refresh and finalize session

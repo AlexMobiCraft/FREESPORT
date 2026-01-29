@@ -190,6 +190,7 @@ def process_1c_import_task(
         options = {
             "celery_task_id": self.request.id,
             "file_type": detected_file_type,
+            "import_session_id": session_id,
         }
         if data_dir:
             options["data_dir"] = data_dir

@@ -138,6 +138,12 @@ class Command(BaseCommand):
             action="store_true",
             help="Не удалять файлы после успешного импорта (для отладки)",
         )
+        parser.add_argument(
+            "--import-session-id",
+            type=int,
+            default=None,
+            help="ID существующей сессии ImportSession для консолидации логов.",
+        )
 
     def handle(self, *args, **options):
         """Основная логика команды"""
@@ -157,6 +163,7 @@ class Command(BaseCommand):
         skip_default_variants = options.get("skip_default_variants", False)
         variants_only = options.get("variants_only", False)
         celery_task_id = options.get("celery_task_id", None)
+        import_session_id = options.get("import_session_id", None)
 
         # --variants-only переопределяет file_type
         if variants_only:
@@ -228,6 +235,8 @@ class Command(BaseCommand):
         self.stdout.write(f"   Skip backup: {skip_backup}")
         self.stdout.write(f"   Skip images: {skip_images}")
         self.stdout.write(f"   Skip default variants: {skip_default_variants}")
+        if import_session_id:
+            self.stdout.write(f"   Import session ID: {import_session_id}")
         self.stdout.write("=" * 60)
 
         # Создание или получение существующей сессии импорта
@@ -238,12 +247,15 @@ class Command(BaseCommand):
         )
 
         session = None
-        if celery_task_id:
-            # Ищем существующую сессию по celery_task_id
+
+        # 1. Сначала пробуем по import_session_id (приоритет для консолидации)
+        if import_session_id:
             try:
-                session = ImportSession.objects.get(celery_task_id=celery_task_id)
+                session = ImportSession.objects.get(pk=import_session_id)
                 session.status = ImportSession.ImportStatus.IN_PROGRESS
-                session.save(update_fields=["status"])
+                if celery_task_id:
+                    session.celery_task_id = celery_task_id
+                session.save(update_fields=["status", "celery_task_id", "updated_at"])
                 self.stdout.write(
                     self.style.SUCCESS(
                         f"\n✅ Используется существующая сессия импорта ID: {session.pk}"
@@ -252,11 +264,25 @@ class Command(BaseCommand):
             except ImportSession.DoesNotExist:
                 self.stdout.write(
                     self.style.WARNING(
-                        f"\n⚠️ Сессия с celery_task_id={celery_task_id} не найдена, "
-                        f"создаём новую"
+                        f"\n⚠️ Сессия с id={import_session_id} не найдена."
                     )
                 )
 
+        # 2. Если не нашли, пробуем по celery_task_id
+        if session is None and celery_task_id:
+            try:
+                session = ImportSession.objects.get(celery_task_id=celery_task_id)
+                session.status = ImportSession.ImportStatus.IN_PROGRESS
+                session.save(update_fields=["status", "updated_at"])
+                self.stdout.write(
+                    self.style.SUCCESS(
+                        f"\n✅ Найдена сессия по Celery Task ID: {session.pk}"
+                    )
+                )
+            except ImportSession.DoesNotExist:
+                pass
+
+        # 3. Если всё еще нет - создаем новую
         if session is None:
             session = ImportSession.objects.create(
                 import_type=session_type,
@@ -264,7 +290,7 @@ class Command(BaseCommand):
                 celery_task_id=celery_task_id,
             )
             self.stdout.write(
-                self.style.SUCCESS(f"\n✅ Создана сессия импорта ID: {session.pk}")
+                self.style.SUCCESS(f"\n✅ Создана НОВАЯ сессия импорта ID: {session.pk}")
             )
 
         session_id = cast(int, session.pk)
