@@ -361,11 +361,12 @@ class ICExchangeView(APIView):
             ).first()
 
             if not session:
+                logger.warning(f"[COMPLETE] No PENDING session found for {sessid}. Creating NEW session.")
                 session = ImportSession.objects.create(
                     session_key=sessid,
                     status=ImportSession.ImportStatus.PENDING,
                     import_type=ImportSession.ImportType.CATALOG,
-                    report=f"[{timezone.now()}] Сессия создана по сигналу complete.\n"
+                    report=f"[{timezone.now()}] Сессия создана по сигналу complete (Fix check skipped?).\n"
                 )
                 logger.info(f"[COMPLETE] Created NEW session id={session.pk} for sessid={sessid}")
             else:

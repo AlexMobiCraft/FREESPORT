@@ -281,11 +281,16 @@ class FileStreamService:
 
     def mark_complete(self):
         """Place a marker file indicating the exchange cycle is finished."""
-        (self.session_dir / ".exchange_complete").touch()
+        marker = self.session_dir / ".exchange_complete"
+        marker.touch()
+        logger.info(f"Marked exchange complete: {marker}")
 
     def is_complete(self) -> bool:
         """Check if the previous exchange cycle was finished."""
-        return (self.session_dir / ".exchange_complete").exists()
+        marker = self.session_dir / ".exchange_complete"
+        exists = marker.exists()
+        logger.info(f"Checking is_complete for {self.session_id}: {marker} -> {exists}")
+        return exists
 
     def clear_complete(self):
         """Remove the completion marker."""
