@@ -196,11 +196,11 @@ class Order(models.Model):
     )
     sent_to_1c_at = cast(
         "datetime | None",
-        models.DateTimeField("Дата отправки в 1С", null=True, blank=True),
+        models.DateTimeField("Дата и время отправки в 1С", null=True, blank=True),
     )
     status_1c = cast(
         str,
-        models.CharField("Статус из 1С", max_length=100, blank=True, default=""),
+        models.CharField("Статус из 1С", max_length=255, blank=True, default=""),
     )
 
     # Дополнительная информация
@@ -227,19 +227,20 @@ class Order(models.Model):
             models.Index(
                 fields=["sent_to_1c", "created_at"],
                 name="idx_order_sent_to_1c_created",
+                condition=models.Q(sent_to_1c=False),
             ),
         ]
 
     def save(self, *args: Any, **kwargs: Any) -> None:
         if not self.order_number:
-            self.order_number = self.generate_order_number()
+            self.order_number = Order.generate_order_number()
         super().save(*args, **kwargs)
 
     def __str__(self) -> str:
         return f"Заказ #{self.order_number}"
 
-    @staticmethod
-    def generate_order_number() -> str:
+    @classmethod
+    def generate_order_number(cls) -> str:
         """Генерация уникального номера заказа на основе UUID"""
         return str(uuid.uuid4())
 

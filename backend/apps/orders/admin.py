@@ -47,6 +47,7 @@ class OrderAdmin(admin.ModelAdmin):
         "items_count",
         "total_amount",
         "sent_to_1c",
+        "status_1c",
         "created_at",
     ]
     list_select_related = ["user"]
@@ -105,7 +106,6 @@ class OrderAdmin(admin.ModelAdmin):
             "Интеграция с 1С",
             {
                 "fields": ("sent_to_1c", "sent_to_1c_at", "status_1c"),
-                "classes": ("collapse",),
             },
         ),
         (

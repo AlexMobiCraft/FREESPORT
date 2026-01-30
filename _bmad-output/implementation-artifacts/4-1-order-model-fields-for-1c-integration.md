@@ -51,6 +51,13 @@ So that **система может отслеживать статус синх
 - [x] [AI-Review][Medium] Use `AddIndexConcurrently` in migration 0008 (requires `atomic = False`) for zero-downtime deployment [backend/apps/orders/migrations/0008_*.py]
 - [x] [AI-Review][Low] Update `Order` model docstring to reflect new 1C fields [backend/apps/orders/models.py]
 - [x] [AI-Review][Low] Explicitly list `read_only_fields` in `OrderListSerializer` instead of using `fields` shortcut to avoid fragility [backend/apps/orders/serializers.py]
+- [x] [AI-Review][High] Increase `status_1c` max_length to 255 to prevent DataError [backend/apps/orders/models.py]
+- [x] [AI-Review][High] Add untracked files (migration 0008, tests) to git [git]
+- [x] [AI-Review][Medium] Optimize `sent_to_1c` index to be Partial Index [backend/apps/orders/models.py]
+- [x] [AI-Review][Medium] Admin: Remove `collapse` from 1C fieldset [backend/apps/orders/admin.py]
+- [x] [AI-Review][Medium] Admin: Add `status_1c` to `list_display` [backend/apps/orders/admin.py]
+- [x] [AI-Review][Low] Rename `sent_to_1c_at` verbose_name to "Дата и время отправки" [backend/apps/orders/models.py]
+- [x] [AI-Review][Low] Refactor `generate_order_number` static method call [backend/apps/orders/models.py]
 
 
 ## Dev Notes
@@ -152,10 +159,27 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 - ✅ Resolved review finding [Low]: Обновлён docstring модели Order с описанием полей интеграции с 1С
 - ✅ Resolved review finding [Low]: Явное указание read_only_fields в OrderListSerializer для избежания хрупкости
 
+**Code Review Follow-ups (2026-01-30, Session 2):**
+- ✅ Resolved review finding [High]: status_1c max_length увеличен до 255
+- ✅ Resolved review finding [High]: untracked files готовы к коммиту (миграция 0008, 0009, тесты)
+- ✅ Resolved review finding [Medium]: sent_to_1c индекс оптимизирован в Partial Index (condition=sent_to_1c=False)
+- ✅ Resolved review finding [Medium]: Убран collapse из 1С fieldset в Admin
+- ✅ Resolved review finding [Medium]: status_1c добавлен в list_display в Admin
+- ✅ Resolved review finding [Low]: sent_to_1c_at verbose_name изменён на "Дата и время отправки в 1С"
+- ✅ Resolved review finding [Low]: generate_order_number преобразован в classmethod
+- Создана миграция 0009_order_1c_fields_review_fixes.py
+
 ### File List
 
-- `backend/apps/orders/models.py` — добавлены поля sent_to_1c, sent_to_1c_at, status_1c + индекс
-- `backend/apps/orders/admin.py` — обновлён OrderAdmin (list_display, list_filter, readonly_fields, fieldsets)
+- `backend/apps/orders/models.py` — добавлены поля sent_to_1c, sent_to_1c_at, status_1c + partial index + classmethod refactor
+- `backend/apps/orders/admin.py` — обновлён OrderAdmin (list_display, list_filter, fieldsets без collapse)
 - `backend/apps/orders/serializers.py` — обновлены OrderDetailSerializer, OrderListSerializer
 - `backend/apps/orders/migrations/0008_order_sent_to_1c_order_sent_to_1c_at_order_status_1c_and_more.py` — автогенерированная миграция
-- `backend/tests/unit/test_orders_1c_fields.py` — 10 unit-тестов полей интеграции с 1С (структура по docs/architecture/10-testing-strategy.md)
+- `backend/apps/orders/migrations/0009_order_1c_fields_review_fixes.py` — миграция review fixes (max_length 255, partial index, verbose_name)
+- `backend/tests/unit/test_orders_1c_fields.py` — 10 unit-тестов полей интеграции с 1С
+
+## Change Log
+
+- 2026-01-30: Добавлены поля интеграции с 1С (sent_to_1c, sent_to_1c_at, status_1c) + миграция 0008
+- 2026-01-30: Code Review Session 1 - исправлены AC4 (editable fields), docstring, read_only_fields
+- 2026-01-30: Code Review Session 2 - все 13 review follow-ups закрыты + миграция 0009
