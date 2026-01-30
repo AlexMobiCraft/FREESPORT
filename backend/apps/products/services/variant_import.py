@@ -285,6 +285,10 @@ class VariantImportProcessor:
             "attributes_missing_mapping": 0,
         }
 
+        # Story 13.2+ Debugging: Track specific updated items
+        self.updated_products: list[str] = []
+        self.updated_variants: list[str] = []
+
         # Кэш для оптимизации поиска
         self._product_cache: dict[str, Any] = {}
         self._variant_cache: dict[str, Any] = {}
@@ -467,6 +471,7 @@ class VariantImportProcessor:
             self._import_base_images(product, goods_data["images"], base_dir)
 
         self.stats["products_updated"] += 1
+        self.updated_products.append(str(product.onec_id))
         logger.info(f"Product updated: {product.onec_id}")
         return product
 
@@ -718,6 +723,7 @@ class VariantImportProcessor:
                 self.stats["errors"] += 1
 
         self.stats["variants_updated"] += 1
+        self.updated_variants.append(str(variant.onec_id))
         logger.info(f"ProductVariant updated: {variant.onec_id}")
         return variant
 
@@ -1339,9 +1345,22 @@ class VariantImportProcessor:
         logger.error(f"{message}: {data}")
         self.stats["errors"] += 1
 
-    def get_stats(self) -> dict[str, int]:
+    def get_stats(self) -> dict[str, Any]:
         """Возвращает статистику импорта"""
-        return self.stats.copy()
+        # Limit the lists to avoid huge JSONs
+        limit = 100
+        stats = self.stats.copy()
+        
+        stats["updated_products_ids"] = self.updated_products[:limit]
+        stats["updated_variants_ids"] = self.updated_variants[:limit]
+        
+        if len(self.updated_products) > limit:
+            stats["updated_products_ids"].append(f"...and {len(self.updated_products) - limit} more")
+            
+        if len(self.updated_variants) > limit:
+            stats["updated_variants_ids"].append(f"...and {len(self.updated_variants) - limit} more")
+            
+        return stats
 
     # ========================================================================
     # Migrated methods from ProductDataProcessor (Story 27.1)
@@ -1691,6 +1710,18 @@ class VariantImportProcessor:
             session = ImportSession.objects.get(id=self.session_id)
             session.status = status
             session.finished_at = timezone.now()
+            
+            # Ensure Updated Items are saved in report_details
+            # Limit to 100 to avoid huge JSONs
+            self.stats.update({
+               "updated_products_ids": self.updated_products[:100],
+               "updated_variants_ids": self.updated_variants[:100]
+            })
+            if len(self.updated_products) > 100:
+                self.stats["updated_products_ids"].append(f"...and {len(self.updated_products) - 100} more")
+            if len(self.updated_variants) > 100:
+                 self.stats["updated_variants_ids"].append(f"...and {len(self.updated_variants) - 100} more")
+
             session.report_details = self.stats
 
             timestamp = timezone.now().strftime("%Y-%m-%d %H:%M:%S")
