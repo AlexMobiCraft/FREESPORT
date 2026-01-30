@@ -10,7 +10,8 @@ import hashlib
 import logging
 import xml.etree.ElementTree as ET
 from datetime import datetime
-from typing import TYPE_CHECKING, Iterator
+from decimal import Decimal
+from typing import TYPE_CHECKING, Iterator, Union
 
 from django.utils import timezone
 
@@ -81,7 +82,7 @@ class OrderExportService:
         yield f'ДатаФормирования="{formation_date}">\n'
         
         # Stream each order as a separate document
-        for order in orders.iterator():
+        for order in orders.iterator(chunk_size=100):
             if not self._validate_order(order):
                 continue
             document = self._create_document_element(order)
@@ -116,7 +117,7 @@ class OrderExportService:
         self._add_text_element(document, "Роль", self.ROLE)
         self._add_text_element(document, "Валюта", self.CURRENCY)
         self._add_text_element(document, "Курс", self.EXCHANGE_RATE)
-        self._add_text_element(document, "Сумма", str(order.total_amount))
+        self._add_text_element(document, "Сумма", self._format_price(order.total_amount))
         
         # Блок контрагентов
         counterparties = self._create_counterparties_element(order)
@@ -225,9 +226,9 @@ class OrderExportService:
             unit.text = self.UNIT_NAME_SHORT
             product.append(unit)
             
-            self._add_text_element(product, "ЦенаЗаЕдиницу", str(item.unit_price))
+            self._add_text_element(product, "ЦенаЗаЕдиницу", self._format_price(item.unit_price))
             self._add_text_element(product, "Количество", str(item.quantity))
-            self._add_text_element(product, "Сумма", str(item.total_price))
+            self._add_text_element(product, "Сумма", self._format_price(item.total_price))
             
             products.append(product)
         
@@ -244,6 +245,14 @@ class OrderExportService:
     def _format_datetime(self, dt: datetime) -> str:
         """Форматирование даты/времени в ISO 8601."""
         return dt.isoformat()
+
+    def _format_price(self, value: Union[Decimal, float, int]) -> str:
+        """
+        Format price with exactly 2 decimal places.
+        
+        CommerceML 2.10 expects prices in format like "1500.00", not "1500".
+        """
+        return f"{Decimal(value):.2f}"
 
     def _get_order_id(self, order: "Order") -> str:
         """

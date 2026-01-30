@@ -834,6 +834,10 @@ class TestOrderExportServiceRefactoring:
         Review Follow-up: generate_xml should delegate to generate_xml_streaming
         to avoid code duplication.
         """
+        from unittest.mock import patch
+        from django.utils import timezone as dj_timezone
+        from datetime import datetime
+        
         # Arrange
         user = UserFactory(email=f"refactor-{get_unique_suffix()}@example.com")
         variant = ProductVariantFactory(
@@ -858,12 +862,14 @@ class TestOrderExportServiceRefactoring:
             product_sku=variant.sku,
         )
 
-        # Act
+        # Act - Mock timezone.now() to ensure identical timestamps
+        fixed_time = dj_timezone.now()
         service = OrderExportService()
         queryset = Order.objects.filter(id=order.id)
         
-        regular_xml = service.generate_xml(queryset)
-        streaming_xml = "".join(service.generate_xml_streaming(queryset))
+        with patch("apps.orders.services.order_export.timezone.now", return_value=fixed_time):
+            regular_xml = service.generate_xml(queryset)
+            streaming_xml = "".join(service.generate_xml_streaming(queryset))
 
         # Assert - Both methods should produce identical XML
         assert regular_xml == streaming_xml
@@ -943,6 +949,59 @@ class TestOrderExportServiceRefactoring:
         order_ids_in_xml = {doc.find("Ид").text for doc in documents}
         expected_ids = {f"order-{order.id}" for order in orders}
         assert order_ids_in_xml == expected_ids
+
+
+@pytest.mark.unit
+@pytest.mark.django_db
+class TestOrderExportServicePricePrecision:
+    """[AI-Review] Tests for price formatting with 2-decimal precision."""
+
+    def test_prices_have_two_decimal_places(self):
+        """
+        Review Follow-up: Prices should always have 2 decimal places.
+        CommerceML expects "1500.00", not "1500".
+        """
+        # Arrange - Use integer-like prices that could lose decimal places
+        user = UserFactory(email=f"price-{get_unique_suffix()}@example.com")
+        variant = ProductVariantFactory(
+            onec_id=f"variant-price-{get_unique_suffix()}",
+            retail_price=Decimal("1500.00"),
+        )
+        order = Order.objects.create(
+            user=user,
+            total_amount=Decimal("3000"),  # No decimal places
+            delivery_address="Адрес",
+            delivery_method="courier",
+            payment_method="card",
+        )
+        OrderItem.objects.create(
+            order=order,
+            product=variant.product,
+            variant=variant,
+            quantity=2,
+            unit_price=Decimal("1500"),  # No decimal places
+            total_price=Decimal("3000"),  # No decimal places
+            product_name="Товар",
+            product_sku=variant.sku,
+        )
+
+        # Act
+        service = OrderExportService()
+        xml_str = service.generate_xml(Order.objects.filter(id=order.id))
+        root = ET.fromstring(xml_str)
+
+        # Assert - All prices should have .00 suffix
+        order_sum = root.find(".//Документ/Сумма")
+        assert order_sum is not None
+        assert order_sum.text == "3000.00"
+
+        unit_price = root.find(".//Товар/ЦенаЗаЕдиницу")
+        assert unit_price is not None
+        assert unit_price.text == "1500.00"
+
+        item_sum = root.find(".//Товар/Сумма")
+        assert item_sum is not None
+        assert item_sum.text == "3000.00"
 
 
 @pytest.mark.unit
