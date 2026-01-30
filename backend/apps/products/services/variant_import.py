@@ -1030,6 +1030,7 @@ class VariantImportProcessor:
                 fields_to_update.append("last_sync_at")
                 variant.save(update_fields=fields_to_update)
                 self.stats["prices_updated"] += 1
+                self.updated_variants.append(str(variant.onec_id))
                 return True
 
             return False
@@ -1089,6 +1090,7 @@ class VariantImportProcessor:
                 product.save(update_fields=["sync_status", "last_sync_at"])
 
             self.stats["stocks_updated"] += 1
+            self.updated_variants.append(str(variant.onec_id))
             return True
 
         except Exception as e:
