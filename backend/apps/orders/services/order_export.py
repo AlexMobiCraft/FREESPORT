@@ -54,15 +54,9 @@ class OrderExportService:
         Raises:
             No exceptions — проблемные заказы/товары пропускаются с warning.
         """
-        root = self._create_root_element()
-        
-        for order in orders:
-            if not self._validate_order(order):
-                continue
-            document = self._create_document_element(order)
-            root.append(document)
-        
-        return self._serialize_xml(root)
+        # For backward compatibility, use streaming method and concatenate
+        xml_parts = list(self.generate_xml_streaming(orders))
+        return "".join(xml_parts)
 
     def generate_xml_streaming(self, orders: "QuerySet[Order]") -> Iterator[str]:
         """
@@ -97,16 +91,11 @@ class OrderExportService:
         # Root element close tag
         yield '</КоммерческаяИнформация>'
 
-    def _create_root_element(self) -> ET.Element:
-        """Создание корневого элемента КоммерческаяИнформация."""
-        root = ET.Element("КоммерческаяИнформация")
-        root.set("ВерсияСхемы", self.SCHEMA_VERSION)
-        root.set("ДатаФормирования", self._format_datetime(timezone.now()))
-        return root
-
     def _validate_order(self, order: "Order") -> bool:
         """Валидация заказа перед генерацией XML."""
-        if not order.items.exists():
+        # Use cached items from prefetch_related to avoid N+1 queries
+        items_queryset = order.items.all()
+        if not items_queryset:
             logger.warning(f"Order {order.order_number}: no items, skipping")
             return False
         return True
@@ -142,10 +131,11 @@ class OrderExportService:
     def _create_counterparties_element(self, order: "Order") -> ET.Element:
         """Создание блока Контрагенты."""
         counterparties = ET.Element("Контрагенты")
-        counterparty = ET.Element("Контрагент")
         
         user = order.user
         if user:
+            counterparty = ET.Element("Контрагент")
+            
             # ID контрагента: onec_id → hashed email → user_id fallback
             counterparty_id = self._get_counterparty_id(user)
             if not user.onec_id:
@@ -158,30 +148,30 @@ class OrderExportService:
             # Наименование: company_name для B2B или full_name для B2C
             if user.is_b2b_user and user.company_name:
                 self._add_text_element(
-                    counterparty, "Наименование", user.company_name
+                    counterparty, "Наименование", str(user.company_name)
                 )
                 self._add_text_element(
-                    counterparty, "ПолноеНаименование", user.company_name
+                    counterparty, "ПолноеНаименование", str(user.company_name)
                 )
             else:
-                name = user.full_name or user.email or ""
+                name = str(user.full_name or user.email or "")
                 self._add_text_element(counterparty, "Наименование", name)
             
             # ИНН только если есть tax_id
             if user.tax_id:
-                self._add_text_element(counterparty, "ИНН", user.tax_id)
+                self._add_text_element(counterparty, "ИНН", str(user.tax_id))
             
             # Контакты
             contacts = ET.Element("Контакты")
             if user.email:
                 contact_email = ET.Element("Контакт")
                 self._add_text_element(contact_email, "Тип", "Почта")
-                self._add_text_element(contact_email, "Значение", user.email)
+                self._add_text_element(contact_email, "Значение", str(user.email))
                 contacts.append(contact_email)
             if user.phone:
                 contact_phone = ET.Element("Контакт")
                 self._add_text_element(contact_phone, "Тип", "Телефон")
-                self._add_text_element(contact_phone, "Значение", user.phone)
+                self._add_text_element(contact_phone, "Значение", str(user.phone))
                 contacts.append(contact_phone)
             if len(contacts) > 0:
                 counterparty.append(contacts)
@@ -190,11 +180,15 @@ class OrderExportService:
             if order.delivery_address:
                 address_reg = ET.Element("АдресРегистрации")
                 self._add_text_element(
-                    address_reg, "Представление", order.delivery_address
+                    address_reg, "Представление", str(order.delivery_address)
                 )
                 counterparty.append(address_reg)
+            
+            counterparties.append(counterparty)
+        else:
+            # Log warning for orders without user (should not happen with current filters)
+            logger.warning(f"Order {order.order_number}: no user associated, skipping counterparty")
         
-        counterparties.append(counterparty)
         return counterparties
 
     def _create_products_element(self, order: "Order") -> ET.Element:
@@ -250,11 +244,6 @@ class OrderExportService:
     def _format_datetime(self, dt: datetime) -> str:
         """Форматирование даты/времени в ISO 8601."""
         return dt.isoformat()
-
-    def _serialize_xml(self, root: ET.Element) -> str:
-        """Сериализация XML в строку с declaration."""
-        xml_str = ET.tostring(root, encoding="unicode", method="xml")
-        return f'<?xml version="1.0" encoding="UTF-8"?>\n{xml_str}'
 
     def _get_order_id(self, order: "Order") -> str:
         """

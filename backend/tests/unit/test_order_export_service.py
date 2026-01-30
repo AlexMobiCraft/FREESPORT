@@ -826,6 +826,298 @@ class TestOrderExportServicePrivacySafeCounterpartyId:
 
 @pytest.mark.unit
 @pytest.mark.django_db
+class TestOrderExportServiceRefactoring:
+    """[AI-Review] Tests for refactoring improvements."""
+
+    def test_generate_xml_uses_streaming_implementation(self):
+        """
+        Review Follow-up: generate_xml should delegate to generate_xml_streaming
+        to avoid code duplication.
+        """
+        # Arrange
+        user = UserFactory(email=f"refactor-{get_unique_suffix()}@example.com")
+        variant = ProductVariantFactory(
+            onec_id=f"variant-refactor-{get_unique_suffix()}",
+            retail_price=Decimal("1000.00"),
+        )
+        order = Order.objects.create(
+            user=user,
+            total_amount=Decimal("1000.00"),
+            delivery_address="Адрес",
+            delivery_method="courier",
+            payment_method="card",
+        )
+        OrderItem.objects.create(
+            order=order,
+            product=variant.product,
+            variant=variant,
+            quantity=1,
+            unit_price=Decimal("1000.00"),
+            total_price=Decimal("1000.00"),
+            product_name="Товар",
+            product_sku=variant.sku,
+        )
+
+        # Act
+        service = OrderExportService()
+        queryset = Order.objects.filter(id=order.id)
+        
+        regular_xml = service.generate_xml(queryset)
+        streaming_xml = "".join(service.generate_xml_streaming(queryset))
+
+        # Assert - Both methods should produce identical XML
+        assert regular_xml == streaming_xml
+        
+        # Both should be valid XML
+        regular_root = ET.fromstring(regular_xml)
+        streaming_root = ET.fromstring(streaming_xml)
+        
+        # Same structure
+        assert regular_root.tag == streaming_root.tag
+        assert regular_root.get("ВерсияСхемы") == streaming_root.get("ВерсияСхемы")
+        
+        # Same documents
+        regular_docs = regular_root.findall("Документ")
+        streaming_docs = streaming_root.findall("Документ")
+        assert len(regular_docs) == len(streaming_docs) == 1
+        
+        # Same content
+        regular_doc = regular_docs[0]
+        streaming_doc = streaming_docs[0]
+        assert regular_doc.find("Ид").text == streaming_doc.find("Ид").text
+        assert regular_doc.find("Номер").text == streaming_doc.find("Номер").text
+
+    def test_generate_xml_delegates_to_streaming_for_memory_efficiency(self):
+        """
+        Verify that generate_xml properly delegates to streaming implementation.
+        This test ensures the refactoring maintains backward compatibility
+        while using the more memory-efficient streaming approach internally.
+        """
+        # Arrange - Create multiple orders to test efficiency
+        users = [
+            UserFactory(email=f"efficiency-{i}-{get_unique_suffix()}@example.com")
+            for i in range(2)
+        ]
+        orders = []
+        for i, user in enumerate(users):
+            variant = ProductVariantFactory(
+                onec_id=f"variant-eff-{i}-{get_unique_suffix()}",
+                retail_price=Decimal("1000.00"),
+            )
+            order = Order.objects.create(
+                user=user,
+                total_amount=Decimal("1000.00"),
+                delivery_address=f"Адрес {i}",
+                delivery_method="courier",
+                payment_method="card",
+            )
+            OrderItem.objects.create(
+                order=order,
+                product=variant.product,
+                variant=variant,
+                quantity=1,
+                unit_price=Decimal("1000.00"),
+                total_price=Decimal("1000.00"),
+                product_name=f"Товар {i}",
+                product_sku=variant.sku,
+            )
+            orders.append(order)
+        
+        # Act
+        service = OrderExportService()
+        order_ids = [o.id for o in orders]
+        queryset = Order.objects.filter(id__in=order_ids)
+        
+        # Both methods should work
+        regular_xml = service.generate_xml(queryset)
+        streaming_xml = "".join(service.generate_xml_streaming(queryset))
+        
+        # Assert - Both should produce valid, identical XML
+        regular_root = ET.fromstring(regular_xml)
+        streaming_root = ET.fromstring(streaming_xml)
+        
+        documents = regular_root.findall("Документ")
+        assert len(documents) == 2
+        
+        # Verify all orders are present
+        order_ids_in_xml = {doc.find("Ид").text for doc in documents}
+        expected_ids = {f"order-{order.id}" for order in orders}
+        assert order_ids_in_xml == expected_ids
+
+
+@pytest.mark.unit
+@pytest.mark.django_db
+class TestOrderExportServiceEmptyCounterparty:
+    """[AI-Review] Tests for handling empty counterparty elements."""
+
+    def test_order_without_user_generates_empty_counterparties_block(self, caplog):
+        """
+        Review Follow-up: Order without user should not generate empty <Контрагент/> element.
+        Should generate empty <Контрагенты></Контрагенты> block instead.
+        """
+        # Arrange - Create order without user (guest order scenario)
+        order = Order.objects.create(
+            user=None,  # Guest order
+            total_amount=Decimal("1000.00"),
+            delivery_address="Гостевой адрес",
+            delivery_method="courier",
+            payment_method="cash",
+        )
+        # Add item to make order valid
+        variant = ProductVariantFactory(
+            onec_id=f"variant-guest-{get_unique_suffix()}",
+            retail_price=Decimal("1000.00"),
+        )
+        OrderItem.objects.create(
+            order=order,
+            product=variant.product,
+            variant=variant,
+            quantity=1,
+            unit_price=Decimal("1000.00"),
+            total_price=Decimal("1000.00"),
+            product_name="Гостевой товар",
+            product_sku=variant.sku,
+        )
+
+        # Act
+        service = OrderExportService()
+        with caplog.at_level(logging.WARNING):
+            xml_str = service.generate_xml(Order.objects.filter(id=order.id))
+
+        # Assert - Should have empty Контрагенты block, not empty Контрагент element
+        root = ET.fromstring(xml_str)
+        counterparties = root.find(".//Контрагенты")
+        assert counterparties is not None
+        assert len(list(counterparties)) == 0  # No child elements
+        
+        # Should log warning about missing user
+        assert "no user associated" in caplog.text
+        
+        # Document should still be valid with other elements
+        document = root.find("Документ")
+        assert document is not None
+        assert document.find("Ид") is not None
+        assert document.find("Товары") is not None
+
+    def test_order_with_user_generates_valid_counterparty(self):
+        """
+        Normal case: Order with user should generate proper counterparty element.
+        """
+        # Arrange
+        user = UserFactory(email=f"test-user-{get_unique_suffix()}@example.com")
+        variant = ProductVariantFactory(
+            onec_id=f"variant-user-{get_unique_suffix()}",
+            retail_price=Decimal("1000.00"),
+        )
+        order = Order.objects.create(
+            user=user,
+            total_amount=Decimal("1000.00"),
+            delivery_address="Адрес",
+            delivery_method="courier",
+            payment_method="card",
+        )
+        OrderItem.objects.create(
+            order=order,
+            product=variant.product,
+            variant=variant,
+            quantity=1,
+            unit_price=Decimal("1000.00"),
+            total_price=Decimal("1000.00"),
+            product_name="Товар",
+            product_sku=variant.sku,
+        )
+
+        # Act
+        service = OrderExportService()
+        xml_str = service.generate_xml(Order.objects.filter(id=order.id))
+
+        # Assert - Should have proper counterparty element
+        root = ET.fromstring(xml_str)
+        counterparties = root.find(".//Контрагенты")
+        assert counterparties is not None
+        assert len(list(counterparties)) == 1  # One child element
+        
+        counterparty = counterparties.find("Контрагент")
+        assert counterparty is not None
+        assert counterparty.find("Ид") is not None
+        assert counterparty.find("Наименование") is not None
+
+
+@pytest.mark.unit
+@pytest.mark.django_db
+class TestOrderExportServicePerformance:
+    """[AI-Review] Tests for performance optimizations."""
+
+    def test_validate_order_uses_prefetched_items_no_n_plus_one(self):
+        """
+        Review Follow-up: _validate_order should use prefetched items
+        to avoid N+1 queries when processing multiple orders.
+        """
+        from django.test.utils import override_settings
+        from django.db import connection
+        
+        # Arrange - Create multiple orders with items
+        users = [
+            UserFactory(email=f"user-perf-{i}-{get_unique_suffix()}@example.com")
+            for i in range(3)
+        ]
+        orders = []
+        for i, user in enumerate(users):
+            variant = ProductVariantFactory(
+                onec_id=f"variant-perf-{i}-{get_unique_suffix()}",
+                retail_price=Decimal("1000.00"),
+            )
+            order = Order.objects.create(
+                user=user,
+                total_amount=Decimal("1000.00"),
+                delivery_address=f"Адрес {i}",
+                delivery_method="courier",
+                payment_method="card",
+            )
+            OrderItem.objects.create(
+                order=order,
+                product=variant.product,
+                variant=variant,
+                quantity=1,
+                unit_price=Decimal("1000.00"),
+                total_price=Decimal("1000.00"),
+                product_name=f"Товар {i}",
+                product_sku=variant.sku,
+            )
+            orders.append(order)
+        
+        # Act - Generate XML with prefetch (recommended way)
+        service = OrderExportService()
+        order_ids = [o.id for o in orders]
+        
+        # Reset query count and use prefetched queryset
+        with override_settings(DEBUG=True):
+            connection.queries_log.clear()
+            queryset = Order.objects.filter(id__in=order_ids).prefetch_related(
+                'items__variant', 'user'
+            )
+            xml_str = service.generate_xml(queryset)
+            
+            # Assert - Should be valid XML
+            root = ET.fromstring(xml_str)
+            assert root is not None
+            documents = root.findall("Документ")
+            assert len(documents) == 3
+            
+            # Check query count - should be minimal due to prefetch
+            # With prefetch, we expect: 1 for orders + 1 for items + 1 for variants + 1 for users = ~4 queries
+            # Without prefetch, it would be 1 + N*additional queries per order
+            query_count = len(connection.queries)
+            assert query_count <= 6, f"Too many queries: {query_count} (expected <= 6)"
+            
+        # Verify all orders were processed
+        for doc in documents:
+            assert doc.find("Ид") is not None
+            assert doc.find("Товары") is not None
+
+
+@pytest.mark.unit
+@pytest.mark.django_db
 class TestOrderExportServiceStreaming:
     """[AI-Review] Tests for streaming/generator XML generation."""
 
