@@ -28,7 +28,12 @@ class Order(models.Model):
     """Модель заказа.
 
     Хранит ключевые сведения о заказе, покупателе и оплате и используется как в B2C,
-    так и в B2B-сценариях."""
+    так и в B2B-сценариях.
+    
+    Поля интеграции с 1С:
+    - sent_to_1c: флаг отправки заказа в 1С
+    - sent_to_1c_at: дата/время отправки в 1С
+    - status_1c: оригинальный статус из 1С"""
 
     objects = models.Manager()
 
@@ -50,6 +55,9 @@ class Order(models.Model):
         payment_method: str
         payment_status: str
         payment_id: str
+        sent_to_1c: bool
+        sent_to_1c_at: datetime | None
+        status_1c: str
         notes: str
         created_at: datetime
         updated_at: datetime
@@ -181,6 +189,20 @@ class Order(models.Model):
         str, models.CharField("ID платежа (ЮKassa)", max_length=100, blank=True)
     )
 
+    # Интеграция с 1С
+    sent_to_1c = cast(
+        bool,
+        models.BooleanField("Отправлен в 1С", default=False),
+    )
+    sent_to_1c_at = cast(
+        "datetime | None",
+        models.DateTimeField("Дата отправки в 1С", null=True, blank=True),
+    )
+    status_1c = cast(
+        str,
+        models.CharField("Статус из 1С", max_length=100, blank=True, default=""),
+    )
+
     # Дополнительная информация
     notes = cast(str, models.TextField("Комментарии к заказу", blank=True))
 
@@ -202,6 +224,10 @@ class Order(models.Model):
             models.Index(fields=["status", "created_at"]),
             models.Index(fields=["order_number"]),
             models.Index(fields=["payment_status"]),
+            models.Index(
+                fields=["sent_to_1c", "created_at"],
+                name="idx_order_sent_to_1c_created",
+            ),
         ]
 
     def save(self, *args: Any, **kwargs: Any) -> None:

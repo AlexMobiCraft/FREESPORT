@@ -82,6 +82,9 @@ class OrderDetailSerializer(serializers.ModelSerializer):
             "payment_status",
             "payment_id",
             "notes",
+            "sent_to_1c",
+            "sent_to_1c_at",
+            "status_1c",
             "created_at",
             "updated_at",
             "items",
@@ -102,6 +105,9 @@ class OrderDetailSerializer(serializers.ModelSerializer):
             "total_items",
             "calculated_total",
             "can_be_cancelled",
+            "sent_to_1c",
+            "sent_to_1c_at",
+            "status_1c",
         ]
 
 
@@ -334,7 +340,21 @@ class OrderListSerializer(serializers.ModelSerializer):
             "delivery_method",
             "payment_method",
             "payment_status",
+            "sent_to_1c",
             "created_at",
             "total_items",
         ]
-        read_only_fields = fields
+        read_only_fields = [
+            "id",
+            "user",
+            "order_number",
+            "customer_display_name",
+            "status",
+            "total_amount",
+            "delivery_method",
+            "payment_method",
+            "payment_status",
+            "sent_to_1c",
+            "created_at",
+            "total_items",
+        ]

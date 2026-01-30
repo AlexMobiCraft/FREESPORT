@@ -46,10 +46,11 @@ class OrderAdmin(admin.ModelAdmin):
         "payment_status_display",
         "items_count",
         "total_amount",
+        "sent_to_1c",
         "created_at",
     ]
     list_select_related = ["user"]
-    list_filter = ["status", "payment_status", "delivery_method", "created_at"]
+    list_filter = ["status", "payment_status", "delivery_method", "sent_to_1c", "created_at"]
     search_fields = [
         "order_number",
         "user__email",
@@ -99,6 +100,13 @@ class OrderAdmin(admin.ModelAdmin):
         (
             "Оплата",
             {"fields": ("payment_method", "payment_status", "payment_id")},
+        ),
+        (
+            "Интеграция с 1С",
+            {
+                "fields": ("sent_to_1c", "sent_to_1c_at", "status_1c"),
+                "classes": ("collapse",),
+            },
         ),
         (
             "Дополнительная информация",
