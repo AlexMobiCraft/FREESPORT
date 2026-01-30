@@ -74,7 +74,7 @@ development_status:
   # Source: epics.md (1C Order Exchange)
   # ========================================
   epic-4: in-progress
-  4-1-order-model-fields-for-1c-integration: review
+  4-1-order-model-fields-for-1c-integration: done
   4-2-order-export-service-xml-generation: ready-for-dev
   4-3-view-handlers-mode-query-and-mode-success: backlog
   4-4-integration-tests-full-export-cycle: backlog

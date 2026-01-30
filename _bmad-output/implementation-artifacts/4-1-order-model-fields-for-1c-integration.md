@@ -1,6 +1,6 @@
 # Story 4.1: Поля модели Order для интеграции с 1С
 
-Status: review
+Status: done
 
 ## Story
 
