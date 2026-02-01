@@ -21,11 +21,13 @@ from .routing_service import FileRoutingService
 
 logger = logging.getLogger(__name__)
 
+EXCHANGE_LOG_SUBDIR = "1c_exchange/logs"
+
 
 def _save_exchange_log(filename: str, content, is_binary: bool = False) -> None:
     """Save a copy of exchange output to MEDIA_ROOT/1c_exchange/logs/ for audit."""
     try:
-        log_dir = Path(settings.MEDIA_ROOT) / "1c_exchange" / "logs"
+        log_dir = Path(settings.MEDIA_ROOT) / EXCHANGE_LOG_SUBDIR
         log_dir.mkdir(parents=True, exist_ok=True)
         timestamp = timezone.now().strftime("%Y%m%d_%H%M%S")
         filepath = log_dir / f"{timestamp}_{filename}"
@@ -126,7 +128,6 @@ class ICExchangeView(APIView):
         the actual import processing.
         """
         from datetime import timedelta
-        from django.db import transaction
         from apps.products.models import ImportSession
 
         sessid = self._get_exchange_identity(request)
@@ -218,7 +219,6 @@ class ICExchangeView(APIView):
 
         # Unpack ZIP files and route to subdirectories
         try:
-            import zipfile
             import shutil
             from .routing_service import XML_ROUTING_RULES
             
@@ -353,7 +353,6 @@ class ICExchangeView(APIView):
         """
         Signal from 1C that all files for the current cycle are uploaded.
         """
-        from django.db import transaction
         from apps.products.models import ImportSession
         from apps.products.tasks import process_1c_import_task
 
@@ -533,7 +532,6 @@ class ICExchangeView(APIView):
         Returns XML (or ZIP) with pending orders for 1C.
         """
         query_time = timezone.now()
-        request.session["last_1c_query_time"] = query_time.isoformat()
 
         orders = (
             Order.objects.filter(
@@ -546,7 +544,11 @@ class ICExchangeView(APIView):
         )
 
         service = OrderExportService()
-        xml_content = service.generate_xml(orders)
+        xml_content, exported_ids = service.generate_xml_with_ids(orders)
+
+        # Store session state AFTER successful XML generation (not before)
+        request.session["last_1c_query_time"] = query_time.isoformat()
+        request.session["last_1c_exported_order_ids"] = exported_ids
 
         use_zip = request.query_params.get("zip", "").lower() == "yes"
 
@@ -566,39 +568,44 @@ class ICExchangeView(APIView):
     def handle_success(self, request):
         """
         Handle order export confirmation (mode=success).
-        Marks orders that were returned in the last query as sent_to_1c=True.
-        Uses session timestamp to prevent race conditions.
+        Marks ONLY orders that were actually exported in the last query as sent_to_1c=True.
+        Uses exported_order_ids from session to ensure data integrity.
         """
         last_query_iso = request.session.get("last_1c_query_time")
+        exported_ids = request.session.get("last_1c_exported_order_ids")
 
         if not last_query_iso:
             logger.warning(
                 "[EXPORT SUCCESS] No last_1c_query_time in session — "
-                "cannot determine which orders to mark. Skipping update."
+                "cannot determine which orders to mark. Returning failure."
             )
-            return HttpResponse("success", content_type="text/plain; charset=utf-8")
+            return HttpResponse(
+                "failure\nNo prior query timestamp in session",
+                content_type="text/plain; charset=utf-8",
+                status=400,
+            )
 
-        from django.utils.dateparse import parse_datetime
-
-        query_time = parse_datetime(last_query_iso)
-        if query_time is None:
-            logger.error(f"[EXPORT SUCCESS] Invalid timestamp in session: {last_query_iso}")
+        if not exported_ids:
+            logger.info("[EXPORT SUCCESS] No orders were exported in last query — nothing to mark.")
+            # Clean up session state
+            del request.session["last_1c_query_time"]
+            request.session.pop("last_1c_exported_order_ids", None)
             return HttpResponse("success", content_type="text/plain; charset=utf-8")
 
         with transaction.atomic():
             updated = Order.objects.filter(
+                pk__in=exported_ids,
                 sent_to_1c=False,
-                created_at__lte=query_time,
-                user__isnull=False,
             ).update(
                 sent_to_1c=True,
                 sent_to_1c_at=timezone.now(),
             )
 
-        logger.info(f"[EXPORT SUCCESS] Marked {updated} orders as sent_to_1c")
+        logger.info(f"[EXPORT SUCCESS] Marked {updated} orders as sent_to_1c (of {len(exported_ids)} exported)")
 
-        # Clear the session timestamp to prevent double-processing
+        # Clear the session state to prevent double-processing
         del request.session["last_1c_query_time"]
+        del request.session["last_1c_exported_order_ids"]
 
         return HttpResponse("success", content_type="text/plain; charset=utf-8")
 

@@ -275,12 +275,13 @@ class TestModeSuccess:
     def test_mode_success_without_prior_query(
         self, authenticated_client, order_for_export, log_dir
     ):
-        """AC5: success without prior query should not update orders (race condition protection)."""
+        """AC5: success without prior query returns failure and does not update orders."""
         response = authenticated_client.get(
             "/api/integration/1c/exchange/",
             data={"mode": "success"},
         )
-        assert response.status_code == 200
+        assert response.status_code == 400
+        assert "failure" in response.content.decode("utf-8")
         order_for_export.refresh_from_db()
         assert order_for_export.sent_to_1c is False
 
@@ -322,6 +323,38 @@ class TestModeSuccess:
         new_order.refresh_from_db()
         assert order_for_export.sent_to_1c is True
         assert new_order.sent_to_1c is False  # Must NOT be marked
+
+    def test_mode_success_does_not_mark_skipped_orders(
+        self, authenticated_client, customer_user, log_dir
+    ):
+        """CRITICAL: Orders skipped by OrderExportService validation (no items)
+        must NOT be marked as sent_to_1c in handle_success."""
+        # Create an order WITHOUT items — will be skipped by _validate_order
+        empty_order = Order.objects.create(
+            user=customer_user,
+            order_number="FS-EMPTY-001",
+            total_amount=0,
+            sent_to_1c=False,
+            delivery_address="ул. Пустая, 0",
+            delivery_method="pickup",
+            payment_method="card",
+        )
+        # Query — empty_order is in timeframe but has no items
+        response = authenticated_client.get(
+            "/api/integration/1c/exchange/",
+            data={"mode": "query"},
+        )
+        assert response.status_code == 200
+        content = response.content.decode("utf-8")
+        assert "FS-EMPTY-001" not in content  # Not in XML
+
+        # Success
+        authenticated_client.get(
+            "/api/integration/1c/exchange/",
+            data={"mode": "success"},
+        )
+        empty_order.refresh_from_db()
+        assert empty_order.sent_to_1c is False  # Must NOT be marked
 
 
 # ============================================================

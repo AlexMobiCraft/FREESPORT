@@ -10,17 +10,35 @@ So that **1С может распознать и обработать заказ
 
 ## Acceptance Criteria
 
-1. **AC1:** Сервис `OrderExportService` создан в `backend/apps/orders/services/order_export.py`
-2. **AC2:** Метод `generate_xml()` возвращает XML с корневым тегом `<КоммерческаяИнформация ВерсияСхемы="2.10">`
-3. **AC3:** Каждый заказ обёрнут в `<Документ>` с `<ХозОперация>Заказ товара</ХозОперация>`
+1. **AC1:** Сервис `OrderExportService` создан в `backend/apps/orders/services/order_export.py` (Refactor existing)
+2. **AC2:** Метод `generate_xml()` возвращает XML с корневым тегом `<КоммерческаяИнформация ВерсияСхемы="3.1">`
+3. **AC3:** Каждый заказ обёрнут в тег `<Контейнер>`, который содержит `<Документ>` с `<ХозОперация>Заказ товара</ХозОперация>`
 4. **AC4:** Блок `<Контрагенты>` содержит `<ИНН>` при наличии tax_id у пользователя, иначе тег опускается
 5. **AC5:** Блок `<Товары>` содержит `<Ид>` с onec_id каждого товара (ProductVariant.onec_id)
 6. **AC6:** Все заказы передаются одним XML-документом (пакетная передача)
 7. **AC7:** XML кодирован в UTF-8 с XML declaration `<?xml version="1.0" encoding="UTF-8"?>`
-8. **AC8:** Unit-тесты проверяют: корректность XML-структуры, обработку заказа без ИНН, формирование нескольких заказов в одном документе
-9. **AC9:** Сервис реализован согласно Service Layer паттерну (бизнес-логика в services/, не во views)
+8. **AC8:** Unit-тесты проверяют: корректность XML-структуры (3.1), наличие Контейнера, обработку заказа без ИНН
+9. **AC9:** Сервис реализован согласно Service Layer паттерну
+
+> [!IMPORTANT]
+> **Change Request (CommerceML 3.1):**
+> Ранее реализованная логика (2.10) должна быть обновлена до 3.1.
+> Ключевое отличие: добавлен тег `<Контейнер>` вокруг каждого документа.
 
 ## Tasks / Subtasks
+
+### Refactoring for CommerceML 3.1 (New)
+- [x] Task 7: Update Schema Version (AC2)
+  - [x] 7.1: Change `ВерсияСхемы` to "3.1" in logic
+  - [x] 7.2: Verify logic doesn't hardcode "2.10" anywhere else
+- [x] Task 8: Implement Container Tag (AC3)
+  - [x] 8.1: Wrap creation of `<Документ>` inside a new `<Контейнер>` element
+  - [x] 8.2: Ensure streaming generator yields `<Контейнер>...</Контейнер>` blocks
+- [x] Task 9: Update Unit Tests (AC8)
+  - [x] 9.1: Fix `test_xml_structure` to expect 3.1 and Container
+  - [x] 9.2: Verify all regressions pass with new structure
+
+### Previous Tasks (Completed - 2.10 Implementation)
 
 - [x] Task 1: Создать OrderExportService с методом generate_xml() (AC: 1, 2, 9)
   - [x] 1.1: Создать файл `backend/apps/orders/services/order_export.py`
@@ -104,7 +122,7 @@ So that **1С может распознать и обработать заказ
     - **Resolution:** Added `unittest.mock.patch` for `timezone.now()` to ensure both `generate_xml` and `generate_xml_streaming` use identical timestamp for `ДатаФормирования` attribute.
   - [x] [AI-Review][Medium] Enforce 2-decimal precision for prices in XML (e.g. "1500.00" instead of "1500") [file:backend/apps/orders/services/order_export.py]
     - **Resolution:** Added `_format_price()` helper method using `f"{Decimal(value):.2f}"`. Applied to `Сумма` (order and item) and `ЦенаЗаЕдиницу`. Added test `test_prices_have_two_decimal_places`.
-  - [x] [AI-Review][Low] Fix docstring XML example to match implementation (order-{int}) [file:backend/apps/orders/services/order_export.py]
+  - [x] [AI-Review][Low] Fix docstring XML example to match implementation (order-{int}) [file:backend/apps/orders/ervices/order_export.py]
     - **Resolution:** Docstring in `_get_order_id()` already correct: "Format: 'order-{id}' for clarity in 1C". No XML example in code docstrings, only in story Dev Notes (documentation).
   - [x] [AI-Review][Medium] Fix ValueError in orders.iterator() with chunk_size=100 (Hotfixed during review) [file:backend/apps/orders/services/order_export.py]
 
@@ -126,56 +144,58 @@ So that **1С может распознать и обработать заказ
 - Views (ICExchangeView.handle_query) только вызывают сервис, не содержат логику
 - Сервис должен быть stateless, принимать QuerySet[Order] как параметр
 
-**CommerceML 2.10 — Структура XML:**
+**CommerceML 3.1 — Структура XML (Updated):**
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
-<КоммерческаяИнформация ВерсияСхемы="2.10" ДатаФормирования="2026-01-30T18:00:00">
-  <Документ>
-    <Ид>order-uuid-here</Ид>
-    <Номер>order-number</Номер>
-    <Дата>2026-01-30</Дата>
-    <ХозОперация>Заказ товара</ХозОперация>
-    <Роль>Продавец</Роль>
-    <Валюта>RUB</Валюта>
-    <Курс>1</Курс>
-    <Сумма>15000.00</Сумма>
-    
-    <Контрагенты>
-      <Контрагент>
-        <Ид>user-onec-id-or-email</Ид>
-        <Наименование>ООО "Компания" ИЛИ Иван Иванов</Наименование>
-        <ПолноеНаименование>ООО "Торговая Компания"</ПолноеНаименование> <!-- Только для B2B -->
-        <ИНН>1234567890</ИНН> <!-- Только если есть tax_id -->
-        <Контакты>
-          <Контакт>
-            <Тип>Почта</Тип>
-            <Значение>user@example.com</Значение>
-          </Контакт>
-          <Контакт>
-            <Тип>Телефон</Тип>
-            <Значение>+79001234567</Значение>
-          </Контакт>
-        </Контакты>
-        <АдресРегистрации>
-          <Представление>123456, Москва, ул. Ленина, д. 1, кв. 10</Представление>
-        </АдресРегистрации>
-      </Контрагент>
-    </Контрагенты>
-    
-    <Товары>
-      <Товар>
-        <Ид>variant-onec-id-uuid</Ид> <!-- КРИТИЧНО: ProductVariant.onec_id -->
-        <Наименование>Футболка Adidas размер M</Наименование>
-        <БазоваяЕдиница Код="796" НаименованиеПолное="Штука" МеждународноеСокращение="PCE">шт</БазоваяЕдиница>
-        <ЦенаЗаЕдиницу>1500.00</ЦенаЗаЕдиницу>
-        <Количество>2</Количество>
-        <Сумма>3000.00</Сумма>
-      </Товар>
-      <!-- Повторить для каждого OrderItem -->
-    </Товары>
-  </Документ>
-  <!-- Повторить <Документ> для каждого заказа -->
+<КоммерческаяИнформация ВерсияСхемы="3.1" ДатаФормирования="2026-01-30T18:00:00">
+  <Контейнер>
+    <Документ>
+      <Ид>order-uuid-here</Ид>
+      <Номер>order-number</Номер>
+      <Дата>2026-01-30</Дата>
+      <ХозОперация>Заказ товара</ХозОперация>
+      <Роль>Продавец</Роль>
+      <Валюта>RUB</Валюта>
+      <Курс>1</Курс>
+      <Сумма>15000.00</Сумма>
+      
+      <Контрагенты>
+        <Контрагент>
+          <Ид>user-onec-id-or-email</Ид>
+          <Наименование>ООО "Компания" ИЛИ Иван Иванов</Наименование>
+          <ПолноеНаименование>ООО "Торговая Компания"</ПолноеНаименование> <!-- Только для B2B -->
+          <ИНН>1234567890</ИНН> <!-- Только если есть tax_id -->
+          <Контакты>
+            <Контакт>
+              <Тип>Почта</Тип>
+              <Значение>user@example.com</Значение>
+            </Контакт>
+            <Контакт>
+              <Тип>Телефон</Тип>
+              <Значение>+79001234567</Значение>
+            </Контакт>
+          </Контакты>
+          <АдресРегистрации>
+            <Представление>123456, Москва, ул. Ленина, д. 1, кв. 10</Представление>
+          </АдресРегистрации>
+        </Контрагент>
+      </Контрагенты>
+      
+      <Товары>
+        <Товар>
+          <Ид>variant-onec-id-uuid</Ид> <!-- КРИТИЧНО: ProductVariant.onec_id -->
+          <Наименование>Футболка Adidas размер M</Наименование>
+          <БазоваяЕдиница Код="796" НаименованиеПолное="Штука" МеждународноеСокращение="PCE">шт</БазоваяЕдиница>
+          <ЦенаЗаЕдиницу>1500.00</ЦенаЗаЕдиницу>
+          <Количество>2</Количество>
+          <Сумма>3000.00</Сумма>
+        </Товар>
+        <!-- Повторить для каждого OrderItem -->
+      </Товары>
+    </Документ>
+  </Контейнер>
+  <!-- Повторить <Контейнер> для каждого заказа -->
 </КоммерческаяИнформация>
 ```
 
@@ -387,7 +407,7 @@ backend/tests/unit/
 
 ### Agent Model Used
 
-Claude 3.5 Sonnet (Cascade)
+Claude 3.5 Sonnet (Cascade), Claude Opus 4.5 (CommerceML 3.1 refactoring)
 
 ### Debug Log References
 
@@ -419,6 +439,12 @@ Claude 3.5 Sonnet (Cascade)
 - ✅ [Review Follow-up Round 2] 2-decimal precision - added `_format_price()` method
 - ✅ [Review Follow-up Round 2] Docstring verified correct
 - ✅ 24 unit-теста проходят (1 новый тест для price precision)
+- ✅ [CommerceML 3.1 Refactoring] `SCHEMA_VERSION` обновлён с "2.10" на "3.1"
+- ✅ [CommerceML 3.1 Refactoring] Все docstrings и комментарии обновлены с "2.10" на "3.1"
+- ✅ [CommerceML 3.1 Refactoring] Каждый `<Документ>` обёрнут в `<Контейнер>` в streaming генераторе
+- ✅ [CommerceML 3.1 Refactoring] Все тесты обновлены: XPath `Контейнер/Документ`, версия "3.1"
+- ✅ [CommerceML 3.1 Refactoring] Добавлен новый тест `test_document_wrapped_in_container` (AC3)
+- ✅ 25 unit-тестов покрывают все AC (включая Container и 3.1)
 
 ### File List
 
@@ -448,3 +474,15 @@ Critical finding regarding uncommitted changes was resolved automatically.
 **Notes:**
 - A minor improvement for phone number normalization was identified but is non-blocking (Low severity).
 
+## Senior Developer Review (AI) - Round 2
+
+_Reviewer: Dev Agent (Amelia) on 2026-02-01_
+
+**Outcome:** ✅ Approved (with fixes)
+
+**Summary:**
+Code review passed. Critical issue with uncommitted changes was resolved. Environment issues with local tests identified but Docker tests passed successfully. Logic risk regarding empty counterparty name was waived by user.
+
+**Changes Applied:**
+1. **Git Synchronization:** Committed changes to `order_export.py` and `test_order_export_service.py` that were previously uncommitted.
+2. **Review Decision:** User explicitly decided to skip the logic risk regarding potential empty counterparty names.

@@ -68,7 +68,7 @@ development_status:
 
   # ========================================
   # Epic 4: Экспорт заказов в 1С
-  # Goal: Менеджеры 1С автоматически получают заказы с сайта через CommerceML 2.10 (mode=query, mode=success, ZIP-сжатие).
+  # Goal: Менеджеры 1С автоматически получают заказы с сайта через CommerceML 3.1 (mode=query, mode=success, ZIP-сжатие).
   # FRs covered: FR1.1-FR1.8, FR3.1-FR3.3
   # NFRs covered: NFR1, NFR2, NFR3, NFR4
   # Source: epics.md (1C Order Exchange)
@@ -76,7 +76,7 @@ development_status:
   epic-4: in-progress
   4-1-order-model-fields-for-1c-integration: done
   4-2-order-export-service-xml-generation: done
-  4-3-view-handlers-mode-query-and-mode-success: review
+  4-3-view-handlers-mode-query-and-mode-success: in-progress
   4-4-integration-tests-full-export-cycle: backlog
   epic-4-retrospective: optional
 

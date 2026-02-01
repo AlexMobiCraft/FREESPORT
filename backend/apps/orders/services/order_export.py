@@ -44,43 +44,63 @@ class OrderExportService:
     def generate_xml(self, orders: "QuerySet[Order]") -> str:
         """
         Generate CommerceML 3.1 XML for orders export to 1C.
-        
+
         Args:
             orders: QuerySet with prefetch_related('items__variant', 'user').
                     Must exclude guest orders (user__isnull=False).
-        
+
         Returns:
             UTF-8 encoded XML string with declaration.
-        
+
         Raises:
             No exceptions — проблемные заказы/товары пропускаются с warning.
         """
-        # For backward compatibility, use streaming method and concatenate
         xml_parts = list(self.generate_xml_streaming(orders))
         return "".join(xml_parts)
 
-    def generate_xml_streaming(self, orders: "QuerySet[Order]") -> Iterator[str]:
+    def generate_xml_with_ids(self, orders: "QuerySet[Order]") -> tuple[str, list[int]]:
+        """
+        Generate CommerceML 3.1 XML and return list of actually exported order PKs.
+
+        Same as generate_xml but additionally tracks which orders passed validation
+        and were included in the XML output. Used by handle_query/handle_success
+        to ensure only exported orders are marked as sent_to_1c.
+
+        Returns:
+            Tuple of (UTF-8 encoded XML string, list of exported order PKs).
+        """
+        exported_ids: list[int] = []
+        xml_parts = list(self.generate_xml_streaming(orders, exported_ids))
+        return "".join(xml_parts), exported_ids
+
+    def generate_xml_streaming(
+        self,
+        orders: "QuerySet[Order]",
+        exported_ids: list[int] | None = None,
+    ) -> Iterator[str]:
         """
         Generate CommerceML 3.1 XML using streaming/generator approach.
-        
+
         Suitable for large datasets where memory efficiency is critical.
         Yields XML fragments that should be concatenated by the caller.
-        
+
         Args:
             orders: QuerySet with prefetch_related('items__variant', 'user').
                     Must exclude guest orders (user__isnull=False).
-        
+            exported_ids: Optional list to append exported order PKs to.
+                         Allows callers to know exactly which orders were included.
+
         Yields:
             XML string fragments (declaration, root open, documents, root close).
         """
         # XML declaration
         yield '<?xml version="1.0" encoding="UTF-8"?>\n'
-        
+
         # Root element open tag with attributes
         formation_date = self._format_datetime(timezone.now())
         yield f'<КоммерческаяИнформация ВерсияСхемы="{self.SCHEMA_VERSION}" '
         yield f'ДатаФормирования="{formation_date}">\n'
-        
+
         # Stream each order as a Container with Document inside
         for order in orders.iterator(chunk_size=100):
             if not self._validate_order(order):
@@ -90,7 +110,9 @@ class OrderExportService:
             container.append(document)
             yield ET.tostring(container, encoding="unicode", method="xml")
             yield "\n"
-        
+            if exported_ids is not None:
+                exported_ids.append(order.pk)
+
         # Root element close tag
         yield '</КоммерческаяИнформация>'
 

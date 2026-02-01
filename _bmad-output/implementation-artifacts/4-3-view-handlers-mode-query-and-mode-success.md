@@ -1,6 +1,6 @@
 # Story 4.3: View-обработчики mode=query и mode=success
 
-Status: review
+Status: in-progress
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -58,15 +58,30 @@ So that **заказы передаются по стандартному про
   - [x] 4.4: Тест `test_audit_logging`: Проверить, что файлы сохраняются в `media/1c_exchange/logs`.
   - [x] 4.5: Использовать `APIClient` и фикстуры.
 
+### Review Follow-ups (AI)
+
+- [x] [AI-Review][CRITICAL] Silent failure in handle_success: returns success but updates nothing if local session time missing. backend/apps/integrations/onec_exchange/views.py
+- [x] [AI-Review][MEDIUM] Duplicate imports (transaction, zipfile, logging) inside methods. backend/apps/integrations/onec_exchange/views.py
+- [x] [AI-Review][LOW] Hardcoded log path string '1c_exchange/logs'. backend/apps/integrations/onec_exchange/views.py
+- [ ] [AI-Review][CRITICAL] **Data Integrity Mismatch:** `handle_success` marks ALL orders in the query timeframe as `sent_to_1c`, ignoring `OrderExportService` validation logic. Orders skipped during XML generation (e.g., empty orders) are incorrectly marked as "Sent" in the database without being exported. `backend/apps/integrations/onec_exchange/views.py`
+- [ ] [AI-Review][MEDIUM] **State Integrity:** `handle_query` updates the session state (`last_1c_query_time`) *before* successful XML generation. If generation fails (500 Error), the session remains "dirty", potentially leading to desync if 1C retries or forces success. `backend/apps/integrations/onec_exchange/views.py`
+- [ ] [AI-Review][LOW] **Performance:** `handle_query` generates full XML into memory (`"".join()`) before response. While necessary for ZIP mode, this risks OOM on very large exports. `backend/apps/integrations/onec_exchange/views.py`
+
 ## Dev Notes
 
 ### КРИТИЧНО: Исправление XML-тегов (FR1.4)
+
+> [!IMPORTANT]
+> **Change Request (CommerceML 3.1):**
+> Корневой тег должен быть `<КоммерческаяИнформация ВерсияСхемы="3.1">`.
+> View должна ожидать, что Service вернет структуру 3.1 (с Контейнерами).
+> Тесты `test_onec_export.py` должны быть обновлены для проверки версии 3.1.
 
 Текущая заглушка в `views.py:517-521` использует **латинские** теги `<Commerceml version="2.10">`, что **нарушает FR1.4** и стандарт CommerceML 2.10. Корректный корневой тег — `<КоммерческаяИнформация ВерсияСхемы="2.10">` (кириллица). `OrderExportService` уже генерирует правильный XML. При реализации Task 2 заглушка **полностью заменяется** вызовом сервиса — проблема устраняется автоматически. Если по какой-то причине нужно оставить fallback для пустого ответа (нет заказов), использовать кириллические теги:
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
-<КоммерческаяИнформация ВерсияСхемы="2.10" ДатаФормирования="...">
+<КоммерческаяИнформация ВерсияСхемы="3.1" ДатаФормирования="...">
 </КоммерческаяИнформация>
 ```
 
@@ -109,6 +124,9 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 
 ### Completion Notes List
 
+- ✅ Resolved review finding [CRITICAL]: handle_success now returns failure (400) when no prior query timestamp exists in session, preventing silent data loss.
+- ✅ Resolved review finding [MEDIUM]: Removed duplicate imports of `transaction`, `zipfile` from method bodies — they are already imported at module level.
+- ✅ Resolved review finding [LOW]: Extracted hardcoded log path '1c_exchange/logs' into module constant `EXCHANGE_LOG_SUBDIR`.
 - Task 1: Реализован хелпер `_save_exchange_log()` с автосозданием директории `MEDIA_ROOT/1c_exchange/logs/`, поддержкой текстовых и бинарных файлов, таймстемпом в имени файла.
 - Task 2: Реализован `handle_query` — фиксирует `query_time` в сессии, фильтрует заказы по `sent_to_1c=False` и `created_at <= query_time`, генерирует XML через `OrderExportService`, поддерживает ZIP-сжатие (`zip=yes`), сохраняет аудит-копию.
 - Task 3: Реализован `handle_success` — берёт `last_1c_query_time` из сессии, обновляет заказы через `transaction.atomic`, защита от race condition (без timestamp — не обновляет). Добавлен роутинг `mode=success` в `get()`.
@@ -117,6 +135,9 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 ### Change Log
 
 - 2026-01-31: Реализованы handle_query и handle_success для экспорта заказов в 1С. 13 тестов, все проходят.
+- 2026-02-01: Review performed. 3 issues found (1 critical). Status reverted to in-progress.
+- 2026-02-01: Addressed code review findings — 3 items resolved (1 CRITICAL, 1 MEDIUM, 1 LOW).
+- 2026-02-01: Review performed (2nd iteration). 3 issues found (1 CRITICAL, 1 MEDIUM, 1 LOW). Status reverted to in-progress.
 
 ### File List
 
