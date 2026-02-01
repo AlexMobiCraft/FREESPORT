@@ -47,7 +47,7 @@ class OrderExportService:
 
         Args:
             orders: QuerySet with prefetch_related('items__variant', 'user').
-                    Must exclude guest orders (user__isnull=False).
+                    Guest orders (user=None) are supported — counterparty block is omitted.
 
         Returns:
             UTF-8 encoded XML string with declaration.
@@ -86,7 +86,7 @@ class OrderExportService:
 
         Args:
             orders: QuerySet with prefetch_related('items__variant', 'user').
-                    Must exclude guest orders (user__isnull=False).
+                    Guest orders (user=None) are supported — counterparty block is omitted.
             exported_ids: Optional list to append exported order PKs to.
                          Allows callers to know exactly which orders were included.
 

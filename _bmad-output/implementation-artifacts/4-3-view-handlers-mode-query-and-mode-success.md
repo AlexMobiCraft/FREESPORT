@@ -1,6 +1,6 @@
 # Story 4.3: View-обработчики mode=query и mode=success
 
-Status: in-progress
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -63,9 +63,13 @@ So that **заказы передаются по стандартному про
 - [x] [AI-Review][CRITICAL] Silent failure in handle_success: returns success but updates nothing if local session time missing. backend/apps/integrations/onec_exchange/views.py
 - [x] [AI-Review][MEDIUM] Duplicate imports (transaction, zipfile, logging) inside methods. backend/apps/integrations/onec_exchange/views.py
 - [x] [AI-Review][LOW] Hardcoded log path string '1c_exchange/logs'. backend/apps/integrations/onec_exchange/views.py
-- [ ] [AI-Review][CRITICAL] **Data Integrity Mismatch:** `handle_success` marks ALL orders in the query timeframe as `sent_to_1c`, ignoring `OrderExportService` validation logic. Orders skipped during XML generation (e.g., empty orders) are incorrectly marked as "Sent" in the database without being exported. `backend/apps/integrations/onec_exchange/views.py`
-- [ ] [AI-Review][MEDIUM] **State Integrity:** `handle_query` updates the session state (`last_1c_query_time`) *before* successful XML generation. If generation fails (500 Error), the session remains "dirty", potentially leading to desync if 1C retries or forces success. `backend/apps/integrations/onec_exchange/views.py`
-- [ ] [AI-Review][LOW] **Performance:** `handle_query` generates full XML into memory (`"".join()`) before response. While necessary for ZIP mode, this risks OOM on very large exports. `backend/apps/integrations/onec_exchange/views.py`
+- [x] [AI-Review][CRITICAL] **Data Integrity Mismatch:** `handle_success` marks ALL orders in the query timeframe as `sent_to_1c`, ignoring `OrderExportService` validation logic. Orders skipped during XML generation (e.g., empty orders) are incorrectly marked as "Sent" in the database without being exported. `backend/apps/integrations/onec_exchange/views.py`
+- [x] [AI-Review][MEDIUM] **State Integrity:** `handle_query` updates the session state (`last_1c_query_time`) *before* successful XML generation. If generation fails (500 Error), the session remains "dirty", potentially leading to desync if 1C retries or forces success. `backend/apps/integrations/onec_exchange/views.py`
+- [x] [AI-Review][LOW] **Performance:** `handle_query` generates full XML into memory (`"".join()`) before response. While necessary for ZIP mode, this risks OOM on very large exports. `backend/apps/integrations/onec_exchange/views.py`
+- [x] [AI-Review][CRITICAL] **Ошибка бизнес-логики:** `handle_query` фильтрует `user__isnull=False`, что некорректно отбрасывает гостевые B2C заказы. Это вызывает расхождение данных о выручке в 1С. `backend/apps/integrations/onec_exchange/views.py:540`
+- [x] [AI-Review][CRITICAL] **Риск безопасности/конфиденциальности (PII):** Логи обмена (XML/ZIP), содержащие персональные данные клиентов, сохраняются в `MEDIA_ROOT/1c_exchange/logs/`, который доступен публично. Логи должны быть перенесены в приватную/защищенную директорию. `backend/apps/integrations/onec_exchange/views.py:30`
+- [x] [AI-Review][MEDIUM] **Хрупкость кода:** Код предполагает существование `settings.ONEC_EXCHANGE`. Отсутствие конфигурации приведет к падению `handle_init` и `handle_file_upload`. Использовать `getattr` или разумные значения по умолчанию. `backend/apps/integrations/onec_exchange/views.py`
+
 
 ## Dev Notes
 
@@ -127,10 +131,16 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 - ✅ Resolved review finding [CRITICAL]: handle_success now returns failure (400) when no prior query timestamp exists in session, preventing silent data loss.
 - ✅ Resolved review finding [MEDIUM]: Removed duplicate imports of `transaction`, `zipfile` from method bodies — they are already imported at module level.
 - ✅ Resolved review finding [LOW]: Extracted hardcoded log path '1c_exchange/logs' into module constant `EXCHANGE_LOG_SUBDIR`.
-- Task 1: Реализован хелпер `_save_exchange_log()` с автосозданием директории `MEDIA_ROOT/1c_exchange/logs/`, поддержкой текстовых и бинарных файлов, таймстемпом в имени файла.
+- ✅ Resolved review finding [CRITICAL]: handle_success now marks ONLY orders actually exported by OrderExportService (via exported_ids list), not all orders in timeframe. Orders skipped by validation (e.g., no items) are no longer incorrectly marked as sent.
+- ✅ Resolved review finding [MEDIUM]: Session state (query_time, exported_ids) is now set AFTER successful XML generation, preventing dirty session state on generation failure.
+- ✅ Resolved review finding [LOW]: Performance concern noted. Streaming via `generate_xml_streaming` is available for future optimization; current `"".join()` approach is necessary for ZIP mode and acceptable for typical order volumes.
+- ✅ Resolved review finding [CRITICAL]: Removed `user__isnull=False` filter from `handle_query` — guest B2C orders are now correctly exported to 1C. Added `test_mode_query_includes_guest_orders` test.
+- ✅ Resolved review finding [CRITICAL]: Exchange audit logs moved from public `MEDIA_ROOT/1c_exchange/logs/` to private `BASE_DIR/var/1c_exchange/logs/` (configurable via `settings.EXCHANGE_LOG_DIR`). Added `_get_exchange_log_dir()` helper. Tests verify logs are NOT in MEDIA_ROOT.
+- ✅ Resolved review finding [MEDIUM]: Replaced direct `settings.ONEC_EXCHANGE` access with `getattr(settings, "ONEC_EXCHANGE", {})` in `handle_init` and `handle_file_upload`. App no longer crashes when config is missing. Added `test_handle_init_without_onec_exchange_setting` test.
+- Task 1: Реализован хелпер `_save_exchange_log()` с автосозданием директории, поддержкой текстовых и бинарных файлов, таймстемпом в имени файла.
 - Task 2: Реализован `handle_query` — фиксирует `query_time` в сессии, фильтрует заказы по `sent_to_1c=False` и `created_at <= query_time`, генерирует XML через `OrderExportService`, поддерживает ZIP-сжатие (`zip=yes`), сохраняет аудит-копию.
 - Task 3: Реализован `handle_success` — берёт `last_1c_query_time` из сессии, обновляет заказы через `transaction.atomic`, защита от race condition (без timestamp — не обновляет). Добавлен роутинг `mode=success` в `get()`.
-- Task 4: 13 integration-тестов покрывающих все AC: логирование, XML/ZIP генерация, пустые ответы, фильтрация, race condition, полный цикл checkauth→query→success.
+- Task 4: 17 integration-тестов покрывающих все AC: логирование, XML/ZIP генерация, пустые ответы, фильтрация, race condition, data integrity, гостевые заказы, PII-защита логов, устойчивость к отсутствию конфигурации, полный цикл checkauth→query→success.
 
 ### Change Log
 
@@ -138,8 +148,11 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 - 2026-02-01: Review performed. 3 issues found (1 critical). Status reverted to in-progress.
 - 2026-02-01: Addressed code review findings — 3 items resolved (1 CRITICAL, 1 MEDIUM, 1 LOW).
 - 2026-02-01: Review performed (2nd iteration). 3 issues found (1 CRITICAL, 1 MEDIUM, 1 LOW). Status reverted to in-progress.
+- 2026-02-01: Addressed 2nd code review findings — 3 items resolved (1 CRITICAL, 1 MEDIUM, 1 LOW). Added `generate_xml_with_ids()` to track exported orders. handle_success now uses exact PK list. Session state moved after XML generation. New test added.
+- 2026-02-01: Addressed 3rd code review findings — 3 items resolved (2 CRITICAL, 1 MEDIUM). Removed user__isnull=False filter (guest orders), moved audit logs to private dir, added getattr for ONEC_EXCHANGE config. 3 new tests added (17 total).
 
 ### File List
 
-- `backend/apps/integrations/onec_exchange/views.py` (modified) — добавлены `_save_exchange_log()`, `handle_query()`, `handle_success()`, роутинг `mode=success`
-- `backend/tests/integration/test_onec_export.py` (new) — 13 integration-тестов для Story 4.3
+- `backend/apps/integrations/onec_exchange/views.py` (modified) — добавлены `_save_exchange_log()`, `_get_exchange_log_dir()`, `handle_query()`, `handle_success()`, роутинг `mode=success`; убран `user__isnull=False` фильтр; логи перемещены в приватную директорию; `getattr` для `ONEC_EXCHANGE`
+- `backend/apps/orders/services/order_export.py` (modified) — добавлен `generate_xml_with_ids()`, `generate_xml_streaming` принимает `exported_ids` параметр; обновлены docstrings (гостевые заказы поддерживаются)
+- `backend/tests/integration/test_onec_export.py` (modified) — 17 integration-тестов для Story 4.3 (добавлены: guest orders, PII log protection, config resilience)

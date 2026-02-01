@@ -24,10 +24,23 @@ logger = logging.getLogger(__name__)
 EXCHANGE_LOG_SUBDIR = "1c_exchange/logs"
 
 
+def _get_exchange_log_dir() -> Path:
+    """Return the private directory for exchange audit logs.
+
+    Uses ``settings.EXCHANGE_LOG_DIR`` when configured, otherwise falls back
+    to ``BASE_DIR / "var" / EXCHANGE_LOG_SUBDIR`` which is NOT inside
+    MEDIA_ROOT (and therefore not publicly accessible).
+    """
+    custom = getattr(settings, "EXCHANGE_LOG_DIR", None)
+    if custom:
+        return Path(custom)
+    return Path(settings.BASE_DIR) / "var" / EXCHANGE_LOG_SUBDIR
+
+
 def _save_exchange_log(filename: str, content, is_binary: bool = False) -> None:
-    """Save a copy of exchange output to MEDIA_ROOT/1c_exchange/logs/ for audit."""
+    """Save a copy of exchange output to a private log directory for audit."""
     try:
-        log_dir = Path(settings.MEDIA_ROOT) / EXCHANGE_LOG_SUBDIR
+        log_dir = _get_exchange_log_dir()
         log_dir.mkdir(parents=True, exist_ok=True)
         timestamp = timezone.now().strftime("%Y%m%d_%H%M%S")
         filepath = log_dir / f"{timestamp}_{filename}"
@@ -517,9 +530,10 @@ class ICExchangeView(APIView):
         except Exception as e:
             logger.warning(f"Init cleanup logic fail: {e}")
 
-        zip_support = settings.ONEC_EXCHANGE.get("ZIP_SUPPORT", True)
-        file_limit = settings.ONEC_EXCHANGE.get("FILE_LIMIT_BYTES", 100 * 1024 * 1024)
-        version = settings.ONEC_EXCHANGE.get("COMMERCEML_VERSION", "3.1")
+        exchange_cfg = getattr(settings, "ONEC_EXCHANGE", {})
+        zip_support = exchange_cfg.get("ZIP_SUPPORT", True)
+        file_limit = exchange_cfg.get("FILE_LIMIT_BYTES", 100 * 1024 * 1024)
+        version = exchange_cfg.get("COMMERCEML_VERSION", "3.1")
 
         response_text = f"zip={'yes' if zip_support else 'no'}\r\nfile_limit={file_limit}\r\n" \
                         f"sessid={sessid}\r\nversion={version}"
@@ -537,7 +551,6 @@ class ICExchangeView(APIView):
             Order.objects.filter(
                 sent_to_1c=False,
                 created_at__lte=query_time,
-                user__isnull=False,
             )
             .select_related("user")
             .prefetch_related("items__variant")
@@ -620,7 +633,8 @@ class ICExchangeView(APIView):
             logger.error("Upload rejected: session or filename missing.")
             return HttpResponse("failure\nMissing session or filename", status=400)
 
-        file_limit = settings.ONEC_EXCHANGE.get("FILE_LIMIT_BYTES", 100 * 1024 * 1024)
+        exchange_cfg = getattr(settings, "ONEC_EXCHANGE", {})
+        file_limit = exchange_cfg.get("FILE_LIMIT_BYTES", 100 * 1024 * 1024)
 
         try:
             file_service = FileStreamService(sessid)

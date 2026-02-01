@@ -124,10 +124,12 @@ def authenticated_client(onec_user):
 
 @pytest.fixture
 def log_dir(tmp_path, settings):
-    """Override MEDIA_ROOT so audit logs go to tmp_path."""
+    """Override EXCHANGE_LOG_DIR so audit logs go to a private tmp_path (not MEDIA_ROOT)."""
+    private_log = tmp_path / "var" / "1c_exchange" / "logs"
+    settings.EXCHANGE_LOG_DIR = str(private_log)
     settings.MEDIA_ROOT = str(tmp_path / "media")
     Path(settings.MEDIA_ROOT).mkdir(parents=True, exist_ok=True)
-    return Path(settings.MEDIA_ROOT) / "1c_exchange" / "logs"
+    return private_log
 
 
 # ============================================================
@@ -213,6 +215,36 @@ class TestModeQuery:
             xml_content = zf.read("orders.xml").decode("utf-8")
             assert "КоммерческаяИнформация" in xml_content
             assert "FS-TEST-001" in xml_content
+
+    def test_mode_query_includes_guest_orders(
+        self, authenticated_client, product_variant, log_dir
+    ):
+        """CRITICAL: Guest B2C orders (user=None) must be exported to 1C."""
+        guest_order = Order.objects.create(
+            user=None,
+            order_number="FS-GUEST-001",
+            total_amount=2000,
+            sent_to_1c=False,
+            delivery_address="ул. Гостевая, 5",
+            delivery_method="courier",
+            payment_method="card",
+        )
+        OrderItem.objects.create(
+            order=guest_order,
+            product=product_variant.product,
+            variant=product_variant,
+            product_name="Test Product",
+            unit_price=2000,
+            quantity=1,
+            total_price=2000,
+        )
+        response = authenticated_client.get(
+            "/api/integration/1c/exchange/",
+            data={"mode": "query"},
+        )
+        assert response.status_code == 200
+        content = response.content.decode("utf-8")
+        assert "FS-GUEST-001" in content
 
     def test_mode_query_excludes_already_sent(
         self, authenticated_client, order_for_export, log_dir
@@ -418,7 +450,7 @@ class TestFullExportCycle:
     def test_audit_logging(
         self, authenticated_client, order_for_export, log_dir
     ):
-        """AC6: Audit files saved to MEDIA_ROOT/1c_exchange/logs/."""
+        """AC6: Audit files saved to private log directory (NOT MEDIA_ROOT)."""
         authenticated_client.get(
             "/api/integration/1c/exchange/",
             data={"mode": "query"},
@@ -426,3 +458,37 @@ class TestFullExportCycle:
         assert log_dir.exists()
         log_files = list(log_dir.glob("*"))
         assert len(log_files) >= 1
+        # Verify logs are NOT in MEDIA_ROOT (PII protection)
+        media_log_dir = Path(settings.MEDIA_ROOT) / "1c_exchange" / "logs"
+        assert not media_log_dir.exists()
+
+    def test_audit_logs_not_in_media_root(
+        self, authenticated_client, order_for_export, log_dir
+    ):
+        """CRITICAL: Exchange logs with PII must NOT be in publicly-accessible MEDIA_ROOT."""
+        authenticated_client.get(
+            "/api/integration/1c/exchange/",
+            data={"mode": "query"},
+        )
+        media_log_dir = Path(settings.MEDIA_ROOT) / "1c_exchange" / "logs"
+        assert not media_log_dir.exists(), "Exchange logs must not be saved in public MEDIA_ROOT"
+
+
+@pytest.mark.django_db
+@pytest.mark.integration
+class TestConfigResilience:
+    """Tests for settings.ONEC_EXCHANGE resilience (handle_init / handle_file_upload)."""
+
+    def test_handle_init_without_onec_exchange_setting(
+        self, authenticated_client, settings
+    ):
+        """MEDIUM: handle_init must not crash when settings.ONEC_EXCHANGE is missing."""
+        if hasattr(settings, "ONEC_EXCHANGE"):
+            delattr(settings, "ONEC_EXCHANGE")
+        response = authenticated_client.get(
+            "/api/integration/1c/exchange/",
+            data={"mode": "init"},
+        )
+        assert response.status_code == 200
+        content = response.content.decode("utf-8")
+        assert "zip=" in content
