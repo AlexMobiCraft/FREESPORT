@@ -1,11 +1,17 @@
+import io
 import logging
+import zipfile
 from pathlib import Path
 
 from django.conf import settings
 from django.contrib.auth import get_backends, login
+from django.db import transaction
 from django.http import HttpResponse
 from django.utils import timezone
 from rest_framework.views import APIView
+
+from apps.orders.models import Order
+from apps.orders.services.order_export import OrderExportService
 
 from .authentication import Basic1CAuthentication, CsrfExemptSessionAuthentication
 from .file_service import FileLockError, FileStreamService
@@ -14,6 +20,21 @@ from .renderers import PlainTextRenderer
 from .routing_service import FileRoutingService
 
 logger = logging.getLogger(__name__)
+
+
+def _save_exchange_log(filename: str, content, is_binary: bool = False) -> None:
+    """Save a copy of exchange output to MEDIA_ROOT/1c_exchange/logs/ for audit."""
+    try:
+        log_dir = Path(settings.MEDIA_ROOT) / "1c_exchange" / "logs"
+        log_dir.mkdir(parents=True, exist_ok=True)
+        timestamp = timezone.now().strftime("%Y%m%d_%H%M%S")
+        filepath = log_dir / f"{timestamp}_{filename}"
+        if is_binary:
+            filepath.write_bytes(content)
+        else:
+            filepath.write_text(content, encoding="utf-8")
+    except Exception as e:
+        logger.error(f"[EXCHANGE LOG] Failed to save audit log {filename}: {e}")
 
 
 class ICExchangeView(APIView):
@@ -57,6 +78,8 @@ class ICExchangeView(APIView):
             return self.handle_import(request)
         elif mode == "query":
             return self.handle_query(request)
+        elif mode == "success":
+            return self.handle_success(request)
         elif mode == "complete":
             return self.handle_complete(request)
         elif mode == "deactivate":
@@ -506,20 +529,78 @@ class ICExchangeView(APIView):
     def handle_query(self, request):
         """
         Handle order export requests (mode=query).
-        Protocol: GET /?mode=query
-        Response: XML (CommerceML 2.x/3.x)
+        Protocol: GET /?mode=query[&zip=yes]
+        Returns XML (or ZIP) with pending orders for 1C.
         """
-        # Story 3.2: Order Export
-        # For now, return empty result to satisfy 1C check
-        # and prevent exchange failure (400 Unknown mode).
-        
-        # We must return valid XML
-        xml_content = (
-            '<?xml version="1.0" encoding="UTF-8"?>\n'
-            '<Commerceml version="3.1">\n'
-            '</Commerceml>'
+        query_time = timezone.now()
+        request.session["last_1c_query_time"] = query_time.isoformat()
+
+        orders = (
+            Order.objects.filter(
+                sent_to_1c=False,
+                created_at__lte=query_time,
+                user__isnull=False,
+            )
+            .select_related("user")
+            .prefetch_related("items__variant")
         )
+
+        service = OrderExportService()
+        xml_content = service.generate_xml(orders)
+
+        use_zip = request.query_params.get("zip", "").lower() == "yes"
+
+        if use_zip:
+            buf = io.BytesIO()
+            with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+                zf.writestr("orders.xml", xml_content)
+            zip_bytes = buf.getvalue()
+            _save_exchange_log("orders.zip", zip_bytes, is_binary=True)
+            response = HttpResponse(zip_bytes, content_type="application/zip")
+            response["Content-Disposition"] = 'attachment; filename="orders.zip"'
+            return response
+
+        _save_exchange_log("orders.xml", xml_content)
         return HttpResponse(xml_content, content_type="application/xml")
+
+    def handle_success(self, request):
+        """
+        Handle order export confirmation (mode=success).
+        Marks orders that were returned in the last query as sent_to_1c=True.
+        Uses session timestamp to prevent race conditions.
+        """
+        last_query_iso = request.session.get("last_1c_query_time")
+
+        if not last_query_iso:
+            logger.warning(
+                "[EXPORT SUCCESS] No last_1c_query_time in session — "
+                "cannot determine which orders to mark. Skipping update."
+            )
+            return HttpResponse("success", content_type="text/plain; charset=utf-8")
+
+        from django.utils.dateparse import parse_datetime
+
+        query_time = parse_datetime(last_query_iso)
+        if query_time is None:
+            logger.error(f"[EXPORT SUCCESS] Invalid timestamp in session: {last_query_iso}")
+            return HttpResponse("success", content_type="text/plain; charset=utf-8")
+
+        with transaction.atomic():
+            updated = Order.objects.filter(
+                sent_to_1c=False,
+                created_at__lte=query_time,
+                user__isnull=False,
+            ).update(
+                sent_to_1c=True,
+                sent_to_1c_at=timezone.now(),
+            )
+
+        logger.info(f"[EXPORT SUCCESS] Marked {updated} orders as sent_to_1c")
+
+        # Clear the session timestamp to prevent double-processing
+        del request.session["last_1c_query_time"]
+
+        return HttpResponse("success", content_type="text/plain; charset=utf-8")
 
     def handle_file_upload(self, request):
         """
