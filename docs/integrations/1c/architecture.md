@@ -118,10 +118,14 @@ graph TD
 
 ### 2.3 Выбор технологий
 
-**Формат данных:** *Будет определен после ответа от 1С программиста*
-**Протокол передачи:** *Будет определен после ответа от 1С программиста*  
-**Обработка данных:** Django Management Commands + Celery
-**Хранение состояния:** PostgreSQL + Redis для кэширования
+**Формат данных:** **CommerceML 3.1** (XML)
+**Протокол передачи:** **HTTP Exchange** (Стандартный протокол обмена с сайтом 1С-Битрикс)
+**Обработка данных:**
+- **Transport Layer:** Django View (`ICExchangeView`) + Streaming Upload (`FileStreamService`)
+- **Import Layer:** Celery Tasks (`import_products`, `import_orders`)
+**Хранение состояния:**
+- **Sessions:** Django Session (хранение состояния обмена)
+- **Data:** PostgreSQL + JSONB (хранение сырых данных)
 **Мониторинг:** Structured logging + Django Admin interface
 
 ---
@@ -164,8 +168,15 @@ graph TD
 
 ### 3.3 Метод передачи данных
 
-- **Файловый обмен:** Данные передаются путем выгрузки файлов из 1С в определенную директорию на сервере FREESPORT.
-- **Протокол:** SFTP или монтирование сетевой папки (будет уточнено на этапе настройки).
+Используется стандартный **HTTP протокол обмена** (по спецификации 1С-Битрикс), обеспечивающий надежную передачу больших объемов данных через чанкирование.
+
+**Этапы передачи:**
+1.  **CheckAuth**: Аутентификация и старт сессии (Basic Auth -> Session Cookie).
+2.  **Init**: Запрос параметров сервера (zip support, file limit).
+3.  **File**: Потоковая загрузка файлов (поддержка чанков и ZIP-архивов).
+4.  **Import**: Триггер обработки загруженных файлов.
+
+> **Подробнее:** См. [Техническую спецификацию транспортного уровня](transport-layer.md).
 
 ---
 
@@ -233,8 +244,40 @@ graph TD
 
 ### 5.1 Архитектура компонентов
 
-```mermaid
+Система разделена на два основных слоя: **Transport Layer** (Прием данных) и **Processing Layer** (Обработка данных).
 
+```mermaid
+graph TD
+    subgraph "Transport Layer (Sync)"
+        req[HTTP Request] --> View[ICExchangeView]
+        View -- Auth --> Auth[Basic1CAuthentication]
+        View -- "mode=file" --> FSS[FileStreamService]
+        FSS --> Temp[Media: 1c_temp/session_id/]
+        View -- "mode=import" --> Router[FileRoutingService]
+        Router -- Unpack/Move --> ImportDir[Media: 1c_import/session_id/]
+    end
+
+    subgraph "Processing Layer (Async)"
+        Router -- Trigger --> Celery[Celery Task]
+        Celery --> SVC[Import Service]
+        SVC --> Parser[XML Parser]
+        SVC --> DB[(PostgreSQL)]
+    end
+```
+
+**Ключевые компоненты Transport Layer:**
+- **ICExchangeView**: Единая точка входа, маршрутизация по `mode`.
+- **FileStreamService**: Обработка потоковой загрузки, сборка чанков в файлы.
+- **FileRoutingService**: Маршрутизация файлов (goods, offers, images) в целевые папки.
+
+> **Важные решения (ADR):**
+> - [ADR-008](../../decisions/ADR-008-1c-sessid-session-key-not-csrf.md): Использование Django Session Key как `sessid`.
+> - [ADR-009](../../decisions/ADR-009-csrf-exemption-1c-protocol.md): Отключение CSRF для эндпоинтов обмена.
+
+### 5.2 (Legacy) Структура Management Commands
+*(Сохраняется для ручного запуска и отладки)*
+
+```mermaid
 graph TD
     A[Management Commands] --> B[Import Service]
     B --> C[Data Parser]
