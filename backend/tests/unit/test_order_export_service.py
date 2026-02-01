@@ -3,7 +3,7 @@ Unit tests for OrderExportService.
 
 Tests cover:
 - AC1: Service exists at backend/apps/orders/services/order_export.py
-- AC2: generate_xml() returns XML with root <КоммерческаяИнформация ВерсияСхемы="2.10">
+- AC2: generate_xml() returns XML with root <КоммерческаяИнформация ВерсияСхемы="3.1">
 - AC3: Each order wrapped in <Документ> with <ХозОперация>Заказ товара</ХозОперация>
 - AC4: <Контрагенты> contains <ИНН> only when user has tax_id
 - AC5: <Товары> contains <Ид> with ProductVariant.onec_id
@@ -111,7 +111,7 @@ class TestOrderExportServiceXMLValidation:
         assert xml_str.startswith('<?xml version="1.0" encoding="UTF-8"?>')
 
     def test_generate_xml_has_correct_root_attributes(self):
-        """AC2: Root element should have ВерсияСхемы="2.10" and ДатаФормирования."""
+        """AC2: Root element should have ВерсияСхемы="3.1" and ДатаФормирования."""
         # Arrange
         user = UserFactory(email=f"test-{get_unique_suffix()}@example.com")
         variant = ProductVariantFactory(
@@ -142,7 +142,7 @@ class TestOrderExportServiceXMLValidation:
         root = ET.fromstring(xml_str)
 
         # Assert
-        assert root.get("ВерсияСхемы") == "2.10"
+        assert root.get("ВерсияСхемы") == "3.1"
         assert root.get("ДатаФормирования") is not None
 
 
@@ -471,7 +471,7 @@ class TestOrderExportServiceOrderWithoutItems:
 
         # Assert
         root = ET.fromstring(xml_str)
-        documents = root.findall("Документ")
+        documents = root.findall("Контейнер/Документ")
         assert len(documents) == 0  # No documents for empty orders
         assert "no items" in caplog.text
 
@@ -631,7 +631,7 @@ class TestOrderExportServiceBatchOrders:
         root = ET.fromstring(xml_str)
 
         # Assert - All 3 orders should be in single document
-        documents = root.findall("Документ")
+        documents = root.findall("Контейнер/Документ")
         assert len(documents) == 3
 
         # Verify each document has correct structure
@@ -686,7 +686,7 @@ class TestOrderExportServiceDocumentStructure:
         root = ET.fromstring(xml_str)
 
         # Assert
-        doc = root.find("Документ")
+        doc = root.find("Контейнер/Документ")
         assert doc is not None
 
         # Required elements per AC3
@@ -714,6 +714,47 @@ class TestOrderExportServiceDocumentStructure:
         assert product.find("ЦенаЗаЕдиницу").text == "1500.00"
         assert product.find("Количество").text == "2"
         assert product.find("Сумма").text == "3000.00"
+
+    def test_document_wrapped_in_container(self):
+        """AC3: Each order's <Документ> must be wrapped in <Контейнер>."""
+        # Arrange
+        user = UserFactory(
+            email=f"test-container-{get_unique_suffix()}@example.com",
+        )
+        variant = ProductVariantFactory(
+            onec_id=f"variant-container-{get_unique_suffix()}",
+            retail_price=Decimal("1000.00"),
+        )
+        order = Order.objects.create(
+            user=user,
+            total_amount=Decimal("1000.00"),
+            delivery_address="Адрес",
+            delivery_method="courier",
+            payment_method="card",
+        )
+        OrderItem.objects.create(
+            order=order,
+            product=variant.product,
+            variant=variant,
+            quantity=1,
+            unit_price=Decimal("1000.00"),
+            total_price=Decimal("1000.00"),
+            product_name="Товар",
+            product_sku=variant.sku,
+        )
+
+        # Act
+        service = OrderExportService()
+        xml_str = service.generate_xml(Order.objects.filter(id=order.id))
+        root = ET.fromstring(xml_str)
+
+        # Assert - Root should contain <Контейнер> which contains <Документ>
+        containers = root.findall("Контейнер")
+        assert len(containers) == 1
+        document = containers[0].find("Документ")
+        assert document is not None
+        assert document.find("Ид") is not None
+        assert document.find("ХозОперация").text == "Заказ товара"
 
 
 @pytest.mark.unit
@@ -883,8 +924,8 @@ class TestOrderExportServiceRefactoring:
         assert regular_root.get("ВерсияСхемы") == streaming_root.get("ВерсияСхемы")
         
         # Same documents
-        regular_docs = regular_root.findall("Документ")
-        streaming_docs = streaming_root.findall("Документ")
+        regular_docs = regular_root.findall("Контейнер/Документ")
+        streaming_docs = streaming_root.findall("Контейнер/Документ")
         assert len(regular_docs) == len(streaming_docs) == 1
         
         # Same content
@@ -942,7 +983,7 @@ class TestOrderExportServiceRefactoring:
         regular_root = ET.fromstring(regular_xml)
         streaming_root = ET.fromstring(streaming_xml)
         
-        documents = regular_root.findall("Документ")
+        documents = regular_root.findall("Контейнер/Документ")
         assert len(documents) == 2
         
         # Verify all orders are present
@@ -1053,7 +1094,7 @@ class TestOrderExportServiceEmptyCounterparty:
         assert "no user associated" in caplog.text
         
         # Document should still be valid with other elements
-        document = root.find("Документ")
+        document = root.find("Контейнер/Документ")
         assert document is not None
         assert document.find("Ид") is not None
         assert document.find("Товары") is not None
@@ -1160,7 +1201,7 @@ class TestOrderExportServicePerformance:
             # Assert - Should be valid XML
             root = ET.fromstring(xml_str)
             assert root is not None
-            documents = root.findall("Документ")
+            documents = root.findall("Контейнер/Документ")
             assert len(documents) == 3
             
             # Check query count - should be minimal due to prefetch
@@ -1219,10 +1260,10 @@ class TestOrderExportServiceStreaming:
         root = ET.fromstring(xml_str)
         assert root is not None
         assert root.tag == "КоммерческаяИнформация"
-        assert root.get("ВерсияСхемы") == "2.10"
+        assert root.get("ВерсияСхемы") == "3.1"
         
         # Should have document
-        documents = root.findall("Документ")
+        documents = root.findall("Контейнер/Документ")
         assert len(documents) == 1
 
     def test_streaming_produces_same_structure_as_regular(self):
@@ -1268,8 +1309,8 @@ class TestOrderExportServiceStreaming:
         assert regular_root.get("ВерсияСхемы") == streaming_root.get("ВерсияСхемы")
         
         # Same number of documents
-        regular_docs = regular_root.findall("Документ")
-        streaming_docs = streaming_root.findall("Документ")
+        regular_docs = regular_root.findall("Контейнер/Документ")
+        streaming_docs = streaming_root.findall("Контейнер/Документ")
         assert len(regular_docs) == len(streaming_docs)
         
         # Same order ID

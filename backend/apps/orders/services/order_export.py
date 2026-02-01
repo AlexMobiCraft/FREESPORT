@@ -1,5 +1,5 @@
 """
-Сервис экспорта заказов в формате CommerceML 2.10 для интеграции с 1С.
+Сервис экспорта заказов в формате CommerceML 3.1 для интеграции с 1С.
 
 Этот модуль реализует Service Layer паттерн для генерации XML заказов.
 """
@@ -25,13 +25,13 @@ logger = logging.getLogger(__name__)
 
 class OrderExportService:
     """
-    Сервис генерации XML заказов в формате CommerceML 2.10 для экспорта в 1С.
+    Сервис генерации XML заказов в формате CommerceML 3.1 для экспорта в 1С.
     
     Реализует Service Layer паттерн — вся бизнес-логика генерации XML
     инкапсулирована в этом классе.
     """
 
-    SCHEMA_VERSION = "2.10"
+    SCHEMA_VERSION = "3.1"
     CURRENCY = "RUB"
     EXCHANGE_RATE = "1"
     OPERATION_TYPE = "Заказ товара"
@@ -43,7 +43,7 @@ class OrderExportService:
 
     def generate_xml(self, orders: "QuerySet[Order]") -> str:
         """
-        Generate CommerceML 2.10 XML for orders export to 1C.
+        Generate CommerceML 3.1 XML for orders export to 1C.
         
         Args:
             orders: QuerySet with prefetch_related('items__variant', 'user').
@@ -61,7 +61,7 @@ class OrderExportService:
 
     def generate_xml_streaming(self, orders: "QuerySet[Order]") -> Iterator[str]:
         """
-        Generate CommerceML 2.10 XML using streaming/generator approach.
+        Generate CommerceML 3.1 XML using streaming/generator approach.
         
         Suitable for large datasets where memory efficiency is critical.
         Yields XML fragments that should be concatenated by the caller.
@@ -81,12 +81,14 @@ class OrderExportService:
         yield f'<КоммерческаяИнформация ВерсияСхемы="{self.SCHEMA_VERSION}" '
         yield f'ДатаФормирования="{formation_date}">\n'
         
-        # Stream each order as a separate document
+        # Stream each order as a Container with Document inside
         for order in orders.iterator(chunk_size=100):
             if not self._validate_order(order):
                 continue
+            container = ET.Element("Контейнер")
             document = self._create_document_element(order)
-            yield ET.tostring(document, encoding="unicode", method="xml")
+            container.append(document)
+            yield ET.tostring(container, encoding="unicode", method="xml")
             yield "\n"
         
         # Root element close tag
@@ -250,7 +252,7 @@ class OrderExportService:
         """
         Format price with exactly 2 decimal places.
         
-        CommerceML 2.10 expects prices in format like "1500.00", not "1500".
+        CommerceML 3.1 expects prices in format like "1500.00", not "1500".
         """
         return f"{Decimal(value):.2f}"
 
