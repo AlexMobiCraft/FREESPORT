@@ -1,6 +1,6 @@
 # Story 4.3: View-обработчики mode=query и mode=success
 
-Status: review
+Status: in-progress
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -107,6 +107,13 @@ So that **заказы передаются по стандартному про
 - [x] [AI-Review][MEDIUM] **Целостность данных:** `handle_success` использует `.update()` для пометки заказов, что не обновляет `updated_at` (auto_now) и не шлет сигналы. Требуется явно обновлять `updated_at` в запросе. `backend/apps/integrations/onec_exchange/views.py:344`
 - [x] [AI-Review][CRITICAL] **Data Corruption Risk (Race Condition):** `ImportOrchestratorService.execute()` transfers and unpacks files into `import_dir` even if a session is `IN_PROGRESS`. This modifies the working directory of a running import, ensuring chaos and data corruption. `backend/apps/integrations/onec_exchange/import_orchestrator.py:59`
 - [x] [AI-Review][MEDIUM] **Performance / OOM Risk:** `OrderExportService.generate_xml` materializes the entire XML output into a single RAM string (`"".join()`). Compressing large queries (ZIP mode) multiplies this memory pressure. For B2B catalogs, this will crash the worker. `backend/apps/orders/services/order_export.py:78`
+
+
+### Review Follow-ups (AI - Cycle 4)
+
+- [ ] [AI-Review][MEDIUM] **Synchronous Email Blocking:** `send_order_confirmation_email` sends emails synchronously in `post_save`. Offload to Celery. `backend/apps/orders/signals.py`
+- [ ] [AI-Review][MEDIUM] **Synchronous Import Risk:** `ImportOrchestratorService.execute` runs import synchronously. Large files may cause Nginx timeouts. `backend/apps/integrations/onec_exchange/import_orchestrator.py`
+- [ ] [AI-Review][LOW] **Signal Ambiguity:** `orders_bulk_updated` signal payload might mismatch actual updated count. `backend/apps/integrations/onec_exchange/views.py`
 
 
 ## Dev Notes
