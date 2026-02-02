@@ -24,6 +24,115 @@ logger = logging.getLogger(__name__)
     max_retries=3,
     autoretry_for=(SMTPException, ConnectionError),
     retry_backoff=True,
+    retry_backoff_max=600,
+)
+def send_order_confirmation_to_customer(self, order_id: int) -> bool:
+    """
+    Асинхронная отправка email-подтверждения клиенту при создании заказа.
+
+    Args:
+        order_id: ID заказа
+
+    Returns:
+        True если email отправлен успешно
+    """
+    try:
+        order = Order.objects.prefetch_related("items").get(id=order_id)
+    except Order.DoesNotExist:
+        logger.error(
+            "Order not found for customer confirmation",
+            extra={"order_id": order_id},
+        )
+        return False
+
+    customer_email = None
+    if order.user and hasattr(order.user, "email"):
+        customer_email = order.user.email
+    elif order.customer_email:
+        customer_email = order.customer_email
+
+    if not customer_email:
+        logger.warning(
+            f"Не удалось отправить email для заказа {order.order_number}: "
+            "email клиента не указан"
+        )
+        return False
+
+    subject = f"Заказ #{order.order_number} успешно оформлен - FREESPORT"
+    message = _build_order_email_text(order)
+
+    try:
+        send_mail(
+            subject=subject,
+            message=message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[customer_email],
+            fail_silently=False,
+        )
+        logger.info(
+            f"Email-уведомление о заказе {order.order_number} "
+            f"отправлено на {customer_email}"
+        )
+        return True
+    except SMTPException as exc:
+        logger.error(
+            f"Ошибка отправки email для заказа {order.order_number}: {exc}"
+        )
+        raise self.retry(exc=exc)
+
+
+def _build_order_email_text(order):
+    """Формирование текста email-уведомления о заказе."""
+    customer_name = order.customer_display_name or "Уважаемый клиент"
+
+    delivery_methods = {
+        "pickup": "Самовывоз",
+        "courier": "Курьерская доставка",
+        "post": "Почтовая доставка",
+        "transport": "Транспортная компания",
+    }
+    delivery_method_name = delivery_methods.get(
+        order.delivery_method, order.delivery_method
+    )
+
+    items_text = ""
+    for item in order.items.all():
+        items_text += (
+            f"  - {item.product_name} × {item.quantity}: {item.total_price} ₽\n"
+        )
+
+    message = f"""
+Здравствуйте, {customer_name}!
+
+Ваш заказ #{order.order_number} успешно оформлен.
+
+ДЕТАЛИ ЗАКАЗА:
+{items_text}
+Итого: {order.total_amount} ₽
+
+ДОСТАВКА:
+Способ: {delivery_method_name}
+Адрес: {order.delivery_address}
+
+ЧТО ДАЛЬШЕ?
+Администратор свяжется с вами в течение 24 часов для уточнения:
+- Способа оплаты
+- Точной стоимости доставки
+- Времени доставки
+
+Спасибо за заказ!
+
+С уважением,
+Команда FREESPORT
+"""
+    return message.strip()
+
+
+@shared_task(
+    bind=True,
+    max_retries=3,
+    autoretry_for=(SMTPException, ConnectionError),
+    retry_backoff=True,
     retry_backoff_max=600,  # 10 минут максимум
 )
 def send_order_notification_email(self, order_id: int) -> bool:

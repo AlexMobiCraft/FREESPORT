@@ -783,3 +783,125 @@ class TestOrdersFilenameConstant:
         with zipfile.ZipFile(buf) as zf:
             from apps.integrations.onec_exchange.views import ORDERS_XML_FILENAME
             assert ORDERS_XML_FILENAME in zf.namelist()
+
+
+# ============================================================
+# Cycle 4 Review Follow-ups
+# ============================================================
+
+@pytest.mark.django_db
+@pytest.mark.integration
+class TestAsyncEmailInSignal:
+    """Tests for async email dispatch in post_save signal."""
+
+    def test_signal_dispatches_celery_tasks(self, customer_user, product_variant):
+        """MEDIUM: post_save must dispatch Celery tasks, not send email synchronously."""
+        with patch("apps.orders.signals.send_order_confirmation_to_customer") as mock_customer, \
+             patch("apps.orders.signals.send_order_notification_email") as mock_admin:
+            # Patch the delay method
+            mock_customer.delay = patch("apps.orders.tasks.send_order_confirmation_to_customer.delay").start()
+            mock_admin.delay = patch("apps.orders.tasks.send_order_notification_email.delay").start()
+
+            order = Order.objects.create(
+                user=customer_user,
+                order_number="FS-ASYNC-001",
+                total_amount=1000,
+                sent_to_1c=False,
+                delivery_address="ул. Тестовая, 1",
+                delivery_method="pickup",
+                payment_method="card",
+            )
+
+            # Verify Celery tasks were dispatched (not synchronous send_mail)
+            mock_customer.delay.assert_called_once_with(order.id)
+            mock_admin.delay.assert_called_once_with(order.id)
+
+            patch.stopall()
+
+    def test_signal_does_not_call_send_mail_directly(self):
+        """Ensure signals.py no longer imports send_mail directly."""
+        import inspect
+        import apps.orders.signals as signals_mod
+        source = inspect.getsource(signals_mod)
+        # send_mail should not be called directly in signals module
+        assert "send_mail(" not in source
+
+
+@pytest.mark.django_db
+@pytest.mark.integration
+class TestAsyncImportDispatch:
+    """Tests for async import dispatch via Celery."""
+
+    def test_execute_dispatches_celery_task(self, settings, tmp_path):
+        """MEDIUM: ImportOrchestratorService.execute must dispatch Celery task, not run synchronously."""
+        settings.MEDIA_ROOT = str(tmp_path)
+        (tmp_path / "1c_import").mkdir(parents=True, exist_ok=True)
+
+        from apps.integrations.onec_exchange.import_orchestrator import (
+            ImportOrchestratorService,
+        )
+
+        with patch("apps.integrations.onec_exchange.import_orchestrator.process_1c_import_task") as mock_task:
+            mock_task.delay.return_value.id = "fake-task-id"
+            svc = ImportOrchestratorService("test-sessid", "goods.xml")
+            # Mock file services to avoid filesystem issues
+            with patch.object(svc, "_transfer_files", return_value=(True, "")), \
+                 patch.object(svc, "_unpack_zips"), \
+                 patch.object(svc, "_resolve_session") as mock_resolve:
+
+                from apps.products.models import ImportSession
+                from unittest.mock import MagicMock
+                mock_session = MagicMock()
+                mock_session.status = ImportSession.ImportStatus.PENDING
+                mock_session.pk = 999
+                mock_session.ImportStatus = ImportSession.ImportStatus
+                mock_resolve.return_value = mock_session
+
+                success, msg = svc.execute()
+                assert success is True
+                mock_task.delay.assert_called_once_with(999, str(tmp_path / "1c_import"))
+
+    def test_execute_no_call_command(self):
+        """Import orchestrator must not use call_command (synchronous)."""
+        import inspect
+        from apps.integrations.onec_exchange.import_orchestrator import (
+            ImportOrchestratorService,
+        )
+        source = inspect.getsource(ImportOrchestratorService)
+        assert "call_command" not in source
+
+
+@pytest.mark.django_db
+@pytest.mark.integration
+class TestSignalPayloadAccuracy:
+    """Tests for orders_bulk_updated signal payload."""
+
+    def test_signal_includes_updated_count(
+        self, authenticated_client, order_for_export, log_dir
+    ):
+        """LOW: Signal payload must include updated_count for accuracy."""
+        from apps.orders.signals import orders_bulk_updated
+
+        received_kwargs = {}
+
+        def handler(sender, **kwargs):
+            received_kwargs.update(kwargs)
+
+        orders_bulk_updated.connect(handler)
+        try:
+            # Perform query + success cycle
+            authenticated_client.get(
+                "/api/integration/1c/exchange/",
+                data={"mode": "query"},
+            )
+            authenticated_client.get(
+                "/api/integration/1c/exchange/",
+                data={"mode": "success"},
+            )
+
+            assert "updated_count" in received_kwargs
+            assert received_kwargs["updated_count"] == 1
+            assert "order_ids" in received_kwargs
+            assert order_for_export.pk in received_kwargs["order_ids"]
+        finally:
+            orders_bulk_updated.disconnect(handler)

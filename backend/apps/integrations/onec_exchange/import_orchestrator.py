@@ -14,7 +14,6 @@ from datetime import timedelta
 from pathlib import Path
 
 from django.conf import settings
-from django.core.management import call_command
 from django.db import transaction
 from django.utils import timezone
 
@@ -71,10 +70,8 @@ class ImportOrchestratorService:
         # Unpack ZIPs
         self._unpack_zips(session)
 
-        # Run import
-        ok, msg = self._run_import(session, ImportSession)
-        if not ok:
-            return False, msg
+        # Run import — async via Celery to avoid Nginx timeouts on large files
+        self._dispatch_import(session)
 
         return True, "success"
 
@@ -295,85 +292,52 @@ class ImportOrchestratorService:
 
         return routed_count
 
-    def _run_import(self, session, ImportSession) -> tuple[bool, str]:
-        """Execute synchronous import and finalize session."""
-        # Check if session is already IN_PROGRESS (duplicate request)
-        if session.status == ImportSession.ImportStatus.IN_PROGRESS:
-            return True, "success"
+    def _dispatch_import(self, session) -> None:
+        """Dispatch import via Celery to avoid blocking the HTTP response.
+
+        For large files, synchronous import inside the request can exceed
+        Nginx proxy timeouts. Dispatching to Celery returns immediately
+        with 'success' so 1C proceeds, while the actual import runs
+        in a background worker.
+        """
+        from apps.products.tasks import process_1c_import_task
 
         dry_run = (self.import_dir / ".dry_run").exists()
 
-        try:
-            if dry_run:
-                logger.info("[IMPORT] DRY RUN mode - skipping import")
-                session.report += (
-                    f"[{timezone.now()}] DRY RUN: импорт пропущен\n"
-                )
-                session.status = ImportSession.ImportStatus.COMPLETED
-                session.finished_at = timezone.now()
-                session.save(
-                    update_fields=["report", "status", "finished_at"]
-                )
-            else:
-                logger.info(
-                    f"[IMPORT] Starting SYNCHRONOUS import for "
-                    f"session_id={session.pk}"
-                )
-                session.status = ImportSession.ImportStatus.IN_PROGRESS
-                session.report += (
-                    f"[{timezone.now()}] Начало синхронного импорта...\n"
-                )
-                session.save(
-                    update_fields=["status", "report", "updated_at"]
-                )
-
-                file_type = self._detect_file_type()
-
-                logger.info(
-                    f"[IMPORT] Detected file_type={file_type} "
-                    f"from filename={self.filename}"
-                )
-
-                call_command(
-                    "import_products_from_1c",
-                    data_dir=str(self.import_dir),
-                    file_type=file_type,
-                    import_session_id=session.pk,
-                )
-
-                session.refresh_from_db()
-                if session.status != ImportSession.ImportStatus.COMPLETED:
-                    session.status = ImportSession.ImportStatus.COMPLETED
-                    session.finished_at = timezone.now()
-                session.report += (
-                    f"[{timezone.now()}] Импорт завершен успешно.\n"
-                )
-                session.save(
-                    update_fields=[
-                        "status", "report", "finished_at", "updated_at"
-                    ]
-                )
-
-                logger.info(
-                    f"[IMPORT] Import completed successfully for "
-                    f"session_id={session.pk}"
-                )
-
-            # Mark exchange cycle complete
+        if dry_run:
+            logger.info("[IMPORT] DRY RUN mode - skipping import")
+            session.report += (
+                f"[{timezone.now()}] DRY RUN: импорт пропущен\n"
+            )
+            session.status = session.ImportStatus.COMPLETED
+            session.finished_at = timezone.now()
+            session.save(
+                update_fields=["report", "status", "finished_at"]
+            )
             file_service = FileStreamService(self.sessid)
             file_service.mark_complete()
+            return
 
-        except Exception as e:
-            logger.error(f"[IMPORT] Import failed: {e}", exc_info=True)
-            session.status = ImportSession.ImportStatus.FAILED
-            session.error_message = str(e)
-            session.report += f"[{timezone.now()}] ОШИБКА импорта: {e}\n"
-            session.save(
-                update_fields=["status", "error_message", "report"]
-            )
-            return False, str(e)
+        file_type = self._detect_file_type()
+        logger.info(
+            f"[IMPORT] Dispatching Celery import task for "
+            f"session_id={session.pk}, file_type={file_type}"
+        )
 
-        return True, "success"
+        session.report += (
+            f"[{timezone.now()}] Celery import task dispatched "
+            f"(file_type={file_type})\n"
+        )
+        session.save(update_fields=["report", "updated_at"])
+
+        task_result = process_1c_import_task.delay(
+            session.pk, str(self.import_dir)
+        )
+
+        logger.info(
+            f"[IMPORT] Celery task dispatched: task_id={task_result.id}, "
+            f"session_id={session.pk}"
+        )
 
     def _detect_file_type(self) -> str:
         """Determine import file type from filename."""

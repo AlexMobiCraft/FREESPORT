@@ -482,6 +482,7 @@ class ICExchangeView(APIView):
             orders_bulk_updated.send(
                 sender=Order,
                 order_ids=exported_ids,
+                updated_count=updated,
                 field="sent_to_1c",
                 timestamp=now,
             )

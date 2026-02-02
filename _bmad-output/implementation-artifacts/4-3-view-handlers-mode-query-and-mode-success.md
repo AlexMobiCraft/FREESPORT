@@ -111,9 +111,10 @@ So that **заказы передаются по стандартному про
 
 ### Review Follow-ups (AI - Cycle 4)
 
-- [ ] [AI-Review][MEDIUM] **Synchronous Email Blocking:** `send_order_confirmation_email` sends emails synchronously in `post_save`. Offload to Celery. `backend/apps/orders/signals.py`
-- [ ] [AI-Review][MEDIUM] **Synchronous Import Risk:** `ImportOrchestratorService.execute` runs import synchronously. Large files may cause Nginx timeouts. `backend/apps/integrations/onec_exchange/import_orchestrator.py`
-- [ ] [AI-Review][LOW] **Signal Ambiguity:** `orders_bulk_updated` signal payload might mismatch actual updated count. `backend/apps/integrations/onec_exchange/views.py`
+- [x] [AI-Review][MEDIUM] **Блокировка при синхронной отправке Email:** Функция `send_order_confirmation_email` отправляет письма синхронно в `post_save`. Необходимо вынести в Celery. `backend/apps/orders/signals.py`
+- [x] [AI-Review][MEDIUM] **Риск синхронного импорта:** `ImportOrchestratorService.execute` выполняет импорт синхронно. Большие файлы могут привести к таймаутам Nginx. `backend/apps/integrations/onec_exchange/import_orchestrator.py`
+- [x] [AI-Review][LOW] **Неоднозначность сигнала:** Полезная нагрузка сигнала `orders_bulk_updated` может не соответствовать фактическому количеству обновленных записей. `backend/apps/integrations/onec_exchange/views.py`
+
 
 
 ## Dev Notes
@@ -210,6 +211,9 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 - ✅ Resolved review finding [HIGH]: Replaced `f.read()` with `shutil.copy2` via `_copy_file_to_log()` for OOM-safe audit logging.
 - ✅ Resolved review finding [MEDIUM]: Added time-window fallback for `handle_success` when Redis cache is missing (long imports / cache eviction).
 - ✅ Resolved review finding [LOW]: Added streaming regression tests (`TestStreamingBehavior`) to verify FileResponse usage and file-copy logging.
+- ✅ Resolved review finding [MEDIUM]: Replaced synchronous `send_mail()` in `post_save` signal with Celery task `send_order_confirmation_to_customer.delay()`. Both customer and admin emails now dispatched asynchronously.
+- ✅ Resolved review finding [MEDIUM]: Replaced synchronous `call_command` in `ImportOrchestratorService.execute()` with `process_1c_import_task.delay()` to avoid Nginx timeouts on large imports.
+- ✅ Resolved review finding [LOW]: Added `updated_count` field to `orders_bulk_updated` signal payload to disambiguate between total exported IDs and actually updated records.
 
 ### Change Log
 
@@ -230,13 +234,15 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 - 2026-02-01: Addressed Cycle 2 findings — 3 items resolved (2 MEDIUM, 1 LOW). FileResponse streaming, export_skipped field + migration, AC6 updated.
 - 2026-02-01: Review performed (Cycle 3). 3 issues found (1 HIGH, 1 MEDIUM, 1 LOW). Action items created. Status reverted to in-progress.
 - 2026-02-01: Addressed Cycle 3 findings — 3 items resolved (1 HIGH, 1 MEDIUM, 1 LOW). shutil.copy2 for logging, time-window fallback, streaming tests. 33 tests total.
+- 2026-02-02: Addressed Cycle 4 findings — 3 items resolved (2 MEDIUM, 1 LOW). Async email via Celery, async import dispatch, signal payload accuracy. 38 tests total. Status → review.
 
 ### File List
 
 - `backend/apps/integrations/onec_exchange/views.py` (modified) — добавлены `_save_exchange_log()`, `_get_exchange_log_dir()`, `handle_query()`, `handle_success()`, роутинг `mode=success`; убран `user__isnull=False` фильтр; логи перемещены в приватную директорию; `getattr` для `ONEC_EXCHANGE`; `handle_import` делегирует в `ImportOrchestratorService`; exported_ids в cache вместо сессии; константы `ORDERS_XML_FILENAME`/`ORDERS_ZIP_FILENAME`
 - `backend/apps/integrations/onec_exchange/import_orchestrator.py` (new) — `ImportOrchestratorService`: оркестрация импорта (сессии, перенос файлов, ZIP-распаковка с Zip Slip защитой, роутинг, синхронный импорт)
 - `backend/apps/orders/services/order_export.py` (modified) — добавлен `generate_xml_with_ids()`, `generate_xml_streaming` принимает `exported_ids` параметр; `SCHEMA_VERSION` теперь property из settings; единицы измерения конфигурируемы через `settings.ONEC_EXCHANGE.DEFAULT_UNIT`
-- `backend/apps/orders/signals.py` (modified) — добавлен кастомный сигнал `orders_bulk_updated` для аудита массовых обновлений заказов (QuerySet.update обходит post_save)
+- `backend/apps/orders/signals.py` (modified) — добавлен кастомный сигнал `orders_bulk_updated` для аудита массовых обновлений заказов; отправка email клиенту и админам теперь полностью асинхронная через Celery
 - `backend/apps/orders/models.py` (modified) — добавлено поле `export_skipped` для пометки невалидных заказов (poison queue fix)
 - `backend/apps/orders/migrations/0010_add_export_skipped_field.py` (new) — миграция для export_skipped
-- `backend/tests/integration/test_onec_export.py` (modified) — 31 integration-тестов для Story 4.3; добавлен helper `get_response_content()` для FileResponse
+- `backend/apps/orders/tasks.py` (modified) — добавлена Celery-задача `send_order_confirmation_to_customer` и хелпер `_build_order_email_text` для асинхронной отправки подтверждения клиенту
+- `backend/tests/integration/test_onec_export.py` (modified) — 38 integration-тестов для Story 4.3; добавлены тесты async email, async import dispatch, signal payload accuracy

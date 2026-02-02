@@ -76,7 +76,7 @@ development_status:
   epic-4: in-progress
   4-1-order-model-fields-for-1c-integration: done
   4-2-order-export-service-xml-generation: done
-  4-3-view-handlers-mode-query-and-mode-success: in-progress
+  4-3-view-handlers-mode-query-and-mode-success: review
   4-4-integration-tests-full-export-cycle: backlog
   epic-4-retrospective: optional
 
