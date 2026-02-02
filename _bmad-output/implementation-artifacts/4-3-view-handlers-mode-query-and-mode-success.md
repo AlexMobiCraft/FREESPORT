@@ -1,6 +1,6 @@
 # Story 4.3: View-обработчики mode=query и mode=success
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -217,6 +217,9 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 - ✅ Resolved review finding [MEDIUM]: `finalize_batch` now propagates file transfer failures instead of silently returning success. Returns `(False, msg)` when `_transfer_files` fails.
 - ✅ Resolved review finding [LOW]: Eliminated code duplication — removed `_transfer_files_complete`, unified into `_transfer_files(label="COMPLETE")` with a `label` parameter for log context.
 - ✅ Resolved review finding [LOW]: `send_order_notification_email` and `send_order_cancelled_notification_email` now use `getattr(settings, 'SITE_URL', 'http://localhost:8001')` for resilience when `SITE_URL` is not configured.
+- ✅ Resolved review finding [LOW]: Removed dead code `OrderExportService.generate_xml_with_ids` — unused method, callers use `generate_xml_streaming` with `exported_ids` param directly.
+- ✅ Resolved review finding [LOW]: Moved import-related tests (TestImportOrchestratorService, TestAsyncImportDispatch, TestFinalizeBatchReliability, TestTransferFilesUnified, TestZipSlipProtection) from `test_onec_export.py` to new `test_onec_import.py`.
+- ✅ Resolved review finding [LOW]: Added 3 view-level integration tests for `GET /?mode=complete` (TestModeComplete) verifying delegation to orchestrator, error handling, and missing sessid.
 
 
 ### Review Follow-ups (AI - Cycle 5)
@@ -224,6 +227,12 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 - [x] [AI-Review][MEDIUM] **Reliability:** `ImportOrchestratorService.finalize_batch` swallows file transfer errors. If moving files fails, it logs error but returns "success" to 1C. Must fail hard or return warning. `backend/apps/integrations/onec_exchange/import_orchestrator.py`
 - [x] [AI-Review][LOW] **Maintainability:** Code duplication between `_transfer_files` and `_transfer_files_complete` in `ImportOrchestratorService`. Refactor into single `_move_files_to_import` method.
 - [x] [AI-Review][LOW] **Robustness:** `send_order_notification_email` relies on `settings.SITE_URL`. Ensure fallback or validation for `SITE_URL` in `send_order_notification_email`.
+
+### Review Follow-ups (AI - Cycle 6)
+
+- [x] [AI-Review][LOW] **Dead Code:** Method `OrderExportService.generate_xml_with_ids` is unused and should be removed. [file:backend/apps/orders/services/order_export.py]
+- [x] [AI-Review][LOW] **Test Organization:** Move `ImportOrchestratorService` tests from `test_onec_export.py` to `test_onec_import.py`. [file:backend/tests/integration/test_onec_export.py]
+- [x] [AI-Review][LOW] **Missing Integration Test:** Add view-level integration test for `GET /?mode=complete` to verify delegation to orchestrator. [file:backend/apps/integrations/onec_exchange/views.py]
 
 ### Change Log
 
@@ -246,6 +255,8 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 - 2026-02-01: Addressed Cycle 3 findings — 3 items resolved (1 HIGH, 1 MEDIUM, 1 LOW). shutil.copy2 for logging, time-window fallback, streaming tests. 33 tests total.
 - 2026-02-02: Addressed Cycle 4 findings — 3 items resolved (2 MEDIUM, 1 LOW). Async email via Celery, async import dispatch, signal payload accuracy. 38 tests total. Status → review.
 - 2026-02-02: Addressed Cycle 5 findings — 3 items resolved (1 MEDIUM, 2 LOW). finalize_batch error propagation, unified _transfer_files, SITE_URL fallback. 44 tests total.
+- 2026-02-02: Review performed (Cycle 6). 3 LOW issues found. Action items created. Status → done.
+- 2026-02-02: Addressed Cycle 6 findings — 3 items resolved (3 LOW). Removed dead code `generate_xml_with_ids`, moved import tests to `test_onec_import.py`, added 3 view-level tests for `mode=complete`.
 
 ### File List
 
@@ -257,4 +268,5 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 - `backend/apps/orders/migrations/0010_add_export_skipped_field.py` (new) — миграция для export_skipped
 - `backend/apps/orders/tasks.py` (modified) — добавлена Celery-задача `send_order_confirmation_to_customer` и хелпер `_build_order_email_text` для асинхронной отправки подтверждения клиенту
 - `backend/apps/orders/tasks.py` (modified) — `getattr` fallback для `settings.SITE_URL` в `send_order_notification_email` и `send_order_cancelled_notification_email`
-- `backend/tests/integration/test_onec_export.py` (modified) — 44 integration-теста для Story 4.3; добавлены тесты finalize_batch reliability, unified transfer, SITE_URL fallback
+- `backend/tests/integration/test_onec_export.py` (modified) — экспорт-тесты для Story 4.3; импорт-тесты перенесены в test_onec_import.py
+- `backend/tests/integration/test_onec_import.py` (new) — тесты ImportOrchestratorService, async dispatch, finalize_batch, transfer files, Zip Slip, mode=complete (3 новых теста)

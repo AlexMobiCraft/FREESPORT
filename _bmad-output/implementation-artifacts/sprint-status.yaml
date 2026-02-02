@@ -30,7 +30,7 @@
 # - SM typically creates next story ONLY after previous one is 'done' to incorporate learnings
 # - Dev moves story to 'review', then runs code-review (fresh context, ideally different LLM)
 
-generated: "2026-01-30T12:00:00+01:00"
+generated: "2026-02-02T12:00:00+01:00"
 project: "FREESPORT"
 project_key: "1C-HTTP-EXCHANGE"
 tracking_system: "file-system"
@@ -76,8 +76,8 @@ development_status:
   epic-4: in-progress
   4-1-order-model-fields-for-1c-integration: done
   4-2-order-export-service-xml-generation: done
-  4-3-view-handlers-mode-query-and-mode-success: review
-  4-4-integration-tests-full-export-cycle: backlog
+  4-3-view-handlers-mode-query-and-mode-success: done
+  4-4-integration-tests-full-export-cycle: ready-for-dev
   epic-4-retrospective: optional
 
   # ========================================

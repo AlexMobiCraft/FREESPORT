@@ -77,21 +77,6 @@ class OrderExportService:
         xml_parts = list(self.generate_xml_streaming(orders))
         return "".join(xml_parts)
 
-    def generate_xml_with_ids(self, orders: "QuerySet[Order]") -> tuple[str, list[int]]:
-        """
-        Generate CommerceML 3.1 XML and return list of actually exported order PKs.
-
-        Same as generate_xml but additionally tracks which orders passed validation
-        and were included in the XML output. Used by handle_query/handle_success
-        to ensure only exported orders are marked as sent_to_1c.
-
-        Returns:
-            Tuple of (UTF-8 encoded XML string, list of exported order PKs).
-        """
-        exported_ids: list[int] = []
-        xml_parts = list(self.generate_xml_streaming(orders, exported_ids))
-        return "".join(xml_parts), exported_ids
-
     def generate_xml_streaming(
         self,
         orders: "QuerySet[Order]",
