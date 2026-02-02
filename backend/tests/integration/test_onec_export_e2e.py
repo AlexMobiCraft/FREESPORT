@@ -12,58 +12,15 @@ Tests cover:
 - AC8: Coverage >=90% for critical modules
 """
 
-import base64
 import xml.etree.ElementTree as ET
 
 import pytest
 from rest_framework.test import APIClient
 
 from tests.conftest import OrderFactory, OrderItemFactory, ProductVariantFactory, UserFactory
+from tests.utils import parse_commerceml_response, perform_1c_checkauth
 
 pytestmark = pytest.mark.django_db
-
-# ---------------------------------------------------------------------------
-# Helpers (Task 1.4–1.6)
-# ---------------------------------------------------------------------------
-
-
-def _perform_checkauth(client: APIClient, email: str, password: str) -> APIClient:
-    """Perform checkauth and set session cookie on the client (Task 1.4).
-
-    NOTE: 1C exchange uses Basic Auth + session cookie — distinct from JWT
-    ``authenticated_client`` in conftest.py. Matches pattern from
-    ``test_onec_export.py::authenticated_client`` fixture.
-    """
-    auth_header = "Basic " + base64.b64encode(
-        f"{email}:{password}".encode()
-    ).decode("ascii")
-    response = client.get(
-        "/api/integration/1c/exchange/",
-        data={"mode": "checkauth"},
-        HTTP_AUTHORIZATION=auth_header,
-    )
-    assert response.status_code == 200
-    body = response.content.decode("utf-8")
-    assert body.startswith("success"), f"checkauth failed: {body}"
-    lines = body.replace("\r\n", "\n").split("\n")
-    cookie_name = lines[1]
-    cookie_value = lines[2]
-    client.cookies[cookie_name] = cookie_value
-    return client
-
-
-def get_response_content(response) -> bytes:
-    """Get content from HttpResponse or FileResponse (Task 1.6)."""
-    if hasattr(response, "streaming_content"):
-        return b"".join(response.streaming_content)
-    return response.content
-
-
-def parse_commerceml_response(response) -> ET.Element:
-    """Parse XML from response into ElementTree root (Task 1.5)."""
-    content = get_response_content(response).decode("utf-8")
-    return ET.fromstring(content)
-
 
 # ---------------------------------------------------------------------------
 # Fixtures (Task 1.7, auth)
@@ -91,7 +48,7 @@ def onec_user(db):
 def auth_client(onec_user) -> APIClient:
     """Authenticated APIClient after checkauth."""
     client = APIClient()
-    return _perform_checkauth(client, onec_user.email, ONEC_PASSWORD)
+    return perform_1c_checkauth(client, onec_user.email, ONEC_PASSWORD)
 
 
 # ---------------------------------------------------------------------------
@@ -262,10 +219,10 @@ class TestFullExportCycleMultipleOrders:
         )
         assert resp_q.status_code == 200
 
-        # Verify XML has 3 documents
+        # Verify XML has 3 documents (AC4: check <Документ> count, not <Контейнер>)
         root = parse_commerceml_response(resp_q)
-        containers = root.findall("Контейнер")
-        assert len(containers) == 3
+        documents = root.findall(".//Документ")
+        assert len(documents) == 3, f"Expected 3 documents, got {len(documents)}"
 
         resp_s = auth_client.get(
             "/api/integration/1c/exchange/", data={"mode": "success"}
@@ -325,9 +282,18 @@ class TestFullExportCycleGuestOrder:
 
         contacts = counterparty.find("Контакты")
         assert contacts is not None
-        contact_values = [c.findtext("Значение") for c in contacts.findall("Контакт")]
-        assert "guest-e2e@test.com" in contact_values
-        assert "+79991112233" in contact_values
+
+        # AC5/9.3: Verify contact types match values (Почта for email, Телефон for phone)
+        contact_list = contacts.findall("Контакт")
+        contact_map = {
+            c.findtext("Тип"): c.findtext("Значение") for c in contact_list
+        }
+        assert contact_map.get("Почта") == "guest-e2e@test.com", (
+            f"Expected email contact type 'Почта', got: {contact_map}"
+        )
+        assert contact_map.get("Телефон") == "+79991112233", (
+            f"Expected phone contact type 'Телефон', got: {contact_map}"
+        )
 
     def test_full_cycle_guest_order_marked_as_sent_after_success(
         self, auth_client, log_dir, db
@@ -400,10 +366,12 @@ class TestFullExportCycleRepeat:
             "/api/integration/1c/exchange/", data={"mode": "query"}
         )
         assert resp.status_code == 200
-        content = get_response_content(resp).decode("utf-8")
 
-        # ASSERT
-        assert "Документ" not in content
+        # ASSERT (9.4: Use XML parsing instead of string check)
+        root = parse_commerceml_response(resp)
+        assert root.tag == "КоммерческаяИнформация", f"Unexpected root: {root.tag}"
+        documents = root.findall(".//Документ")
+        assert len(documents) == 0, f"Expected 0 documents after success, got {len(documents)}"
 
     def test_new_order_after_success_appears_in_next_query(
         self, auth_client, log_dir, db
