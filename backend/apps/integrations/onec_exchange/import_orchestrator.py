@@ -155,34 +155,49 @@ class ImportOrchestratorService:
 
         return session
 
-    def _transfer_files(self, session) -> tuple[bool, str]:
-        """Transfer files from temp to import directory."""
+    def _transfer_files(self, session, label: str = "IMPORT") -> tuple[bool, str]:
+        """Transfer files from temp to import directory.
+
+        Args:
+            session: ImportSession instance for report logging.
+            label: Log prefix for distinguishing callers (IMPORT vs COMPLETE).
+
+        Returns:
+            Tuple of (success: bool, message: str).
+            Returns (False, ...) if any file transfer fails, so callers
+            can decide whether to abort or continue.
+        """
         try:
             file_service = FileStreamService(self.sessid)
             routing_service = FileRoutingService(self.sessid)
             files = file_service.list_files()
-            logger.info(f"[IMPORT] Files in temp: {files}")
+            logger.info(f"[{label}] Files in temp: {files}")
 
             transferred_count = 0
+            failed_files: list[str] = []
             for f in files:
                 try:
                     routing_service.move_to_import(f)
                     transferred_count += 1
                 except Exception as move_err:
-                    logger.error(f"[IMPORT] Failed to move {f}: {move_err}")
+                    logger.error(f"[{label}] Failed to move {f}: {move_err}")
+                    failed_files.append(f)
 
             logger.info(
-                f"[IMPORT] Transferred {transferred_count}/{len(files)} files"
+                f"[{label}] Transferred {transferred_count}/{len(files)} files"
             )
             session.report += (
                 f"[{timezone.now()}] Перенесено файлов: "
                 f"{transferred_count}/{len(files)}\n"
             )
             session.save(update_fields=["report"])
+
+            if failed_files:
+                return False, f"Failed to transfer {len(failed_files)} file(s): {', '.join(failed_files)}"
             return True, ""
 
         except Exception as e:
-            logger.error(f"[IMPORT] File transfer failed: {e}", exc_info=True)
+            logger.error(f"[{label}] File transfer failed: {e}", exc_info=True)
             session.report += f"[{timezone.now()}] ОШИБКА переноса: {e}\n"
             session.save(update_fields=["report"])
             return False, "File transfer error"
@@ -394,7 +409,15 @@ class ImportOrchestratorService:
 
         # Step 2: IO operations OUTSIDE transaction (no DB lock held)
         # Transfer files from temp to import directory
-        self._transfer_files_complete(session)
+        ok, msg = self._transfer_files(session, label="COMPLETE")
+        if not ok:
+            logger.error(f"[COMPLETE] File transfer failed: {msg}")
+            session.report += (
+                f"[{timezone.now()}] ОШИБКА: перенос файлов не удался, "
+                f"импорт прерван: {msg}\n"
+            )
+            session.save(update_fields=["report"])
+            return False, f"File transfer failed: {msg}"
 
         # Check for file-flag .dry_run
         if not dry_run and (self.import_dir / ".dry_run").exists():
@@ -441,43 +464,7 @@ class ImportOrchestratorService:
 
         return session
 
-    def _transfer_files_complete(self, session) -> None:
-        """Transfer accumulated files from temp to import_dir for mode=complete."""
-        try:
-            file_service = FileStreamService(self.sessid)
-            routing_service = FileRoutingService(self.sessid)
-            files = file_service.list_files()
-            logger.info(f"[COMPLETE] Files in temp before transfer: {files}")
-
-            transferred_count = 0
-            for f in files:
-                try:
-                    routing_service.move_to_import(f)
-                    transferred_count += 1
-                    logger.debug(f"[COMPLETE] Transferred: {f}")
-                except Exception as move_err:
-                    logger.error(
-                        f"[COMPLETE] Failed to move file {f}: {move_err}"
-                    )
-
-            logger.info(
-                f"[COMPLETE] Transferred {transferred_count}/{len(files)} "
-                f"files to {self.import_dir}"
-            )
-            session.report += (
-                f"[{timezone.now()}] Перенесено файлов: "
-                f"{transferred_count}/{len(files)}\n"
-            )
-            session.save(update_fields=["report"])
-
-        except Exception as e:
-            logger.error(
-                f"[COMPLETE] Failed to transfer files: {e}", exc_info=True
-            )
-            session.report += (
-                f"[{timezone.now()}] ОШИБКА переноса файлов: {e}\n"
-            )
-            session.save(update_fields=["report"])
+    # _transfer_files_complete removed: unified into _transfer_files(label="COMPLETE")
 
     def _dispatch_or_dryrun(self, session, dry_run: bool) -> None:
         """Dispatch Celery task or run dry-run unpack for mode=complete."""

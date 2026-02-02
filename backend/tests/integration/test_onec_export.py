@@ -796,11 +796,8 @@ class TestAsyncEmailInSignal:
 
     def test_signal_dispatches_celery_tasks(self, customer_user, product_variant):
         """MEDIUM: post_save must dispatch Celery tasks, not send email synchronously."""
-        with patch("apps.orders.signals.send_order_confirmation_to_customer") as mock_customer, \
-             patch("apps.orders.signals.send_order_notification_email") as mock_admin:
-            # Patch the delay method
-            mock_customer.delay = patch("apps.orders.tasks.send_order_confirmation_to_customer.delay").start()
-            mock_admin.delay = patch("apps.orders.tasks.send_order_notification_email.delay").start()
+        with patch("apps.orders.tasks.send_order_confirmation_to_customer.delay") as mock_customer_delay, \
+             patch("apps.orders.tasks.send_order_notification_email.delay") as mock_admin_delay:
 
             order = Order.objects.create(
                 user=customer_user,
@@ -813,10 +810,8 @@ class TestAsyncEmailInSignal:
             )
 
             # Verify Celery tasks were dispatched (not synchronous send_mail)
-            mock_customer.delay.assert_called_once_with(order.id)
-            mock_admin.delay.assert_called_once_with(order.id)
-
-            patch.stopall()
+            mock_customer_delay.assert_called_once_with(order.id)
+            mock_admin_delay.assert_called_once_with(order.id)
 
     def test_signal_does_not_call_send_mail_directly(self):
         """Ensure signals.py no longer imports send_mail directly."""
@@ -841,7 +836,7 @@ class TestAsyncImportDispatch:
             ImportOrchestratorService,
         )
 
-        with patch("apps.integrations.onec_exchange.import_orchestrator.process_1c_import_task") as mock_task:
+        with patch("apps.products.tasks.process_1c_import_task") as mock_task:
             mock_task.delay.return_value.id = "fake-task-id"
             svc = ImportOrchestratorService("test-sessid", "goods.xml")
             # Mock file services to avoid filesystem issues
@@ -869,6 +864,164 @@ class TestAsyncImportDispatch:
         )
         source = inspect.getsource(ImportOrchestratorService)
         assert "call_command" not in source
+
+
+@pytest.mark.django_db
+@pytest.mark.integration
+class TestFinalizeBatchReliability:
+    """Tests for finalize_batch file transfer error propagation (Cycle 5)."""
+
+    def test_finalize_batch_fails_on_transfer_error(self, settings, tmp_path):
+        """MEDIUM: finalize_batch must return failure when file transfer fails."""
+        settings.MEDIA_ROOT = str(tmp_path)
+        (tmp_path / "1c_import").mkdir(parents=True, exist_ok=True)
+
+        from apps.integrations.onec_exchange.import_orchestrator import (
+            ImportOrchestratorService,
+        )
+
+        svc = ImportOrchestratorService("test-finalize-fail", "goods.xml")
+
+        with patch.object(svc, "_transfer_files", return_value=(False, "disk full")), \
+             patch.object(svc, "_resolve_complete_session") as mock_resolve:
+
+            from unittest.mock import MagicMock
+            mock_session = MagicMock()
+            mock_session.report = ""
+            mock_resolve.return_value = mock_session
+
+            # Patch is_complete to skip duplicate check
+            with patch(
+                "apps.integrations.onec_exchange.import_orchestrator.FileStreamService"
+            ) as mock_fs_cls:
+                mock_fs_cls.return_value.is_complete.return_value = False
+
+                success, msg = svc.finalize_batch()
+                assert success is False
+                assert "disk full" in msg
+
+    def test_transfer_files_reports_partial_failure(self, settings, tmp_path):
+        """MEDIUM: _transfer_files returns failure when some files fail to move."""
+        settings.MEDIA_ROOT = str(tmp_path)
+        (tmp_path / "1c_import").mkdir(parents=True, exist_ok=True)
+
+        from apps.integrations.onec_exchange.import_orchestrator import (
+            ImportOrchestratorService,
+        )
+
+        svc = ImportOrchestratorService("test-partial", "goods.xml")
+
+        with patch(
+            "apps.integrations.onec_exchange.import_orchestrator.FileStreamService"
+        ) as mock_fs_cls, patch(
+            "apps.integrations.onec_exchange.import_orchestrator.FileRoutingService"
+        ) as mock_rs_cls:
+            mock_fs_cls.return_value.list_files.return_value = ["a.xml", "b.xml"]
+            # First succeeds, second fails
+            mock_rs_cls.return_value.move_to_import.side_effect = [None, OSError("permission denied")]
+
+            from unittest.mock import MagicMock
+            mock_session = MagicMock()
+            mock_session.report = ""
+
+            ok, msg = svc._transfer_files(mock_session)
+            assert ok is False
+            assert "b.xml" in msg
+
+
+@pytest.mark.django_db
+@pytest.mark.integration
+class TestTransferFilesUnified:
+    """Tests for unified _transfer_files (code duplication fix, Cycle 5)."""
+
+    def test_no_transfer_files_complete_method(self):
+        """LOW: _transfer_files_complete should no longer exist as a separate method."""
+        from apps.integrations.onec_exchange.import_orchestrator import (
+            ImportOrchestratorService,
+        )
+        assert not hasattr(ImportOrchestratorService, "_transfer_files_complete")
+
+    def test_transfer_files_accepts_label_param(self):
+        """LOW: _transfer_files accepts a label parameter for log context."""
+        import inspect
+        from apps.integrations.onec_exchange.import_orchestrator import (
+            ImportOrchestratorService,
+        )
+        sig = inspect.signature(ImportOrchestratorService._transfer_files)
+        assert "label" in sig.parameters
+
+
+@pytest.mark.django_db
+@pytest.mark.integration
+class TestSiteUrlFallback:
+    """Tests for SITE_URL fallback in email tasks (Cycle 5)."""
+
+    def test_notification_email_works_without_site_url(self, settings, customer_user, product_variant):
+        """LOW: send_order_notification_email must not crash when SITE_URL is missing."""
+        if hasattr(settings, "SITE_URL"):
+            delattr(settings, "SITE_URL")
+
+        order = Order.objects.create(
+            user=customer_user,
+            order_number="FS-SITEURL-001",
+            total_amount=500,
+            sent_to_1c=False,
+            delivery_address="ул. Тест, 1",
+            delivery_method="pickup",
+            payment_method="card",
+        )
+        OrderItem.objects.create(
+            order=order,
+            product=product_variant.product,
+            variant=product_variant,
+            product_name="Test Product",
+            unit_price=500,
+            quantity=1,
+            total_price=500,
+        )
+
+        from apps.orders.tasks import send_order_notification_email
+        with patch("apps.orders.tasks.send_mail") as mock_send, \
+             patch("apps.orders.tasks.render_to_string", return_value="test"):
+            from apps.common.models import NotificationRecipient
+            NotificationRecipient.objects.create(
+                email="admin@example.com",
+                is_active=True,
+                notify_new_orders=True,
+            )
+            # Should not raise AttributeError for SITE_URL
+            result = send_order_notification_email(order.id)
+            assert result is True
+            mock_send.assert_called_once()
+
+    def test_cancelled_notification_works_without_site_url(self, settings, customer_user):
+        """LOW: send_order_cancelled_notification_email handles missing SITE_URL."""
+        if hasattr(settings, "SITE_URL"):
+            delattr(settings, "SITE_URL")
+
+        order = Order.objects.create(
+            user=customer_user,
+            order_number="FS-CANCEL-001",
+            total_amount=500,
+            sent_to_1c=False,
+            delivery_address="ул. Тест, 1",
+            delivery_method="pickup",
+            payment_method="card",
+        )
+
+        from apps.orders.tasks import send_order_cancelled_notification_email
+        with patch("apps.orders.tasks.send_mail") as mock_send:
+            from apps.common.models import NotificationRecipient
+            NotificationRecipient.objects.create(
+                email="admin@example.com",
+                is_active=True,
+                notify_order_cancelled=True,
+            )
+            result = send_order_cancelled_notification_email(order.id)
+            assert result is True
+            # Verify fallback URL is used
+            call_args = mock_send.call_args
+            assert "localhost:8001" in call_args.kwargs.get("message", call_args[0][1] if len(call_args[0]) > 1 else "")
 
 
 @pytest.mark.django_db

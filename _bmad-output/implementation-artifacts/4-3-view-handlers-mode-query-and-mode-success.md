@@ -1,6 +1,6 @@
 # Story 4.3: View-обработчики mode=query и mode=success
 
-Status: in-progress
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -214,6 +214,16 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 - ✅ Resolved review finding [MEDIUM]: Replaced synchronous `send_mail()` in `post_save` signal with Celery task `send_order_confirmation_to_customer.delay()`. Both customer and admin emails now dispatched asynchronously.
 - ✅ Resolved review finding [MEDIUM]: Replaced synchronous `call_command` in `ImportOrchestratorService.execute()` with `process_1c_import_task.delay()` to avoid Nginx timeouts on large imports.
 - ✅ Resolved review finding [LOW]: Added `updated_count` field to `orders_bulk_updated` signal payload to disambiguate between total exported IDs and actually updated records.
+- ✅ Resolved review finding [MEDIUM]: `finalize_batch` now propagates file transfer failures instead of silently returning success. Returns `(False, msg)` when `_transfer_files` fails.
+- ✅ Resolved review finding [LOW]: Eliminated code duplication — removed `_transfer_files_complete`, unified into `_transfer_files(label="COMPLETE")` with a `label` parameter for log context.
+- ✅ Resolved review finding [LOW]: `send_order_notification_email` and `send_order_cancelled_notification_email` now use `getattr(settings, 'SITE_URL', 'http://localhost:8001')` for resilience when `SITE_URL` is not configured.
+
+
+### Review Follow-ups (AI - Cycle 5)
+
+- [x] [AI-Review][MEDIUM] **Reliability:** `ImportOrchestratorService.finalize_batch` swallows file transfer errors. If moving files fails, it logs error but returns "success" to 1C. Must fail hard or return warning. `backend/apps/integrations/onec_exchange/import_orchestrator.py`
+- [x] [AI-Review][LOW] **Maintainability:** Code duplication between `_transfer_files` and `_transfer_files_complete` in `ImportOrchestratorService`. Refactor into single `_move_files_to_import` method.
+- [x] [AI-Review][LOW] **Robustness:** `send_order_notification_email` relies on `settings.SITE_URL`. Ensure fallback or validation for `SITE_URL` in `send_order_notification_email`.
 
 ### Change Log
 
@@ -235,6 +245,7 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 - 2026-02-01: Review performed (Cycle 3). 3 issues found (1 HIGH, 1 MEDIUM, 1 LOW). Action items created. Status reverted to in-progress.
 - 2026-02-01: Addressed Cycle 3 findings — 3 items resolved (1 HIGH, 1 MEDIUM, 1 LOW). shutil.copy2 for logging, time-window fallback, streaming tests. 33 tests total.
 - 2026-02-02: Addressed Cycle 4 findings — 3 items resolved (2 MEDIUM, 1 LOW). Async email via Celery, async import dispatch, signal payload accuracy. 38 tests total. Status → review.
+- 2026-02-02: Addressed Cycle 5 findings — 3 items resolved (1 MEDIUM, 2 LOW). finalize_batch error propagation, unified _transfer_files, SITE_URL fallback. 44 tests total.
 
 ### File List
 
@@ -245,4 +256,5 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 - `backend/apps/orders/models.py` (modified) — добавлено поле `export_skipped` для пометки невалидных заказов (poison queue fix)
 - `backend/apps/orders/migrations/0010_add_export_skipped_field.py` (new) — миграция для export_skipped
 - `backend/apps/orders/tasks.py` (modified) — добавлена Celery-задача `send_order_confirmation_to_customer` и хелпер `_build_order_email_text` для асинхронной отправки подтверждения клиенту
-- `backend/tests/integration/test_onec_export.py` (modified) — 38 integration-тестов для Story 4.3; добавлены тесты async email, async import dispatch, signal payload accuracy
+- `backend/apps/orders/tasks.py` (modified) — `getattr` fallback для `settings.SITE_URL` в `send_order_notification_email` и `send_order_cancelled_notification_email`
+- `backend/tests/integration/test_onec_export.py` (modified) — 44 integration-теста для Story 4.3; добавлены тесты finalize_batch reliability, unified transfer, SITE_URL fallback

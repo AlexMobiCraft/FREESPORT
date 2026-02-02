@@ -199,7 +199,7 @@ def send_order_notification_email(self, order_id: int) -> bool:
         "delivery_method": delivery_methods.get(
             order.delivery_method, order.delivery_method
         ),
-        "admin_url": f"{settings.SITE_URL}/admin/orders/order/{order.id}/change/",
+        "admin_url": f"{getattr(settings, 'SITE_URL', 'http://localhost:8001')}/admin/orders/order/{order.id}/change/",
     }
 
     # Рендерим шаблоны
@@ -304,7 +304,7 @@ def send_order_cancelled_notification_email(self, order_id: int) -> bool:
         f"Заказ #{order.order_number} был отменён.\n\n"
         f"Клиент: {customer_name}\n"
         f"Сумма: {order.total_amount} ₽\n\n"
-        f"Подробности в Django Admin: {settings.SITE_URL}/admin/orders/order/{order.id}/change/"
+        f"Подробности в Django Admin: {getattr(settings, 'SITE_URL', 'http://localhost:8001')}/admin/orders/order/{order.id}/change/"
     )
 
     try:
