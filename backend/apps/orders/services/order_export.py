@@ -13,6 +13,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Iterator, Union
 
+from django.conf import settings
 from django.utils import timezone
 
 if TYPE_CHECKING:
@@ -31,15 +32,33 @@ class OrderExportService:
     инкапсулирована в этом классе.
     """
 
-    SCHEMA_VERSION = "3.1"
+    DEFAULT_SCHEMA_VERSION = "3.1"
+
+    @property
+    def SCHEMA_VERSION(self) -> str:
+        """Read CommerceML version from settings, falling back to default."""
+        exchange_cfg = getattr(settings, "ONEC_EXCHANGE", {})
+        return exchange_cfg.get("COMMERCEML_VERSION", self.DEFAULT_SCHEMA_VERSION)
     CURRENCY = "RUB"
     EXCHANGE_RATE = "1"
     OPERATION_TYPE = "Заказ товара"
     ROLE = "Продавец"
-    UNIT_CODE = "796"
-    UNIT_NAME_FULL = "Штука"
-    UNIT_NAME_INTL = "PCE"
-    UNIT_NAME_SHORT = "шт"
+    DEFAULT_UNIT_CODE = "796"
+    DEFAULT_UNIT_NAME_FULL = "Штука"
+    DEFAULT_UNIT_NAME_INTL = "PCE"
+    DEFAULT_UNIT_NAME_SHORT = "шт"
+
+    @property
+    def _unit_defaults(self) -> dict:
+        """Read default unit of measurement from settings, falling back to hardcoded defaults."""
+        exchange_cfg = getattr(settings, "ONEC_EXCHANGE", {})
+        unit_cfg = exchange_cfg.get("DEFAULT_UNIT", {})
+        return {
+            "code": unit_cfg.get("CODE", self.DEFAULT_UNIT_CODE),
+            "name_full": unit_cfg.get("NAME_FULL", self.DEFAULT_UNIT_NAME_FULL),
+            "name_intl": unit_cfg.get("NAME_INTL", self.DEFAULT_UNIT_NAME_INTL),
+            "name_short": unit_cfg.get("NAME_SHORT", self.DEFAULT_UNIT_NAME_SHORT),
+        }
 
     def generate_xml(self, orders: "QuerySet[Order]") -> str:
         """
@@ -77,6 +96,7 @@ class OrderExportService:
         self,
         orders: "QuerySet[Order]",
         exported_ids: list[int] | None = None,
+        skipped_ids: list[int] | None = None,
     ) -> Iterator[str]:
         """
         Generate CommerceML 3.1 XML using streaming/generator approach.
@@ -89,6 +109,8 @@ class OrderExportService:
                     Guest orders (user=None) are supported — counterparty block is omitted.
             exported_ids: Optional list to append exported order PKs to.
                          Allows callers to know exactly which orders were included.
+            skipped_ids: Optional list to append skipped order PKs to.
+                        Orders that failed validation (e.g., no items) are added here.
 
         Yields:
             XML string fragments (declaration, root open, documents, root close).
@@ -104,6 +126,8 @@ class OrderExportService:
         # Stream each order as a Container with Document inside
         for order in orders.iterator(chunk_size=100):
             if not self._validate_order(order):
+                if skipped_ids is not None:
+                    skipped_ids.append(order.pk)
                 continue
             container = ET.Element("Контейнер")
             document = self._create_document_element(order)
@@ -154,14 +178,17 @@ class OrderExportService:
         return document
 
     def _create_counterparties_element(self, order: "Order") -> ET.Element:
-        """Создание блока Контрагенты."""
+        """Создание блока Контрагенты.
+        
+        Supports both registered users and guest orders. For guest orders,
+        uses order.customer_name, customer_email, customer_phone fields.
+        """
         counterparties = ET.Element("Контрагенты")
+        counterparty = ET.Element("Контрагент")
         
         user = order.user
         if user:
-            counterparty = ET.Element("Контрагент")
-            
-            # ID контрагента: onec_id → hashed email → user_id fallback
+            # Registered user: use User model fields
             counterparty_id = self._get_counterparty_id(user)
             if not user.onec_id:
                 logger.warning(
@@ -200,20 +227,42 @@ class OrderExportService:
                 contacts.append(contact_phone)
             if len(contacts) > 0:
                 counterparty.append(contacts)
-            
-            # Адрес регистрации
-            if order.delivery_address:
-                address_reg = ET.Element("АдресРегистрации")
-                self._add_text_element(
-                    address_reg, "Представление", str(order.delivery_address)
-                )
-                counterparty.append(address_reg)
-            
-            counterparties.append(counterparty)
         else:
-            # Log warning for orders without user (should not happen with current filters)
-            logger.warning(f"Order {order.order_number}: no user associated, skipping counterparty")
+            # Guest order: use Order.customer_name/email/phone fields
+            # Generate stable ID from email hash or order number
+            counterparty_id = self._get_guest_counterparty_id(order)
+            self._add_text_element(counterparty, "Ид", counterparty_id)
+            
+            # Наименование from customer_name or email
+            name = order.customer_name or order.customer_email or f"Гость #{order.order_number}"
+            self._add_text_element(counterparty, "Наименование", name)
+            
+            # Контакты from order fields
+            contacts = ET.Element("Контакты")
+            if order.customer_email:
+                contact_email = ET.Element("Контакт")
+                self._add_text_element(contact_email, "Тип", "Почта")
+                self._add_text_element(contact_email, "Значение", order.customer_email)
+                contacts.append(contact_email)
+            if order.customer_phone:
+                contact_phone = ET.Element("Контакт")
+                self._add_text_element(contact_phone, "Тип", "Телефон")
+                self._add_text_element(contact_phone, "Значение", order.customer_phone)
+                contacts.append(contact_phone)
+            if len(contacts) > 0:
+                counterparty.append(contacts)
+            
+            logger.info(f"Order {order.order_number}: guest order, using customer fields for counterparty")
         
+        # Адрес регистрации (common for both user and guest orders)
+        if order.delivery_address:
+            address_reg = ET.Element("АдресРегистрации")
+            self._add_text_element(
+                address_reg, "Представление", str(order.delivery_address)
+            )
+            counterparty.append(address_reg)
+        
+        counterparties.append(counterparty)
         return counterparties
 
     def _create_products_element(self, order: "Order") -> ET.Element:
@@ -242,12 +291,13 @@ class OrderExportService:
                 product, "Наименование", item.product_name
             )
             
-            # Базовая единица измерения
+            # Базовая единица измерения (configurable via settings.ONEC_EXCHANGE.DEFAULT_UNIT)
+            ud = self._unit_defaults
             unit = ET.Element("БазоваяЕдиница")
-            unit.set("Код", self.UNIT_CODE)
-            unit.set("НаименованиеПолное", self.UNIT_NAME_FULL)
-            unit.set("МеждународноеСокращение", self.UNIT_NAME_INTL)
-            unit.text = self.UNIT_NAME_SHORT
+            unit.set("Код", ud["code"])
+            unit.set("НаименованиеПолное", ud["name_full"])
+            unit.set("МеждународноеСокращение", ud["name_intl"])
+            unit.text = ud["name_short"]
             product.append(unit)
             
             self._add_text_element(product, "ЦенаЗаЕдиницу", self._format_price(item.unit_price))
@@ -302,3 +352,15 @@ class OrderExportService:
             email_hash = hashlib.sha256(user.email.encode()).hexdigest()[:16]
             return f"email-{email_hash}"
         return f"user-{user.id}"
+
+    def _get_guest_counterparty_id(self, order: "Order") -> str:
+        """
+        Get counterparty identifier for guest orders.
+        
+        Priority: SHA256(customer_email)[:16] → guest-order-{id}
+        Uses hashed email to avoid PII leak while maintaining uniqueness.
+        """
+        if order.customer_email:
+            email_hash = hashlib.sha256(order.customer_email.encode()).hexdigest()[:16]
+            return f"guest-{email_hash}"
+        return f"guest-order-{order.id}"

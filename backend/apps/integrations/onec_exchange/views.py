@@ -1,27 +1,33 @@
 import io
 import logging
+import shutil
 import zipfile
 from pathlib import Path
 
 from django.conf import settings
 from django.contrib.auth import get_backends, login
+from django.core.cache import cache
 from django.db import transaction
-from django.http import HttpResponse
+from django.http import FileResponse, HttpResponse, StreamingHttpResponse
 from django.utils import timezone
 from rest_framework.views import APIView
 
 from apps.orders.models import Order
 from apps.orders.services.order_export import OrderExportService
+from apps.orders.signals import orders_bulk_updated
 
 from .authentication import Basic1CAuthentication, CsrfExemptSessionAuthentication
 from .file_service import FileLockError, FileStreamService
 from .permissions import Is1CExchangeUser
 from .renderers import PlainTextRenderer
+from .import_orchestrator import ImportOrchestratorService
 from .routing_service import FileRoutingService
 
 logger = logging.getLogger(__name__)
 
 EXCHANGE_LOG_SUBDIR = "1c_exchange/logs"
+ORDERS_XML_FILENAME = "orders.xml"
+ORDERS_ZIP_FILENAME = "orders.zip"
 
 
 def _get_exchange_log_dir() -> Path:
@@ -52,18 +58,38 @@ def _save_exchange_log(filename: str, content, is_binary: bool = False) -> None:
         logger.error(f"[EXCHANGE LOG] Failed to save audit log {filename}: {e}")
 
 
+def _copy_file_to_log(source_path: Path, filename: str) -> None:
+    """Copy a file to the exchange log directory without loading it into RAM.
+    
+    This avoids OOM issues when logging large XML/ZIP files by using
+    filesystem-level copy instead of reading content into memory.
+    """
+    try:
+        log_dir = _get_exchange_log_dir()
+        log_dir.mkdir(parents=True, exist_ok=True)
+        timestamp = timezone.now().strftime("%Y%m%d_%H%M%S")
+        dest_path = log_dir / f"{timestamp}_{filename}"
+        shutil.copy2(source_path, dest_path)
+    except Exception as e:
+        logger.error(f"[EXCHANGE LOG] Failed to copy audit log {filename}: {e}")
+
+
 class ICExchangeView(APIView):
     def _get_exchange_identity(self, request):
         """
-        Always use a stable folder for the 1C robot to allow file accumulation.
-        """
-        if request.user.is_authenticated:
-            return "shared_1c_exchange"
+        Return a unique exchange identity per session to avoid race conditions.
         
+        Uses session_key which is unique per browser/1C client connection.
+        This ensures multiple concurrent 1C exchanges don't interfere with
+        each other's temp files and import directories.
+        """
+        # Prefer explicit sessid from query params (for 1C compatibility)
         sessid = request.query_params.get("sessid")
-        if not sessid:
-            sessid = request.session.session_key
-        return sessid
+        if sessid:
+            return sessid
+        
+        # Fall back to Django session key (unique per connection)
+        return request.session.session_key
     """
     Main entry point for 1C exchange protocol.
     Handles authentication, file uploads, and import triggering.
@@ -101,7 +127,7 @@ class ICExchangeView(APIView):
             return self.handle_complete(request)
 
         return HttpResponse(
-            "failure\nUnknown mode", content_type="text/plain; charset=utf-8", status=400
+            "failure\nUnknown mode", content_type="text/plain; charset=utf-8"
         )
 
     def post(self, request, *args, **kwargs):
@@ -129,346 +155,64 @@ class ICExchangeView(APIView):
             return HttpResponse("success", content_type="text/plain; charset=utf-8")
 
         return HttpResponse(
-            "failure\nUnknown mode (POST)", content_type="text/plain; charset=utf-8", status=400
+            "failure\nUnknown mode (POST)", content_type="text/plain; charset=utf-8"
         )
 
     def handle_import(self, request):
         """
         Handle the import command from 1C.
-        
-        IMPORTANT: In incremental mode ("Выгружать только измененные объекты"),
-        1C does NOT send mode=complete. It expects mode=import to trigger 
-        the actual import processing.
-        """
-        from datetime import timedelta
-        from apps.products.models import ImportSession
 
+        IMPORTANT: In incremental mode ("Выгружать только измененные объекты"),
+        1C does NOT send mode=complete. It expects mode=import to trigger
+        the actual import processing.
+
+        Delegates to ImportOrchestratorService (Fat Services, Thin Views).
+        """
         sessid = self._get_exchange_identity(request)
         filename = request.query_params.get("filename", "unknown")
-        
+
         if not sessid:
             logger.warning("[IMPORT] Request rejected: No identifier found.")
-            return HttpResponse("failure\nMissing sessid", status=403)
-            
-        logger.info(f"[IMPORT] Received mode=import for sessid={sessid}, filename={filename}")
-
-        import_dir = Path(settings.MEDIA_ROOT) / "1c_import"
-        dry_run = (import_dir / ".dry_run").exists()
-
-        with transaction.atomic():
-            # Lazy Expiration: Mark sessions older than 2 hours as FAILED
-            stale_threshold = timezone.now() - timedelta(hours=2)
-            ImportSession.objects.filter(
-                session_key=sessid,
-                status__in=[
-                    ImportSession.ImportStatus.PENDING,
-                    ImportSession.ImportStatus.STARTED,
-                    ImportSession.ImportStatus.IN_PROGRESS,
-                ],
-                updated_at__lt=stale_threshold
-            ).update(
-                status=ImportSession.ImportStatus.FAILED,
-                error_message="Session expired (stale for > 2 hours)",
-                finished_at=timezone.now()
+            return HttpResponse(
+                "failure\nMissing sessid", content_type="text/plain; charset=utf-8"
             )
 
-            # Check for active session
-            active_session = ImportSession.objects.select_for_update().filter(
-                session_key=sessid,
-                status__in=[
-                    ImportSession.ImportStatus.PENDING,
-                    ImportSession.ImportStatus.STARTED,
-                    ImportSession.ImportStatus.IN_PROGRESS,
-                ]
-            ).first()
+        orchestrator = ImportOrchestratorService(sessid, filename)
+        success, message = orchestrator.execute()
 
-            if active_session:
-                # Only skip if session is already being processed (IN_PROGRESS)
-                if active_session.status == ImportSession.ImportStatus.IN_PROGRESS:
-                    logger.info(f"[IMPORT] Session {active_session.pk} is IN_PROGRESS, skipping duplicate")
-                    active_session.report += f"[{timezone.now()}] mode=import для {filename} - сессия уже обрабатывается\n"
-                    active_session.save(update_fields=['report', 'updated_at'])
-                    return HttpResponse("success", content_type="text/plain; charset=utf-8")
-                
-                # For PENDING/STARTED sessions - use them and trigger import
-                session = active_session
-                logger.info(f"[IMPORT] Using existing PENDING session {session.pk}")
-                session.report += f"[{timezone.now()}] Получен mode=import для {filename}, запускаем импорт\n"
-                session.save(update_fields=['report', 'updated_at'])
-            else:
-                # Create new session
-                session = ImportSession.objects.create(
-                    session_key=sessid,
-                    status=ImportSession.ImportStatus.PENDING,
-                    import_type=ImportSession.ImportType.CATALOG,
-                    report=f"[{timezone.now()}] Сессия создана по mode=import. Файл: {filename}\n"
-                )
-                logger.info(f"[IMPORT] Created NEW session id={session.pk}")
-
-        # Transfer files from temp to import_dir
-        try:
-            file_service = FileStreamService(sessid)
-            routing_service = FileRoutingService(sessid)
-            files = file_service.list_files()
-            logger.info(f"[IMPORT] Files in temp: {files}")
-            
-            transferred_count = 0
-            for f in files:
-                try:
-                    routing_service.move_to_import(f)
-                    transferred_count += 1
-                except Exception as move_err:
-                    logger.error(f"[IMPORT] Failed to move {f}: {move_err}")
-            
-            logger.info(f"[IMPORT] Transferred {transferred_count}/{len(files)} files")
-            session.report += f"[{timezone.now()}] Перенесено файлов: {transferred_count}/{len(files)}\n"
-            session.save(update_fields=['report'])
-            
-        except Exception as e:
-            logger.error(f"[IMPORT] File transfer failed: {e}", exc_info=True)
-            session.report += f"[{timezone.now()}] ОШИБКА переноса: {e}\n"
-            session.save(update_fields=['report'])
-            return HttpResponse("failure\nFile transfer error", content_type="text/plain; charset=utf-8", status=500)
-
-        # Unpack ZIP files and route to subdirectories
-        try:
-            import shutil
-            from .routing_service import XML_ROUTING_RULES
-            
-            zip_files = list(import_dir.glob("*.zip"))
-            if zip_files:
-                logger.info(f"[IMPORT] Found {len(zip_files)} ZIP files to unpack")
-                
-                for zf in zip_files:
-                    try:
-                        with zipfile.ZipFile(zf, "r") as zip_ref:
-                            zip_ref.extractall(import_dir)
-                            unpacked_files = zip_ref.namelist()
-                        
-                        logger.info(f"[IMPORT] Unpacked: {zf.name} ({len(unpacked_files)} files)")
-                        
-                        # Route unpacked files to subdirectories
-                        routed_count = 0
-                        for unpacked_name in unpacked_files:
-                            file_path = import_dir / unpacked_name
-                            if not file_path.exists() or not file_path.is_file():
-                                continue
-                            
-                            name_lower = unpacked_name.lower()
-                            suffix = file_path.suffix.lower()
-                            target_subdir = None
-                            
-                            if suffix == ".xml":
-                                # Sort by prefix length descending for specific matching
-                                sorted_rules = sorted(XML_ROUTING_RULES.items(), key=lambda x: len(x[0]), reverse=True)
-                                for prefix, subdir in sorted_rules:
-                                    if name_lower.startswith(prefix):
-                                        target_subdir = subdir.rstrip("/")
-                                        break
-                            elif suffix in {".jpg", ".jpeg", ".png", ".gif", ".webp"}:
-                                if name_lower.startswith("import_files/"):
-                                    target_subdir = "goods"
-                                else:
-                                    target_subdir = "goods/import_files"
-                            
-                            if target_subdir:
-                                dest_dir = import_dir / target_subdir
-                                dest_dir.mkdir(parents=True, exist_ok=True)
-                                dest_path = dest_dir / unpacked_name
-                                try:
-                                    shutil.move(str(file_path), str(dest_path))
-                                    routed_count += 1
-                                except Exception as move_err:
-                                    logger.warning(f"[IMPORT] Failed to route {unpacked_name}: {move_err}")
-                        
-                        session.report += f"[{timezone.now()}] Архив {zf.name}: {len(unpacked_files)} файлов, распределено: {routed_count}\n"
-                        
-                        # Delete ZIP after unpacking
-                        try:
-                            zf.unlink()
-                        except OSError:
-                            pass
-                            
-                    except Exception as unzip_err:
-                        logger.error(f"[IMPORT] Failed to unpack {zf.name}: {unzip_err}")
-                        session.report += f"[{timezone.now()}] Ошибка распаковки {zf.name}: {unzip_err}\n"
-                
-                session.save(update_fields=['report'])
-                
-        except Exception as e:
-            logger.error(f"[IMPORT] ZIP processing failed: {e}", exc_info=True)
-            session.report += f"[{timezone.now()}] Ошибка обработки архивов: {e}\n"
-            session.save(update_fields=['report'])
-
-        # Run import SYNCHRONOUSLY so 1C gets real result
-        try:
-            if dry_run:
-                logger.info("[IMPORT] DRY RUN mode - skipping import")
-                session.report += f"[{timezone.now()}] DRY RUN: импорт пропущен\n"
-                session.status = ImportSession.ImportStatus.COMPLETED
-                session.finished_at = timezone.now()
-                session.save(update_fields=['report', 'status', 'finished_at'])
-            else:
-                from django.core.management import call_command
-                
-                logger.info(f"[IMPORT] Starting SYNCHRONOUS import for session_id={session.pk}")
-                session.status = ImportSession.ImportStatus.IN_PROGRESS
-                session.report += f"[{timezone.now()}] Начало синхронного импорта...\n"
-                session.save(update_fields=['status', 'report', 'updated_at'])
-                
-                # Determine file type from filename
-                file_type = "all"
-                fn_lower = filename.lower() if filename else ""
-                if fn_lower.startswith("goods") or fn_lower.startswith("import"):
-                    file_type = "goods"
-                elif fn_lower.startswith("offers"):
-                    file_type = "offers"
-                elif fn_lower.startswith("prices") or fn_lower.startswith("pricelists"):
-                    file_type = "prices"
-                elif fn_lower.startswith("rests"):
-                    file_type = "rests"
-                
-                logger.info(f"[IMPORT] Detected file_type={file_type} from filename={filename}")
-                
-                # Run import command synchronously
-                call_command(
-                    "import_products_from_1c",
-                    data_dir=str(import_dir),
-                    file_type=file_type,
-                    import_session_id=session.pk,
-                )
-                
-                # Refresh and finalize session
-                session.refresh_from_db()
-                if session.status != ImportSession.ImportStatus.COMPLETED:
-                    session.status = ImportSession.ImportStatus.COMPLETED
-                    session.finished_at = timezone.now()
-                session.report += f"[{timezone.now()}] Импорт завершен успешно.\n"
-                session.save(update_fields=['status', 'report', 'finished_at', 'updated_at'])
-                
-                logger.info(f"[IMPORT] Import completed successfully for session_id={session.pk}")
-            
-            # Mark exchange cycle complete
-            file_service = FileStreamService(sessid)
-            file_service.mark_complete()
-            
-        except Exception as e:
-            logger.error(f"[IMPORT] Import failed: {e}", exc_info=True)
-            session.status = ImportSession.ImportStatus.FAILED
-            session.error_message = str(e)
-            session.report += f"[{timezone.now()}] ОШИБКА импорта: {e}\n"
-            session.save(update_fields=['status', 'error_message', 'report'])
-            return HttpResponse(f"failure\n{e}", content_type="text/plain; charset=utf-8", status=500)
-
-        return HttpResponse("success", content_type="text/plain; charset=utf-8")
+        if success:
+            return HttpResponse("success", content_type="text/plain; charset=utf-8")
+        return HttpResponse(
+            f"failure\n{message}",
+            content_type="text/plain; charset=utf-8",
+        )
 
     def handle_complete(self, request):
         """
         Signal from 1C that all files for the current cycle are uploaded.
+        
+        Delegates to ImportOrchestratorService.finalize_batch() following
+        the Fat Services / Thin Views pattern.
         """
-        from apps.products.models import ImportSession
-        from apps.products.tasks import process_1c_import_task
-
         sessid = self._get_exchange_identity(request)
         logger.info(f"[COMPLETE] Received mode=complete for sessid={sessid}")
-        
+
         if not sessid:
             logger.warning("[COMPLETE] Rejected: Missing sessid")
-            return HttpResponse("failure\nMissing sessid", status=403)
-
-        # Story 3.2: 1C Loop Fix
-        # If the exchange cycle is already marked as complete (by a successful import),
-        # then this 'complete' signal is redundant/late and should be ignored 
-        # to prevent creating an empty session.
-        try:
-            file_service = FileStreamService(sessid)
-            if file_service.is_complete():
-                logger.info(f"[COMPLETE] Cycle already completed for {sessid}. Ignoring duplicate complete signal.")
-                return HttpResponse("success", content_type="text/plain; charset=utf-8")
-        except Exception as e:
-            logger.warning(f"[COMPLETE] Error checking completion status: {e}")
+            return HttpResponse(
+                "failure\nMissing sessid", content_type="text/plain; charset=utf-8"
+            )
 
         dry_run = request.query_params.get("dry_run") == "1"
+        orchestrator = ImportOrchestratorService(sessid, "complete")
+        success, message = orchestrator.finalize_batch(dry_run=dry_run)
 
-        with transaction.atomic():
-            session = ImportSession.objects.select_for_update().filter(
-                session_key=sessid,
-                status=ImportSession.ImportStatus.PENDING
-            ).first()
-
-            if not session:
-                logger.warning(f"[COMPLETE] No PENDING session found for {sessid}. Creating NEW session.")
-                session = ImportSession.objects.create(
-                    session_key=sessid,
-                    status=ImportSession.ImportStatus.PENDING,
-                    import_type=ImportSession.ImportType.CATALOG,
-                    report=f"[{timezone.now()}] Сессия создана по сигналу complete (Fix check skipped?).\n"
-                )
-                logger.info(f"[COMPLETE] Created NEW session id={session.pk} for sessid={sessid}")
-            else:
-                session.report += f"[{timezone.now()}] Получен сигнал complete.\n"
-                session.save(update_fields=['report'])
-                logger.info(f"[COMPLETE] Found EXISTING session id={session.pk}, status={session.status}")
-
-            import_dir = Path(settings.MEDIA_ROOT) / "1c_import"
-            
-            # Transfer ALL accumulated files from temp to import_dir
-            try:
-                file_service = FileStreamService(sessid)
-                routing_service = FileRoutingService(sessid)
-                files = file_service.list_files()
-                logger.info(f"[COMPLETE] Files in temp before transfer: {files}")
-                
-                transferred_count = 0
-                for f in files:
-                    try:
-                        routing_service.move_to_import(f)
-                        transferred_count += 1
-                        logger.debug(f"[COMPLETE] Transferred: {f}")
-                    except Exception as move_err:
-                        logger.error(f"[COMPLETE] Failed to move file {f}: {move_err}")
-                
-                logger.info(f"[COMPLETE] Transferred {transferred_count}/{len(files)} files to {import_dir}")
-                session.report += f"[{timezone.now()}] Перенесено файлов: {transferred_count}/{len(files)}\n"
-                session.save(update_fields=['report'])
-                
-            except Exception as e:
-                logger.error(f"[COMPLETE] Failed to transfer files: {e}", exc_info=True)
-                session.report += f"[{timezone.now()}] ОШИБКА переноса файлов: {e}\n"
-                session.save(update_fields=['report'])
-
-            # Check for file-flag .dry_run
-            if not dry_run and (import_dir / ".dry_run").exists():
-                dry_run = True
-                logger.info("[COMPLETE] Detected .dry_run flag file")
-
-            try:
-                file_service = FileStreamService(sessid)
-                if dry_run:
-                    zip_files = [f for f in file_service.list_files() if f.lower().endswith('.zip')]
-                    logger.info(f"[COMPLETE] DRY RUN mode, unpacking {len(zip_files)} ZIPs")
-                    for zf in zip_files:
-                        file_service.unpack_zip(zf, import_dir)
-                        session.report += f"[{timezone.now()}] DRY RUN: Архив {zf} распакован.\n"
-                    session.report += f"[{timezone.now()}] DRY RUN: Импорт пропущен.\n"
-                    session.save(update_fields=['report'])
-                else:
-                    logger.info(f"[COMPLETE] Dispatching Celery task for session_id={session.pk}, import_dir={import_dir}")
-                    task_result = process_1c_import_task.delay(session.pk, str(import_dir))
-                    logger.info(f"[COMPLETE] Celery task dispatched: task_id={task_result.id}")
-                    session.report += f"[{timezone.now()}] Celery task запущен: {task_result.id}\n"
-                    session.save(update_fields=['report'])
-                
-                # IMPORTANT: Set the flag so the NEXT 'init' starts a clean cycle.
-                file_service.mark_complete()
-                logger.info(f"[COMPLETE] Exchange cycle marked as complete for {sessid}")
-
-            except Exception as e:
-                logger.error(f"[COMPLETE] Protocol error: {e}", exc_info=True)
-                session.report += f"[{timezone.now()}] ОШИБКА: {e}\n"
-                session.save(update_fields=['report'])
-
-        return HttpResponse("success", content_type="text/plain; charset=utf-8")
+        if success:
+            return HttpResponse("success", content_type="text/plain; charset=utf-8")
+        return HttpResponse(
+            f"failure\n{message}",
+            content_type="text/plain; charset=utf-8",
+        )
 
     def handle_checkauth(self, request):
         """
@@ -514,7 +258,9 @@ class ICExchangeView(APIView):
         """
         sessid = self._get_exchange_identity(request)
         if not sessid:
-            return HttpResponse("failure\nNo session", status=401)
+            return HttpResponse(
+                "failure\nNo session", content_type="text/plain; charset=utf-8"
+            )
 
         try:
             file_service = FileStreamService(sessid)
@@ -544,12 +290,17 @@ class ICExchangeView(APIView):
         Handle order export requests (mode=query).
         Protocol: GET /?mode=query[&zip=yes]
         Returns XML (or ZIP) with pending orders for 1C.
+        
+        Memory optimization: Uses streaming for XML responses to avoid
+        materializing large exports in RAM. For ZIP, uses tempfile to
+        avoid doubling memory pressure.
         """
         query_time = timezone.now()
 
         orders = (
             Order.objects.filter(
                 sent_to_1c=False,
+                export_skipped=False,
                 created_at__lte=query_time,
             )
             .select_related("user")
@@ -557,26 +308,93 @@ class ICExchangeView(APIView):
         )
 
         service = OrderExportService()
-        xml_content, exported_ids = service.generate_xml_with_ids(orders)
-
-        # Store session state AFTER successful XML generation (not before)
-        request.session["last_1c_query_time"] = query_time.isoformat()
-        request.session["last_1c_exported_order_ids"] = exported_ids
-
         use_zip = request.query_params.get("zip", "").lower() == "yes"
 
-        if use_zip:
-            buf = io.BytesIO()
-            with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
-                zf.writestr("orders.xml", xml_content)
-            zip_bytes = buf.getvalue()
-            _save_exchange_log("orders.zip", zip_bytes, is_binary=True)
-            response = HttpResponse(zip_bytes, content_type="application/zip")
-            response["Content-Disposition"] = 'attachment; filename="orders.zip"'
-            return response
+        import tempfile
+        exported_ids: list[int] = []
+        skipped_ids: list[int] = []
 
-        _save_exchange_log("orders.xml", xml_content)
-        return HttpResponse(xml_content, content_type="application/xml")
+        if use_zip:
+            # ZIP mode: Stream XML to temp file, then compress and stream response
+            # Using NamedTemporaryFile to allow FileResponse streaming
+            xml_tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".xml")
+            try:
+                for chunk in service.generate_xml_streaming(orders, exported_ids, skipped_ids):
+                    xml_tmp.write(chunk.encode("utf-8"))
+                xml_tmp.close()
+
+                # Mark skipped orders to prevent poison queue
+                if skipped_ids:
+                    Order.objects.filter(pk__in=skipped_ids).update(export_skipped=True)
+                    logger.info(f"Marked {len(skipped_ids)} orders as export_skipped")
+
+                # Store session/cache state after successful generation
+                request.session["last_1c_query_time"] = query_time.isoformat()
+                cache_key = f"1c_exported_ids_{request.session.session_key}"
+                cache.set(cache_key, exported_ids, timeout=3600)
+
+                # Create ZIP in a named temp file for streaming
+                zip_tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
+                try:
+                    with zipfile.ZipFile(zip_tmp, "w", zipfile.ZIP_DEFLATED) as zf:
+                        zf.write(xml_tmp.name, ORDERS_XML_FILENAME)
+                    zip_tmp.close()
+
+                    # Save audit log via file copy (avoids loading into RAM)
+                    _copy_file_to_log(Path(zip_tmp.name), ORDERS_ZIP_FILENAME)
+
+                    # Stream ZIP file as response
+                    response = FileResponse(
+                        open(zip_tmp.name, "rb"),
+                        content_type="application/zip",
+                        as_attachment=True,
+                        filename=ORDERS_ZIP_FILENAME,
+                    )
+                    # Mark temp file for cleanup after response is sent
+                    zip_path = Path(zip_tmp.name)
+                    response._resource_closers.append(lambda p=zip_path: p.unlink(missing_ok=True))
+                    return response
+                finally:
+                    # Cleanup XML temp file
+                    Path(xml_tmp.name).unlink(missing_ok=True)
+            except Exception:
+                # Cleanup on error
+                Path(xml_tmp.name).unlink(missing_ok=True)
+                raise
+
+        # Non-ZIP: Stream XML directly via FileResponse
+        xml_tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".xml", mode="w", encoding="utf-8")
+        try:
+            for chunk in service.generate_xml_streaming(orders, exported_ids, skipped_ids):
+                xml_tmp.write(chunk)
+            xml_tmp.close()
+
+            # Mark skipped orders to prevent poison queue
+            if skipped_ids:
+                Order.objects.filter(pk__in=skipped_ids).update(export_skipped=True)
+                logger.info(f"Marked {len(skipped_ids)} orders as export_skipped")
+
+            # Store session/cache state after successful generation
+            request.session["last_1c_query_time"] = query_time.isoformat()
+            cache_key = f"1c_exported_ids_{request.session.session_key}"
+            cache.set(cache_key, exported_ids, timeout=3600)
+
+            # Save audit log via file copy (avoids loading into RAM)
+            _copy_file_to_log(Path(xml_tmp.name), ORDERS_XML_FILENAME)
+
+            # Stream XML file as response
+            response = FileResponse(
+                open(xml_tmp.name, "rb"),
+                content_type="application/xml",
+            )
+            # Mark temp file for cleanup after response is sent
+            xml_path = Path(xml_tmp.name)
+            response._resource_closers.append(lambda p=xml_path: p.unlink(missing_ok=True))
+            return response
+        except Exception:
+            # Cleanup on error
+            Path(xml_tmp.name).unlink(missing_ok=True)
+            raise
 
     def handle_success(self, request):
         """
@@ -585,7 +403,8 @@ class ICExchangeView(APIView):
         Uses exported_order_ids from session to ensure data integrity.
         """
         last_query_iso = request.session.get("last_1c_query_time")
-        exported_ids = request.session.get("last_1c_exported_order_ids")
+        cache_key = f"1c_exported_ids_{request.session.session_key}"
+        exported_ids = cache.get(cache_key)
 
         if not last_query_iso:
             logger.warning(
@@ -595,30 +414,81 @@ class ICExchangeView(APIView):
             return HttpResponse(
                 "failure\nNo prior query timestamp in session",
                 content_type="text/plain; charset=utf-8",
-                status=400,
             )
+
+        if exported_ids is None:
+            # Fallback: use time-window based update when cache is lost
+            # This is less precise but prevents complete failure after long imports
+            logger.warning(
+                "[EXPORT SUCCESS] Cache entry for exported_ids is missing "
+                "(eviction or restart) — using time-window fallback."
+            )
+            try:
+                from datetime import datetime
+                last_query_time = datetime.fromisoformat(last_query_iso)
+                if timezone.is_naive(last_query_time):
+                    last_query_time = timezone.make_aware(last_query_time)
+                
+                # Fallback: mark orders that match the time window and are not skipped
+                now = timezone.now()
+                with transaction.atomic():
+                    updated = Order.objects.filter(
+                        sent_to_1c=False,
+                        export_skipped=False,
+                        created_at__lte=last_query_time,
+                    ).update(
+                        sent_to_1c=True,
+                        sent_to_1c_at=now,
+                        updated_at=now,
+                    )
+                
+                logger.info(
+                    f"[EXPORT SUCCESS] Fallback: marked {updated} orders as sent_to_1c "
+                    f"(time-window: created_at <= {last_query_time})"
+                )
+                
+                # Clean up session state
+                del request.session["last_1c_query_time"]
+                return HttpResponse("success", content_type="text/plain; charset=utf-8")
+            except Exception as e:
+                logger.error(f"[EXPORT SUCCESS] Fallback failed: {e}")
+                return HttpResponse(
+                    "failure\nExported order IDs lost from cache — retry query first",
+                    content_type="text/plain; charset=utf-8",
+                )
 
         if not exported_ids:
             logger.info("[EXPORT SUCCESS] No orders were exported in last query — nothing to mark.")
             # Clean up session state
             del request.session["last_1c_query_time"]
-            request.session.pop("last_1c_exported_order_ids", None)
+            cache.delete(cache_key)
             return HttpResponse("success", content_type="text/plain; charset=utf-8")
 
+        now = timezone.now()
         with transaction.atomic():
             updated = Order.objects.filter(
                 pk__in=exported_ids,
                 sent_to_1c=False,
             ).update(
                 sent_to_1c=True,
-                sent_to_1c_at=timezone.now(),
+                sent_to_1c_at=now,
+                updated_at=now,
             )
 
         logger.info(f"[EXPORT SUCCESS] Marked {updated} orders as sent_to_1c (of {len(exported_ids)} exported)")
 
-        # Clear the session state to prevent double-processing
+        # Send custom signal for audit (QuerySet.update bypasses post_save)
+        if updated > 0:
+            orders_bulk_updated.send(
+                sender=Order,
+                order_ids=exported_ids,
+                field="sent_to_1c",
+                timestamp=now,
+            )
+
+        # Clear the session/cache state to prevent double-processing
         del request.session["last_1c_query_time"]
-        del request.session["last_1c_exported_order_ids"]
+        cache.delete(cache_key)
 
         return HttpResponse("success", content_type="text/plain; charset=utf-8")
 
@@ -631,7 +501,10 @@ class ICExchangeView(APIView):
 
         if not sessid or not filename:
             logger.error("Upload rejected: session or filename missing.")
-            return HttpResponse("failure\nMissing session or filename", status=400)
+            return HttpResponse(
+                "failure\nMissing session or filename",
+                content_type="text/plain; charset=utf-8",
+            )
 
         exchange_cfg = getattr(settings, "ONEC_EXCHANGE", {})
         file_limit = exchange_cfg.get("FILE_LIMIT_BYTES", 100 * 1024 * 1024)
@@ -647,16 +520,25 @@ class ICExchangeView(APIView):
                     if not chunk:
                         break
                     if writer.bytes_written + len(chunk) > file_limit:
-                        return HttpResponse(f"failure\nFile too large", status=413)
+                        return HttpResponse(
+                            "failure\nFile too large",
+                            content_type="text/plain; charset=utf-8",
+                        )
                     writer.write(chunk)
 
             if writer.bytes_written == 0:
-                return HttpResponse("failure\nEmpty body", status=400)
+                return HttpResponse(
+                    "failure\nEmpty body", content_type="text/plain; charset=utf-8"
+                )
 
             return HttpResponse("success", content_type="text/plain; charset=utf-8")
 
         except FileLockError:
-            return HttpResponse("failure\nFile busy", status=503)
+            return HttpResponse(
+                "failure\nFile busy", content_type="text/plain; charset=utf-8"
+            )
         except Exception as e:
             logger.exception(f"Upload error: {e}")
-            return HttpResponse("failure\nInternal error", status=500)
+            return HttpResponse(
+                "failure\nInternal error", content_type="text/plain; charset=utf-8"
+            )

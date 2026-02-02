@@ -8,12 +8,16 @@ import logging
 from django.conf import settings
 from django.core.mail import send_mail
 from django.db.models.signals import post_save
-from django.dispatch import receiver
+from django.dispatch import Signal, receiver
 from django.template.loader import render_to_string
 
 from .models import Order
 
 logger = logging.getLogger(__name__)
+
+# Custom signal for bulk order updates (bypasses post_save)
+# Provides: order_ids (list[int]), field (str), timestamp (datetime)
+orders_bulk_updated = Signal()
 
 
 @receiver(post_save, sender=Order)

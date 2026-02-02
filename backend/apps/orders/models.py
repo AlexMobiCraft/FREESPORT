@@ -58,6 +58,7 @@ class Order(models.Model):
         sent_to_1c: bool
         sent_to_1c_at: datetime | None
         status_1c: str
+        export_skipped: bool
         notes: str
         created_at: datetime
         updated_at: datetime
@@ -202,6 +203,14 @@ class Order(models.Model):
         str,
         models.CharField("Статус из 1С", max_length=255, blank=True, default=""),
     )
+    export_skipped = cast(
+        bool,
+        models.BooleanField(
+            "Пропущен при экспорте",
+            default=False,
+            help_text="Заказ не прошёл валидацию для экспорта в 1С (например, нет товаров)",
+        ),
+    )
 
     # Дополнительная информация
     notes = cast(str, models.TextField("Комментарии к заказу", blank=True))
@@ -227,7 +236,7 @@ class Order(models.Model):
             models.Index(
                 fields=["sent_to_1c", "created_at"],
                 name="idx_order_sent_to_1c_created",
-                condition=models.Q(sent_to_1c=False),
+                condition=models.Q(sent_to_1c=False, export_skipped=False),
             ),
         ]
 
