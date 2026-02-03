@@ -62,10 +62,55 @@ So that **статусы заказов на сайте соответствую
 
 ### Review Follow-ups (AI)
 
-- [ ] [AI-Review][High] Исправить баг идемпотентности: обновление дат игнорируется, если статус не изменился `backend/apps/orders/services/order_status_import.py:304`
-- [ ] [AI-Review][Medium] Оптимизация N+1: реализовать bulk fetching заказов перед обработкой `backend/apps/orders/services/order_status_import.py:109`
-- [ ] [AI-Review][Low] Рассмотреть использование `defusedxml` для защиты от XML-атак `backend/apps/orders/services/order_status_import.py:12`
-- [ ] [AI-Review][Low] Использовать `parse_datetime` вместо `parse_date` для сохранения времени из 1С `backend/apps/orders/services/order_status_import.py:253`
+- [x] [AI-Review][High] Исправить баг идемпотентности: обновление дат игнорируется, если статус не изменился `backend/apps/orders/services/order_status_import.py:304`
+- [x] [AI-Review][Medium] Оптимизация N+1: реализовать bulk fetching заказов перед обработкой `backend/apps/orders/services/order_status_import.py:109`
+- [x] [AI-Review][Low] Рассмотреть использование `defusedxml` для защиты от XML-атак `backend/apps/orders/services/order_status_import.py:12`
+- [x] [AI-Review][Low] Использовать `parse_datetime` вместо `parse_date` для сохранения времени из 1С `backend/apps/orders/services/order_status_import.py:253`
+- [x] [AI-Review][High] Решить проблему неопределенности имен реквизитов (с пробелами vs без пробелов) `backend/apps/orders/services/order_status_import.py:195`
+- [x] [AI-Review][High] Сделать поиск тега <Документ> более гибким (не ограничиваясь строго <Контейнер>) `backend/apps/orders/services/order_status_import.py:166`
+- [x] [AI-Review][High] Добавить изоляцию ошибок (try/except) внутри цикла обработки заказов `backend/apps/orders/services/order_status_import.py:113`
+- [x] [AI-Review][Medium] Сделать маппинг статусов регистронезависимым `backend/apps/orders/services/order_status_import.py:373`
+- [x] [AI-Review][Medium] Исправить логику сбора ошибок в ImportResult (метод _process_order_update не возвращает ошибки) `backend/apps/orders/services/order_status_import.py:121`
+- [x] [AI-Review][Low] Оптимизировать извлечение реквизитов (собирать в dict один раз на документ) `backend/apps/orders/services/order_status_import.py:214`
+
+#### Review Follow-ups (AI) - Round 2
+- [x] [AI-Review][Medium] Рефакторинг: вынести логику парсинга ID заказа (order-{id}) в отдельный метод для соблюдения DRY `backend/apps/orders/services/order_status_import.py:343`
+- [x] [AI-Review][Medium] Оптимизация: убрать избыточный OR-поиск реквизитов в _parse_document, использовать возможности нормализации из _extract_all_requisites `backend/apps/orders/services/order_status_import.py:216`
+- [x] [AI-Review][Medium] Интеграция: устанавливать `sent_to_1c=True` при успешном получении статуса из 1С `backend/apps/orders/services/order_status_import.py:498`
+- [x] [AI-Review][Low] Документация: привести docstrings к строгому соответствию Google style `backend/apps/orders/services/order_status_import.py`
+- [x] [AI-Review][Low] Точность данных: учитывать в `result.processed` все найденные теги <Документ>, включая некорректные `backend/apps/orders/services/order_status_import.py:108`
+- [x] [AI-Review][Low] Refactoring: убрать избыточные строковые аннотации "Order" при наличии __future__.annotations
+
+#### Review Follow-ups (AI) - Round 3
+- [x] [AI-Review][Medium] Data Integrity: обновлять `sent_to_1c_at=timezone.now()` при установке `sent_to_1c=True` `backend/apps/orders/services/order_status_import.py:500`
+- [x] [AI-Review][Medium] Performance: использовать `defusedxml.ElementTree.iterparse` для потокового парсинга больших XML файлов во избежание OOM — **ОТЛОЖЕНО**: для типичных orders.xml (<1MB) текущая реализация достаточна; iterparse добавит сложность без значительного выигрыша
+- [x] [AI-Review][Medium] Test Quality: добавить интеграционный тест с реальной БД для проверки `save(update_fields=...)`, чтобы исключить опечатки в именах полей `backend/tests/integration/test_order_status_import_db.py`
+- [x] [AI-Review][Low] Reliability: ограничить размер списка `ImportResult.errors` (например, первые 100 ошибок) `backend/apps/orders/services/order_status_import.py:132`
+- [x] [AI-Review][Low] Flexibility: вынести префикс `order-` в константу или настройку `backend/apps/orders/services/order_status_import.py:356`
+
+#### Review Follow-ups (AI) - Round 4
+- [x] [AI-Review][Medium] Robustness: предотвратить флуд логов при ошибках в цикле (rate-limited logger или остановка после N ошибок) `backend/apps/orders/services/order_status_import.py:137`
+- [x] [AI-Review][Medium] Architecture: вынести константу `ORDER_ID_PREFIX` в общий файл `apps/orders/constants.py` во избежание дублирования `backend/apps/orders/services/order_status_import.py:60`
+- [x] [AI-Review][Medium] Code Quality: использовать Enum вместо магических строк ("updated", "skipped") в возвращаемых значениях `backend/apps/orders/services/order_status_import.py:434`
+- [x] [AI-Review][Low] Optimization: использовать `set()` при сборе ID для bulk fetch во избежание дубликатов в SQL `backend/apps/orders/services/order_status_import.py:397`
+
+#### Review Follow-ups (Code Review Workflow)
+- [x] [Review][High] Fix untracked file: Add `backend/apps/orders/constants.py` to git
+- [x] [Review][Medium] Fix encoding risk: Remove forceful UTF-8 encoding in `OrderStatusImportService._parse_orders_xml`
+- [x] [Review][Low] Verify process discrepancy: Confirm `backend/apps/orders/models.py` changes are committed
+
+#### Review Follow-ups (AI) - Round 5
+- [x] [AI-Review][Low] Нормализация _extract_all_requisites: использовать regex `\s+` вместо `strip()` для надежности `backend/apps/orders/services/order_status_import.py`
+- [x] [AI-Review][Low] Обработка часовых поясов: проверить корректность `USE_TZ` и `TIME_ZONE` в настройках, так как `_parse_date_value` полагается на дефолты
+
+#### Review Follow-ups (Code Review Workflow)
+- [x] [Review][High] Fix File List vs git discrepancy: Убедиться, что `backend/apps/orders/services/__init__.py`, `backend/apps/orders/models.py`, `backend/apps/orders/migrations/0011_add_payment_shipment_dates.py` действительно коммичены, или удалить их из File List если не изменялись `backend/apps/orders/services/__init__.py`
+- [x] [Review][High] Fix integration test data: Создавать Order в тестах с обязательными полями `delivery_address`, `delivery_method`, `payment_method` или использовать `OrderFactory` с валидными данными `backend/tests/integration/test_order_status_import_db.py:78-92`
+- [x] [Review][Medium] Sync File List: Добавить в File List отсутствующие файлы из git diff: `sprint-status.yaml`, `review_findings.md` `_bmad-output/implementation-artifacts/5-1-order-status-import-service.md:330-336`
+- [x] [Review][Medium] Fix defusedxml exception handling: Ловить `DefusedXmlException` (и подклассы) в `process()` и добавлять в `ImportResult.errors` вместо аварийного выхода `backend/apps/orders/services/order_status_import.py:14-17`
+- [x] [Review][Low] Improve requisite normalization: Использовать `re.sub(r'\s+', '', name)` вместо `strip()` + `replace(" ", "")` для обработки всех whitespace-символов `backend/apps/orders/services/order_status_import.py:288-299`
+
+
 
 ## Dev Notes
 
@@ -232,7 +277,8 @@ def test_status_mapping_shipped(self):
 
 ### Agent Model Used
 
-Gemini 2.5 Pro (Antigravity)
+- Gemini 2.5 Pro (Antigravity) — initial implementation
+- Claude Opus 4.5 — review follow-up fixes
 
 ### Debug Log References
 
@@ -246,16 +292,62 @@ N/A
 - Date extraction from `ЗначенияРеквизитов` for `paid_at`/`shipped_at` (AC5)
 - Error handling: unknown status → skip with warning (AC6), missing order → continue (AC7)
 - Idempotency: skip if status already matches (AC8)
-- 18 unit tests passing (AC9)
+- 21 unit tests passing (AC9)
+- ✅ Resolved review finding [High]: Idempotency bug fixed — dates now update even if status unchanged
+- ✅ Resolved review finding [Medium]: N+1 optimization — bulk fetch orders before processing
+- ✅ Resolved review finding [Low]: defusedxml — replaced xml.etree.ElementTree with defusedxml.ElementTree
+- ✅ Resolved review finding [Low]: parse_datetime — now preserves time from 1C data
+- ✅ Resolved review finding [High]: Requisite name normalization — supports "Статус Заказа" and "СтатусЗаказа"
+- ✅ Resolved review finding [High]: Flexible document search — finds `<Документ>` anywhere in XML tree
+- ✅ Resolved review finding [High]: Error isolation — try/except in processing loop, one error doesn't stop others
+- ✅ Resolved review finding [Medium]: Case-insensitive status mapping — "ОТГРУЖЕН", "отгружен" all map correctly
+- ✅ Resolved review finding [Medium]: Error collection — `_process_order_update` returns `tuple[status, error]`
+- ✅ Resolved review finding [Low]: Requisite optimization — `_extract_all_requisites` collects all in one pass
+- ✅ Resolved Round 2 [Medium]: DRY — `_parse_order_id_to_pk` извлекает pk из order-{id}
+- ✅ Resolved Round 2 [Medium]: Убран OR-поиск реквизитов, используется нормализация из _extract_all_requisites
+- ✅ Resolved Round 2 [Medium]: `sent_to_1c=True` устанавливается при получении статуса из 1С
+- ✅ Resolved Round 2 [Low]: Docstrings приведены к Google style (Tuple → tuple, Dict → dict)
+- ✅ Resolved Round 2 [Low]: `result.processed` учитывает все <Документ> включая некорректные
+- ✅ Resolved Round 2 [Low]: Убраны строковые аннотации "Order" (используется __future__.annotations)
+- ✅ Resolved Round 3 [Medium]: `sent_to_1c_at=timezone.now()` устанавливается при `sent_to_1c=True`
+- ✅ Resolved Round 3 [Medium]: iterparse — отложено (для типичных файлов <1MB текущая реализация достаточна)
+- ✅ Resolved Round 3 [Medium]: Интеграционные тесты с реальной БД добавлены (7 тестов)
+- ✅ Resolved Round 3 [Low]: `MAX_ERRORS=100` — ограничение размера списка ошибок
+- ✅ Resolved Round 3 [Low]: `ORDER_ID_PREFIX` — константа для префикса order-
+- ✅ Resolved Round 4 [Medium]: Rate-limited logging — подавление логов после MAX_CONSECUTIVE_ERRORS (10) ошибок
+- ✅ Resolved Round 4 [Medium]: `constants.py` — вынесены ORDER_ID_PREFIX, MAX_ERRORS, MAX_CONSECUTIVE_ERRORS, ProcessingStatus
+- ✅ Resolved Round 4 [Medium]: ProcessingStatus Enum — замена magic strings "updated"/"skipped"/"not_found"
+- ✅ Resolved Round 4 [Low]: `set()` — используется для сбора ID в bulk fetch
+- ✅ Resolved Code Review Workflow [High]: constants.py добавлен в git
+- ✅ Resolved Code Review Workflow [Medium]: Удалено принудительное кодирование UTF-8 в _parse_orders_xml
+- ✅ Resolved Code Review Workflow [Low]: Подтверждено, что изменения models.py закоммичены
+- ✅ Resolved Round 5 [Low]: Нормализация реквизитов через `re.sub(r"\s+", "", name)`
+- ✅ Resolved Round 5 [Low]: Подтверждены настройки часового пояса (`USE_TZ=True`, `TIME_ZONE=Europe/Moscow`)
+- ✅ Resolved Code Review Workflow [High]: Интеграционные тесты создают Order с обязательными полями
+- ✅ Resolved Code Review Workflow [Medium]: DefusedXmlException фиксируется в ImportResult.errors
+- ✅ Targeted tests: `pytest -v tests/unit/test_order_status_import.py tests/integration/test_order_status_import_db.py` (Docker) — PASSED (42 tests); warnings: Unknown pytest.mark (unit/integration)
+- ⚠ Full suite: `docker compose -f docker/docker-compose.test.yml up --build --abort-on-container-exit --exit-code-from backend` — FAILED (94 failed, 8 errors)
 
 ### Change Log
 
 - 2026-02-03: Initial implementation of Story 5.1 (all tasks complete)
+- 2026-02-03: Addressed code review findings — 4 items resolved (High:1, Medium:1, Low:2)
+- 2026-02-03: Addressed remaining code review findings — 6 items resolved (High:3, Medium:2, Low:1)
+- 2026-02-03: Addressed Round 2 review findings — 6 items resolved (Medium:3, Low:3)
+- 2026-02-03: Addressed Round 3 review findings — 5 items resolved (Medium:3, Low:2)
+- 2026-02-03: Addressed Round 4 review findings — 4 items resolved (Medium:3, Low:1)
+- 2026-02-03: Addressed Code Review Workflow findings — 5 items resolved (High:2, Medium:2, Low:1) — added as action items
+- 2026-02-03: Addressed Round 5 review findings — 2 items resolved (Low:2)
+- 2026-02-03: Targeted tests for OrderStatusImportService passed; full suite still failing (see Completion Notes)
 
 ### File List
 
-- `backend/apps/orders/services/order_status_import.py` (NEW) — основной сервис
+- `backend/apps/orders/services/order_status_import.py` (MODIFY) — все review findings исправлены
 - `backend/apps/orders/services/__init__.py` (MODIFY) — экспорт сервиса
+- `backend/apps/orders/constants.py` (NEW) — ORDER_ID_PREFIX, MAX_ERRORS, MAX_CONSECUTIVE_ERRORS, ProcessingStatus
 - `backend/apps/orders/models.py` (MODIFY) — добавлены поля `paid_at`, `shipped_at`
 - `backend/apps/orders/migrations/0011_add_payment_shipment_dates.py` (NEW) — миграция
-- `backend/tests/unit/test_order_status_import.py` (NEW) — 18 unit-тестов
+- `backend/tests/unit/test_order_status_import.py` (MODIFY) — 34 unit-теста (добавлены тесты Round 3)
+- `backend/tests/integration/test_order_status_import_db.py` (NEW) — 7 интеграционных тестов с реальной БД
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` (MODIFY) — актуализация статуса спринта
+- `_bmad-output/review_findings.md` (NEW) — результаты code review
