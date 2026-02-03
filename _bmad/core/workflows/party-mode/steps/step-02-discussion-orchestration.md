@@ -20,7 +20,6 @@
 
 - Complete agent roster with merged personalities is available
 - User topic and conversation history guide agent selection
-- Party mode is active
 - Exit triggers: `*exit`, `goodbye`, `end party`, `quit`
 
 ## YOUR TASK:
@@ -73,7 +72,9 @@ Generate authentic responses for each selected agent:
 **Response Structure:**
 [For each selected agent]:
 
-"[Icon Emoji] **[Agent Name]**: [Authentic in-character response]"
+"[Icon Emoji] **[Agent Name]**: [Authentic in-character response]
+
+[Bash: .claude/hooks/bmad-speak.sh \"[Agent Name]\" \"[Their response]\"]"
 
 ### 4. Natural Cross-Talk Integration
 
@@ -113,19 +114,9 @@ Allow natural back-and-forth within the same response round for dynamic interact
 
 ### 6. Response Round Completion
 
-After generating all agent responses for the round:
+After generating all agent responses for the round, let the user know he can speak naturally with the agents, an then show this menu opion"
 
-**Presentation Format:**
-[Agent 1 Response]
-[Empty line for readability]
-[Agent 2 Response, potentially referencing Agent 1]
-[Empty line for readability]
-[Agent 3 Response, building on or offering new perspective]
-
-**Continue Option:**
-"[Agents have contributed their perspectives. Ready for more discussion?]
-
-[E] Exit Party Mode - End the collaborative session"
+`[E] Exit Party Mode - End the collaborative session`
 
 ### 7. Exit Condition Checking
 
@@ -139,16 +130,13 @@ Check for exit conditions before continuing:
 **Natural Conclusion:**
 
 - Conversation seems naturally concluding
-- Ask user: "Would you like to continue the discussion or end party mode?"
-- Respect user choice to continue or exit
+- Confirm if the user wants to exit party mode and go back to where they were or continue chatting. Do it in a conversational way with an agent in the party.
 
 ### 8. Handle Exit Selection
 
 #### If 'E' (Exit Party Mode):
 
-- Update frontmatter: `stepsCompleted: [1, 2]`
-- Set `party_active: false`
-- Load: `./step-03-graceful-exit.md`
+- Read fully and follow: `./step-03-graceful-exit.md`
 
 ## SUCCESS METRICS:
 

@@ -1,6 +1,6 @@
 # Story 5.1: Сервис импорта статусов (OrderStatusImportService)
 
-Status: ready-for-dev
+Status: in-progress
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -25,40 +25,47 @@ So that **статусы заказов на сайте соответствую
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Создание OrderStatusImportService (AC: 1, 2, 3, 4, 10)
-  - [ ] 1.1: Создать `backend/apps/orders/services/order_status_import.py` — новый сервис.
-  - [ ] 1.2: Реализовать `STATUS_MAPPING` словарь для маппинга статусов 1С → FREESPORT.
-  - [ ] 1.3: Реализовать метод `process(xml_data: str | bytes) -> ImportResult` — основная точка входа.
-  - [ ] 1.4: Реализовать `_parse_orders_xml(xml_data) -> list[OrderUpdateData]` — парсер XML (Parser).
-  - [ ] 1.5: Реализовать `_process_order_update(order_data: OrderUpdateData) -> bool` — обработчик (Processor).
-  - [ ] 1.6: Поиск заказа: сначала по `<Номер>` (order_number), затем по `<Ид>` формата `order-{id}`.
+- [x] Task 1: Создание OrderStatusImportService (AC: 1, 2, 3, 4, 10)
+  - [x] 1.1: Создать `backend/apps/orders/services/order_status_import.py` — новый сервис.
+  - [x] 1.2: Реализовать `STATUS_MAPPING` словарь для маппинга статусов 1С → FREESPORT.
+  - [x] 1.3: Реализовать метод `process(xml_data: str | bytes) -> ImportResult` — основная точка входа.
+  - [x] 1.4: Реализовать `_parse_orders_xml(xml_data) -> list[OrderUpdateData]` — парсер XML (Parser).
+  - [x] 1.5: Реализовать `_process_order_update(order_data: OrderUpdateData) -> bool` — обработчик (Processor).
+  - [x] 1.6: Поиск заказа: сначала по `<Номер>` (order_number), затем по `<Ид>` формата `order-{id}`.
 
-- [ ] Task 2: Извлечение дат из реквизитов (AC: 5)
-  - [ ] 2.1: Реализовать `_extract_requisite_value(document: ET.Element, name: str) -> str | None`.
-  - [ ] 2.2: Парсинг `<ЗначениеРеквизита>` с `<Наименование>ДатаОплаты</Наименование>` → поле `paid_at`.
-  - [ ] 2.3: Парсинг `<ЗначениеРеквизита>` с `<Наименование>ДатаОтгрузки</Наименование>` → поле `shipped_at`.
-  - [ ] 2.4: Добавить поля `paid_at`, `shipped_at` в модель Order если отсутствуют (миграция).
+- [x] Task 2: Извлечение дат из реквизитов (AC: 5)
+  - [x] 2.1: Реализовать `_extract_requisite_value(document: ET.Element, name: str) -> str | None`.
+  - [x] 2.2: Парсинг `<ЗначениеРеквизита>` с `<Наименование>ДатаОплаты</Наименование>` → поле `paid_at`.
+  - [x] 2.3: Парсинг `<ЗначениеРеквизита>` с `<Наименование>ДатаОтгрузки</Наименование>` → поле `shipped_at`.
+  - [x] 2.4: Добавить поля `paid_at`, `shipped_at` в модель Order если отсутствуют (миграция).
 
-- [ ] Task 3: Обработка ошибок и логирование (AC: 6, 7, 8)
-  - [ ] 3.1: При неизвестном статусе — `logger.warning()`, пропуск заказа, счётчик `skipped_count`.
-  - [ ] 3.2: При отсутствии заказа — `logger.error()`, продолжение обработки, счётчик `not_found_count`.
-  - [ ] 3.3: Возврат `ImportResult(processed=N, updated=M, skipped=K, not_found=L, errors=[...])`.
-  - [ ] 3.4: Идемпотентность: не обновлять заказ если статус уже совпадает.
+- [x] Task 3: Обработка ошибок и логирование (AC: 6, 7, 8)
+  - [x] 3.1: При неизвестном статусе — `logger.warning()`, пропуск заказа, счётчик `skipped_count`.
+  - [x] 3.2: При отсутствии заказа — `logger.error()`, продолжение обработки, счётчик `not_found_count`.
+  - [x] 3.3: Возврат `ImportResult(processed=N, updated=M, skipped=K, not_found=L, errors=[...])`.
+  - [x] 3.4: Идемпотентность: не обновлять заказ если статус уже совпадает.
 
-- [ ] Task 4: Unit-тесты (AC: 9)
-  - [ ] 4.1: Создать `backend/tests/unit/test_order_status_import.py`.
-  - [ ] 4.2: `test_parse_valid_xml_extracts_order_data` — парсинг валидного XML.
-  - [ ] 4.3: `test_status_mapping_all_statuses` — проверка всех 6 статусов маппинга.
-  - [ ] 4.4: `test_process_updates_order_status_and_status_1c` — обновление статуса + status_1c.
-  - [ ] 4.5: `test_process_extracts_payment_and_shipment_dates` — извлечение дат.
-  - [ ] 4.6: `test_unknown_status_logs_warning_and_skips` — неизвестный статус.
-  - [ ] 4.7: `test_missing_order_logs_error_and_continues` — отсутствующий заказ.
-  - [ ] 4.8: `test_idempotent_processing_no_duplicate_updates` — идемпотентность.
-  - [ ] 4.9: Использовать Factory Boy с `get_unique_suffix()`, маркеры `@pytest.mark.unit`, AAA-паттерн.
+- [x] Task 4: Unit-тесты (AC: 9)
+  - [x] 4.1: Создать `backend/tests/unit/test_order_status_import.py`.
+  - [x] 4.2: `test_parse_valid_xml_extracts_order_data` — парсинг валидного XML.
+  - [x] 4.3: `test_status_mapping_all_statuses` — проверка всех 6 статусов маппинга.
+  - [x] 4.4: `test_process_updates_order_status_and_status_1c` — обновление статуса + status_1c.
+  - [x] 4.5: `test_process_extracts_payment_and_shipment_dates` — извлечение дат.
+  - [x] 4.6: `test_unknown_status_logs_warning_and_skips` — неизвестный статус.
+  - [x] 4.7: `test_missing_order_logs_error_and_continues` — отсутствующий заказ.
+  - [x] 4.8: `test_idempotent_processing_no_duplicate_updates` — идемпотентность.
+  - [x] 4.9: Использовать Factory Boy с `get_unique_suffix()`, маркеры `@pytest.mark.unit`, AAA-паттерн.
 
-- [ ] Task 5: Интеграция и экспорт (AC: 10)
-  - [ ] 5.1: Добавить `OrderStatusImportService` в `__init__.py` сервисов.
-  - [ ] 5.2: Документировать публичный API сервиса (docstrings).
+- [x] Task 5: Интеграция и экспорт (AC: 10)
+  - [x] 5.1: Добавить `OrderStatusImportService` в `__init__.py` сервисов.
+  - [x] 5.2: Документировать публичный API сервиса (docstrings).
+
+### Review Follow-ups (AI)
+
+- [ ] [AI-Review][High] Исправить баг идемпотентности: обновление дат игнорируется, если статус не изменился `backend/apps/orders/services/order_status_import.py:304`
+- [ ] [AI-Review][Medium] Оптимизация N+1: реализовать bulk fetching заказов перед обработкой `backend/apps/orders/services/order_status_import.py:109`
+- [ ] [AI-Review][Low] Рассмотреть использование `defusedxml` для защиты от XML-атак `backend/apps/orders/services/order_status_import.py:12`
+- [ ] [AI-Review][Low] Использовать `parse_datetime` вместо `parse_date` для сохранения времени из 1С `backend/apps/orders/services/order_status_import.py:253`
 
 ## Dev Notes
 
@@ -225,13 +232,30 @@ def test_status_mapping_shipped(self):
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+Gemini 2.5 Pro (Antigravity)
 
 ### Debug Log References
 
+N/A
+
 ### Completion Notes List
+
+- Implemented `OrderStatusImportService` with Parser/Processor pattern (AC10)
+- STATUS_MAPPING covers all 6 status translations (AC3)
+- Order lookup by order_number (priority) then order-{id} (AC2)
+- Date extraction from `ЗначенияРеквизитов` for `paid_at`/`shipped_at` (AC5)
+- Error handling: unknown status → skip with warning (AC6), missing order → continue (AC7)
+- Idempotency: skip if status already matches (AC8)
+- 18 unit tests passing (AC9)
 
 ### Change Log
 
+- 2026-02-03: Initial implementation of Story 5.1 (all tasks complete)
+
 ### File List
 
+- `backend/apps/orders/services/order_status_import.py` (NEW) — основной сервис
+- `backend/apps/orders/services/__init__.py` (MODIFY) — экспорт сервиса
+- `backend/apps/orders/models.py` (MODIFY) — добавлены поля `paid_at`, `shipped_at`
+- `backend/apps/orders/migrations/0011_add_payment_shipment_dates.py` (NEW) — миграция
+- `backend/tests/unit/test_order_status_import.py` (NEW) — 18 unit-тестов

@@ -59,6 +59,8 @@ class Order(models.Model):
         sent_to_1c_at: datetime | None
         status_1c: str
         export_skipped: bool
+        paid_at: datetime | None
+        shipped_at: datetime | None
         notes: str
         created_at: datetime
         updated_at: datetime
@@ -210,6 +212,14 @@ class Order(models.Model):
             default=False,
             help_text="Заказ не прошёл валидацию для экспорта в 1С (например, нет товаров)",
         ),
+    )
+    paid_at = cast(
+        "datetime | None",
+        models.DateTimeField("Дата оплаты", null=True, blank=True),
+    )
+    shipped_at = cast(
+        "datetime | None",
+        models.DateTimeField("Дата отгрузки", null=True, blank=True),
     )
 
     # Дополнительная информация
