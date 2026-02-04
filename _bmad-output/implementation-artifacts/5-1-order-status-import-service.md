@@ -344,6 +344,7 @@ N/A
 - ✅ Resolved Code Review Workflow Round 3 [Medium]: Logic/Data Consistency — добавлены флаги `paid_at_present`/`shipped_at_present` в OrderUpdateData для корректного сброса дат при пустых тегах XML
 - ✅ Resolved Code Review Workflow Round 3 [Low]: Performance — добавлен `.only()` в `_bulk_fetch_orders` для загрузки только необходимых полей
 - ✅ Resolved Code Review Workflow Round 3 [Low]: Code Style — добавлен pre-computed `STATUS_MAPPING_LOWER` dict для O(1) регистронезависимого маппинга
+- ✅ Targeted tests: `pytest -vv tests/unit/test_order_status_import.py` (Docker) — PASSED (45 tests); warnings: Unknown pytest.mark (unit)
 
 ### Change Log
 
@@ -359,6 +360,7 @@ N/A
 - 2026-02-04: Updated management command/news tests; verified 8 targeted tests pass (import_customers/load_product_stocks/news_detail_view)
 - 2026-02-04: Addressed Code Review Workflow Round 2 findings — 2 items resolved (High:1, Medium:1)
 - 2026-02-04: Addressed Code Review Workflow Round 3 findings — 3 items resolved (Medium:1, Low:2); 52 tests passing
+- 2026-02-04: Verified `tests/unit/test_order_status_import.py` (45 tests) pass
 
 ### File List
 
