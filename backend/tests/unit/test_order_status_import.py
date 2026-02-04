@@ -14,6 +14,7 @@ from defusedxml.common import DefusedXmlException
 import pytest
 from django.utils import timezone
 
+from apps.orders.models import Order
 from apps.orders.services.order_status_import import (
     MAX_ERRORS,
     ORDER_ID_PREFIX,
@@ -175,7 +176,8 @@ class TestImportResult:
         # ASSERT
         assert result.processed == 0
         assert result.updated == 0
-        assert result.skipped == 0
+        assert result.skipped_up_to_date == 0
+        assert result.skipped_unknown_status == 0
         assert result.not_found == 0
         assert result.errors == []
 
@@ -380,7 +382,8 @@ class TestOrderProcessing:
             result = service.process(xml_data)
 
             # ASSERT
-            assert result.skipped == 1
+            assert result.skipped_unknown_status == 1
+            assert result.skipped_up_to_date == 0
             assert result.updated == 0
             mock_order.save.assert_not_called()
 
@@ -441,7 +444,8 @@ class TestOrderProcessing:
             result = service.process(xml_data)
 
             # ASSERT
-            assert result.skipped == 1
+            assert result.skipped_up_to_date == 1
+            assert result.skipped_unknown_status == 0
             assert result.updated == 0
             mock_order.save.assert_not_called()
 
@@ -474,7 +478,8 @@ class TestOrderProcessing:
 
             # ASSERT — даты должны обновиться несмотря на совпадение статуса
             assert result.updated == 1
-            assert result.skipped == 0
+            assert result.skipped_up_to_date == 0
+            assert result.skipped_unknown_status == 0
             assert mock_order.paid_at is not None
             assert mock_order.shipped_at is not None
             mock_order.save.assert_called_once()
@@ -581,7 +586,8 @@ class TestProcessIntegration:
             assert isinstance(result, ImportResult)
             assert hasattr(result, "processed")
             assert hasattr(result, "updated")
-            assert hasattr(result, "skipped")
+            assert hasattr(result, "skipped_up_to_date")
+            assert hasattr(result, "skipped_unknown_status")
             assert hasattr(result, "not_found")
             assert hasattr(result, "errors")
 
@@ -1129,7 +1135,7 @@ class TestRound6ReviewFollowups:
         service = OrderStatusImportService()
 
         # Кэш с правильным num: префиксом
-        cache = {f"num:{order_number}": mock_order}
+        cache: dict[str, Order] = {f"num:{order_number}": cast(Order, mock_order)}
 
         # ACT
         found_order = service._find_order(order_data, cache)

@@ -59,7 +59,8 @@ class ImportResult:
 
     processed: int = 0  # Всего обработано документов
     updated: int = 0  # Успешно обновлено заказов
-    skipped: int = 0  # Пропущено (неизвестный статус, уже актуальный)
+    skipped_up_to_date: int = 0  # Пропущено: данные уже актуальны
+    skipped_unknown_status: int = 0  # Пропущено: неизвестный статус 1С
     not_found: int = 0  # Заказ не найден в БД
     errors: list[str] = field(default_factory=list)  # Ошибки парсинга/обработки
 
@@ -97,7 +98,11 @@ class OrderStatusImportService:
     Usage:
         service = OrderStatusImportService()
         result = service.process(xml_data)
-        print(f"Updated: {result.updated}, Skipped: {result.skipped}")
+        print(
+            f"Updated: {result.updated}, "
+            f"Skipped up-to-date: {result.skipped_up_to_date}, "
+            f"Skipped unknown status: {result.skipped_unknown_status}"
+        )
     """
 
     def process(self, xml_data: str | bytes) -> ImportResult:
@@ -144,7 +149,10 @@ class OrderStatusImportService:
                     result.updated += 1
                     consecutive_errors = 0  # Сброс счётчика при успехе
                 elif status == ProcessingStatus.SKIPPED:
-                    result.skipped += 1
+                    if error_msg:
+                        result.skipped_unknown_status += 1
+                    else:
+                        result.skipped_up_to_date += 1
                 elif status == ProcessingStatus.NOT_FOUND:
                     result.not_found += 1
                     consecutive_errors += 1
@@ -315,23 +323,6 @@ class OrderStatusImportService:
 
         return result
 
-    def _extract_requisite_value(
-        self, document: Element, requisite_name: str
-    ) -> str | None:
-        """
-        Извлечь значение реквизита по имени (legacy метод для backward compatibility).
-
-        Args:
-            document: XML элемент <Документ>.
-            requisite_name: Наименование реквизита (например, 'СтатусЗаказа').
-
-        Returns:
-            Значение реквизита или None.
-        """
-        requisites = self._extract_all_requisites(document)
-        normalized_name = re.sub(r"\s+", "", requisite_name).lower()
-        return requisites.get(normalized_name)
-
     def _parse_date_value(self, date_str: str | None) -> datetime | None:
         """
         Распарсить строку даты/времени.
@@ -367,32 +358,19 @@ class OrderStatusImportService:
         logger.warning(f"Could not parse date: {date_str}")
         return None
 
-    def _parse_requisite_date(
-        self, document: Element, requisite_name: str
-    ) -> datetime | None:
-        """
-        Извлечь и распарсить дату/время из реквизита (legacy метод).
-
-        Args:
-            document: XML элемент <Документ>.
-            requisite_name: Наименование реквизита ('ДатаОплаты', 'ДатаОтгрузки').
-
-        Returns:
-            datetime с timezone или None.
-        """
-        date_str = self._extract_requisite_value(document, requisite_name)
-        return self._parse_date_value(date_str)
-
     # =========================================================================
     # Bulk Fetch Methods (N+1 Optimization)
     # =========================================================================
 
-    def _parse_order_id_to_pk(self, order_id: str) -> int | None:
+    def _parse_order_id_to_pk(
+        self, order_id: str, log_invalid: bool = True
+    ) -> int | None:
         """
         Парсинг order-{id} формата для извлечения pk.
 
         Args:
             order_id: Строка вида 'order-123'.
+            log_invalid: Логировать ли некорректный формат.
 
         Returns:
             int | None: pk или None если некорректный формат.
@@ -403,7 +381,8 @@ class OrderStatusImportService:
         try:
             return int(order_id[len(ORDER_ID_PREFIX):])
         except ValueError:
-            logger.warning(f"Invalid order_id format: '{order_id}'")
+            if log_invalid:
+                logger.warning(f"Invalid order_id format: '{order_id}'")
             return None
 
     def _bulk_fetch_orders(
@@ -440,7 +419,7 @@ class OrderStatusImportService:
         for data in order_updates:
             if data.order_number:
                 order_numbers.add(data.order_number)
-            pk = self._parse_order_id_to_pk(data.order_id)
+            pk = self._parse_order_id_to_pk(data.order_id, log_invalid=False)
             if pk is not None:
                 order_pks.add(pk)
 

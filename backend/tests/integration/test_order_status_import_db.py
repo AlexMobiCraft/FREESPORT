@@ -5,6 +5,9 @@ Story 5.1: [AI-Review][Medium] Test Quality — проверка save(update_fie
 с реальной базой данных для исключения опечаток в именах полей.
 """
 
+from datetime import datetime
+from typing import cast
+
 import pytest
 from django.test import TestCase
 from django.utils import timezone
@@ -130,8 +133,10 @@ class TestOrderStatusImportDBIntegration(TestCase):
         self.assertEqual(result.updated, 1)
         self.assertIsNotNone(self.order.paid_at)
         self.assertIsNotNone(self.order.shipped_at)
-        self.assertEqual(self.order.paid_at.day, 1)
-        self.assertEqual(self.order.shipped_at.day, 2)
+        paid_at = cast(datetime, self.order.paid_at)
+        shipped_at = cast(datetime, self.order.shipped_at)
+        self.assertEqual(paid_at.day, 1)
+        self.assertEqual(shipped_at.day, 2)
 
     def test_update_fields_sent_to_1c_persisted_to_db(self):
         """Проверка: sent_to_1c и sent_to_1c_at сохраняются в БД."""
@@ -154,9 +159,10 @@ class TestOrderStatusImportDBIntegration(TestCase):
         self.assertEqual(result.updated, 1)
         self.assertTrue(self.order.sent_to_1c)
         self.assertIsNotNone(self.order.sent_to_1c_at)
+        sent_to_1c_at = cast(datetime, self.order.sent_to_1c_at)
         # sent_to_1c_at должен быть между before и after
-        self.assertGreaterEqual(self.order.sent_to_1c_at, before_process)
-        self.assertLessEqual(self.order.sent_to_1c_at, after_process)
+        self.assertGreaterEqual(sent_to_1c_at, before_process)
+        self.assertLessEqual(sent_to_1c_at, after_process)
 
     def test_idempotent_no_update_when_status_matches(self):
         """Проверка идемпотентности: повторный импорт не изменяет данные."""
@@ -179,7 +185,8 @@ class TestOrderStatusImportDBIntegration(TestCase):
 
         # ASSERT — заказ не должен быть обновлён
         self.order.refresh_from_db()
-        self.assertEqual(result.skipped, 1)
+        self.assertEqual(result.skipped_up_to_date, 1)
+        self.assertEqual(result.skipped_unknown_status, 0)
         self.assertEqual(result.updated, 0)
 
     def test_find_order_by_pk_from_order_id(self):
