@@ -1,6 +1,6 @@
 # Story 5.1: Сервис импорта статусов (OrderStatusImportService)
 
-Status: in-progress
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -115,9 +115,9 @@ So that **статусы заказов на сайте соответствую
 - [x] [AI-Review][Medium] Race Condition Risk: Добавить select_for_update() при получении заказа для предотвращения перезаписи параллельных изменений (состояние гонки). `backend/apps/orders/services/order_status_import.py:440`
 
 #### Review Follow-ups (Code Review Workflow) - Round 3
-- [ ] [AI-Review][Medium] Logic/Data Consistency: Исправить логику сброса дат `paid_at`/`shipped_at` (сейчас сохраняются старые значения при пустых тегах) `backend/apps/orders/services/order_status_import.py:535`
-- [ ] [AI-Review][Low] Performance: Оптимизировать `_bulk_fetch_orders`, используя `.only()` для загрузки только нужных полей `backend/apps/orders/services/order_status_import.py:446`
-- [ ] [AI-Review][Low] Code Style: Оптимизировать регистронезависимый маппинг статусов с помощью pre-computed dict `backend/apps/orders/services/order_status_import.py:500`
+- [x] [AI-Review][Medium] Logic/Data Consistency: Исправить логику сброса дат `paid_at`/`shipped_at` (сейчас сохраняются старые значения при пустых тегах) `backend/apps/orders/services/order_status_import.py:535`
+- [x] [AI-Review][Low] Performance: Оптимизировать `_bulk_fetch_orders`, используя `.only()` для загрузки только нужных полей `backend/apps/orders/services/order_status_import.py:446`
+- [x] [AI-Review][Low] Code Style: Оптимизировать регистронезависимый маппинг статусов с помощью pre-computed dict `backend/apps/orders/services/order_status_import.py:500`
 
 
 
@@ -340,7 +340,10 @@ N/A
 - ⚠ Full suite: `docker compose -f docker/docker-compose.test.yml up --build --abort-on-container-exit --exit-code-from backend` — FAILED (94 failed, 8 errors)
 - ✅ Resolved Code Review Workflow Round 2 [High]: Cache Key Collision — используем `num:{order_number}` и `pk:{id}` префиксы для кэша
 - ✅ Resolved Code Review Workflow Round 2 [Medium]: Race Condition — добавлен `select_for_update()` в fallback запросы БД
-- ✅ Targeted tests: `pytest -v tests/unit/test_order_status_import.py tests/integration/test_order_status_import_db.py` (Docker) — PASSED (47 tests)
+- ✅ Targeted tests: `pytest -v tests/unit/test_order_status_import.py tests/integration/test_order_status_import_db.py` (Docker) — PASSED (52 tests)
+- ✅ Resolved Code Review Workflow Round 3 [Medium]: Logic/Data Consistency — добавлены флаги `paid_at_present`/`shipped_at_present` в OrderUpdateData для корректного сброса дат при пустых тегах XML
+- ✅ Resolved Code Review Workflow Round 3 [Low]: Performance — добавлен `.only()` в `_bulk_fetch_orders` для загрузки только необходимых полей
+- ✅ Resolved Code Review Workflow Round 3 [Low]: Code Style — добавлен pre-computed `STATUS_MAPPING_LOWER` dict для O(1) регистронезависимого маппинга
 
 ### Change Log
 
@@ -355,6 +358,7 @@ N/A
 - 2026-02-03: Targeted tests for OrderStatusImportService passed; full suite still failing (see Completion Notes)
 - 2026-02-04: Updated management command/news tests; verified 8 targeted tests pass (import_customers/load_product_stocks/news_detail_view)
 - 2026-02-04: Addressed Code Review Workflow Round 2 findings — 2 items resolved (High:1, Medium:1)
+- 2026-02-04: Addressed Code Review Workflow Round 3 findings — 3 items resolved (Medium:1, Low:2); 52 tests passing
 
 ### File List
 

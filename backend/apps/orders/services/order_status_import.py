@@ -48,6 +48,9 @@ class OrderUpdateData:
     status_1c: str  # Оригинальный статус из 1С (СтатусЗаказа)
     paid_at: datetime | None = None  # Дата оплаты (ДатаОплаты)
     shipped_at: datetime | None = None  # Дата отгрузки (ДатаОтгрузки)
+    # Флаги наличия тегов дат в XML (для корректного сброса)
+    paid_at_present: bool = False  # True если тег <ДатаОплаты> присутствует в XML
+    shipped_at_present: bool = False  # True если тег <ДатаОтгрузки> присутствует в XML
 
 
 @dataclass
@@ -74,6 +77,9 @@ STATUS_MAPPING: dict[str, str] = {
     "Отменен": "cancelled",
     "Возвращен": "refunded",
 }
+
+# [AI-Review][Low] Pre-computed lowercase маппинг для оптимизации регистронезависимого поиска
+STATUS_MAPPING_LOWER: dict[str, str] = {k.lower(): v for k, v in STATUS_MAPPING.items()}
 
 
 # =============================================================================
@@ -262,6 +268,9 @@ class OrderStatusImportService:
             return None
 
         # Извлечь даты из реквизитов (AC5, нормализация уже в _extract_all_requisites)
+        # [AI-Review][Medium] Logic/Data Consistency: различаем "тег отсутствует" от "тег пустой"
+        paid_at_present = "датаоплаты" in requisites
+        shipped_at_present = "датаотгрузки" in requisites
         paid_at = self._parse_date_value(requisites.get("датаоплаты"))
         shipped_at = self._parse_date_value(requisites.get("датаотгрузки"))
 
@@ -271,6 +280,8 @@ class OrderStatusImportService:
             status_1c=status_1c,
             paid_at=paid_at,
             shipped_at=shipped_at,
+            paid_at_present=paid_at_present,
+            shipped_at_present=shipped_at_present,
         )
 
     def _extract_all_requisites(self, document: Element) -> dict[str, str]:
@@ -443,7 +454,18 @@ class OrderStatusImportService:
         if not query:
             return {}
 
-        orders = Order.objects.filter(query)
+        # [AI-Review][Low] Performance: загружаем только необходимые поля
+        orders = Order.objects.filter(query).only(
+            "pk",
+            "order_number",
+            "status",
+            "status_1c",
+            "paid_at",
+            "shipped_at",
+            "sent_to_1c",
+            "sent_to_1c_at",
+            "updated_at",
+        )
 
         # [AI-Review][High] Строим кэш с префиксами для избежания коллизий:
         # num:{order_number} и pk:{id} — разные namespace
@@ -490,17 +512,14 @@ class OrderStatusImportService:
             logger.error(error_msg)
             return ProcessingStatus.NOT_FOUND, error_msg
 
-        # [AI-Review][Medium] Регистронезависимый маппинг статусов
-        # Нормализуем статус: убираем пробелы, приводим к title case
+        # [AI-Review][Low] Code Style: оптимизированный регистронезависимый маппинг
+        # Используем pre-computed STATUS_MAPPING_LOWER вместо цикла
         normalized_status = order_data.status_1c.strip()
+        # Сначала точный поиск (оптимизация для частого случая)
         new_status = STATUS_MAPPING.get(normalized_status)
-
-        # Fallback: попробовать с разным регистром
+        # Fallback: поиск в lowercase-словаре (O(1) вместо O(n) цикла)
         if new_status is None:
-            for status_1c_key, status_value in STATUS_MAPPING.items():
-                if status_1c_key.lower() == normalized_status.lower():
-                    new_status = status_value
-                    break
+            new_status = STATUS_MAPPING_LOWER.get(normalized_status.lower())
 
         if new_status is None:
             error_msg = (
@@ -512,9 +531,12 @@ class OrderStatusImportService:
 
         # Проверяем, нужно ли обновление (идемпотентность AC8)
         status_changed = order.status != new_status or order.status_1c != order_data.status_1c
+        # [AI-Review][Medium] Logic/Data Consistency: учитываем флаги наличия тегов
+        # Если тег присутствует в XML — сравниваем значения (включая сброс на None)
+        # Если тег отсутствует — не трогаем существующее значение
         dates_changed = (
-            (order_data.paid_at and order.paid_at != order_data.paid_at)
-            or (order_data.shipped_at and order.shipped_at != order_data.shipped_at)
+            (order_data.paid_at_present and order.paid_at != order_data.paid_at)
+            or (order_data.shipped_at_present and order.shipped_at != order_data.shipped_at)
         )
 
         if not status_changed and not dates_changed:
@@ -531,12 +553,13 @@ class OrderStatusImportService:
             order.status_1c = order_data.status_1c  # AC4
             update_fields.extend(["status", "status_1c"])
 
-        # Обновление дат (AC5) — всегда обновляем если есть новые значения
-        if order_data.paid_at and order.paid_at != order_data.paid_at:
-            order.paid_at = order_data.paid_at
+        # Обновление дат (AC5) — обновляем если тег присутствует и значение изменилось
+        # [AI-Review][Medium] Logic/Data Consistency: поддержка сброса дат (None)
+        if order_data.paid_at_present and order.paid_at != order_data.paid_at:
+            order.paid_at = order_data.paid_at  # может быть None (сброс даты)
             update_fields.append("paid_at")
-        if order_data.shipped_at and order.shipped_at != order_data.shipped_at:
-            order.shipped_at = order_data.shipped_at
+        if order_data.shipped_at_present and order.shipped_at != order_data.shipped_at:
+            order.shipped_at = order_data.shipped_at  # может быть None (сброс даты)
             update_fields.append("shipped_at")
 
         # [AI-Review][Medium] Устанавливаем sent_to_1c=True и sent_to_1c_at при получении статуса из 1С

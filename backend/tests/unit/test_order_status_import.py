@@ -1096,7 +1096,8 @@ class TestRound6ReviewFollowups:
         service = OrderStatusImportService()
 
         with mock_patch("apps.orders.models.Order.objects") as mock_objects:
-            mock_objects.filter.return_value = [mock_order_1, mock_order_2]
+            # [AI-Review][Low] Мокаем цепочку filter().only()
+            mock_objects.filter.return_value.only.return_value = [mock_order_1, mock_order_2]
 
             # ACT
             cache = service._bulk_fetch_orders(order_updates)
@@ -1204,3 +1205,160 @@ class TestRound6ReviewFollowups:
             # select_for_update() вызван один раз для поиска по pk
             mock_objects.select_for_update.assert_called_once()
             mock_select_for_update.filter.assert_called_once_with(pk=88)
+
+
+@pytest.mark.unit
+class TestRound7ReviewFollowups:
+    """Тесты для исправлений Round 7 код-ревью (сброс дат, маппинг, .only())."""
+
+    def test_date_reset_when_tag_present_but_empty(self):
+        """[AI-Review][Medium] Logic/Data Consistency: дата сбрасывается при пустом теге."""
+        # ARRANGE
+        order_number = "FS-DATE-RESET-001"
+        # XML с пустым тегом <ДатаОплаты></ДатаОплаты>
+        xml_data = f"""<?xml version="1.0" encoding="UTF-8"?>
+        <КоммерческаяИнформация ВерсияСхемы="3.1" ДатаФормирования="2026-02-04T12:00:00">
+            <Контейнер>
+                <Документ>
+                    <Ид>order-123</Ид>
+                    <Номер>{order_number}</Номер>
+                    <ЗначенияРеквизитов>
+                        <ЗначениеРеквизита>
+                            <Наименование>СтатусЗаказа</Наименование>
+                            <Значение>Отгружен</Значение>
+                        </ЗначениеРеквизита>
+                        <ЗначениеРеквизита>
+                            <Наименование>ДатаОплаты</Наименование>
+                            <Значение></Значение>
+                        </ЗначениеРеквизита>
+                    </ЗначенияРеквизитов>
+                </Документ>
+            </Контейнер>
+        </КоммерческаяИнформация>"""
+
+        mock_order = MagicMock()
+        mock_order.order_number = order_number
+        mock_order.status = "pending"
+        mock_order.status_1c = ""
+        mock_order.paid_at = timezone.now()  # Была установлена дата
+        mock_order.shipped_at = None
+        mock_order.sent_to_1c = False
+        mock_order.sent_to_1c_at = None
+
+        service = OrderStatusImportService()
+        mock_cache = {f"num:{order_number}": mock_order}
+
+        with patch.object(service, "_bulk_fetch_orders", return_value=mock_cache):
+            # ACT
+            result = service.process(xml_data)
+
+            # ASSERT — дата должна быть сброшена (None)
+            assert result.updated == 1
+            assert mock_order.paid_at is None
+
+    def test_date_not_changed_when_tag_absent(self):
+        """[AI-Review][Medium] Logic/Data Consistency: дата НЕ меняется если тега нет."""
+        # ARRANGE
+        order_number = "FS-DATE-KEEP-001"
+        original_paid_at = timezone.now()
+        # XML БЕЗ тега <ДатаОплаты>
+        xml_data = f"""<?xml version="1.0" encoding="UTF-8"?>
+        <КоммерческаяИнформация ВерсияСхемы="3.1" ДатаФормирования="2026-02-04T12:00:00">
+            <Контейнер>
+                <Документ>
+                    <Ид>order-124</Ид>
+                    <Номер>{order_number}</Номер>
+                    <ЗначенияРеквизитов>
+                        <ЗначениеРеквизита>
+                            <Наименование>СтатусЗаказа</Наименование>
+                            <Значение>Доставлен</Значение>
+                        </ЗначениеРеквизита>
+                    </ЗначенияРеквизитов>
+                </Документ>
+            </Контейнер>
+        </КоммерческаяИнформация>"""
+
+        mock_order = MagicMock()
+        mock_order.order_number = order_number
+        mock_order.status = "shipped"
+        mock_order.status_1c = "Отгружен"
+        mock_order.paid_at = original_paid_at  # Была установлена дата
+        mock_order.shipped_at = None
+        mock_order.sent_to_1c = True
+        mock_order.sent_to_1c_at = timezone.now()
+
+        service = OrderStatusImportService()
+        mock_cache = {f"num:{order_number}": mock_order}
+
+        with patch.object(service, "_bulk_fetch_orders", return_value=mock_cache):
+            # ACT
+            result = service.process(xml_data)
+
+            # ASSERT — дата НЕ должна измениться (тега не было)
+            assert result.updated == 1
+            assert mock_order.paid_at == original_paid_at
+
+    def test_status_mapping_lower_precomputed(self):
+        """[AI-Review][Low] Code Style: STATUS_MAPPING_LOWER существует и корректен."""
+        from apps.orders.services.order_status_import import (
+            STATUS_MAPPING,
+            STATUS_MAPPING_LOWER,
+        )
+
+        # ASSERT — все ключи должны быть в lowercase
+        for key in STATUS_MAPPING_LOWER:
+            assert key == key.lower()
+
+        # ASSERT — все значения из STATUS_MAPPING должны быть в STATUS_MAPPING_LOWER
+        for original_key, value in STATUS_MAPPING.items():
+            assert STATUS_MAPPING_LOWER[original_key.lower()] == value
+
+    def test_order_update_data_has_present_flags(self):
+        """[AI-Review][Medium] Logic/Data Consistency: OrderUpdateData имеет флаги *_present."""
+        # ARRANGE
+        data = OrderUpdateData(
+            order_id="order-1",
+            order_number="TEST-001",
+            status_1c="Отгружен",
+            paid_at=None,
+            shipped_at=None,
+            paid_at_present=True,
+            shipped_at_present=False,
+        )
+
+        # ASSERT
+        assert data.paid_at_present is True
+        assert data.shipped_at_present is False
+
+    def test_parse_document_sets_present_flags(self):
+        """[AI-Review][Medium] Logic/Data Consistency: _parse_document устанавливает флаги."""
+        # ARRANGE
+        xml_str = """<?xml version="1.0" encoding="UTF-8"?>
+        <Документ>
+            <Ид>order-200</Ид>
+            <Номер>FS-FLAGS-001</Номер>
+            <ЗначенияРеквизитов>
+                <ЗначениеРеквизита>
+                    <Наименование>СтатусЗаказа</Наименование>
+                    <Значение>Отгружен</Значение>
+                </ЗначениеРеквизита>
+                <ЗначениеРеквизита>
+                    <Наименование>ДатаОплаты</Наименование>
+                    <Значение>2026-02-01</Значение>
+                </ЗначениеРеквизита>
+            </ЗначенияРеквизитов>
+        </Документ>"""
+
+        import defusedxml.ElementTree as ET
+        document = ET.fromstring(xml_str)
+
+        service = OrderStatusImportService()
+
+        # ACT
+        result = service._parse_document(document)
+
+        # ASSERT — paid_at_present=True (тег есть), shipped_at_present=False (тега нет)
+        assert result is not None
+        assert result.paid_at_present is True
+        assert result.shipped_at_present is False
+        assert result.paid_at is not None
