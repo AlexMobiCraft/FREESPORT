@@ -5,6 +5,7 @@ Unit-тесты для OrderStatusImportService.
 Покрывают AC1-AC9.
 """
 
+import logging
 from datetime import date
 from typing import cast
 from unittest.mock import MagicMock, patch
@@ -25,6 +26,9 @@ from apps.orders.services.order_status_import import (
 )
 
 from tests.conftest import get_unique_suffix
+
+
+pytestmark = pytest.mark.django_db
 
 
 # =============================================================================
@@ -1146,8 +1150,12 @@ class TestRound6ReviewFollowups:
         service = OrderStatusImportService()
 
         with mock_patch("apps.orders.models.Order.objects") as mock_objects:
-            # [AI-Review][Low] Мокаем цепочку filter().only()
-            mock_objects.filter.return_value.only.return_value = [mock_order_1, mock_order_2]
+            # [AI-Review][High] Мокаем цепочку select_for_update().filter().only()
+            mock_select_for_update = MagicMock()
+            mock_filter = MagicMock()
+            mock_filter.only.return_value = [mock_order_1, mock_order_2]
+            mock_select_for_update.filter.return_value = mock_filter
+            mock_objects.select_for_update.return_value = mock_select_for_update
 
             # ACT
             cache = service._bulk_fetch_orders(order_updates)
@@ -1161,6 +1169,11 @@ class TestRound6ReviewFollowups:
             # Старый формат БЕЗ префикса НЕ должен присутствовать
             assert "FS-TEST-001" not in cache
             assert "FS-TEST-002" not in cache
+
+            # select_for_update должен быть вызван
+            mock_objects.select_for_update.assert_called_once()
+            mock_select_for_update.filter.assert_called_once()
+            mock_filter.only.assert_called_once()
 
     def test_find_order_uses_num_prefix_for_cache_lookup(self):
         """[AI-Review][High] _find_order ищет по num:{order_number} в кэше."""
@@ -1379,6 +1392,67 @@ class TestRound7ReviewFollowups:
         # ASSERT
         assert data.paid_at_present is True
         assert data.shipped_at_present is False
+
+    def test_final_status_regression_is_skipped(self):
+        """[AI-Review][Medium] Финальные статусы не регрессируют в активные."""
+        # ARRANGE
+        order_number = "FS-FINAL-001"
+        xml_data = build_test_xml(order_number=order_number, status="Отгружен")
+
+        mock_order = MagicMock()
+        mock_order.order_number = order_number
+        mock_order.status = "delivered"  # финальный статус
+        mock_order.status_1c = "Доставлен"
+        mock_order.paid_at = None
+        mock_order.shipped_at = None
+        mock_order.sent_to_1c = True
+        mock_order.sent_to_1c_at = timezone.now()
+
+        service = OrderStatusImportService()
+        mock_cache = {f"num:{order_number}": mock_order}
+
+        with patch.object(service, "_bulk_fetch_orders", return_value=mock_cache):
+            # ACT
+            result = service.process(xml_data)
+
+            # ASSERT — обновление должно быть пропущено
+            assert result.updated == 0
+            assert result.skipped_unknown_status == 1
+            mock_order.save.assert_not_called()
+            assert mock_order.status == "delivered"
+
+    def test_status_update_logged_at_debug(self, caplog):
+        """[AI-Review][Medium] Обновление статуса логируется на DEBUG, не INFO."""
+        # ARRANGE
+        order_number = "FS-LOG-DEBUG-001"
+        xml_data = build_test_xml(order_number=order_number, status="Отгружен")
+
+        mock_order = MagicMock()
+        mock_order.order_number = order_number
+        mock_order.status = "pending"
+        mock_order.status_1c = ""
+        mock_order.paid_at = None
+        mock_order.shipped_at = None
+        mock_order.sent_to_1c = False
+        mock_order.sent_to_1c_at = None
+
+        service = OrderStatusImportService()
+        mock_cache = {f"num:{order_number}": mock_order}
+
+        with patch.object(service, "_bulk_fetch_orders", return_value=mock_cache):
+            # ACT
+            caplog.set_level(logging.DEBUG, logger="apps.orders.services.order_status_import")
+            result = service.process(xml_data)
+
+        # ASSERT
+        assert result.updated == 1
+        update_logs = [
+            record
+            for record in caplog.records
+            if "status updated to" in record.message
+        ]
+        assert update_logs, "Ожидали debug-лог обновления статуса"
+        assert all(record.levelno == logging.DEBUG for record in update_logs)
 
     def test_parse_document_sets_present_flags(self):
         """[AI-Review][Medium] Logic/Data Consistency: _parse_document устанавливает флаги."""

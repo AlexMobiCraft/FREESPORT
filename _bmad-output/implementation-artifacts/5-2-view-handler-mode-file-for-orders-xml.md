@@ -23,6 +23,9 @@ So that **статусы заказов на сайте обновляются �
 9. **AC9:** При `result.processed == 0` на непустом XML — логируется `error` для alerting.
 10. **AC10:** Поддержка кодировки `windows-1251`: если XML declaration указывает кодировку — корректно декодируется.
 11. **AC11:** При обрыве соединения (truncated body: `len(body) != Content-Length`) возвращается `failure\nIncomplete request body`.
+12. **AC12:** Rate limiting: max 60 requests/min на `/1c-exchange/`, max 10 auth attempts/min на `mode=checkauth`.
+13. **AC13:** Timestamp validation: XML с `<ДатаФормирования>` старше 24 часов отклоняется с `failure\nXML timestamp too old`.
+14. **AC14:** Field whitelist: orders.xml обрабатывает ТОЛЬКО теги `Номер`, `Ид`, `ЗначенияРеквизитов` (СтатусЗаказа, ДатаОплаты, ДатаОтгрузки); другие поля игнорируются с warning.
 
 ## Tasks / Subtasks
 
@@ -57,7 +60,10 @@ So that **статусы заказов на сайте обновляются �
   - [ ] 4.10: `test_mode_file_orders_xml_zero_processed_logs_error` — пустой результат при непустом XML → error log (AC9).
   - [ ] 4.11: `test_mode_file_orders_xml_truncated_body` — Content-Length не совпадает с body → `failure\nIncomplete request body` (AC11).
   - [ ] 4.12: `test_mode_file_orders_xml_too_many_documents` — >1000 документов → `failure\nToo many documents` (FM4.5).
-  - [ ] 4.13: Использовать Factory Boy с `get_unique_suffix()`, маркеры `@pytest.mark.integration`, `@pytest.mark.django_db`, AAA-паттерн.
+  - [ ] 4.13: `test_mode_file_orders_xml_rate_limited` — превышение 60 req/min → HTTP 429 (AC12).
+  - [ ] 4.14: `test_mode_file_orders_xml_stale_timestamp_rejected` — XML с `ДатаФормирования` > 24h → `failure\nXML timestamp too old` (AC13).
+  - [ ] 4.15: `test_mode_file_orders_xml_ignores_unexpected_fields` — XML с тегами `<Адрес>`, `<Сумма>` → поля игнорируются, warning в логах (AC14).
+  - [ ] 4.16: Использовать Factory Boy с `get_unique_suffix()`, маркеры `@pytest.mark.integration`, `@pytest.mark.django_db`, AAA-паттерн.
 
 - [ ] Task 5: Обработка ошибок и логирование (AC: 3, 6, 11)
   - [ ] 5.1: При `ImportResult.errors` — логировать `logger.warning()` с деталями.
@@ -88,6 +94,22 @@ So that **статусы заказов на сайте обновляются �
   - [ ] 8.1: В `_handle_orders_xml()` детектировать кодировку из первых 100 байт: `<?xml ... encoding="windows-1251"?>`.
   - [ ] 8.2: Если не UTF-8 — декодировать и перекодировать в UTF-8 перед передачей в сервис.
   - [ ] 8.3: Добавить integration-тест: `test_mode_file_orders_xml_windows1251_encoding`.
+
+- [ ] Task 9: Security Hardening (AC: 12, 13) — Security Audit
+  - [ ] 9.1: Добавить throttle class `OneCExchangeThrottle` с rate `60/min` в `backend/apps/integrations/onec_exchange/throttling.py`.
+  - [ ] 9.2: Добавить throttle class `OneCAuthThrottle` с rate `10/min` для `mode=checkauth`.
+  - [ ] 9.3: Применить throttling к `ICExchangeView` через `throttle_classes`.
+  - [ ] 9.4: Реализовать `_validate_xml_timestamp()`: извлечь `<ДатаФормирования>`, проверить < 24 часов.
+  - [ ] 9.5: При stale timestamp → `logger.warning("[SECURITY] Stale XML rejected")` + `failure\nXML timestamp too old`.
+  - [ ] 9.6: (Optional) Добавить `ONEC_EXCHANGE['ALLOWED_IPS']` в settings для IP whitelist.
+  - [ ] 9.7: Добавить security logging для подозрительных событий: `[SECURITY]` prefix.
+
+- [ ] Task 10: Field Whitelist Protection (AC: 14) — Red Team R3
+  - [ ] 10.1: Определить `ALLOWED_ORDER_FIELDS = {'Номер', 'Ид', 'ЗначенияРеквизитов'}` в constants.
+  - [ ] 10.2: Определить `ALLOWED_REQUISITES = {'СтатусЗаказа', 'Статус Заказа', 'ДатаОплаты', 'Дата Оплаты', 'ДатаОтгрузки', 'Дата Отгрузки'}`.
+  - [ ] 10.3: В `OrderStatusImportService._parse_document()` игнорировать теги не из whitelist.
+  - [ ] 10.4: При обнаружении неожиданных тегов (Адрес, Сумма, Товары и др.) → `logger.warning("[SECURITY] Unexpected field in orders.xml: {tag}")`.
+  - [ ] 10.5: Добавить метрику `orders_import_unexpected_fields_total` для мониторинга попыток injection.
 
 ## Dev Notes
 
@@ -283,6 +305,71 @@ def test_mode_file_orders_xml_updates_order_status(self, api_client, order):
 - `backend/tests/unit/test_order_status_import.py` — 45 unit-тестов
 - `backend/tests/integration/test_order_status_import_db.py` — 7 интеграционных тестов
 
+### Red Team Lesson: Field Whitelist (Supply Chain Attack)
+
+**Сценарий атаки R3:** Злоумышленник компрометирует 1С сервер и модифицирует orders.xml, добавляя поля для изменения адреса доставки или суммы заказа.
+
+**Защита:** Строгий whitelist разрешённых полей:
+```python
+# backend/apps/orders/constants.py
+ALLOWED_ORDER_FIELDS = {'Номер', 'Ид', 'ЗначенияРеквизитов'}
+ALLOWED_REQUISITES = {
+    'СтатусЗаказа', 'Статус Заказа',
+    'ДатаОплаты', 'Дата Оплаты',
+    'ДатаОтгрузки', 'Дата Отгрузки',
+}
+
+# В _parse_document():
+for child in document:
+    if child.tag not in ALLOWED_ORDER_FIELDS:
+        logger.warning(f"[SECURITY] Unexpected field in orders.xml: {child.tag}")
+        continue  # Ignore, don't process
+```
+
+**Принцип:** orders.xml — это flow ТОЛЬКО для статусов. Любые другие данные (адрес, сумма, товары) должны игнорироваться.
+
+---
+
+### Security Audit: Защитные механизмы
+
+**OWASP API Security покрытие:**
+| Risk | Status | Mechanism |
+|------|--------|-----------|
+| Broken Authentication | ✅ | Rate limiting 10/min on auth |
+| Unrestricted Resource Consumption | ✅ | Size limit 5MB, rate 60/min |
+| Broken Function Level Auth | ✅ | `Is1CExchangeUser` permission |
+
+**Реализованные защиты:**
+```python
+# backend/apps/integrations/onec_exchange/throttling.py
+from rest_framework.throttling import SimpleRateThrottle
+
+class OneCExchangeThrottle(SimpleRateThrottle):
+    rate = '60/min'
+    scope = '1c_exchange'
+
+class OneCAuthThrottle(SimpleRateThrottle):
+    rate = '10/min'
+    scope = '1c_auth'
+```
+
+**Timestamp validation (Anti-Replay):**
+```python
+from datetime import timedelta
+from django.utils import timezone
+
+MAX_XML_AGE = timedelta(hours=24)
+
+def _validate_xml_timestamp(xml_data: bytes) -> bool:
+    """Reject XML older than 24 hours to prevent replay attacks."""
+    # Parse <ДатаФормирования> from XML
+    # Return False if timestamp > 24h old
+```
+
+**Security logging prefix:** `[SECURITY]` для фильтрации в SIEM.
+
+---
+
 ### Failure Mode Analysis: Критические точки отказа
 
 | FM ID | Компонент | Failure Mode | Mitigation |
@@ -357,7 +444,9 @@ STATUS_PRIORITY = {
 
 - `backend/apps/integrations/onec_exchange/views.py` (MODIFY) — добавить обработку orders.xml
 - `backend/apps/integrations/onec_exchange/routing_service.py` (MODIFY) — добавить "orders" в XML_ROUTING_RULES
-- `backend/tests/integration/test_orders_xml_mode_file.py` (NEW) — интеграционные тесты
+- `backend/apps/integrations/onec_exchange/throttling.py` (NEW) — rate limiting classes
+- `backend/apps/orders/constants.py` (MODIFY) — добавить STATUS_PRIORITY, ALLOWED_ORDER_FIELDS, ALLOWED_REQUISITES
+- `backend/tests/integration/test_orders_xml_mode_file.py` (NEW) — интеграционные тесты (14 тестов)
 
 ### References
 

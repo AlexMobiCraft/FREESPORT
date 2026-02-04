@@ -18,6 +18,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from xml.etree.ElementTree import Element
 
+from django.db import transaction
 from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_datetime
 
@@ -83,6 +84,10 @@ STATUS_MAPPING: dict[str, str] = {
 # [AI-Review][Low] Pre-computed lowercase маппинг для оптимизации регистронезависимого поиска
 STATUS_MAPPING_LOWER: dict[str, str] = {k.lower(): v for k, v in STATUS_MAPPING.items()}
 
+# [AI-Review][Medium] Финальные статусы не должны регрессировать в активные
+FINAL_STATUSES: set[str] = {"delivered", "cancelled"}
+ACTIVE_STATUSES: set[str] = {"pending", "confirmed", "processing", "shipped"}
+
 
 # =============================================================================
 # Service
@@ -141,52 +146,54 @@ class OrderStatusImportService:
                     break
                 result.errors.append(error_msg)
 
-        # BULK FETCH: загрузить все заказы одним запросом (оптимизация N+1)
-        orders_cache = self._bulk_fetch_orders(order_updates)
-
         # PROCESS: обновить каждый заказ
         # [AI-Review][High] Изоляция ошибок — одна ошибка не останавливает весь процесс
         # [AI-Review][Medium] Rate-limited logging: остановка логирования после N последовательных ошибок
         consecutive_errors = 0
         log_suppressed = False
 
-        for order_data in order_updates:
-            try:
-                status, error_msg = self._process_order_update(order_data, orders_cache)
-                # [AI-Review][Medium] Используем Enum вместо magic strings
-                if status == ProcessingStatus.UPDATED:
-                    result.updated += 1
-                    consecutive_errors = 0  # Сброс счётчика при успехе
-                elif status == ProcessingStatus.SKIPPED:
-                    if error_msg:
-                        result.skipped_unknown_status += 1
-                    else:
-                        result.skipped_up_to_date += 1
-                elif status == ProcessingStatus.NOT_FOUND:
-                    result.not_found += 1
+        # [AI-Review][High] Защита от race condition — блокировки в bulk fetch
+        with transaction.atomic():
+            # BULK FETCH: загрузить все заказы одним запросом (оптимизация N+1)
+            orders_cache = self._bulk_fetch_orders(order_updates)
+
+            for order_data in order_updates:
+                try:
+                    status, error_msg = self._process_order_update(order_data, orders_cache)
+                    # [AI-Review][Medium] Используем Enum вместо magic strings
+                    if status == ProcessingStatus.UPDATED:
+                        result.updated += 1
+                        consecutive_errors = 0  # Сброс счётчика при успехе
+                    elif status == ProcessingStatus.SKIPPED:
+                        if error_msg:
+                            result.skipped_unknown_status += 1
+                        else:
+                            result.skipped_up_to_date += 1
+                    elif status == ProcessingStatus.NOT_FOUND:
+                        result.not_found += 1
+                        consecutive_errors += 1
+
+                    # Сбор ошибок из _process_order_update
+                    if error_msg and len(result.errors) < MAX_ERRORS:
+                        result.errors.append(error_msg)
+
+                except Exception as e:
                     consecutive_errors += 1
+                    order_ref = order_data.order_number or order_data.order_id
+                    error_msg = f"Error processing order {order_ref}: {e}"
 
-                # Сбор ошибок из _process_order_update
-                if error_msg and len(result.errors) < MAX_ERRORS:
-                    result.errors.append(error_msg)
+                    # Rate-limited logging: предотвращаем флуд логов
+                    if consecutive_errors <= MAX_CONSECUTIVE_ERRORS:
+                        logger.exception(error_msg)
+                    elif not log_suppressed:
+                        logger.warning(
+                            f"Suppressing further error logs after "
+                            f"{MAX_CONSECUTIVE_ERRORS} consecutive errors"
+                        )
+                        log_suppressed = True
 
-            except Exception as e:
-                consecutive_errors += 1
-                order_ref = order_data.order_number or order_data.order_id
-                error_msg = f"Error processing order {order_ref}: {e}"
-
-                # Rate-limited logging: предотвращаем флуд логов
-                if consecutive_errors <= MAX_CONSECUTIVE_ERRORS:
-                    logger.exception(error_msg)
-                elif not log_suppressed:
-                    logger.warning(
-                        f"Suppressing further error logs after "
-                        f"{MAX_CONSECUTIVE_ERRORS} consecutive errors"
-                    )
-                    log_suppressed = True
-
-                if len(result.errors) < MAX_ERRORS:
-                    result.errors.append(error_msg)
+                    if len(result.errors) < MAX_ERRORS:
+                        result.errors.append(error_msg)
 
         # Итоговое сообщение, если логи были подавлены
         if log_suppressed:
@@ -414,8 +421,8 @@ class OrderStatusImportService:
         - 'pk:{id}' для поиска по первичному ключу
 
         Note:
-            Bulk fetch НЕ использует select_for_update() для производительности.
-            Для критичных concurrent-сценариев используйте fallback-запросы с блокировкой.
+            Bulk fetch использует select_for_update() для защиты от race condition.
+            Вызывайте внутри transaction.atomic() для корректной блокировки.
 
         Args:
             order_updates: Список данных для обновления.
@@ -452,16 +459,20 @@ class OrderStatusImportService:
             return {}
 
         # [AI-Review][Low] Performance: загружаем только необходимые поля
-        orders = Order.objects.filter(query).only(
-            "pk",
-            "order_number",
-            "status",
-            "status_1c",
-            "paid_at",
-            "shipped_at",
-            "sent_to_1c",
-            "sent_to_1c_at",
-            "updated_at",
+        orders = (
+            Order.objects.select_for_update()
+            .filter(query)
+            .only(
+                "pk",
+                "order_number",
+                "status",
+                "status_1c",
+                "paid_at",
+                "shipped_at",
+                "sent_to_1c",
+                "sent_to_1c_at",
+                "updated_at",
+            )
         )
 
         # [AI-Review][High] Строим кэш с префиксами для избежания коллизий:
@@ -526,6 +537,14 @@ class OrderStatusImportService:
             logger.warning(error_msg)
             return ProcessingStatus.SKIPPED, error_msg
 
+        if order.status in FINAL_STATUSES and new_status in ACTIVE_STATUSES:
+            error_msg = (
+                f"Order {order.order_number}: status regression from "
+                f"'{order.status}' to '{new_status}' blocked"
+            )
+            logger.warning(error_msg)
+            return ProcessingStatus.SKIPPED, error_msg
+
         # Проверяем, нужно ли обновление (идемпотентность AC8)
         status_changed = order.status != new_status or order.status_1c != order_data.status_1c
         # [AI-Review][Medium] Logic/Data Consistency: учитываем флаги наличия тегов
@@ -571,7 +590,7 @@ class OrderStatusImportService:
 
         order.save(update_fields=update_fields)
 
-        logger.info(
+        logger.debug(
             f"Order {order.order_number}: status updated to "
             f"'{new_status}' (1C: '{order_data.status_1c}')"
         )

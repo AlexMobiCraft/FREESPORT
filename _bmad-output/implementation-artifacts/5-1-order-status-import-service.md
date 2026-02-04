@@ -1,6 +1,6 @@
 # Story 5.1: Сервис импорта статусов (OrderStatusImportService)
 
-Status: ready for review
+Status: in-progress
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -128,6 +128,11 @@ So that **статусы заказов на сайте соответствую
 - [x] [AI-Review][High] Logic Bug: `sent_to_1c=True` is skipped if status/dates are unchanged (idempotency check), preventing acknowledgement of existing orders. `backend/apps/orders/services/order_status_import.py`
 - [x] [AI-Review][Medium] Observability: Invalid documents (missing ID) are counted in `processed` but not tracked in `ImportResult` metrics (skipped/errors), leading to stats discrepancy. `backend/apps/orders/services/order_status_import.py`
 - [x] [AI-Review][Low] Test Quality: `test_idempotent_processing_no_duplicate_updates` masks the Critical Issue #1 by pre-setting flags. `backend/tests/unit/test_order_status_import.py`
+
+#### Review Follow-ups (Code Review Workflow) - Round 7
+- [x] [AI-Review][High] Race Condition: `_bulk_fetch_orders` loads without locking. Parallel updates may be overwritten. `backend/apps/orders/services/order_status_import.py:405-478`
+- [x] [AI-Review][Medium] Business Logic: Prevent regression from final statuses (delivered/cancelled) to active ones. `backend/apps/orders/services/order_status_import.py:530`
+- [x] [AI-Review][Medium] Performance: Log Flooding at INFO level on every update. Downgrade to DEBUG. `backend/apps/orders/services/order_status_import.py:574`
 
 
 
@@ -363,6 +368,15 @@ N/A
 - ✅ Resolved Round 6 [Medium]: некорректные документы учитываются в `skipped_invalid` и `errors`
 - ✅ Resolved Round 6 [Low]: тест идемпотентности обновлён и не маскирует проблему
 - ✅ Targeted tests: `docker compose -f docker/docker-compose.test.yml run --rm backend pytest -v tests/unit/test_order_status_import.py tests/integration/test_order_status_import_db.py` — PASSED (53 tests); warnings: Unknown pytest.mark (unit/integration), RemovedInDjango60Warning
+- ✅ Resolved Round 7 [High]: bulk fetch использует select_for_update внутри transaction.atomic
+- ✅ Resolved Round 7 [Medium]: запрет регрессии финальных статусов в активные
+- ✅ Resolved Round 7 [Medium]: лог обновления статуса понижен до DEBUG
+- ✅ Targeted tests: `docker compose -f docker/docker-compose.test.yml run --rm backend pytest -v tests/unit/test_order_status_import.py tests/integration/test_order_status_import_db.py` — PASSED (55 tests); warnings: Unknown pytest.mark (unit/integration), RemovedInDjango60Warning
+
+#### Review Follow-ups (Code Review Workflow) - Round 8
+- [ ] [AI-Review][Medium] Prevent log flooding in parser by returning errors instead of logging warnings directly `backend/apps/orders/services/order_status_import.py:287`
+- [ ] [AI-Review][Medium] Detect data conflict when finding order by ID (check order number match) `backend/apps/orders/services/order_status_import.py:651`
+- [ ] [AI-Review][Low] Use specific ET.ParseError instead of generic Exception in tests `backend/tests/unit/test_order_status_import.py:259`
 
 ### Change Log
 
@@ -381,15 +395,16 @@ N/A
 - 2026-02-04: Verified `tests/unit/test_order_status_import.py` (45 tests) pass
 - 2026-02-04: Addressed Round 4 follow-ups (log flooding/observability/cleanup); verified targeted unit+integration tests
 - 2026-02-04: Addressed Round 6 follow-ups (sent_to_1c idempotency, invalid docs metrics, test quality); verified targeted unit+integration tests
+- 2026-02-04: Addressed Round 7 follow-ups (race condition lock, status regression, log level); verified targeted unit+integration tests
 
 ### File List
 
-- `backend/apps/orders/services/order_status_import.py` (MODIFY) — учтён `skipped_invalid`, исправлена идемпотентность `sent_to_1c`, расширены ошибки парсинга
+- `backend/apps/orders/services/order_status_import.py` (MODIFY) — select_for_update + transaction.atomic, запрет регрессии статусов, DEBUG лог обновления
 - `backend/apps/orders/services/__init__.py` (MODIFY) — экспорт сервиса
 - `backend/apps/orders/constants.py` (NEW) — ORDER_ID_PREFIX, MAX_ERRORS, MAX_CONSECUTIVE_ERRORS, ProcessingStatus
 - `backend/apps/orders/models.py` (MODIFY) — добавлены поля `paid_at`, `shipped_at`
 - `backend/apps/orders/migrations/0011_add_payment_shipment_dates.py` (NEW) — миграция
-- `backend/tests/unit/test_order_status_import.py` (MODIFY) — обновлены тесты парсинга/идемпотентности, добавлены проверки `skipped_invalid`
+- `backend/tests/unit/test_order_status_import.py` (MODIFY) — новые тесты Round 7, django_db marker, проверка DEBUG логов
 - `backend/tests/integration/test_order_status_import_db.py` (MODIFY) — обновлены проверки skipped-метрик и типизация дат
 - `backend/tests/integration/test_management_commands/test_import_customers.py` (MODIFY) — актуализированы ожидания stdout, статистика и логи
 - `backend/tests/integration/test_management_commands/test_load_product_stocks.py` (MODIFY) — тесты переведены на ProductVariant
