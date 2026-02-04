@@ -1,6 +1,6 @@
 # Story 5.1: Сервис импорта статусов (OrderStatusImportService)
 
-Status: review
+Status: in-progress
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -118,6 +118,11 @@ So that **статусы заказов на сайте соответствую
 - [x] [AI-Review][Medium] Logic/Data Consistency: Исправить логику сброса дат `paid_at`/`shipped_at` (сейчас сохраняются старые значения при пустых тегах) `backend/apps/orders/services/order_status_import.py:535`
 - [x] [AI-Review][Low] Performance: Оптимизировать `_bulk_fetch_orders`, используя `.only()` для загрузки только нужных полей `backend/apps/orders/services/order_status_import.py:446`
 - [x] [AI-Review][Low] Code Style: Оптимизировать регистронезависимый маппинг статусов с помощью pre-computed dict `backend/apps/orders/services/order_status_import.py:500`
+
+#### Review Follow-ups (Code Review Workflow) - Round 4
+- [ ] [AI-Review][Medium] Log Flooding: Убрать логирование warning внутри цикла `_bulk_fetch_orders` (перенести в `process` или сделать rate-limited) во избежание флуда при смене формата ID `backend/apps/orders/services/order_status_import.py:406`
+- [ ] [AI-Review][Medium] Observability: Разделить метрику `skipped` на `skipped_up_to_date` и `skipped_unknown_status` в `ImportResult` для чистоты мониторинга `backend/apps/orders/services/order_status_import.py:146`
+- [ ] [AI-Review][Low] Cleanup: Удалить неиспользуемые legacy-методы `_extract_requisite_value` и `_parse_requisite_date` `backend/apps/orders/services/order_status_import.py:318-385`
 
 
 
