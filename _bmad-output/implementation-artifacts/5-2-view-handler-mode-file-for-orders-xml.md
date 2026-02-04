@@ -19,15 +19,23 @@ So that **статусы заказов на сайте обновляются �
 5. **AC5:** Копия файла сохраняется в `MEDIA_ROOT/1c_exchange/logs/` для отладки (NFR4).
 6. **AC6:** Возвращается `ImportResult` с метриками: `processed`, `updated`, `skipped`, `not_found`, `errors`.
 7. **AC7:** Integration-тесты: POST с XML обновляет статус заказа в БД, повторная отправка не создаёт ошибок.
+8. **AC8:** Защита от регресса статуса: если новый статус "ниже" текущего (например, `shipped` после `delivered`) — заказ пропускается с warning.
+9. **AC9:** При `result.processed == 0` на непустом XML — логируется `error` для alerting.
+10. **AC10:** Поддержка кодировки `windows-1251`: если XML declaration указывает кодировку — корректно декодируется.
+11. **AC11:** При обрыве соединения (truncated body: `len(body) != Content-Length`) возвращается `failure\nIncomplete request body`.
 
 ## Tasks / Subtasks
 
 - [ ] Task 1: Модификация handle_file_upload для orders.xml (AC: 1, 3, 5)
-  - [ ] 1.1: В `backend/apps/integrations/onec_exchange/views.py` добавить проверку `filename.lower() == "orders.xml"` в `handle_file_upload()`.
-  - [ ] 1.2: При совпадении — читать тело запроса в память (orders.xml обычно <1MB) вместо стриминга в файл.
-  - [ ] 1.3: Вызвать `OrderStatusImportService().process(xml_data)` с полученным XML.
-  - [ ] 1.4: Сохранить копию XML через `_save_exchange_log("orders.xml", xml_data)` (NFR4).
-  - [ ] 1.5: Вернуть `success` при `result.errors == []`, иначе `failure\n{summary}`.
+  - [ ] 1.1: В `backend/apps/integrations/onec_exchange/views.py` добавить проверку `filename.lower() == ORDERS_XML_FILENAME` в `handle_file_upload()`.
+  - [ ] 1.2: При совпадении — вызвать новый метод `return self._handle_orders_xml(request)` (ADR-002).
+  - [ ] 1.3: Создать приватный метод `_handle_orders_xml(self, request) -> HttpResponse`.
+  - [ ] 1.4: **Проверка размера (ADR-004):** Если `Content-Length > 5MB` → вернуть `failure\nFile too large for inline processing`.
+  - [ ] 1.5: **Audit log ПЕРВЫМ (ADR-005):** Сохранить копию XML через `_save_exchange_log()` ДО обработки.
+  - [ ] 1.6: Читать тело запроса в память: `xml_data = request._request.read()`.
+  - [ ] 1.7: Вызвать `OrderStatusImportService().process(xml_data)`.
+  - [ ] 1.8: **Partial Success (ADR-003):** Вернуть `success` если `result.updated > 0` ИЛИ `result.errors == []`, иначе `failure\n{summary}`.
+  - [ ] 1.9: **FM1.1 — Body integrity:** Проверить `len(xml_data) == Content-Length` после чтения; если не совпадает → `failure\nIncomplete request body`.
 
 - [ ] Task 2: Добавить маршрутизацию в routing_service (AC: 1)
   - [ ] 2.1: Добавить `"orders": "orders/"` в `XML_ROUTING_RULES` (для consistency, хотя orders.xml обрабатывается inline).
@@ -36,21 +44,80 @@ So that **статусы заказов на сайте обновляются �
 - [ ] Task 3: Добавить импорт OrderStatusImportService (AC: 1)
   - [ ] 3.1: Добавить `from apps.orders.services.order_status_import import OrderStatusImportService` в views.py.
 
-- [ ] Task 4: Integration-тесты (AC: 7)
+- [ ] Task 4: Integration-тесты (AC: 7, 8, 9, 10, 11)
   - [ ] 4.1: Создать `backend/tests/integration/test_orders_xml_mode_file.py`.
   - [ ] 4.2: `test_mode_file_orders_xml_updates_order_status` — POST с валидным orders.xml обновляет Order.status.
   - [ ] 4.3: `test_mode_file_orders_xml_idempotent` — повторная отправка не создаёт ошибок.
   - [ ] 4.4: `test_mode_file_orders_xml_saves_audit_log` — проверить что файл сохранён в logs.
   - [ ] 4.5: `test_mode_file_orders_xml_returns_failure_on_invalid_xml` — невалидный XML → failure.
   - [ ] 4.6: `test_mode_file_orders_xml_requires_auth` — без аутентификации → 401/403.
-  - [ ] 4.7: Использовать Factory Boy с `get_unique_suffix()`, маркеры `@pytest.mark.integration`, `@pytest.mark.django_db`, AAA-паттерн.
+  - [ ] 4.7: `test_mode_file_orders_xml_blocks_status_regression` — shipped после delivered → skip (AC8).
+  - [ ] 4.8: `test_mode_file_orders_xml_allows_cancellation_anytime` — cancelled разрешён на любом этапе (AC8).
+  - [ ] 4.9: `test_mode_file_orders_xml_windows1251_encoding` — XML в windows-1251 корректно обрабатывается (AC10).
+  - [ ] 4.10: `test_mode_file_orders_xml_zero_processed_logs_error` — пустой результат при непустом XML → error log (AC9).
+  - [ ] 4.11: `test_mode_file_orders_xml_truncated_body` — Content-Length не совпадает с body → `failure\nIncomplete request body` (AC11).
+  - [ ] 4.12: `test_mode_file_orders_xml_too_many_documents` — >1000 документов → `failure\nToo many documents` (FM4.5).
+  - [ ] 4.13: Использовать Factory Boy с `get_unique_suffix()`, маркеры `@pytest.mark.integration`, `@pytest.mark.django_db`, AAA-паттерн.
 
-- [ ] Task 5: Обработка ошибок и логирование (AC: 3, 6)
+- [ ] Task 5: Обработка ошибок и логирование (AC: 3, 6, 11)
   - [ ] 5.1: При `ImportResult.errors` — логировать `logger.warning()` с деталями.
   - [ ] 5.2: Формировать summary: `"processed={n}, updated={m}, errors={k}"`.
   - [ ] 5.3: При исключении в `OrderStatusImportService` — `logger.exception()`, вернуть `failure\nInternal error`.
+  - [ ] 5.4: **FM3.1 — Parse errors:** Явно ловить `ET.ParseError` и `DefusedXmlException`, возвращать `failure\nMalformed XML` / `failure\nXML security violation`.
+  - [ ] 5.5: **FM4.5 — Max documents:** Добавить `MAX_DOCUMENTS_PER_FILE = 1000` константу; при превышении → `failure\nToo many documents`.
+  - [ ] 5.6: **FM5.1/FM5.2 — DB retry:** Добавить retry logic (3 попытки с backoff) при `OperationalError` от PostgreSQL.
+
+- [ ] Task 6: Alerting на нулевую обработку (AC: 9) — Pre-mortem #1
+  - [ ] 6.1: Если `result.processed == 0` при `len(xml_data) > 100` → `logger.error("[ORDERS IMPORT] Zero documents processed from non-empty XML")`.
+  - [ ] 6.2: Добавить метрику для мониторинга: `orders_import_zero_processed_total`.
+  - [ ] 6.3: Документировать alert rule в Dev Notes для DevOps.
+
+- [ ] Task 7: Защита от регресса статуса (AC: 8) — Pre-mortem #2
+  - [ ] 7.1: Добавить `STATUS_PRIORITY` в `backend/apps/orders/constants.py`:
+    ```python
+    STATUS_PRIORITY = {
+        "pending": 1, "confirmed": 2, "processing": 3,
+        "shipped": 4, "delivered": 5, "cancelled": 0, "refunded": 0
+    }
+    ```
+  - [ ] 7.2: В `OrderStatusImportService._process_order_update()`: если `new_priority < current_priority` и `new_status not in ("cancelled", "refunded")` → skip + `logger.warning("Status regression blocked")`.
+  - [ ] 7.3: Добавить unit-тест: `test_status_regression_blocked`.
+  - [ ] 7.4: Cancelled/refunded всегда разрешены (бизнес-требование: отмена возможна на любом этапе).
+
+- [ ] Task 8: Поддержка windows-1251 кодировки (AC: 10) — Pre-mortem #5
+  - [ ] 8.1: В `_handle_orders_xml()` детектировать кодировку из первых 100 байт: `<?xml ... encoding="windows-1251"?>`.
+  - [ ] 8.2: Если не UTF-8 — декодировать и перекодировать в UTF-8 перед передачей в сервис.
+  - [ ] 8.3: Добавить integration-тест: `test_mode_file_orders_xml_windows1251_encoding`.
 
 ## Dev Notes
+
+### Архитектурные решения (ADR)
+
+**ADR-001: Синхронная обработка**
+- orders.xml обрабатывается inline в `handle_file_upload()`
+- Асинхронность (Celery) НЕ используется — 1С ожидает немедленный ответ
+- Обоснование: файл маленький (<1MB), протокол требует немедленного ответа
+
+**ADR-002: Структура кода**
+- Выделить `_handle_orders_xml()` как отдельный приватный метод
+- `handle_file_upload()` только маршрутизирует по filename
+- Обоснование: Single Responsibility, тестируемость, расширяемость
+
+**ADR-003: Partial Success Strategy**
+- Если хотя бы 1 заказ обновлён → `success`
+- Только при полном отказе (invalid XML, exception) → `failure`
+- Обоснование: 1С не умеет обрабатывать partial failure
+
+**ADR-004: Защита от больших файлов**
+- `Content-Length > 5MB` → `failure\nFile too large for inline processing`
+- Проверка ДО чтения тела запроса
+- Обоснование: предотвращение timeout и OOM
+
+**ADR-005: Audit Log порядок**
+- Порядок: Сохранить копию XML → Обработать → Вернуть ответ
+- Обоснование: при сбое можно восстановить и повторить обработку
+
+---
 
 ### Архитектурные требования
 
@@ -67,13 +134,16 @@ So that **статусы заказов на сайте обновляются �
 ### Паттерн обработки orders.xml
 
 ```python
-# В handle_file_upload(), перед стримингом в файл:
+# В handle_file_upload(), перед стримингом в файл (ADR-002):
 if filename.lower() == ORDERS_XML_FILENAME:
     return self._handle_orders_xml(request)
 
+# Константа для лимита размера (ADR-004)
+ORDERS_XML_MAX_SIZE = 5 * 1024 * 1024  # 5MB
+
 def _handle_orders_xml(self, request) -> HttpResponse:
     """
-    Handle orders.xml import synchronously.
+    Handle orders.xml import synchronously (ADR-001).
 
     Unlike catalog files (streamed to disk), orders.xml is processed
     inline because:
@@ -82,10 +152,21 @@ def _handle_orders_xml(self, request) -> HttpResponse:
     3. No need for mode=import follow-up
     """
     try:
+        # ADR-004: Check file size BEFORE reading
+        content_length = int(request.META.get("CONTENT_LENGTH", 0))
+        if content_length > ORDERS_XML_MAX_SIZE:
+            logger.warning(
+                f"[ORDERS IMPORT] Rejected: file too large ({content_length} bytes)"
+            )
+            return HttpResponse(
+                "failure\nFile too large for inline processing",
+                content_type="text/plain; charset=utf-8",
+            )
+
         # Read full body (orders.xml is small)
         xml_data = request._request.read()
 
-        # Audit log
+        # ADR-005: Audit log BEFORE processing (for recovery)
         _save_exchange_log(ORDERS_XML_FILENAME, xml_data, is_binary=True)
 
         # Process via service
@@ -102,15 +183,22 @@ def _handle_orders_xml(self, request) -> HttpResponse:
 
         if result.errors:
             logger.warning(f"[ORDERS IMPORT] Errors: {result.errors[:5]}")
-            # Still return success if some orders were processed
-            # Only fail on complete failure
 
-        return HttpResponse("success", content_type="text/plain; charset=utf-8")
+        # ADR-003: Partial Success = Success
+        # Return success if at least one order was updated OR no errors
+        if result.updated > 0 or not result.errors:
+            return HttpResponse("success", content_type="text/plain; charset=utf-8")
+
+        # Complete failure: nothing updated AND errors present
+        return HttpResponse(
+            f"failure\nNo orders updated. Errors: {len(result.errors)}",
+            content_type="text/plain; charset=utf-8",
+        )
 
     except Exception as e:
         logger.exception(f"[ORDERS IMPORT] Failed: {e}")
         return HttpResponse(
-            f"failure\nInternal error",
+            "failure\nInternal error",
             content_type="text/plain; charset=utf-8",
         )
 ```
@@ -195,6 +283,60 @@ def test_mode_file_orders_xml_updates_order_status(self, api_client, order):
 - `backend/tests/unit/test_order_status_import.py` — 45 unit-тестов
 - `backend/tests/integration/test_order_status_import_db.py` — 7 интеграционных тестов
 
+### Failure Mode Analysis: Критические точки отказа
+
+| FM ID | Компонент | Failure Mode | Mitigation |
+|-------|-----------|--------------|------------|
+| FM1.1 | HTTP | Body truncated | Проверка `len(body) == Content-Length` |
+| FM3.1 | XML Parser | Malformed XML | Catch `ParseError` → понятный `failure` |
+| FM4.5 | Service | Too many documents | `MAX_DOCUMENTS_PER_FILE = 1000` |
+| FM5.1 | Database | Connection exhausted | Retry 3x с backoff |
+| FM5.2 | Database | Transaction timeout | Retry 3x с backoff |
+
+**Retry pattern для DB errors:**
+```python
+from django.db import OperationalError
+import time
+
+MAX_RETRIES = 3
+for attempt in range(MAX_RETRIES):
+    try:
+        result = service.process(xml_data)
+        break
+    except OperationalError as e:
+        if attempt == MAX_RETRIES - 1:
+            raise
+        logger.warning(f"[ORDERS IMPORT] DB error, retry {attempt+1}: {e}")
+        time.sleep(0.5 * (attempt + 1))  # 0.5s, 1s, 1.5s
+```
+
+---
+
+### Pre-mortem: Превентивные меры
+
+**Сценарий #1 — Молчаливый провал:**
+- Alert при `processed == 0` на непустом XML
+- Метрика `orders_import_zero_processed_total` для мониторинга
+
+**Сценарий #2 — Регресс статуса:**
+```python
+# backend/apps/orders/constants.py
+STATUS_PRIORITY = {
+    "pending": 1,
+    "confirmed": 2,
+    "processing": 3,
+    "shipped": 4,
+    "delivered": 5,
+    "cancelled": 0,  # Особый случай: всегда разрешён
+    "refunded": 0,   # Особый случай: всегда разрешён
+}
+```
+- Блокировка: `new_priority < current_priority` → skip (кроме cancelled/refunded)
+
+**Сценарий #5 — Кодировка windows-1251:**
+- Детекция из XML declaration
+- Перекодирование в UTF-8 перед парсингом
+
 ### Anti-patterns
 
 - ❌ Не стримить orders.xml в файл — обрабатывать inline
@@ -202,6 +344,8 @@ def test_mode_file_orders_xml_updates_order_status(self, api_client, order):
 - ❌ Не дублировать логику парсинга — использовать OrderStatusImportService
 - ❌ Не игнорировать ImportResult.errors — логировать для отладки
 - ❌ Не возвращать `failure` при частичных ошибках — только при полном отказе
+- ❌ Не разрешать регресс статуса (shipped → pending) — блокировать с warning
+- ❌ Не игнорировать `processed == 0` — это сигнал проблемы с форматом XML
 
 ### Dependencies
 
