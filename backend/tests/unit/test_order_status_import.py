@@ -11,6 +11,7 @@ from typing import cast
 from unittest.mock import MagicMock, patch
 
 from defusedxml.common import DefusedXmlException
+from defusedxml import ElementTree as ET
 
 import pytest
 from django.utils import timezone
@@ -256,7 +257,7 @@ class TestXMLParsing:
         service = OrderStatusImportService()
         
         # ACT / ASSERT
-        with pytest.raises(Exception):  # ET.ParseError
+        with pytest.raises(ET.ParseError):
             service._parse_orders_xml(invalid_xml)
 
 

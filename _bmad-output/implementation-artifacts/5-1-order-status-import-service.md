@@ -1,6 +1,6 @@
 # Story 5.1: Сервис импорта статусов (OrderStatusImportService)
 
-Status: in-progress
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -372,11 +372,14 @@ N/A
 - ✅ Resolved Round 7 [Medium]: запрет регрессии финальных статусов в активные
 - ✅ Resolved Round 7 [Medium]: лог обновления статуса понижен до DEBUG
 - ✅ Targeted tests: `docker compose -f docker/docker-compose.test.yml run --rm backend pytest -v tests/unit/test_order_status_import.py tests/integration/test_order_status_import_db.py` — PASSED (55 tests); warnings: Unknown pytest.mark (unit/integration), RemovedInDjango60Warning
+- ✅ Resolved Round 8 [Medium]: Prevent log flooding in parser — removed direct logger.warning, errors returned instead
+- ✅ Resolved Round 8 [Medium]: Detect data conflict when finding order by ID — added conflict detection in both cache and DB lookup paths
+- ✅ Resolved Round 8 [Low]: Use specific ET.ParseError in tests — added ET import and updated test
 
 #### Review Follow-ups (Code Review Workflow) - Round 8
-- [ ] [AI-Review][Medium] Prevent log flooding in parser by returning errors instead of logging warnings directly `backend/apps/orders/services/order_status_import.py:287`
-- [ ] [AI-Review][Medium] Detect data conflict when finding order by ID (check order number match) `backend/apps/orders/services/order_status_import.py:651`
-- [ ] [AI-Review][Low] Use specific ET.ParseError instead of generic Exception in tests `backend/tests/unit/test_order_status_import.py:259`
+- [x] [AI-Review][Medium] Prevent log flooding in parser by returning errors instead of logging warnings directly `backend/apps/orders/services/order_status_import.py:287`
+- [x] [AI-Review][Medium] Detect data conflict when finding order by ID (check order number match) `backend/apps/orders/services/order_status_import.py:651`
+- [x] [AI-Review][Low] Use specific ET.ParseError instead of generic Exception in tests `backend/tests/unit/test_order_status_import.py:259`
 
 ### Change Log
 
@@ -392,7 +395,7 @@ N/A
 - 2026-02-04: Updated management command/news tests; verified 8 targeted tests pass (import_customers/load_product_stocks/news_detail_view)
 - 2026-02-04: Addressed Code Review Workflow Round 2 findings — 2 items resolved (High:1, Medium:1)
 - 2026-02-04: Addressed Code Review Workflow Round 3 findings — 3 items resolved (Medium:1, Low:2); 52 tests passing
-- 2026-02-04: Verified `tests/unit/test_order_status_import.py` (45 tests) pass
+- 2026-02-04: Addressed Round 8 review findings — 3 items resolved (Medium:2, Low:1)
 - 2026-02-04: Addressed Round 4 follow-ups (log flooding/observability/cleanup); verified targeted unit+integration tests
 - 2026-02-04: Addressed Round 6 follow-ups (sent_to_1c idempotency, invalid docs metrics, test quality); verified targeted unit+integration tests
 - 2026-02-04: Addressed Round 7 follow-ups (race condition lock, status regression, log level); verified targeted unit+integration tests

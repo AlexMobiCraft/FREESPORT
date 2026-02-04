@@ -326,3 +326,37 @@ class TestMaxErrorsLimit(TestCase):
         self.assertEqual(result.not_found, 150)
         # Ошибки ограничены MAX_ERRORS
         self.assertEqual(len(result.errors), MAX_ERRORS)
+
+    def test_detect_data_conflict_when_order_found_by_id(self):
+        """Проверка обнаружения конфликта данных при поиске по ID."""
+        # ARRANGE
+        from decimal import Decimal
+        
+        service = OrderStatusImportService()
+        
+        # Создаем заказ с одним номером
+        order_number = f"FS-CONFLICT-{get_unique_suffix()}"
+        order = Order.objects.create(
+            order_number=order_number,
+            status="pending",
+            delivery_address="Тестовый адрес",
+            delivery_method="courier",
+            payment_method="card",
+            total_amount=Decimal("100.00"),
+        )
+        
+        # Данные XML с другим номером но тем же ID
+        xml_data = build_test_xml(
+            order_id=f"order-{order.id}",
+            order_number="FS-CONFLICT-999",  # Другой номер
+            status="Отгружен"
+        )
+        
+        # ACT
+        result = service.process(xml_data)
+        
+        # ASSERT
+        self.assertEqual(result.updated, 0)
+        self.assertEqual(result.not_found, 0)
+        self.assertEqual(result.skipped_up_to_date + result.skipped_unknown_status + result.skipped_invalid, 1)  # Пропущен из-за конфликта
+        self.assertEqual(len(result.errors), 1)  # Ошибка конфликта должна быть записана

@@ -284,7 +284,6 @@ class OrderStatusImportService:
 
         if not order_id and not order_number:
             error_msg = "Document without <Ид> and <Номер>, skipping"
-            logger.warning(error_msg)
             return None, error_msg
 
         # [AI-Review][Low] Оптимизация: собрать все реквизиты в dict один раз
@@ -512,6 +511,14 @@ class OrderStatusImportService:
             tuple: (ProcessingStatus, ошибка или None).
         """
         order = self._find_order(order_data, orders_cache)
+        if order == "DATA_CONFLICT":
+            # Обработка конфликта данных
+            conflict_msg = (
+                f"Data conflict: found order by ID {order_data.order_id} "
+                f"but order numbers don't match: XML='{order_data.order_number}'"
+            )
+            return ProcessingStatus.SKIPPED, conflict_msg
+        
         if order is None:
             error_msg = (
                 f"Order not found: number='{order_data.order_number}', "
@@ -629,7 +636,15 @@ class OrderStatusImportService:
             if pk is not None:
                 cache_key = f"pk:{pk}"
                 if cache_key in orders_cache:
-                    return orders_cache[cache_key]
+                    order = orders_cache[cache_key]
+                    if order_data.order_number and order.order_number != order_data.order_number:
+                        conflict_msg = (
+                            f"Data conflict: found order by ID {order_data.order_id} (pk={pk}) "
+                            f"but order numbers don't match: DB='{order.order_number}' vs XML='{order_data.order_number}'"
+                        )
+                        logger.warning(conflict_msg)
+                        return "DATA_CONFLICT"
+                    return order
 
             return None
 
@@ -652,6 +667,14 @@ class OrderStatusImportService:
         if pk is not None:
             order = Order.objects.select_for_update().filter(pk=pk).first()
             if order:
+                # [AI-Review][Medium] Detect data conflict when finding order by ID
+                if order_data.order_number and order.order_number != order_data.order_number:
+                    conflict_msg = (
+                        f"Data conflict: found order by ID {order_data.order_id} (pk={pk}) "
+                        f"but order numbers don't match: DB='{order.order_number}' vs XML='{order_data.order_number}'"
+                    )
+                    logger.warning(conflict_msg)
+                    return "DATA_CONFLICT"
                 return order
 
         return None

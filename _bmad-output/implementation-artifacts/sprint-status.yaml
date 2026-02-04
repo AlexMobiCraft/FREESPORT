@@ -89,7 +89,7 @@ development_status:
   # ========================================
   epic-5: in-progress
   5-0-spike-analysis-orders-xml: ready-for-dev
-  5-1-order-status-import-service: in-progress
+  5-1-order-status-import-service: review
   5-2-view-handler-mode-file-for-orders-xml: ready-for-dev
   5-3-integration-tests-full-import-cycle: backlog
   epic-5-retrospective: optional
