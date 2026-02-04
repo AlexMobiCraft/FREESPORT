@@ -12,7 +12,7 @@ from rest_framework import status
 
 from apps.common.models import Category, News
 
-pytestmark = pytest.mark.unit
+pytestmark = [pytest.mark.unit, pytest.mark.django_db]
 
 
 def create_test_image():

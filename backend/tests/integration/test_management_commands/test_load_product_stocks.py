@@ -13,7 +13,7 @@ from unittest.mock import patch
 import pytest
 from django.core.management import call_command
 
-from apps.products.models import ImportSession, Product
+from apps.products.models import ImportSession, ProductVariant
 
 if TYPE_CHECKING:
     from _pytest.tmpdir import TempPathFactory
@@ -60,32 +60,32 @@ class TestImportStocksIntegration:
         return str(xml_file)
 
     @pytest.fixture
-    def test_products(self) -> list[Product]:
-        """Создание тестовых товаров"""
-        from apps.products.factories import ProductFactory
+    def test_products(self) -> list[ProductVariant]:
+        """Создание тестовых вариантов товаров"""
+        from apps.products.factories import ProductVariantFactory
 
-        products = [
-            ProductFactory.create(
-                name="Product 1",
+        variants = [
+            ProductVariantFactory.create(
+                product__name="Product 1",
                 onec_id="product-1-uuid#sku-1-uuid",
                 stock_quantity=0,
             ),
-            ProductFactory.create(
-                name="Product 2",
+            ProductVariantFactory.create(
+                product__name="Product 2",
                 onec_id="product-2-uuid#sku-2-uuid",
                 stock_quantity=0,
             ),
         ]
-        return products
+        return variants
 
     def test_full_import_cycle(
-        self, test_rests_xml: str, test_products: list[Product]
+        self, test_rests_xml: str, test_products: list[ProductVariant]
     ) -> None:
         """Тест полного цикла импорта остатков"""
         # Запускаем команду
         call_command("load_product_stocks", file=test_rests_xml)
 
-        # Проверяем обновление товаров
+        # Проверяем обновление вариантов
         test_products[0].refresh_from_db()
         test_products[1].refresh_from_db()
 
@@ -104,14 +104,15 @@ class TestImportStocksIntegration:
         assert session.finished_at is not None
 
     def test_transaction_rollback_on_error(
-        self, test_rests_xml: str, test_products: list[Product]
+        self, test_rests_xml: str, test_products: list[ProductVariant]
     ) -> None:
         """Тест отката транзакции при ошибке"""
         initial_quantity = test_products[0].stock_quantity
 
         # Мокируем ошибку в процессе обновления
         with patch(
-            "apps.products.models.Product.objects.bulk_update",
+            "apps.products.management.commands.load_product_stocks."
+            "ProductVariant.objects.bulk_update",
             side_effect=Exception("Database error"),
         ):
             with pytest.raises(Exception, match="Database error"):
@@ -126,7 +127,7 @@ class TestImportStocksIntegration:
         assert session.status == ImportSession.ImportStatus.FAILED
 
     def test_mixed_scenario_with_missing_products(
-        self, tmp_path: Path, test_products: list[Product]
+        self, tmp_path: Path, test_products: list[ProductVariant]
     ) -> None:
         """Тест со смешанным сценарием: существующие и отсутствующие товары"""
         xml_content = """<?xml version="1.0" encoding="UTF-8"?>
@@ -162,7 +163,7 @@ class TestImportStocksIntegration:
 
         call_command("load_product_stocks", file=str(xml_file))
 
-        # Проверяем что существующий товар обновлен
+        # Проверяем что существующий вариант обновлен
         test_products[0].refresh_from_db()
         assert test_products[0].stock_quantity == 100
 
@@ -213,10 +214,10 @@ class TestImportStocksIntegration:
 
     def test_batch_processing_integration(self, tmp_path: Path) -> None:
         """Тест batch processing с реальными данными"""
-        from apps.products.factories import ProductFactory
+        from apps.products.factories import ProductVariantFactory
 
-        # Создаем 50 товаров для теста
-        products = ProductFactory.create_batch(50, stock_quantity=0)
+        # Создаем 50 вариантов для теста
+        variants = ProductVariantFactory.create_batch(50, stock_quantity=0)
 
         # Создаем XML с данными для всех товаров
         offers = "\n".join(
@@ -233,7 +234,7 @@ class TestImportStocksIntegration:
             </Остаток>
           </Остатки>
         </Предложение>"""
-                for i, product in enumerate(products, 1)
+                for i, product in enumerate(variants, 1)
             ]
         )
 
@@ -255,14 +256,14 @@ class TestImportStocksIntegration:
         assert session.report_details["updated_count"] == 50
         assert session.report_details["batch_size"] == 20
 
-        # Проверяем несколько товаров
-        products[0].refresh_from_db()
-        products[49].refresh_from_db()
-        assert products[0].stock_quantity == 10
-        assert products[49].stock_quantity == 500
+        # Проверяем несколько вариантов
+        variants[0].refresh_from_db()
+        variants[49].refresh_from_db()
+        assert variants[0].stock_quantity == 10
+        assert variants[49].stock_quantity == 500
 
     def test_dry_run_integration(
-        self, test_rests_xml: str, test_products: list[Product]
+        self, test_rests_xml: str, test_products: list[ProductVariant]
     ) -> None:
         """Интеграционный тест режима dry-run"""
         initial_quantities = [p.stock_quantity for p in test_products]
@@ -283,7 +284,7 @@ class TestImportStocksIntegration:
         )  # Посчитаны, но не сохранены
 
     def test_concurrent_updates_handling(
-        self, test_rests_xml: str, test_products: list[Product]
+        self, test_rests_xml: str, test_products: list[ProductVariant]
     ) -> None:
         """Тест обработки параллельных обновлений"""
         # Запускаем команду дважды подряд

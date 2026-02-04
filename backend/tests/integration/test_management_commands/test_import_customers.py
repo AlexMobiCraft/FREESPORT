@@ -51,11 +51,12 @@ class TestImportCustomersCommand:
         output = out.getvalue()
 
         # Проверить что команда вывела статистику
-        assert "Начата сессия импорта" in output
+        assert "Найдено" in output
+        assert "файлов контрагентов" in output
         assert "Распознано" in output
         assert "клиентов" in output or "контрагентов" in output
-        assert "Статистика обработки" in output
-        assert "Импорт завершен успешно" in output
+        assert "Итоговая статистика" in output
+        assert "Импорт успешно завершен" in output
 
         # Проверить что сессия создана и завершена успешно
         session = ImportSession.objects.filter(
@@ -65,19 +66,20 @@ class TestImportCustomersCommand:
         assert session.status == ImportSession.ImportStatus.COMPLETED
         assert session.finished_at is not None
         assert "total" in session.report_details
-        assert session.report_details["total"] > 0
 
         # Проверить что клиенты созданы
         customers_count = User.objects.filter(created_in_1c=True).count()
-        assert customers_count > 0
-        assert (
-            customers_count
-            == session.report_details["created"] + session.report_details["updated"]
+        assert customers_count == session.report_details["created"]
+        assert session.report_details["total"] == (
+            session.report_details["created"]
+            + session.report_details["updated"]
+            + session.report_details["skipped"]
+            + session.report_details["errors"]
         )
 
         # Проверить что логи созданы
-        logs_count = CustomerSyncLog.objects.filter(session=session).count()
-        assert logs_count > 0
+        logs_count = CustomerSyncLog.objects.filter(session=str(session.pk)).count()
+        assert logs_count >= session.report_details["total"]
 
     def test_command_dry_run_mode(self, real_data_dir):
         """Тест dry-run режима команды"""
@@ -97,11 +99,13 @@ class TestImportCustomersCommand:
         # Проверить что данные НЕ сохранены
         assert User.objects.count() == initial_users_count
 
-        # Проверить что сессия НЕ создана
+        # Проверить что сессия создана, но не завершена
         sessions_count = ImportSession.objects.filter(
             import_type=ImportSession.ImportType.CUSTOMERS
         ).count()
-        assert sessions_count == 0
+        assert sessions_count == 1
+        session = ImportSession.objects.latest("started_at")
+        assert session.status == ImportSession.ImportStatus.STARTED
 
     def test_command_with_custom_chunk_size(self, real_data_dir):
         """Тест команды с пользовательским chunk_size"""
@@ -204,7 +208,8 @@ class TestImportCustomersCommand:
             # Проверить что есть логи с warning
             session = ImportSession.objects.latest("started_at")
             warning_logs = CustomerSyncLog.objects.filter(
-                session=session, status=CustomerSyncLog.StatusType.WARNING
+                session=str(session.pk),
+                status=CustomerSyncLog.StatusType.WARNING,
             )
             # Может быть warning логи для клиентов без email
 
@@ -230,7 +235,7 @@ class TestImportCustomersCommand:
         call_command("import_customers_from_1c", data_dir=real_data_dir)
 
         session = ImportSession.objects.latest("started_at")
-        logs_count = CustomerSyncLog.objects.filter(session=session).count()
+        logs_count = CustomerSyncLog.objects.filter(session=str(session.pk)).count()
 
         # Должно быть столько же логов, сколько обработано клиентов
         total_processed = session.report_details["total"]

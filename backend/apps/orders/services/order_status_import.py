@@ -401,13 +401,19 @@ class OrderStatusImportService:
         """
         Загрузить все заказы одним запросом для оптимизации N+1.
 
-        Создаёт кэш заказов по order_number и pk для быстрого поиска.
+        Создаёт кэш заказов с префиксами для избежания коллизий:
+        - 'num:{order_number}' для поиска по номеру заказа
+        - 'pk:{id}' для поиска по первичному ключу
+
+        Note:
+            Bulk fetch НЕ использует select_for_update() для производительности.
+            Для критичных concurrent-сценариев используйте fallback-запросы с блокировкой.
 
         Args:
             order_updates: Список данных для обновления.
 
         Returns:
-            Словарь {ключ: Order}, где ключ — order_number или 'pk:{id}'.
+            Словарь {ключ: Order}, где ключ — 'num:{order_number}' или 'pk:{id}'.
         """
         from django.db.models import Q
 
@@ -439,11 +445,12 @@ class OrderStatusImportService:
 
         orders = Order.objects.filter(query)
 
-        # Строим кэш по order_number и pk
+        # [AI-Review][High] Строим кэш с префиксами для избежания коллизий:
+        # num:{order_number} и pk:{id} — разные namespace
         cache: dict[str, Order] = {}
         for order in orders:
             if order.order_number:
-                cache[order.order_number] = order
+                cache[f"num:{order.order_number}"] = order
             cache[f"pk:{order.pk}"] = order
 
         logger.debug(
@@ -559,7 +566,7 @@ class OrderStatusImportService:
 
         Стратегия:
         1. Поиск в кэше (если доступен) — быстрый путь
-        2. Fallback на БД запрос (для backward compatibility)
+        2. Fallback на БД запрос с select_for_update() для предотвращения race condition
 
         Args:
             order_data: Данные с order_number и order_id.
@@ -570,9 +577,12 @@ class OrderStatusImportService:
         """
         # Быстрый путь через кэш (None = нет кэша, {} = пустой кэш)
         if orders_cache is not None:
+            # [AI-Review][High] Используем num: префикс для избежания коллизий
             # 1. Поиск по order_number в кэше
-            if order_data.order_number and order_data.order_number in orders_cache:
-                return orders_cache[order_data.order_number]
+            if order_data.order_number:
+                cache_key = f"num:{order_data.order_number}"
+                if cache_key in orders_cache:
+                    return orders_cache[cache_key]
 
             # 2. Поиск по pk в кэше [AI-Review][Medium] DRY — используем _parse_order_id_to_pk
             pk = self._parse_order_id_to_pk(order_data.order_id)
@@ -583,21 +593,24 @@ class OrderStatusImportService:
 
             return None
 
-        # Fallback на БД (backward compatibility, когда кэш не передан)
+        # [AI-Review][Medium] Fallback на БД с select_for_update() для предотвращения race condition
+        # Используется когда кэш не передан или при критичных concurrent-сценариях
         from apps.orders.models import Order
 
-        # 1. Поиск по order_number
+        # 1. Поиск по order_number с блокировкой
         if order_data.order_number:
-            order = Order.objects.filter(
-                order_number=order_data.order_number
-            ).first()
+            order = (
+                Order.objects.select_for_update()
+                .filter(order_number=order_data.order_number)
+                .first()
+            )
             if order:
                 return order
 
         # 2. Поиск по order_id формата 'order-{id}' [AI-Review][Medium] DRY
         pk = self._parse_order_id_to_pk(order_data.order_id)
         if pk is not None:
-            order = Order.objects.filter(pk=pk).first()
+            order = Order.objects.select_for_update().filter(pk=pk).first()
             if order:
                 return order
 

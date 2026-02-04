@@ -347,7 +347,8 @@ class TestOrderProcessing:
         service = OrderStatusImportService()
 
         # Мокаем bulk_fetch чтобы вернуть кэш с order
-        mock_cache = {order_number: mock_order}
+        # [AI-Review][High] Используем num: префикс для избежания коллизий
+        mock_cache = {f"num:{order_number}": mock_order}
 
         with patch.object(service, "_bulk_fetch_orders", return_value=mock_cache):
             # ACT
@@ -371,7 +372,8 @@ class TestOrderProcessing:
         mock_order.status_1c = ""
 
         service = OrderStatusImportService()
-        mock_cache = {order_number: mock_order}
+        # [AI-Review][High] Используем num: префикс для избежания коллизий
+        mock_cache = {f"num:{order_number}": mock_order}
 
         with patch.object(service, "_bulk_fetch_orders", return_value=mock_cache):
             # ACT
@@ -400,7 +402,8 @@ class TestOrderProcessing:
         service = OrderStatusImportService()
 
         # Кэш содержит только EXISTS-1, MISSING-1 отсутствует
-        mock_cache = {"EXISTS-1": mock_existing_order}
+        # [AI-Review][High] Используем num: префикс для избежания коллизий
+        mock_cache = {"num:EXISTS-1": mock_existing_order}
 
         with patch.object(service, "_bulk_fetch_orders", return_value=mock_cache):
             # ACT
@@ -430,7 +433,8 @@ class TestOrderProcessing:
         mock_order.shipped_at = None
 
         service = OrderStatusImportService()
-        mock_cache = {order_number: mock_order}
+        # [AI-Review][High] Используем num: префикс для избежания коллизий
+        mock_cache = {f"num:{order_number}": mock_order}
 
         with patch.object(service, "_bulk_fetch_orders", return_value=mock_cache):
             # ACT
@@ -461,7 +465,8 @@ class TestOrderProcessing:
         mock_order.shipped_at = None  # Date not set
 
         service = OrderStatusImportService()
-        mock_cache = {order_number: mock_order}
+        # [AI-Review][High] Используем num: префикс для избежания коллизий
+        mock_cache = {f"num:{order_number}": mock_order}
 
         with patch.object(service, "_bulk_fetch_orders", return_value=mock_cache):
             # ACT
@@ -483,26 +488,30 @@ class TestFindOrder:
         """Поиск сначала по order_number."""
         # ARRANGE
         from apps.orders.models import Order
-        
+
         order_data = OrderUpdateData(
             order_id="order-999",
             order_number="FS-FIND-001",
             status_1c="Отгружен",
         )
-        
+
         mock_order = MagicMock()
         mock_queryset = MagicMock()
         mock_queryset.first.return_value = mock_order
-        
+
+        # [AI-Review][Medium] Мокаем цепочку select_for_update().filter().first()
+        mock_select_for_update = MagicMock()
+        mock_select_for_update.filter.return_value = mock_queryset
+
         service = OrderStatusImportService()
-        
-        with patch.object(Order.objects, "filter", return_value=mock_queryset):
+
+        with patch.object(Order.objects, "select_for_update", return_value=mock_select_for_update):
             # ACT
             result = service._find_order(order_data)
-            
+
             # ASSERT
             assert result == mock_order
-            Order.objects.filter.assert_called_with(order_number="FS-FIND-001")
+            mock_select_for_update.filter.assert_called_with(order_number="FS-FIND-001")
 
     def test_find_order_by_id_fallback(self):
         """Fallback поиск по order-{id} когда order_number не найден."""
@@ -708,7 +717,8 @@ class TestReviewFollowups:
             mock_order.shipped_at = None
 
             service = OrderStatusImportService()
-            mock_cache = {order_number: mock_order}
+            # [AI-Review][High] Используем num: префикс для избежания коллизий
+            mock_cache = {f"num:{order_number}": mock_order}
 
             with patch.object(service, "_bulk_fetch_orders", return_value=mock_cache):
                 # ACT
@@ -751,10 +761,11 @@ class TestReviewFollowups:
         good_order_2.shipped_at = None
 
         service = OrderStatusImportService()
+        # [AI-Review][High] Используем num: префикс для избежания коллизий
         mock_cache = {
-            "ERROR-ORDER": error_order,
-            "GOOD-ORDER-1": good_order_1,
-            "GOOD-ORDER-2": good_order_2,
+            "num:ERROR-ORDER": error_order,
+            "num:GOOD-ORDER-1": good_order_1,
+            "num:GOOD-ORDER-2": good_order_2,
         }
 
         with patch.object(service, "_bulk_fetch_orders", return_value=mock_cache):
@@ -836,7 +847,8 @@ class TestReviewFollowups:
         mock_order.sent_to_1c = False  # Not yet synced
 
         service = OrderStatusImportService()
-        mock_cache = {order_number: mock_order}
+        # [AI-Review][High] Используем num: префикс для избежания коллизий
+        mock_cache = {f"num:{order_number}": mock_order}
 
         with patch.object(service, "_bulk_fetch_orders", return_value=mock_cache):
             # ACT
@@ -907,7 +919,8 @@ class TestRound3ReviewFollowups:
         mock_order.sent_to_1c_at = None
 
         service = OrderStatusImportService()
-        mock_cache = {order_number: mock_order}
+        # [AI-Review][High] Используем num: префикс для избежания коллизий
+        mock_cache = {f"num:{order_number}": mock_order}
 
         before_process = timezone.now()
 
@@ -940,7 +953,8 @@ class TestRound3ReviewFollowups:
         mock_order.sent_to_1c_at = original_sync_time
 
         service = OrderStatusImportService()
-        mock_cache = {order_number: mock_order}
+        # [AI-Review][High] Используем num: префикс для избежания коллизий
+        mock_cache = {f"num:{order_number}": mock_order}
 
         with patch.object(service, "_bulk_fetch_orders", return_value=mock_cache):
             # ACT
@@ -995,3 +1009,198 @@ class TestRound3ReviewFollowups:
             assert result.not_found == 150
             # Ошибки ограничены MAX_ERRORS
             assert len(result.errors) == MAX_ERRORS
+
+
+# =============================================================================
+# Round 6 Review Follow-up Tests (Cache Key Collision & Race Condition)
+# =============================================================================
+
+
+@pytest.mark.unit
+class TestRound6ReviewFollowups:
+    """Тесты для исправлений Round 6 код-ревью."""
+
+    def test_cache_key_collision_prevented_with_num_prefix(self):
+        """[AI-Review][High] Cache Key Collision Risk: num: префикс предотвращает коллизии."""
+        # ARRANGE — order_number может выглядеть как pk:123
+        order_number = "pk:999"  # Edge case: order_number looks like pk key
+        order_pk = 999
+
+        xml_data = build_test_xml(
+            order_id=f"order-{order_pk}",
+            order_number=order_number,
+            status="Отгружен",
+        )
+
+        mock_order_by_number = MagicMock()
+        mock_order_by_number.order_number = order_number
+        mock_order_by_number.pk = 1  # Different pk
+        mock_order_by_number.status = "pending"
+        mock_order_by_number.status_1c = ""
+        mock_order_by_number.paid_at = None
+        mock_order_by_number.shipped_at = None
+        mock_order_by_number.sent_to_1c = False
+
+        mock_order_by_pk = MagicMock()
+        mock_order_by_pk.order_number = "DIFFERENT"
+        mock_order_by_pk.pk = order_pk
+        mock_order_by_pk.status = "pending"
+        mock_order_by_pk.status_1c = ""
+        mock_order_by_pk.paid_at = None
+        mock_order_by_pk.shipped_at = None
+        mock_order_by_pk.sent_to_1c = False
+
+        service = OrderStatusImportService()
+
+        # [AI-Review][High] Кэш с обоими типами ключей — они НЕ должны конфликтовать
+        mock_cache = {
+            f"num:{order_number}": mock_order_by_number,  # num:pk:999
+            f"pk:{order_pk}": mock_order_by_pk,  # pk:999
+        }
+
+        with patch.object(service, "_bulk_fetch_orders", return_value=mock_cache):
+            # ACT
+            result = service.process(xml_data)
+
+            # ASSERT — должен быть найден по order_number (приоритет)
+            assert result.updated == 1
+            mock_order_by_number.save.assert_called_once()
+            mock_order_by_pk.save.assert_not_called()
+
+    def test_bulk_fetch_creates_correct_cache_keys(self):
+        """[AI-Review][High] _bulk_fetch_orders создаёт ключи с правильными префиксами."""
+        # ARRANGE
+        from unittest.mock import MagicMock, patch as mock_patch
+
+        order_updates = [
+            OrderUpdateData(
+                order_id="order-42",
+                order_number="FS-TEST-001",
+                status_1c="Отгружен",
+            ),
+            OrderUpdateData(
+                order_id="order-100",
+                order_number="FS-TEST-002",
+                status_1c="Доставлен",
+            ),
+        ]
+
+        mock_order_1 = MagicMock()
+        mock_order_1.order_number = "FS-TEST-001"
+        mock_order_1.pk = 42
+
+        mock_order_2 = MagicMock()
+        mock_order_2.order_number = "FS-TEST-002"
+        mock_order_2.pk = 100
+
+        service = OrderStatusImportService()
+
+        with mock_patch("apps.orders.models.Order.objects") as mock_objects:
+            mock_objects.filter.return_value = [mock_order_1, mock_order_2]
+
+            # ACT
+            cache = service._bulk_fetch_orders(order_updates)
+
+            # ASSERT — ключи должны быть с правильными префиксами
+            assert "num:FS-TEST-001" in cache
+            assert "num:FS-TEST-002" in cache
+            assert "pk:42" in cache
+            assert "pk:100" in cache
+
+            # Старый формат БЕЗ префикса НЕ должен присутствовать
+            assert "FS-TEST-001" not in cache
+            assert "FS-TEST-002" not in cache
+
+    def test_find_order_uses_num_prefix_for_cache_lookup(self):
+        """[AI-Review][High] _find_order ищет по num:{order_number} в кэше."""
+        # ARRANGE
+        order_number = "FS-CACHE-001"
+        order_data = OrderUpdateData(
+            order_id="order-50",
+            order_number=order_number,
+            status_1c="Отгружен",
+        )
+
+        mock_order = MagicMock()
+        mock_order.order_number = order_number
+        mock_order.pk = 50
+
+        service = OrderStatusImportService()
+
+        # Кэш с правильным num: префиксом
+        cache = {f"num:{order_number}": mock_order}
+
+        # ACT
+        found_order = service._find_order(order_data, cache)
+
+        # ASSERT
+        assert found_order == mock_order
+
+    def test_find_order_fallback_uses_select_for_update(self):
+        """[AI-Review][Medium] Race Condition Risk: select_for_update() в fallback запросе."""
+        # ARRANGE
+        from unittest.mock import MagicMock, patch as mock_patch
+
+        order_data = OrderUpdateData(
+            order_id="order-77",
+            order_number="FS-LOCK-001",
+            status_1c="Отгружен",
+        )
+
+        mock_order = MagicMock()
+        mock_order.order_number = "FS-LOCK-001"
+        mock_order.pk = 77
+
+        service = OrderStatusImportService()
+
+        with mock_patch("apps.orders.models.Order.objects") as mock_objects:
+            # Настраиваем цепочку вызовов: select_for_update().filter().first()
+            mock_select_for_update = MagicMock()
+            mock_filter = MagicMock()
+            mock_filter.first.return_value = mock_order
+            mock_select_for_update.filter.return_value = mock_filter
+            mock_objects.select_for_update.return_value = mock_select_for_update
+
+            # ACT — вызываем без кэша (None), чтобы сработал fallback
+            found_order = service._find_order(order_data, orders_cache=None)
+
+            # ASSERT — select_for_update() должен быть вызван
+            mock_objects.select_for_update.assert_called_once()
+            mock_select_for_update.filter.assert_called_once_with(
+                order_number="FS-LOCK-001"
+            )
+            assert found_order == mock_order
+
+    def test_find_order_fallback_pk_uses_select_for_update(self):
+        """[AI-Review][Medium] select_for_update() используется при поиске по pk."""
+        # ARRANGE
+        from unittest.mock import MagicMock, patch as mock_patch
+
+        order_data = OrderUpdateData(
+            order_id="order-88",
+            order_number="",  # Пустой номер — сразу идёт поиск по pk
+            status_1c="Отгружен",
+        )
+
+        mock_order = MagicMock()
+        mock_order.pk = 88
+
+        service = OrderStatusImportService()
+
+        with mock_patch("apps.orders.models.Order.objects") as mock_objects:
+            # Поиск по pk напрямую (order_number пустой, поэтому первый if пропускается)
+            mock_select_for_update = MagicMock()
+            mock_filter_pk = MagicMock()
+            mock_filter_pk.first.return_value = mock_order  # Найден по pk
+
+            mock_select_for_update.filter.return_value = mock_filter_pk
+            mock_objects.select_for_update.return_value = mock_select_for_update
+
+            # ACT
+            found_order = service._find_order(order_data, orders_cache=None)
+
+            # ASSERT
+            assert found_order == mock_order
+            # select_for_update() вызван один раз для поиска по pk
+            mock_objects.select_for_update.assert_called_once()
+            mock_select_for_update.filter.assert_called_once_with(pk=88)
