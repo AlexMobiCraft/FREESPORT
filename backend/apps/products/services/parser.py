@@ -509,7 +509,9 @@ class XMLDataParser:
         elif "тренер" in name_lower:
             return "trainer_price"
         elif "ррц" in name_lower:
-            return "rrp"
+            if "рекоменд" in name_lower:
+                return "rrp"
+            return "retail_price"
         elif "мрц" in name_lower:
             return "msrp"
         elif "рознич" in name_lower:

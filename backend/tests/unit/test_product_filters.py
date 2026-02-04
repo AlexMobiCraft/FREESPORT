@@ -15,6 +15,8 @@ from apps.products.models import Product
 
 User = get_user_model()
 
+pytestmark = pytest.mark.django_db
+
 
 @pytest.mark.unit
 class TestProductFilterSizeFilter:
