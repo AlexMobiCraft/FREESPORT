@@ -381,6 +381,14 @@ N/A
 - [x] [AI-Review][Medium] Detect data conflict when finding order by ID (check order number match) `backend/apps/orders/services/order_status_import.py:651`
 - [x] [AI-Review][Low] Use specific ET.ParseError instead of generic Exception in tests `backend/tests/unit/test_order_status_import.py:259`
 
+#### Review Follow-ups (Code Review Workflow) - Round 9
+- [ ] [AI-Review][High] Type Hint Violation: `_find_order` annotated as `-> Order | None` but returns string `"DATA_CONFLICT"`. `backend/apps/orders/services/order_status_import.py:610`
+- [ ] [AI-Review][Medium] Overloaded Metric: `skipped_unknown_status` used for logic errors (Data Conflict, Status Regression), distorting monitoring. `backend/apps/orders/services/order_status_import.py:169`
+- [ ] [AI-Review][Medium] Implicit Timezone Assumption: `_parse_date_value` uses server timezone. Needs explicit source timezone config. `backend/apps/orders/services/order_status_import.py:368`
+- [ ] [AI-Review][Low] Regex Optimization: Move `re.compile(r"\s+")` to module level for efficiency. `backend/apps/orders/services/order_status_import.py:342`
+- [ ] [AI-Review][Low] Circular Import Workaround: `Order` imported inside methods indicates coupling. `backend/apps/orders/services/order_status_import.py:434`
+- [ ] [AI-Review][Low] Code Organization: Consolidate `STATUS_MAPPING_LOWER` (service) and `ProcessingStatus` (constants).
+
 ### Change Log
 
 - 2026-02-03: Initial implementation of Story 5.1 (all tasks complete)
