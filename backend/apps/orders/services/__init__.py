@@ -1,9 +1,9 @@
 from .order_export import OrderExportService
+from apps.orders.constants import STATUS_MAPPING
 from .order_status_import import (
     ImportResult,
     OrderStatusImportService,
     OrderUpdateData,
-    STATUS_MAPPING,
 )
 
 __all__ = [

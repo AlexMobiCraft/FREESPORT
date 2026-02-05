@@ -7,6 +7,7 @@ Unit-тесты для OrderStatusImportService.
 
 import logging
 from datetime import date
+from zoneinfo import ZoneInfo
 from typing import cast
 from unittest.mock import MagicMock, patch
 
@@ -14,13 +15,17 @@ from defusedxml.common import DefusedXmlException
 from defusedxml import ElementTree as ET
 
 import pytest
+from django.test.utils import override_settings
 from django.utils import timezone
 
-from apps.orders.models import Order
-from apps.orders.services.order_status_import import (
+from apps.orders.constants import (
     MAX_ERRORS,
     ORDER_ID_PREFIX,
     STATUS_MAPPING,
+    STATUS_MAPPING_LOWER,
+)
+from apps.orders.models import Order
+from apps.orders.services.order_status_import import (
     ImportResult,
     OrderStatusImportService,
     OrderUpdateData,
@@ -183,6 +188,8 @@ class TestImportResult:
         assert result.updated == 0
         assert result.skipped_up_to_date == 0
         assert result.skipped_unknown_status == 0
+        assert result.skipped_data_conflict == 0
+        assert result.skipped_status_regression == 0
         assert result.skipped_invalid == 0
         assert result.not_found == 0
         assert result.errors == []
@@ -333,6 +340,20 @@ class TestDateExtraction:
         assert update.shipped_at.hour == 9
         assert update.shipped_at.minute == 15
         assert update.shipped_at.second == 30
+
+    def test_parse_date_value_uses_source_timezone(self):
+        """[AI-Review][Medium] _parse_date_value учитывает SOURCE_TIME_ZONE."""
+        # ARRANGE
+        service = OrderStatusImportService()
+
+        # ACT
+        with override_settings(ONEC_EXCHANGE={"SOURCE_TIME_ZONE": "UTC"}):
+            parsed = service._parse_date_value("2026-02-01T10:30:00")
+
+        # ASSERT
+        assert parsed is not None
+        assert parsed.tzinfo is not None
+        assert parsed.tzinfo == ZoneInfo("UTC")
 
 
 @pytest.mark.unit  
@@ -557,9 +578,10 @@ class TestFindOrder:
 
         with patch.object(Order.objects, "select_for_update", return_value=mock_select_for_update):
             # ACT
-            result = service._find_order(order_data)
+            result, conflict_msg = service._find_order(order_data)
 
             # ASSERT
+            assert conflict_msg is None
             assert result == mock_order
             mock_select_for_update.filter.assert_called_with(order_number="FS-FIND-001")
 
@@ -582,9 +604,10 @@ class TestFindOrder:
         cache: dict[str, Order] = {"pk:42": cast(Order, mock_order)}
 
         # ACT
-        result = service._find_order(order_data, cache)
+        result, conflict_msg = service._find_order(order_data, cache)
 
         # ASSERT
+        assert conflict_msg is None
         assert result == mock_order
 
     def test_find_order_fallback_to_db_when_no_cache(self):
@@ -633,6 +656,8 @@ class TestProcessIntegration:
             assert hasattr(result, "updated")
             assert hasattr(result, "skipped_up_to_date")
             assert hasattr(result, "skipped_unknown_status")
+            assert hasattr(result, "skipped_data_conflict")
+            assert hasattr(result, "skipped_status_regression")
             assert hasattr(result, "skipped_invalid")
             assert hasattr(result, "not_found")
             assert hasattr(result, "errors")
@@ -1196,9 +1221,10 @@ class TestRound6ReviewFollowups:
         cache: dict[str, Order] = {f"num:{order_number}": cast(Order, mock_order)}
 
         # ACT
-        found_order = service._find_order(order_data, cache)
+        found_order, conflict_msg = service._find_order(order_data, cache)
 
         # ASSERT
+        assert conflict_msg is None
         assert found_order == mock_order
 
     def test_find_order_fallback_uses_select_for_update(self):
@@ -1227,13 +1253,14 @@ class TestRound6ReviewFollowups:
             mock_objects.select_for_update.return_value = mock_select_for_update
 
             # ACT — вызываем без кэша (None), чтобы сработал fallback
-            found_order = service._find_order(order_data, orders_cache=None)
+            found_order, conflict_msg = service._find_order(order_data, orders_cache=None)
 
             # ASSERT — select_for_update() должен быть вызван
             mock_objects.select_for_update.assert_called_once()
             mock_select_for_update.filter.assert_called_once_with(
                 order_number="FS-LOCK-001"
             )
+            assert conflict_msg is None
             assert found_order == mock_order
 
     def test_find_order_fallback_pk_uses_select_for_update(self):
@@ -1262,9 +1289,10 @@ class TestRound6ReviewFollowups:
             mock_objects.select_for_update.return_value = mock_select_for_update
 
             # ACT
-            found_order = service._find_order(order_data, orders_cache=None)
+            found_order, conflict_msg = service._find_order(order_data, orders_cache=None)
 
             # ASSERT
+            assert conflict_msg is None
             assert found_order == mock_order
             # select_for_update() вызван один раз для поиска по pk
             mock_objects.select_for_update.assert_called_once()
@@ -1364,11 +1392,6 @@ class TestRound7ReviewFollowups:
 
     def test_status_mapping_lower_precomputed(self):
         """[AI-Review][Low] Code Style: STATUS_MAPPING_LOWER существует и корректен."""
-        from apps.orders.services.order_status_import import (
-            STATUS_MAPPING,
-            STATUS_MAPPING_LOWER,
-        )
-
         # ASSERT — все ключи должны быть в lowercase
         for key in STATUS_MAPPING_LOWER:
             assert key == key.lower()
@@ -1418,7 +1441,8 @@ class TestRound7ReviewFollowups:
 
             # ASSERT — обновление должно быть пропущено
             assert result.updated == 0
-            assert result.skipped_unknown_status == 1
+            assert result.skipped_status_regression == 1
+            assert result.skipped_unknown_status == 0
             mock_order.save.assert_not_called()
             assert mock_order.status == "delivered"
 

@@ -136,6 +136,15 @@ So that **статусы заказов на сайте соответствую
 
 
 
+
+#### Review Follow-ups (Code Review Workflow) - Round 8 (Latest)
+- [ ] [AI-Review][High] Type Hint Violation: Метод `_find_order` возвращает строку "DATA_CONFLICT" вместо `Order | None`. `backend/apps/orders/services/order_status_import.py`
+- [ ] [AI-Review][Medium] Observability: Метрика `skipped_unknown_status` смешивает логические ошибки с неизвестными статусами. `backend/apps/orders/services/order_status_import.py`
+- [ ] [AI-Review][Medium] Timezone: Неявное использование серверного времени в `_parse_date_value`. `backend/apps/orders/services/order_status_import.py`
+- [ ] [AI-Review][Low] Performance: Вынести компиляцию regex `re.compile` из цикла. `backend/apps/orders/services/order_status_import.py`
+- [ ] [AI-Review][Low] Code Quality: Устранить циклический импорт `Order` (inside methods). `backend/apps/orders/services/order_status_import.py`
+- [ ] [AI-Review][Low] Maintenance: Переместить `STATUS_MAPPING_LOWER` в `constants.py`. `backend/apps/orders/services/order_status_import.py`
+
 ## Dev Notes
 
 ### Архитектурные требования
@@ -372,6 +381,11 @@ N/A
 - ✅ Resolved Round 7 [Medium]: запрет регрессии финальных статусов в активные
 - ✅ Resolved Round 7 [Medium]: лог обновления статуса понижен до DEBUG
 - ✅ Targeted tests: `docker compose -f docker/docker-compose.test.yml run --rm backend pytest -v tests/unit/test_order_status_import.py tests/integration/test_order_status_import_db.py` — PASSED (55 tests); warnings: Unknown pytest.mark (unit/integration), RemovedInDjango60Warning
+- ✅ Resolved Round 9 [High]: `_find_order` возвращает `(Order, conflict_msg)` без type hint нарушений
+- ✅ Resolved Round 9 [Medium]: метрики `skipped_data_conflict` и `skipped_status_regression` вынесены отдельно
+- ✅ Resolved Round 9 [Medium]: `_parse_date_value` использует `ONEC_EXCHANGE.SOURCE_TIME_ZONE`
+- ✅ Resolved Round 9 [Low]: regex компилируется на уровне модуля, STATUS_MAPPING_LOWER перенесён в constants
+- ✅ Targeted tests: `docker compose -f docker/docker-compose.test.yml run --rm backend pytest -v tests/unit/test_order_status_import.py tests/integration/test_order_status_import_db.py` — PASSED (57 tests); warnings: Unknown pytest.mark (unit/integration), RemovedInDjango60Warning
 - ✅ Resolved Round 8 [Medium]: Prevent log flooding in parser — removed direct logger.warning, errors returned instead
 - ✅ Resolved Round 8 [Medium]: Detect data conflict when finding order by ID — added conflict detection in both cache and DB lookup paths
 - ✅ Resolved Round 8 [Low]: Use specific ET.ParseError in tests — added ET import and updated test
@@ -382,12 +396,12 @@ N/A
 - [x] [AI-Review][Low] Use specific ET.ParseError instead of generic Exception in tests `backend/tests/unit/test_order_status_import.py:259`
 
 #### Review Follow-ups (Code Review Workflow) - Round 9
-- [ ] [AI-Review][High] Type Hint Violation: `_find_order` annotated as `-> Order | None` but returns string `"DATA_CONFLICT"`. `backend/apps/orders/services/order_status_import.py:610`
-- [ ] [AI-Review][Medium] Overloaded Metric: `skipped_unknown_status` used for logic errors (Data Conflict, Status Regression), distorting monitoring. `backend/apps/orders/services/order_status_import.py:169`
-- [ ] [AI-Review][Medium] Implicit Timezone Assumption: `_parse_date_value` uses server timezone. Needs explicit source timezone config. `backend/apps/orders/services/order_status_import.py:368`
-- [ ] [AI-Review][Low] Regex Optimization: Move `re.compile(r"\s+")` to module level for efficiency. `backend/apps/orders/services/order_status_import.py:342`
-- [ ] [AI-Review][Low] Circular Import Workaround: `Order` imported inside methods indicates coupling. `backend/apps/orders/services/order_status_import.py:434`
-- [ ] [AI-Review][Low] Code Organization: Consolidate `STATUS_MAPPING_LOWER` (service) and `ProcessingStatus` (constants).
+- [x] [AI-Review][High] Type Hint Violation: `_find_order` annotated as `-> Order | None` but returns string "DATA_CONFLICT". `backend/apps/orders/services/order_status_import.py:610`
+- [x] [AI-Review][Medium] Overloaded Metric: `skipped_unknown_status` used for logic errors (Data Conflict, Status Regression), distorting monitoring. `backend/apps/orders/services/order_status_import.py:169`
+- [x] [AI-Review][Medium] Implicit Timezone Assumption: `_parse_date_value` uses server timezone. Needs explicit source timezone config. `backend/apps/orders/services/order_status_import.py:368`
+- [x] [AI-Review][Low] Regex Optimization: Move `re.compile(r"\s+")` to module level for efficiency. `backend/apps/orders/services/order_status_import.py:342`
+- [x] [AI-Review][Low] Circular Import Workaround: `Order` imported inside methods indicates coupling. `backend/apps/orders/services/order_status_import.py:434`
+- [x] [AI-Review][Low] Code Organization: Consolidate `STATUS_MAPPING_LOWER` (service) and `ProcessingStatus` (constants).
 
 ### Change Log
 
@@ -407,16 +421,17 @@ N/A
 - 2026-02-04: Addressed Round 4 follow-ups (log flooding/observability/cleanup); verified targeted unit+integration tests
 - 2026-02-04: Addressed Round 6 follow-ups (sent_to_1c idempotency, invalid docs metrics, test quality); verified targeted unit+integration tests
 - 2026-02-04: Addressed Round 7 follow-ups (race condition lock, status regression, log level); verified targeted unit+integration tests
+- 2026-02-05: Addressed Round 9 review findings — 6 items resolved (High:1, Medium:2, Low:3); verified targeted unit+integration tests
 
 ### File List
 
-- `backend/apps/orders/services/order_status_import.py` (MODIFY) — select_for_update + transaction.atomic, запрет регрессии статусов, DEBUG лог обновления
-- `backend/apps/orders/services/__init__.py` (MODIFY) — экспорт сервиса
-- `backend/apps/orders/constants.py` (NEW) — ORDER_ID_PREFIX, MAX_ERRORS, MAX_CONSECUTIVE_ERRORS, ProcessingStatus
+- `backend/apps/orders/services/order_status_import.py` (MODIFY) — конфликтные статусы, SOURCE_TIME_ZONE, granular skipped метрики
+- `backend/apps/orders/services/__init__.py` (MODIFY) — экспорт STATUS_MAPPING из constants
+- `backend/apps/orders/constants.py` (MODIFY) — STATUS_MAPPING, STATUS_MAPPING_LOWER, расширенный ProcessingStatus
 - `backend/apps/orders/models.py` (MODIFY) — добавлены поля `paid_at`, `shipped_at`
 - `backend/apps/orders/migrations/0011_add_payment_shipment_dates.py` (NEW) — миграция
-- `backend/tests/unit/test_order_status_import.py` (MODIFY) — новые тесты Round 7, django_db marker, проверка DEBUG логов
-- `backend/tests/integration/test_order_status_import_db.py` (MODIFY) — обновлены проверки skipped-метрик и типизация дат
+- `backend/tests/unit/test_order_status_import.py` (MODIFY) — тесты метрик и SOURCE_TIME_ZONE, обновление _find_order
+- `backend/tests/integration/test_order_status_import_db.py` (MODIFY) — skipped_data_conflict метрика
 - `backend/tests/integration/test_management_commands/test_import_customers.py` (MODIFY) — актуализированы ожидания stdout, статистика и логи
 - `backend/tests/integration/test_management_commands/test_load_product_stocks.py` (MODIFY) — тесты переведены на ProductVariant
 - `backend/tests/unit/apps/common/test_news_detail_view.py` (MODIFY) — добавлен django_db mark

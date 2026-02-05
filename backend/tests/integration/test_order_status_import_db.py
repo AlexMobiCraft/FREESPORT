@@ -358,5 +358,5 @@ class TestMaxErrorsLimit(TestCase):
         # ASSERT
         self.assertEqual(result.updated, 0)
         self.assertEqual(result.not_found, 0)
-        self.assertEqual(result.skipped_up_to_date + result.skipped_unknown_status + result.skipped_invalid, 1)  # Пропущен из-за конфликта
+        self.assertEqual(result.skipped_data_conflict, 1)  # Пропущен из-за конфликта
         self.assertEqual(len(result.errors), 1)  # Ошибка конфликта должна быть записана

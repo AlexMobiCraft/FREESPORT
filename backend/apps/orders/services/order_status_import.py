@@ -11,28 +11,34 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass, field
+from datetime import datetime
+from xml.etree.ElementTree import Element
+from zoneinfo import ZoneInfo
 
 import defusedxml.ElementTree as ET
 from defusedxml.common import DefusedXmlException
-from datetime import datetime
-from typing import TYPE_CHECKING
-from xml.etree.ElementTree import Element
 
+from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_datetime
 
 from apps.orders.constants import (
+    ACTIVE_STATUSES,
+    FINAL_STATUSES,
     MAX_CONSECUTIVE_ERRORS,
     MAX_ERRORS,
     ORDER_ID_PREFIX,
     ProcessingStatus,
+    STATUS_MAPPING,
+    STATUS_MAPPING_LOWER,
 )
-
-if TYPE_CHECKING:
-    from apps.orders.models import Order
+from apps.orders.models import Order
 
 logger = logging.getLogger(__name__)
+
+# [AI-Review][Low] Regex вынесен на уровень модуля для оптимизации
+REQUISITE_NAME_WHITESPACE_RE = re.compile(r"\s+")
 
 
 # =============================================================================
@@ -62,31 +68,11 @@ class ImportResult:
     updated: int = 0  # Успешно обновлено заказов
     skipped_up_to_date: int = 0  # Пропущено: данные уже актуальны
     skipped_unknown_status: int = 0  # Пропущено: неизвестный статус 1С
+    skipped_data_conflict: int = 0  # Пропущено: конфликт данных (номер/ID)
+    skipped_status_regression: int = 0  # Пропущено: попытка регрессии статуса
     skipped_invalid: int = 0  # Пропущено: некорректные документы
     not_found: int = 0  # Заказ не найден в БД
     errors: list[str] = field(default_factory=list)  # Ошибки парсинга/обработки
-
-
-# =============================================================================
-# Status Mapping
-# =============================================================================
-
-# Маппинг статусов 1С → FREESPORT (AC3)
-STATUS_MAPPING: dict[str, str] = {
-    "ОжидаетОбработки": "processing",
-    "Подтвержден": "confirmed",
-    "Отгружен": "shipped",
-    "Доставлен": "delivered",
-    "Отменен": "cancelled",
-    "Возвращен": "refunded",
-}
-
-# [AI-Review][Low] Pre-computed lowercase маппинг для оптимизации регистронезависимого поиска
-STATUS_MAPPING_LOWER: dict[str, str] = {k.lower(): v for k, v in STATUS_MAPPING.items()}
-
-# [AI-Review][Medium] Финальные статусы не должны регрессировать в активные
-FINAL_STATUSES: set[str] = {"delivered", "cancelled"}
-ACTIVE_STATUSES: set[str] = {"pending", "confirmed", "processing", "shipped"}
 
 
 # =============================================================================
@@ -164,11 +150,14 @@ class OrderStatusImportService:
                     if status == ProcessingStatus.UPDATED:
                         result.updated += 1
                         consecutive_errors = 0  # Сброс счётчика при успехе
-                    elif status == ProcessingStatus.SKIPPED:
-                        if error_msg:
-                            result.skipped_unknown_status += 1
-                        else:
-                            result.skipped_up_to_date += 1
+                    elif status == ProcessingStatus.SKIPPED_UP_TO_DATE:
+                        result.skipped_up_to_date += 1
+                    elif status == ProcessingStatus.SKIPPED_UNKNOWN_STATUS:
+                        result.skipped_unknown_status += 1
+                    elif status == ProcessingStatus.SKIPPED_DATA_CONFLICT:
+                        result.skipped_data_conflict += 1
+                    elif status == ProcessingStatus.SKIPPED_STATUS_REGRESSION:
+                        result.skipped_status_regression += 1
                     elif status == ProcessingStatus.NOT_FOUND:
                         result.not_found += 1
                         consecutive_errors += 1
@@ -339,13 +328,36 @@ class OrderStatusImportService:
             value_elem = req.find("Значение")
             if name_elem is not None and name_elem.text:
                 # Нормализуем имя: удаляем все whitespace, приводим к lowercase
-                normalized_name = re.sub(r"\s+", "", name_elem.text).lower()
+                normalized_name = REQUISITE_NAME_WHITESPACE_RE.sub(
+                    "", name_elem.text
+                ).lower()
                 if not normalized_name:
                     continue
                 value = (value_elem.text or "") if value_elem is not None else ""
                 result[normalized_name] = value
 
         return result
+
+    def _get_source_timezone(self) -> ZoneInfo:
+        """
+        Получить timezone источника дат из настроек ONEC_EXCHANGE.
+
+        Используется для явного назначения timezone при разборе дат из 1С,
+        чтобы избежать неявного использования серверного времени.
+        """
+        exchange_cfg = getattr(settings, "ONEC_EXCHANGE", {})
+        tz_name = exchange_cfg.get("SOURCE_TIME_ZONE") or settings.TIME_ZONE
+        try:
+            return ZoneInfo(str(tz_name))
+        except Exception as exc:
+            fallback_tz = ZoneInfo(str(settings.TIME_ZONE))
+            logger.warning(
+                "Invalid ONEC_EXCHANGE SOURCE_TIME_ZONE '%s', falling back to '%s': %s",
+                tz_name,
+                settings.TIME_ZONE,
+                exc,
+            )
+            return fallback_tz
 
     def _parse_date_value(self, date_str: str | None) -> datetime | None:
         """
@@ -364,11 +376,13 @@ class OrderStatusImportService:
         if not date_str:
             return None
 
+        source_tz = self._get_source_timezone()
+
         # 1. Попытка парсинга как datetime (YYYY-MM-DDTHH:MM:SS)
         parsed_datetime = parse_datetime(date_str)
         if parsed_datetime:
             if timezone.is_naive(parsed_datetime):
-                return timezone.make_aware(parsed_datetime)
+                return timezone.make_aware(parsed_datetime, timezone=source_tz)
             return parsed_datetime
 
         # 2. Fallback: парсинг только даты (YYYY-MM-DD)
@@ -376,7 +390,8 @@ class OrderStatusImportService:
         if parsed_date:
             # Конвертируем date в datetime с началом дня
             return timezone.make_aware(
-                datetime.combine(parsed_date, datetime.min.time())
+                datetime.combine(parsed_date, datetime.min.time()),
+                timezone=source_tz,
             )
 
         logger.warning(f"Could not parse date: {date_str}")
@@ -431,8 +446,6 @@ class OrderStatusImportService:
         """
         from django.db.models import Q
 
-        from apps.orders.models import Order
-
         if not order_updates:
             return {}
 
@@ -450,9 +463,9 @@ class OrderStatusImportService:
         # Один запрос с OR условиями
         query = Q()
         if order_numbers:
-            query |= Q(order_number__in=list(order_numbers))
+            query.add(Q(order_number__in=list(order_numbers)), Q.OR)
         if order_pks:
-            query |= Q(pk__in=list(order_pks))
+            query.add(Q(pk__in=list(order_pks)), Q.OR)
 
         if not query:
             return {}
@@ -510,15 +523,10 @@ class OrderStatusImportService:
         Returns:
             tuple: (ProcessingStatus, ошибка или None).
         """
-        order = self._find_order(order_data, orders_cache)
-        if order == "DATA_CONFLICT":
-            # Обработка конфликта данных
-            conflict_msg = (
-                f"Data conflict: found order by ID {order_data.order_id} "
-                f"but order numbers don't match: XML='{order_data.order_number}'"
-            )
-            return ProcessingStatus.SKIPPED, conflict_msg
-        
+        order, conflict_msg = self._find_order(order_data, orders_cache)
+        if conflict_msg:
+            return ProcessingStatus.SKIPPED_DATA_CONFLICT, conflict_msg
+
         if order is None:
             error_msg = (
                 f"Order not found: number='{order_data.order_number}', "
@@ -542,7 +550,7 @@ class OrderStatusImportService:
                 f"'{order_data.status_1c}', skipping update"
             )
             logger.warning(error_msg)
-            return ProcessingStatus.SKIPPED, error_msg
+            return ProcessingStatus.SKIPPED_UNKNOWN_STATUS, error_msg
 
         if order.status in FINAL_STATUSES and new_status in ACTIVE_STATUSES:
             error_msg = (
@@ -550,7 +558,7 @@ class OrderStatusImportService:
                 f"'{order.status}' to '{new_status}' blocked"
             )
             logger.warning(error_msg)
-            return ProcessingStatus.SKIPPED, error_msg
+            return ProcessingStatus.SKIPPED_STATUS_REGRESSION, error_msg
 
         # Проверяем, нужно ли обновление (идемпотентность AC8)
         status_changed = order.status != new_status or order.status_1c != order_data.status_1c
@@ -567,7 +575,7 @@ class OrderStatusImportService:
             logger.debug(
                 f"Order {order.order_number}: already up-to-date, skipping"
             )
-            return ProcessingStatus.SKIPPED, None
+            return ProcessingStatus.SKIPPED_UP_TO_DATE, None
 
         # Обновление заказа
         update_fields = ["updated_at"]
@@ -607,7 +615,7 @@ class OrderStatusImportService:
         self,
         order_data: OrderUpdateData,
         orders_cache: dict[str, Order] | None = None,
-    ) -> Order | None:
+    ) -> tuple[Order | None, str | None]:
         """
         Поиск заказа по номеру или ID (AC2).
 
@@ -620,7 +628,7 @@ class OrderStatusImportService:
             orders_cache: Кэш заказов из bulk fetch (опционально).
 
         Returns:
-            Order или None.
+            tuple: (Order или None, сообщение о конфликте или None).
         """
         # Быстрый путь через кэш (None = нет кэша, {} = пустой кэш)
         if orders_cache is not None:
@@ -629,7 +637,7 @@ class OrderStatusImportService:
             if order_data.order_number:
                 cache_key = f"num:{order_data.order_number}"
                 if cache_key in orders_cache:
-                    return orders_cache[cache_key]
+                    return orders_cache[cache_key], None
 
             # 2. Поиск по pk в кэше [AI-Review][Medium] DRY — используем _parse_order_id_to_pk
             pk = self._parse_order_id_to_pk(order_data.order_id)
@@ -643,15 +651,13 @@ class OrderStatusImportService:
                             f"but order numbers don't match: DB='{order.order_number}' vs XML='{order_data.order_number}'"
                         )
                         logger.warning(conflict_msg)
-                        return "DATA_CONFLICT"
-                    return order
+                        return None, conflict_msg
+                    return order, None
 
-            return None
+            return None, None
 
         # [AI-Review][Medium] Fallback на БД с select_for_update() для предотвращения race condition
         # Используется когда кэш не передан или при критичных concurrent-сценариях
-        from apps.orders.models import Order
-
         # 1. Поиск по order_number с блокировкой
         if order_data.order_number:
             order = (
@@ -660,7 +666,7 @@ class OrderStatusImportService:
                 .first()
             )
             if order:
-                return order
+                return order, None
 
         # 2. Поиск по order_id формата 'order-{id}' [AI-Review][Medium] DRY
         pk = self._parse_order_id_to_pk(order_data.order_id)
@@ -674,7 +680,7 @@ class OrderStatusImportService:
                         f"but order numbers don't match: DB='{order.order_number}' vs XML='{order_data.order_number}'"
                     )
                     logger.warning(conflict_msg)
-                    return "DATA_CONFLICT"
-                return order
+                    return None, conflict_msg
+                return order, None
 
-        return None
+        return None, None

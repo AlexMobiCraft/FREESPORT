@@ -15,6 +15,28 @@ ORDER_ID_PREFIX = "order-"
 
 
 # =============================================================================
+# Status Mapping
+# =============================================================================
+
+# Маппинг статусов 1С → FREESPORT (AC3)
+STATUS_MAPPING: dict[str, str] = {
+    "ОжидаетОбработки": "processing",
+    "Подтвержден": "confirmed",
+    "Отгружен": "shipped",
+    "Доставлен": "delivered",
+    "Отменен": "cancelled",
+    "Возвращен": "refunded",
+}
+
+# Pre-computed lowercase маппинг для оптимизации регистронезависимого поиска
+STATUS_MAPPING_LOWER: dict[str, str] = {k.lower(): v for k, v in STATUS_MAPPING.items()}
+
+# Финальные статусы не должны регрессировать в активные
+FINAL_STATUSES: set[str] = {"delivered", "cancelled"}
+ACTIVE_STATUSES: set[str] = {"pending", "confirmed", "processing", "shipped"}
+
+
+# =============================================================================
 # Processing Status Enum
 # =============================================================================
 
@@ -29,8 +51,17 @@ class ProcessingStatus(str, Enum):
     UPDATED = "updated"
     """Заказ успешно обновлён."""
 
-    SKIPPED = "skipped"
-    """Заказ пропущен (статус уже актуален или неизвестный статус 1С)."""
+    SKIPPED_UP_TO_DATE = "skipped_up_to_date"
+    """Заказ пропущен — данные уже актуальны."""
+
+    SKIPPED_UNKNOWN_STATUS = "skipped_unknown_status"
+    """Заказ пропущен из-за неизвестного статуса 1С."""
+
+    SKIPPED_DATA_CONFLICT = "skipped_data_conflict"
+    """Заказ пропущен из-за конфликта данных (несовпадение номера/ID)."""
+
+    SKIPPED_STATUS_REGRESSION = "skipped_status_regression"
+    """Заказ пропущен из-за попытки регрессии финального статуса."""
 
     NOT_FOUND = "not_found"
     """Заказ не найден в БД."""
