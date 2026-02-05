@@ -474,6 +474,8 @@ class OrderStatusImportService:
         orders = (
             Order.objects.select_for_update()
             .filter(query)
+            # [AI-Review][Medium] Deadlock Risk: стабилизируем порядок блокировок
+            .order_by("pk")
             .only(
                 "pk",
                 "order_number",

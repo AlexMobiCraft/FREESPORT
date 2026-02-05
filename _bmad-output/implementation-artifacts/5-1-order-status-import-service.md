@@ -138,12 +138,17 @@ So that **статусы заказов на сайте соответствую
 
 
 #### Review Follow-ups (Code Review Workflow) - Round 8 (Latest)
-- [ ] [AI-Review][High] Type Hint Violation: Метод `_find_order` возвращает строку "DATA_CONFLICT" вместо `Order | None`. `backend/apps/orders/services/order_status_import.py`
-- [ ] [AI-Review][Medium] Observability: Метрика `skipped_unknown_status` смешивает логические ошибки с неизвестными статусами. `backend/apps/orders/services/order_status_import.py`
-- [ ] [AI-Review][Medium] Timezone: Неявное использование серверного времени в `_parse_date_value`. `backend/apps/orders/services/order_status_import.py`
-- [ ] [AI-Review][Low] Performance: Вынести компиляцию regex `re.compile` из цикла. `backend/apps/orders/services/order_status_import.py`
-- [ ] [AI-Review][Low] Code Quality: Устранить циклический импорт `Order` (inside methods). `backend/apps/orders/services/order_status_import.py`
-- [ ] [AI-Review][Low] Maintenance: Переместить `STATUS_MAPPING_LOWER` в `constants.py`. `backend/apps/orders/services/order_status_import.py`
+- [x] [AI-Review][High] Type Hint Violation: Метод `_find_order` возвращает строку "DATA_CONFLICT" вместо `Order | None`. `backend/apps/orders/services/order_status_import.py`
+- [x] [AI-Review][Medium] Observability: Метрика `skipped_unknown_status` смешивает логические ошибки с неизвестными статусами. `backend/apps/orders/services/order_status_import.py`
+- [x] [AI-Review][Medium] Timezone: Неявное использование серверного времени в `_parse_date_value`. `backend/apps/orders/services/order_status_import.py`
+- [x] [AI-Review][Low] Performance: Вынести компиляцию regex `re.compile` из цикла. `backend/apps/orders/services/order_status_import.py`
+- [x] [AI-Review][Low] Code Quality: Устранить циклический импорт `Order` (inside methods). `backend/apps/orders/services/order_status_import.py`
+- [x] [AI-Review][Low] Maintenance: Переместить `STATUS_MAPPING_LOWER` в `constants.py`. `backend/apps/orders/services/order_status_import.py`
+
+#### Review Follow-ups (Code Review Workflow) - Round 10
+- [x] [AI-Review][Medium] Deadlock Risk: Add `.order_by("pk")` to `select_for_update()` in `_bulk_fetch_orders` to prevent deadlocks `backend/apps/orders/services/order_status_import.py:476`
+- [x] [AI-Review][Medium] Logic Gap: Add 'refunded' to `FINAL_STATUSES` (or explicit handling) to prevent regression to active statuses `backend/apps/orders/constants.py:35`
+- [x] [AI-Review][Low] Documentation Sync: Mark Round 8 items as checked or consolidate with Round 9 `_bmad-output/implementation-artifacts/5-1-order-status-import-service.md:141`
 
 ## Dev Notes
 
@@ -389,6 +394,10 @@ N/A
 - ✅ Resolved Round 8 [Medium]: Prevent log flooding in parser — removed direct logger.warning, errors returned instead
 - ✅ Resolved Round 8 [Medium]: Detect data conflict when finding order by ID — added conflict detection in both cache and DB lookup paths
 - ✅ Resolved Round 8 [Low]: Use specific ET.ParseError in tests — added ET import and updated test
+- ✅ Resolved Round 10 [Medium]: bulk fetch order_by("pk") to reduce deadlocks
+- ✅ Resolved Round 10 [Medium]: added refunded to FINAL_STATUSES to prevent regressions
+- ✅ Documentation sync: Round 8/10 follow-ups marked as completed
+- ✅ Targeted tests: `docker compose -f docker/docker-compose.test.yml run --rm backend pytest -v tests/unit/test_order_status_import.py tests/integration/test_order_status_import_db.py` — PASSED (59 tests); warnings: Unknown pytest.mark (unit/integration), RemovedInDjango60Warning
 
 #### Review Follow-ups (Code Review Workflow) - Round 8
 - [x] [AI-Review][Medium] Prevent log flooding in parser by returning errors instead of logging warnings directly `backend/apps/orders/services/order_status_import.py:287`
@@ -422,15 +431,16 @@ N/A
 - 2026-02-04: Addressed Round 6 follow-ups (sent_to_1c idempotency, invalid docs metrics, test quality); verified targeted unit+integration tests
 - 2026-02-04: Addressed Round 7 follow-ups (race condition lock, status regression, log level); verified targeted unit+integration tests
 - 2026-02-05: Addressed Round 9 review findings — 6 items resolved (High:1, Medium:2, Low:3); verified targeted unit+integration tests
+- 2026-02-05: Addressed Round 10 review findings — 3 items resolved (Medium:2, Low:1); targeted tests passed
 
 ### File List
 
-- `backend/apps/orders/services/order_status_import.py` (MODIFY) — конфликтные статусы, SOURCE_TIME_ZONE, granular skipped метрики
+- `backend/apps/orders/services/order_status_import.py` (MODIFY) — order_by("pk") в bulk fetch, финальные статусы без регрессии
 - `backend/apps/orders/services/__init__.py` (MODIFY) — экспорт STATUS_MAPPING из constants
-- `backend/apps/orders/constants.py` (MODIFY) — STATUS_MAPPING, STATUS_MAPPING_LOWER, расширенный ProcessingStatus
+- `backend/apps/orders/constants.py` (MODIFY) — FINAL_STATUSES включает refunded, STATUS_MAPPING_LOWER
 - `backend/apps/orders/models.py` (MODIFY) — добавлены поля `paid_at`, `shipped_at`
 - `backend/apps/orders/migrations/0011_add_payment_shipment_dates.py` (NEW) — миграция
-- `backend/tests/unit/test_order_status_import.py` (MODIFY) — тесты метрик и SOURCE_TIME_ZONE, обновление _find_order
+- `backend/tests/unit/test_order_status_import.py` (MODIFY) — проверка order_by("pk"), параметризация финальных статусов
 - `backend/tests/integration/test_order_status_import_db.py` (MODIFY) — skipped_data_conflict метрика
 - `backend/tests/integration/test_management_commands/test_import_customers.py` (MODIFY) — актуализированы ожидания stdout, статистика и логи
 - `backend/tests/integration/test_management_commands/test_load_product_stocks.py` (MODIFY) — тесты переведены на ProductVariant

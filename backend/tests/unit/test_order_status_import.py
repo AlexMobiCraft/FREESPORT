@@ -1176,10 +1176,12 @@ class TestRound6ReviewFollowups:
         service = OrderStatusImportService()
 
         with mock_patch("apps.orders.models.Order.objects") as mock_objects:
-            # [AI-Review][High] Мокаем цепочку select_for_update().filter().only()
+            # [AI-Review][High] Мокаем цепочку select_for_update().filter().order_by().only()
             mock_select_for_update = MagicMock()
             mock_filter = MagicMock()
-            mock_filter.only.return_value = [mock_order_1, mock_order_2]
+            mock_order_by = MagicMock()
+            mock_order_by.only.return_value = [mock_order_1, mock_order_2]
+            mock_filter.order_by.return_value = mock_order_by
             mock_select_for_update.filter.return_value = mock_filter
             mock_objects.select_for_update.return_value = mock_select_for_update
 
@@ -1199,7 +1201,8 @@ class TestRound6ReviewFollowups:
             # select_for_update должен быть вызван
             mock_objects.select_for_update.assert_called_once()
             mock_select_for_update.filter.assert_called_once()
-            mock_filter.only.assert_called_once()
+            mock_filter.order_by.assert_called_once_with("pk")
+            mock_order_by.only.assert_called_once()
 
     def test_find_order_uses_num_prefix_for_cache_lookup(self):
         """[AI-Review][High] _find_order ищет по num:{order_number} в кэше."""
@@ -1417,7 +1420,15 @@ class TestRound7ReviewFollowups:
         assert data.paid_at_present is True
         assert data.shipped_at_present is False
 
-    def test_final_status_regression_is_skipped(self):
+    @pytest.mark.parametrize(
+        ("current_status", "status_1c"),
+        [
+            ("delivered", "Доставлен"),
+            ("cancelled", "Отменен"),
+            ("refunded", "Возвращен"),
+        ],
+    )
+    def test_final_status_regression_is_skipped(self, current_status, status_1c):
         """[AI-Review][Medium] Финальные статусы не регрессируют в активные."""
         # ARRANGE
         order_number = "FS-FINAL-001"
@@ -1425,8 +1436,8 @@ class TestRound7ReviewFollowups:
 
         mock_order = MagicMock()
         mock_order.order_number = order_number
-        mock_order.status = "delivered"  # финальный статус
-        mock_order.status_1c = "Доставлен"
+        mock_order.status = current_status  # финальный статус
+        mock_order.status_1c = status_1c
         mock_order.paid_at = None
         mock_order.shipped_at = None
         mock_order.sent_to_1c = True
@@ -1444,7 +1455,7 @@ class TestRound7ReviewFollowups:
             assert result.skipped_status_regression == 1
             assert result.skipped_unknown_status == 0
             mock_order.save.assert_not_called()
-            assert mock_order.status == "delivered"
+            assert mock_order.status == current_status
 
     def test_status_update_logged_at_debug(self, caplog):
         """[AI-Review][Medium] Обновление статуса логируется на DEBUG, не INFO."""

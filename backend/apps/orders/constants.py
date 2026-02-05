@@ -32,7 +32,7 @@ STATUS_MAPPING: dict[str, str] = {
 STATUS_MAPPING_LOWER: dict[str, str] = {k.lower(): v for k, v in STATUS_MAPPING.items()}
 
 # Финальные статусы не должны регрессировать в активные
-FINAL_STATUSES: set[str] = {"delivered", "cancelled"}
+FINAL_STATUSES: set[str] = {"delivered", "cancelled", "refunded"}
 ACTIVE_STATUSES: set[str] = {"pending", "confirmed", "processing", "shipped"}
 
 
