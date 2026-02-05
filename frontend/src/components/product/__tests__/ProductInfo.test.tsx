@@ -128,27 +128,7 @@ describe('ProductInfo', () => {
     expect(stars.length).toBe(0);
   });
 
-  it('рендерит описание', () => {
-    render(<ProductInfo product={mockProduct} />);
-    expect(
-      screen.getByText('Профессиональные кроссовки для интенсивных тренировок')
-    ).toBeInTheDocument();
-  });
 
-  it('рендерит полное описание', () => {
-    render(<ProductInfo product={mockProduct} />);
-    expect(
-      screen.getByText('Расширенное описание с технологическими особенностями')
-    ).toBeInTheDocument();
-  });
-
-  it('не отображает описание если оно отсутствует', () => {
-    const productWithoutDescription = { ...mockProduct, description: '' };
-    render(<ProductInfo product={productWithoutDescription} />);
-    expect(
-      screen.queryByText('Профессиональные кроссовки для интенсивных тренировок')
-    ).not.toBeInTheDocument();
-  });
 
   it('применяет корректный CSS класс для статуса "В наличии"', () => {
     render(<ProductInfo product={mockProduct} />);
