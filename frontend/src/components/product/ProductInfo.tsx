@@ -160,19 +160,7 @@ export default function ProductInfo({ product, userRole = 'guest', selectedVaria
         </span>
       </div>
 
-      {/* Описание */}
-      {product.description && (
-        <div className="pt-4">
-          <p className="text-neutral-700 leading-relaxed">{product.description}</p>
-        </div>
-      )}
 
-      {/* Полное описание */}
-      {product.full_description && (
-        <div className="pt-2">
-          <p className="text-neutral-600 leading-relaxed">{product.full_description}</p>
-        </div>
-      )}
     </div>
   );
 }
