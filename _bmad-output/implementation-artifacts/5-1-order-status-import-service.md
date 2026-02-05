@@ -1,6 +1,6 @@
 # Story 5.1: Сервис импорта статусов (OrderStatusImportService)
 
-Status: review
+Status: in-progress
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -154,6 +154,12 @@ So that **статусы заказов на сайте соответствую
 - [x] [AI-Review][Medium] Data Integrity: Sync payment_status='paid' when paid_at is set from 1C. `backend/apps/orders/services/order_status_import.py:592`
 - [x] [AI-Review][Medium] Performance: Implement batch processing (chunking) for large XML imports to avoid long transaction locks. `backend/apps/orders/services/order_status_import.py:142`
 
+
+#### Review Follow-ups (Code Review Workflow) - Round 11
+- [ ] [AI-Review][Medium] Logic / Data Integrity: **Payment Status Regression Risk**. Prevent `payment_status` regression from `refunded` to `paid` if `paid_at` arrives from 1C. `backend/apps/orders/services/order_status_import.py`
+- [ ] [AI-Review][Medium] Robustness: **Batch handling crashes on DB error**. Wrap `_bulk_fetch_orders` in try/except `OperationalError` to prevent full crash on transient DB errors. `backend/apps/orders/services/order_status_import.py`
+- [ ] [AI-Review][Low] Test Quality: **N+1 Test lacks assertion**. Add `assertNumQueries` to `test_bulk_fetch_orders_optimization` to verify optimization. `backend/tests/integration/test_order_status_import_db.py`
+- [ ] [AI-Review][Low] Observability: **Ambiguous 1C timestamp semantics**. Update `sent_to_1c_at` on every successful sync from 1C (even if status doesn't change) to track "last synced" time reliably. `backend/apps/orders/services/order_status_import.py`
 
 ## Dev Notes
 
