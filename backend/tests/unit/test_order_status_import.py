@@ -21,6 +21,7 @@ from django.utils import timezone
 from apps.orders.constants import (
     MAX_ERRORS,
     ORDER_ID_PREFIX,
+    ProcessingStatus,
     STATUS_MAPPING,
     STATUS_MAPPING_LOWER,
 )
@@ -316,6 +317,23 @@ class TestDateExtraction:
         assert order_updates[0].paid_at is None
         assert order_updates[0].shipped_at is None
 
+    def test_invalid_date_does_not_mark_present(self):
+        """[AI-Review][High] Некорректная дата не должна помечаться как present."""
+        # ARRANGE
+        xml_data = build_test_xml(
+            status="Отгружен",
+            paid_date="2026-02-30",
+        )
+        service = OrderStatusImportService()
+
+        # ACT
+        order_updates, _, _ = service._parse_orders_xml(xml_data)
+
+        # ASSERT
+        update = order_updates[0]
+        assert update.paid_at is None
+        assert update.paid_at_present is False
+
     def test_parse_datetime_with_time_preserves_time(self):
         """[AI-Review][Low] Парсинг datetime с временем сохраняет время."""
         # ARRANGE
@@ -549,6 +567,69 @@ class TestOrderProcessing:
             assert mock_order.paid_at is not None
             assert mock_order.shipped_at is not None
             mock_order.save.assert_called_once()
+
+    def test_process_sets_payment_status_paid_when_paid_at_present(self):
+        """[AI-Review][Medium] paid_at из 1С выставляет payment_status='paid'."""
+        # ARRANGE
+        order_number = "FS-PAID-001"
+        xml_data = build_test_xml(
+            order_number=order_number,
+            status="Отгружен",
+            paid_date="2026-02-01",
+        )
+
+        mock_order = MagicMock()
+        mock_order.order_number = order_number
+        mock_order.status = "shipped"
+        mock_order.status_1c = "Отгружен"
+        mock_order.paid_at = None
+        mock_order.shipped_at = None
+        mock_order.payment_status = "pending"
+        mock_order.sent_to_1c = True
+        mock_order.sent_to_1c_at = timezone.now()
+
+        service = OrderStatusImportService()
+        mock_cache = {f"num:{order_number}": mock_order}
+
+        with patch.object(service, "_bulk_fetch_orders", return_value=mock_cache):
+            # ACT
+            result = service.process(xml_data)
+
+        # ASSERT
+        assert result.updated == 1
+        assert mock_order.payment_status == "paid"
+        mock_order.save.assert_called_once()
+
+    def test_process_uses_batch_size_from_settings(self):
+        """[AI-Review][Medium] process() обрабатывает заказы батчами."""
+        # ARRANGE
+        xml_data = build_multi_order_xml(
+            [
+                {"order_id": "order-1", "order_number": "FS-BATCH-1", "status": "Отгружен"},
+                {"order_id": "order-2", "order_number": "FS-BATCH-2", "status": "Отгружен"},
+                {"order_id": "order-3", "order_number": "FS-BATCH-3", "status": "Отгружен"},
+            ]
+        )
+        service = OrderStatusImportService()
+
+        with override_settings(ONEC_EXCHANGE={"ORDER_STATUS_IMPORT_BATCH_SIZE": 2}):
+            with patch.object(service, "_bulk_fetch_orders", return_value={}) as bulk_fetch:
+                with patch.object(
+                    service,
+                    "_process_order_update",
+                    return_value=(ProcessingStatus.SKIPPED_UP_TO_DATE, None),
+                ):
+                    # ACT
+                    result = service.process(xml_data)
+
+        # ASSERT
+        assert result.processed == 3
+        assert result.skipped_up_to_date == 3
+        assert bulk_fetch.call_count == 2
+        first_batch = bulk_fetch.call_args_list[0].args[0]
+        second_batch = bulk_fetch.call_args_list[1].args[0]
+        assert len(first_batch) == 2
+        assert len(second_batch) == 1
 
 
 @pytest.mark.unit

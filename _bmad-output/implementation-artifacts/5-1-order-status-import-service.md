@@ -150,6 +150,11 @@ So that **статусы заказов на сайте соответствую
 - [x] [AI-Review][Medium] Logic Gap: Add 'refunded' to `FINAL_STATUSES` (or explicit handling) to prevent regression to active statuses `backend/apps/orders/constants.py:35`
 - [x] [AI-Review][Low] Documentation Sync: Mark Round 8 items as checked or consolidate with Round 9 `_bmad-output/implementation-artifacts/5-1-order-status-import-service.md:141`
 
+- [x] [AI-Review][High] Data Loss Risk: Date parsing failure returns None but sets present=True, causing DB overwrite. Reset present=False on parse failure. `backend/apps/orders/services/order_status_import.py:293`
+- [x] [AI-Review][Medium] Data Integrity: Sync payment_status='paid' when paid_at is set from 1C. `backend/apps/orders/services/order_status_import.py:592`
+- [x] [AI-Review][Medium] Performance: Implement batch processing (chunking) for large XML imports to avoid long transaction locks. `backend/apps/orders/services/order_status_import.py:142`
+
+
 ## Dev Notes
 
 ### Архитектурные требования
@@ -398,6 +403,9 @@ N/A
 - ✅ Resolved Round 10 [Medium]: added refunded to FINAL_STATUSES to prevent regressions
 - ✅ Documentation sync: Round 8/10 follow-ups marked as completed
 - ✅ Targeted tests: `docker compose -f docker/docker-compose.test.yml run --rm backend pytest -v tests/unit/test_order_status_import.py tests/integration/test_order_status_import_db.py` — PASSED (59 tests); warnings: Unknown pytest.mark (unit/integration), RemovedInDjango60Warning
+- ✅ Resolved remaining follow-ups: invalid date no longer marks present, payment_status syncs to paid, batch processing enabled via ONEC_EXCHANGE.ORDER_STATUS_IMPORT_BATCH_SIZE
+- ✅ Added unit tests: invalid date present flag, payment_status sync, batch processing chunk size
+- ⚠ Full suite: `docker compose -f docker/docker-compose.test.yml up --build --abort-on-container-exit --exit-code-from backend` — FAILED (65 failed, 1538 passed, 3 skipped)
 
 #### Review Follow-ups (Code Review Workflow) - Round 8
 - [x] [AI-Review][Medium] Prevent log flooding in parser by returning errors instead of logging warnings directly `backend/apps/orders/services/order_status_import.py:287`
@@ -432,15 +440,16 @@ N/A
 - 2026-02-04: Addressed Round 7 follow-ups (race condition lock, status regression, log level); verified targeted unit+integration tests
 - 2026-02-05: Addressed Round 9 review findings — 6 items resolved (High:1, Medium:2, Low:3); verified targeted unit+integration tests
 - 2026-02-05: Addressed Round 10 review findings — 3 items resolved (Medium:2, Low:1); targeted tests passed
+- 2026-02-05: Addressed remaining follow-ups (Data Loss Risk, payment_status sync, batch processing); added unit tests; full suite failing (65 failed)
 
 ### File List
 
-- `backend/apps/orders/services/order_status_import.py` (MODIFY) — order_by("pk") в bulk fetch, финальные статусы без регрессии
+- `backend/apps/orders/services/order_status_import.py` (MODIFY) — batch processing, payment_status sync, защита от некорректных дат
 - `backend/apps/orders/services/__init__.py` (MODIFY) — экспорт STATUS_MAPPING из constants
 - `backend/apps/orders/constants.py` (MODIFY) — FINAL_STATUSES включает refunded, STATUS_MAPPING_LOWER
 - `backend/apps/orders/models.py` (MODIFY) — добавлены поля `paid_at`, `shipped_at`
 - `backend/apps/orders/migrations/0011_add_payment_shipment_dates.py` (NEW) — миграция
-- `backend/tests/unit/test_order_status_import.py` (MODIFY) — проверка order_by("pk"), параметризация финальных статусов
+- `backend/tests/unit/test_order_status_import.py` (MODIFY) — тесты некорректной даты, payment_status sync, batch size
 - `backend/tests/integration/test_order_status_import_db.py` (MODIFY) — skipped_data_conflict метрика
 - `backend/tests/integration/test_management_commands/test_import_customers.py` (MODIFY) — актуализированы ожидания stdout, статистика и логи
 - `backend/tests/integration/test_management_commands/test_load_product_stocks.py` (MODIFY) — тесты переведены на ProductVariant
