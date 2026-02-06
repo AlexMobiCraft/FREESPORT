@@ -1,6 +1,6 @@
 # Story 5.2: View-обработчик mode=file для orders.xml
 
-Status: review
+Status: in-progress
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -113,9 +113,33 @@ So that **статусы заказов на сайте обновляются �
 
 ## Tasks / Subtasks (Review Follow-ups)
 
-- [x] [AI-Review][High] Синхронизировать статус задач в файле истории: отметить [x] выполненные задачи.
-- [x] [AI-Review][Medium] Добавить интеграционный тест для Rate Limiting (AC12) в `test_orders_xml_mode_file.py`.
 - [x] [AI-Review][Medium] Добавить новые файлы (`throttling.py`, `test_orders_xml_mode_file.py`) в git (untracked).
+
+## Senior Developer Review (AI)
+
+_Reviewer: Amelia (Dev Agent)_
+_Date: 2026-02-06_
+
+### Findings
+
+#### 🟡 Medium Severity
+1.  **Security/Resources**: `backend/apps/integrations/onec_exchange/views.py` использует `xml_data = request._request.read()` (line 611). Это полагается на то, что `Content-Length` заголовок соответствует реальности или что веб-сервер обрезает тело. Если злоумышленник укажет `Content-Length: 100`, но отправит 100MB, а server buffer settings это позволяют, мы прочитаем всё в память.
+    -   *Recommendation*: Использовать `request._request.read(ORDERS_XML_MAX_SIZE + 1)` для гарантии лимита.
+
+#### 🟢 Low Severity
+1.  **Robustness**: `_validate_xml_timestamp` читает только первые 500 байт (`orders.xml`). Если в начале файла будут длинные комментарии или DOCTYPE, проверка может пропустить валидный timestamp или вернуть False negative (fail-open).
+    -   *Recommendation*: Увеличить окно поиска до 2-4KB.
+
+### Conclusion
+**Approve with Follow-ups**. Реализация надежная, тесты проходят. Найденные проблемы не блокируют релиз, но должны быть исправлены.
+
+## Tasks / Subtasks (Review Follow-ups 2)
+
+- [ ] [AI-Review][Medium] Hardening: ограничить `request.read()` лимитом `ORDERS_XML_MAX_SIZE + 1`.
+- [ ] [AI-Review][Low] Увеличить буфер чтения для `_validate_xml_timestamp` до 2048 байт.
+- [ ] [AI-Review][Medium] Error Handling: Обеспечить возврат специфичного `failure\nMalformed XML` при ошибках парсинга (сейчас экранируется сервисом).
+- [ ] [AI-Review][Low] Refactoring: Унифицировать сигнатуру `_parse_document` (вернуть Result или исключение).
+
 
 ## Dev Notes
 
