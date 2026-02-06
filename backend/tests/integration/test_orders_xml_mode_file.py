@@ -8,6 +8,7 @@ Story 5.2: View-обработчик mode=file для orders.xml.
 import base64
 from datetime import timedelta
 from decimal import Decimal
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
@@ -16,6 +17,10 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
 
+from apps.integrations.onec_exchange.views import (
+    ICExchangeView,
+    ORDERS_XML_MAX_SIZE,
+)
 from apps.orders.constants import STATUS_PRIORITY
 from apps.orders.models import Order
 from tests.conftest import get_unique_suffix
@@ -271,6 +276,7 @@ class TestOrdersXmlModeFile:
         assert response.status_code == 200
         content = response.content.decode("utf-8")
         assert content.startswith("failure")
+        assert "Malformed XML" in content
 
     # ===================================================================
     # 4.5: Аутентификация обязательна (AC7)
@@ -454,6 +460,30 @@ class TestOrdersXmlModeFile:
             CONTENT_LENGTH=str(6 * 1024 * 1024),  # 6MB > 5MB limit
             HTTP_AUTHORIZATION=self.auth_header,
         )
+
+        assert response.status_code == 200
+        content = response.content.decode("utf-8")
+        assert "failure" in content
+        assert "too large" in content.lower()
+
+    def test_body_exceeds_limit_with_small_content_length(self):
+        """Body > лимита отклоняется, даже если Content-Length занижен."""
+        xml_data = b"<xml>" + (b"a" * (ORDERS_XML_MAX_SIZE + 10)) + b"</xml>"
+
+        class _DummyRequest:
+            def __init__(self, body: bytes, content_length: int):
+                self.META = {"CONTENT_LENGTH": str(content_length)}
+
+                def _read(size: int = -1) -> bytes:
+                    if size is None or size < 0:
+                        return body
+                    return body[:size]
+
+                self._request = SimpleNamespace(read=_read)
+
+        view = ICExchangeView()
+        request = _DummyRequest(xml_data, content_length=10)
+        response = view._handle_orders_xml(request)
 
         assert response.status_code == 200
         content = response.content.decode("utf-8")

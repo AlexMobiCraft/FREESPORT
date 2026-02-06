@@ -37,6 +37,7 @@ ORDERS_ZIP_FILENAME = "orders.zip"
 ORDERS_XML_MAX_SIZE = 5 * 1024 * 1024  # 5MB (ADR-004)
 MAX_DOCUMENTS_PER_FILE = 1000  # FM4.5: Guard against oversized XML
 ORDERS_IMPORT_MAX_RETRIES = 3  # FM5.1/FM5.2: DB retry attempts
+XML_TIMESTAMP_SCAN_BYTES = 2048  # Review follow-up: avoid missing timestamp
 
 # Simple regex to count <Документ> tags without full XML parsing
 _DOCUMENT_TAG_RE = re.compile(rb"<\xd0\x94\xd0\xbe\xd0\xba\xd1\x83\xd0\xbc\xd0\xb5\xd0\xbd\xd1\x82[\s>/]")
@@ -52,7 +53,7 @@ def _validate_xml_timestamp(xml_data: bytes, max_age_hours: int = 24) -> bool:
     Returns False only if timestamp is clearly stale.
     """
     try:
-        header = xml_data[:500]
+        header = xml_data[:XML_TIMESTAMP_SCAN_BYTES]
         match = re.search(
             rb'\xd0\x94\xd0\xb0\xd1\x82\xd0\xb0\xd0\xa4\xd0\xbe\xd1\x80\xd0\xbc'
             rb'\xd0\xb8\xd1\x80\xd0\xbe\xd0\xb2\xd0\xb0\xd0\xbd\xd0\xb8\xd1\x8f'
@@ -607,8 +608,17 @@ class ICExchangeView(APIView):
                     content_type="text/plain; charset=utf-8",
                 )
 
-            # Read full body (orders.xml is small)
-            xml_data = request._request.read()
+            # Read body with hard limit (avoid reading oversized payloads)
+            xml_data = request._request.read(ORDERS_XML_MAX_SIZE + 1)
+
+            if len(xml_data) > ORDERS_XML_MAX_SIZE:
+                logger.warning(
+                    f"[ORDERS IMPORT] Rejected: file too large ({len(xml_data)} bytes)"
+                )
+                return HttpResponse(
+                    "failure\nFile too large for inline processing",
+                    content_type="text/plain; charset=utf-8",
+                )
 
             # FM1.1: Body integrity check
             if content_length > 0 and len(xml_data) != content_length:
@@ -666,6 +676,37 @@ class ICExchangeView(APIView):
 
             if result is None:
                 raise RuntimeError(f"Service returned no result: {last_db_error}")
+
+            parse_error = next(
+                (
+                    err
+                    for err in result.errors
+                    if "xml parse error" in err.lower()
+                ),
+                None,
+            )
+            if parse_error:
+                logger.warning(f"[ORDERS IMPORT] Malformed XML: {parse_error}")
+                return HttpResponse(
+                    "failure\nMalformed XML",
+                    content_type="text/plain; charset=utf-8",
+                )
+            security_error = next(
+                (
+                    err
+                    for err in result.errors
+                    if "xml security error" in err.lower()
+                ),
+                None,
+            )
+            if security_error:
+                logger.warning(
+                    f"[ORDERS IMPORT] XML security violation: {security_error}"
+                )
+                return HttpResponse(
+                    "failure\nXML security violation",
+                    content_type="text/plain; charset=utf-8",
+                )
 
             # Log metrics
             logger.info(

@@ -1764,11 +1764,9 @@ class TestRound7ReviewFollowups:
         service = OrderStatusImportService()
 
         # ACT
-        result, error_msg = service._parse_document(document)
+        result = service._parse_document(document)
 
         # ASSERT — paid_at_present=True (тег есть), shipped_at_present=False (тега нет)
-        assert result is not None
-        assert error_msg is None
         assert result.paid_at_present is True
         assert result.shipped_at_present is False
         assert result.paid_at is not None
@@ -1900,11 +1898,9 @@ class TestRound13ReviewFollowups:
         service = OrderStatusImportService()
 
         # ACT
-        result, error_msg = service._parse_document(document)
+        result = service._parse_document(document)
 
         # ASSERT — обе ошибки парсинга дат должны быть собраны
-        assert result is not None
-        assert error_msg is None
         assert len(result.parse_warnings) == 2
         assert any("paid_at" in w for w in result.parse_warnings)
         assert any("shipped_at" in w for w in result.parse_warnings)

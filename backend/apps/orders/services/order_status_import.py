@@ -96,6 +96,10 @@ class ImportResult:
         )
 
 
+class DocumentParseError(Exception):
+    """Ошибка парсинга одного документа orders.xml."""
+
+
 # =============================================================================
 # Service
 # =============================================================================
@@ -292,21 +296,17 @@ class OrderStatusImportService:
 
         total_documents = len(documents)
         for document in documents:
-            order_data, error_msg = self._parse_document(document)
-            if order_data:
-                order_updates.append(order_data)
-                # [AI-Review][Medium] Если были некритичные ошибки (warnings) при парсинге полей (например, даты),
-                # мы их тут не ловим, так как _parse_document возвращает data OR error.
-                # Refactoring _parse_document to return (data, warnings) is the cleaner way.
-                # Let's do a quick refactor of _parse_document signature in a separate step or just below if we can.
-            elif error_msg:
-                parse_errors.append(error_msg)
+            try:
+                order_data = self._parse_document(document)
+            except DocumentParseError as exc:
+                parse_errors.append(str(exc))
+                continue
+
+            order_updates.append(order_data)
 
         return order_updates, total_documents, parse_errors
 
-    def _parse_document(
-        self, document: Element
-    ) -> tuple[OrderUpdateData | None, str | None]:
+    def _parse_document(self, document: Element) -> OrderUpdateData:
         """
         Парсинг одного элемента <Документ>.
 
@@ -314,8 +314,10 @@ class OrderStatusImportService:
             document: XML элемент <Документ>.
 
         Returns:
-            tuple: (OrderUpdateData или None если нет нужных данных,
-            сообщение об ошибке или None).
+            OrderUpdateData.
+
+        Raises:
+            DocumentParseError: если документ некорректен и должен быть пропущен.
         """
         order_id_elem = document.find("Ид")
         order_number_elem = document.find("Номер")
@@ -324,8 +326,7 @@ class OrderStatusImportService:
         order_number = order_number_elem.text if order_number_elem is not None else ""
 
         if not order_id and not order_number:
-            error_msg = "Document without <Ид> and <Номер>, skipping"
-            return None, error_msg
+            raise DocumentParseError("Document without <Ид> and <Номер>, skipping")
 
         # [AI-Review][Low] Оптимизация: собрать все реквизиты в dict один раз
         # [AI-Review][High] Нормализация имен: поддержка "Статус Заказа" и "СтатусЗаказа"
@@ -338,7 +339,7 @@ class OrderStatusImportService:
                 f"Document {order_id or order_number}: no СтатусЗаказа requisite"
             )
             logger.warning(error_msg)
-            return None, error_msg
+            raise DocumentParseError(error_msg)
 
         # Извлечь даты из реквизитов (AC5, нормализация уже в _extract_all_requisites)
         # [AI-Review][Medium] Logic/Data Consistency: различаем "тег отсутствует" от "тег пустой"
@@ -373,7 +374,7 @@ class OrderStatusImportService:
             paid_at_present=paid_at_present,
             shipped_at_present=shipped_at_present,
             parse_warnings=parse_warnings,
-        ), None
+        )
 
     def _extract_all_requisites(self, document: Element) -> dict[str, str]:
         """
