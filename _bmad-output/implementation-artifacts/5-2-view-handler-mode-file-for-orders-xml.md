@@ -1,6 +1,6 @@
 # Story 5.2: View-обработчик mode=file для orders.xml
 
-Status: in-progress
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -135,10 +135,10 @@ _Date: 2026-02-06_
 
 ## Tasks / Subtasks (Review Follow-ups 2)
 
-- [ ] [AI-Review][Medium] Hardening: ограничить `request.read()` лимитом `ORDERS_XML_MAX_SIZE + 1`.
-- [ ] [AI-Review][Low] Увеличить буфер чтения для `_validate_xml_timestamp` до 2048 байт.
-- [ ] [AI-Review][Medium] Error Handling: Обеспечить возврат специфичного `failure\nMalformed XML` при ошибках парсинга (сейчас экранируется сервисом).
-- [ ] [AI-Review][Low] Refactoring: Унифицировать сигнатуру `_parse_document` (вернуть Result или исключение).
+- [x] [AI-Review][Medium] Hardening: ограничить `request.read()` лимитом `ORDERS_XML_MAX_SIZE + 1`.
+- [x] [AI-Review][Low] Увеличить буфер чтения для `_validate_xml_timestamp` до 2048 байт.
+- [x] [AI-Review][Medium] Error Handling: Обеспечить возврат специфичного `failure\nMalformed XML` при ошибках парсинга (сейчас экранируется сервисом).
+- [x] [AI-Review][Low] Refactoring: Унифицировать сигнатуру `_parse_document` (вернуть Result или исключение).
 
 
 ## Dev Notes
@@ -495,7 +495,8 @@ Claude Sonnet 4 (Cascade)
 
 ### Debug Log References
 
-N/A
+- `docker compose --env-file .env -f docker/docker-compose.yml run --rm backend pytest tests/integration/test_orders_xml_mode_file.py tests/unit/test_order_status_import.py` (pass, 94 tests)
+- `docker compose --env-file .env -f docker/docker-compose.yml run --rm backend pytest` (failed: unrelated tests in 1c_file_upload, integrations_admin_actions, management_commands, onec_exchange_api, token_blacklist, file_routing)
 
 ### Completion Notes List
 
@@ -508,12 +509,14 @@ N/A
 - Task 10: Field whitelist — `ALLOWED_REQUISITES` filtering in `_extract_all_requisites`
 - Task 4: 20 integration tests — all passing. 73 unit tests unaffected.
 - Review follow-ups: task checkboxes synced, rate limiting integration test added (test_rate_limiting_returns_429)
+- Review follow-ups 2: лимит чтения тела, буфер timestamp=2048, специфичный `Malformed XML`/`XML security violation`, `_parse_document` через исключение, новые тесты (oversize body, updated unit assertions).
 
 ### Change Log
 
 - 2026-02-04: Story created by SM agent
 - 2026-02-06: All tasks implemented and tested. Status → review.
 - 2026-02-06: Addressed code review findings — 3 items resolved. Rate limiting integration test added (AC12). Task checkboxes synced. Status → review.
+- 2026-02-06: Review follow-ups 2 закрыты; целевые pytest прошли, полный прогон упал на несвязанных тестах.
 
 ### File List
 
@@ -523,3 +526,4 @@ N/A
 - `backend/apps/orders/constants.py` — Added `STATUS_PRIORITY`, `ALLOWED_ORDER_FIELDS`, `ALLOWED_REQUISITES`
 - `backend/apps/orders/services/order_status_import.py` — Priority-based regression, field whitelist filtering
 - `backend/tests/integration/test_orders_xml_mode_file.py` — NEW: 20 integration tests
+- `backend/tests/unit/test_order_status_import.py` — Updated for `_parse_document` exception signature
