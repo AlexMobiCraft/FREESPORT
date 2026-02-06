@@ -668,3 +668,43 @@ class TestOrdersXmlModeFile:
 
         order = Order.objects.get(order_number=order_number)
         assert order.status == "shipped"
+
+    # ===================================================================
+    # 4.18: Rate limiting (AC12)
+    # ===================================================================
+
+    def test_rate_limiting_returns_429(self):
+        """Превышение rate limit → HTTP 429 (AC12)."""
+        from django.core.cache import cache as django_cache
+
+        django_cache.clear()
+
+        xml_data = _build_orders_xml(status_1c="Подтвержден")
+
+        self._authenticate()
+
+        # Mock throttle rate to 3/min to avoid 61 real requests
+        with patch.object(
+            __import__(
+                "apps.integrations.onec_exchange.throttling",
+                fromlist=["OneCExchangeThrottle"],
+            ).OneCExchangeThrottle,
+            "rate",
+            "3/min",
+        ):
+            responses = []
+            for _ in range(5):
+                resp = self.client.post(
+                    f"{EXCHANGE_URL}?mode=file&filename=orders.xml",
+                    data=xml_data,
+                    content_type="application/xml",
+                    CONTENT_LENGTH=str(len(xml_data)),
+                    HTTP_AUTHORIZATION=self.auth_header,
+                )
+                responses.append(resp)
+
+        # At least one response should be 429
+        status_codes = [r.status_code for r in responses]
+        assert 429 in status_codes, (
+            f"Expected at least one 429 response, got: {status_codes}"
+        )

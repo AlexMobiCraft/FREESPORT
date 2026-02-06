@@ -1,6 +1,6 @@
 # Story 5.2: View-обработчик mode=file для orders.xml
 
-Status: in-progress
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -29,93 +29,93 @@ So that **статусы заказов на сайте обновляются �
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Модификация handle_file_upload для orders.xml (AC: 1, 3, 5)
-  - [ ] 1.1: В `backend/apps/integrations/onec_exchange/views.py` добавить проверку `filename.lower() == ORDERS_XML_FILENAME` в `handle_file_upload()`.
-  - [ ] 1.2: При совпадении — вызвать новый метод `return self._handle_orders_xml(request)` (ADR-002).
-  - [ ] 1.3: Создать приватный метод `_handle_orders_xml(self, request) -> HttpResponse`.
-  - [ ] 1.4: **Проверка размера (ADR-004):** Если `Content-Length > 5MB` → вернуть `failure\nFile too large for inline processing`.
-  - [ ] 1.5: **Audit log ПЕРВЫМ (ADR-005):** Сохранить копию XML через `_save_exchange_log()` ДО обработки.
-  - [ ] 1.6: Читать тело запроса в память: `xml_data = request._request.read()`.
-  - [ ] 1.7: Вызвать `OrderStatusImportService().process(xml_data)`.
-  - [ ] 1.8: **Partial Success (ADR-003):** Вернуть `success` если `result.updated > 0` ИЛИ `result.errors == []`, иначе `failure\n{summary}`.
-  - [ ] 1.9: **FM1.1 — Body integrity:** Проверить `len(xml_data) == Content-Length` после чтения; если не совпадает → `failure\nIncomplete request body`.
+- [x] Task 1: Модификация handle_file_upload для orders.xml (AC: 1, 3, 5)
+  - [x] 1.1: В `backend/apps/integrations/onec_exchange/views.py` добавить проверку `filename.lower() == ORDERS_XML_FILENAME` в `handle_file_upload()`.
+  - [x] 1.2: При совпадении — вызвать новый метод `return self._handle_orders_xml(request)` (ADR-002).
+  - [x] 1.3: Создать приватный метод `_handle_orders_xml(self, request) -> HttpResponse`.
+  - [x] 1.4: **Проверка размера (ADR-004):** Если `Content-Length > 5MB` → вернуть `failure\nFile too large for inline processing`.
+  - [x] 1.5: **Audit log ПЕРВЫМ (ADR-005):** Сохранить копию XML через `_save_exchange_log()` ДО обработки.
+  - [x] 1.6: Читать тело запроса в память: `xml_data = request._request.read()`.
+  - [x] 1.7: Вызвать `OrderStatusImportService().process(xml_data)`.
+  - [x] 1.8: **Partial Success (ADR-003):** Вернуть `success` если `result.updated > 0` ИЛИ `result.errors == []`, иначе `failure\n{summary}`.
+  - [x] 1.9: **FM1.1 — Body integrity:** Проверить `len(xml_data) == Content-Length` после чтения; если не совпадает → `failure\nIncomplete request body`.
 
-- [ ] Task 2: Добавить маршрутизацию в routing_service (AC: 1)
-  - [ ] 2.1: Добавить `"orders": "orders/"` в `XML_ROUTING_RULES` (для consistency, хотя orders.xml обрабатывается inline).
-  - [ ] 2.2: Документировать специальную обработку orders.xml в docstring.
+- [x] Task 2: Добавить маршрутизацию в routing_service (AC: 1)
+  - [x] 2.1: Добавить `"orders": "orders/"` в `XML_ROUTING_RULES` (для consistency, хотя orders.xml обрабатывается inline).
+  - [x] 2.2: Документировать специальную обработку orders.xml в docstring.
 
-- [ ] Task 3: Добавить импорт OrderStatusImportService (AC: 1)
-  - [ ] 3.1: Добавить `from apps.orders.services.order_status_import import OrderStatusImportService` в views.py.
+- [x] Task 3: Добавить импорт OrderStatusImportService (AC: 1)
+  - [x] 3.1: Добавить `from apps.orders.services.order_status_import import OrderStatusImportService` в views.py.
 
-- [ ] Task 4: Integration-тесты (AC: 7, 8, 9, 10, 11)
-  - [ ] 4.1: Создать `backend/tests/integration/test_orders_xml_mode_file.py`.
-  - [ ] 4.2: `test_mode_file_orders_xml_updates_order_status` — POST с валидным orders.xml обновляет Order.status.
-  - [ ] 4.3: `test_mode_file_orders_xml_idempotent` — повторная отправка не создаёт ошибок.
-  - [ ] 4.4: `test_mode_file_orders_xml_saves_audit_log` — проверить что файл сохранён в logs.
-  - [ ] 4.5: `test_mode_file_orders_xml_returns_failure_on_invalid_xml` — невалидный XML → failure.
-  - [ ] 4.6: `test_mode_file_orders_xml_requires_auth` — без аутентификации → 401/403.
-  - [ ] 4.7: `test_mode_file_orders_xml_blocks_status_regression` — shipped после delivered → skip (AC8).
-  - [ ] 4.8: `test_mode_file_orders_xml_allows_cancellation_anytime` — cancelled разрешён на любом этапе (AC8).
-  - [ ] 4.9: `test_mode_file_orders_xml_windows1251_encoding` — XML в windows-1251 корректно обрабатывается (AC10).
-  - [ ] 4.10: `test_mode_file_orders_xml_zero_processed_logs_error` — пустой результат при непустом XML → error log (AC9).
-  - [ ] 4.11: `test_mode_file_orders_xml_truncated_body` — Content-Length не совпадает с body → `failure\nIncomplete request body` (AC11).
-  - [ ] 4.12: `test_mode_file_orders_xml_too_many_documents` — >1000 документов → `failure\nToo many documents` (FM4.5).
-  - [ ] 4.13: `test_mode_file_orders_xml_rate_limited` — превышение 60 req/min → HTTP 429 (AC12).
-  - [ ] 4.14: `test_mode_file_orders_xml_stale_timestamp_rejected` — XML с `ДатаФормирования` > 24h → `failure\nXML timestamp too old` (AC13).
-  - [ ] 4.15: `test_mode_file_orders_xml_ignores_unexpected_fields` — XML с тегами `<Адрес>`, `<Сумма>` → поля игнорируются, warning в логах (AC14).
-  - [ ] 4.16: Использовать Factory Boy с `get_unique_suffix()`, маркеры `@pytest.mark.integration`, `@pytest.mark.django_db`, AAA-паттерн.
+- [x] Task 4: Integration-тесты (AC: 7, 8, 9, 10, 11)
+  - [x] 4.1: Создать `backend/tests/integration/test_orders_xml_mode_file.py`.
+  - [x] 4.2: `test_mode_file_orders_xml_updates_order_status` — POST с валидным orders.xml обновляет Order.status.
+  - [x] 4.3: `test_mode_file_orders_xml_idempotent` — повторная отправка не создаёт ошибок.
+  - [x] 4.4: `test_mode_file_orders_xml_saves_audit_log` — проверить что файл сохранён в logs.
+  - [x] 4.5: `test_mode_file_orders_xml_returns_failure_on_invalid_xml` — невалидный XML → failure.
+  - [x] 4.6: `test_mode_file_orders_xml_requires_auth` — без аутентификации → 401/403.
+  - [x] 4.7: `test_mode_file_orders_xml_blocks_status_regression` — shipped после delivered → skip (AC8).
+  - [x] 4.8: `test_mode_file_orders_xml_allows_cancellation_anytime` — cancelled разрешён на любом этапе (AC8).
+  - [x] 4.9: `test_mode_file_orders_xml_windows1251_encoding` — XML в windows-1251 корректно обрабатывается (AC10).
+  - [x] 4.10: `test_mode_file_orders_xml_zero_processed_logs_error` — пустой результат при непустом XML → error log (AC9).
+  - [x] 4.11: `test_mode_file_orders_xml_truncated_body` — Content-Length не совпадает с body → `failure\nIncomplete request body` (AC11).
+  - [x] 4.12: `test_mode_file_orders_xml_too_many_documents` — >1000 документов → `failure\nToo many documents` (FM4.5).
+  - [x] 4.13: `test_mode_file_orders_xml_rate_limited` — превышение 60 req/min → HTTP 429 (AC12).
+  - [x] 4.14: `test_mode_file_orders_xml_stale_timestamp_rejected` — XML с `ДатаФормирования` > 24h → `failure\nXML timestamp too old` (AC13).
+  - [x] 4.15: `test_mode_file_orders_xml_ignores_unexpected_fields` — XML с тегами `<Адрес>`, `<Сумма>` → поля игнорируются, warning в логах (AC14).
+  - [x] 4.16: Использовать Factory Boy с `get_unique_suffix()`, маркеры `@pytest.mark.integration`, `@pytest.mark.django_db`, AAA-паттерн.
 
-- [ ] Task 5: Обработка ошибок и логирование (AC: 3, 6, 11)
-  - [ ] 5.1: При `ImportResult.errors` — логировать `logger.warning()` с деталями.
-  - [ ] 5.2: Формировать summary: `"processed={n}, updated={m}, errors={k}"`.
-  - [ ] 5.3: При исключении в `OrderStatusImportService` — `logger.exception()`, вернуть `failure\nInternal error`.
-  - [ ] 5.4: **FM3.1 — Parse errors:** Явно ловить `ET.ParseError` и `DefusedXmlException`, возвращать `failure\nMalformed XML` / `failure\nXML security violation`.
-  - [ ] 5.5: **FM4.5 — Max documents:** Добавить `MAX_DOCUMENTS_PER_FILE = 1000` константу; при превышении → `failure\nToo many documents`.
-  - [ ] 5.6: **FM5.1/FM5.2 — DB retry:** Добавить retry logic (3 попытки с backoff) при `OperationalError` от PostgreSQL.
+- [x] Task 5: Обработка ошибок и логирование (AC: 3, 6, 11)
+  - [x] 5.1: При `ImportResult.errors` — логировать `logger.warning()` с деталями.
+  - [x] 5.2: Формировать summary: `"processed={n}, updated={m}, errors={k}"`.
+  - [x] 5.3: При исключении в `OrderStatusImportService` — `logger.exception()`, вернуть `failure\nInternal error`.
+  - [x] 5.4: **FM3.1 — Parse errors:** Явно ловить `ET.ParseError` и `DefusedXmlException`, возвращать `failure\nMalformed XML` / `failure\nXML security violation`.
+  - [x] 5.5: **FM4.5 — Max documents:** Добавить `MAX_DOCUMENTS_PER_FILE = 1000` константу; при превышении → `failure\nToo many documents`.
+  - [x] 5.6: **FM5.1/FM5.2 — DB retry:** Добавить retry logic (3 попытки с backoff) при `OperationalError` от PostgreSQL.
 
-- [ ] Task 6: Alerting на нулевую обработку (AC: 9) — Pre-mortem #1
-  - [ ] 6.1: Если `result.processed == 0` при `len(xml_data) > 100` → `logger.error("[ORDERS IMPORT] Zero documents processed from non-empty XML")`.
-  - [ ] 6.2: Добавить метрику для мониторинга: `orders_import_zero_processed_total`.
-  - [ ] 6.3: Документировать alert rule в Dev Notes для DevOps.
+- [x] Task 6: Alerting на нулевую обработку (AC: 9) — Pre-mortem #1
+  - [x] 6.1: Если `result.processed == 0` при `len(xml_data) > 100` → `logger.error("[ORDERS IMPORT] Zero documents processed from non-empty XML")`.
+  - [x] 6.2: Добавить метрику для мониторинга: `orders_import_zero_processed_total`.
+  - [x] 6.3: Документировать alert rule в Dev Notes для DevOps.
 
-- [ ] Task 7: Защита от регресса статуса (AC: 8) — Pre-mortem #2
-  - [ ] 7.1: Добавить `STATUS_PRIORITY` в `backend/apps/orders/constants.py`:
+- [x] Task 7: Защита от регресса статуса (AC: 8) — Pre-mortem #2
+  - [x] 7.1: Добавить `STATUS_PRIORITY` в `backend/apps/orders/constants.py`:
     ```python
     STATUS_PRIORITY = {
         "pending": 1, "confirmed": 2, "processing": 3,
         "shipped": 4, "delivered": 5, "cancelled": 0, "refunded": 0
     }
     ```
-  - [ ] 7.2: В `OrderStatusImportService._process_order_update()`: если `new_priority < current_priority` и `new_status not in ("cancelled", "refunded")` → skip + `logger.warning("Status regression blocked")`.
-  - [ ] 7.3: Добавить unit-тест: `test_status_regression_blocked`.
-  - [ ] 7.4: Cancelled/refunded всегда разрешены (бизнес-требование: отмена возможна на любом этапе).
+  - [x] 7.2: В `OrderStatusImportService._process_order_update()`: если `new_priority < current_priority` и `new_status not in ("cancelled", "refunded")` → skip + `logger.warning("Status regression blocked")`.
+  - [x] 7.3: Добавить unit-тест: `test_status_regression_blocked`.
+  - [x] 7.4: Cancelled/refunded всегда разрешены (бизнес-требование: отмена возможна на любом этапе).
 
-- [ ] Task 8: Поддержка windows-1251 кодировки (AC: 10) — Pre-mortem #5
-  - [ ] 8.1: В `_handle_orders_xml()` детектировать кодировку из первых 100 байт: `<?xml ... encoding="windows-1251"?>`.
-  - [ ] 8.2: Если не UTF-8 — декодировать и перекодировать в UTF-8 перед передачей в сервис.
-  - [ ] 8.3: Добавить integration-тест: `test_mode_file_orders_xml_windows1251_encoding`.
+- [x] Task 8: Поддержка windows-1251 кодировки (AC: 10) — Pre-mortem #5
+  - [x] 8.1: В `_handle_orders_xml()` детектировать кодировку из первых 100 байт: `<?xml ... encoding="windows-1251"?>`.
+  - [x] 8.2: Если не UTF-8 — декодировать и перекодировать в UTF-8 перед передачей в сервис.
+  - [x] 8.3: Добавить integration-тест: `test_mode_file_orders_xml_windows1251_encoding`.
 
-- [ ] Task 9: Security Hardening (AC: 12, 13) — Security Audit
-  - [ ] 9.1: Добавить throttle class `OneCExchangeThrottle` с rate `60/min` в `backend/apps/integrations/onec_exchange/throttling.py`.
-  - [ ] 9.2: Добавить throttle class `OneCAuthThrottle` с rate `10/min` для `mode=checkauth`.
-  - [ ] 9.3: Применить throttling к `ICExchangeView` через `throttle_classes`.
-  - [ ] 9.4: Реализовать `_validate_xml_timestamp()`: извлечь `<ДатаФормирования>`, проверить < 24 часов.
-  - [ ] 9.5: При stale timestamp → `logger.warning("[SECURITY] Stale XML rejected")` + `failure\nXML timestamp too old`.
-  - [ ] 9.6: (Optional) Добавить `ONEC_EXCHANGE['ALLOWED_IPS']` в settings для IP whitelist.
-  - [ ] 9.7: Добавить security logging для подозрительных событий: `[SECURITY]` prefix.
+- [x] Task 9: Security Hardening (AC: 12, 13) — Security Audit
+  - [x] 9.1: Добавить throttle class `OneCExchangeThrottle` с rate `60/min` в `backend/apps/integrations/onec_exchange/throttling.py`.
+  - [x] 9.2: Добавить throttle class `OneCAuthThrottle` с rate `10/min` для `mode=checkauth`.
+  - [x] 9.3: Применить throttling к `ICExchangeView` через `throttle_classes`.
+  - [x] 9.4: Реализовать `_validate_xml_timestamp()`: извлечь `<ДатаФормирования>`, проверить < 24 часов.
+  - [x] 9.5: При stale timestamp → `logger.warning("[SECURITY] Stale XML rejected")` + `failure\nXML timestamp too old`.
+  - [x] 9.6: (Optional) Добавить `ONEC_EXCHANGE['ALLOWED_IPS']` в settings для IP whitelist.
+  - [x] 9.7: Добавить security logging для подозрительных событий: `[SECURITY]` prefix.
 
-- [ ] Task 10: Field Whitelist Protection (AC: 14) — Red Team R3
-  - [ ] 10.1: Определить `ALLOWED_ORDER_FIELDS = {'Номер', 'Ид', 'ЗначенияРеквизитов'}` в constants.
-  - [ ] 10.2: Определить `ALLOWED_REQUISITES = {'СтатусЗаказа', 'Статус Заказа', 'ДатаОплаты', 'Дата Оплаты', 'ДатаОтгрузки', 'Дата Отгрузки'}`.
-  - [ ] 10.3: В `OrderStatusImportService._parse_document()` игнорировать теги не из whitelist.
-  - [ ] 10.4: При обнаружении неожиданных тегов (Адрес, Сумма, Товары и др.) → `logger.warning("[SECURITY] Unexpected field in orders.xml: {tag}")`.
-  - [ ] 10.5: Добавить метрику `orders_import_unexpected_fields_total` для мониторинга попыток injection.
+- [x] Task 10: Field Whitelist Protection (AC: 14) — Red Team R3
+  - [x] 10.1: Определить `ALLOWED_ORDER_FIELDS = {'Номер', 'Ид', 'ЗначенияРеквизитов'}` в constants.
+  - [x] 10.2: Определить `ALLOWED_REQUISITES = {'СтатусЗаказа', 'Статус Заказа', 'ДатаОплаты', 'Дата Оплаты', 'ДатаОтгрузки', 'Дата Отгрузки'}`.
+  - [x] 10.3: В `OrderStatusImportService._parse_document()` игнорировать теги не из whitelist.
+  - [x] 10.4: При обнаружении неожиданных тегов (Адрес, Сумма, Товары и др.) → `logger.warning("[SECURITY] Unexpected field in orders.xml: {tag}")`.
+  - [x] 10.5: Добавить метрику `orders_import_unexpected_fields_total` для мониторинга попыток injection.
 
 ## Tasks / Subtasks (Review Follow-ups)
 
-- [ ] [AI-Review][High] Синхронизировать статус задач в файле истории: отметить [x] выполненные задачи.
-- [ ] [AI-Review][Medium] Добавить интеграционный тест для Rate Limiting (AC12) в `test_orders_xml_mode_file.py`.
-- [ ] [AI-Review][Medium] Добавить новые файлы (`throttling.py`, `test_orders_xml_mode_file.py`) в git (untracked).
+- [x] [AI-Review][High] Синхронизировать статус задач в файле истории: отметить [x] выполненные задачи.
+- [x] [AI-Review][Medium] Добавить интеграционный тест для Rate Limiting (AC12) в `test_orders_xml_mode_file.py`.
+- [x] [AI-Review][Medium] Добавить новые файлы (`throttling.py`, `test_orders_xml_mode_file.py`) в git (untracked).
 
 ## Dev Notes
 
@@ -482,12 +482,14 @@ N/A
 - Task 8: windows-1251 re-encoding via `_reencode_xml_if_needed`
 - Task 9: Security — `OneCExchangeThrottle` (60/min), `OneCAuthThrottle` (10/min), `_validate_xml_timestamp` (24h)
 - Task 10: Field whitelist — `ALLOWED_REQUISITES` filtering in `_extract_all_requisites`
-- Task 4: 19 integration tests — all passing. 83 existing tests unaffected.
+- Task 4: 20 integration tests — all passing. 73 unit tests unaffected.
+- Review follow-ups: task checkboxes synced, rate limiting integration test added (test_rate_limiting_returns_429)
 
 ### Change Log
 
 - 2026-02-04: Story created by SM agent
 - 2026-02-06: All tasks implemented and tested. Status → review.
+- 2026-02-06: Addressed code review findings — 3 items resolved. Rate limiting integration test added (AC12). Task checkboxes synced. Status → review.
 
 ### File List
 
@@ -496,4 +498,4 @@ N/A
 - `backend/apps/integrations/onec_exchange/routing_service.py` — Added "orders" to `XML_ROUTING_RULES`
 - `backend/apps/orders/constants.py` — Added `STATUS_PRIORITY`, `ALLOWED_ORDER_FIELDS`, `ALLOWED_REQUISITES`
 - `backend/apps/orders/services/order_status_import.py` — Priority-based regression, field whitelist filtering
-- `backend/tests/integration/test_orders_xml_mode_file.py` — NEW: 19 integration tests
+- `backend/tests/integration/test_orders_xml_mode_file.py` — NEW: 20 integration tests
