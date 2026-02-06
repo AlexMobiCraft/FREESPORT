@@ -1,6 +1,6 @@
 # Story 5.1: Сервис импорта статусов (OrderStatusImportService)
 
-Status: review
+Status: in-progress
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -427,6 +427,11 @@ N/A
 - [x] [AI-Review][Low] Regex Optimization: Move `re.compile(r"\s+")` to module level for efficiency. `backend/apps/orders/services/order_status_import.py:342`
 - [x] [AI-Review][Low] Circular Import Workaround: `Order` imported inside methods indicates coupling. `backend/apps/orders/services/order_status_import.py:434`
 - [x] [AI-Review][Low] Code Organization: Consolidate `STATUS_MAPPING_LOWER` (service) and `ProcessingStatus` (constants).
+
+#### Review Follow-ups (Code Review Workflow) - Round 12
+- [ ] [AI-Review][Medium] Business Logic Loophole: Prevent transitions between final statuses (e.g. cancelled -> delivered) to avoid inconsistent states. `backend/apps/orders/services/order_status_import.py:615`
+- [ ] [AI-Review][Low] Data Integrity Risk: Truncate `status_1c` to 255 chars to prevent DB errors on long strings. `backend/apps/orders/services/order_status_import.py:658`
+- [ ] [AI-Review][Low] Test Quality: Add comments explaining the exact query count (6) in `test_bulk_fetch_orders_optimization` to reduce brittleness. `backend/tests/integration/test_order_status_import_db.py:274`
 
 ### Change Log
 
