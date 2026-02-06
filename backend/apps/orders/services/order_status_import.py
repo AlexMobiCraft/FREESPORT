@@ -612,13 +612,24 @@ class OrderStatusImportService:
             logger.warning(error_msg)
             return ProcessingStatus.SKIPPED_UNKNOWN_STATUS, error_msg
 
-        if order.status in FINAL_STATUSES and new_status in ACTIVE_STATUSES:
-            error_msg = (
-                f"Order {order.order_number}: status regression from "
-                f"'{order.status}' to '{new_status}' blocked"
-            )
-            logger.warning(error_msg)
-            return ProcessingStatus.SKIPPED_STATUS_REGRESSION, error_msg
+        # [AI-Review][Medium] Prevent transitions from/between final statuses
+        # 1. Final → Active (e.g., delivered → processing) is regression
+        # 2. Final → Final (e.g., cancelled → delivered) is invalid state change
+        if order.status in FINAL_STATUSES:
+            if new_status in ACTIVE_STATUSES:
+                error_msg = (
+                    f"Order {order.order_number}: status regression from "
+                    f"'{order.status}' to '{new_status}' blocked"
+                )
+                logger.warning(error_msg)
+                return ProcessingStatus.SKIPPED_STATUS_REGRESSION, error_msg
+            if new_status in FINAL_STATUSES and new_status != order.status:
+                error_msg = (
+                    f"Order {order.order_number}: transition between final statuses "
+                    f"'{order.status}' → '{new_status}' blocked"
+                )
+                logger.warning(error_msg)
+                return ProcessingStatus.SKIPPED_STATUS_REGRESSION, error_msg
 
         # Проверяем, нужно ли обновление (идемпотентность AC8)
         status_changed = order.status != new_status or order.status_1c != order_data.status_1c
@@ -655,7 +666,8 @@ class OrderStatusImportService:
 
         if status_changed:
             order.status = new_status
-            order.status_1c = order_data.status_1c  # AC4
+            # [AI-Review][Low] Truncate status_1c to 255 chars to prevent DB errors
+            order.status_1c = order_data.status_1c[:255]  # AC4
             update_fields.extend(["status", "status_1c"])
 
         # Обновление дат (AC5) — обновляем если тег присутствует и значение изменилось

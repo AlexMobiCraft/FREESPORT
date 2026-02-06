@@ -666,6 +666,42 @@ class TestOrderProcessing:
         assert len(first_batch) == 2
         assert len(second_batch) == 1
 
+    def test_status_1c_truncated_to_255_chars(self):
+        """[AI-Review][Low] status_1c обрезается до 255 символов для защиты от DB error."""
+        # ARRANGE
+        order_number = f"FS-LONG-{get_unique_suffix()}"
+        long_status = "А" * 300  # 300 символов кириллицы
+        xml_data = build_test_xml(order_number=order_number, status=long_status)
+
+        mock_order = MagicMock()
+        mock_order.order_number = order_number
+        mock_order.status = "pending"
+        mock_order.status_1c = ""
+        mock_order.paid_at = None
+        mock_order.shipped_at = None
+        mock_order.sent_to_1c = False
+        mock_order.sent_to_1c_at = None
+        mock_order.payment_status = "pending"
+
+        # status_1c не в STATUS_MAPPING — будет skipped_unknown_status
+        # Но логика truncate срабатывает в _process_order_update перед save
+        # Чтобы протестировать truncate, добавим статус в mapping временно
+        with patch.dict(STATUS_MAPPING, {long_status: "confirmed"}), \
+             patch.dict(STATUS_MAPPING_LOWER, {long_status.lower(): "confirmed"}):
+            service = OrderStatusImportService()
+            mock_cache = {f"num:{order_number}": mock_order}
+
+            with patch.object(service, "_bulk_fetch_orders", return_value=mock_cache):
+                # ACT
+                result = service.process(xml_data)
+
+                # ASSERT
+                assert result.updated == 1
+                # status_1c должен быть обрезан до 255 символов
+                assert len(mock_order.status_1c) == 255
+                assert mock_order.status_1c == long_status[:255]
+                mock_order.save.assert_called_once()
+
 
 @pytest.mark.unit
 class TestFindOrder:
@@ -1592,6 +1628,55 @@ class TestRound7ReviewFollowups:
             assert result.skipped_status_regression == 1
             assert result.skipped_unknown_status == 0
             mock_order.save.assert_not_called()
+            assert mock_order.status == current_status
+
+    @pytest.mark.parametrize(
+        ("current_status", "current_1c", "new_1c_status", "target_status"),
+        [
+            # cancelled → delivered (blocked)
+            ("cancelled", "Отменен", "Доставлен", "delivered"),
+            # cancelled → refunded (blocked)
+            ("cancelled", "Отменен", "Возвращен", "refunded"),
+            # delivered → cancelled (blocked)
+            ("delivered", "Доставлен", "Отменен", "cancelled"),
+            # delivered → refunded (blocked)
+            ("delivered", "Доставлен", "Возвращен", "refunded"),
+            # refunded → cancelled (blocked)
+            ("refunded", "Возвращен", "Отменен", "cancelled"),
+            # refunded → delivered (blocked)
+            ("refunded", "Возвращен", "Доставлен", "delivered"),
+        ],
+    )
+    def test_transition_between_final_statuses_is_blocked(
+        self, current_status, current_1c, new_1c_status, target_status
+    ):
+        """[AI-Review][Medium] Переходы между финальными статусами блокируются."""
+        # ARRANGE
+        order_number = f"FS-FINAL-TRANS-{get_unique_suffix()}"
+        xml_data = build_test_xml(order_number=order_number, status=new_1c_status)
+
+        mock_order = MagicMock()
+        mock_order.order_number = order_number
+        mock_order.status = current_status
+        mock_order.status_1c = current_1c
+        mock_order.paid_at = None
+        mock_order.shipped_at = None
+        mock_order.sent_to_1c = True
+        mock_order.sent_to_1c_at = timezone.now()
+        mock_order.payment_status = "paid"
+
+        service = OrderStatusImportService()
+        mock_cache = {f"num:{order_number}": mock_order}
+
+        with patch.object(service, "_bulk_fetch_orders", return_value=mock_cache):
+            # ACT
+            result = service.process(xml_data)
+
+            # ASSERT — переход между финальными статусами блокируется
+            assert result.updated == 0
+            assert result.skipped_status_regression == 1
+            mock_order.save.assert_not_called()
+            # Статус не изменился
             assert mock_order.status == current_status
 
     def test_status_update_logged_at_debug(self, caplog):

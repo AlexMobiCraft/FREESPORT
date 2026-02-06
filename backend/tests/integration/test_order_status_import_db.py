@@ -271,6 +271,13 @@ class TestOrderStatusImportDBIntegration(TestCase):
 """
 
         # ACT
+        # Query count breakdown (6 total):
+        # 1. SAVEPOINT — transaction.atomic() start
+        # 2. SELECT ... FOR UPDATE — bulk fetch all 3 orders in one query
+        # 3. UPDATE order 1 — save() with update_fields
+        # 4. UPDATE order 2 — save() with update_fields
+        # 5. UPDATE order 3 — save() with update_fields
+        # 6. RELEASE SAVEPOINT — transaction.atomic() commit
         with cast(Any, self).assertNumQueries(6):
             result = self.service.process(xml_data)
 
@@ -361,3 +368,69 @@ class TestMaxErrorsLimit(TestCase):
         self.assertEqual(result.not_found, 0)
         self.assertEqual(result.skipped_data_conflict, 1)  # Пропущен из-за конфликта
         self.assertEqual(len(result.errors), 1)  # Ошибка конфликта должна быть записана
+
+
+@pytest.mark.integration
+@pytest.mark.django_db
+class TestFinalStatusTransitionsDB(TestCase):
+    """[AI-Review][Medium] Интеграционные тесты блокировки переходов между финальными статусами."""
+
+    def setUp(self):
+        """Создать тестовый заказ в БД."""
+        from decimal import Decimal
+
+        self.order_number = f"FS-FINAL-{get_unique_suffix()}"
+        self.order = Order.objects.create(
+            order_number=self.order_number,
+            status="delivered",  # Финальный статус
+            status_1c="Доставлен",
+            sent_to_1c=True,
+            sent_to_1c_at=timezone.now(),
+            paid_at=None,
+            shipped_at=None,
+            delivery_address="Тестовый адрес",
+            delivery_method="courier",
+            payment_method="card",
+            total_amount=Decimal("100.00"),
+        )
+        self.service = OrderStatusImportService()
+
+    def test_transition_between_final_statuses_blocked_in_db(self):
+        """Переход delivered → cancelled блокируется и не сохраняется в БД."""
+        # ARRANGE
+        xml_data = build_test_xml(
+            order_number=self.order_number,
+            status="Отменен",  # cancelled — другой финальный статус
+        )
+
+        # ACT
+        result = self.service.process(xml_data)
+
+        # ASSERT — переход не выполнен
+        self.order.refresh_from_db()
+        self.assertEqual(result.updated, 0)
+        self.assertEqual(result.skipped_status_regression, 1)
+        # Статус в БД не изменился
+        self.assertEqual(self.order.status, "delivered")
+        self.assertEqual(self.order.status_1c, "Доставлен")
+
+    def test_transition_cancelled_to_refunded_blocked_in_db(self):
+        """Переход cancelled → refunded блокируется."""
+        # ARRANGE — меняем статус на cancelled
+        self.order.status = "cancelled"
+        self.order.status_1c = "Отменен"
+        self.order.save()
+
+        xml_data = build_test_xml(
+            order_number=self.order_number,
+            status="Возвращен",  # refunded — другой финальный статус
+        )
+
+        # ACT
+        result = self.service.process(xml_data)
+
+        # ASSERT — переход не выполнен
+        self.order.refresh_from_db()
+        self.assertEqual(result.updated, 0)
+        self.assertEqual(result.skipped_status_regression, 1)
+        self.assertEqual(self.order.status, "cancelled")
