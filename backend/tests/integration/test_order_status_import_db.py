@@ -101,7 +101,9 @@ class TestOrderStatusImportDBIntegration(TestCase):
     def test_update_fields_status_persisted_to_db(self):
         """Проверка: status и status_1c сохраняются в БД."""
         # ARRANGE
+        # [AI-Review][Medium] Data Integrity: order_id должен соответствовать реальному pk
         xml_data = build_test_xml(
+            order_id=f"{ORDER_ID_PREFIX}{self.order.pk}",
             order_number=self.order_number,
             status="Отгружен",
         )
@@ -118,7 +120,9 @@ class TestOrderStatusImportDBIntegration(TestCase):
     def test_update_fields_dates_persisted_to_db(self):
         """Проверка: paid_at и shipped_at сохраняются в БД."""
         # ARRANGE
+        # [AI-Review][Medium] Data Integrity: order_id должен соответствовать реальному pk
         xml_data = build_test_xml(
+            order_id=f"{ORDER_ID_PREFIX}{self.order.pk}",
             order_number=self.order_number,
             status="Доставлен",
             paid_date="2026-02-01T10:30:00",
@@ -144,7 +148,9 @@ class TestOrderStatusImportDBIntegration(TestCase):
         self.assertFalse(self.order.sent_to_1c)
         self.assertIsNone(self.order.sent_to_1c_at)
 
+        # [AI-Review][Medium] Data Integrity: order_id должен соответствовать реальному pk
         xml_data = build_test_xml(
+            order_id=f"{ORDER_ID_PREFIX}{self.order.pk}",
             order_number=self.order_number,
             status="Подтвержден",
         )
@@ -174,7 +180,9 @@ class TestOrderStatusImportDBIntegration(TestCase):
         self.order.sent_to_1c_at = previous_sent_to_1c_at
         self.order.save()
 
+        # [AI-Review][Medium] Data Integrity: order_id должен соответствовать реальному pk
         xml_data = build_test_xml(
+            order_id=f"{ORDER_ID_PREFIX}{self.order.pk}",
             order_number=self.order_number,
             status="Отгружен",
         )
@@ -398,7 +406,9 @@ class TestFinalStatusTransitionsDB(TestCase):
     def test_transition_between_final_statuses_blocked_in_db(self):
         """Переход delivered → cancelled блокируется и не сохраняется в БД."""
         # ARRANGE
+        # [AI-Review][Medium] Data Integrity: order_id должен соответствовать реальному pk
         xml_data = build_test_xml(
+            order_id=f"{ORDER_ID_PREFIX}{self.order.pk}",
             order_number=self.order_number,
             status="Отменен",  # cancelled — другой финальный статус
         )
@@ -421,7 +431,9 @@ class TestFinalStatusTransitionsDB(TestCase):
         self.order.status_1c = "Отменен"
         self.order.save()
 
+        # [AI-Review][Medium] Data Integrity: order_id должен соответствовать реальному pk
         xml_data = build_test_xml(
+            order_id=f"{ORDER_ID_PREFIX}{self.order.pk}",
             order_number=self.order_number,
             status="Возвращен",  # refunded — другой финальный статус
         )

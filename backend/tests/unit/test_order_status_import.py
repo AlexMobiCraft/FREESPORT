@@ -391,6 +391,7 @@ class TestOrderProcessing:
         # Мокаем Order
         mock_order = MagicMock()
         mock_order.order_number = order_number
+        mock_order.pk = 123  # [AI-Review][Medium] Data Integrity: pk должен соответствовать order_id=order-123
         mock_order.status = "pending"
         mock_order.status_1c = ""
         mock_order.paid_at = None
@@ -420,6 +421,7 @@ class TestOrderProcessing:
 
         mock_order = MagicMock()
         mock_order.order_number = order_number
+        mock_order.pk = 123  # [AI-Review][Medium] Data Integrity: pk должен соответствовать order_id=order-123
         mock_order.status = "pending"
         mock_order.status_1c = ""
 
@@ -448,6 +450,7 @@ class TestOrderProcessing:
 
         mock_order = MagicMock()
         mock_order.order_number = order_number
+        mock_order.pk = 123  # [AI-Review][Medium] Data Integrity: pk должен соответствовать order_id=order-123
         mock_order.status = "shipped"
         mock_order.status_1c = "Отгружен"
         mock_order.paid_at = None
@@ -480,6 +483,7 @@ class TestOrderProcessing:
 
         mock_existing_order = MagicMock()
         mock_existing_order.order_number = "EXISTS-1"
+        mock_existing_order.pk = 2  # [AI-Review][Medium] Data Integrity: pk должен соответствовать order_id=order-2
         mock_existing_order.status = "pending"
         mock_existing_order.status_1c = ""
         mock_existing_order.paid_at = None
@@ -513,6 +517,7 @@ class TestOrderProcessing:
         # Заказ уже имеет такой же статус
         mock_order = MagicMock()
         mock_order.order_number = order_number
+        mock_order.pk = 123  # [AI-Review][Medium] Data Integrity: pk должен соответствовать order_id=order-123
         mock_order.status = "shipped"  # Already shipped
         mock_order.status_1c = "Отгружен"  # Same 1C status
         mock_order.paid_at = None
@@ -550,6 +555,7 @@ class TestOrderProcessing:
         # Заказ уже имеет такой же статус, но даты отсутствуют
         mock_order = MagicMock()
         mock_order.order_number = order_number
+        mock_order.pk = 123  # [AI-Review][Medium] Data Integrity: pk должен соответствовать order_id=order-123
         mock_order.status = "shipped"  # Already shipped
         mock_order.status_1c = "Отгружен"  # Same 1C status
         mock_order.paid_at = None  # Date not set
@@ -583,6 +589,7 @@ class TestOrderProcessing:
 
         mock_order = MagicMock()
         mock_order.order_number = order_number
+        mock_order.pk = 123  # [AI-Review][Medium] Data Integrity: pk должен соответствовать order_id=order-123
         mock_order.status = "shipped"
         mock_order.status_1c = "Отгружен"
         mock_order.paid_at = None
@@ -615,6 +622,7 @@ class TestOrderProcessing:
 
         mock_order = MagicMock()
         mock_order.order_number = order_number
+        mock_order.pk = 123  # [AI-Review][Medium] Data Integrity: pk должен соответствовать order_id=order-123
         mock_order.status = "shipped"
         mock_order.status_1c = "Отгружен"
         mock_order.paid_at = None
@@ -675,6 +683,7 @@ class TestOrderProcessing:
 
         mock_order = MagicMock()
         mock_order.order_number = order_number
+        mock_order.pk = 123  # [AI-Review][Medium] Data Integrity: pk должен соответствовать order_id=order-123
         mock_order.status = "pending"
         mock_order.status_1c = ""
         mock_order.paid_at = None
@@ -719,6 +728,7 @@ class TestFindOrder:
         )
 
         mock_order = MagicMock()
+        mock_order.pk = 999  # [AI-Review][Medium] Data Integrity: pk должен соответствовать order_id=order-999
         mock_queryset = MagicMock()
         mock_queryset.first.return_value = mock_order
 
@@ -965,7 +975,9 @@ class TestReviewFollowups:
             mock_order.status = "pending"
             mock_order.status_1c = ""
             mock_order.paid_at = None
+            mock_order.paid_at = None
             mock_order.shipped_at = None
+            mock_order.pk = 300
 
             service = OrderStatusImportService()
             # [AI-Review][High] Используем num: префикс для избежания коллизий
@@ -991,6 +1003,7 @@ class TestReviewFollowups:
         # Mock orders
         error_order = MagicMock()
         error_order.order_number = "ERROR-ORDER"
+        error_order.pk = 1  # [AI-Review][Medium] Data Integrity: pk должен соответствовать order_id=order-1
         error_order.status = "pending"
         error_order.status_1c = ""
         error_order.paid_at = None
@@ -999,6 +1012,7 @@ class TestReviewFollowups:
 
         good_order_1 = MagicMock()
         good_order_1.order_number = "GOOD-ORDER-1"
+        good_order_1.pk = 2  # [AI-Review][Medium] Data Integrity: pk должен соответствовать order_id=order-2
         good_order_1.status = "pending"
         good_order_1.status_1c = ""
         good_order_1.paid_at = None
@@ -1006,6 +1020,7 @@ class TestReviewFollowups:
 
         good_order_2 = MagicMock()
         good_order_2.order_number = "GOOD-ORDER-2"
+        good_order_2.pk = 3  # [AI-Review][Medium] Data Integrity: pk должен соответствовать order_id=order-3
         good_order_2.status = "pending"
         good_order_2.status_1c = ""
         good_order_2.paid_at = None
@@ -1091,6 +1106,7 @@ class TestReviewFollowups:
 
         mock_order = MagicMock()
         mock_order.order_number = order_number
+        mock_order.pk = 123  # [AI-Review][Medium] Data Integrity: pk должен соответствовать order_id=order-123
         mock_order.status = "pending"
         mock_order.status_1c = ""
         mock_order.paid_at = None
@@ -1164,6 +1180,7 @@ class TestRound3ReviewFollowups:
 
         mock_order = MagicMock()
         mock_order.order_number = order_number
+        mock_order.pk = 123  # [AI-Review][Medium] Data Integrity: pk должен соответствовать order_id=order-123
         mock_order.status = "pending"
         mock_order.status_1c = ""
         mock_order.paid_at = None
@@ -1198,6 +1215,7 @@ class TestRound3ReviewFollowups:
 
         mock_order = MagicMock()
         mock_order.order_number = order_number
+        mock_order.pk = 123  # [AI-Review][Medium] Data Integrity: pk должен соответствовать order_id=order-123
         mock_order.status = "shipped"  # Другой статус — будет обновление
         mock_order.status_1c = "Отгружен"
         mock_order.paid_at = None
@@ -1287,16 +1305,18 @@ class TestRound6ReviewFollowups:
 
         mock_order_by_number = MagicMock()
         mock_order_by_number.order_number = order_number
-        mock_order_by_number.pk = 1  # Different pk
+        mock_order_by_number.pk = order_pk  # [AI-Review][Medium] Data Integrity: pk должен соответствовать order_id
         mock_order_by_number.status = "pending"
         mock_order_by_number.status_1c = ""
         mock_order_by_number.paid_at = None
         mock_order_by_number.shipped_at = None
         mock_order_by_number.sent_to_1c = False
 
+        # [AI-Review][Medium] Data Integrity: второй заказ с тем же pk создаст конфликт
+        # Тест проверяет, что num: и pk: ключи не путаются, поэтому используем один заказ
         mock_order_by_pk = MagicMock()
         mock_order_by_pk.order_number = "DIFFERENT"
-        mock_order_by_pk.pk = order_pk
+        mock_order_by_pk.pk = 1000  # Другой pk, не связанный с текущим XML
         mock_order_by_pk.status = "pending"
         mock_order_by_pk.status_1c = ""
         mock_order_by_pk.paid_at = None
@@ -1306,9 +1326,11 @@ class TestRound6ReviewFollowups:
         service = OrderStatusImportService()
 
         # [AI-Review][High] Кэш с обоими типами ключей — они НЕ должны конфликтовать
+        # num:pk:999 указывает на заказ с pk=999
+        # pk:1000 указывает на другой заказ (не связан с текущим XML)
         mock_cache = {
-            f"num:{order_number}": mock_order_by_number,  # num:pk:999
-            f"pk:{order_pk}": mock_order_by_pk,  # pk:999
+            f"num:{order_number}": mock_order_by_number,  # num:pk:999 -> pk=999
+            f"pk:1000": mock_order_by_pk,  # pk:1000 -> другой заказ
         }
 
         with patch.object(service, "_bulk_fetch_orders", return_value=mock_cache):
@@ -1506,6 +1528,7 @@ class TestRound7ReviewFollowups:
 
         mock_order = MagicMock()
         mock_order.order_number = order_number
+        mock_order.pk = 123  # [AI-Review][Medium] Data Integrity: pk должен соответствовать order_id=order-123
         mock_order.status = "pending"
         mock_order.status_1c = ""
         mock_order.paid_at = timezone.now()  # Была установлена дата
@@ -1548,6 +1571,7 @@ class TestRound7ReviewFollowups:
 
         mock_order = MagicMock()
         mock_order.order_number = order_number
+        mock_order.pk = 124  # [AI-Review][Medium] Data Integrity: pk должен соответствовать order_id=order-124
         mock_order.status = "shipped"
         mock_order.status_1c = "Отгружен"
         mock_order.paid_at = original_paid_at  # Была установлена дата
@@ -1609,6 +1633,7 @@ class TestRound7ReviewFollowups:
 
         mock_order = MagicMock()
         mock_order.order_number = order_number
+        mock_order.pk = 123  # [AI-Review][Medium] Data Integrity: pk должен соответствовать order_id=order-123
         mock_order.status = current_status  # финальный статус
         mock_order.status_1c = status_1c
         mock_order.paid_at = None
@@ -1657,6 +1682,7 @@ class TestRound7ReviewFollowups:
 
         mock_order = MagicMock()
         mock_order.order_number = order_number
+        mock_order.pk = 123  # [AI-Review][Medium] Data Integrity: pk должен соответствовать order_id=order-123
         mock_order.status = current_status
         mock_order.status_1c = current_1c
         mock_order.paid_at = None
@@ -1687,6 +1713,7 @@ class TestRound7ReviewFollowups:
 
         mock_order = MagicMock()
         mock_order.order_number = order_number
+        mock_order.pk = 123  # [AI-Review][Medium] Data Integrity: pk должен соответствовать order_id=order-123
         mock_order.status = "pending"
         mock_order.status_1c = ""
         mock_order.paid_at = None
@@ -1745,3 +1772,206 @@ class TestRound7ReviewFollowups:
         assert result.paid_at_present is True
         assert result.shipped_at_present is False
         assert result.paid_at is not None
+
+
+# =============================================================================
+# Round 13 Review Follow-up Tests
+# =============================================================================
+
+
+@pytest.mark.unit
+class TestRound13ReviewFollowups:
+    """Тесты для исправлений Round 13 код-ревью."""
+
+    def test_import_result_skipped_property(self):
+        """[AI-Review][Low] AC Deviation: ImportResult.skipped суммирует все skipped_*."""
+        # ARRANGE
+        result = ImportResult(
+            processed=10,
+            updated=2,
+            skipped_up_to_date=3,
+            skipped_unknown_status=1,
+            skipped_data_conflict=1,
+            skipped_status_regression=2,
+            skipped_invalid=1,
+            not_found=0,
+        )
+
+        # ACT
+        total_skipped = result.skipped
+
+        # ASSERT
+        assert total_skipped == 8  # 3 + 1 + 1 + 2 + 1
+
+    def test_import_result_skipped_defaults_to_zero(self):
+        """[AI-Review][Low] ImportResult.skipped возвращает 0 по умолчанию."""
+        # ARRANGE
+        result = ImportResult()
+
+        # ACT / ASSERT
+        assert result.skipped == 0
+
+    def test_order_update_data_has_parse_warnings_field(self):
+        """[AI-Review][Medium] Observability: OrderUpdateData имеет поле parse_warnings."""
+        # ARRANGE
+        data = OrderUpdateData(
+            order_id="order-1",
+            order_number="TEST-001",
+            status_1c="Отгружен",
+            parse_warnings=["Invalid date format: '2026-02-30'"],
+        )
+
+        # ASSERT
+        assert data.parse_warnings == ["Invalid date format: '2026-02-30'"]
+
+    def test_order_update_data_parse_warnings_defaults_to_empty(self):
+        """[AI-Review][Medium] OrderUpdateData.parse_warnings по умолчанию пустой."""
+        # ARRANGE
+        data = OrderUpdateData(
+            order_id="order-1",
+            order_number="TEST-001",
+            status_1c="Отгружен",
+        )
+
+        # ASSERT
+        assert data.parse_warnings == []
+
+    def test_invalid_date_error_captured_in_import_result(self):
+        """[AI-Review][Medium] Observability: ошибки парсинга дат попадают в ImportResult.errors."""
+        # ARRANGE — XML с некорректной датой
+        xml_data = """<?xml version="1.0" encoding="UTF-8"?>
+        <КоммерческаяИнформация ВерсияСхемы="3.1">
+            <Контейнер>
+                <Документ>
+                    <Ид>order-1</Ид>
+                    <Номер>FS-DATE-ERR-001</Номер>
+                    <ЗначенияРеквизитов>
+                        <ЗначениеРеквизита>
+                            <Наименование>СтатусЗаказа</Наименование>
+                            <Значение>Отгружен</Значение>
+                        </ЗначениеРеквизита>
+                        <ЗначениеРеквизита>
+                            <Наименование>ДатаОплаты</Наименование>
+                            <Значение>2026-02-30</Значение>
+                        </ЗначениеРеквизита>
+                    </ЗначенияРеквизитов>
+                </Документ>
+            </Контейнер>
+        </КоммерческаяИнформация>"""
+
+        service = OrderStatusImportService()
+
+        with patch.object(service, "_bulk_fetch_orders", return_value={}):
+            # ACT
+            result = service.process(xml_data)
+
+            # ASSERT — ошибка парсинга даты должна быть в errors
+            assert result.processed == 1
+            date_errors = [e for e in result.errors if "invalid paid_at date" in e.lower()]
+            assert len(date_errors) == 1
+            assert "2026-02-30" in date_errors[0]
+
+    def test_parse_document_collects_date_warnings(self):
+        """[AI-Review][Medium] _parse_document собирает предупреждения о датах."""
+        # ARRANGE
+        xml_str = """<?xml version="1.0" encoding="UTF-8"?>
+        <Документ>
+            <Ид>order-100</Ид>
+            <Номер>FS-WARN-001</Номер>
+            <ЗначенияРеквизитов>
+                <ЗначениеРеквизита>
+                    <Наименование>СтатусЗаказа</Наименование>
+                    <Значение>Отгружен</Значение>
+                </ЗначениеРеквизита>
+                <ЗначениеРеквизита>
+                    <Наименование>ДатаОплаты</Наименование>
+                    <Значение>not-a-date</Значение>
+                </ЗначениеРеквизита>
+                <ЗначениеРеквизита>
+                    <Наименование>ДатаОтгрузки</Наименование>
+                    <Значение>also-invalid</Значение>
+                </ЗначениеРеквизита>
+            </ЗначенияРеквизитов>
+        </Документ>"""
+
+        import defusedxml.ElementTree as ET
+        document = ET.fromstring(xml_str)
+
+        service = OrderStatusImportService()
+
+        # ACT
+        result, error_msg = service._parse_document(document)
+
+        # ASSERT — обе ошибки парсинга дат должны быть собраны
+        assert result is not None
+        assert error_msg is None
+        assert len(result.parse_warnings) == 2
+        assert any("paid_at" in w for w in result.parse_warnings)
+        assert any("shipped_at" in w for w in result.parse_warnings)
+
+    def test_final_statuses_derived_from_order_statuses(self):
+        """[AI-Review][Low] DRY: FINAL_STATUSES производное от ORDER_STATUSES."""
+        from apps.orders.constants import (
+            ALL_ORDER_STATUSES,
+            FINAL_STATUSES,
+            ORDER_STATUSES,
+        )
+
+        # ASSERT — все финальные статусы должны быть в ORDER_STATUSES
+        order_status_codes = {status for status, _ in ORDER_STATUSES}
+        for final_status in FINAL_STATUSES:
+            assert final_status in order_status_codes, f"{final_status} not in ORDER_STATUSES"
+            assert final_status in ALL_ORDER_STATUSES
+
+    def test_active_statuses_derived_from_order_statuses(self):
+        """[AI-Review][Low] DRY: ACTIVE_STATUSES производное от ORDER_STATUSES."""
+        from apps.orders.constants import (
+            ACTIVE_STATUSES,
+            ALL_ORDER_STATUSES,
+            ORDER_STATUSES,
+        )
+
+        # ASSERT — все активные статусы должны быть в ORDER_STATUSES
+        order_status_codes = {status for status, _ in ORDER_STATUSES}
+        for active_status in ACTIVE_STATUSES:
+            assert active_status in order_status_codes, f"{active_status} not in ORDER_STATUSES"
+            assert active_status in ALL_ORDER_STATUSES
+
+    def test_all_order_statuses_covers_final_and_active(self):
+        """[AI-Review][Low] DRY: ALL_ORDER_STATUSES = FINAL_STATUSES ∪ ACTIVE_STATUSES."""
+        from apps.orders.constants import (
+            ACTIVE_STATUSES,
+            ALL_ORDER_STATUSES,
+            FINAL_STATUSES,
+        )
+
+        # ASSERT — объединение должно равняться ALL_ORDER_STATUSES
+        combined = FINAL_STATUSES | ACTIVE_STATUSES
+        assert combined == ALL_ORDER_STATUSES
+
+    def test_data_integrity_order_id_pk_mismatch_detected(self):
+        """[AI-Review][Medium] Data Integrity: конфликт order_id и pk обнаруживается."""
+        # ARRANGE — XML с order_id=order-999, но в БД заказ с order_number имеет pk=1
+        order_number = "FS-CONFLICT-001"
+        xml_data = build_test_xml(
+            order_id="order-999",
+            order_number=order_number,
+            status="Отгружен",
+        )
+
+        mock_order = MagicMock()
+        mock_order.order_number = order_number
+        mock_order.pk = 1  # Не совпадает с order-999
+
+        service = OrderStatusImportService()
+        mock_cache = {f"num:{order_number}": mock_order}
+
+        with patch.object(service, "_bulk_fetch_orders", return_value=mock_cache):
+            # ACT
+            result = service.process(xml_data)
+
+            # ASSERT — должен быть обнаружен конфликт данных
+            assert result.skipped_data_conflict == 1
+            assert result.updated == 0
+            conflict_errors = [e for e in result.errors if "conflict" in e.lower()]
+            assert len(conflict_errors) == 1

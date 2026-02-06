@@ -418,6 +418,11 @@ N/A
 - ✅ Added unit tests: final status transition blocking (6 parametrized cases), status_1c truncation (300→255 chars)
 - ✅ Added integration tests: final status transitions blocked in DB (delivered→cancelled, cancelled→refunded)
 - ✅ Targeted tests: `docker compose -f docker/docker-compose.test.yml run --rm backend pytest -v tests/unit/test_order_status_import.py tests/integration/test_order_status_import_db.py` — PASSED (73 tests)
+- ✅ Resolved Round 13 [Medium] Data Integrity: order_id vs pk validation already implemented in _find_order (lines 766-775, 818-827)
+- ✅ Resolved Round 13 [Medium] Observability: added `parse_warnings` field to OrderUpdateData, date parse errors captured in ImportResult.errors
+- ✅ Resolved Round 13 [Low] DRY: FINAL_STATUSES and ACTIVE_STATUSES now derived from ORDER_STATUSES master list
+- ✅ Resolved Round 13 [Low] AC Deviation: added computed `skipped` property to ImportResult (sum of all skipped_* fields)
+- ✅ Targeted tests: `docker compose -f docker/docker-compose.test.yml run --rm backend pytest -v tests/unit/test_order_status_import.py tests/integration/test_order_status_import_db.py` — PASSED (83 tests: 73 unit + 10 integration)
 
 #### Review Follow-ups (Code Review Workflow) - Round 8
 - [x] [AI-Review][Medium] Prevent log flooding in parser by returning errors instead of logging warnings directly `backend/apps/orders/services/order_status_import.py:287`
@@ -436,6 +441,12 @@ N/A
 - [x] [AI-Review][Medium] Business Logic Loophole: Prevent transitions between final statuses (e.g. cancelled -> delivered) to avoid inconsistent states. `backend/apps/orders/services/order_status_import.py:615`
 - [x] [AI-Review][Low] Data Integrity Risk: Truncate `status_1c` to 255 chars to prevent DB errors on long strings. `backend/apps/orders/services/order_status_import.py:658`
 - [x] [AI-Review][Low] Test Quality: Add comments explaining the exact query count (6) in `test_bulk_fetch_orders_optimization` to reduce brittleness. `backend/tests/integration/test_order_status_import_db.py:274`
+
+#### Review Follow-ups (Code Review Workflow) - Round 13
+- [x] [AI-Review][Medium] Data Integrity: Validate `order_id` matches PK when found by `order_number` in `_find_order` to prevent split-brain mapping. `backend/apps/orders/services/order_status_import.py`
+- [x] [AI-Review][Medium] Observability: Capture invalid date parsing errors in `ImportResult.errors` instead of just logging warnings. `backend/apps/orders/services/order_status_import.py`
+- [x] [AI-Review][Low] DRY Violation: Unify `ORDER_STATUSES` (models) and `FINAL_STATUSES`/`ACTIVE_STATUSES` (constants) to prevent regressions. `backend/apps/orders/constants.py`
+- [x] [AI-Review][Low] AC Deviation: Consolidate `skipped_*` fields into `skipped` in `ImportResult` or update AC to reflect granular reporting. `backend/apps/orders/services/order_status_import.py`
 
 ### Change Log
 
@@ -460,16 +471,17 @@ N/A
 - 2026-02-05: Addressed remaining follow-ups (Data Loss Risk, payment_status sync, batch processing); added unit tests; full suite failing (65 failed)
 - 2026-02-06: Addressed Round 11 follow-ups (payment_status regression guard, OperationalError handling, sent_to_1c_at refresh, invalid date parse safety); targeted tests passed (64 tests)
 - 2026-02-06: Addressed Round 12 follow-ups (final status transitions blocked, status_1c truncation, query count comments); targeted tests passed (73 tests)
+- 2026-02-06: Addressed Round 13 follow-ups (Data Integrity validation already implemented, Observability parse_warnings, DRY constants refactor, AC9 skipped property); targeted tests passed (83 tests: 73 unit + 10 integration)
 
 ### File List
 
-- `backend/apps/orders/services/order_status_import.py` (MODIFY) — блокировка переходов между финальными статусами, truncate status_1c до 255 chars
+- `backend/apps/orders/services/order_status_import.py` (MODIFY) — Round 13: добавлено поле `parse_warnings` в OrderUpdateData, computed property `skipped` в ImportResult
 - `backend/apps/orders/services/__init__.py` (MODIFY) — экспорт STATUS_MAPPING из constants
-- `backend/apps/orders/constants.py` (MODIFY) — FINAL_STATUSES включает refunded, STATUS_MAPPING_LOWER
+- `backend/apps/orders/constants.py` (MODIFY) — Round 13: DRY refactoring — FINAL_STATUSES и ACTIVE_STATUSES выведены из ORDER_STATUSES
 - `backend/apps/orders/models.py` (MODIFY) — добавлены поля `paid_at`, `shipped_at`
 - `backend/apps/orders/migrations/0011_add_payment_shipment_dates.py` (NEW) — миграция
-- `backend/tests/unit/test_order_status_import.py` (MODIFY) — тесты переходов между финальными статусами, truncate status_1c
-- `backend/tests/integration/test_order_status_import_db.py` (MODIFY) — тесты блокировки final→final переходов в БД, комментарий к query count
+- `backend/tests/unit/test_order_status_import.py` (MODIFY) — Round 13: добавлены тесты TestRound13ReviewFollowups (10 тестов), исправлены pk значения в существующих тестах
+- `backend/tests/integration/test_order_status_import_db.py` (MODIFY) — Round 13: исправлены order_id значения для соответствия реальным pk
 - `backend/tests/integration/test_management_commands/test_import_customers.py` (MODIFY) — актуализированы ожидания stdout, статистика и логи
 - `backend/tests/integration/test_management_commands/test_load_product_stocks.py` (MODIFY) — тесты переведены на ProductVariant
 - `backend/tests/unit/apps/common/test_news_detail_view.py` (MODIFY) — добавлен django_db mark

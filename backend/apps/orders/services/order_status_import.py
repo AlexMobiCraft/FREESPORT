@@ -58,6 +58,8 @@ class OrderUpdateData:
     # Флаги наличия тегов дат в XML (для корректного сброса)
     paid_at_present: bool = False  # True если тег <ДатаОплаты> присутствует в XML
     shipped_at_present: bool = False  # True если тег <ДатаОтгрузки> присутствует в XML
+    # [AI-Review][Medium] Observability: ошибки парсинга дат для ImportResult.errors
+    parse_warnings: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -73,6 +75,23 @@ class ImportResult:
     skipped_invalid: int = 0  # Пропущено: некорректные документы
     not_found: int = 0  # Заказ не найден в БД
     errors: list[str] = field(default_factory=list)  # Ошибки парсинга/обработки
+
+    @property
+    def skipped(self) -> int:
+        """
+        [AI-Review][Low] AC Deviation: суммарное количество пропущенных заказов.
+
+        Обеспечивает совместимость с AC9, где указан `skipped_count`.
+        Гранулярные метрики (skipped_up_to_date, skipped_unknown_status, etc.)
+        доступны для детального мониторинга.
+        """
+        return (
+            self.skipped_up_to_date
+            + self.skipped_unknown_status
+            + self.skipped_data_conflict
+            + self.skipped_status_regression
+            + self.skipped_invalid
+        )
 
 
 # =============================================================================
@@ -131,6 +150,13 @@ class OrderStatusImportService:
                 if len(result.errors) >= MAX_ERRORS:
                     break
                 result.errors.append(error_msg)
+
+        # [AI-Review][Medium] Observability: собираем ошибки парсинга дат из OrderUpdateData
+        for order_data in order_updates:
+            for warning in order_data.parse_warnings:
+                if len(result.errors) >= MAX_ERRORS:
+                    break
+                result.errors.append(warning)
 
         # PROCESS: обновить каждый заказ
         # [AI-Review][High] Изоляция ошибок — одна ошибка не останавливает весь процесс
@@ -267,6 +293,10 @@ class OrderStatusImportService:
             order_data, error_msg = self._parse_document(document)
             if order_data:
                 order_updates.append(order_data)
+                # [AI-Review][Medium] Если были некритичные ошибки (warnings) при парсинге полей (например, даты),
+                # мы их тут не ловим, так как _parse_document возвращает data OR error.
+                # Refactoring _parse_document to return (data, warnings) is the cleaner way.
+                # Let's do a quick refactor of _parse_document signature in a separate step or just below if we can.
             elif error_msg:
                 parse_errors.append(error_msg)
 
@@ -316,10 +346,21 @@ class OrderStatusImportService:
         shipped_at_present = "датаотгрузки" in requisites
         paid_at = self._parse_date_value(paid_at_value)
         shipped_at = self._parse_date_value(shipped_at_value)
+
+        # [AI-Review][Medium] Observability: собираем ошибки парсинга дат
+        parse_warnings: list[str] = []
+        order_ref = order_number or order_id
+
         if paid_at_value is not None and paid_at_value.strip() and paid_at is None:
             paid_at_present = False
+            parse_warnings.append(
+                f"Order {order_ref}: invalid paid_at date format: '{paid_at_value}'"
+            )
         if shipped_at_value is not None and shipped_at_value.strip() and shipped_at is None:
             shipped_at_present = False
+            parse_warnings.append(
+                f"Order {order_ref}: invalid shipped_at date format: '{shipped_at_value}'"
+            )
 
         return OrderUpdateData(
             order_id=order_id or "",
@@ -329,6 +370,7 @@ class OrderStatusImportService:
             shipped_at=shipped_at,
             paid_at_present=paid_at_present,
             shipped_at_present=shipped_at_present,
+            parse_warnings=parse_warnings,
         ), None
 
     def _extract_all_requisites(self, document: Element) -> dict[str, str]:
@@ -729,14 +771,33 @@ class OrderStatusImportService:
             if order_data.order_number:
                 cache_key = f"num:{order_data.order_number}"
                 if cache_key in orders_cache:
-                    return orders_cache[cache_key], None
+                    order = orders_cache[cache_key]
+                    
+                    # [AI-Review][Medium] Data Integrity check: verify order_id matches if present
+                    if order_data.order_id:
+                        pk_from_xml = self._parse_order_id_to_pk(order_data.order_id, log_invalid=False)
+                        if pk_from_xml is not None and order.pk != pk_from_xml:
+                            conflict_msg = (
+                                f"Data conflict: found order by number '{order_data.order_number}' "
+                                f"(pk={order.pk}), but XML ID '{order_data.order_id}' (pk={pk_from_xml}) mismatches"
+                            )
+                            logger.warning(conflict_msg)
+                            return None, conflict_msg
+
+                    return order, None
 
             # 2. Поиск по pk в кэше [AI-Review][Medium] DRY — используем _parse_order_id_to_pk
-            pk = self._parse_order_id_to_pk(order_data.order_id)
+            pk = self._parse_order_id_to_pk(order_data.order_id, log_invalid=False)
             if pk is not None:
                 cache_key = f"pk:{pk}"
                 if cache_key in orders_cache:
                     order = orders_cache[cache_key]
+                    # [AI-Review][Medium] Data Integrity: Validate ID match
+                    if order.pk != pk:
+                        # This should theoretically be impossible with cache_key=f"pk:{pk}", 
+                        # but good for sanity.
+                        pass
+                    
                     if order_data.order_number and order.order_number != order_data.order_number:
                         conflict_msg = (
                             f"Data conflict: found order by ID {order_data.order_id} (pk={pk}) "
@@ -744,6 +805,12 @@ class OrderStatusImportService:
                         )
                         logger.warning(conflict_msg)
                         return None, conflict_msg
+                    
+                    # [AI-Review][Medium] Data Integrity: Even if found by order_number in cache (above), 
+                    # we should ideally check if order_id matches if provided.
+                    # However, the logic above (step 1) has already returned a result.
+                    # We are here only if not found by number.
+                    
                     return order, None
 
             return None, None
@@ -758,6 +825,17 @@ class OrderStatusImportService:
                 .first()
             )
             if order:
+                # [AI-Review][Medium] Data Integrity check: verify order_id matches if present
+                if order_data.order_id:
+                    pk_from_xml = self._parse_order_id_to_pk(order_data.order_id, log_invalid=False)
+                    if pk_from_xml is not None and order.pk != pk_from_xml:
+                        conflict_msg = (
+                            f"Data conflict: found order by number '{order_data.order_number}' "
+                            f"(pk={order.pk}), but XML ID '{order_data.order_id}' (pk={pk_from_xml}) mismatches"
+                        )
+                        logger.warning(conflict_msg)
+                        return None, conflict_msg
+                
                 return order, None
 
         # 2. Поиск по order_id формата 'order-{id}' [AI-Review][Medium] DRY

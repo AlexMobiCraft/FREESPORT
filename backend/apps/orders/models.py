@@ -13,6 +13,8 @@ from typing import TYPE_CHECKING, Any, cast
 from django.contrib.auth import get_user_model
 from django.core.validators import MinValueValidator
 from django.db import models
+from apps.orders.constants import ORDER_STATUSES
+
 
 if TYPE_CHECKING:
     from django.db.models.manager import RelatedManager
@@ -65,15 +67,7 @@ class Order(models.Model):
         created_at: datetime
         updated_at: datetime
 
-    ORDER_STATUSES = [
-        ("pending", "Ожидает обработки"),
-        ("confirmed", "Подтвержден"),
-        ("processing", "В обработке"),
-        ("shipped", "Отправлен"),
-        ("delivered", "Доставлен"),
-        ("cancelled", "Отменен"),
-        ("refunded", "Возвращен"),
-    ]
+    ORDER_STATUSES = ORDER_STATUSES
 
     DELIVERY_METHODS = [
         ("pickup", "Самовывоз"),

@@ -31,9 +31,28 @@ STATUS_MAPPING: dict[str, str] = {
 # Pre-computed lowercase маппинг для оптимизации регистронезависимого поиска
 STATUS_MAPPING_LOWER: dict[str, str] = {k.lower(): v for k, v in STATUS_MAPPING.items()}
 
+# [AI-Review][Low] DRY: ORDER_STATUSES — единый источник истины для всех статусов
+ORDER_STATUSES = [
+    ("pending", "Ожидает обработки"),
+    ("confirmed", "Подтвержден"),
+    ("processing", "В обработке"),
+    ("shipped", "Отправлен"),
+    ("delivered", "Доставлен"),
+    ("cancelled", "Отменен"),
+    ("refunded", "Возвращен"),
+]
+
+# Множество всех допустимых статусов (производное от ORDER_STATUSES)
+ALL_ORDER_STATUSES: set[str] = {status for status, _ in ORDER_STATUSES}
+
 # Финальные статусы не должны регрессировать в активные
-FINAL_STATUSES: set[str] = {"delivered", "cancelled", "refunded"}
-ACTIVE_STATUSES: set[str] = {"pending", "confirmed", "processing", "shipped"}
+# [AI-Review][Low] DRY: производные множества из ORDER_STATUSES
+_FINAL_STATUS_CODES = {"delivered", "cancelled", "refunded"}
+FINAL_STATUSES: set[str] = {s for s in ALL_ORDER_STATUSES if s in _FINAL_STATUS_CODES}
+
+_ACTIVE_STATUS_CODES = {"pending", "confirmed", "processing", "shipped"}
+ACTIVE_STATUSES: set[str] = {s for s in ALL_ORDER_STATUSES if s in _ACTIVE_STATUS_CODES}
+
 
 
 # =============================================================================
