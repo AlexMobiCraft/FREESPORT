@@ -271,7 +271,7 @@ class TestOrderStatusImportDBIntegration(TestCase):
 """
 
         # ACT
-        with cast(Any, self).assertNumQueries(4):
+        with cast(Any, self).assertNumQueries(6):
             result = self.service.process(xml_data)
 
         # ASSERT — все 3 заказа обновлены

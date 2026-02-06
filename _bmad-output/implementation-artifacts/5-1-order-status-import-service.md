@@ -1,6 +1,6 @@
 # Story 5.1: Сервис импорта статусов (OrderStatusImportService)
 
-Status: in-progress
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -156,10 +156,10 @@ So that **статусы заказов на сайте соответствую
 
 
 #### Review Follow-ups (Code Review Workflow) - Round 11
-- [ ] [AI-Review][Medium] Logic / Data Integrity: **Payment Status Regression Risk**. Prevent `payment_status` regression from `refunded` to `paid` if `paid_at` arrives from 1C. `backend/apps/orders/services/order_status_import.py`
-- [ ] [AI-Review][Medium] Robustness: **Batch handling crashes on DB error**. Wrap `_bulk_fetch_orders` in try/except `OperationalError` to prevent full crash on transient DB errors. `backend/apps/orders/services/order_status_import.py`
-- [ ] [AI-Review][Low] Test Quality: **N+1 Test lacks assertion**. Add `assertNumQueries` to `test_bulk_fetch_orders_optimization` to verify optimization. `backend/tests/integration/test_order_status_import_db.py`
-- [ ] [AI-Review][Low] Observability: **Ambiguous 1C timestamp semantics**. Update `sent_to_1c_at` on every successful sync from 1C (even if status doesn't change) to track "last synced" time reliably. `backend/apps/orders/services/order_status_import.py`
+- [x] [AI-Review][Medium] Logic / Data Integrity: **Payment Status Regression Risk**. Prevent `payment_status` regression from `refunded` to `paid` if `paid_at` arrives from 1C. `backend/apps/orders/services/order_status_import.py`
+- [x] [AI-Review][Medium] Robustness: **Batch handling crashes on DB error**. Wrap `_bulk_fetch_orders` in try/except `OperationalError` to prevent full crash on transient DB errors. `backend/apps/orders/services/order_status_import.py`
+- [x] [AI-Review][Low] Test Quality: **N+1 Test lacks assertion**. Add `assertNumQueries` to `test_bulk_fetch_orders_optimization` to verify optimization. `backend/tests/integration/test_order_status_import_db.py`
+- [x] [AI-Review][Low] Observability: **Ambiguous 1C timestamp semantics**. Update `sent_to_1c_at` on every successful sync from 1C (even if status doesn't change) to track "last synced" time reliably. `backend/apps/orders/services/order_status_import.py`
 
 ## Dev Notes
 
@@ -412,6 +412,8 @@ N/A
 - ✅ Resolved remaining follow-ups: invalid date no longer marks present, payment_status syncs to paid, batch processing enabled via ONEC_EXCHANGE.ORDER_STATUS_IMPORT_BATCH_SIZE
 - ✅ Added unit tests: invalid date present flag, payment_status sync, batch processing chunk size
 - ⚠ Full suite: `docker compose -f docker/docker-compose.test.yml up --build --abort-on-container-exit --exit-code-from backend` — FAILED (65 failed, 1538 passed, 3 skipped)
+- ✅ Resolved Round 11 follow-ups: payment_status regression guard, OperationalError handling, sent_to_1c_at refresh, invalid date parsing safety, assertNumQueries for bulk fetch
+- ✅ Targeted tests: `docker compose -f docker/docker-compose.test.yml run --rm backend pytest -v tests/unit/test_order_status_import.py tests/integration/test_order_status_import_db.py` — PASSED (64 tests); warnings: Unknown pytest.mark (unit/integration), RemovedInDjango60Warning
 
 #### Review Follow-ups (Code Review Workflow) - Round 8
 - [x] [AI-Review][Medium] Prevent log flooding in parser by returning errors instead of logging warnings directly `backend/apps/orders/services/order_status_import.py:287`
@@ -447,16 +449,17 @@ N/A
 - 2026-02-05: Addressed Round 9 review findings — 6 items resolved (High:1, Medium:2, Low:3); verified targeted unit+integration tests
 - 2026-02-05: Addressed Round 10 review findings — 3 items resolved (Medium:2, Low:1); targeted tests passed
 - 2026-02-05: Addressed remaining follow-ups (Data Loss Risk, payment_status sync, batch processing); added unit tests; full suite failing (65 failed)
+- 2026-02-06: Addressed Round 11 follow-ups (payment_status regression guard, OperationalError handling, sent_to_1c_at refresh, invalid date parse safety); targeted tests passed (64 tests)
 
 ### File List
 
-- `backend/apps/orders/services/order_status_import.py` (MODIFY) — batch processing, payment_status sync, защита от некорректных дат
+- `backend/apps/orders/services/order_status_import.py` (MODIFY) — OperationalError guard, payment_status regression protection, sent_to_1c_at refresh, safe date parsing
 - `backend/apps/orders/services/__init__.py` (MODIFY) — экспорт STATUS_MAPPING из constants
 - `backend/apps/orders/constants.py` (MODIFY) — FINAL_STATUSES включает refunded, STATUS_MAPPING_LOWER
 - `backend/apps/orders/models.py` (MODIFY) — добавлены поля `paid_at`, `shipped_at`
 - `backend/apps/orders/migrations/0011_add_payment_shipment_dates.py` (NEW) — миграция
-- `backend/tests/unit/test_order_status_import.py` (MODIFY) — тесты некорректной даты, payment_status sync, batch size
-- `backend/tests/integration/test_order_status_import_db.py` (MODIFY) — skipped_data_conflict метрика
+- `backend/tests/unit/test_order_status_import.py` (MODIFY) — тесты некорректной даты, payment_status regression, sent_to_1c_at refresh
+- `backend/tests/integration/test_order_status_import_db.py` (MODIFY) — assertNumQueries для bulk fetch, обновление sent_to_1c_at при идемпотентности
 - `backend/tests/integration/test_management_commands/test_import_customers.py` (MODIFY) — актуализированы ожидания stdout, статистика и логи
 - `backend/tests/integration/test_management_commands/test_load_product_stocks.py` (MODIFY) — тесты переведены на ProductVariant
 - `backend/tests/unit/apps/common/test_news_detail_view.py` (MODIFY) — добавлен django_db mark

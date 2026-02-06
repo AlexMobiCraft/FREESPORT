@@ -428,14 +428,22 @@ class OrderStatusImportService:
         source_tz = self._get_source_timezone()
 
         # 1. Попытка парсинга как datetime (YYYY-MM-DDTHH:MM:SS)
-        parsed_datetime = parse_datetime(date_str)
+        try:
+            parsed_datetime = parse_datetime(date_str)
+        except ValueError as exc:
+            logger.warning("Could not parse datetime: %s (%s)", date_str, exc)
+            return None
         if parsed_datetime:
             if timezone.is_naive(parsed_datetime):
                 return timezone.make_aware(parsed_datetime, timezone=source_tz)
             return parsed_datetime
 
         # 2. Fallback: парсинг только даты (YYYY-MM-DD)
-        parsed_date = parse_date(date_str)
+        try:
+            parsed_date = parse_date(date_str)
+        except ValueError as exc:
+            logger.warning("Could not parse date: %s (%s)", date_str, exc)
+            return None
         if parsed_date:
             # Конвертируем date в datetime с началом дня
             return timezone.make_aware(

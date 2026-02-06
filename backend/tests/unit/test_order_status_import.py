@@ -1152,13 +1152,13 @@ class TestRound3ReviewFollowups:
             # Проверяем что sent_to_1c_at установлен примерно в текущее время
             assert mock_order.sent_to_1c_at >= before_process
 
-    def test_sent_to_1c_at_not_updated_if_already_synced(self):
-        """sent_to_1c_at не обновляется если заказ уже был синхронизирован."""
+    def test_sent_to_1c_at_updated_if_already_synced(self):
+        """sent_to_1c_at обновляется при повторной синхронизации."""
         # ARRANGE
         order_number = "FS-ALREADY-SYNCED"
         xml_data = build_test_xml(order_number=order_number, status="Доставлен")
 
-        original_sync_time = timezone.now()
+        original_sync_time = timezone.now() - timedelta(days=1)
 
         mock_order = MagicMock()
         mock_order.order_number = order_number
@@ -1177,10 +1177,10 @@ class TestRound3ReviewFollowups:
             # ACT
             result = service.process(xml_data)
 
-            # ASSERT — статус обновлён, но sent_to_1c_at не изменён
+            # ASSERT — статус обновлён и sent_to_1c_at обновлён
             assert result.updated == 1
             assert mock_order.sent_to_1c is True
-            assert mock_order.sent_to_1c_at == original_sync_time
+            assert mock_order.sent_to_1c_at != original_sync_time
 
     def test_order_id_prefix_constant_used(self):
         """[AI-Review][Low] Flexibility: ORDER_ID_PREFIX используется для парсинга."""
