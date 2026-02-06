@@ -5,8 +5,8 @@ Story 5.1: [AI-Review][Medium] Test Quality — проверка save(update_fie
 с реальной базой данных для исключения опечаток в именах полей.
 """
 
-from datetime import datetime
-from typing import cast
+from datetime import datetime, timedelta
+from typing import Any, cast
 
 import pytest
 from django.test import TestCase
@@ -165,15 +165,14 @@ class TestOrderStatusImportDBIntegration(TestCase):
         self.assertLessEqual(sent_to_1c_at, after_process)
 
     def test_idempotent_no_update_when_status_matches(self):
-        """Проверка идемпотентности: повторный импорт не изменяет данные."""
+        """Идемпотентность: статус не меняется, sent_to_1c_at обновляется."""
         # ARRANGE — установим статус вручную
         self.order.status = "shipped"
         self.order.status_1c = "Отгружен"
         self.order.sent_to_1c = True
-        self.order.sent_to_1c_at = timezone.now()
+        previous_sent_to_1c_at = timezone.now() - timedelta(days=1)
+        self.order.sent_to_1c_at = previous_sent_to_1c_at
         self.order.save()
-
-        original_updated_at = self.order.updated_at
 
         xml_data = build_test_xml(
             order_number=self.order_number,
@@ -188,6 +187,7 @@ class TestOrderStatusImportDBIntegration(TestCase):
         self.assertEqual(result.skipped_up_to_date, 1)
         self.assertEqual(result.skipped_unknown_status, 0)
         self.assertEqual(result.updated, 0)
+        self.assertNotEqual(self.order.sent_to_1c_at, previous_sent_to_1c_at)
 
     def test_find_order_by_pk_from_order_id(self):
         """Проверка поиска заказа по order-{pk} формату."""
@@ -271,7 +271,8 @@ class TestOrderStatusImportDBIntegration(TestCase):
 """
 
         # ACT
-        result = self.service.process(xml_data)
+        with cast(Any, self).assertNumQueries(4):
+            result = self.service.process(xml_data)
 
         # ASSERT — все 3 заказа обновлены
         self.assertEqual(result.processed, 3)

@@ -6,7 +6,7 @@ Unit-тесты для OrderStatusImportService.
 """
 
 import logging
-from datetime import date
+from datetime import date, timedelta
 from zoneinfo import ZoneInfo
 from typing import cast
 from unittest.mock import MagicMock, patch
@@ -15,6 +15,7 @@ from defusedxml.common import DefusedXmlException
 from defusedxml import ElementTree as ET
 
 import pytest
+from django.db import OperationalError
 from django.test.utils import override_settings
 from django.utils import timezone
 
@@ -517,7 +518,8 @@ class TestOrderProcessing:
         mock_order.paid_at = None
         mock_order.shipped_at = None
         mock_order.sent_to_1c = True
-        mock_order.sent_to_1c_at = timezone.now()
+        previous_sent_to_1c_at = timezone.now() - timedelta(days=1)
+        mock_order.sent_to_1c_at = previous_sent_to_1c_at
 
         service = OrderStatusImportService()
         # [AI-Review][High] Используем num: префикс для избежания коллизий
@@ -527,11 +529,12 @@ class TestOrderProcessing:
             # ACT
             result = service.process(xml_data)
 
-            # ASSERT
-            assert result.skipped_up_to_date == 1
-            assert result.skipped_unknown_status == 0
-            assert result.updated == 0
-            mock_order.save.assert_not_called()
+        # ASSERT — sent_to_1c_at должен обновиться
+        assert result.skipped_up_to_date == 1
+        assert result.skipped_unknown_status == 0
+        assert result.updated == 0
+        assert mock_order.sent_to_1c_at != previous_sent_to_1c_at
+        mock_order.save.assert_called_once()
 
     def test_idempotent_updates_dates_even_if_status_unchanged(self):
         """[AI-Review][High] Обновление дат даже если статус не изменился."""
@@ -560,13 +563,13 @@ class TestOrderProcessing:
             # ACT
             result = service.process(xml_data)
 
-            # ASSERT — даты должны обновиться несмотря на совпадение статуса
-            assert result.updated == 1
-            assert result.skipped_up_to_date == 0
-            assert result.skipped_unknown_status == 0
-            assert mock_order.paid_at is not None
-            assert mock_order.shipped_at is not None
-            mock_order.save.assert_called_once()
+        # ASSERT — даты должны обновиться несмотря на совпадение статуса
+        assert result.updated == 1
+        assert result.skipped_up_to_date == 0
+        assert result.skipped_unknown_status == 0
+        assert mock_order.paid_at is not None
+        assert mock_order.shipped_at is not None
+        mock_order.save.assert_called_once()
 
     def test_process_sets_payment_status_paid_when_paid_at_present(self):
         """[AI-Review][Medium] paid_at из 1С выставляет payment_status='paid'."""
@@ -598,6 +601,38 @@ class TestOrderProcessing:
         # ASSERT
         assert result.updated == 1
         assert mock_order.payment_status == "paid"
+        mock_order.save.assert_called_once()
+
+    def test_payment_status_refunded_not_regressed_by_paid_at(self):
+        """[AI-Review][Medium] refunded payment_status не регрессирует в paid."""
+        # ARRANGE
+        order_number = "FS-REFUND-001"
+        xml_data = build_test_xml(
+            order_number=order_number,
+            status="Отгружен",
+            paid_date="2026-02-01",
+        )
+
+        mock_order = MagicMock()
+        mock_order.order_number = order_number
+        mock_order.status = "shipped"
+        mock_order.status_1c = "Отгружен"
+        mock_order.paid_at = None
+        mock_order.shipped_at = None
+        mock_order.payment_status = "refunded"
+        mock_order.sent_to_1c = True
+        mock_order.sent_to_1c_at = timezone.now()
+
+        service = OrderStatusImportService()
+        mock_cache = {f"num:{order_number}": mock_order}
+
+        with patch.object(service, "_bulk_fetch_orders", return_value=mock_cache):
+            # ACT
+            result = service.process(xml_data)
+
+        # ASSERT
+        assert result.updated == 1
+        assert mock_order.payment_status == "refunded"
         mock_order.save.assert_called_once()
 
     def test_process_uses_batch_size_from_settings(self):
@@ -773,6 +808,27 @@ class TestProcessIntegration:
         assert result.processed == 0
         assert len(result.errors) == 1
         assert "security" in result.errors[0].lower()
+
+    def test_process_handles_operational_error_in_bulk_fetch(self):
+        """[AI-Review][Medium] OperationalError в bulk fetch записывается в errors."""
+        # ARRANGE
+        xml_data = build_test_xml(order_number="FS-DB-ERR-001", status="Отгружен")
+        service = OrderStatusImportService()
+
+        with patch.object(
+            service,
+            "_bulk_fetch_orders",
+            side_effect=OperationalError("transient db error"),
+        ):
+            # ACT
+            result = service.process(xml_data)
+
+        # ASSERT
+        assert result.processed == 1
+        assert result.updated == 0
+        assert result.not_found == 0
+        assert len(result.errors) == 1
+        assert "Database error during bulk fetch" in result.errors[0]
 
 
 # =============================================================================

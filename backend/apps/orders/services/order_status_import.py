@@ -19,7 +19,7 @@ import defusedxml.ElementTree as ET
 from defusedxml.common import DefusedXmlException
 
 from django.conf import settings
-from django.db import transaction
+from django.db import OperationalError, transaction
 from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_datetime
 
@@ -144,50 +144,65 @@ class OrderStatusImportService:
         # [AI-Review][High] Защита от race condition — блокировки в bulk fetch
         for start in range(0, len(order_updates), batch_size):
             batch = order_updates[start:start + batch_size]
-            with transaction.atomic():
-                # BULK FETCH: загрузить заказы для пакета (оптимизация N+1)
-                orders_cache = self._bulk_fetch_orders(batch)
+            try:
+                with transaction.atomic():
+                    # BULK FETCH: загрузить заказы для пакета (оптимизация N+1)
+                    orders_cache = self._bulk_fetch_orders(batch)
 
-                for order_data in batch:
-                    try:
-                        status, error_msg = self._process_order_update(order_data, orders_cache)
-                        # [AI-Review][Medium] Используем Enum вместо magic strings
-                        if status == ProcessingStatus.UPDATED:
-                            result.updated += 1
-                            consecutive_errors = 0  # Сброс счётчика при успехе
-                        elif status == ProcessingStatus.SKIPPED_UP_TO_DATE:
-                            result.skipped_up_to_date += 1
-                        elif status == ProcessingStatus.SKIPPED_UNKNOWN_STATUS:
-                            result.skipped_unknown_status += 1
-                        elif status == ProcessingStatus.SKIPPED_DATA_CONFLICT:
-                            result.skipped_data_conflict += 1
-                        elif status == ProcessingStatus.SKIPPED_STATUS_REGRESSION:
-                            result.skipped_status_regression += 1
-                        elif status == ProcessingStatus.NOT_FOUND:
-                            result.not_found += 1
+                    for order_data in batch:
+                        try:
+                            status, error_msg = self._process_order_update(order_data, orders_cache)
+                            # [AI-Review][Medium] Используем Enum вместо magic strings
+                            if status == ProcessingStatus.UPDATED:
+                                result.updated += 1
+                                consecutive_errors = 0  # Сброс счётчика при успехе
+                            elif status == ProcessingStatus.SKIPPED_UP_TO_DATE:
+                                result.skipped_up_to_date += 1
+                            elif status == ProcessingStatus.SKIPPED_UNKNOWN_STATUS:
+                                result.skipped_unknown_status += 1
+                            elif status == ProcessingStatus.SKIPPED_DATA_CONFLICT:
+                                result.skipped_data_conflict += 1
+                            elif status == ProcessingStatus.SKIPPED_STATUS_REGRESSION:
+                                result.skipped_status_regression += 1
+                            elif status == ProcessingStatus.NOT_FOUND:
+                                result.not_found += 1
+                                consecutive_errors += 1
+
+                            # Сбор ошибок из _process_order_update
+                            if error_msg and len(result.errors) < MAX_ERRORS:
+                                result.errors.append(error_msg)
+
+                        except Exception as e:
                             consecutive_errors += 1
+                            order_ref = order_data.order_number or order_data.order_id
+                            error_msg = f"Error processing order {order_ref}: {e}"
 
-                        # Сбор ошибок из _process_order_update
-                        if error_msg and len(result.errors) < MAX_ERRORS:
-                            result.errors.append(error_msg)
+                            # Rate-limited logging: предотвращаем флуд логов
+                            if consecutive_errors <= MAX_CONSECUTIVE_ERRORS:
+                                logger.exception(error_msg)
+                            elif not log_suppressed:
+                                logger.warning(
+                                    f"Suppressing further error logs after "
+                                    f"{MAX_CONSECUTIVE_ERRORS} consecutive errors"
+                                )
+                                log_suppressed = True
 
-                    except Exception as e:
-                        consecutive_errors += 1
-                        order_ref = order_data.order_number or order_data.order_id
-                        error_msg = f"Error processing order {order_ref}: {e}"
-
-                        # Rate-limited logging: предотвращаем флуд логов
-                        if consecutive_errors <= MAX_CONSECUTIVE_ERRORS:
-                            logger.exception(error_msg)
-                        elif not log_suppressed:
-                            logger.warning(
-                                f"Suppressing further error logs after "
-                                f"{MAX_CONSECUTIVE_ERRORS} consecutive errors"
-                            )
-                            log_suppressed = True
-
-                        if len(result.errors) < MAX_ERRORS:
-                            result.errors.append(error_msg)
+                            if len(result.errors) < MAX_ERRORS:
+                                result.errors.append(error_msg)
+            except OperationalError as e:
+                consecutive_errors += 1
+                error_msg = f"Database error during bulk fetch: {e}"
+                if consecutive_errors <= MAX_CONSECUTIVE_ERRORS:
+                    logger.exception(error_msg)
+                elif not log_suppressed:
+                    logger.warning(
+                        f"Suppressing further error logs after "
+                        f"{MAX_CONSECUTIVE_ERRORS} consecutive errors"
+                    )
+                    log_suppressed = True
+                if len(result.errors) < MAX_ERRORS:
+                    result.errors.append(error_msg)
+                continue
 
         # Итоговое сообщение, если логи были подавлены
         if log_suppressed:
@@ -515,6 +530,7 @@ class OrderStatusImportService:
                 "order_number",
                 "status",
                 "status_1c",
+                "payment_status",
                 "paid_at",
                 "shipped_at",
                 "sent_to_1c",
@@ -609,8 +625,9 @@ class OrderStatusImportService:
         payment_status_needs_update = (
             order_data.paid_at_present
             and order_data.paid_at is not None
-            and order.payment_status != "paid"
+            and order.payment_status not in {"paid", "refunded"}
         )
+        sync_time = timezone.now()
 
         if (
             not status_changed
@@ -619,8 +636,10 @@ class OrderStatusImportService:
             and not payment_status_needs_update
         ):
             logger.debug(
-                f"Order {order.order_number}: already up-to-date, skipping"
+                f"Order {order.order_number}: up-to-date, updating sync timestamp"
             )
+            order.sent_to_1c_at = sync_time
+            order.save(update_fields=["sent_to_1c_at", "updated_at"])
             return ProcessingStatus.SKIPPED_UP_TO_DATE, None
 
         # Обновление заказа
@@ -645,14 +664,16 @@ class OrderStatusImportService:
             order.payment_status = "paid"
             update_fields.append("payment_status")
 
-        # [AI-Review][Medium] Устанавливаем sent_to_1c=True и sent_to_1c_at при получении статуса из 1С
+        # [AI-Review][Medium] Устанавливаем sent_to_1c=True при получении статуса из 1С
         if sent_to_1c_changed:
             order.sent_to_1c = True
-            order.sent_to_1c_at = timezone.now()  # [AI-Review][Medium] Data Integrity
             if "sent_to_1c" not in update_fields:
                 update_fields.append("sent_to_1c")
-            if "sent_to_1c_at" not in update_fields:
-                update_fields.append("sent_to_1c_at")
+
+        # [AI-Review][Low] Обновляем sent_to_1c_at на каждый успешный sync из 1С
+        order.sent_to_1c_at = sync_time
+        if "sent_to_1c_at" not in update_fields:
+            update_fields.append("sent_to_1c_at")
 
         order.save(update_fields=update_fields)
 
