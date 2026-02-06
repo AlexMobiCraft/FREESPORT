@@ -1,19 +1,24 @@
 import io
 import logging
+import re
 import shutil
+import time
 import zipfile
 from pathlib import Path
+from xml.etree.ElementTree import ParseError as ETParseError
 
+from defusedxml.common import DefusedXmlException
 from django.conf import settings
 from django.contrib.auth import get_backends, login
 from django.core.cache import cache
-from django.db import transaction
+from django.db import OperationalError, transaction
 from django.http import FileResponse, HttpResponse, StreamingHttpResponse
 from django.utils import timezone
 from rest_framework.views import APIView
 
 from apps.orders.models import Order
 from apps.orders.services.order_export import OrderExportService
+from apps.orders.services.order_status_import import OrderStatusImportService
 from apps.orders.signals import orders_bulk_updated
 
 from .authentication import Basic1CAuthentication, CsrfExemptSessionAuthentication
@@ -22,12 +27,90 @@ from .permissions import Is1CExchangeUser
 from .renderers import PlainTextRenderer
 from .import_orchestrator import ImportOrchestratorService
 from .routing_service import FileRoutingService
+from .throttling import OneCAuthThrottle, OneCExchangeThrottle
 
 logger = logging.getLogger(__name__)
 
 EXCHANGE_LOG_SUBDIR = "1c_exchange/logs"
 ORDERS_XML_FILENAME = "orders.xml"
 ORDERS_ZIP_FILENAME = "orders.zip"
+ORDERS_XML_MAX_SIZE = 5 * 1024 * 1024  # 5MB (ADR-004)
+MAX_DOCUMENTS_PER_FILE = 1000  # FM4.5: Guard against oversized XML
+ORDERS_IMPORT_MAX_RETRIES = 3  # FM5.1/FM5.2: DB retry attempts
+
+# Simple regex to count <Документ> tags without full XML parsing
+_DOCUMENT_TAG_RE = re.compile(rb"<\xd0\x94\xd0\xbe\xd0\xba\xd1\x83\xd0\xbc\xd0\xb5\xd0\xbd\xd1\x82[\s>/]")
+
+# Regex to detect encoding from XML declaration (AC10)
+_XML_ENCODING_RE = re.compile(rb'<\?xml[^>]+encoding=["\']([^"\']+)["\']', re.IGNORECASE)
+
+
+def _validate_xml_timestamp(xml_data: bytes, max_age_hours: int = 24) -> bool:
+    """Check ДатаФормирования attribute is not older than max_age_hours.
+
+    Returns True if timestamp is valid or cannot be parsed (fail-open).
+    Returns False only if timestamp is clearly stale.
+    """
+    try:
+        header = xml_data[:500]
+        match = re.search(
+            rb'\xd0\x94\xd0\xb0\xd1\x82\xd0\xb0\xd0\xa4\xd0\xbe\xd1\x80\xd0\xbc'
+            rb'\xd0\xb8\xd1\x80\xd0\xbe\xd0\xb2\xd0\xb0\xd0\xbd\xd0\xb8\xd1\x8f'
+            rb'="([^"]+)"',
+            header,
+        )
+        if not match:
+            return True  # No timestamp — fail-open
+
+        from datetime import datetime as dt
+        from datetime import timedelta
+
+        ts_str = match.group(1).decode("utf-8", errors="ignore")
+        # Parse ISO format: 2026-02-02T12:00:00
+        xml_time = dt.fromisoformat(ts_str)
+        if timezone.is_naive(xml_time):
+            xml_time = timezone.make_aware(xml_time)
+        age = timezone.now() - xml_time
+        if age > timedelta(hours=max_age_hours):
+            logger.warning(
+                f"[SECURITY] XML ДатаФормирования is {age} old (max {max_age_hours}h)"
+            )
+            return False
+        return True
+    except Exception as exc:
+        logger.debug(f"[SECURITY] Could not validate XML timestamp: {exc}")
+        return True  # Fail-open on parse errors
+
+
+def _reencode_xml_if_needed(xml_data: bytes) -> bytes:
+    """Detect non-UTF-8 encoding from XML declaration and re-encode to UTF-8.
+
+    Supports windows-1251 and other encodings declared in ``<?xml encoding="..."?>``.
+    Returns original bytes if already UTF-8 or no encoding declared.
+    """
+    header = xml_data[:200]
+    match = _XML_ENCODING_RE.search(header)
+    if not match:
+        return xml_data
+
+    declared = match.group(1).decode("ascii", errors="ignore").lower().strip()
+    if declared in ("utf-8", "utf8"):
+        return xml_data
+
+    try:
+        text = xml_data.decode(declared)
+        # Replace encoding declaration with utf-8
+        text = re.sub(
+            r'encoding=["\'][^"\']+["\']',
+            'encoding="utf-8"',
+            text,
+            count=1,
+        )
+        logger.info(f"[ORDERS IMPORT] Re-encoded XML from {declared} to UTF-8")
+        return text.encode("utf-8")
+    except (UnicodeDecodeError, LookupError) as exc:
+        logger.warning(f"[ORDERS IMPORT] Failed to re-encode from {declared}: {exc}")
+        return xml_data
 
 
 def _get_exchange_log_dir() -> Path:
@@ -107,6 +190,7 @@ class ICExchangeView(APIView):
     authentication_classes = [Basic1CAuthentication, CsrfExemptSessionAuthentication]
     permission_classes = [Is1CExchangeUser]
     renderer_classes = [PlainTextRenderer]
+    throttle_classes = [OneCExchangeThrottle]
 
     def get(self, request, *args, **kwargs):
         mode = request.query_params.get("mode")
@@ -218,6 +302,15 @@ class ICExchangeView(APIView):
         """
         Initializes session and returns cookie info to 1C.
         """
+        # AC12: Stricter rate limit for auth attempts
+        auth_throttle = OneCAuthThrottle()
+        if not auth_throttle.allow_request(request, self):
+            logger.warning("[SECURITY] Auth rate limit exceeded")
+            return HttpResponse(
+                "failure\nRate limit exceeded",
+                content_type="text/plain; charset=utf-8",
+                status=429,
+            )
         # Create a session for subsequent requests
         # In DRF, request is rest_framework.request.Request, underlying is ._request
 
@@ -493,6 +586,140 @@ class ICExchangeView(APIView):
 
         return HttpResponse("success", content_type="text/plain; charset=utf-8")
 
+    def _handle_orders_xml(self, request) -> HttpResponse:
+        """Handle orders.xml import synchronously (ADR-001).
+
+        Unlike catalog files (streamed to disk), orders.xml is processed
+        inline because:
+        1. It's typically small (<1MB)
+        2. 1C expects immediate status response
+        3. No need for mode=import follow-up
+        """
+        try:
+            # ADR-004: Check file size BEFORE reading
+            content_length = int(request.META.get("CONTENT_LENGTH", 0))
+            if content_length > ORDERS_XML_MAX_SIZE:
+                logger.warning(
+                    f"[ORDERS IMPORT] Rejected: file too large ({content_length} bytes)"
+                )
+                return HttpResponse(
+                    "failure\nFile too large for inline processing",
+                    content_type="text/plain; charset=utf-8",
+                )
+
+            # Read full body (orders.xml is small)
+            xml_data = request._request.read()
+
+            # FM1.1: Body integrity check
+            if content_length > 0 and len(xml_data) != content_length:
+                logger.warning(
+                    f"[ORDERS IMPORT] Truncated body: expected {content_length}, "
+                    f"got {len(xml_data)}"
+                )
+                return HttpResponse(
+                    "failure\nIncomplete request body",
+                    content_type="text/plain; charset=utf-8",
+                )
+
+            # AC10: Detect and re-encode windows-1251 if needed
+            xml_data = _reencode_xml_if_needed(xml_data)
+
+            # AC13: Reject stale XML (anti-replay)
+            if not _validate_xml_timestamp(xml_data):
+                logger.warning("[SECURITY] Stale XML rejected")
+                return HttpResponse(
+                    "failure\nXML timestamp too old",
+                    content_type="text/plain; charset=utf-8",
+                )
+
+            # ADR-005: Audit log BEFORE processing (for recovery)
+            _save_exchange_log(ORDERS_XML_FILENAME, xml_data, is_binary=True)
+
+            # FM4.5: Guard against oversized XML
+            doc_count = len(_DOCUMENT_TAG_RE.findall(xml_data))
+            if doc_count > MAX_DOCUMENTS_PER_FILE:
+                logger.warning(
+                    f"[ORDERS IMPORT] Too many documents: {doc_count} "
+                    f"(max {MAX_DOCUMENTS_PER_FILE})"
+                )
+                return HttpResponse(
+                    "failure\nToo many documents",
+                    content_type="text/plain; charset=utf-8",
+                )
+
+            # FM5.1/FM5.2: Retry on transient DB errors
+            service = OrderStatusImportService()
+            last_db_error = None
+            result = None
+            for attempt in range(ORDERS_IMPORT_MAX_RETRIES):
+                try:
+                    result = service.process(xml_data)
+                    break
+                except OperationalError as e:
+                    last_db_error = e
+                    if attempt == ORDERS_IMPORT_MAX_RETRIES - 1:
+                        raise
+                    logger.warning(
+                        f"[ORDERS IMPORT] DB error, retry {attempt + 1}: {e}"
+                    )
+                    time.sleep(0.5 * (attempt + 1))
+
+            if result is None:
+                raise RuntimeError(f"Service returned no result: {last_db_error}")
+
+            # Log metrics
+            logger.info(
+                f"[ORDERS IMPORT] processed={result.processed}, "
+                f"updated={result.updated}, skipped={result.skipped}, "
+                f"not_found={result.not_found}, errors={len(result.errors)}"
+            )
+
+            # AC9/Pre-mortem #1: Alert on zero processed from non-empty XML
+            if result.processed == 0 and len(xml_data) > 100:
+                logger.error(
+                    "[ORDERS IMPORT] Zero documents processed from non-empty XML "
+                    f"(body size={len(xml_data)} bytes)"
+                )
+
+            if result.errors:
+                logger.warning(
+                    f"[ORDERS IMPORT] Errors: {result.errors[:5]}"
+                )
+
+            # ADR-003: Partial Success = Success
+            if result.updated > 0 or not result.errors:
+                return HttpResponse(
+                    "success", content_type="text/plain; charset=utf-8"
+                )
+
+            # Complete failure: nothing updated AND errors present
+            summary = (
+                f"processed={result.processed}, updated={result.updated}, "
+                f"errors={len(result.errors)}"
+            )
+            return HttpResponse(
+                f"failure\nNo orders updated. {summary}",
+                content_type="text/plain; charset=utf-8",
+            )
+
+        except (ETParseError, DefusedXmlException) as e:
+            logger.error(f"[ORDERS IMPORT] XML error: {e}")
+            if isinstance(e, DefusedXmlException):
+                return HttpResponse(
+                    "failure\nXML security violation",
+                    content_type="text/plain; charset=utf-8",
+                )
+            return HttpResponse(
+                "failure\nMalformed XML",
+                content_type="text/plain; charset=utf-8",
+            )
+        except Exception as e:
+            logger.exception(f"[ORDERS IMPORT] Failed: {e}")
+            return HttpResponse(
+                "failure\nInternal error",
+                content_type="text/plain; charset=utf-8",
+            )
+
     def handle_file_upload(self, request):
         """
         Handle chunked file uploads from 1C.
@@ -506,6 +733,10 @@ class ICExchangeView(APIView):
                 "failure\nMissing session or filename",
                 content_type="text/plain; charset=utf-8",
             )
+
+        # ADR-002: Route orders.xml to inline processing
+        if filename.lower() == ORDERS_XML_FILENAME:
+            return self._handle_orders_xml(request)
 
         exchange_cfg = getattr(settings, "ONEC_EXCHANGE", {})
         file_limit = exchange_cfg.get("FILE_LIMIT_BYTES", 100 * 1024 * 1024)

@@ -25,6 +25,7 @@ from django.utils.dateparse import parse_date, parse_datetime
 
 from apps.orders.constants import (
     ACTIVE_STATUSES,
+    ALLOWED_REQUISITES,
     FINAL_STATUSES,
     MAX_CONSECUTIVE_ERRORS,
     MAX_ERRORS,
@@ -32,6 +33,7 @@ from apps.orders.constants import (
     ProcessingStatus,
     STATUS_MAPPING,
     STATUS_MAPPING_LOWER,
+    STATUS_PRIORITY,
 )
 from apps.orders.models import Order
 
@@ -391,6 +393,12 @@ class OrderStatusImportService:
         if requisites is None:
             return result
 
+        # Pre-compute normalized whitelist for O(1) lookup
+        _allowed_normalized = {
+            REQUISITE_NAME_WHITESPACE_RE.sub("", r).lower()
+            for r in ALLOWED_REQUISITES
+        }
+
         for req in requisites.findall("ЗначениеРеквизита"):
             name_elem = req.find("Наименование")
             value_elem = req.find("Значение")
@@ -400,6 +408,12 @@ class OrderStatusImportService:
                     "", name_elem.text
                 ).lower()
                 if not normalized_name:
+                    continue
+                # [Story 5.2, AC14] Field whitelist — skip unknown requisites
+                if normalized_name not in _allowed_normalized:
+                    logger.debug(
+                        "Skipping unknown requisite: '%s'", name_elem.text
+                    )
                     continue
                 value = (value_elem.text or "") if value_elem is not None else ""
                 result[normalized_name] = value
@@ -654,24 +668,29 @@ class OrderStatusImportService:
             logger.warning(error_msg)
             return ProcessingStatus.SKIPPED_UNKNOWN_STATUS, error_msg
 
-        # [AI-Review][Medium] Prevent transitions from/between final statuses
-        # 1. Final → Active (e.g., delivered → processing) is regression
-        # 2. Final → Final (e.g., cancelled → delivered) is invalid state change
-        if order.status in FINAL_STATUSES:
-            if new_status in ACTIVE_STATUSES:
-                error_msg = (
-                    f"Order {order.order_number}: status regression from "
-                    f"'{order.status}' to '{new_status}' blocked"
-                )
-                logger.warning(error_msg)
-                return ProcessingStatus.SKIPPED_STATUS_REGRESSION, error_msg
-            if new_status in FINAL_STATUSES and new_status != order.status:
-                error_msg = (
-                    f"Order {order.order_number}: transition between final statuses "
-                    f"'{order.status}' → '{new_status}' blocked"
-                )
-                logger.warning(error_msg)
-                return ProcessingStatus.SKIPPED_STATUS_REGRESSION, error_msg
+        # [Story 5.2, AC8] Status regression protection
+        # 1. Block ALL transitions FROM final statuses (except same→same)
+        if order.status in FINAL_STATUSES and new_status != order.status:
+            error_msg = (
+                f"Order {order.order_number}: transition from final status "
+                f"'{order.status}' to '{new_status}' blocked"
+            )
+            logger.warning(error_msg)
+            return ProcessingStatus.SKIPPED_STATUS_REGRESSION, error_msg
+
+        # 2. Priority-based regression for non-final statuses
+        # cancelled/refunded (priority 0) are always allowed as target.
+        current_priority = STATUS_PRIORITY.get(order.status, 0)
+        new_priority = STATUS_PRIORITY.get(new_status, 0)
+
+        if new_priority > 0 and current_priority > 0 and new_priority < current_priority:
+            error_msg = (
+                f"Order {order.order_number}: status regression from "
+                f"'{order.status}' (p={current_priority}) to "
+                f"'{new_status}' (p={new_priority}) blocked"
+            )
+            logger.warning(error_msg)
+            return ProcessingStatus.SKIPPED_STATUS_REGRESSION, error_msg
 
         # Проверяем, нужно ли обновление (идемпотентность AC8)
         status_changed = order.status != new_status or order.status_1c != order_data.status_1c

@@ -32,6 +32,9 @@ XML_ROUTING_RULES = {
     "contragents": "contragents/",
     "storages": "storages/",
     "units": "units/",
+    # orders.xml is handled inline by _handle_orders_xml (Story 5.2, ADR-001)
+    # Listed here for documentation/consistency only
+    "orders": "orders/",
 }
 
 # Supported image extensions (case-insensitive)

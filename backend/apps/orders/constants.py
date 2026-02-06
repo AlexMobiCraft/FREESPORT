@@ -53,6 +53,18 @@ FINAL_STATUSES: set[str] = {s for s in ALL_ORDER_STATUSES if s in _FINAL_STATUS_
 _ACTIVE_STATUS_CODES = {"pending", "confirmed", "processing", "shipped"}
 ACTIVE_STATUSES: set[str] = {s for s in ALL_ORDER_STATUSES if s in _ACTIVE_STATUS_CODES}
 
+# Priority-based regression check (Story 5.2, AC8)
+# Higher number = further in lifecycle. 0 = special (always allowed).
+STATUS_PRIORITY: dict[str, int] = {
+    "pending": 1,
+    "confirmed": 2,
+    "processing": 3,
+    "shipped": 4,
+    "delivered": 5,
+    "cancelled": 0,  # Особый случай: всегда разрешён
+    "refunded": 0,   # Особый случай: всегда разрешён
+}
+
 
 
 # =============================================================================
@@ -84,6 +96,21 @@ class ProcessingStatus(str, Enum):
 
     NOT_FOUND = "not_found"
     """Заказ не найден в БД."""
+
+
+# =============================================================================
+# Field Whitelist (Story 5.2, AC14)
+# =============================================================================
+
+ALLOWED_ORDER_FIELDS: set[str] = {"Номер", "Ид", "ЗначенияРеквизитов"}
+"""Допустимые дочерние элементы <Документ> для обработки."""
+
+ALLOWED_REQUISITES: set[str] = {
+    "СтатусЗаказа", "Статус Заказа",
+    "ДатаОплаты", "Дата Оплаты",
+    "ДатаОтгрузки", "Дата Отгрузки",
+}
+"""Допустимые наименования реквизитов внутри <ЗначенияРеквизитов>."""
 
 
 # =============================================================================
