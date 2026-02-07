@@ -119,7 +119,7 @@ class TestImportCustomersCommand:
         output = out.getvalue()
 
         # Проверить успешное выполнение
-        assert "Импорт завершен успешно" in output
+        assert "Импорт успешно завершен" in output
 
         # Проверить что клиенты созданы
         session = ImportSession.objects.latest("started_at")
@@ -146,20 +146,29 @@ class TestImportCustomersCommand:
         assert "chunk-size" in str(exc_info.value).lower()
 
     def test_command_prevents_concurrent_execution(self, real_data_dir):
-        """Тест защиты от параллельного выполнения"""
+        """Тест переиспользования активной сессии импорта"""
         # Создать активную сессию импорта
-        ImportSession.objects.create(
+        active_session = ImportSession.objects.create(
             import_type=ImportSession.ImportType.CUSTOMERS,
             status=ImportSession.ImportStatus.STARTED,
         )
 
-        from django.core.management.base import CommandError
+        out = StringIO()
+        call_command("import_customers_from_1c", data_dir=real_data_dir, stdout=out)
 
-        with pytest.raises(CommandError) as exc_info:
-            call_command("import_customers_from_1c", data_dir=real_data_dir)
+        output = out.getvalue()
+        assert f"Используется существующая сессия импорта #{active_session.pk}" in output
 
-        error_message = str(exc_info.value)
-        assert "уже выполняется" in error_message or "активн" in error_message
+        # Проверить, что не создана новая сессия
+        assert (
+            ImportSession.objects.filter(
+                import_type=ImportSession.ImportType.CUSTOMERS
+            ).count()
+            == 1
+        )
+        session = ImportSession.objects.latest("started_at")
+        assert session.pk == active_session.pk
+        assert session.status == ImportSession.ImportStatus.COMPLETED
 
     def test_command_handles_malformed_xml(self, tmp_path):
         """Тест обработки некорректного XML"""
