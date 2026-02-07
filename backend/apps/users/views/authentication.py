@@ -581,6 +581,9 @@ class LogoutView(GenericAPIView):
             # Создаём объект токена из validated refresh string
             token = RefreshToken(serializer.validated_data["refresh"])
 
+            user_id = request.user.id
+            username = request.user.username
+
             # Добавляем токен в blacklist
             token.blacklist()
 
@@ -594,8 +597,8 @@ class LogoutView(GenericAPIView):
             # Audit logging - успешный logout
             logger.info(
                 f"[AUDIT] User logout successful | "
-                f"user_id={request.user.id} | "
-                f"username={request.user.username} | "
+                f"user_id={user_id} | "
+                f"username={username} | "
                 f"timestamp={timezone.now().isoformat()} | "
                 f"ip={get_client_ip(request)}"
             )

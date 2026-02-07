@@ -420,7 +420,15 @@ class TestLogoutView:
         assert response.status_code == status.HTTP_204_NO_CONTENT
 
         # Проверка audit log записи
-        log_record = next((r for r in caplog.records if "[AUDIT]" in r.message), None)
+        log_record = next(
+            (
+                r
+                for r in caplog.records
+                if "[AUDIT]" in r.message
+                and "User logout successful" in r.message
+            ),
+            None,
+        )
         assert log_record is not None, "Audit log не найден"
         assert log_record.levelname == "INFO"
 
