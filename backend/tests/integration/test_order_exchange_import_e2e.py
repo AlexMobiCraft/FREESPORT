@@ -11,6 +11,7 @@ from datetime import date
 from typing import cast
 
 import pytest
+from django.utils import timezone
 from rest_framework.test import APIClient
 from rest_framework.response import Response
 
@@ -19,10 +20,9 @@ from tests.conftest import (
     OrderItemFactory,
     ProductVariantFactory,
     UserFactory,
-    get_unique_suffix,
 )
 from tests.integration.test_orders_xml_mode_file import _build_orders_xml
-from tests.utils import perform_1c_checkauth
+from tests.utils import parse_commerceml_response, perform_1c_checkauth
 
 pytestmark = [pytest.mark.django_db, pytest.mark.integration]
 
@@ -74,15 +74,15 @@ def _align_order_number_with_id(order):
     return order
 
 
-def test_full_cycle_export_then_import_updates_status(auth_client, log_dir, db):
-    """AC1: export -> success -> import updates shipped status."""
-    # ARRANGE
-    order_number = f"FS-E2E-{get_unique_suffix()}"
+def _create_order_with_item(
+    *,
+    status: str = "pending",
+    sent_to_1c: bool = False,
+):
     variant = ProductVariantFactory.create()
     order = OrderFactory.create(
-        order_number=order_number,
-        status="pending",
-        sent_to_1c=False,
+        status=status,
+        sent_to_1c=sent_to_1c,
     )
     order = _align_order_number_with_id(order)
     OrderItemFactory.create(
@@ -94,10 +94,22 @@ def test_full_cycle_export_then_import_updates_status(auth_client, log_dir, db):
         quantity=1,
         total_price=variant.retail_price,
     )
+    return order
+
+
+def test_full_cycle_export_then_import_updates_status(auth_client, log_dir, db):
+    """AC1: export -> success -> import updates shipped status."""
+    # ARRANGE
+    order = _create_order_with_item()
 
     # ACT — export query
     resp_query = _get_exchange(auth_client, "query")
     assert resp_query.status_code == 200
+    root = parse_commerceml_response(resp_query)
+    documents = root.findall(".//Документ")
+    assert any(
+        doc.findtext("Номер") == order.order_number for doc in documents
+    ), "Exported XML must include the target order"
 
     # ACT — export success
     resp_success = _get_exchange(auth_client, "success")
@@ -138,23 +150,7 @@ def test_status_mapping_from_1c(
 ):
     """AC2: 1C status mapping for processing/shipped/delivered/cancelled."""
     # ARRANGE
-    order_number = f"FS-MAP-{get_unique_suffix()}"
-    variant = ProductVariantFactory.create()
-    order = OrderFactory.create(
-        order_number=order_number,
-        status="pending",
-        sent_to_1c=False,
-    )
-    order = _align_order_number_with_id(order)
-    OrderItemFactory.create(
-        order=order,
-        product=variant.product,
-        variant=variant,
-        product_name=variant.product.name,
-        unit_price=variant.retail_price,
-        quantity=1,
-        total_price=variant.retail_price,
-    )
+    order = _create_order_with_item()
     xml_data = _build_orders_xml(
         order_id=f"order-{order.pk}",
         order_number=f"order-{order.pk}",
@@ -176,23 +172,7 @@ def test_status_mapping_from_1c(
 def test_dates_extracted_from_requisites(auth_client, log_dir, db):
     """AC3: paid_at/shipped_at extracted from requisites."""
     # ARRANGE
-    order_number = f"FS-DATES-{get_unique_suffix()}"
-    variant = ProductVariantFactory.create()
-    order = OrderFactory.create(
-        order_number=order_number,
-        status="pending",
-        sent_to_1c=False,
-    )
-    order = _align_order_number_with_id(order)
-    OrderItemFactory.create(
-        order=order,
-        product=variant.product,
-        variant=variant,
-        product_name=variant.product.name,
-        unit_price=variant.retail_price,
-        quantity=1,
-        total_price=variant.retail_price,
-    )
+    order = _create_order_with_item()
     xml_data = _build_orders_xml(
         order_id=f"order-{order.pk}",
         order_number=f"order-{order.pk}",
@@ -209,9 +189,9 @@ def test_dates_extracted_from_requisites(auth_client, log_dir, db):
     # ASSERT
     order.refresh_from_db()
     assert order.paid_at is not None
-    assert order.paid_at.date() == date(2026, 2, 1)
+    assert timezone.localdate(order.paid_at) == date(2026, 2, 1)
     assert order.shipped_at is not None
-    assert order.shipped_at.date() == date(2026, 2, 2)
+    assert timezone.localdate(order.shipped_at) == date(2026, 2, 2)
 
 
 def test_invalid_xml_returns_failure(auth_client, log_dir, db):
@@ -232,23 +212,7 @@ def test_invalid_xml_returns_failure(auth_client, log_dir, db):
 def test_unknown_order_returns_failure(auth_client, log_dir, db):
     """AC4: unknown order returns failure and no updates."""
     # ARRANGE
-    existing_number = f"FS-UNKNOWN-{get_unique_suffix()}"
-    variant = ProductVariantFactory.create()
-    existing_order = OrderFactory.create(
-        order_number=existing_number,
-        status="pending",
-        sent_to_1c=False,
-    )
-    existing_order = _align_order_number_with_id(existing_order)
-    OrderItemFactory.create(
-        order=existing_order,
-        product=variant.product,
-        variant=variant,
-        product_name=variant.product.name,
-        unit_price=variant.retail_price,
-        quantity=1,
-        total_price=variant.retail_price,
-    )
+    existing_order = _create_order_with_item()
     missing_id = existing_order.pk + 9999
     xml_data = _build_orders_xml(
         order_id=f"order-{missing_id}",

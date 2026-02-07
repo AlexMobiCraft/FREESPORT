@@ -1,6 +1,6 @@
 # Story 5.3: Интеграционные тесты полного цикла импорта статусов
 
-Status: ready-for-dev
+Status: in-progress
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -21,25 +21,34 @@ so that **двусторонний обмен заказами с 1С работ
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Создать интеграционный тест полного цикла импорта (AC: 1-6)
-  - [ ] 1.1: Новый файл тестов в `backend/tests/integration/` (например, `test_order_exchange_import_e2e.py`).
-  - [ ] 1.2: Использовать `perform_1c_checkauth()` из `backend/tests/utils.py` для получения сессии 1С.
-  - [ ] 1.3: Создавать данные через Factory Boy (`OrderFactory`, `OrderItemFactory`, `ProductVariantFactory`) + `get_unique_suffix()`.
+- [x] Task 1: Создать интеграционный тест полного цикла импорта (AC: 1-6)
+  - [x] 1.1: Новый файл тестов в `backend/tests/integration/` (например, `test_order_exchange_import_e2e.py`).
+  - [x] 1.2: Использовать `perform_1c_checkauth()` из `backend/tests/utils.py` для получения сессии 1С.
+  - [x] 1.3: Создавать данные через Factory Boy (`OrderFactory`, `OrderItemFactory`, `ProductVariantFactory`) + `get_unique_suffix()`.
 
-- [ ] Task 2: Подготовить XML-генератор для orders.xml (AC: 1-3)
-  - [ ] 2.1: Переиспользовать существующий helper `_build_orders_xml()` из `backend/tests/integration/test_orders_xml_mode_file.py` (импортировать или вынести в `backend/tests/utils.py`). **Не создавать дубликат.**
-  - [ ] 2.2: В XML указывать `<Номер>` и `<Ид>` формата `order-{id}`.
+- [x] Task 2: Подготовить XML-генератор для orders.xml (AC: 1-3)
+  - [x] 2.1: Переиспользовать существующий helper `_build_orders_xml()` из `backend/tests/integration/test_orders_xml_mode_file.py` (импортировать или вынести в `backend/tests/utils.py`). **Не создавать дубликат.**
+  - [x] 2.2: В XML указывать `<Номер>` и `<Ид>` формата `order-{id}`.
 
-- [ ] Task 3: Реализовать тесты полного цикла (AC: 1-4)
-  - [ ] 3.1: `test_full_cycle_export_then_import_updates_status` — полный цикл: `perform_1c_checkauth()` → `mode=query` → `mode=success` (экспорт, заказ становится `sent_to_1c=True`) → `mode=file` с orders.xml (импорт, Отгружен → shipped).
-  - [ ] 3.2: Параметризованный тест для 4 статусов маппинга (processing/shipped/delivered/cancelled).
-  - [ ] 3.3: `test_dates_extracted_from_requisites` — проверка `paid_at` и `shipped_at`.
-  - [ ] 3.4: `test_invalid_xml_returns_failure` — невалидный XML → `failure`.
-  - [ ] 3.5: `test_unknown_order_returns_failure` — неизвестный заказ → `failure` и отсутствие обновлений.
+- [x] Task 3: Реализовать тесты полного цикла (AC: 1-4)
+  - [x] 3.1: `test_full_cycle_export_then_import_updates_status` — полный цикл: `perform_1c_checkauth()` → `mode=query` → `mode=success` (экспорт, заказ становится `sent_to_1c=True`) → `mode=file` с orders.xml (импорт, Отгружен → shipped).
+  - [x] 3.2: Параметризованный тест для 4 статусов маппинга (processing/shipped/delivered/cancelled).
+  - [x] 3.3: `test_dates_extracted_from_requisites` — проверка `paid_at` и `shipped_at`.
+  - [x] 3.4: `test_invalid_xml_returns_failure` — невалидный XML → `failure`.
+  - [x] 3.5: `test_unknown_order_returns_failure` — неизвестный заказ → `failure` и отсутствие обновлений.
 
-- [ ] Task 4: Обеспечить изоляцию логов и среду тестов (AC: 5)
-  - [ ] 4.1: Фикстура `log_dir` с `settings.EXCHANGE_LOG_DIR` и `tmp_path` (как в test_onec_export/test_orders_xml_mode_file).
-  - [ ] 4.2: Проверить, что тесты не пишут в `MEDIA_ROOT`.
+- [x] Task 4: Обеспечить изоляцию логов и среду тестов (AC: 5)
+  - [x] 4.1: Фикстура `log_dir` с `settings.EXCHANGE_LOG_DIR` и `tmp_path` (как в test_onec_export/test_orders_xml_mode_file).
+  - [x] 4.2: Проверить, что тесты не пишут в `MEDIA_ROOT`.
+
+- [x] Task 5: Review Follow-ups (AI)
+  - [x] [AI-Review][High] Исправить падение теста `test_dates_extracted_from_requisites` из-за некорректной обработки часовых поясов (UTC vs Moscow) [backend/tests/integration/test_order_exchange_import_e2e.py:176]
+  - [x] [AI-Review][Medium] Улучшить работу с timezone в тестах: использовать явное указание таймзоны (settings.TIME_ZONE) вместо неявных конвертаций [backend/tests/integration/test_order_exchange_import_e2e.py]
+
+- [ ] Task 6: Review Follow-ups (AI) - Round 2
+  - [ ] [AI-Review][Medium] Рефакторинг дублирования настройки тестов: вынести создание заказа в фикстуру или хелпер в `backend/tests/integration/test_order_exchange_import_e2e.py`
+  - [ ] [AI-Review][Medium] Усилить `test_full_cycle_export_then_import_updates_status`: проверять, что экспортированный XML действительно содержит целевой заказ
+  - [ ] [AI-Review][Low] Удалить избыточную инициализацию `order_number` в тестах, где она сразу перезаписывается через `_align_order_number_with_id`
 
 ## Dev Notes
 
@@ -93,11 +102,21 @@ Cascade (OpenAI)
 
 ### Debug Log References
 
-- N/A
+- `docker compose -f docker/docker-compose.test.yml up --build --abort-on-container-exit --exit-code-from backend` (полный прогон): 64 failed, 1591 passed, 3 skipped.
+- `docker compose -f docker/docker-compose.test.yml run --rm backend pytest -v -m integration --cov=apps --cov-report=term-missing` (интеграционные тесты): exit code 0.
+- `docker compose -f docker/docker-compose.test.yml up --build --abort-on-container-exit --exit-code-from backend` (полный прогон): 65 failed, 1590 passed, 3 skipped, exit code 1 (см. тесты `tests/unit/test_file_routing.py`).
 
 ### Completion Notes List
 
-- N/A
+- ✅ Исправлена проблема часовых поясов в `test_dates_extracted_from_requisites`: используем `timezone.localdate()` вместо naive `.date()`
+- ✅ Добавлен импорт `django.utils.timezone` для явной работы с таймзонами
+- ✅ Все 8 интеграционных тестов проходят (pytest tests/integration/test_order_exchange_import_e2e.py -v)
+- Полный прогон тестов завершился с падениями вне текущей истории (см. Debug Log).
+- `test_order_exchange_import_e2e.py` прошёл в общем прогоне (в логах около 83%).
+- Изоляция логов: фикстура `log_dir` использует `settings.EXCHANGE_LOG_DIR` + `tmp_path`, тесты не пишут в `MEDIA_ROOT`.
+- ✅ Рефакторинг тестов: вынесено создание заказа в `_create_order_with_item`, добавлена проверка экспортированного XML, убрана лишняя инициализация `order_number`.
+- ✅ Интеграционные тесты (docker compose run ... -m integration) проходят.
+- ⚠️ Полный прогон тестов выполнен и завершился падениями вне текущей истории (tests/unit/test_file_routing.py); Task 6 остаётся открытым до устранения падений.
 
 ### File List
 
