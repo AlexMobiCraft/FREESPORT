@@ -79,7 +79,7 @@ class Test1CFileRouting:
 
     def test_xml_routing_goods(self, authenticated_client, temp_1c_dirs):
         """
-        TC1: Upload goods.xml -> routed to 1c_import/<sessid>/goods/
+        TC1: Upload goods.xml -> stored in 1c_temp/<sessid>/ (routing happens later)
         """
         sessid = get_session_id(authenticated_client)
         content = b"<xml>goods</xml>"
@@ -94,18 +94,18 @@ class Test1CFileRouting:
         assert response.status_code == status.HTTP_200_OK
         assert response.content == b"success"
 
-        # Verify NOT in temp (should be moved)
+        # Verify IN temp (routing happens during import/complete)
         temp_file = temp_1c_dirs["temp"] / sessid / filename
-        assert not temp_file.exists()
+        assert temp_file.exists()
+        assert temp_file.read_bytes() == content
 
-        # Verify IN import/goods/
-        import_file = temp_1c_dirs["import"] / sessid / "goods" / filename
-        assert import_file.exists()
-        assert import_file.read_bytes() == content
+        # Verify NOT in import directory yet
+        import_file = temp_1c_dirs["import"] / "goods" / filename
+        assert not import_file.exists()
 
     def test_xml_routing_offers(self, authenticated_client, temp_1c_dirs):
         """
-        TC2: Upload offers_123.xml -> routed to 1c_import/<sessid>/offers/
+        TC2: Upload offers_123.xml -> stored in 1c_temp/<sessid>/ (routing happens later)
         """
         sessid = get_session_id(authenticated_client)
         content = b"<xml>offers</xml>"
@@ -119,13 +119,17 @@ class Test1CFileRouting:
 
         assert response.status_code == status.HTTP_200_OK
 
-        # Verify IN import/offers/
-        import_file = temp_1c_dirs["import"] / sessid / "offers" / filename
-        assert import_file.exists()
+        # Verify IN temp
+        temp_file = temp_1c_dirs["temp"] / sessid / filename
+        assert temp_file.exists()
+
+        # Verify NOT in import directory yet
+        import_file = temp_1c_dirs["import"] / "offers" / filename
+        assert not import_file.exists()
 
     def test_image_routing(self, authenticated_client, temp_1c_dirs):
         """
-        TC3: Upload image.jpg -> routed to 1c_import/<sessid>/import_files/
+        TC3: Upload image.jpg -> stored in 1c_temp/<sessid>/ (routing happens later)
         """
         sessid = get_session_id(authenticated_client)
         content = b"fake_image_bytes"
@@ -139,9 +143,13 @@ class Test1CFileRouting:
 
         assert response.status_code == status.HTTP_200_OK
 
-        # Verify IN import/import_files/
-        import_file = temp_1c_dirs["import"] / sessid / "import_files" / filename
-        assert import_file.exists()
+        # Verify IN temp
+        temp_file = temp_1c_dirs["temp"] / sessid / filename
+        assert temp_file.exists()
+
+        # Verify NOT in import directory yet
+        import_file = temp_1c_dirs["import"] / "goods" / "import_files" / filename
+        assert not import_file.exists()
 
     def test_zip_no_routing(self, authenticated_client, temp_1c_dirs):
         """
@@ -164,14 +172,12 @@ class Test1CFileRouting:
         assert temp_file.exists()
 
         # Verify NOT in import root or subdirs
-        # We just check the root of the session import dir and ensure it's empty or doesn't have this file
-        # Note: session dir in import might be created if other files were uploaded, but let's check exact path
-        import_file_root = temp_1c_dirs["import"] / sessid / filename
+        import_file_root = temp_1c_dirs["import"] / filename
         assert not import_file_root.exists()
 
     def test_unknown_file_routing(self, authenticated_client, temp_1c_dirs):
         """
-        TC5: Upload unknown.dat -> routed to 1c_import/<sessid>/
+        TC5: Upload unknown.dat -> stored in 1c_temp/<sessid>/ (routing happens later)
         """
         sessid = get_session_id(authenticated_client)
         content = b"unknown data"
@@ -185,13 +191,17 @@ class Test1CFileRouting:
 
         assert response.status_code == status.HTTP_200_OK
 
-        # Verify IN import root
-        import_file = temp_1c_dirs["import"] / sessid / filename
-        assert import_file.exists()
+        # Verify IN temp
+        temp_file = temp_1c_dirs["temp"] / sessid / filename
+        assert temp_file.exists()
+
+        # Verify NOT in import directory yet
+        import_file = temp_1c_dirs["import"] / filename
+        assert not import_file.exists()
 
     def test_uppercase_extensions(self, authenticated_client, temp_1c_dirs):
         """
-        TC6: Uppercase extensions handled correctly (IMAGE.PNG -> import_files)
+        TC6: Uppercase extensions handled correctly (stored in temp, routed later)
         """
         sessid = get_session_id(authenticated_client)
         content = b"png bytes"
@@ -205,6 +215,10 @@ class Test1CFileRouting:
 
         assert response.status_code == status.HTTP_200_OK
 
-        # Verify IN import/import_files/
-        import_file = temp_1c_dirs["import"] / sessid / "import_files" / filename
-        assert import_file.exists()
+        # Verify IN temp
+        temp_file = temp_1c_dirs["temp"] / sessid / filename
+        assert temp_file.exists()
+
+        # Verify NOT in import directory yet
+        import_file = temp_1c_dirs["import"] / "goods" / "import_files" / filename
+        assert not import_file.exists()

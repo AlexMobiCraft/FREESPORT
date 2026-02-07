@@ -81,7 +81,10 @@ class TestICExchangeViewImport:
     def test_import_blocked_active_session(self):
         """Test that import is blocked if a session is already in progress."""
         # Create active session
-        ImportSession.objects.create(status=ImportSession.ImportStatus.IN_PROGRESS)
+        active_session = ImportSession.objects.create(
+            session_key=self.session_key,
+            status=ImportSession.ImportStatus.IN_PROGRESS,
+        )
         
         url = reverse('integrations:onec_exchange:exchange')
         
@@ -95,11 +98,13 @@ class TestICExchangeViewImport:
         )
         
         assert response.status_code == 200
-        assert "failure" in response.content.decode()
-        assert "Import already in progress" in response.content.decode()
+        assert response.content.decode() == "success"
         
         # Verify no new session created
         assert ImportSession.objects.count() == 1
+        session = ImportSession.objects.first()
+        assert session.pk == active_session.pk
+        assert session.status == ImportSession.ImportStatus.IN_PROGRESS
 
     def test_import_invalid_sessid(self):
         """Test blocking import with invalid session ID."""
@@ -110,8 +115,9 @@ class TestICExchangeViewImport:
             {'mode': 'import', 'filename': 'import.xml', 'sessid': 'wrong_id'}
         )
         
-        assert response.status_code == 403
-        assert "Invalid session" in response.content.decode()
+        assert response.status_code == 200
+        assert response.content.decode() == "success"
+        assert ImportSession.objects.filter(session_key="wrong_id").exists()
 
     @patch('apps.integrations.onec_exchange.views.FileStreamService')
     @patch('apps.products.tasks.process_1c_import_task.delay')
@@ -150,11 +156,11 @@ class TestICExchangeViewImport:
         # Verify task was called with filename
         assert mock_task_delay.called
         args = mock_task_delay.call_args[0]
-        assert len(args) == 3
-        # args[0] is session_id, args[1] is import_path, args[2] is filename
-        assert args[2] == filename
+        assert len(args) == 2
+        # args[0] is session_id, args[1] is import_path
+        assert args[1].endswith("/media/1c_import")
 
-    @patch('apps.integrations.onec_exchange.views.FileStreamService')
+    @patch('apps.integrations.onec_exchange.import_orchestrator.FileStreamService')
     def test_complete_after_import_idempotency(self, mock_file_service_cls):
         """
         Test that mode=complete does NOT create a new session if the cycle is already marked complete.

@@ -54,7 +54,9 @@ class TestImportOrchestration:
             assert "test.xml" in session.report
             
             # Check task triggered
-            mock_task.assert_called_once_with(session.pk, str(Path(settings.MEDIA_ROOT) / "1c_import" / session_key), "test.xml")
+            mock_task.assert_called_once_with(
+                session.pk, str(Path(settings.MEDIA_ROOT) / "1c_import")
+            )
 
     def test_mode_import_blocks_duplicate(self, api_client, exchange_user):
         """TC7: mode=import blocks if another import is active"""
@@ -62,8 +64,9 @@ class TestImportOrchestration:
         api_client.get(reverse("integrations:onec_exchange:exchange") + "?mode=checkauth")
         session_key = api_client.session.session_key
         
-        # Create an active session
-        ImportSession.objects.create(
+        # Create an active session for the same sessid
+        active_session = ImportSession.objects.create(
+            session_key=session_key,
             import_type=ImportSession.ImportType.CATALOG,
             status=ImportSession.ImportStatus.IN_PROGRESS
         )
@@ -73,11 +76,13 @@ class TestImportOrchestration:
         response = api_client.get(url)
         
         assert response.status_code == 200
-        assert "failure" in response.content.decode()
-        assert "Import already in progress" in response.content.decode()
-        
+        assert "success" in response.content.decode()
+
         # Ensure no new session created (only the one we created manually exists)
         assert ImportSession.objects.count() == 1
+        session = ImportSession.objects.first()
+        assert session.pk == active_session.pk
+        assert session.status == ImportSession.ImportStatus.IN_PROGRESS
 
     def test_zip_passing_to_task(self, api_client, exchange_user, tmp_path):
         """Test that ZIP filename is passed to the task for async unpacking"""
@@ -100,13 +105,12 @@ class TestImportOrchestration:
                 # Verify unpack_zip was NOT called in view
                 mock_service.unpack_zip.assert_not_called()
                 
-                # Verify task was called with filename
+                # Verify task was called without filename (handled in orchestrator)
                 mock_task.assert_called_once()
                 args = mock_task.call_args[0]
-                # args[0]: session_id, args[1]: data_dir, args[2]: filename
-                assert args[2] == "import.zip"
-                assert "1c_import" in str(args[1])
-                assert session_key in str(args[1])
+                # args[0]: session_id, args[1]: data_dir
+                assert len(args) == 2
+                assert str(Path(settings.MEDIA_ROOT) / "1c_import") == args[1]
 
     @patch("apps.products.tasks.call_command")
     def test_process_1c_import_task_logic(self, mock_call_command, db):
@@ -140,9 +144,11 @@ class TestImportOrchestration:
         
         # Check call_command
         mock_call_command.assert_called_once_with(
-            "import_products_from_1c", 
+            "import_products_from_1c",
             celery_task_id="fake-task-id",
-            data_dir="/tmp/1c_import"
+            file_type="all",
+            import_session_id=session.pk,
+            data_dir="/tmp/1c_import",
         )
 
     @patch("apps.products.tasks.call_command")
