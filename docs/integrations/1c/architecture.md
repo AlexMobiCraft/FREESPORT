@@ -254,7 +254,7 @@ graph TD
         View -- "mode=file" --> FSS[FileStreamService]
         FSS --> Temp[Media: 1c_temp/session_id/]
         View -- "mode=import" --> Router[FileRoutingService]
-        Router -- Unpack/Move --> ImportDir[Media: 1c_import/session_id/]
+        Router -- Unpack/Move --> ImportDir[Media: 1c_import/]
     end
 
     subgraph "Processing Layer (Async)"

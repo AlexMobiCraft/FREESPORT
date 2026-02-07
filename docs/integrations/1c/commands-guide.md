@@ -51,7 +51,10 @@ python manage.py import_products_from_1c --data-dir=<path> [OPTIONS]
 data-dir/
 ├── goods/
 │   ├── goods.xml           # Основные данные товаров
-│   └── goods_*.xml         # Сегментированные файлы (опционально)
+│   ├── goods_*.xml         # Сегментированные файлы (опционально)
+│   └── import_files/
+│        ├── image1.jpg
+│        └── image2.png
 ├── offers/
 │   ├── offers.xml          # SKU и предложения
 │   └── offers_*.xml

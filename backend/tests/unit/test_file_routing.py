@@ -1,5 +1,5 @@
 """
-Unit tests for 1C file routing (Story 2.2).
+Unit tests for 1C file routing (current behavior).
 
 Tests FileRoutingService logic without Django DB dependencies.
 Validates that files are routed to correct directories based on type.
@@ -87,7 +87,7 @@ def file_service(session_id, mock_settings):
 
 
 class TestXMLGoodsRouting:
-    """TC1: Загрузка goods.xml -> перемещён в 1c_import/<sessid>/goods/"""
+    """TC1: Загрузка goods.xml -> перемещён в 1c_import/goods/"""
 
     def test_goods_xml_routed_to_goods_folder(
         self, routing_service, file_service, import_base, session_id
@@ -114,7 +114,7 @@ class TestXMLGoodsRouting:
             target_path = router.move_to_import(filename)
 
         # Assert: File is in goods/ subdirectory
-        expected_dir = import_base / session_id / "goods"
+        expected_dir = import_base / "goods"
         assert target_path.parent == expected_dir
         assert target_path.name == filename
         assert target_path.exists()
@@ -127,7 +127,7 @@ class TestXMLGoodsRouting:
 
 
 class TestXMLOffersRouting:
-    """TC2: Загрузка offers_1_uuid.xml -> перемещён в 1c_import/<sessid>/offers/"""
+    """TC2: Загрузка offers_1_uuid.xml -> перемещён в 1c_import/offers/"""
 
     def test_offers_xml_with_uuid_routed_to_offers_folder(
         self, routing_service, file_service, import_base, session_id
@@ -152,7 +152,7 @@ class TestXMLOffersRouting:
             target_path = router.move_to_import(filename)
 
         # Assert: File is in offers/ subdirectory
-        expected_dir = import_base / session_id / "offers"
+        expected_dir = import_base / "offers"
         assert target_path.parent == expected_dir
         assert target_path.exists()
 
@@ -163,7 +163,7 @@ class TestXMLOffersRouting:
 
 
 class TestImageJpgRouting:
-    """TC3: Загрузка image.jpg -> перемещён в 1c_import/<sessid>/import_files/"""
+    """TC3: Загрузка image.jpg -> перемещён в 1c_import/goods/import_files/"""
 
     def test_jpg_image_routed_to_import_files(
         self, routing_service, file_service, import_base, session_id
@@ -188,7 +188,7 @@ class TestImageJpgRouting:
             target_path = router.move_to_import(filename)
 
         # Assert: File is in import_files/ subdirectory
-        expected_dir = import_base / session_id / "import_files"
+        expected_dir = import_base / "goods" / "import_files"
         assert target_path.parent == expected_dir
         assert target_path.exists()
 
@@ -199,7 +199,7 @@ class TestImageJpgRouting:
 
 
 class TestImageUppercaseRouting:
-    """TC4: Загрузка photo.PNG (uppercase) -> перемещён в import_files/"""
+    """TC4: Загрузка photo.PNG (uppercase) -> перемещён в goods/import_files/"""
 
     def test_uppercase_png_routed_to_import_files(
         self, routing_service, file_service, import_base, session_id
@@ -223,27 +223,29 @@ class TestImageUppercaseRouting:
             router = FileRoutingService(session_id)
             target_path = router.move_to_import(filename)
 
-        # Assert: File is in import_files/
-        expected_dir = import_base / session_id / "import_files"
+        # Assert: File is in goods/import_files/
+        expected_dir = import_base / "goods" / "import_files"
         assert target_path.parent == expected_dir
 
 
 # ============================================================================
-# TC5: ZIP stays in temp (not routed)
+# TC5: ZIP routed to import root
 # ============================================================================
 
 
-class TestZipStaysInTemp:
-    """TC5: Загрузка import.zip -> остаётся в 1c_temp/<sessid>/ (НЕ распакован)"""
+class TestZipRouting:
+    """TC5: Загрузка import.zip -> перемещён в 1c_import/"""
 
-    def test_zip_file_not_routed(self, file_service, import_base, session_id):
-        """ZIP files should NOT be routed - they stay in temp for later unpacking."""
+    def test_zip_file_routed_to_import_root(
+        self, file_service, import_base, session_id
+    ):
+        """ZIP files should be routed to import root for later unpacking."""
         # Arrange: Create ZIP file
         filename = "import.zip"
         content = b"PK\x03\x04" + b"\x00" * 26
         file_service.append_chunk(filename, content)
 
-        # Act: Check if should route
+        # Act: Route the file
         with patch("apps.integrations.onec_exchange.routing_service.settings") as mock:
             mock.ONEC_EXCHANGE = {
                 "TEMP_DIR": file_service.base_dir,
@@ -254,29 +256,30 @@ class TestZipStaysInTemp:
             )
 
             router = FileRoutingService(session_id)
-            should_route = router.should_route(filename)
+            target_path = router.move_to_import(filename)
 
-        # Assert: ZIP should NOT be routed
-        assert should_route is False
-        assert file_service.file_exists(filename), "ZIP should remain in temp"
+        # Assert: ZIP moved to import root
+        assert target_path.parent == import_base
+        assert target_path.exists()
+        assert not file_service.file_exists(filename), "ZIP should be moved from temp"
 
 
 # ============================================================================
-# TC6: ZIP with uppercase extension stays in temp
+# TC6: ZIP with uppercase extension routed
 # ============================================================================
 
 
-class TestZipUppercaseStaysInTemp:
-    """TC6: Загрузка archive.ZIP (uppercase) -> остаётся в temp"""
+class TestZipUppercaseRouting:
+    """TC6: Загрузка archive.ZIP (uppercase) -> перемещён в 1c_import/"""
 
-    def test_uppercase_zip_not_routed(self, file_service, import_base, session_id):
-        """Uppercase ZIP extensions should also not be routed."""
+    def test_uppercase_zip_routed(self, file_service, import_base, session_id):
+        """Uppercase ZIP extensions should also be routed."""
         # Arrange: Create ZIP with uppercase extension
         filename = "archive.ZIP"
         content = b"PK\x03\x04" + b"\x00" * 26
         file_service.append_chunk(filename, content)
 
-        # Act: Check if should route
+        # Act: Route the file
         with patch("apps.integrations.onec_exchange.routing_service.settings") as mock:
             mock.ONEC_EXCHANGE = {
                 "TEMP_DIR": file_service.base_dir,
@@ -287,10 +290,11 @@ class TestZipUppercaseStaysInTemp:
             )
 
             router = FileRoutingService(session_id)
-            should_route = router.should_route(filename)
+            target_path = router.move_to_import(filename)
 
-        # Assert: ZIP should NOT be routed
-        assert should_route is False
+        # Assert: ZIP moved to import root
+        assert target_path.parent == import_base
+        assert target_path.exists()
 
 
 # ============================================================================
@@ -299,7 +303,7 @@ class TestZipUppercaseStaysInTemp:
 
 
 class TestUnknownFileRouting:
-    """TC7: Загрузка unknown.dat -> перемещён в корень 1c_import/<sessid>/"""
+    """TC7: Загрузка unknown.dat -> перемещён в корень 1c_import/"""
 
     def test_unknown_extension_routed_to_import_root(
         self, file_service, import_base, session_id
@@ -324,7 +328,7 @@ class TestUnknownFileRouting:
             target_path = router.move_to_import(filename)
 
         # Assert: File is in import root (not a subdirectory)
-        expected_dir = import_base / session_id
+        expected_dir = import_base
         assert target_path.parent == expected_dir
         assert target_path.exists()
 
@@ -335,7 +339,7 @@ class TestUnknownFileRouting:
 
 
 class TestSessionIsolation:
-    """TC8: Изоляция сессий -> файлы не смешиваются между сессиями"""
+    """TC8: Temp изолирован по сессиям, import очередь общая."""
 
     def test_files_isolated_between_sessions(self, tmp_path):
         """Files from different sessions should not interfere with each other."""
@@ -357,13 +361,17 @@ class TestSessionIsolation:
             service1 = FileStreamService(session1)
             service2 = FileStreamService(session2)
 
-            filename = "goods.xml"
+            filename1 = "goods.xml"
+            filename2 = "offers.xml"
             content1 = b"<goods>session1</goods>"
-            content2 = b"<goods>session2</goods>"
+            content2 = b"<offers>session2</offers>"
 
             # Create files in both sessions
-            service1.append_chunk(filename, content1)
-            service2.append_chunk(filename, content2)
+            service1.append_chunk(filename1, content1)
+            service2.append_chunk(filename2, content2)
+
+            assert (temp_base / session1 / filename1).exists()
+            assert (temp_base / session2 / filename2).exists()
 
         with patch(
             "apps.integrations.onec_exchange.routing_service.settings"
@@ -380,17 +388,20 @@ class TestSessionIsolation:
             router2 = FileRoutingService(session2)
 
             # Act: Route files
-            path1 = router1.move_to_import(filename)
-            path2 = router2.move_to_import(filename)
+            path1 = router1.move_to_import(filename1)
+            path2 = router2.move_to_import(filename2)
 
-            # Assert: Files are in separate session directories
-            assert path1.parent.parent.name == session1
-            assert path2.parent.parent.name == session2
-            assert path1 != path2
+            # Assert: Import queue is shared (no session isolation)
+            assert path1.parent == import_base / "goods"
+            assert path2.parent == import_base / "offers"
 
-            # Verify contents are different
+            # Verify contents are preserved
             assert path1.read_bytes() == content1
             assert path2.read_bytes() == content2
+
+            # Temp files removed after routing
+            assert not (temp_base / session1 / filename1).exists()
+            assert not (temp_base / session2 / filename2).exists()
 
 
 # ============================================================================
@@ -477,7 +488,7 @@ class TestRoutingRules:
             target_path = router.move_to_import(filename)
 
         # Assert
-        expected_dir = import_base / session_id / expected_subdir
+        expected_dir = import_base / expected_subdir
         assert target_path.parent == expected_dir
 
     @pytest.mark.parametrize("extension", [".jpg", ".jpeg", ".png", ".gif", ".webp"])
@@ -504,7 +515,7 @@ class TestRoutingRules:
             target_path = router.move_to_import(filename)
 
         # Assert
-        expected_dir = import_base / session_id / "import_files"
+        expected_dir = import_base / "goods" / "import_files"
         assert target_path.parent == expected_dir
 
 
@@ -587,8 +598,8 @@ class TestShouldRoute:
             assert router.should_route("image.jpg") is True
             assert router.should_route("photo.PNG") is True
 
-    def test_zip_should_not_route(self, tmp_path, session_id):
-        """ZIP files should NOT be routed."""
+    def test_zip_should_route(self, tmp_path, session_id):
+        """ZIP files should be routed."""
         with patch("apps.integrations.onec_exchange.routing_service.settings") as mock:
             mock.ONEC_EXCHANGE = {
                 "TEMP_DIR": tmp_path / "1c_temp",
@@ -600,5 +611,5 @@ class TestShouldRoute:
 
             router = FileRoutingService(session_id)
 
-            assert router.should_route("import.zip") is False
-            assert router.should_route("data.ZIP") is False
+            assert router.should_route("import.zip") is True
+            assert router.should_route("data.ZIP") is True

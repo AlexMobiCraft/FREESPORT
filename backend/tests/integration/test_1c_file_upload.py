@@ -11,6 +11,7 @@ These tests cover:
 - Verify file existence and integrity in 1c_temp after upload
 """
 import base64
+from typing import Any
 from pathlib import Path
 from unittest.mock import patch
 
@@ -57,7 +58,7 @@ def authenticated_client(staff_user):
         b"1c_file@example.com:secure_password_123"
     ).decode("ascii")
     # Establish session via checkauth
-    response = client.get(
+    response: Any = client.get(
         "/api/integration/1c/exchange/",
         data={"mode": "checkauth"},
         HTTP_AUTHORIZATION=auth_header,
@@ -108,11 +109,12 @@ class Test1CFileUpload:
 
     def test_tc2_upload_invalid_sessid(self, authenticated_client, temp_1c_dir):
         """
-        TC2/AC3: Upload with invalid sessid returns 403 with 'failure\\nInvalid session'.
+        TC2/AC3: URL sessid имеет приоритет и используется для маршрутизации файла.
         """
         # Use a fake sessid that doesn't match the session
         fake_sessid = "invalid_session_id_12345"
-        test_content = b"Should not be saved"
+        test_content = b"Should be saved in explicit sessid dir"
+        assert get_session_id(authenticated_client) != fake_sessid
 
         response = authenticated_client.post(
             f"/api/integration/1c/exchange/?mode=file&filename=test.zip&sessid={fake_sessid}",
@@ -120,15 +122,19 @@ class Test1CFileUpload:
             content_type="application/octet-stream",
         )
 
-        assert response.status_code == status.HTTP_403_FORBIDDEN
-        content = response.content.decode("utf-8")
-        assert content == "failure\nInvalid session"
+        assert response.status_code == status.HTTP_200_OK
+        assert response.content == b"success"
+
+        expected_file = temp_1c_dir / fake_sessid / "test.zip"
+        assert expected_file.exists()
+        assert expected_file.read_bytes() == test_content
 
     def test_tc3_upload_missing_sessid(self, authenticated_client, temp_1c_dir):
         """
-        TC3/AC4: Upload without sessid param returns 403 with 'failure\\nMissing sessid'.
+        TC3/AC4: Отсутствующий sessid берётся из session cookie и загрузка успешна.
         """
-        test_content = b"Should not be saved"
+        sessid = get_session_id(authenticated_client)
+        test_content = b"Should be saved using session cookie"
 
         response = authenticated_client.post(
             "/api/integration/1c/exchange/?mode=file&filename=test.zip",
@@ -136,9 +142,12 @@ class Test1CFileUpload:
             content_type="application/octet-stream",
         )
 
-        assert response.status_code == status.HTTP_403_FORBIDDEN
-        content = response.content.decode("utf-8")
-        assert content == "failure\nMissing sessid"
+        assert response.status_code == status.HTTP_200_OK
+        assert response.content == b"success"
+
+        expected_file = temp_1c_dir / sessid / "test.zip"
+        assert expected_file.exists()
+        assert expected_file.read_bytes() == test_content
 
     def test_tc4_chunked_upload_append(self, authenticated_client, temp_1c_dir):
         """
@@ -189,7 +198,7 @@ class Test1CFileUpload:
 
     def test_upload_missing_filename(self, authenticated_client, temp_1c_dir):
         """
-        Edge case: Upload without filename param returns 400.
+        Edge case: Upload without filename param returns failure response.
         """
         sessid = get_session_id(authenticated_client)
         test_content = b"Content without filename"
@@ -200,12 +209,12 @@ class Test1CFileUpload:
             content_type="application/octet-stream",
         )
 
-        assert response.status_code == status.HTTP_400_BAD_REQUEST
-        assert b"Missing filename" in response.content
+        assert response.status_code == status.HTTP_200_OK
+        assert response.content == b"failure\nMissing session or filename"
 
     def test_upload_empty_body(self, authenticated_client, temp_1c_dir):
         """
-        Edge case: Upload with empty body returns 400.
+        Edge case: Upload with empty body returns failure response.
         """
         sessid = get_session_id(authenticated_client)
 
@@ -215,8 +224,8 @@ class Test1CFileUpload:
             content_type="application/octet-stream",
         )
 
-        assert response.status_code == status.HTTP_400_BAD_REQUEST
-        assert b"Empty body" in response.content
+        assert response.status_code == status.HTTP_200_OK
+        assert response.content == b"failure\nEmpty body"
 
     def test_upload_directory_traversal_prevention(
         self, authenticated_client, temp_1c_dir
@@ -258,7 +267,7 @@ class Test1CFileUpload:
 
     def test_file_limit_exceeded(self, authenticated_client, temp_1c_dir):
         """
-        File exceeding FILE_LIMIT_BYTES returns 413 with failure message.
+        File exceeding FILE_LIMIT_BYTES returns failure response.
         Uses mock.patch.dict for thread-safe settings modification.
         """
         sessid = get_session_id(authenticated_client)
@@ -274,16 +283,15 @@ class Test1CFileUpload:
                 content_type="application/octet-stream",
             )
 
-            assert response.status_code == 413
-            content = response.content.decode("utf-8")
-            assert "failure" in content
-            assert "exceeds limit" in content
+            assert response.status_code == status.HTTP_200_OK
+            assert response.content == b"failure\nFile too large"
 
     def test_init_cleans_session_files(self, authenticated_client, temp_1c_dir):
         """
-        Calling init mode cleans up any existing files from previous session.
+        Calling init mode cleans up files only when previous cycle is marked complete.
         """
         sessid = get_session_id(authenticated_client)
+        assert sessid
 
         # Upload a file first
         response = authenticated_client.post(
@@ -297,12 +305,19 @@ class Test1CFileUpload:
         old_file = temp_1c_dir / sessid / "old_file.zip"
         assert old_file.exists()
 
+        from apps.integrations.onec_exchange.file_service import FileStreamService
+
+        file_service = FileStreamService(sessid)
+        file_service.mark_complete()
+        assert (temp_1c_dir / sessid / ".exchange_complete").exists()
+
         # Call init mode
         response = authenticated_client.get("/api/integration/1c/exchange/?mode=init")
         assert response.status_code == 200
 
         # Verify old file was cleaned up
         assert not old_file.exists()
+        assert not (temp_1c_dir / sessid / ".exchange_complete").exists()
 
     def test_streaming_upload_uses_chunked_reads(
         self, authenticated_client, temp_1c_dir
@@ -409,7 +424,7 @@ class TestFileStreamService:
             FileStreamService("")
 
         with pytest.raises(ValueError, match="session_id is required"):
-            FileStreamService(None)
+            FileStreamService(None)  # type: ignore[arg-type]
 
     def test_filename_sanitization(self, temp_1c_dir):
         """Service sanitizes filenames to prevent path traversal."""
@@ -428,7 +443,7 @@ class TestFileStreamService:
         assert not (temp_1c_dir / ".." / ".." / ".." / "etc" / "passwd").exists()
 
     def test_cleanup_session(self, temp_1c_dir):
-        """Service cleans up all files in session directory."""
+        """Service cleans up all files in session directory with force=True."""
         from apps.integrations.onec_exchange.file_service import FileStreamService
 
         service = FileStreamService("cleanup-session")
@@ -441,7 +456,7 @@ class TestFileStreamService:
         assert len(service.list_files()) == 3
 
         # Cleanup session
-        deleted_count = service.cleanup_session()
+        deleted_count = service.cleanup_session(force=True)
 
         assert deleted_count == 3
         assert len(service.list_files()) == 0

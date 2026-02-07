@@ -214,8 +214,8 @@ class Test1CInitMode:
             self.url, data={"mode": "init"}, HTTP_AUTHORIZATION=auth_header
         )
 
-        assert response.status_code == status.HTTP_401_UNAUTHORIZED
-        assert b"No session" in response.content
+        assert response.status_code == status.HTTP_200_OK
+        assert response.content == b"failure\nNo session"
 
     def test_init_no_permission(self):
         """
@@ -439,8 +439,8 @@ class TestImportConcurrency:
             HTTP_AUTHORIZATION=self.auth_header
         )
         
-        assert response.status_code == 403
-        assert b"Missing sessid" in response.content
+        assert response.status_code == 200
+        assert response.content == b"failure\nMissing sessid"
 
     def test_concurrent_import_requests(self):
         """

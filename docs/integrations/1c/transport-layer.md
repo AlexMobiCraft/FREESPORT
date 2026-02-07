@@ -78,18 +78,17 @@ Transfers data chunks.
 
 ### 3.4 Step 4: Import (Routing)
 
-Signals that upload is complete for a specific file (or triggers ZIP processing).
+Signals that upload is complete and triggers transfer/unpack into the import queue.
 
 - **Request:** `GET ?mode=import&filename=<name>&sessid=<id>`
 - **Response:**
   - `success` (if processing started/queued)
-  - `progress` (if long-running sync operation)
   - `failure`
 
 **Routing Logic (`FileRoutingService`):**
-1.  **XML Files** (`goods.xml`, `offers.xml`, etc.): Moved to `MEDIA_ROOT/1c_import/<session_id>/<type>/`.
-2.  **Images** (`.jpg`, `.png`): Moved to `MEDIA_ROOT/1c_import/<session_id>/import_files/`.
-3.  **ZIP Files**: Unpacked (see Epic 3), contents routed as above.
+1.  **XML Files** (`goods.xml`, `offers.xml`, etc.): Moved to `MEDIA_ROOT/1c_import/<type>/`.
+2.  **Images** (`.jpg`, `.png`): Moved to `MEDIA_ROOT/1c_import/goods/import_files/`.
+3.  **ZIP Files**: Moved to `MEDIA_ROOT/1c_import/` and unpacked during `mode=import` (or `mode=complete`), contents routed as above.
 
 ## 4. File System Structure
 
@@ -108,14 +107,13 @@ Contains fully assembled/unpacked files ready for the Processing Layer.
 
 ```
 /media/1c_import/
-└── <session_id>/
-    ├── goods/
-    │   └── goods.xml
-    ├── offers/
-    │   └── offers0_1.xml
-    └── import_files/
-        ├── image1.jpg
-        └── image2.png
+├── goods/
+│   ├── goods.xml
+│   └── import_files/
+│        ├── image1.jpg
+│        └── image2.png
+└── offers/
+    └── offers0_1.xml
 ```
 
 ## 5. Security Measures
@@ -124,6 +122,7 @@ Contains fully assembled/unpacked files ready for the Processing Layer.
     - Direct access to `/media/1c_temp/` and `/media/1c_import/` is blocked at the Nginx level to prevent information disclosure.
 2.  **Path Traversal Protection:**
     - Filenames in `mode=file` are sanitized (only basename usage).
-    - ZIP extraction prevents writing outside the session directory.
+    - ZIP extraction prevents writing outside the import directory.
 3.  **Session Isolation:**
-    - Each 1C exchange session operates in its own directory structure based on the Session ID.
+    - Temporary storage uses per-session directories (`1c_temp/<session_id>/`).
+    - The import queue is shared (`1c_import/`) and is filled during `mode=import`/`mode=complete`.

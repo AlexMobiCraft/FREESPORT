@@ -373,14 +373,13 @@ class TestImportSessionAdminActions:
         # Arrange
         import os
 
-        from django.conf import settings
+        from django.contrib.staticfiles import finders
 
-        # Путь к JavaScript файлу
-        js_file_path = os.path.join(
-            settings.BASE_DIR, "static", "admin", "js", "import_session_auto_refresh.js"
-        )
+        # Путь к JavaScript файлу (через staticfiles finders)
+        js_file_path = finders.find("admin/js/import_session_auto_refresh.js")
 
         # Act & Assert
+        assert js_file_path, "JavaScript файл должен существовать в staticfiles"
         assert os.path.exists(
             js_file_path
         ), f"JavaScript файл должен существовать по пути: {js_file_path}"
