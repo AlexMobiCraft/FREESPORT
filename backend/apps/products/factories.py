@@ -140,7 +140,7 @@ class ProductVariantFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = ProductVariant
 
-    product = factory.SubFactory(ProductFactory)
+    product = factory.SubFactory(ProductFactory, create_variant=False)
     sku = factory.LazyFunction(lambda: f"SKU-{get_unique_suffix().upper()}")
     onec_id = factory.LazyFunction(lambda: f"variant-1c-{get_unique_suffix()}")
     color_name = factory.LazyFunction(lambda: f"Color-{get_unique_suffix()}")
