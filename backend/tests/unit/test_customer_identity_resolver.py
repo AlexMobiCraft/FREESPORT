@@ -365,7 +365,7 @@ class TestCustomerIdentityResolver:
         mock_log.objects.create.assert_called_once()
         call_kwargs = mock_log.objects.create.call_args[1]
         assert call_kwargs["session"] == mock_session
-        assert call_kwargs["user"] == b2b_user
+        assert call_kwargs["customer"] == b2b_user
         assert call_kwargs["onec_id"] == "1C-B2B-001"
         assert call_kwargs["operation_type"] == "identify_customer"
         assert call_kwargs["status"] == "success"

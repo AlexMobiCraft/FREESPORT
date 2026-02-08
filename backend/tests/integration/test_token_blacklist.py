@@ -433,7 +433,7 @@ class TestLogoutView:
         log_message = log_record.message
         assert "[AUDIT]" in log_message
         assert f"user_id={self.test_user.id}" in log_message
-        assert f"username={self.test_user.username}" in log_message
+        assert f"email={self.test_user.email}" in log_message
         assert "ip=192.168.1.100" in log_message
 
         # Проверка ISO 8601 timestamp формата
