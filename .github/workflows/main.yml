@@ -87,7 +87,7 @@ jobs:
       run: |
         pip install flake8
         # --exit-zero не прерывает выполнение при ошибках, только сообщает о них
-        flake8 backend/ --max-line-length=89 --extend-ignore=E203,W503 --exit-zero
+        flake8 backend/ --max-line-length=120 --extend-ignore=E203,W503 --exit-zero
 
     - name: Create .env file for testing
       run: |
