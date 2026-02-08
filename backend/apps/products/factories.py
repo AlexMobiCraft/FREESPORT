@@ -76,6 +76,7 @@ class ProductFactory(factory.django.DjangoModelFactory):
 
     class Meta:
         model = Product
+        skip_postgeneration_save = True
 
     name = factory.LazyFunction(lambda: f"Product-{get_unique_suffix()}")
     slug = factory.LazyAttribute(lambda obj: slugify(obj.name))

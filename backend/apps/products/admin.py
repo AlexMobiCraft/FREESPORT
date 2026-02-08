@@ -742,18 +742,17 @@ class AttributeAdmin(admin.ModelAdmin):
                             merged_count += 1
 
                         # 4. Audit logging через LogEntry
-                        LogEntry.objects.log_action(
+                        LogEntry.objects.log_actions(
                             user_id=request.user.pk,
-                            content_type_id=ContentType.objects.get_for_model(
-                                Attribute
-                            ).pk,
-                            object_id=target_attribute.pk,
-                            object_repr=str(target_attribute),
+                            queryset=Attribute.objects.filter(
+                                pk=target_attribute.pk
+                            ),
                             action_flag=CHANGE,
                             change_message=f"Объединены {merged_count} атрибутов. "
                             f"Перенесено маппингов: {mappings_transferred}, "
                             f"значений: {values_transferred}, "
                             f"дедуплицировано: {values_deduplicated}.",
+                            single_object=True,
                         )
 
                     self.message_user(

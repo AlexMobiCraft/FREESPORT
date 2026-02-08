@@ -92,7 +92,7 @@ class BannerAdmin(admin.ModelAdmin):
                 '<img src="{}" style="max-width: 200px; max-height: 100px;" />',
                 obj.image.url,
             )
-        return format_html('<span style="color: #999;">Нет изображения</span>')
+        return format_html('<span style="color: #999;">{}</span>', "Нет изображения")
 
     @admin.display(description="Целевые группы")
     def target_groups_display(self, obj: Banner) -> str:

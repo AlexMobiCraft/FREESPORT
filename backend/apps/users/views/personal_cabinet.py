@@ -122,7 +122,7 @@ class AddressViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         if user.is_authenticated:
-            return Address.objects.filter(user=user)
+            return Address.objects.filter(user=user).order_by("-created_at", "-id")
         return Address.objects.none()
 
     def perform_create(self, serializer):

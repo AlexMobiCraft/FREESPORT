@@ -154,7 +154,7 @@ class ImportSessionAdmin(admin.ModelAdmin):
         - RETRY: задача ожидает повторной попытки
         """
         if not obj.celery_task_id:
-            return format_html('<span style="color: gray;">-</span>')
+            return format_html('<span style="color: gray;">{}</span>', "-")
 
         try:
             from celery.result import AsyncResult

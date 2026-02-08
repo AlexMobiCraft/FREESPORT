@@ -78,6 +78,7 @@ class ProductFactory(DjangoModelFactory):
 
     class Meta:
         model = Product
+        skip_postgeneration_save = True
 
     name = factory.Faker("catch_phrase")
     brand = factory.SubFactory(BrandFactory)

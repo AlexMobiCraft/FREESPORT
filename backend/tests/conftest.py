@@ -50,6 +50,7 @@ def create_factories():
 
         class Meta:
             model = User
+            skip_postgeneration_save = True
 
         email = factory.Sequence(lambda n: f"user{n}@freesport.test")
         first_name = factory.Faker("first_name")
@@ -62,9 +63,12 @@ def create_factories():
         )
         company_name = ""
         tax_id = ""
-        password = factory.PostGenerationMethodCall(
-            "set_password", "default_password123"
-        )
+        @factory.post_generation
+        def password(self, create, extracted, **kwargs):
+            raw_password = extracted or "default_password123"
+            self.set_password(raw_password)
+            if create:
+                self.save()
 
     class CompanyFactory(factory.django.DjangoModelFactory):
         """Фабрика для создания компаний"""
@@ -286,6 +290,7 @@ def create_factories():
 
         class Meta:
             model = "cart.CartItem"
+            skip_postgeneration_save = True
 
         cart = factory.SubFactory(CartFactory)
         # Внимание: для обратной совместимости можно передавать product,
