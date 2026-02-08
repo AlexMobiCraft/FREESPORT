@@ -67,16 +67,21 @@ class TestImportProductsFallback(TestCase):
 
             mock_exists.side_effect = side_effect
 
-            command.stdout = MagicMock()
+            with patch.object(
+                command,
+                "_collect_xml_files",
+                return_value=["/tmp/data/offers/offers.xml"],
+            ):
+                command.stdout = MagicMock()
 
-            command._import_variants_from_offers(
-                data_dir, mock_parser, mock_processor, skip_images=False
-            )
+                command._import_variants_from_offers(
+                    data_dir, mock_parser, mock_processor, skip_images=False
+                )
 
-            # Verify fallback message WAS printed
-            fallback_msg = "Изображения будут загружаться из"
-            calls = [args[0] for args, _ in command.stdout.write.call_args_list]
-            self.assertTrue(
-                any(fallback_msg in str(c) for c in calls),
-                "Fallback SHOULD trigger when offers dir is missing and goods dir exists",
-            )
+                # Verify fallback message WAS printed
+                fallback_msg = "Изображения будут загружаться из"
+                calls = [args[0] for args, _ in command.stdout.write.call_args_list]
+                self.assertTrue(
+                    any(fallback_msg in str(c) for c in calls),
+                    "Fallback SHOULD trigger when offers dir is missing and goods dir exists",
+                )
