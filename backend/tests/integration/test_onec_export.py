@@ -345,11 +345,8 @@ class TestModeSuccess:
         authenticated_client,
         order_for_export,
         customer_user,
-        prolog
+        product_variant,
     ):
-        """  
-    ):
-        
         """AC5: Orders created after query should NOT be marked as sent (race condition)."""
         # Query existing orders
         authenticated_client.get(
@@ -620,7 +617,7 @@ class TestSessionBloatFix:
     def test_cache_based_ids_work_in_full_cycle(
         self, authenticated_client, order_for_export, log_dir
     ):
-        """Cache-based exported_ids still work for query→success cycle."""
+        """Cache-based exported_ids still work for query->success cycle."""
         authenticated_client.get(
             "/api/integration/1c/exchange/",
             data={"mode": "query"},

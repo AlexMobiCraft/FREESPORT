@@ -324,7 +324,7 @@ class TestDateExtraction:
         assert order_updates[0].shipped_at is None
 
     def test_invalid_date_does_not_mark_present(self):
-        """[AI-Review][High] Некорректная дата не должна помечаться как present."""
+        # [AI-Review][High] Некорректная дата не должна помечаться как present.
         # ARRANGE
         xml_data = build_test_xml(
             status="Отгружен",
@@ -341,7 +341,7 @@ class TestDateExtraction:
         assert update.paid_at_present is False
 
     def test_parse_datetime_with_time_preserves_time(self):
-        """[AI-Review][Low] Парсинг datetime с временем сохраняет время."""
+        # [AI-Review][Low] Парсинг datetime с временем сохраняет время.
         # ARRANGE
         xml_data = build_test_xml(
             status="Отгружен",
@@ -366,7 +366,7 @@ class TestDateExtraction:
         assert update.shipped_at.second == 30
 
     def test_parse_date_value_uses_source_timezone(self):
-        """[AI-Review][Medium] _parse_date_value учитывает SOURCE_TIME_ZONE."""
+        # [AI-Review][Medium] _parse_date_value учитывает SOURCE_TIME_ZONE.
         # ARRANGE
         service = OrderStatusImportService()
 
@@ -449,7 +449,7 @@ class TestOrderProcessing:
             mock_order.save.assert_not_called()
 
     def test_idempotent_updates_sent_to_1c_when_status_unchanged(self):
-        """[AI-Review][High] sent_to_1c обновляется даже без изменений статуса."""
+        # [AI-Review][High] sent_to_1c обновляется даже без изменений статуса.
         # ARRANGE
         order_number = "FS-SENT-IDEM-001"
         xml_data = build_test_xml(
@@ -607,7 +607,7 @@ class TestOrderProcessing:
         mock_order.save.assert_called_once()
 
     def test_process_sets_payment_status_paid_when_paid_at_present(self):
-        """[AI-Review][Medium] paid_at из 1С выставляет payment_status='paid'."""
+        # [AI-Review][Medium] paid_at из 1С выставляет payment_status='paid'.
         # ARRANGE
         order_number = "FS-PAID-001"
         xml_data = build_test_xml(
@@ -642,7 +642,7 @@ class TestOrderProcessing:
         mock_order.save.assert_called_once()
 
     def test_payment_status_refunded_not_regressed_by_paid_at(self):
-        """[AI-Review][Medium] refunded payment_status не регрессирует в paid."""
+        # [AI-Review][Medium] refunded payment_status не регрессирует в paid.
         # ARRANGE
         order_number = "FS-REFUND-001"
         xml_data = build_test_xml(
@@ -677,7 +677,7 @@ class TestOrderProcessing:
         mock_order.save.assert_called_once()
 
     def test_process_uses_batch_size_from_settings(self):
-        """[AI-Review][Medium] process() обрабатывает заказы батчами."""
+        # [AI-Review][Medium] process() обрабатывает заказы батчами.
         # ARRANGE
         xml_data = build_multi_order_xml(
             [
@@ -722,7 +722,7 @@ class TestOrderProcessing:
         assert len(second_batch) == 1
 
     def test_status_1c_truncated_to_255_chars(self):
-        """[AI-Review][Low] status_1c обрезается до 255 символов для защиты от DB error."""
+        # [AI-Review][Low] status_1c обрезается до 255 символов для защиты от DB error.
         # ARRANGE
         order_number = f"FS-LONG-{get_unique_suffix()}"
         long_status = "А" * 300  # 300 символов кириллицы
@@ -910,7 +910,7 @@ class TestProcessIntegration:
         assert "security" in result.errors[0].lower()
 
     def test_process_handles_operational_error_in_bulk_fetch(self):
-        """[AI-Review][Medium] OperationalError в bulk fetch записывается в errors."""
+        # [AI-Review][Medium] OperationalError в bulk fetch записывается в errors.
         # ARRANGE
         xml_data = build_test_xml(order_number="FS-DB-ERR-001", status="Отгружен")
         service = OrderStatusImportService()
@@ -941,7 +941,7 @@ class TestReviewFollowups:
     """Тесты для исправлений по результатам код-ревью."""
 
     def test_flexible_document_search_without_container(self):
-        """[AI-Review][High] Гибкий поиск <Документ> без <Контейнер>."""
+        # [AI-Review][High] Гибкий поиск <Документ> без <Контейнер>.
         # ARRANGE — XML без <Контейнер>, <Документ> напрямую в root
         xml_data = """<?xml version="1.0" encoding="UTF-8"?>
 <КоммерческаяИнформация ВерсияСхемы="3.1">
@@ -1518,10 +1518,8 @@ class TestRound6ReviewFollowups:
         assert found_order == mock_order
 
     def test_find_order_fallback_uses_select_for_update(self):
-        """
-        [AI-Review][Medium] Race Condition Risk: select_for_update()
-        в fallback запросе.
-        """
+        # [AI-Review][Medium] Race Condition Risk: select_for_update()
+        # в fallback запросе.
         # ARRANGE
         from unittest.mock import MagicMock
         from unittest.mock import patch as mock_patch
@@ -1560,7 +1558,7 @@ class TestRound6ReviewFollowups:
             assert found_order == mock_order
 
     def test_find_order_fallback_pk_uses_select_for_update(self):
-        """[AI-Review][Medium] select_for_update() используется при поиске по pk."""
+        # [AI-Review][Medium] select_for_update() используется при поиске по pk.
         # ARRANGE
         from unittest.mock import MagicMock
         from unittest.mock import patch as mock_patch
@@ -1603,7 +1601,7 @@ class TestRound7ReviewFollowups:
     """Тесты для исправлений Round 7 код-ревью (сброс дат, маппинг, .only())."""
 
     def test_date_reset_when_tag_present_but_empty(self):
-        """[AI-Review][Medium] Logic/Data Consistency: дата сбрасывается при пустом теге."""
+        # [AI-Review][Medium] Logic/Data Consistency: дата сбрасывается при пустом теге.
         # ARRANGE
         order_number = "FS-DATE-RESET-001"
         # XML с пустым тегом <ДатаОплаты></ДатаОплаты>
@@ -1651,7 +1649,7 @@ class TestRound7ReviewFollowups:
             assert mock_order.paid_at is None
 
     def test_date_not_changed_when_tag_absent(self):
-        """[AI-Review][Medium] Logic/Data Consistency: дата НЕ меняется если тега нет."""
+        # [AI-Review][Medium] Logic/Data Consistency: дата НЕ меняется если тега нет.
         # ARRANGE
         order_number = "FS-DATE-KEEP-001"
         original_paid_at = timezone.now()
@@ -1694,7 +1692,7 @@ class TestRound7ReviewFollowups:
             assert mock_order.paid_at == original_paid_at
 
     def test_status_mapping_lower_precomputed(self):
-        """[AI-Review][Low] Code Style: STATUS_MAPPING_LOWER существует и корректен."""
+        # [AI-Review][Low] Code Style: STATUS_MAPPING_LOWER существует и корректен.
         # ASSERT — все ключи должны быть в lowercase
         for key in STATUS_MAPPING_LOWER:
             assert key == key.lower()
@@ -1704,7 +1702,7 @@ class TestRound7ReviewFollowups:
             assert STATUS_MAPPING_LOWER[original_key.lower()] == value
 
     def test_order_update_data_has_present_flags(self):
-        """[AI-Review][Medium] Logic/Data Consistency: OrderUpdateData имеет флаги *_present."""
+        # [AI-Review][Medium] Logic/Data Consistency: OrderUpdateData имеет флаги *_present.
         # ARRANGE
         data = OrderUpdateData(
             order_id="order-1",
@@ -1729,7 +1727,7 @@ class TestRound7ReviewFollowups:
         ],
     )
     def test_final_status_regression_is_skipped(self, current_status, status_1c):
-        """[AI-Review][Medium] Финальные статусы не регрессируют в активные."""
+        # [AI-Review][Medium] Финальные статусы не регрессируют в активные.
         # ARRANGE
         order_number = "FS-FINAL-001"
         xml_data = build_test_xml(order_number=order_number, status="Отгружен")
@@ -1780,7 +1778,7 @@ class TestRound7ReviewFollowups:
     def test_transition_between_final_statuses_is_blocked(
         self, current_status, current_1c, new_1c_status, target_status
     ):
-        """[AI-Review][Medium] Переходы между финальными статусами блокируются."""
+        # [AI-Review][Medium] Переходы между финальными статусами блокируются.
         # ARRANGE
         order_number = f"FS-FINAL-TRANS-{get_unique_suffix()}"
         xml_data = build_test_xml(order_number=order_number, status=new_1c_status)
@@ -1813,7 +1811,7 @@ class TestRound7ReviewFollowups:
             assert mock_order.status == current_status
 
     def test_status_update_logged_at_debug(self, caplog):
-        """[AI-Review][Medium] Обновление статуса логируется на DEBUG, не INFO."""
+        # [AI-Review][Medium] Обновление статуса логируется на DEBUG, не INFO.
         # ARRANGE
         order_number = "FS-LOG-DEBUG-001"
         xml_data = build_test_xml(order_number=order_number, status="Отгружен")
@@ -1849,23 +1847,25 @@ class TestRound7ReviewFollowups:
         assert all(record.levelno == logging.DEBUG for record in update_logs)
 
     def test_parse_document_sets_present_flags(self):
-        """[AI-Review][Medium] Logic/Data Consistency: _parse_document устанавливает флаги."""
+        # [AI-Review][Medium] Logic/Data Consistency: _parse_document устанавливает флаги.
         # ARRANGE
-        xml_str = """<?xml version="1.0" encoding="UTF-8"?>
-        <Документ>
-            <Ид>order-200</Ид>
-            <Номер>FS-FLAGS-001</Номер>
-            <ЗначенияРеквизитов>
-                <ЗначениеРеквизита>
-                    <Наименование>СтатусЗаказа</Наименование>
-                    <Значение>Отгружен</Значение>
-                </ЗначениеРеквизита>
-                <ЗначениеРеквизита>
-                    <Наименование>ДатаОплаты</Наименование>
-                    <Значение>2026-02-01</Значение>
-                </ЗначениеРеквизита>
-            </ЗначенияРеквизитов>
-        </Документ>"""
+        xml_str = (
+            '<?xml version="1.0" encoding="UTF-8"?>'
+            '<Документ>'
+            '    <Ид>order-200</Ид>'
+            '    <Номер>FS-FLAGS-1</Номер>'
+            '    <ЗначенияРеквизитов>'
+            '        <ЗначениеРеквизита>'
+            '            <Наименование>СтатусЗаказа</Наименование>'
+            '            <Значение>Отгружен</Значение>'
+            '        </ЗначениеРеквизита>'
+            '        <ЗначениеРеквизита>'
+            '            <Наименование>ДатаОплаты</Наименование>'
+            '            <Значение>2026-02-01</Значение>'
+            '        </ЗначениеРеквизита>'
+            '    </ЗначенияРеквизитов>'
+            '</Документ>'
+        )
 
         import defusedxml.ElementTree as ET
 
@@ -1889,10 +1889,10 @@ class TestRound7ReviewFollowups:
 
 @pytest.mark.unit
 class TestRound13ReviewFollowups:
-    """Тесты для исправлений Round 13 код-ревью."""
+    # Тесты для исправлений Round 13 код-ревью.
 
     def test_import_result_skipped_property(self):
-        """[AI-Review][Low] AC Deviation: ImportResult.skipped суммирует все skipped_*."""
+        # [AI-Review][Low] AC Deviation: ImportResult.skipped суммирует все skipped_*.
         # ARRANGE
         result = ImportResult(
             processed=10,
@@ -1912,7 +1912,7 @@ class TestRound13ReviewFollowups:
         assert total_skipped == 8  # 3 + 1 + 1 + 2 + 1
 
     def test_import_result_skipped_defaults_to_zero(self):
-        """[AI-Review][Low] ImportResult.skipped возвращает 0 по умолчанию."""
+        # [AI-Review][Low] ImportResult.skipped возвращает 0 по умолчанию.
         # ARRANGE
         result = ImportResult()
 
@@ -1920,7 +1920,7 @@ class TestRound13ReviewFollowups:
         assert result.skipped == 0
 
     def test_order_update_data_has_parse_warnings_field(self):
-        """[AI-Review][Medium] Observability: OrderUpdateData имеет поле parse_warnings."""
+        # [AI-Review][Medium] Observability: OrderUpdateData имеет поле parse_warnings.
         # ARRANGE
         data = OrderUpdateData(
             order_id="order-1",
@@ -1933,7 +1933,7 @@ class TestRound13ReviewFollowups:
         assert data.parse_warnings == ["Invalid date format: '2026-02-30'"]
 
     def test_order_update_data_parse_warnings_defaults_to_empty(self):
-        """[AI-Review][Medium] OrderUpdateData.parse_warnings по умолчанию пустой."""
+        # [AI-Review][Medium] OrderUpdateData.parse_warnings по умолчанию пустой.
         # ARRANGE
         data = OrderUpdateData(
             order_id="order-1",
@@ -1945,27 +1945,29 @@ class TestRound13ReviewFollowups:
         assert data.parse_warnings == []
 
     def test_invalid_date_error_captured_in_import_result(self):
-        """[AI-Review][Medium] Observability: ошибки парсинга дат попадают в ImportResult.errors."""
+        # [AI-Review][Medium] Observability: ошибки парсинга дат попадают в ImportResult.errors.
         # ARRANGE — XML с некорректной датой
-        xml_data = """<?xml version="1.0" encoding="UTF-8"?>
-        <КоммерческаяИнформация ВерсияСхемы="3.1">
-            <Контейнер>
-                <Документ>
-                    <Ид>order-1</Ид>
-                    <Номер>FS-DATE-ERR-001</Номер>
-                    <ЗначенияРеквизитов>
-                        <ЗначениеРеквизита>
-                            <Наименование>СтатусЗаказа</Наименование>
-                            <Значение>Отгружен</Значение>
-                        </ЗначениеРеквизита>
-                        <ЗначениеРеквизита>
-                            <Наименование>ДатаОплаты</Наименование>
-                            <Значение>2026-02-30</Значение>
-                        </ЗначениеРеквизита>
-                    </ЗначенияРеквизитов>
-                </Документ>
-            </Контейнер>
-        </КоммерческаяИнформация>"""
+        xml_data = (
+            '<?xml version="1.0" encoding="UTF-8"?>'
+            '<КоммерческаяИнформация ВерсияСхемы="3.1">'
+            '    <Контейнер>'
+            '        <Документ>'
+            '            <Ид>order-1</Ид>'
+            '            <Номер>FS-DATE-ERR-001</Номер>'
+            '            <ЗначенияРеквизитов>'
+            '                <ЗначениеРеквизита>'
+            '                    <Наименование>СтатусЗаказа</Наименование>'
+            '                    <Значение>Отгружен</Значение>'
+            '                </ЗначениеРеквизита>'
+            '                <ЗначениеРеквизита>'
+            '                    <Наименование>ДатаОплаты</Наименование>'
+            '                    <Значение>2026-02-30</Значение>'
+            '                </ЗначениеРеквизита>'
+            '            </ЗначенияРеквизитов>'
+            '        </Документ>'
+            '    </Контейнер>'
+            '</КоммерческаяИнформация>'
+        )
 
         service = OrderStatusImportService()
 
@@ -1982,27 +1984,29 @@ class TestRound13ReviewFollowups:
             assert "2026-02-30" in date_errors[0]
 
     def test_parse_document_collects_date_warnings(self):
-        """[AI-Review][Medium] _parse_document собирает предупреждения о датах."""
+        # [AI-Review][Medium] _parse_document собирает предупреждения о датах.
         # ARRANGE
-        xml_str = """<?xml version="1.0" encoding="UTF-8"?>
-        <Документ>
-            <Ид>order-100</Ид>
-            <Номер>FS-WARN-001</Номер>
-            <ЗначенияРеквизитов>
-                <ЗначениеРеквизита>
-                    <Наименование>СтатусЗаказа</Наименование>
-                    <Значение>Отгружен</Значение>
-                </ЗначениеРеквизита>
-                <ЗначениеРеквизита>
-                    <Наименование>ДатаОплаты</Наименование>
-                    <Значение>not-a-date</Значение>
-                </ЗначениеРеквизита>
-                <ЗначениеРеквизита>
-                    <Наименование>ДатаОтгрузки</Наименование>
-                    <Значение>also-invalid</Значение>
-                </ЗначениеРеквизита>
-            </ЗначенияРеквизитов>
-        </Документ>"""
+        xml_str = (
+            '<?xml version="1.0" encoding="UTF-8"?>'
+            '<Документ>'
+            '    <Ид>order-100</Ид>'
+            '    <Номер>FS-WARN-001</Номер>'
+            '    <ЗначенияРеквизитов>'
+            '        <ЗначениеРеквизита>'
+            '            <Наименование>СтатусЗаказа</Наименование>'
+            '            <Значение>Отгружен</Значение>'
+            '        </ЗначениеРеквизита>'
+            '        <ЗначениеРеквизита>'
+            '            <Наименование>ДатаОплаты</Наименование>'
+            '            <Значение>not-a-date</Значение>'
+            '        </ЗначениеРеквизита>'
+            '        <ЗначениеРеквизита>'
+            '            <Наименование>ДатаОтгрузки</Наименование>'
+            '            <Значение>also-invalid</Значение>'
+            '        </ЗначениеРеквизита>'
+            '    </ЗначенияРеквизитов>'
+            '</Документ>'
+        )
 
         import defusedxml.ElementTree as ET
 
@@ -2019,7 +2023,7 @@ class TestRound13ReviewFollowups:
         assert any("shipped_at" in w for w in result.parse_warnings)
 
     def test_final_statuses_derived_from_order_statuses(self):
-        """[AI-Review][Low] DRY: FINAL_STATUSES производное от ORDER_STATUSES."""
+        # [AI-Review][Low] DRY: FINAL_STATUSES производное от ORDER_STATUSES.
         from apps.orders.constants import (
             ALL_ORDER_STATUSES,
             FINAL_STATUSES,
@@ -2035,7 +2039,7 @@ class TestRound13ReviewFollowups:
             assert final_status in ALL_ORDER_STATUSES
 
     def test_active_statuses_derived_from_order_statuses(self):
-        """[AI-Review][Low] DRY: ACTIVE_STATUSES производное от ORDER_STATUSES."""
+        # [AI-Review][Low] DRY: ACTIVE_STATUSES производное от ORDER_STATUSES.
         from apps.orders.constants import (
             ACTIVE_STATUSES,
             ALL_ORDER_STATUSES,
@@ -2051,7 +2055,7 @@ class TestRound13ReviewFollowups:
             assert active_status in ALL_ORDER_STATUSES
 
     def test_all_order_statuses_covers_final_and_active(self):
-        """[AI-Review][Low] DRY: ALL_ORDER_STATUSES = FINAL_STATUSES ∪ ACTIVE_STATUSES."""
+        # [AI-Review][Low] DRY: ALL_ORDER_STATUSES = FINAL_STATUSES U ACTIVE_STATUSES.
         from apps.orders.constants import (
             ACTIVE_STATUSES,
             ALL_ORDER_STATUSES,
@@ -2063,7 +2067,7 @@ class TestRound13ReviewFollowups:
         assert combined == ALL_ORDER_STATUSES
 
     def test_data_integrity_order_id_pk_mismatch_detected(self):
-        """[AI-Review][Medium] Data Integrity: конфликт order_id и pk обнаруживается."""
+        # [AI-Review][Medium] Data Integrity: Conflict order_id and pk detected.
         # ARRANGE — XML с order_id=order-999, но в БД заказ с order_number имеет pk=1
         order_number = "FS-CONFLICT-001"
         xml_data = build_test_xml(
