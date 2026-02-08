@@ -196,11 +196,19 @@ class TestProductBadgeFields:
         # Проверяем что фильтрация работает корректно (косвенно проверяет индексы)
         hits = Product.objects.filter(is_hit=True)
         assert hits.count() == 1
-        assert hits.first().variants.first().sku == "HIT-001"
+        hit = hits.first()
+        assert hit is not None
+        hit_variant = hit.variants.first()
+        assert hit_variant is not None
+        assert hit_variant.sku == "HIT-001"
 
         news = Product.objects.filter(is_new=True)
         assert news.count() == 1
-        assert news.first().variants.first().sku == "NEW-001"
+        new_item = news.first()
+        assert new_item is not None
+        new_variant = new_item.variants.first()
+        assert new_variant is not None
+        assert new_variant.sku == "NEW-001"
 
     def test_badge_fields_in_queryset_filter(self, brand, category):
         """Тест: фильтрация по маркетинговым полям работает корректно"""

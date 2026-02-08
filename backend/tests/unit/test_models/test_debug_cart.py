@@ -9,8 +9,7 @@ import pytest
 from django.core.exceptions import ValidationError
 
 from apps.cart.models import Cart, CartItem
-from tests.conftest import (CartFactory, CartItemFactory, ProductFactory,
-                            UserFactory)
+from tests.conftest import CartFactory, CartItemFactory, ProductFactory, UserFactory
 
 
 @pytest.mark.django_db

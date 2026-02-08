@@ -11,8 +11,14 @@ import factory
 from django.utils.text import slugify
 from factory import fuzzy
 
-from apps.products.models import (Brand, Brand1CMapping, Category,
-                                  ColorMapping, Product, ProductVariant)
+from apps.products.models import (
+    Brand,
+    Brand1CMapping,
+    Category,
+    ColorMapping,
+    Product,
+    ProductVariant,
+)
 
 # Глобальный счетчик для обеспечения уникальности
 _unique_counter = 0

@@ -10,7 +10,6 @@ Story 29.4: Email Notification System
 import logging
 from datetime import timedelta
 from smtplib import SMTPException
-
 from typing import Any
 
 from celery import shared_task

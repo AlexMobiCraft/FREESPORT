@@ -300,7 +300,7 @@ def send_order_cancelled_notification_email(self: Any, order_id: int) -> bool:
 
     customer_name = order.customer_display_name or order.customer_email
 
-    site_url = getattr(settings, 'SITE_URL', 'http://localhost:8001')
+    site_url = getattr(settings, "SITE_URL", "http://localhost:8001")
     message = (
         f"Заказ #{order.order_number} был отменён.\n\n"
         f"Клиент: {customer_name}\n"

@@ -22,11 +22,18 @@ from django.db import OperationalError, transaction
 from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_datetime
 
-from apps.orders.constants import (ACTIVE_STATUSES, ALLOWED_REQUISITES,
-                                   FINAL_STATUSES, MAX_CONSECUTIVE_ERRORS,
-                                   MAX_ERRORS, ORDER_ID_PREFIX, STATUS_MAPPING,
-                                   STATUS_MAPPING_LOWER, STATUS_PRIORITY,
-                                   ProcessingStatus)
+from apps.orders.constants import (
+    ACTIVE_STATUSES,
+    ALLOWED_REQUISITES,
+    FINAL_STATUSES,
+    MAX_CONSECUTIVE_ERRORS,
+    MAX_ERRORS,
+    ORDER_ID_PREFIX,
+    STATUS_MAPPING,
+    STATUS_MAPPING_LOWER,
+    STATUS_PRIORITY,
+    ProcessingStatus,
+)
 from apps.orders.models import Order
 
 logger = logging.getLogger(__name__)
@@ -873,7 +880,9 @@ class OrderStatusImportService:
         # 2. Поиск по order_id формата 'order-{id}' [AI-Review][Medium] DRY
         pk = self._parse_order_id_to_pk(order_data.order_id)
         if pk is not None:
-            db_order_by_id: Order | None = Order.objects.select_for_update().filter(pk=pk).first()
+            db_order_by_id: Order | None = (
+                Order.objects.select_for_update().filter(pk=pk).first()
+            )
             if db_order_by_id:
                 # [AI-Review][Medium] Detect data conflict when finding order by ID
                 if (

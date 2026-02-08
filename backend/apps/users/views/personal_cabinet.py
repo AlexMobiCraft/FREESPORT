@@ -14,9 +14,13 @@ from rest_framework.views import APIView
 from apps.orders.models import Order
 
 from ..models import Address, Favorite, User
-from ..serializers import (AddressSerializer, FavoriteCreateSerializer,
-                           FavoriteSerializer, OrderHistorySerializer,
-                           UserDashboardSerializer)
+from ..serializers import (
+    AddressSerializer,
+    FavoriteCreateSerializer,
+    FavoriteSerializer,
+    OrderHistorySerializer,
+    UserDashboardSerializer,
+)
 
 
 @dataclass

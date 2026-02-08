@@ -9,8 +9,7 @@ from django.contrib.auth import get_user_model, login, logout
 from django.utils import timezone
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
-from drf_spectacular.utils import (OpenApiExample, OpenApiResponse,
-                                   extend_schema)
+from drf_spectacular.utils import OpenApiExample, OpenApiResponse, extend_schema
 from rest_framework import permissions, status
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.generics import GenericAPIView
@@ -24,9 +23,14 @@ logger = logging.getLogger("apps.users.auth")
 
 # User model is used in the code
 from ..authentication import blacklist_access_token
-from ..serializers import (LogoutSerializer, PasswordResetConfirmSerializer,
-                           PasswordResetRequestSerializer, UserLoginSerializer,
-                           UserRegistrationSerializer, ValidateTokenSerializer)
+from ..serializers import (
+    LogoutSerializer,
+    PasswordResetConfirmSerializer,
+    PasswordResetRequestSerializer,
+    UserLoginSerializer,
+    UserRegistrationSerializer,
+    ValidateTokenSerializer,
+)
 from ..tasks import send_password_reset_email
 from ..tokens import password_reset_token
 

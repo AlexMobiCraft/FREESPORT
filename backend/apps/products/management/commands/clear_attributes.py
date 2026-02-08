@@ -6,9 +6,10 @@ Management команда для полной очистки атрибутов 
     python manage.py clear_attributes --confirm  # Без интерактивного подтверждения
 """
 
+from typing import Any
+
 from django.core.management.base import BaseCommand
 from django.db import transaction
-from typing import Any
 
 from apps.products.models import Attribute, AttributeValue
 

@@ -22,8 +22,7 @@ from apps.orders.services.order_export import OrderExportService
 from apps.orders.services.order_status_import import OrderStatusImportService
 from apps.orders.signals import orders_bulk_updated
 
-from .authentication import (Basic1CAuthentication,
-                             CsrfExemptSessionAuthentication)
+from .authentication import Basic1CAuthentication, CsrfExemptSessionAuthentication
 from .file_service import FileLockError, FileStreamService
 from .import_orchestrator import ImportOrchestratorService
 from .permissions import Is1CExchangeUser
@@ -133,7 +132,9 @@ def _get_exchange_log_dir() -> Path:
     return Path(settings.BASE_DIR) / "var" / EXCHANGE_LOG_SUBDIR
 
 
-def _save_exchange_log(filename: str, content: bytes | str, is_binary: bool = False) -> None:
+def _save_exchange_log(
+    filename: str, content: bytes | str, is_binary: bool = False
+) -> None:
     """Save a copy of exchange output to a private log directory for audit."""
     try:
         log_dir = _get_exchange_log_dir()

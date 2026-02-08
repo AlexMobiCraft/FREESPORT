@@ -17,8 +17,7 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from apps.integrations.onec_exchange.views import (ORDERS_XML_MAX_SIZE,
-                                                   ICExchangeView)
+from apps.integrations.onec_exchange.views import ORDERS_XML_MAX_SIZE, ICExchangeView
 from apps.orders.constants import STATUS_PRIORITY
 from apps.orders.models import Order
 from tests.conftest import get_unique_suffix

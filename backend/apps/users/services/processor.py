@@ -353,7 +353,9 @@ class CustomerDataProcessor:
         if customer_type in ["legal_entity", "individual_entrepreneur"]:
             self._create_or_update_company(user, customer_data)
 
-        logger.info(f"Создан новый пользователь: {str(user.email or onec_id)} (role={role})")
+        logger.info(
+            f"Создан новый пользователь: {str(user.email or onec_id)} (role={role})"
+        )
         return user
 
     def _update_customer(

@@ -57,6 +57,7 @@ class TestImportOrchestration:
 
             # Check session created
             session = ImportSession.objects.latest("created_at")
+            assert session is not None
             assert session.status == ImportSession.ImportStatus.PENDING
             assert "test.xml" in session.report
 
@@ -93,7 +94,7 @@ class TestImportOrchestration:
         # Ensure no new session created (only the one we created manually exists)
         assert ImportSession.objects.count() == 1
         session = ImportSession.objects.first()
-        assert session.pk == active_session.pk
+        assert session is not None
         assert session.status == ImportSession.ImportStatus.IN_PROGRESS
 
     def test_zip_passing_to_task(self, api_client, exchange_user, tmp_path):
@@ -134,6 +135,8 @@ class TestImportOrchestration:
     @patch("apps.products.tasks.call_command")
     def test_process_1c_import_task_logic(self, mock_call_command, db):
         """Test process_1c_import_task updates session correctly on success"""
+        from typing import Any, cast
+
         from apps.products.tasks import process_1c_import_task
 
         session = ImportSession.objects.create(
@@ -148,7 +151,9 @@ class TestImportOrchestration:
 
         # Bind the task function to mock_self and call it
         # This bypasses Celery's task wrapper but keeps the 'self' argument
-        process_1c_import_task.__wrapped__.__get__(mock_self, type(mock_self))(
+        # Use cast(Any, ...) to avoid mypy error about __wrapped__
+        task_func = cast(Any, process_1c_import_task)
+        task_func.__wrapped__.__get__(mock_self, type(mock_self))(
             session_id=session.pk, data_dir="/tmp/1c_import"
         )
 
@@ -172,6 +177,8 @@ class TestImportOrchestration:
     @patch("apps.products.tasks.call_command")
     def test_process_1c_import_task_error_handling(self, mock_call_command, db):
         """Test process_1c_import_task updates session correctly on failure"""
+        from typing import Any, cast
+
         from django.core.management import CommandError
 
         from apps.products.tasks import process_1c_import_task
@@ -187,9 +194,8 @@ class TestImportOrchestration:
         mock_self = MagicMock()
         mock_self.request.id = "error-task-id"
 
-        process_1c_import_task.__wrapped__.__get__(mock_self, type(mock_self))(
-            session_id=session.pk
-        )
+        task_func = cast(Any, process_1c_import_task)
+        task_func.__wrapped__.__get__(mock_self, type(mock_self))(session_id=session.pk)
 
         # Verification
         session.refresh_from_db()

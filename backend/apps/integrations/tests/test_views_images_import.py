@@ -4,7 +4,7 @@
 Story 15.1: Добавление типа импорта "Изображения" в админ-панель
 """
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from django.contrib.auth import get_user_model
@@ -133,7 +133,7 @@ class TestImportPostRequest(TestCase):
 
     @patch("apps.integrations.views.run_selective_import_task")
     def test_post_images_type_creates_session_with_correct_type(
-        self, mock_task
+        self, mock_task: MagicMock
     ) -> None:
         """Проверка создания сессии с типом IMAGES при POST запросе."""
         # Создать товары для прохождения валидации
@@ -188,7 +188,7 @@ class TestExistingTypesRegression(TestCase):
         self.client.force_login(self.admin_user)
 
     @patch("apps.integrations.views.run_selective_import_task")
-    def test_catalog_type_still_works(self, mock_task) -> None:
+    def test_catalog_type_still_works(self, mock_task: MagicMock) -> None:
         """Проверка: тип catalog работает как прежде."""
         mock_task.delay.return_value.id = "test-task-id"
 

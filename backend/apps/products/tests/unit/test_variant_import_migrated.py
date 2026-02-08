@@ -13,11 +13,19 @@ from __future__ import annotations
 import pytest
 from django.db import IntegrityError
 
-from apps.products.models import (Brand, Brand1CMapping, Category,
-                                  ImportSession, PriceType)
-from apps.products.services.variant_import import (BrandData, CategoryData,
-                                                   PriceTypeData,
-                                                   VariantImportProcessor)
+from apps.products.models import (
+    Brand,
+    Brand1CMapping,
+    Category,
+    ImportSession,
+    PriceType,
+)
+from apps.products.services.variant_import import (
+    BrandData,
+    CategoryData,
+    PriceTypeData,
+    VariantImportProcessor,
+)
 
 # Маркировка для всего модуля
 pytestmark = [pytest.mark.django_db, pytest.mark.unit]
@@ -278,7 +286,7 @@ class TestProcessCategories:
         # Arrange
         categories_data: list[CategoryData] = [
             {
-                "name": "No ID Category",  # type: ignore
+                "name": "No ID Category",
             },
         ]
 
@@ -295,7 +303,7 @@ class TestProcessCategories:
         suffix = get_unique_suffix()
         categories_data: list[CategoryData] = [
             {
-                "id": f"cat_{suffix}_no_name",  # type: ignore
+                "id": f"cat_{suffix}_no_name",
             },
         ]
 

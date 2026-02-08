@@ -9,10 +9,13 @@ from decimal import Decimal
 import pytest
 from django.contrib.auth import get_user_model
 
-from apps.products.serializers import (BrandSerializer, CategorySerializer,
-                                       ProductDetailSerializer,
-                                       ProductImageSerializer,
-                                       ProductListSerializer)
+from apps.products.serializers import (
+    BrandSerializer,
+    CategorySerializer,
+    ProductDetailSerializer,
+    ProductImageSerializer,
+    ProductListSerializer,
+)
 
 
 # Добавляем ProductSpecificationSerializer как заглушку для тестов

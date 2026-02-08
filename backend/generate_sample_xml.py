@@ -27,7 +27,7 @@ def run():
             variant = ProductVariant.objects.create(
                 product=product,
                 sku="TEST-CML-31",
-                price=Decimal("1500.00"),
+                retail_price=Decimal("1500.00"),
                 onec_id="test-variant-guid-123",
             )
 

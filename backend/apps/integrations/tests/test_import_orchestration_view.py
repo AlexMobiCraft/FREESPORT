@@ -32,8 +32,8 @@ class TestICExchangeViewImport:
 
         # Inject session into client
         self.client.cookies[
-            dict(ImportSession.import_type.field.choices).get("default", "sessionid")
-        ] = self.session_key
+            dict(ImportSession.ImportType.choices).get("default", "sessionid")
+        ] = (self.session_key or "sessionid")
 
         # Mock session on request is handled by middleware, but for APIClient we might need to be careful
         # The view checks request.session.session_key matching 'sessid' param.
@@ -66,7 +66,11 @@ class TestICExchangeViewImport:
 
         response = self.client.get(
             url,
-            {"mode": "import", "filename": "import.xml", "sessid": self.session_key},
+            {
+                "mode": "import",
+                "filename": "import.xml",
+                "sessid": self.session_key or "sessionid",
+            },
         )
 
         assert response.status_code == 200
@@ -75,6 +79,7 @@ class TestICExchangeViewImport:
         # Verify session created
         assert ImportSession.objects.count() == 1
         session = ImportSession.objects.first()
+        assert session is not None
         assert session.status == ImportSession.ImportStatus.PENDING
         assert "import.xml" in session.report
 
@@ -99,7 +104,11 @@ class TestICExchangeViewImport:
 
         response = self.client.get(
             url,
-            {"mode": "import", "filename": "import.xml", "sessid": self.session_key},
+            {
+                "mode": "import",
+                "filename": "import.xml",
+                "sessid": self.session_key or "sessionid",
+            },
         )
 
         assert response.status_code == 200
@@ -108,6 +117,7 @@ class TestICExchangeViewImport:
         # Verify no new session created
         assert ImportSession.objects.count() == 1
         session = ImportSession.objects.first()
+        assert session is not None
         assert session.pk == active_session.pk
         assert session.status == ImportSession.ImportStatus.IN_PROGRESS
 
@@ -148,7 +158,12 @@ class TestICExchangeViewImport:
         s.save()
 
         response = self.client.get(
-            url, {"mode": "import", "filename": filename, "sessid": self.session_key}
+            url,
+            {
+                "mode": "import",
+                "filename": filename,
+                "sessid": self.session_key or "sessionid",
+            },
         )
 
         assert response.status_code == 200
@@ -188,7 +203,7 @@ class TestICExchangeViewImport:
         s.save()
 
         response = self.client.get(
-            url, {"mode": "complete", "sessid": self.session_key}
+            url, {"mode": "complete", "sessid": self.session_key or "sessionid"}
         )
 
         assert response.status_code == 200
@@ -198,6 +213,6 @@ class TestICExchangeViewImport:
         # We started with 1 COMPLETED session. count() should still be 1.
         # If bug exists: count() will be 2 (one COMPLETED, one new PENDING)
         assert ImportSession.objects.count() == 1
-        assert (
-            ImportSession.objects.first().status == ImportSession.ImportStatus.COMPLETED
-        )
+        first_session = ImportSession.objects.first()
+        assert first_session is not None
+        assert first_session.status == ImportSession.ImportStatus.COMPLETED

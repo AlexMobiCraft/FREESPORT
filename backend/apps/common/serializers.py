@@ -9,7 +9,7 @@ from typing import Any, cast
 
 from rest_framework import serializers
 
-from .models import BlogPost, News, Newsletter, Category
+from .models import BlogPost, Category, News, Newsletter
 
 
 class SubscribeSerializer(serializers.Serializer):

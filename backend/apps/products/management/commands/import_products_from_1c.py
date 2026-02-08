@@ -27,14 +27,13 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import cast, Any
+from typing import Any, cast
 
 from django.core.management import call_command
 from django.core.management.base import BaseCommand, CommandError
 from tqdm import tqdm
 
-from apps.products.models import (Brand, Category, ImportSession, Product,
-                                  ProductVariant)
+from apps.products.models import Brand, Category, ImportSession, Product, ProductVariant
 from apps.products.services.parser import XMLDataParser
 from apps.products.services.variant_import import VariantImportProcessor
 

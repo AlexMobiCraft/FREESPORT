@@ -10,6 +10,7 @@ Tech-Spec: jwt-access-token-blacklist
 
 import json
 import logging
+from typing import TYPE_CHECKING, Any, cast
 
 from django.conf import settings
 from django.core.cache import cache
@@ -17,7 +18,6 @@ from django.utils import timezone
 from rest_framework.request import Request
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.exceptions import InvalidToken
-from typing import TYPE_CHECKING, Any, cast
 
 logger = logging.getLogger("apps.users.auth")
 

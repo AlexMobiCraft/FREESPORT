@@ -6,22 +6,28 @@ from datetime import datetime, timedelta
 
 from django.conf import settings
 from django.utils import timezone
-from drf_spectacular.utils import (OpenApiExample, OpenApiParameter,
-                                   OpenApiResponse, extend_schema)
+from drf_spectacular.utils import (
+    OpenApiExample,
+    OpenApiParameter,
+    OpenApiResponse,
+    extend_schema,
+)
 from rest_framework import generics, status
-from rest_framework.decorators import (api_view, permission_classes,
-                                       throttle_classes)
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 
 from apps.common.models import BlogPost, News
-from apps.common.serializers import (BlogPostDetailSerializer,
-                                     BlogPostListSerializer, NewsSerializer,
-                                     SubscribeResponseSerializer,
-                                     SubscribeSerializer,
-                                     UnsubscribeResponseSerializer,
-                                     UnsubscribeSerializer)
+from apps.common.serializers import (
+    BlogPostDetailSerializer,
+    BlogPostListSerializer,
+    NewsSerializer,
+    SubscribeResponseSerializer,
+    SubscribeSerializer,
+    UnsubscribeResponseSerializer,
+    UnsubscribeSerializer,
+)
 from apps.common.services import CustomerSyncMonitor
 
 

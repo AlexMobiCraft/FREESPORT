@@ -21,8 +21,12 @@ import pytest
 
 from apps.orders.models import Order, OrderItem
 from apps.orders.services import OrderExportService
-from tests.factories import (ProductFactory, ProductVariantFactory,
-                             UserFactory, get_unique_suffix)
+from tests.factories import (
+    ProductFactory,
+    ProductVariantFactory,
+    UserFactory,
+    get_unique_suffix,
+)
 
 
 @pytest.mark.unit

@@ -5,8 +5,7 @@ import pytest
 from django.utils import timezone
 
 from apps.products.models import ImportSession
-from apps.products.tasks import (cleanup_stale_import_sessions,
-                                 process_1c_import_task)
+from apps.products.tasks import cleanup_stale_import_sessions, process_1c_import_task
 
 
 @pytest.mark.django_db
@@ -20,7 +19,7 @@ class TestImportOrchestrationTasks:
 
         # Use apply to simulate task execution with a specific task_id
         result = process_1c_import_task.apply(
-            args=[session.id], task_id="task-123"
+            args=(session.id,), task_id="task-123"
         ).get()
 
         assert result == "success"
@@ -47,7 +46,7 @@ class TestImportOrchestrationTasks:
 
         # Use apply to execute synchronously
         result = process_1c_import_task.apply(
-            args=[session.id], task_id="task-err"
+            args=(session.id,), task_id="task-err"
         ).get()
 
         assert result == "failure"
@@ -69,7 +68,7 @@ class TestImportOrchestrationTasks:
         mock_call_command.side_effect = CommandError("Invalid arguments")
 
         result = process_1c_import_task.apply(
-            args=[session.id], task_id="task-cmd-err"
+            args=(session.id,), task_id="task-cmd-err"
         ).get()
 
         assert result == "failure"
@@ -90,7 +89,7 @@ class TestImportOrchestrationTasks:
         mock_call_command.side_effect = SoftTimeLimitExceeded()
 
         result = process_1c_import_task.apply(
-            args=[session.id], task_id="task-timeout"
+            args=(session.id,), task_id="task-timeout"
         ).get()
 
         assert result == "failure"
@@ -165,7 +164,7 @@ class TestImportOrchestrationTasks:
 
         # Execute task
         result = process_1c_import_task.apply(
-            args=[session.id], task_id="task-integration"
+            args=(session.id,), task_id="task-integration"
         ).get()
 
         assert result == "success"
@@ -198,7 +197,7 @@ class TestImportOrchestrationTasks:
         # Valid.
 
         process_1c_import_task.apply(
-            args=[session.id],
+            args=(session.id,),
             kwargs={"data_dir": data_dir, "zip_filename": zip_filename},
             task_id="task-zip",
         ).get()
@@ -232,7 +231,7 @@ class TestImportOrchestrationTasks:
         mock_call_command.return_value = None
 
         process_1c_import_task.apply(
-            args=[session.id], task_id="task-ensure-complete"
+            args=(session.id,), task_id="task-ensure-complete"
         ).get()
 
         session.refresh_from_db()

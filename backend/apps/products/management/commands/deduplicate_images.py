@@ -528,7 +528,10 @@ class Command(BaseCommand):
         return result
 
     def _print_summary(
-        self, products_result: dict[str, int], variants_result: dict[str, int], dry_run: bool
+        self,
+        products_result: dict[str, int],
+        variants_result: dict[str, int],
+        dry_run: bool,
     ) -> None:
         """Вывод итоговой статистики."""
         status_msg = "✅ Дедупликация завершена" if not dry_run else "🔍 DRY-RUN завершён"

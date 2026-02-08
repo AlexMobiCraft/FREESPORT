@@ -33,26 +33,27 @@ class TestImportProductsFallback(TestCase):
             )
 
             # Mock _collect_xml_files to return one file
-            command._collect_xml_files = MagicMock(
-                return_value=["/tmp/data/offers/offers.xml"]
-            )
+            with patch.object(
+                command,
+                "_collect_xml_files",
+                return_value=["/tmp/data/offers/offers.xml"],
+            ):
+                # Mock stdout
+                command.stdout = MagicMock()
 
-            # Mock stdout
-            command.stdout = MagicMock()
+                command._import_variants_from_offers(
+                    data_dir, mock_parser, mock_processor, skip_images=False
+                )
 
-            command._import_variants_from_offers(
-                data_dir, mock_parser, mock_processor, skip_images=False
-            )
-
-            # Verify no fallback message
-            # The stdout.write calls are for step description (which we ignore) and fallback info
-            # We check that the fallback info was NOT printed
-            fallback_msg = "Изображения будут загружаться из"
-            calls = [args[0] for args, _ in command.stdout.write.call_args_list]
-            self.assertFalse(
-                any(fallback_msg in str(c) for c in calls),
-                "Fallback should not trigger when offers dir exists",
-            )
+                # Verify no fallback message
+                # The stdout.write calls are for step description (which we ignore) and fallback info
+                # We check that the fallback info was NOT printed
+                fallback_msg = "Изображения будут загружаться из"
+                calls = [args[0] for args, _ in command.stdout.write.call_args_list]
+                self.assertFalse(
+                    any(fallback_msg in str(c) for c in calls),
+                    "Fallback should not trigger when offers dir exists",
+                )
 
         # Scenario 2: offers/import_files MISSING, goods/import_files EXISTS
         with patch("os.path.exists") as mock_exists:

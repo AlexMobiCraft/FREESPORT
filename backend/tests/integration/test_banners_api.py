@@ -13,13 +13,17 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from apps.banners.factories import (ActiveAuthenticatedBannerFactory,
-                                    ActiveFederationBannerFactory,
-                                    ActiveGuestBannerFactory,
-                                    ActiveTrainerBannerFactory,
-                                    ActiveWholesaleBannerFactory,
-                                    BannerFactory, ExpiredBannerFactory,
-                                    FutureBannerFactory, InactiveBannerFactory)
+from apps.banners.factories import (
+    ActiveAuthenticatedBannerFactory,
+    ActiveFederationBannerFactory,
+    ActiveGuestBannerFactory,
+    ActiveTrainerBannerFactory,
+    ActiveWholesaleBannerFactory,
+    BannerFactory,
+    ExpiredBannerFactory,
+    FutureBannerFactory,
+    InactiveBannerFactory,
+)
 from tests.factories import UserFactory
 
 

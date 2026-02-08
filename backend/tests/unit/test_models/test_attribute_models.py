@@ -5,12 +5,18 @@ from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 from django.test import TestCase
 
-from apps.products.models import (Attribute, Attribute1CMapping,
-                                  AttributeValue, AttributeValue1CMapping,
-                                  Brand, Category, Product, ProductVariant)
+from apps.products.models import (
+    Attribute,
+    Attribute1CMapping,
+    AttributeValue,
+    AttributeValue1CMapping,
+    Brand,
+    Category,
+    Product,
+    ProductVariant,
+)
 from tests.conftest import get_unique_suffix
-from tests.factories import (BrandFactory, CategoryFactory, ProductFactory,
-                             UserFactory)
+from tests.factories import BrandFactory, CategoryFactory, ProductFactory, UserFactory
 
 
 @pytest.mark.django_db

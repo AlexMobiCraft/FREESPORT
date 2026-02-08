@@ -1,10 +1,10 @@
 import logging
+from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
 from celery import shared_task
 from celery.exceptions import SoftTimeLimitExceeded
-from datetime import timedelta
 from django.conf import settings
 from django.core.management import CommandError, call_command
 from django.utils import timezone
@@ -82,8 +82,9 @@ def process_1c_import_task(
                 )
                 import zipfile
 
-                from apps.integrations.onec_exchange.routing_service import \
-                    XML_ROUTING_RULES
+                from apps.integrations.onec_exchange.routing_service import (
+                    XML_ROUTING_RULES,
+                )
 
                 for zf in zip_files:
                     try:

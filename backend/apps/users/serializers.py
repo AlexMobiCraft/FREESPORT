@@ -2,10 +2,11 @@
 Serializers для API управления пользователями
 """
 
+from typing import Any, cast
+
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
-from typing import Any, cast
 
 from apps.orders.models import Order
 

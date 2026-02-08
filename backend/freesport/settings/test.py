@@ -94,7 +94,7 @@ DEFAULT_FROM_EMAIL = os.environ.get(
 )
 
 # Отключаем логирование в консоль, чтобы вывод тестов был чистым.
-LOGGING: dict[str, Any] = {}
+LOGGING: dict[str, Any] = {}  # type: ignore[no-redef]  # type: ignore[no-redef]
 
 # Гарантированно отключаем Django Debug Toolbar в тестах,
 # даже если он был добавлен в другом файле настроек.

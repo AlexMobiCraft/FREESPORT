@@ -26,7 +26,7 @@ class TestImportSessionStructure(TestCase):
 
         # Verify pending status exists
         assert "pending" in ImportSession.ImportStatus.values
-        assert ImportSession.ImportStatus.PENDING == "pending"
+        assert str(ImportSession.ImportStatus.PENDING) == "pending"
 
     def test_default_status_is_pending(self):
         """Verify default status is PENDING (or we explicitly set it)"""

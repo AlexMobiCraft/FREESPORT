@@ -16,11 +16,24 @@ from django.db.models import Count, QuerySet
 from django.http import HttpRequest, HttpResponseRedirect
 from django.shortcuts import render
 
-from .forms import (MergeAttributesActionForm, MergeBrandsActionForm,
-                    TransferMappingsActionForm)
-from .models import (Attribute, Attribute1CMapping, AttributeValue,
-                     AttributeValue1CMapping, Brand, Brand1CMapping, Category,
-                     ColorMapping, Product, ProductImage, ProductVariant)
+from .forms import (
+    MergeAttributesActionForm,
+    MergeBrandsActionForm,
+    TransferMappingsActionForm,
+)
+from .models import (
+    Attribute,
+    Attribute1CMapping,
+    AttributeValue,
+    AttributeValue1CMapping,
+    Brand,
+    Brand1CMapping,
+    Category,
+    ColorMapping,
+    Product,
+    ProductImage,
+    ProductVariant,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -83,7 +96,9 @@ class BrandAdmin(admin.ModelAdmin):
     def get_queryset(self, request: HttpRequest) -> QuerySet[Brand]:
         """Оптимизация запросов и аннотация количества маппингов"""
         qs = super().get_queryset(request)
-        return cast("QuerySet[Brand]", qs.annotate(mappings_count=Count("onec_mappings")))
+        return cast(
+            "QuerySet[Brand]", qs.annotate(mappings_count=Count("onec_mappings"))
+        )
 
     @admin.display(description="Маппинги 1С", ordering="mappings_count")
     def mappings_count(self, obj: Brand) -> int:

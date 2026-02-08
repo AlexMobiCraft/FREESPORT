@@ -7,6 +7,8 @@ API тесты для AttributeFilterViewSet (Story 14.3.6)
 
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 from django.urls import reverse
 from rest_framework import status
@@ -26,7 +28,7 @@ class TestAttributeFilterViewSet:
         return APIClient()
 
     @pytest.fixture
-    def staff_user(self, db) -> User:
+    def staff_user(self, db: Any) -> User:
         """Fixture для staff пользователя"""
         return User.objects.create_user(
             email="staff@test.com",
@@ -35,7 +37,7 @@ class TestAttributeFilterViewSet:
         )
 
     @pytest.fixture
-    def regular_user(self, db) -> User:
+    def regular_user(self, db: Any) -> User:
         """Fixture для обычного пользователя"""
         return User.objects.create_user(
             email="user@test.com",
@@ -44,7 +46,7 @@ class TestAttributeFilterViewSet:
         )
 
     @pytest.fixture
-    def active_attribute(self, db) -> Attribute:
+    def active_attribute(self, db: Any) -> Attribute:
         """Fixture для активного атрибута"""
         attr = Attribute.objects.create(
             name="Цвет",
@@ -55,7 +57,7 @@ class TestAttributeFilterViewSet:
         return attr
 
     @pytest.fixture
-    def inactive_attribute(self, db) -> Attribute:
+    def inactive_attribute(self, db: Any) -> Attribute:
         """Fixture для неактивного атрибута"""
         attr = Attribute.objects.create(
             name="Материал",
@@ -65,8 +67,11 @@ class TestAttributeFilterViewSet:
         return attr
 
     def test_catalog_filters_returns_only_active_attributes(
-        self, api_client, active_attribute, inactive_attribute
-    ):
+        self,
+        api_client: APIClient,
+        active_attribute: Attribute,
+        inactive_attribute: Attribute,
+    ) -> None:
         """
         AC 14.3.6.1: GET /catalog/filters/ возвращает только активные атрибуты
 
@@ -89,8 +94,12 @@ class TestAttributeFilterViewSet:
         assert "Материал" not in attribute_names
 
     def test_catalog_filters_include_inactive_for_staff(
-        self, api_client, staff_user, active_attribute, inactive_attribute
-    ):
+        self,
+        api_client: APIClient,
+        staff_user: User,
+        active_attribute: Attribute,
+        inactive_attribute: Attribute,
+    ) -> None:
         """
         AC 14.3.6.3: include_inactive=true работает для staff users
 
@@ -115,8 +124,12 @@ class TestAttributeFilterViewSet:
         assert "Материал" in attribute_names
 
     def test_catalog_filters_include_inactive_ignored_for_regular_user(
-        self, api_client, regular_user, active_attribute, inactive_attribute
-    ):
+        self,
+        api_client: APIClient,
+        regular_user: User,
+        active_attribute: Attribute,
+        inactive_attribute: Attribute,
+    ) -> None:
         """
         AC 14.3.6.3: include_inactive=true игнорируется для обычных пользователей
 
@@ -141,8 +154,8 @@ class TestAttributeFilterViewSet:
         assert "Материал" not in attribute_names
 
     def test_catalog_filters_returns_attribute_values(
-        self, api_client, active_attribute
-    ):
+        self, api_client: APIClient, active_attribute: Attribute
+    ) -> None:
         """
         AC 14.3.6.2: Ответ содержит значения атрибутов
 
