@@ -224,7 +224,7 @@ class Migration(migrations.Migration):
                 ],
                 "constraints": [
                     models.CheckConstraint(
-                        check=(
+                        condition=(
                             models.Q(is_active=True, unsubscribed_at__isnull=True)
                             | models.Q(is_active=False, unsubscribed_at__isnull=False)
                         ),
