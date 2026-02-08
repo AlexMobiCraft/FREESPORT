@@ -437,8 +437,8 @@ if _base_file_logging_available:
         "level": "INFO",
         "class": "logging.handlers.RotatingFileHandler",
         "filename": str(LOGS_DIR / "import_products.log"),
-        "maxBytes": 10 * 1024 * 1024,  # 10 MB
-        "backupCount": 5,
+        "maxBytes": 10 * 1024 * 1024,  # type: ignore[dict-item]
+        "backupCount": 5,  # type: ignore[dict-item]
         "formatter": "verbose",
         "encoding": "utf-8",
     }
@@ -446,8 +446,8 @@ if _base_file_logging_available:
         "level": "ERROR",
         "class": "logging.handlers.RotatingFileHandler",
         "filename": str(LOGS_DIR / "errors.log"),
-        "maxBytes": 10 * 1024 * 1024,  # 10 MB
-        "backupCount": 5,
+        "maxBytes": 10 * 1024 * 1024,  # type: ignore[dict-item]
+        "backupCount": 5,  # type: ignore[dict-item]
         "formatter": "verbose",
         "encoding": "utf-8",
     }

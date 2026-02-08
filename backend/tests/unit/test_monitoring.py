@@ -14,11 +14,8 @@ from django.test import TestCase
 from django.utils import timezone
 
 from apps.common.models import CustomerSyncLog
-from apps.common.services import (
-    AlertManager,
-    CustomerSyncMonitor,
-    IntegrationHealthCheck,
-)
+from apps.common.services import (AlertManager, CustomerSyncMonitor,
+                                  IntegrationHealthCheck)
 
 User = get_user_model()
 

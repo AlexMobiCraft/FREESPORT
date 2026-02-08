@@ -14,11 +14,8 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from apps.products.factories import (
-    ColorMappingFactory,
-    ProductFactory,
-    ProductVariantFactory,
-)
+from apps.products.factories import (ColorMappingFactory, ProductFactory,
+                                     ProductVariantFactory)
 from apps.products.models import ColorMapping, Product, ProductVariant
 from apps.users.models import User
 

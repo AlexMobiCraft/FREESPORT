@@ -11,8 +11,8 @@ These tests cover:
 - Verify file existence and integrity in 1c_temp after upload
 """
 import base64
-from typing import Any
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -305,7 +305,8 @@ class Test1CFileUpload:
         old_file = temp_1c_dir / sessid / "old_file.zip"
         assert old_file.exists()
 
-        from apps.integrations.onec_exchange.file_service import FileStreamService
+        from apps.integrations.onec_exchange.file_service import \
+            FileStreamService
 
         file_service = FileStreamService(sessid)
         file_service.mark_complete()
@@ -353,7 +354,8 @@ class TestFileStreamService:
 
     def test_append_chunk_creates_file(self, temp_1c_dir):
         """Service creates file on first append."""
-        from apps.integrations.onec_exchange.file_service import FileStreamService
+        from apps.integrations.onec_exchange.file_service import \
+            FileStreamService
 
         service = FileStreamService("test-session-123")
         content = b"Initial content"
@@ -367,7 +369,8 @@ class TestFileStreamService:
 
     def test_append_chunk_appends_to_existing(self, temp_1c_dir):
         """Service appends content to existing file."""
-        from apps.integrations.onec_exchange.file_service import FileStreamService
+        from apps.integrations.onec_exchange.file_service import \
+            FileStreamService
 
         service = FileStreamService("test-session-456")
 
@@ -381,7 +384,8 @@ class TestFileStreamService:
 
     def test_get_file_size(self, temp_1c_dir):
         """Service reports correct file size."""
-        from apps.integrations.onec_exchange.file_service import FileStreamService
+        from apps.integrations.onec_exchange.file_service import \
+            FileStreamService
 
         service = FileStreamService("size-session")
         service.append_chunk("sized.bin", b"0123456789")  # 10 bytes
@@ -391,7 +395,8 @@ class TestFileStreamService:
 
     def test_file_exists(self, temp_1c_dir):
         """Service correctly checks file existence."""
-        from apps.integrations.onec_exchange.file_service import FileStreamService
+        from apps.integrations.onec_exchange.file_service import \
+            FileStreamService
 
         service = FileStreamService("exists-session")
 
@@ -402,7 +407,8 @@ class TestFileStreamService:
 
     def test_list_files(self, temp_1c_dir):
         """Service lists all files in session directory."""
-        from apps.integrations.onec_exchange.file_service import FileStreamService
+        from apps.integrations.onec_exchange.file_service import \
+            FileStreamService
 
         service = FileStreamService("list-session")
 
@@ -418,7 +424,8 @@ class TestFileStreamService:
 
     def test_session_id_required(self):
         """Service raises error without session_id."""
-        from apps.integrations.onec_exchange.file_service import FileStreamService
+        from apps.integrations.onec_exchange.file_service import \
+            FileStreamService
 
         with pytest.raises(ValueError, match="session_id is required"):
             FileStreamService("")
@@ -428,7 +435,8 @@ class TestFileStreamService:
 
     def test_filename_sanitization(self, temp_1c_dir):
         """Service sanitizes filenames to prevent path traversal."""
-        from apps.integrations.onec_exchange.file_service import FileStreamService
+        from apps.integrations.onec_exchange.file_service import \
+            FileStreamService
 
         service = FileStreamService("sanitize-session")
 
@@ -444,7 +452,8 @@ class TestFileStreamService:
 
     def test_cleanup_session(self, temp_1c_dir):
         """Service cleans up all files in session directory with force=True."""
-        from apps.integrations.onec_exchange.file_service import FileStreamService
+        from apps.integrations.onec_exchange.file_service import \
+            FileStreamService
 
         service = FileStreamService("cleanup-session")
 
@@ -463,7 +472,8 @@ class TestFileStreamService:
 
     def test_cleanup_session_empty_dir(self, temp_1c_dir):
         """Cleanup on empty/non-existent session directory returns 0."""
-        from apps.integrations.onec_exchange.file_service import FileStreamService
+        from apps.integrations.onec_exchange.file_service import \
+            FileStreamService
 
         service = FileStreamService("nonexistent-session")
 
@@ -476,7 +486,8 @@ class TestFileStreamService:
         Context manager opens file once for multiple writes.
         This tests the efficient I/O pattern for streaming uploads.
         """
-        from apps.integrations.onec_exchange.file_service import FileStreamService
+        from apps.integrations.onec_exchange.file_service import \
+            FileStreamService
 
         service = FileStreamService("ctx-manager-session")
 
@@ -493,7 +504,8 @@ class TestFileStreamService:
 
     def test_open_for_write_appends_to_existing(self, temp_1c_dir):
         """Context manager appends to existing file when append=True."""
-        from apps.integrations.onec_exchange.file_service import FileStreamService
+        from apps.integrations.onec_exchange.file_service import \
+            FileStreamService
 
         service = FileStreamService("ctx-append-session")
 
@@ -510,7 +522,8 @@ class TestFileStreamService:
 
     def test_open_for_write_returns_bytes_written(self, temp_1c_dir):
         """Context manager tracks total bytes written."""
-        from apps.integrations.onec_exchange.file_service import FileStreamService
+        from apps.integrations.onec_exchange.file_service import \
+            FileStreamService
 
         service = FileStreamService("bytes-session")
 
@@ -526,10 +539,7 @@ class TestFileStreamService:
         This verifies the lock file is created and prevents simultaneous access.
         """
         from apps.integrations.onec_exchange.file_service import (
-            FileLock,
-            FileLockError,
-            FileStreamService,
-        )
+            FileLock, FileLockError, FileStreamService)
 
         service = FileStreamService("lock-test-session")
 
@@ -548,7 +558,8 @@ class TestFileStreamService:
         """FileLock raises FileLockError when timeout exceeded."""
         import os
 
-        from apps.integrations.onec_exchange.file_service import FileLock, FileLockError
+        from apps.integrations.onec_exchange.file_service import (
+            FileLock, FileLockError)
 
         lock_path = temp_1c_dir / "test.lock"
 
@@ -569,7 +580,8 @@ class TestFileStreamService:
         """Files created via open_for_write have explicit permissions (0o644)."""
         import stat
 
-        from apps.integrations.onec_exchange.file_service import FileStreamService
+        from apps.integrations.onec_exchange.file_service import \
+            FileStreamService
 
         service = FileStreamService("perms-session")
 

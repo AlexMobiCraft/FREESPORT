@@ -49,14 +49,8 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS("\n🔄 Начинаю очистку..."))
 
         with transaction.atomic():
-            from apps.products.models import (
-                Brand,
-                Category,
-                ImportSession,
-                PriceType,
-                Product,
-                ProductImage,
-            )
+            from apps.products.models import (Brand, Category, ImportSession,
+                                              PriceType, Product, ProductImage)
 
             # Очистка в правильном порядке с учетом foreign key constraints
             ProductImage.objects.all().delete()

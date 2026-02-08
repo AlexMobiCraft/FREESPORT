@@ -129,7 +129,7 @@ class Command(BaseCommand):
         Story 3.1.2: Добавлено опциональное шифрование backup-файлов
         """
         try:
-            import gnupg
+            import gnupg  # type: ignore
 
             gpg = gnupg.GPG()
             encrypted_file = backup_file.with_suffix(".sql.gpg")

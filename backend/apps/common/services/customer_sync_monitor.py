@@ -9,7 +9,7 @@ import logging
 import os
 import shutil
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import requests
 from django.core.cache import cache
@@ -56,7 +56,7 @@ class CustomerSyncMonitor:
 
         if cached is not None:
             logger.debug("Возвращены кэшированные метрики операций")
-            return cached
+            return cast("dict[str, Any]", cached)
 
         logs = CustomerSyncLog.objects.filter(
             created_at__gte=start_date, created_at__lt=end_date
@@ -158,12 +158,12 @@ class CustomerSyncMonitor:
                 """,
                 [
                     percentile / 100.0,
-                    queryset.query.where.children[0].rhs,
-                    queryset.query.where.children[1].rhs,
+                    queryset.query.where.children[0].rhs,  # type: ignore[union-attr]
+                    queryset.query.where.children[1].rhs,  # type: ignore[union-attr]
                 ],
             )
             result = cursor.fetchone()
-            return round(result[0], 2) if result and result[0] else 0.0
+            return float(round(result[0], 2)) if result and result[0] else 0.0
 
     def get_business_metrics(
         self, start_date: datetime, end_date: datetime
@@ -183,7 +183,7 @@ class CustomerSyncMonitor:
 
         if cached is not None:
             logger.debug("Возвращены кэшированные бизнес-метрики")
-            return cached
+            return cast("dict[str, Any]", cached)
 
         logs = CustomerSyncLog.objects.filter(
             created_at__gte=start_date, created_at__lt=end_date
@@ -198,7 +198,7 @@ class CustomerSyncMonitor:
         )
 
         # Автоматически разрешенные конфликты по типам
-        conflicts_resolved = {}
+        conflicts_resolved: dict[str, int] = {}
         conflict_logs = logs.filter(
             operation_type=CustomerSyncLog.OperationType.CONFLICT_RESOLUTION,
             status=CustomerSyncLog.StatusType.SUCCESS,
@@ -211,7 +211,7 @@ class CustomerSyncMonitor:
             )
 
         # Успешная идентификация клиентов по методам
-        identification_methods = {}
+        identification_methods: dict[str, int] = {}
         identification_logs = logs.filter(
             operation_type=CustomerSyncLog.OperationType.CUSTOMER_IDENTIFICATION,
             status=CustomerSyncLog.StatusType.SUCCESS,
@@ -288,7 +288,7 @@ class CustomerSyncMonitor:
 
         if cached is not None:
             logger.debug("Возвращен кэшированный system health")
-            return cached
+            return cast("dict[str, Any]", cached)
 
         health_checker = IntegrationHealthCheck()
 
@@ -322,7 +322,7 @@ class CustomerSyncMonitor:
                     }
                 )
 
-        health_status = {
+        health_status: dict[str, Any] = {
             "is_healthy": is_healthy,
             "components": {
                 "database": db_health,
@@ -364,7 +364,7 @@ class CustomerSyncMonitor:
 
         if cached is not None:
             logger.debug("Возвращены кэшированные realtime метрики")
-            return cached
+            return cast("dict[str, Any]", cached)
 
         recent_logs = CustomerSyncLog.objects.filter(created_at__gte=start_time)
 

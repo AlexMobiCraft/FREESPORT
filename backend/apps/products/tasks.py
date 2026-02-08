@@ -2,10 +2,10 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from django.conf import settings
-
 from celery import shared_task
 from celery.exceptions import SoftTimeLimitExceeded
+from datetime import timedelta
+from django.conf import settings
 from django.core.management import CommandError, call_command
 from django.utils import timezone
 
@@ -17,7 +17,10 @@ logger = logging.getLogger("import_tasks")
 
 @shared_task(name="apps.products.tasks.process_1c_import_task", bind=True)
 def process_1c_import_task(
-    self, session_id: int, data_dir: str = None, zip_filename: str = None
+    self: Any,
+    session_id: int,
+    data_dir: str | None = None,
+    zip_filename: str | None = None,
 ) -> str:
     """
     Задача для асинхронного запуска импорта из 1С.
@@ -67,41 +70,50 @@ def process_1c_import_task(
         # Story 3.2: Defered Unpacking
         # Files (including ZIPs) are already moved to import_dir by the view (handle_complete).
         # We need to find them there and unpack.
-        target_import_dir = Path(data_dir) if data_dir else (Path(settings.MEDIA_ROOT) / "1c_import")
-        
+        target_import_dir = (
+            Path(data_dir) if data_dir else (Path(settings.MEDIA_ROOT) / "1c_import")
+        )
+
         if target_import_dir.exists():
             zip_files = list(target_import_dir.glob("*.zip"))
             if zip_files:
-                logger.info(f"Found {len(zip_files)} ZIP files in import dir. Unpacking...")
+                logger.info(
+                    f"Found {len(zip_files)} ZIP files in import dir. Unpacking..."
+                )
                 import zipfile
 
-                from apps.integrations.onec_exchange.routing_service import XML_ROUTING_RULES
-                
+                from apps.integrations.onec_exchange.routing_service import \
+                    XML_ROUTING_RULES
+
                 for zf in zip_files:
                     try:
                         # Direct unpacking to target directory
                         with zipfile.ZipFile(zf, "r") as zip_ref:
                             zip_ref.extractall(target_import_dir)
                             unpacked_files = zip_ref.namelist()
-                        
+
                         logger.info(f"Unpacked: {zf.name} to {target_import_dir}")
-                        
+
                         # Route unpacked files to subdirectories
                         routed_count = 0
                         for filename in unpacked_files:
                             file_path = target_import_dir / filename
                             if not file_path.exists() or not file_path.is_file():
                                 continue
-                                
+
                             # Logic similar to FileRoutingService.route_file
                             name_lower = filename.lower()
                             suffix = file_path.suffix.lower()
                             target_subdir = None
-                            
+
                             if suffix == ".xml":
                                 # Sort rules by length of prefix descending to match most specific first
                                 # e.g. 'propertiesOffers' (len 16) before 'properties' (len 10)
-                                sorted_rules = sorted(XML_ROUTING_RULES.items(), key=lambda x: len(x[0]), reverse=True)
+                                sorted_rules = sorted(
+                                    XML_ROUTING_RULES.items(),
+                                    key=lambda x: len(x[0]),
+                                    reverse=True,
+                                )
                                 for prefix, subdir in sorted_rules:
                                     if name_lower.startswith(prefix):
                                         target_subdir = subdir.rstrip("/")
@@ -115,23 +127,29 @@ def process_1c_import_task(
                                 else:
                                     # If file is at root, put it into import_files
                                     target_subdir = "goods/import_files"
-                                
+
                             if target_subdir:
                                 dest_dir = target_import_dir / target_subdir
                                 dest_dir.mkdir(parents=True, exist_ok=True)
                                 dest_path = dest_dir / filename
-                                
+
                                 try:
                                     # Move file
                                     import shutil
+
                                     shutil.move(str(file_path), str(dest_path))
                                     routed_count += 1
                                 except Exception as move_err:
-                                    logger.warning(f"Failed to route {filename}: {move_err}")
+                                    logger.warning(
+                                        f"Failed to route {filename}: {move_err}"
+                                    )
 
                         timestamp = timezone.now().strftime("%Y-%m-%d %H:%M:%S")
-                        session.report += f"[{timestamp}] Архив {zf.name} распакован ({len(unpacked_files)} файлов). Распределено по папкам: {routed_count}.\n"
-                        
+                        session.report += (
+                            f"[{timestamp}] Архив {zf.name} распакован ({len(unpacked_files)} файлов). "
+                            f"Распределено по папкам: {routed_count}.\n"
+                        )
+
                         # Delete the ZIP file after unpacking
                         try:
                             zf.unlink()
@@ -141,19 +159,21 @@ def process_1c_import_task(
 
                     except Exception as e:
                         logger.error(f"Failed to unpack {zf.name}: {e}")
-                        session.report += f"[{timezone.now()}] Ошибка распаковки {zf.name}: {e}\n"
-                
+                        session.report += (
+                            f"[{timezone.now()}] Ошибка распаковки {zf.name}: {e}\n"
+                        )
+
                 session.save(update_fields=["report"])
 
         # Story 3.2: Defensive directory creation
-        # Ensure import directory and all required subdirectories exist 
+        # Ensure import directory and all required subdirectories exist
         # to satisfy management command validation.
         if data_dir:
             import_path = Path(data_dir)
             if not import_path.exists():
                 logger.warning(f"Import directory {data_dir} missing. Creating it.")
                 import_path.mkdir(parents=True, exist_ok=True)
-            
+
             # Create required subdirectories if they don't exist
             # This prevents "Missing mandatory subdirectory" errors in 'all' mode
             required_subdirs = ["goods", "offers", "prices", "rests", "priceLists"]
@@ -162,21 +182,27 @@ def process_1c_import_task(
                 if not subdir_path.exists():
                     subdir_path.mkdir(parents=True, exist_ok=True)
                     logger.info(f"Created missing subdirectory: {subdir}")
-            
+
             # Debug: Log directory structure
             try:
                 files = list(import_path.rglob("*"))
-                logger.info(f"Import directory ready: {data_dir} ({len(files)} items found)")
+                logger.info(
+                    f"Import directory ready: {data_dir} ({len(files)} items found)"
+                )
             except Exception as e:
                 logger.warning(f"Failed to list directory contents: {e}")
 
         # Determine file type based on zip_filename (if provided by 1C)
-        # This prevents running unnecessary steps and allows 1C to trigger 
+        # This prevents running unnecessary steps and allows 1C to trigger
         # granular imports (e.g. only stocks or only prices)
         detected_file_type = "all"
         if zip_filename:
             fn_lower = zip_filename.lower()
-            if fn_lower.startswith("goods") or fn_lower.startswith("import") or fn_lower.startswith("propertiesgoods"):
+            if (
+                fn_lower.startswith("goods")
+                or fn_lower.startswith("import")
+                or fn_lower.startswith("propertiesgoods")
+            ):
                 detected_file_type = "goods"
             elif fn_lower.startswith("offers"):
                 detected_file_type = "offers"
@@ -186,7 +212,7 @@ def process_1c_import_task(
                 detected_file_type = "rests"
 
         # Запуск management команды
-        args = []
+        args: list[Any] = []
         options = {
             "celery_task_id": self.request.id,
             "file_type": detected_file_type,
@@ -208,7 +234,9 @@ def process_1c_import_task(
             session.status = ImportSession.ImportStatus.COMPLETED
             session.finished_at = timezone.now()
             session.report += f"[{timestamp}] Импорт успешно завершен.\n"
-            session.save(update_fields=["status", "finished_at", "report", "updated_at"])
+            session.save(
+                update_fields=["status", "finished_at", "report", "updated_at"]
+            )
 
         return "success"
 
@@ -238,9 +266,11 @@ def process_1c_import_task(
             if session.status != ImportSession.ImportStatus.FAILED:
                 session.status = status
                 session.error_message = msg
-            
+
             session.report += f"[{timestamp}] {error_prefix}: {msg}\n"
-            session.save(update_fields=["status", "error_message", "report", "updated_at"])
+            session.save(
+                update_fields=["status", "error_message", "report", "updated_at"]
+            )
         except Exception as db_err:
             logger.critical(f"Failed to update session status after error: {db_err}")
 
@@ -253,7 +283,7 @@ def cleanup_stale_import_sessions() -> int:
     Задача для очистки "зависших" сессий импорта.
     Находит сессии со статусом 'in_progress', которые не обновлялись более 2 часов.
     """
-    stale_threshold = timezone.now() - timezone.timedelta(hours=2)
+    stale_threshold = timezone.now() - timedelta(hours=2)
 
     stale_sessions = ImportSession.objects.filter(
         status=ImportSession.ImportStatus.IN_PROGRESS, updated_at__lt=stale_threshold
@@ -269,6 +299,8 @@ def cleanup_stale_import_sessions() -> int:
             session.report += (
                 f"[{timestamp}] Сессия помечена как зависшая инструментом очистки.\n"
             )
-            session.save(update_fields=["status", "error_message", "report", "updated_at"])
+            session.save(
+                update_fields=["status", "error_message", "report", "updated_at"]
+            )
 
     return count

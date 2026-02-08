@@ -11,7 +11,7 @@ import os
 import time
 from contextlib import contextmanager
 from pathlib import Path
-from typing import IO, Generator, Union
+from typing import IO, Any, Generator, Union
 
 from django.conf import settings
 
@@ -99,7 +99,12 @@ class FileLock:
         self.acquire()
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: Any | None,
+    ) -> None:
         self.release()
 
 
@@ -144,9 +149,10 @@ class FileStreamService:
             raise ValueError("session_id is required for FileStreamService")
 
         self.session_id = session_id
-        self.base_dir: Path = settings.ONEC_EXCHANGE.get(
+        temp_dir = settings.ONEC_EXCHANGE.get(
             "TEMP_DIR", Path(settings.MEDIA_ROOT) / "1c_temp"
         )
+        self.base_dir = Path(str(temp_dir))
         self.session_dir = self.base_dir / session_id
 
     def _ensure_session_dir(self) -> Path:
@@ -243,7 +249,7 @@ class FileStreamService:
     def cleanup_session(self, force: bool = False) -> int:
         """
         Remove files in the session directory.
-        
+
         Args:
             force: If True, delete ALL files. If False, only delete files
                    older than 2 hours (smart cleanup to support 1C multi-session).
@@ -252,6 +258,7 @@ class FileStreamService:
             return 0
 
         import time
+
         now = time.time()
         # 2 hours in seconds
         stale_age = 2 * 60 * 60
@@ -262,9 +269,9 @@ class FileStreamService:
                 # Don't delete .dry_run ever via auto-cleanup
                 if file_path.name == ".dry_run":
                     continue
-                    
+
                 is_stale = (now - file_path.stat().st_mtime) > stale_age
-                
+
                 if force or is_stale:
                     try:
                         file_path.unlink()

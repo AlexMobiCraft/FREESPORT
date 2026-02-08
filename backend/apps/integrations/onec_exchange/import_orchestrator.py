@@ -12,13 +12,17 @@ import shutil
 import zipfile
 from datetime import timedelta
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
 from .file_service import FileStreamService
-from .routing_service import FileRoutingService, XML_ROUTING_RULES
+from .routing_service import XML_ROUTING_RULES, FileRoutingService
+
+if TYPE_CHECKING:
+    from apps.products.models import ImportSession
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +83,7 @@ class ImportOrchestratorService:
     # Internal steps
     # ------------------------------------------------------------------
 
-    def _resolve_session(self, ImportSession):
+    def _resolve_session(self, ImportSession: Any) -> Any:
         """Expire stale sessions and find or create an active one."""
         if not self.sessid:
             logger.warning("[IMPORT] Request rejected: No identifier found.")
@@ -155,7 +159,9 @@ class ImportOrchestratorService:
 
         return session
 
-    def _transfer_files(self, session, label: str = "IMPORT") -> tuple[bool, str]:
+    def _transfer_files(
+        self, session: "ImportSession", label: str = "IMPORT"
+    ) -> tuple[bool, str]:
         """Transfer files from temp to import directory.
 
         Args:
@@ -183,9 +189,7 @@ class ImportOrchestratorService:
                     logger.error(f"[{label}] Failed to move {f}: {move_err}")
                     failed_files.append(f)
 
-            logger.info(
-                f"[{label}] Transferred {transferred_count}/{len(files)} files"
-            )
+            logger.info(f"[{label}] Transferred {transferred_count}/{len(files)} files")
             session.report += (
                 f"[{timezone.now()}] Перенесено файлов: "
                 f"{transferred_count}/{len(files)}\n"
@@ -193,7 +197,10 @@ class ImportOrchestratorService:
             session.save(update_fields=["report"])
 
             if failed_files:
-                return False, f"Failed to transfer {len(failed_files)} file(s): {', '.join(failed_files)}"
+                return (
+                    False,
+                    f"Failed to transfer {len(failed_files)} file(s): {', '.join(failed_files)}",
+                )
             return True, ""
 
         except Exception as e:
@@ -202,7 +209,7 @@ class ImportOrchestratorService:
             session.save(update_fields=["report"])
             return False, "File transfer error"
 
-    def _unpack_zips(self, session) -> None:
+    def _unpack_zips(self, session: "ImportSession") -> None:
         """Unpack ZIP files with Zip Slip protection and route contents."""
         try:
             zip_files = list(self.import_dir.glob("*.zip"))
@@ -246,9 +253,7 @@ class ImportOrchestratorService:
                         pass
 
                 except Exception as unzip_err:
-                    logger.error(
-                        f"[IMPORT] Failed to unpack {zf.name}: {unzip_err}"
-                    )
+                    logger.error(f"[IMPORT] Failed to unpack {zf.name}: {unzip_err}")
                     session.report += (
                         f"[{timezone.now()}] Ошибка распаковки {zf.name}: "
                         f"{unzip_err}\n"
@@ -257,12 +262,8 @@ class ImportOrchestratorService:
             session.save(update_fields=["report"])
 
         except Exception as e:
-            logger.error(
-                f"[IMPORT] ZIP processing failed: {e}", exc_info=True
-            )
-            session.report += (
-                f"[{timezone.now()}] Ошибка обработки архивов: {e}\n"
-            )
+            logger.error(f"[IMPORT] ZIP processing failed: {e}", exc_info=True)
+            session.report += f"[{timezone.now()}] Ошибка обработки архивов: {e}\n"
             session.save(update_fields=["report"])
 
     def _route_unpacked_files(self, unpacked_files: list[str]) -> int:
@@ -307,7 +308,7 @@ class ImportOrchestratorService:
 
         return routed_count
 
-    def _dispatch_import(self, session) -> None:
+    def _dispatch_import(self, session: "ImportSession") -> None:
         """Dispatch import via Celery to avoid blocking the HTTP response.
 
         For large files, synchronous import inside the request can exceed
@@ -321,14 +322,10 @@ class ImportOrchestratorService:
 
         if dry_run:
             logger.info("[IMPORT] DRY RUN mode - skipping import")
-            session.report += (
-                f"[{timezone.now()}] DRY RUN: импорт пропущен\n"
-            )
+            session.report += f"[{timezone.now()}] DRY RUN: импорт пропущен\n"
             session.status = session.ImportStatus.COMPLETED
             session.finished_at = timezone.now()
-            session.save(
-                update_fields=["report", "status", "finished_at"]
-            )
+            session.save(update_fields=["report", "status", "finished_at"])
             file_service = FileStreamService(self.sessid)
             file_service.mark_complete()
             return
@@ -345,9 +342,7 @@ class ImportOrchestratorService:
         )
         session.save(update_fields=["report", "updated_at"])
 
-        task_result = process_1c_import_task.delay(
-            session.pk, str(self.import_dir)
-        )
+        task_result = process_1c_import_task.delay(session.pk, str(self.import_dir))
 
         logger.info(
             f"[IMPORT] Celery task dispatched: task_id={task_result.id}, "
@@ -370,7 +365,7 @@ class ImportOrchestratorService:
     def finalize_batch(self, dry_run: bool = False) -> tuple[bool, str]:
         """
         Finalize a complete exchange batch (mode=complete).
-        
+
         Orchestrates the full completion cycle triggered when 1C signals
         that all files have been uploaded:
         - Check if cycle already completed (duplicate signal)
@@ -379,11 +374,11 @@ class ImportOrchestratorService:
         - In async mode: dispatch Celery task
         - In dry_run mode: just unpack ZIPs
         - Mark exchange cycle as complete
-        
+
         Returns:
             Tuple of (success: bool, message: str).
             message is "already_complete" when cycle was already done.
-            
+
         Note:
             IO operations (file transfer, unpack) are performed OUTSIDE the
             transaction to avoid blocking the ImportSession table during
@@ -429,12 +424,13 @@ class ImportOrchestratorService:
 
         return True, "success"
 
-    def _resolve_complete_session(self, ImportSession):
+    def _resolve_complete_session(self, ImportSession: type["ImportSession"]) -> Any:
         """Find or create ImportSession for mode=complete."""
-        session = ImportSession.objects.select_for_update().filter(
-            session_key=self.sessid,
-            status=ImportSession.ImportStatus.PENDING
-        ).first()
+        session = (
+            ImportSession.objects.select_for_update()
+            .filter(session_key=self.sessid, status=ImportSession.ImportStatus.PENDING)
+            .first()
+        )
 
         if not session:
             logger.warning(
@@ -466,7 +462,7 @@ class ImportOrchestratorService:
 
     # _transfer_files_complete removed: unified into _transfer_files(label="COMPLETE")
 
-    def _dispatch_or_dryrun(self, session, dry_run: bool) -> None:
+    def _dispatch_or_dryrun(self, session: "ImportSession", dry_run: bool) -> None:
         """Dispatch Celery task or run dry-run unpack for mode=complete."""
         from apps.products.tasks import process_1c_import_task
 
@@ -475,20 +471,15 @@ class ImportOrchestratorService:
 
             if dry_run:
                 zip_files = [
-                    f for f in file_service.list_files()
-                    if f.lower().endswith(".zip")
+                    f for f in file_service.list_files() if f.lower().endswith(".zip")
                 ]
-                logger.info(
-                    f"[COMPLETE] DRY RUN mode, unpacking {len(zip_files)} ZIPs"
-                )
+                logger.info(f"[COMPLETE] DRY RUN mode, unpacking {len(zip_files)} ZIPs")
                 for zf in zip_files:
                     file_service.unpack_zip(zf, self.import_dir)
                     session.report += (
                         f"[{timezone.now()}] DRY RUN: Архив {zf} распакован.\n"
                     )
-                session.report += (
-                    f"[{timezone.now()}] DRY RUN: Импорт пропущен.\n"
-                )
+                session.report += f"[{timezone.now()}] DRY RUN: Импорт пропущен.\n"
                 session.save(update_fields=["report"])
             else:
                 logger.info(

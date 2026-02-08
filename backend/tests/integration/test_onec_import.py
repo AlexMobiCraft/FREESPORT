@@ -21,7 +21,7 @@ User = get_user_model()
 
 def get_response_content(response) -> bytes:
     """Helper to get content from both HttpResponse and FileResponse."""
-    if hasattr(response, 'streaming_content'):
+    if hasattr(response, "streaming_content"):
         return b"".join(response.streaming_content)
     return response.content
 
@@ -65,6 +65,7 @@ def authenticated_client(onec_user):
 # ImportOrchestratorService tests
 # ============================================================
 
+
 @pytest.mark.django_db
 @pytest.mark.integration
 class TestImportOrchestratorService:
@@ -72,9 +73,9 @@ class TestImportOrchestratorService:
 
     def test_orchestrator_is_importable(self):
         """Service class exists and is importable."""
-        from apps.integrations.onec_exchange.import_orchestrator import (
-            ImportOrchestratorService,
-        )
+        from apps.integrations.onec_exchange.import_orchestrator import \
+            ImportOrchestratorService
+
         svc = ImportOrchestratorService("test-sessid", "goods.xml")
         assert svc.sessid == "test-sessid"
         assert svc.filename == "goods.xml"
@@ -90,16 +91,34 @@ class TestImportOrchestratorService:
 
     def test_detect_file_type(self):
         """File type detection works correctly."""
-        from apps.integrations.onec_exchange.import_orchestrator import (
-            ImportOrchestratorService,
+        from apps.integrations.onec_exchange.import_orchestrator import \
+            ImportOrchestratorService
+
+        assert (
+            ImportOrchestratorService("s", "goods_1.xml")._detect_file_type() == "goods"
         )
-        assert ImportOrchestratorService("s", "goods_1.xml")._detect_file_type() == "goods"
-        assert ImportOrchestratorService("s", "import_data.xml")._detect_file_type() == "goods"
-        assert ImportOrchestratorService("s", "offers_1.xml")._detect_file_type() == "offers"
-        assert ImportOrchestratorService("s", "prices_1.xml")._detect_file_type() == "prices"
-        assert ImportOrchestratorService("s", "pricelists_1.xml")._detect_file_type() == "prices"
-        assert ImportOrchestratorService("s", "rests_1.xml")._detect_file_type() == "rests"
-        assert ImportOrchestratorService("s", "unknown.xml")._detect_file_type() == "all"
+        assert (
+            ImportOrchestratorService("s", "import_data.xml")._detect_file_type()
+            == "goods"
+        )
+        assert (
+            ImportOrchestratorService("s", "offers_1.xml")._detect_file_type()
+            == "offers"
+        )
+        assert (
+            ImportOrchestratorService("s", "prices_1.xml")._detect_file_type()
+            == "prices"
+        )
+        assert (
+            ImportOrchestratorService("s", "pricelists_1.xml")._detect_file_type()
+            == "prices"
+        )
+        assert (
+            ImportOrchestratorService("s", "rests_1.xml")._detect_file_type() == "rests"
+        )
+        assert (
+            ImportOrchestratorService("s", "unknown.xml")._detect_file_type() == "all"
+        )
 
     def test_handle_import_delegates_to_orchestrator(
         self, authenticated_client, settings, tmp_path
@@ -124,18 +143,19 @@ class TestAsyncImportDispatch:
         settings.MEDIA_ROOT = str(tmp_path)
         (tmp_path / "1c_import").mkdir(parents=True, exist_ok=True)
 
-        from apps.integrations.onec_exchange.import_orchestrator import (
-            ImportOrchestratorService,
-        )
+        from apps.integrations.onec_exchange.import_orchestrator import \
+            ImportOrchestratorService
 
         with patch("apps.products.tasks.process_1c_import_task") as mock_task:
             mock_task.delay.return_value.id = "fake-task-id"
             svc = ImportOrchestratorService("test-sessid", "goods.xml")
-            with patch.object(svc, "_transfer_files", return_value=(True, "")), \
-                 patch.object(svc, "_unpack_zips"), \
-                 patch.object(svc, "_resolve_session") as mock_resolve:
-
+            with patch.object(
+                svc, "_transfer_files", return_value=(True, "")
+            ), patch.object(svc, "_unpack_zips"), patch.object(
+                svc, "_resolve_session"
+            ) as mock_resolve:
                 from apps.products.models import ImportSession
+
                 mock_session = MagicMock()
                 mock_session.status = ImportSession.ImportStatus.PENDING
                 mock_session.pk = 999
@@ -144,13 +164,15 @@ class TestAsyncImportDispatch:
 
                 success, msg = svc.execute()
                 assert success is True
-                mock_task.delay.assert_called_once_with(999, str(tmp_path / "1c_import"))
+                mock_task.delay.assert_called_once_with(
+                    999, str(tmp_path / "1c_import")
+                )
 
     def test_execute_no_call_command(self):
         """Import orchestrator must not use call_command (synchronous)."""
-        from apps.integrations.onec_exchange.import_orchestrator import (
-            ImportOrchestratorService,
-        )
+        from apps.integrations.onec_exchange.import_orchestrator import \
+            ImportOrchestratorService
+
         source = inspect.getsource(ImportOrchestratorService)
         assert "call_command" not in source
 
@@ -165,15 +187,14 @@ class TestFinalizeBatchReliability:
         settings.MEDIA_ROOT = str(tmp_path)
         (tmp_path / "1c_import").mkdir(parents=True, exist_ok=True)
 
-        from apps.integrations.onec_exchange.import_orchestrator import (
-            ImportOrchestratorService,
-        )
+        from apps.integrations.onec_exchange.import_orchestrator import \
+            ImportOrchestratorService
 
         svc = ImportOrchestratorService("test-finalize-fail", "goods.xml")
 
-        with patch.object(svc, "_transfer_files", return_value=(False, "disk full")), \
-             patch.object(svc, "_resolve_complete_session") as mock_resolve:
-
+        with patch.object(
+            svc, "_transfer_files", return_value=(False, "disk full")
+        ), patch.object(svc, "_resolve_complete_session") as mock_resolve:
             mock_session = MagicMock()
             mock_session.report = ""
             mock_resolve.return_value = mock_session
@@ -192,9 +213,8 @@ class TestFinalizeBatchReliability:
         settings.MEDIA_ROOT = str(tmp_path)
         (tmp_path / "1c_import").mkdir(parents=True, exist_ok=True)
 
-        from apps.integrations.onec_exchange.import_orchestrator import (
-            ImportOrchestratorService,
-        )
+        from apps.integrations.onec_exchange.import_orchestrator import \
+            ImportOrchestratorService
 
         svc = ImportOrchestratorService("test-partial", "goods.xml")
 
@@ -204,7 +224,10 @@ class TestFinalizeBatchReliability:
             "apps.integrations.onec_exchange.import_orchestrator.FileRoutingService"
         ) as mock_rs_cls:
             mock_fs_cls.return_value.list_files.return_value = ["a.xml", "b.xml"]
-            mock_rs_cls.return_value.move_to_import.side_effect = [None, OSError("permission denied")]
+            mock_rs_cls.return_value.move_to_import.side_effect = [
+                None,
+                OSError("permission denied"),
+            ]
 
             mock_session = MagicMock()
             mock_session.report = ""
@@ -221,16 +244,16 @@ class TestTransferFilesUnified:
 
     def test_no_transfer_files_complete_method(self):
         """LOW: _transfer_files_complete should no longer exist."""
-        from apps.integrations.onec_exchange.import_orchestrator import (
-            ImportOrchestratorService,
-        )
+        from apps.integrations.onec_exchange.import_orchestrator import \
+            ImportOrchestratorService
+
         assert not hasattr(ImportOrchestratorService, "_transfer_files_complete")
 
     def test_transfer_files_accepts_label_param(self):
         """LOW: _transfer_files accepts a label parameter for log context."""
-        from apps.integrations.onec_exchange.import_orchestrator import (
-            ImportOrchestratorService,
-        )
+        from apps.integrations.onec_exchange.import_orchestrator import \
+            ImportOrchestratorService
+
         sig = inspect.signature(ImportOrchestratorService._transfer_files)
         assert "label" in sig.parameters
 
@@ -238,6 +261,7 @@ class TestTransferFilesUnified:
 # ============================================================
 # Zip Slip protection (import-related security)
 # ============================================================
+
 
 @pytest.mark.django_db
 @pytest.mark.integration
@@ -265,6 +289,7 @@ class TestZipSlipProtection:
 # ============================================================
 # View-level test for mode=complete
 # ============================================================
+
 
 @pytest.mark.django_db
 @pytest.mark.integration
@@ -302,7 +327,10 @@ class TestModeComplete:
         with patch(
             "apps.integrations.onec_exchange.views.ImportOrchestratorService"
         ) as MockOrch:
-            MockOrch.return_value.finalize_batch.return_value = (False, "transfer error")
+            MockOrch.return_value.finalize_batch.return_value = (
+                False,
+                "transfer error",
+            )
 
             response = authenticated_client.get(
                 "/api/integration/1c/exchange/",

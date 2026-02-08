@@ -32,4 +32,4 @@ def _custom_get_urls() -> list:
 
 
 # Применяем monkey-patch к admin site
-admin.site.get_urls = _custom_get_urls
+admin.site.get_urls = _custom_get_urls  # type: ignore[method-assign]

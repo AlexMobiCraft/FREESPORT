@@ -20,13 +20,13 @@ logger = logging.getLogger(__name__)
 # Routing rules for XML files based on filename prefix
 XML_ROUTING_RULES = {
     "goods": "goods/",
-    "import": "goods/",       # Стандартное имя 1С для товаров/групп
+    "import": "goods/",  # Стандартное имя 1С для товаров/групп
     "offers": "offers/",
     "prices": "prices/",
     "rests": "rests/",
     "groups": "groups/",
     "priceLists": "priceLists/",
-    "properties": "propertiesGoods/", # Стандартное имя 1С для свойств
+    "properties": "propertiesGoods/",  # Стандартное имя 1С для свойств
     "propertiesGoods": "propertiesGoods/",
     "propertiesOffers": "propertiesOffers/",
     "contragents": "contragents/",
@@ -73,12 +73,15 @@ class FileRoutingService:
         self.session_id = session_id
 
         # Get directories from settings
-        self.temp_base: Path = settings.ONEC_EXCHANGE.get(
+        temp_dir = settings.ONEC_EXCHANGE.get(
             "TEMP_DIR", Path(settings.MEDIA_ROOT) / "1c_temp"
         )
-        self.import_base: Path = settings.ONEC_EXCHANGE.get(
+        self.temp_base = Path(str(temp_dir))
+
+        import_dir = settings.ONEC_EXCHANGE.get(
             "IMPORT_DIR", Path(settings.MEDIA_ROOT) / "1c_import"
         )
+        self.import_base = Path(str(import_dir))
 
         self.temp_dir = self.temp_base / session_id
         # FIXED: Import directory should be shared/root, not session-isolated
@@ -134,7 +137,9 @@ class FileRoutingService:
         if suffix == ".xml":
             # Sort rules by length of prefix descending to match most specific first
             # e.g. 'propertiesOffers' (len 16) before 'properties' (len 10)
-            sorted_rules = sorted(XML_ROUTING_RULES.items(), key=lambda x: len(x[0]), reverse=True)
+            sorted_rules = sorted(
+                XML_ROUTING_RULES.items(), key=lambda x: len(x[0]), reverse=True
+            )
             for prefix, subdir in sorted_rules:
                 if name_lower.startswith(prefix):
                     return subdir.rstrip("/")
@@ -153,7 +158,7 @@ class FileRoutingService:
     def should_route(self, filename: str) -> bool:
         """
         Determine if a file should be routed (moved to import directory).
-        
+
         Updated: We now route everything including ZIPs to allow accumulation
         in shared import directory.
         """

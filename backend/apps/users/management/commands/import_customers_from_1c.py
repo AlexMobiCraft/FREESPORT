@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import Any
 
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
@@ -34,7 +35,7 @@ class Command(BaseCommand):
 
     help = "Импортирует клиентов из директории с файлами 1С (contragents*.xml)."
 
-    def add_arguments(self, parser) -> None:
+    def add_arguments(self, parser: Any) -> None:
         parser.add_argument(
             "--data-dir",
             type=str,
@@ -56,7 +57,7 @@ class Command(BaseCommand):
             help="Тестовый запуск без сохранения данных.",
         )
 
-    def handle(self, *args, **options) -> None:
+    def handle(self, *args: Any, **options: Any) -> None:
         data_dir = options["data_dir"]
         chunk_size = options["chunk_size"]
         dry_run = options["dry_run"]

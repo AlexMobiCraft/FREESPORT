@@ -5,9 +5,10 @@ Django Admin для приложения products
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Any, cast
 
 from django.contrib import admin, messages
+from django.contrib.admin.helpers import ACTION_CHECKBOX_NAME
 from django.contrib.admin.models import CHANGE, LogEntry
 from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
@@ -15,24 +16,11 @@ from django.db.models import Count, QuerySet
 from django.http import HttpRequest, HttpResponseRedirect
 from django.shortcuts import render
 
-from .forms import (
-    MergeAttributesActionForm,
-    MergeBrandsActionForm,
-    TransferMappingsActionForm,
-)
-from .models import (
-    Attribute,
-    Attribute1CMapping,
-    AttributeValue,
-    AttributeValue1CMapping,
-    Brand,
-    Brand1CMapping,
-    Category,
-    ColorMapping,
-    Product,
-    ProductImage,
-    ProductVariant,
-)
+from .forms import (MergeAttributesActionForm, MergeBrandsActionForm,
+                    TransferMappingsActionForm)
+from .models import (Attribute, Attribute1CMapping, AttributeValue,
+                     AttributeValue1CMapping, Brand, Brand1CMapping, Category,
+                     ColorMapping, Product, ProductImage, ProductVariant)
 
 logger = logging.getLogger(__name__)
 
@@ -95,7 +83,7 @@ class BrandAdmin(admin.ModelAdmin):
     def get_queryset(self, request: HttpRequest) -> QuerySet[Brand]:
         """Оптимизация запросов и аннотация количества маппингов"""
         qs = super().get_queryset(request)
-        return qs.annotate(mappings_count=Count("onec_mappings"))
+        return cast("QuerySet[Brand]", qs.annotate(mappings_count=Count("onec_mappings")))
 
     @admin.display(description="Маппинги 1С", ordering="mappings_count")
     def mappings_count(self, obj: Brand) -> int:
@@ -159,8 +147,7 @@ class BrandAdmin(admin.ModelAdmin):
                 "form": form,
                 "title": "Объединение брендов",
                 "opts": self.model._meta,
-                # type: ignore
-                "action_checkbox_name": admin.helpers.ACTION_CHECKBOX_NAME,
+                "action_checkbox_name": ACTION_CHECKBOX_NAME,
             },
         )
 
@@ -221,8 +208,7 @@ class Brand1CMappingAdmin(admin.ModelAdmin):
                 "form": form,
                 "title": "Перенос маппингов",
                 "opts": self.model._meta,
-                # type: ignore
-                "action_checkbox_name": admin.helpers.ACTION_CHECKBOX_NAME,
+                "action_checkbox_name": ACTION_CHECKBOX_NAME,
             },
         )
 
@@ -742,11 +728,9 @@ class AttributeAdmin(admin.ModelAdmin):
                             merged_count += 1
 
                         # 4. Audit logging через LogEntry
-                        LogEntry.objects.log_actions(
+                        LogEntry.objects.log_actions(  # type: ignore[attr-defined]
                             user_id=request.user.pk,
-                            queryset=Attribute.objects.filter(
-                                pk=target_attribute.pk
-                            ),
+                            queryset=Attribute.objects.filter(pk=target_attribute.pk),
                             action_flag=CHANGE,
                             change_message=f"Объединены {merged_count} атрибутов. "
                             f"Перенесено маппингов: {mappings_transferred}, "
@@ -806,8 +790,7 @@ class AttributeAdmin(admin.ModelAdmin):
                 "form": form,
                 "title": "Объединение атрибутов",
                 "opts": self.model._meta,
-                # type: ignore
-                "action_checkbox_name": admin.helpers.ACTION_CHECKBOX_NAME,
+                "action_checkbox_name": ACTION_CHECKBOX_NAME,
             },
         )
 

@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.contrib.auth import login
-from rest_framework.authentication import BasicAuthentication, SessionAuthentication
+from rest_framework.authentication import (BasicAuthentication,
+                                           SessionAuthentication)
 
 
 class Basic1CAuthentication(BasicAuthentication):

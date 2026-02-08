@@ -10,13 +10,11 @@ import pytest
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
-from apps.orders.serializers import (
-    OrderCreateSerializer,
-    OrderDetailSerializer,
-    OrderItemSerializer,
-    OrderListSerializer,
-)
-from apps.users.serializers import AddressSerializer as DeliveryAddressSerializer
+from apps.orders.serializers import (OrderCreateSerializer,
+                                     OrderDetailSerializer,
+                                     OrderItemSerializer, OrderListSerializer)
+from apps.users.serializers import \
+    AddressSerializer as DeliveryAddressSerializer
 
 User = get_user_model()
 

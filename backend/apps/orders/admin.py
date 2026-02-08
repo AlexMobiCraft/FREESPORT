@@ -51,7 +51,13 @@ class OrderAdmin(admin.ModelAdmin):
         "created_at",
     ]
     list_select_related = ["user"]
-    list_filter = ["status", "payment_status", "delivery_method", "sent_to_1c", "created_at"]
+    list_filter = [
+        "status",
+        "payment_status",
+        "delivery_method",
+        "sent_to_1c",
+        "created_at",
+    ]
     search_fields = [
         "order_number",
         "user__email",

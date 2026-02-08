@@ -15,12 +15,11 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.common.models import CustomerSyncLog
-from apps.users.models import Company
+from apps.users.models import Company, User
 
 if TYPE_CHECKING:
     from apps.products.models import ImportSession
 
-User = get_user_model()
 
 logger = logging.getLogger(__name__)
 
@@ -354,7 +353,7 @@ class CustomerDataProcessor:
         if customer_type in ["legal_entity", "individual_entrepreneur"]:
             self._create_or_update_company(user, customer_data)
 
-        logger.info(f"Создан новый пользователь: {user.email or onec_id} (role={role})")
+        logger.info(f"Создан новый пользователь: {str(user.email or onec_id)} (role={role})")
         return user
 
     def _update_customer(
@@ -395,7 +394,7 @@ class CustomerDataProcessor:
             self._create_or_update_company(user, customer_data)
 
         logger.info(
-            f"Обновлен пользователь: {user.email or user.onec_id} (role={role})"
+            f"Обновлен пользователь: {str(user.email or user.onec_id)} (role={role})"
         )
         return user
 

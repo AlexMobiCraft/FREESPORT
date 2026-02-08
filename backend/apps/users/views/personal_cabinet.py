@@ -3,6 +3,7 @@ Views для личного кабинета пользователя
 """
 
 from dataclasses import dataclass
+from typing import Any
 
 from django.db.models import Avg, Count, Sum
 from drf_spectacular.utils import extend_schema
@@ -13,13 +14,9 @@ from rest_framework.views import APIView
 from apps.orders.models import Order
 
 from ..models import Address, Favorite, User
-from ..serializers import (
-    AddressSerializer,
-    FavoriteCreateSerializer,
-    FavoriteSerializer,
-    OrderHistorySerializer,
-    UserDashboardSerializer,
-)
+from ..serializers import (AddressSerializer, FavoriteCreateSerializer,
+                           FavoriteSerializer, OrderHistorySerializer,
+                           UserDashboardSerializer)
 
 
 @dataclass
@@ -245,7 +242,7 @@ class CompanyView(APIView):
             )
         return None
 
-    def _get_or_create_company(self, user: User):
+    def _get_or_create_company(self, user: User) -> Any:
         """Получить или создать Company для пользователя"""
         from ..models import Company
 

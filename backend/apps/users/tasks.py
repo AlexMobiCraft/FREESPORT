@@ -11,6 +11,8 @@ import logging
 from datetime import timedelta
 from smtplib import SMTPException
 
+from typing import Any
+
 from celery import shared_task
 from django.conf import settings
 from django.core.mail import send_mail
@@ -29,7 +31,7 @@ logger = logging.getLogger(__name__)
     retry_backoff=True,
     retry_backoff_max=600,  # 10 минут максимум
 )
-def send_admin_verification_email(self, user_id: int) -> bool:
+def send_admin_verification_email(self: Any, user_id: int) -> bool:
     """
     Отправить email администраторам о новой заявке на верификацию.
 
@@ -99,7 +101,7 @@ def send_admin_verification_email(self, user_id: int) -> bool:
             "Admin verification email sent successfully",
             extra={
                 "user_id": user_id,
-                "user_email": user.email,
+                "user_email": str(user.email or ""),
                 "role": user.role,
                 "admin_emails": admin_emails,
                 "template": "admin_new_verification_request",
@@ -135,7 +137,7 @@ def send_admin_verification_email(self, user_id: int) -> bool:
     retry_backoff=True,
     retry_backoff_max=600,
 )
-def send_user_pending_email(self, user_id: int) -> bool:
+def send_user_pending_email(self: Any, user_id: int) -> bool:
     """
     Отправить email пользователю о том, что его заявка на рассмотрении.
 
@@ -175,7 +177,7 @@ def send_user_pending_email(self, user_id: int) -> bool:
             "Pending email sent to user",
             extra={
                 "user_id": user_id,
-                "user_email": user.email,
+                "user_email": str(user.email or ""),
                 "template": "user_registration_pending",
                 "timestamp": timezone.now().isoformat(),
             },
@@ -272,7 +274,7 @@ def monitor_pending_verification_queue() -> dict:
     retry_backoff=True,
     retry_backoff_max=600,
 )
-def send_password_reset_email(self, user_id: int, reset_url: str) -> bool:
+def send_password_reset_email(self: Any, user_id: int, reset_url: str) -> bool:
     """
     Отправить email для сброса пароля.
 
@@ -340,7 +342,7 @@ def send_password_reset_email(self, user_id: int, reset_url: str) -> bool:
     retry_backoff=True,
     retry_backoff_max=600,
 )
-def send_user_verified_email(self, user_id: int) -> bool:
+def send_user_verified_email(self: Any, user_id: int) -> bool:
     """
     Отправить email пользователю о том, что его аккаунт верифицирован.
 

@@ -12,17 +12,11 @@ from pathlib import Path
 import pytest
 from django.db import IntegrityError
 
-from apps.products.models import (
-    Attribute,
-    Attribute1CMapping,
-    AttributeValue,
-    AttributeValue1CMapping,
-)
+from apps.products.models import (Attribute, Attribute1CMapping,
+                                  AttributeValue, AttributeValue1CMapping)
 from apps.products.services.attribute_import import AttributeImportService
-from apps.products.utils.attributes import (
-    normalize_attribute_name,
-    normalize_attribute_value,
-)
+from apps.products.utils.attributes import (normalize_attribute_name,
+                                            normalize_attribute_value)
 
 # Глобальный счетчик для обеспечения уникальности в тестах
 _unique_counter = 0
@@ -542,7 +536,8 @@ class TestAttributeImportServiceDeduplication:
 
     def test_deduplication_by_normalized_name(self) -> None:
         """Тест дедупликации атрибутов по normalized_name"""
-        from apps.products.services.attribute_import import AttributeImportService
+        from apps.products.services.attribute_import import \
+            AttributeImportService
         from tests.conftest import get_unique_suffix
 
         suffix = get_unique_suffix()
@@ -590,7 +585,8 @@ class TestAttributeImportServiceDeduplication:
 
     def test_value_deduplication_within_attribute(self) -> None:
         """Тест дедупликации значений атрибута"""
-        from apps.products.services.attribute_import import AttributeImportService
+        from apps.products.services.attribute_import import \
+            AttributeImportService
         from tests.conftest import get_unique_suffix
 
         suffix = get_unique_suffix()
@@ -640,7 +636,8 @@ class TestAttributeImportServiceDeduplication:
 
     def test_different_sources_create_separate_mappings(self) -> None:
         """Тест что разные источники создают отдельные маппинги"""
-        from apps.products.services.attribute_import import AttributeImportService
+        from apps.products.services.attribute_import import \
+            AttributeImportService
         from tests.conftest import get_unique_suffix
 
         suffix = get_unique_suffix()
@@ -677,7 +674,8 @@ class TestAttributeImportServiceDeduplication:
 
     def test_dry_run_mode_does_not_save(self) -> None:
         """Тест что dry_run режим не сохраняет данные"""
-        from apps.products.services.attribute_import import AttributeImportService
+        from apps.products.services.attribute_import import \
+            AttributeImportService
         from tests.conftest import get_unique_suffix
 
         suffix = get_unique_suffix()
@@ -709,7 +707,8 @@ class TestAttributeImportServiceDeduplication:
 
     def test_new_attributes_created_with_is_active_false(self) -> None:
         """Тест что новые атрибуты создаются с is_active=False"""
-        from apps.products.services.attribute_import import AttributeImportService
+        from apps.products.services.attribute_import import \
+            AttributeImportService
         from tests.conftest import get_unique_suffix
 
         suffix = get_unique_suffix()
@@ -734,7 +733,8 @@ class TestAttributeImportServiceDeduplication:
 
     def test_existing_mapping_reuses_attribute(self) -> None:
         """Тест что существующий маппинг переиспользует атрибут"""
-        from apps.products.services.attribute_import import AttributeImportService
+        from apps.products.services.attribute_import import \
+            AttributeImportService
         from tests.conftest import get_unique_suffix
 
         suffix = get_unique_suffix()
@@ -772,7 +772,8 @@ class TestAttributeImportServiceDeduplication:
 
     def test_complex_import_scenario(self) -> None:
         """Комплексный тест импорта с множественной дедупликацией"""
-        from apps.products.services.attribute_import import AttributeImportService
+        from apps.products.services.attribute_import import \
+            AttributeImportService
         from tests.conftest import get_unique_suffix
 
         suffix = get_unique_suffix()

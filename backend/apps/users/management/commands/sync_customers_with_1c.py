@@ -283,7 +283,7 @@ class Command(BaseCommand):
             mock_updates.append(
                 {
                     "onec_id": customer.onec_id,
-                    "email": customer.email,
+                    "email": str(customer.email or ""),
                     "first_name": customer.first_name + " (обновлено)",
                     "phone_number": customer.phone,
                     "company_name": (

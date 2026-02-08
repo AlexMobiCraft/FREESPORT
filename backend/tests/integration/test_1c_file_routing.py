@@ -4,6 +4,7 @@ Verifies that files uploaded via mode=file are correctly routed to import direct
 """
 import base64
 from pathlib import Path
+
 import pytest
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -21,17 +22,17 @@ def temp_1c_dirs(tmp_path, monkeypatch):
     """
     temp_dir = tmp_path / "1c_temp"
     temp_dir.mkdir()
-    
+
     import_dir = tmp_path / "1c_import"
     import_dir.mkdir()
 
     # Use monkeypatch.setitem for dict modification (thread-safe, auto-reverted)
-    # We need to update existing dictionary, ensuring we keep other keys if needed, 
+    # We need to update existing dictionary, ensuring we keep other keys if needed,
     # but here we just update/set the keys we care about.
     # Note: settings.ONEC_EXCHANGE is a dict, so we can set items on it.
     monkeypatch.setitem(settings.ONEC_EXCHANGE, "TEMP_DIR", temp_dir)
     monkeypatch.setitem(settings.ONEC_EXCHANGE, "IMPORT_DIR", import_dir)
-    
+
     return {"temp": temp_dir, "import": import_dir}
 
 

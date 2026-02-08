@@ -27,13 +27,14 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import cast
+from typing import cast, Any
 
 from django.core.management import call_command
 from django.core.management.base import BaseCommand, CommandError
 from tqdm import tqdm
 
-from apps.products.models import Brand, Category, ImportSession, Product, ProductVariant
+from apps.products.models import (Brand, Category, ImportSession, Product,
+                                  ProductVariant)
 from apps.products.services.parser import XMLDataParser
 from apps.products.services.variant_import import VariantImportProcessor
 
@@ -293,7 +294,7 @@ class Command(BaseCommand):
                 self.style.SUCCESS(f"\n✅ Создана НОВАЯ сессия импорта ID: {session.pk}")
             )
 
-        session_id = cast(int, session.pk)
+        session_id = session.pk
 
         try:
             # Инициализация парсера и процессора
@@ -376,7 +377,7 @@ class Command(BaseCommand):
 
     def _import_categories(
         self, data_dir: str, parser: XMLDataParser, processor: VariantImportProcessor
-    ):
+    ) -> None:
         """Импорт категорий из groups.xml"""
         self.stdout.write("\n📁 Шаг 0.5: Загрузка категорий...")
         groups_files = self._collect_xml_files(data_dir, "groups", "groups.xml")
@@ -409,7 +410,7 @@ class Command(BaseCommand):
 
     def _import_brands(
         self, data_dir: str, parser: XMLDataParser, processor: VariantImportProcessor
-    ):
+    ) -> None:
         """Импорт брендов из propertiesGoods.xml"""
         self.stdout.write("\n🏷️  Шаг 0.6: Загрузка брендов...")
         properties_files = self._collect_xml_files(
@@ -440,7 +441,7 @@ class Command(BaseCommand):
 
     def _import_price_types(
         self, data_dir: str, parser: XMLDataParser, processor: VariantImportProcessor
-    ):
+    ) -> None:
         """Импорт типов цен из priceLists.xml"""
         self.stdout.write("\n📋 Шаг 1: Загрузка типов цен...")
         price_list_files = self._collect_xml_files(
@@ -474,14 +475,16 @@ class Command(BaseCommand):
         parser: XMLDataParser,
         processor: VariantImportProcessor,
         skip_images: bool,
-    ):
+    ) -> None:
         """Импорт Product из goods.xml (AC1)"""
         self.stdout.write("\n📦 Шаг 2: Создание Product из goods.xml...")
         goods_files = self._collect_xml_files(data_dir, "goods", "goods.xml")
 
         if not goods_files:
             self.stdout.write(
-                self.style.WARNING("   ⚠️ Файлы товаров (goods_*.xml) не найдены. Пропуск шага.")
+                self.style.WARNING(
+                    "   ⚠️ Файлы товаров (goods_*.xml) не найдены. Пропуск шага."
+                )
             )
             return
 
@@ -493,7 +496,7 @@ class Command(BaseCommand):
                 tqdm(goods_data, desc=f"   Обработка {Path(file_path).name}")
             ):
                 processor.process_product_from_goods(
-                    goods_item,
+                    cast("dict[str, Any]", goods_item),
                     base_dir=base_dir,
                     skip_images=skip_images,
                 )
@@ -519,14 +522,16 @@ class Command(BaseCommand):
         parser: XMLDataParser,
         processor: VariantImportProcessor,
         skip_images: bool,
-    ):
+    ) -> None:
         """Импорт ProductVariant из offers.xml (AC2, AC3, AC4)"""
         self.stdout.write("\n🎁 Шаг 3: Создание ProductVariant из offers.xml...")
         offers_files = self._collect_xml_files(data_dir, "offers", "offers.xml")
 
         if not offers_files:
             self.stdout.write(
-                self.style.WARNING("   ⚠️ Файлы вариантов (offers_*.xml) не найдены. Пропуск шага.")
+                self.style.WARNING(
+                    "   ⚠️ Файлы вариантов (offers_*.xml) не найдены. Пропуск шага."
+                )
             )
             return
 
@@ -547,7 +552,7 @@ class Command(BaseCommand):
                 tqdm(offers_data, desc=f"   Обработка {Path(file_path).name}")
             ):
                 processor.process_variant_from_offer(
-                    offer_item,
+                    cast("dict[str, Any]", offer_item),
                     base_dir=base_dir,
                     skip_images=skip_images,
                 )
@@ -570,7 +575,7 @@ class Command(BaseCommand):
             )
         )
 
-    def _create_default_variants(self, processor: VariantImportProcessor):
+    def _create_default_variants(self, processor: VariantImportProcessor) -> None:
         """Создание default variants для товаров без вариантов (AC5)"""
         self.stdout.write("\n🔄 Шаг 3.5: Создание default variants...")
         count = processor.create_default_variants()
@@ -581,7 +586,7 @@ class Command(BaseCommand):
         data_dir: str,
         parser: XMLDataParser,
         processor: VariantImportProcessor,
-    ):
+    ) -> None:
         """Импорт цен в ProductVariant из prices.xml (AC7)"""
         self.stdout.write("\n💰 Шаг 4: Обновление цен ProductVariant из prices.xml...")
         prices_files = self._collect_xml_files(data_dir, "prices", "prices.xml")
@@ -596,7 +601,7 @@ class Command(BaseCommand):
             for i, price_item in enumerate(
                 tqdm(prices_data, desc=f"   Обработка {Path(file_path).name}")
             ):
-                processor.update_variant_prices(price_item)
+                processor.update_variant_prices(cast("dict[str, Any]", price_item))
                 if (i + 1) % 20 == 0:
                     processor.log_progress(
                         f"Обновление цен ({Path(file_path).name}): "
@@ -617,7 +622,7 @@ class Command(BaseCommand):
         data_dir: str,
         parser: XMLDataParser,
         processor: VariantImportProcessor,
-    ):
+    ) -> None:
         """Импорт остатков в ProductVariant из rests.xml (AC8)"""
         self.stdout.write(
             "\n📊 Шаг 5: Обновление остатков ProductVariant из rests.xml..."
@@ -634,7 +639,7 @@ class Command(BaseCommand):
             for i, rest_item in enumerate(
                 tqdm(rests_data, desc=f"   Обработка {Path(file_path).name}")
             ):
-                processor.update_variant_stock(rest_item)
+                processor.update_variant_stock(cast("dict[str, Any]", rest_item))
                 if (i + 1) % 20 == 0:
                     processor.log_progress(
                         f"Обновление остатков ({Path(file_path).name}): "
@@ -650,25 +655,40 @@ class Command(BaseCommand):
             self.style.SUCCESS(f"   ✅ Обновлено остатков: {stats['stocks_updated']}")
         )
 
-    def _cleanup_files(self, data_dir: str, file_type: str):
+    def _cleanup_files(self, data_dir: str, file_type: str) -> None:
         """
         Удаление обработанных файлов после успешного импорта.
         Удаляет XML файлы и очищает папки с изображениями.
         """
         import shutil
+
         self.stdout.write(self.style.WARNING("\n🧹 Очистка обработанных файлов..."))
-        
+
         # 1. Удаление XML файлов
         xml_patterns = []
         if file_type in ["all", "goods"]:
-            xml_patterns.extend(["goods/goods*.xml", "goods/import*.xml", "goods/groups*.xml", "goods/properties*.xml"])
+            xml_patterns.extend(
+                [
+                    "goods/goods*.xml",
+                    "goods/import*.xml",
+                    "goods/groups*.xml",
+                    "goods/properties*.xml",
+                ]
+            )
         if file_type in ["all", "offers"]:
-            xml_patterns.extend(["offers/offers*.xml", "offers/rests*.xml", "offers/prices*.xml", "offers/properties*.xml"])
+            xml_patterns.extend(
+                [
+                    "offers/offers*.xml",
+                    "offers/rests*.xml",
+                    "offers/prices*.xml",
+                    "offers/properties*.xml",
+                ]
+            )
         if file_type in ["all", "prices"]:
             xml_patterns.extend(["prices/prices*.xml", "priceLists/priceLists*.xml"])
         if file_type in ["all", "rests"]:
             xml_patterns.extend(["rests/rests*.xml"])
-            
+
         deleted_xml_count = 0
         for pattern in xml_patterns:
             for file_path in Path(data_dir).glob(pattern):
@@ -676,7 +696,9 @@ class Command(BaseCommand):
                     file_path.unlink()
                     deleted_xml_count += 1
                 except OSError as e:
-                    self.stdout.write(self.style.ERROR(f"   ❌ Ошибка удаления {file_path.name}: {e}"))
+                    self.stdout.write(
+                        self.style.ERROR(f"   ❌ Ошибка удаления {file_path.name}: {e}")
+                    )
 
         self.stdout.write(f"   ✅ Удалено XML файлов: {deleted_xml_count}")
 
@@ -701,14 +723,20 @@ class Command(BaseCommand):
                                 files_deleted += 1
                             except OSError:
                                 pass
-                    
+
                     if files_deleted > 0:
-                        self.stdout.write(f"   ✅ Очищена папка {img_dir.relative_to(data_dir)}: удалено {files_deleted} файлов")
+                        self.stdout.write(
+                            f"   ✅ Очищена папка {img_dir.relative_to(data_dir)}: удалено {files_deleted} файлов"
+                        )
                         deleted_img_dir_count += 1
                 except OSError as e:
-                    self.stdout.write(self.style.ERROR(f"   ❌ Ошибка очистки папки {img_dir.name}: {e}"))
+                    self.stdout.write(
+                        self.style.ERROR(
+                            f"   ❌ Ошибка очистки папки {img_dir.name}: {e}"
+                        )
+                    )
 
-    def _clear_existing_data(self):
+    def _clear_existing_data(self) -> None:
         """Очистка существующих данных"""
         self.stdout.write(
             self.style.WARNING(
@@ -728,7 +756,7 @@ class Command(BaseCommand):
             self.stdout.write(self.style.ERROR("❌ Очистка отменена"))
             raise CommandError("Очистка данных отменена пользователем")
 
-    def _print_stats(self, stats: dict):
+    def _print_stats(self, stats: dict) -> None:
         """Вывод статистики импорта"""
         self.stdout.write("\n" + "=" * 60)
         self.stdout.write(self.style.SUCCESS("✅ ИМПОРТ ЗАВЕРШЕН УСПЕШНО"))
@@ -776,30 +804,30 @@ class Command(BaseCommand):
     ) -> list[str]:
         """
         Сбор XML файлов из директории с поддержкой альтернативных имен и папок.
-        
-        1C часто присылает 'import.xml' вместо 'goods.xml', и файлы могут 
+
+        1C часто присылает 'import.xml' вместо 'goods.xml', и файлы могут
         находиться в разных подпапках в зависимости от модуля выгрузки.
         """
         base_path = Path(base_dir) / subdir
         collected: list[Path] = []
-        
+
         # Список имен для поиска (переданное имя + стандартные имена 1С)
         search_filenames = [filename]
         if filename == "goods.xml" or filename == "groups.xml":
             search_filenames.append("import.xml")
-        
+
         # Список директорий для поиска (переданная + логические альтернативы)
         search_paths = [base_path]
         if subdir == "groups":
             search_paths.append(Path(base_dir) / "goods")
-        
+
         for p in search_paths:
             if not p.exists():
                 continue
-                
+
             for fname in search_filenames:
                 prefix = fname.replace(".xml", "")
-                
+
                 # 1. Прямое совпадение имени
                 for f_case in [fname, fname.capitalize(), fname.lower()]:
                     direct_file = p / f_case
@@ -808,7 +836,11 @@ class Command(BaseCommand):
 
                 # 2. Сегментированные файлы (prefix_*.xml) - ищем регистронезависимо
                 # На Linux glob('*.xml') чувствителен к регистру
-                for pattern in [f"{prefix}_*.xml", f"{prefix.capitalize()}_*.xml", f"{prefix.lower()}_*.xml"]:
+                for pattern in [
+                    f"{prefix}_*.xml",
+                    f"{prefix.capitalize()}_*.xml",
+                    f"{prefix.lower()}_*.xml",
+                ]:
                     for segmented_file in sorted(p.glob(pattern)):
                         if segmented_file not in collected:
                             collected.append(segmented_file)

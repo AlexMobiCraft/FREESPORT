@@ -332,32 +332,32 @@ class TestImportConcurrency:
 
     def test_idempotency_active_session(self):
         """
-        AC 3: Active session (PENDING/IN_PROGRESS) -> Duplicate request returns success 
+        AC 3: Active session (PENDING/IN_PROGRESS) -> Duplicate request returns success
         and does NOT create new session.
         """
         from apps.products.models import ImportSession
-        
+
         sessid = "test_session_active"
-        
+
         # 1. Create an active session manually
         ImportSession.objects.create(
             session_key=sessid,
             status=ImportSession.ImportStatus.IN_PROGRESS,
-            import_type=ImportSession.ImportType.CATALOG
+            import_type=ImportSession.ImportType.CATALOG,
         )
         assert ImportSession.objects.count() == 1
 
         # 2. Send import command with SAME sessid
         # Note: We must pass sessid in URL to match strict logic
         response = self.client.get(
-            self.url, 
+            self.url,
             data={"mode": "import", "filename": "import.xml", "sessid": sessid},
-            HTTP_AUTHORIZATION=self.auth_header
+            HTTP_AUTHORIZATION=self.auth_header,
         )
 
         assert response.status_code == 200
         assert b"success" in response.content
-        
+
         # 3. Verify NO new session created
         assert ImportSession.objects.count() == 1
         ensure_session = ImportSession.objects.first()
@@ -369,26 +369,28 @@ class TestImportConcurrency:
         AC 4: Stale session (>2h) -> New request fails old one, creates new one.
         """
         import datetime
+
         from django.utils import timezone
+
         from apps.products.models import ImportSession
 
         sessid = "test_session_stale"
-        
+
         # 1. Create a STALE session (3 hours ago)
         stale_time = timezone.now() - datetime.timedelta(hours=3)
         session = ImportSession.objects.create(
             session_key=sessid,
             status=ImportSession.ImportStatus.IN_PROGRESS,
-            import_type=ImportSession.ImportType.CATALOG
+            import_type=ImportSession.ImportType.CATALOG,
         )
         # Hack to set updated_at in past (auto_now usually prevents this on save)
         ImportSession.objects.filter(pk=session.pk).update(updated_at=stale_time)
 
         # 2. Send new import request
         response = self.client.get(
-            self.url, 
+            self.url,
             data={"mode": "import", "filename": "import.xml", "sessid": sessid},
-            HTTP_AUTHORIZATION=self.auth_header
+            HTTP_AUTHORIZATION=self.auth_header,
         )
 
         assert response.status_code == 200
@@ -396,11 +398,11 @@ class TestImportConcurrency:
 
         # 3. Verify: Old session FAILED, New session PENDING
         assert ImportSession.objects.count() == 2
-        
+
         old_session = ImportSession.objects.get(pk=session.pk)
         assert old_session.status == ImportSession.ImportStatus.FAILED
         assert "expired" in old_session.error_message
-        
+
         new_session = ImportSession.objects.exclude(pk=session.pk).first()
         assert new_session.session_key == sessid
         assert new_session.status == ImportSession.ImportStatus.PENDING
@@ -410,17 +412,17 @@ class TestImportConcurrency:
         AC 1: URL sessid matches, Cookie ignored/absent -> Success using URL id.
         """
         from apps.products.models import ImportSession
-        
+
         url_sessid = "url_id_123"
-        
+
         # Request with specific sessid in URL
         response = self.client.get(
-            self.url, 
+            self.url,
             data={"mode": "import", "filename": "import.xml", "sessid": url_sessid},
-            HTTP_AUTHORIZATION=self.auth_header
+            HTTP_AUTHORIZATION=self.auth_header,
         )
         assert response.status_code == 200
-        
+
         # Verify created session uses URL ID
         session = ImportSession.objects.last()
         assert session.session_key == url_sessid
@@ -431,14 +433,14 @@ class TestImportConcurrency:
         """
         # Ensure clean client (no cookies)
         self.client.cookies.clear()
-        
+
         # Request WITHOUT sessid param
         response = self.client.get(
-            self.url, 
-            data={"mode": "import", "filename": "import.xml"}, 
-            HTTP_AUTHORIZATION=self.auth_header
+            self.url,
+            data={"mode": "import", "filename": "import.xml"},
+            HTTP_AUTHORIZATION=self.auth_header,
         )
-        
+
         assert response.status_code == 200
         assert response.content == b"failure\nMissing sessid"
 
@@ -447,8 +449,9 @@ class TestImportConcurrency:
         [AI-Review][CRITICAL] AC 5: Concurrent requests with same sessid -> Only 1 session created.
         Simulates race condition by bypassing the 'exists' check and hitting the database constraint.
         """
-        from apps.products.models import ImportSession
         from django.db import IntegrityError, transaction
+
+        from apps.products.models import ImportSession
 
         sessid = "concurrent_session"
 
@@ -456,7 +459,7 @@ class TestImportConcurrency:
         ImportSession.objects.create(
             session_key=sessid,
             status=ImportSession.ImportStatus.IN_PROGRESS,
-            import_type=ImportSession.ImportType.CATALOG
+            import_type=ImportSession.ImportType.CATALOG,
         )
 
         # 2. Try to create second session with same key (simulating Request B)
@@ -466,21 +469,23 @@ class TestImportConcurrency:
                 ImportSession.objects.create(
                     session_key=sessid,
                     status=ImportSession.ImportStatus.IN_PROGRESS,
-                    import_type=ImportSession.ImportType.CATALOG
+                    import_type=ImportSession.ImportType.CATALOG,
                 )
-        
+
         # 3. Verify via View (simulating Request B hitting the API)
         # The view should handle this gracefully (catch race or see it exists) and return success
         response = self.client.get(
-            self.url, 
+            self.url,
             data={"mode": "import", "filename": "import.xml", "sessid": sessid},
-            HTTP_AUTHORIZATION=self.auth_header
+            HTTP_AUTHORIZATION=self.auth_header,
         )
         assert response.status_code == 200
         assert b"success" in response.content
-        
+
         # 4. Verify only 1 session exists
-        assert ImportSession.objects.filter(
-            session_key=sessid, 
-            status__in=[ImportSession.ImportStatus.IN_PROGRESS]
-        ).count() == 1
+        assert (
+            ImportSession.objects.filter(
+                session_key=sessid, status__in=[ImportSession.ImportStatus.IN_PROGRESS]
+            ).count()
+            == 1
+        )

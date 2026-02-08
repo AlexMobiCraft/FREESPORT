@@ -5,6 +5,7 @@ Serializers для API управления пользователями
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
+from typing import Any, cast
 
 from apps.orders.models import Order
 
@@ -44,7 +45,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             "first_name": {"required": True},
         }
 
-    def validate_email(self, value):
+    def validate_email(self, value: str) -> str:
         """Проверка уникальности email"""
         if User.objects.filter(email=value).exists():
             raise serializers.ValidationError(
@@ -52,7 +53,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             )
         return value.lower()
 
-    def validate(self, attrs):
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         """Валидация полей"""
         # Проверка совпадения паролей
         if attrs["password"] != attrs["password_confirm"]:
@@ -87,7 +88,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
         return attrs
 
-    def create(self, validated_data):
+    def create(self, validated_data: dict[str, Any]) -> User:
         """Создание нового пользователя"""
         # Удаляем password_confirm из данных
         validated_data.pop("password_confirm")
@@ -318,9 +319,9 @@ class UserDashboardSerializer(serializers.Serializer):
     # Статус верификации для B2B
     verification_status = serializers.CharField(read_only=True, required=False)
 
-    def to_representation(self, instance):
+    def to_representation(self, instance: Any) -> dict[str, Any]:
         """Conditionally remove B2B fields for non-B2B users."""
-        ret = super().to_representation(instance)
+        ret = cast(dict[str, Any], super().to_representation(instance))
         user = instance.user_info
         if user and not user.is_b2b_user:
             ret.pop("total_order_amount", None)
@@ -357,11 +358,11 @@ class FavoriteSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id", "created_at"]
 
-    def _get_first_active_variant(self, product):
+    def _get_first_active_variant(self, product: Any) -> Any:
         """Получить первый активный вариант товара."""
         return product.variants.filter(is_active=True).first()
 
-    def get_product_price(self, obj) -> str | None:
+    def get_product_price(self, obj: Favorite) -> str | None:
         """
         Получить розничную цену из первого активного варианта товара.
         Возвращает строку для совместимости с DecimalField.
@@ -371,16 +372,16 @@ class FavoriteSerializer(serializers.ModelSerializer):
             return str(variant.retail_price)
         return None
 
-    def get_product_sku(self, obj) -> str | None:
+    def get_product_sku(self, obj: Favorite) -> str | None:
         """
         Получить SKU из первого активного варианта товара.
         """
         variant = self._get_first_active_variant(obj.product)
         if variant:
-            return variant.sku
+            return str(variant.sku)
         return None
 
-    def get_product_image(self, obj) -> str | None:
+    def get_product_image(self, obj: Favorite) -> str | None:
         """
         Получить изображение товара из ProductVariant или Product.base_images.
         Epic 13/14: изображения хранятся в ProductVariant.main_image
@@ -393,7 +394,7 @@ class FavoriteSerializer(serializers.ModelSerializer):
             return str(first_variant.main_image)
         # Fallback на base_images
         if product.base_images and len(product.base_images) > 0:
-            return product.base_images[0]
+            return str(product.base_images[0])
         return None
 
 

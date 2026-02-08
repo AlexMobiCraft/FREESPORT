@@ -264,7 +264,7 @@ class VariantImportProcessor:
         self.batch_size = batch_size
         self.skip_validation = skip_validation
 
-        self.stats = {
+        self.stats: dict[str, Any] = {
             "products_created": 0,
             "products_updated": 0,
             "variants_created": 0,
@@ -400,13 +400,18 @@ class VariantImportProcessor:
         Returns:
             Product instance или None при ошибке
         """
-        from apps.products.models import Brand, Brand1CMapping, Category, Product
+        from apps.products.models import (Brand, Brand1CMapping, Category,
+                                          Product)
 
         try:
             parent_id = goods_data.get("id")
             if not parent_id:
                 self._log_error("Missing parent_id in goods_data", goods_data)
                 return None
+
+            # Ensure types
+            parent_id = str(parent_id)
+            brand_id = str(goods_data.get("brand_id")) if goods_data.get("brand_id") else None
 
             logger.info(f"Processing product from goods.xml: {parent_id}")
 
@@ -438,15 +443,15 @@ class VariantImportProcessor:
         """Обновление существующего Product"""
         from apps.products.models import Brand, Brand1CMapping
 
-        parent_id = goods_data.get("id")
-        brand_id = goods_data.get("brand_id")
+        parent_id = str(goods_data.get("id"))
+        brand_id = str(goods_data.get("brand_id")) if goods_data.get("brand_id") else None
 
         # Убедимся что onec_id установлен
         if not product.onec_id:
             product.onec_id = parent_id
 
         # Обновляем бренд если изменился
-        brand = self._determine_brand(brand_id, parent_id)
+        brand = self._determine_brand(brand_id, str(parent_id))
         fields_to_update: list[str] = []
 
         if product.brand_id != brand.pk:
@@ -491,11 +496,11 @@ class VariantImportProcessor:
         category = self._get_or_create_category(goods_data)
 
         # Получаем бренд
-        brand = self._determine_brand(brand_id, parent_id)
+        brand = self._determine_brand(brand_id, str(parent_id))
 
         # Генерируем уникальный slug
         name = goods_data.get("name", "Product Placeholder")
-        slug = self._generate_unique_slug(name, parent_id)
+        slug = self._generate_unique_slug(name, str(parent_id))
 
         # Создание Product (без цен/остатков - они в ProductVariant)
         product = Product(
@@ -1119,10 +1124,8 @@ class VariantImportProcessor:
             - Update stats: attributes_linked, attributes_missing
         """
         from apps.products.models import Attribute, AttributeValue
-        from apps.products.utils.attributes import (
-            normalize_attribute_name,
-            normalize_attribute_value,
-        )
+        from apps.products.utils.attributes import (normalize_attribute_name,
+                                                    normalize_attribute_value)
 
         if not characteristics:
             return
@@ -1325,7 +1328,7 @@ class VariantImportProcessor:
         while Product.objects.filter(slug=unique_slug).exists():
             unique_slug = f"{base_slug}-{uuid.uuid4().hex[:8]}"
 
-        return unique_slug
+        return str(unique_slug)
 
     def _ensure_unique_sku(self, sku: str) -> str:
         """Обеспечивает уникальность SKU"""
@@ -1351,22 +1354,22 @@ class VariantImportProcessor:
         """Возвращает статистику импорта"""
         # Limit the lists to avoid huge JSONs
         limit = 100
-        stats = self.stats.copy()
-        
+        stats: dict[str, Any] = self.stats.copy()
+
         stats["updated_products_ids"] = self.updated_products[:limit]
         stats["updated_variants_ids"] = self.updated_variants[:limit]
-        
-        if len(self.updated_products) > limit:
-            stats["updated_products_ids"].append(f"...and {len(self.updated_products) - limit} more")
-            
-        if len(self.updated_variants) > limit:
-            stats["updated_variants_ids"].append(f"...and {len(self.updated_variants) - limit} more")
-            
-        return stats
 
-    # ========================================================================
-    # Migrated methods from ProductDataProcessor (Story 27.1)
-    # ========================================================================
+        if len(self.updated_products) > limit:
+            stats["updated_products_ids"].append(
+                f"...and {len(self.updated_products) - limit} more"
+            )
+
+        if len(self.updated_variants) > limit:
+            stats["updated_variants_ids"].append(
+                f"...and {len(self.updated_variants) - limit} more"
+            )
+
+        return stats
 
     def process_price_types(self, price_types_data: Sequence[PriceTypeData]) -> int:
         """
@@ -1466,23 +1469,23 @@ class VariantImportProcessor:
                 if not parent_id or not onec_id:
                     continue  # Корневая категория или ошибка
 
-                category = category_map.get(onec_id)
-                parent = category_map.get(parent_id)
+                child_category: Category | None = category_map.get(onec_id)
+                parent: Category | None = category_map.get(parent_id)
 
-                if not category:
+                if not child_category:
                     continue
 
                 if not parent:
                     continue
 
                 # Валидация циклических ссылок
-                if self._has_circular_reference(category, parent, category_map):
+                if self._has_circular_reference(child_category, parent, category_map):
                     result["cycles_detected"] += 1
                     continue
 
                 # Устанавливаем parent
-                category.parent = parent
-                category.save(update_fields=["parent"])
+                child_category.parent = parent
+                child_category.save(update_fields=["parent"])
 
             except Exception:
                 result["errors"] += 1
@@ -1712,17 +1715,23 @@ class VariantImportProcessor:
             session = ImportSession.objects.get(id=self.session_id)
             session.status = status
             session.finished_at = timezone.now()
-            
+
             # Ensure Updated Items are saved in report_details
             # Limit to 100 to avoid huge JSONs
-            self.stats.update({
-               "updated_products_ids": self.updated_products[:100],
-               "updated_variants_ids": self.updated_variants[:100]
-            })
+            self.stats.update(
+                {
+                    "updated_products_ids": self.updated_products[:100],
+                    "updated_variants_ids": self.updated_variants[:100],
+                }
+            )
             if len(self.updated_products) > 100:
-                self.stats["updated_products_ids"].append(f"...and {len(self.updated_products) - 100} more")
+                self.stats["updated_products_ids"].append(
+                    f"...and {len(self.updated_products) - 100} more"
+                )
             if len(self.updated_variants) > 100:
-                 self.stats["updated_variants_ids"].append(f"...and {len(self.updated_variants) - 100} more")
+                self.stats["updated_variants_ids"].append(
+                    f"...and {len(self.updated_variants) - 100} more"
+                )
 
             session.report_details = self.stats
 
@@ -1730,7 +1739,9 @@ class VariantImportProcessor:
             status_display = dict(ImportSession.ImportStatus.choices).get(
                 status, status
             )
-            completion_message = f"[{timestamp}] Импорт завершен со статусом: {status_display}\n"
+            completion_message = (
+                f"[{timestamp}] Импорт завершен со статусом: {status_display}\n"
+            )
             if error_message:
                 completion_message += f"[{timestamp}] Ошибка: {error_message}\n"
                 session.error_message = error_message

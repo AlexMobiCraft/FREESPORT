@@ -157,7 +157,9 @@ class TestImportCustomersCommand:
         call_command("import_customers_from_1c", data_dir=real_data_dir, stdout=out)
 
         output = out.getvalue()
-        assert f"Используется существующая сессия импорта #{active_session.pk}" in output
+        assert (
+            f"Используется существующая сессия импорта #{active_session.pk}" in output
+        )
 
         # Проверить, что не создана новая сессия
         assert (

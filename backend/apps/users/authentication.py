@@ -14,8 +14,10 @@ import logging
 from django.conf import settings
 from django.core.cache import cache
 from django.utils import timezone
+from rest_framework.request import Request
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.exceptions import InvalidToken
+from typing import TYPE_CHECKING, Any, cast
 
 logger = logging.getLogger("apps.users.auth")
 
@@ -87,7 +89,7 @@ class BlacklistCheckJWTAuthentication(JWTAuthentication):
             return False
 
 
-def blacklist_access_token(request, user_id: int) -> bool:
+def blacklist_access_token(request: Request, user_id: int) -> bool:
     """
     Добавить access token в Redis blacklist.
 
@@ -122,7 +124,13 @@ def blacklist_access_token(request, user_id: int) -> bool:
         return False
 
     # TTL = ACCESS_TOKEN_LIFETIME (auto-cleanup)
-    ttl = settings.SIMPLE_JWT.get("ACCESS_TOKEN_LIFETIME").total_seconds()
+    jwt_settings = settings.SIMPLE_JWT
+    access_lifetime = jwt_settings.get("ACCESS_TOKEN_LIFETIME")
+    if access_lifetime:
+        ttl = access_lifetime.total_seconds()
+    else:
+        # Default fallback
+        ttl = 3600.0
 
     # Security Audit: Store metadata for forensics
     blacklist_data = {
@@ -157,7 +165,7 @@ def blacklist_access_token(request, user_id: int) -> bool:
         return False
 
 
-def _get_client_ip(request) -> str:
+def _get_client_ip(request: Request) -> str:
     """
     Получить IP адрес клиента с учетом proxy серверов.
 
@@ -172,4 +180,4 @@ def _get_client_ip(request) -> str:
         ip = x_forwarded_for.split(",")[0].strip()
     else:
         ip = request.META.get("REMOTE_ADDR", "unknown")
-    return ip
+    return cast(str, ip)

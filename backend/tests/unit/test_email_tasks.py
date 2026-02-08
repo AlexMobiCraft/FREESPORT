@@ -15,11 +15,9 @@ import pytest
 from django.utils import timezone
 
 from apps.users.models import User
-from apps.users.tasks import (
-    monitor_pending_verification_queue,
-    send_admin_verification_email,
-    send_user_pending_email,
-)
+from apps.users.tasks import (monitor_pending_verification_queue,
+                              send_admin_verification_email,
+                              send_user_pending_email)
 from tests.factories import UserFactory
 
 

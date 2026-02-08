@@ -5,11 +5,11 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 from rest_framework import serializers
 
-from .models import BlogPost, News, Newsletter
+from .models import BlogPost, News, Newsletter, Category
 
 
 class SubscribeSerializer(serializers.Serializer):
@@ -121,7 +121,7 @@ class UnsubscribeSerializer(serializers.Serializer):
 
         return value
 
-    def save(self) -> Newsletter:
+    def save(self, **kwargs: Any) -> Newsletter:
         """
         Отписка от рассылки.
         Вызывает метод unsubscribe() модели.
@@ -172,7 +172,7 @@ class NewsSerializer(serializers.ModelSerializer):
         Кастомизация вывода.
         Преобразуем image в полный URL и category в детальную информацию.
         """
-        data = super().to_representation(instance)
+        data: dict[str, Any] = super().to_representation(instance)
 
         # Преобразуем image в полный URL
         request = self.context.get("request")
@@ -221,7 +221,7 @@ class BlogPostListSerializer(serializers.ModelSerializer):
         Кастомизация вывода.
         Преобразуем image в полный URL и category в детальную информацию.
         """
-        data = super().to_representation(instance)
+        data = cast(dict[str, Any], super().to_representation(instance))
 
         # Преобразуем image в полный URL
         request = self.context.get("request")
@@ -280,7 +280,7 @@ class BlogPostDetailSerializer(serializers.ModelSerializer):
         Кастомизация вывода.
         Преобразуем image в полный URL и category в детальную информацию.
         """
-        data = super().to_representation(instance)
+        data = cast(dict[str, Any], super().to_representation(instance))
 
         # Преобразуем image в полный URL
         request = self.context.get("request")

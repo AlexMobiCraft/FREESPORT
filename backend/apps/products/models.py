@@ -535,6 +535,7 @@ class ImportSession(models.Model):
     """
     Модель для отслеживания сессий импорта данных из 1С
     """
+
     ImportType = ImportType
     ImportStatus = ImportStatus
 
@@ -573,9 +574,7 @@ class ImportSession(models.Model):
     started_at = cast(
         datetime, models.DateTimeField("Начало импорта", auto_now_add=True)
     )
-    updated_at = cast(
-        datetime, models.DateTimeField("Дата обновления", auto_now=True)
-    )
+    updated_at = cast(datetime, models.DateTimeField("Дата обновления", auto_now=True))
     finished_at = cast(
         datetime | None,
         models.DateTimeField("Окончание импорта", null=True, blank=True),

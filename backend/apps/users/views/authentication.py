@@ -3,15 +3,18 @@ Views для аутентификации пользователей
 """
 
 import logging
+from typing import Any, cast
 
 from django.contrib.auth import get_user_model, login, logout
 from django.utils import timezone
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
-from drf_spectacular.utils import OpenApiExample, OpenApiResponse, extend_schema
+from drf_spectacular.utils import (OpenApiExample, OpenApiResponse,
+                                   extend_schema)
 from rest_framework import permissions, status
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.generics import GenericAPIView
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.exceptions import TokenError
@@ -21,14 +24,9 @@ logger = logging.getLogger("apps.users.auth")
 
 # User model is used in the code
 from ..authentication import blacklist_access_token
-from ..serializers import (
-    LogoutSerializer,
-    PasswordResetConfirmSerializer,
-    PasswordResetRequestSerializer,
-    UserLoginSerializer,
-    UserRegistrationSerializer,
-    ValidateTokenSerializer,
-)
+from ..serializers import (LogoutSerializer, PasswordResetConfirmSerializer,
+                           PasswordResetRequestSerializer, UserLoginSerializer,
+                           UserRegistrationSerializer, ValidateTokenSerializer)
 from ..tasks import send_password_reset_email
 from ..tokens import password_reset_token
 
@@ -128,8 +126,7 @@ class UserRegistrationView(APIView):
             if user.is_active and user.is_verified:
                 refresh = RefreshToken.for_user(user)
                 response_data["refresh"] = str(refresh)
-                # type: ignore[attr-defined]
-                response_data["access"] = str(refresh.access_token)
+                response_data["access"] = str(refresh.access_token)  # type: ignore[attr-defined]
 
             return Response(response_data, status=status.HTTP_201_CREATED)
 
@@ -193,7 +190,7 @@ class UserLoginView(APIView):
         },
         tags=["Authentication"],
     )
-    def post(self, request, *args, **kwargs):
+    def post(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         """Аутентификация пользователя"""
         serializer = UserLoginSerializer(data=request.data)
 
@@ -288,7 +285,7 @@ class PasswordResetRequestView(APIView):
         },
         tags=["Authentication"],
     )
-    def post(self, request, *args, **kwargs) -> Response:
+    def post(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         """Обработка запроса на сброс пароля"""
         serializer = PasswordResetRequestSerializer(data=request.data)
 
@@ -372,7 +369,7 @@ class ValidateTokenView(APIView):
         },
         tags=["Authentication"],
     )
-    def post(self, request, *args, **kwargs) -> Response:
+    def post(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         """Валидация токена"""
         serializer = ValidateTokenSerializer(data=request.data)
 
@@ -453,7 +450,7 @@ class PasswordResetConfirmView(APIView):
         },
         tags=["Authentication"],
     )
-    def post(self, request, *args, **kwargs) -> Response:
+    def post(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         """Подтверждение сброса пароля"""
         serializer = PasswordResetConfirmSerializer(data=request.data)
 
@@ -490,7 +487,7 @@ class PasswordResetConfirmView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-def get_client_ip(request) -> str:
+def get_client_ip(request: Request) -> str:
     """
     Получить IP адрес клиента с учетом proxy серверов.
 
@@ -508,7 +505,7 @@ def get_client_ip(request) -> str:
         ip = x_forwarded_for.split(",")[0].strip()
     else:
         ip = request.META.get("REMOTE_ADDR", "unknown")
-    return ip
+    return cast(str, ip)
 
 
 class LogoutView(GenericAPIView):
@@ -567,7 +564,7 @@ class LogoutView(GenericAPIView):
         },
         tags=["Authentication"],
     )
-    def post(self, request, *args, **kwargs) -> Response:
+    def post(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         """
         Обработка logout запроса с blacklisting токена.
 
@@ -581,15 +578,20 @@ class LogoutView(GenericAPIView):
             # Создаём объект токена из validated refresh string
             token = RefreshToken(serializer.validated_data["refresh"])
 
-            user_id = request.user.id
-            username = request.user.username
+            if request.user.is_authenticated:
+                user_id = request.user.id
+                email = request.user.email
+            else:
+                user_id = None
+                email = None
 
             # Добавляем токен в blacklist
             token.blacklist()
 
             # Story JWT-Blacklist: Blacklist access token в Redis
             # Немедленно инвалидирует access-токен (не ждём TTL)
-            blacklist_access_token(request, request.user.id)
+            if request.user.id:
+                blacklist_access_token(request, cast(int, request.user.id))
 
             # Story 12.1: Logout session as well
             logout(request)
@@ -598,7 +600,7 @@ class LogoutView(GenericAPIView):
             logger.info(
                 f"[AUDIT] User logout successful | "
                 f"user_id={user_id} | "
-                f"username={username} | "
+                f"email={email} | "
                 f"timestamp={timezone.now().isoformat()} | "
                 f"ip={get_client_ip(request)}"
             )

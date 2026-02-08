@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
     default_retry_delay=60,
 )
 def run_selective_import_task(
-    self,
+    self: Any,
     selected_types: list[str],
     data_dir: (
         str

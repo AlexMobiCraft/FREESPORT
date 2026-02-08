@@ -7,7 +7,7 @@ Story 3.1.5: Команда для обновления остатков тов�
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
@@ -51,7 +51,7 @@ class Command(BaseCommand):
             help="Тестовый запуск без сохранения в БД",
         )
 
-    def handle(self, *args, **options) -> None:
+    def handle(self, *args: Any, **options: Any) -> None:
         """Основная логика команды"""
         file_path: str = options["file"]
         batch_size: int = options["batch_size"]

@@ -7,34 +7,24 @@ Unit-тесты для OrderStatusImportService.
 
 import logging
 from datetime import date, timedelta
-from zoneinfo import ZoneInfo
 from typing import cast
 from unittest.mock import MagicMock, patch
-
-from defusedxml.common import DefusedXmlException
-from defusedxml import ElementTree as ET
+from zoneinfo import ZoneInfo
 
 import pytest
+from defusedxml import ElementTree as ET
+from defusedxml.common import DefusedXmlException
 from django.db import OperationalError
 from django.test.utils import override_settings
 from django.utils import timezone
 
-from apps.orders.constants import (
-    MAX_ERRORS,
-    ORDER_ID_PREFIX,
-    ProcessingStatus,
-    STATUS_MAPPING,
-    STATUS_MAPPING_LOWER,
-)
+from apps.orders.constants import (MAX_ERRORS, ORDER_ID_PREFIX, STATUS_MAPPING,
+                                   STATUS_MAPPING_LOWER, ProcessingStatus)
 from apps.orders.models import Order
-from apps.orders.services.order_status_import import (
-    ImportResult,
-    OrderStatusImportService,
-    OrderUpdateData,
-)
-
+from apps.orders.services.order_status_import import (ImportResult,
+                                                      OrderStatusImportService,
+                                                      OrderUpdateData)
 from tests.conftest import get_unique_suffix
-
 
 pytestmark = pytest.mark.django_db
 
@@ -97,8 +87,9 @@ def build_multi_order_xml(orders: list[dict]) -> str:
         order_id = order.get("order_id", "order-1")
         order_number = order.get("order_number", "FS-TEST")
         status = order.get("status", "Отгружен")
-        
-        containers.append(f"""
+
+        containers.append(
+            f"""
         <Контейнер>
             <Документ>
                 <Ид>{order_id}</Ид>
@@ -113,7 +104,8 @@ def build_multi_order_xml(orders: list[dict]) -> str:
                 </ЗначенияРеквизитов>
             </Документ>
         </Контейнер>
-        """)
+        """
+        )
 
     return f"""<?xml version="1.0" encoding="UTF-8"?>
 <КоммерческаяИнформация ВерсияСхемы="3.1" ДатаФормирования="2026-02-02T12:00:00">
@@ -142,11 +134,11 @@ class TestStatusMapping:
             "Отменен": "cancelled",
             "Возвращен": "refunded",
         }
-        
+
         for status_1c, status_freesport in expected_mappings.items():
-            assert STATUS_MAPPING.get(status_1c) == status_freesport, (
-                f"Mapping mismatch: {status_1c} should map to {status_freesport}"
-            )
+            assert (
+                STATUS_MAPPING.get(status_1c) == status_freesport
+            ), f"Mapping mismatch: {status_1c} should map to {status_freesport}"
 
     def test_status_mapping_count(self):
         """Проверка количества статусов в маппинге."""
@@ -167,7 +159,7 @@ class TestOrderUpdateData:
             paid_at=None,
             shipped_at=None,
         )
-        
+
         # ASSERT
         assert data.order_id == "order-123"
         assert data.order_number == "FS-TEST-001"
@@ -184,7 +176,7 @@ class TestImportResult:
         """Проверка дефолтных значений ImportResult."""
         # ARRANGE / ACT
         result = ImportResult()
-        
+
         # ASSERT
         assert result.processed == 0
         assert result.updated == 0
@@ -211,10 +203,10 @@ class TestXMLParsing:
             status="Доставлен",
         )
         service = OrderStatusImportService()
-        
+
         # ACT
         order_updates, total_docs, parse_errors = service._parse_orders_xml(xml_data)
-        
+
         # ASSERT
         assert len(order_updates) == 1
         assert total_docs == 1
@@ -228,10 +220,10 @@ class TestXMLParsing:
         # ARRANGE
         xml_data = build_test_xml().encode("utf-8")
         service = OrderStatusImportService()
-        
+
         # ACT
         order_updates, total_docs, parse_errors = service._parse_orders_xml(xml_data)
-        
+
         # ASSERT
         assert len(order_updates) == 1
         assert total_docs == 1
@@ -240,16 +232,22 @@ class TestXMLParsing:
     def test_parse_xml_with_multiple_orders(self):
         """Парсинг XML с несколькими заказами."""
         # ARRANGE
-        xml_data = build_multi_order_xml([
-            {"order_id": "order-1", "order_number": "FS-1", "status": "Отгружен"},
-            {"order_id": "order-2", "order_number": "FS-2", "status": "Доставлен"},
-            {"order_id": "order-3", "order_number": "FS-3", "status": "Подтвержден"},
-        ])
+        xml_data = build_multi_order_xml(
+            [
+                {"order_id": "order-1", "order_number": "FS-1", "status": "Отгружен"},
+                {"order_id": "order-2", "order_number": "FS-2", "status": "Доставлен"},
+                {
+                    "order_id": "order-3",
+                    "order_number": "FS-3",
+                    "status": "Подтвержден",
+                },
+            ]
+        )
         service = OrderStatusImportService()
-        
+
         # ACT
         order_updates, total_docs, parse_errors = service._parse_orders_xml(xml_data)
-        
+
         # ASSERT
         assert len(order_updates) == 3
         assert total_docs == 3
@@ -264,7 +262,7 @@ class TestXMLParsing:
         # ARRANGE
         invalid_xml = "<invalid><not-closed>"
         service = OrderStatusImportService()
-        
+
         # ACT / ASSERT
         with pytest.raises(ET.ParseError):
             service._parse_orders_xml(invalid_xml)
@@ -283,20 +281,20 @@ class TestDateExtraction:
             shipped_date="2026-02-02",
         )
         service = OrderStatusImportService()
-        
+
         # ACT
         order_updates, total_docs, parse_errors = service._parse_orders_xml(xml_data)
-        
+
         # ASSERT
         assert len(order_updates) == 1
         assert total_docs == 1
         assert parse_errors == []
         update = order_updates[0]
-        
+
         # Проверяем что даты распарсены
         assert update.paid_at is not None
         assert update.shipped_at is not None
-        
+
         # Проверяем значения дат
         assert update.paid_at.date() == date(2026, 2, 1)
         assert update.shipped_at.date() == date(2026, 2, 2)
@@ -375,7 +373,7 @@ class TestDateExtraction:
         assert parsed.tzinfo == ZoneInfo("UTC")
 
 
-@pytest.mark.unit  
+@pytest.mark.unit
 class TestOrderProcessing:
     """Тесты обработки заказов с моками (AC2, AC3, AC4, AC6, AC7, AC8)."""
 
@@ -476,10 +474,20 @@ class TestOrderProcessing:
     def test_missing_order_logs_error_and_continues(self):
         """AC9 4.7: Отсутствующий заказ — продолжение обработки (AC7)."""
         # ARRANGE
-        xml_data = build_multi_order_xml([
-            {"order_id": "order-1", "order_number": "MISSING-1", "status": "Отгружен"},
-            {"order_id": "order-2", "order_number": "EXISTS-1", "status": "Доставлен"},
-        ])
+        xml_data = build_multi_order_xml(
+            [
+                {
+                    "order_id": "order-1",
+                    "order_number": "MISSING-1",
+                    "status": "Отгружен",
+                },
+                {
+                    "order_id": "order-2",
+                    "order_number": "EXISTS-1",
+                    "status": "Доставлен",
+                },
+            ]
+        )
 
         mock_existing_order = MagicMock()
         mock_existing_order.order_number = "EXISTS-1"
@@ -648,15 +656,29 @@ class TestOrderProcessing:
         # ARRANGE
         xml_data = build_multi_order_xml(
             [
-                {"order_id": "order-1", "order_number": "FS-BATCH-1", "status": "Отгружен"},
-                {"order_id": "order-2", "order_number": "FS-BATCH-2", "status": "Отгружен"},
-                {"order_id": "order-3", "order_number": "FS-BATCH-3", "status": "Отгружен"},
+                {
+                    "order_id": "order-1",
+                    "order_number": "FS-BATCH-1",
+                    "status": "Отгружен",
+                },
+                {
+                    "order_id": "order-2",
+                    "order_number": "FS-BATCH-2",
+                    "status": "Отгружен",
+                },
+                {
+                    "order_id": "order-3",
+                    "order_number": "FS-BATCH-3",
+                    "status": "Отгружен",
+                },
             ]
         )
         service = OrderStatusImportService()
 
         with override_settings(ONEC_EXCHANGE={"ORDER_STATUS_IMPORT_BATCH_SIZE": 2}):
-            with patch.object(service, "_bulk_fetch_orders", return_value={}) as bulk_fetch:
+            with patch.object(
+                service, "_bulk_fetch_orders", return_value={}
+            ) as bulk_fetch:
                 with patch.object(
                     service,
                     "_process_order_update",
@@ -695,8 +717,9 @@ class TestOrderProcessing:
         # status_1c не в STATUS_MAPPING — будет skipped_unknown_status
         # Но логика truncate срабатывает в _process_order_update перед save
         # Чтобы протестировать truncate, добавим статус в mapping временно
-        with patch.dict(STATUS_MAPPING, {long_status: "confirmed"}), \
-             patch.dict(STATUS_MAPPING_LOWER, {long_status.lower(): "confirmed"}):
+        with patch.dict(STATUS_MAPPING, {long_status: "confirmed"}), patch.dict(
+            STATUS_MAPPING_LOWER, {long_status.lower(): "confirmed"}
+        ):
             service = OrderStatusImportService()
             mock_cache = {f"num:{order_number}": mock_order}
 
@@ -738,7 +761,9 @@ class TestFindOrder:
 
         service = OrderStatusImportService()
 
-        with patch.object(Order.objects, "select_for_update", return_value=mock_select_for_update):
+        with patch.object(
+            Order.objects, "select_for_update", return_value=mock_select_for_update
+        ):
             # ACT
             result, conflict_msg = service._find_order(order_data)
 
@@ -988,17 +1013,35 @@ class TestReviewFollowups:
                 result = service.process(xml_data)
 
                 # ASSERT — статус должен быть смаплен на "shipped"
-                assert result.updated == 1, f"Failed for status variant: {status_variant}"
-                assert mock_order.status == "shipped", f"Failed for status variant: {status_variant}"
+                assert (
+                    result.updated == 1
+                ), f"Failed for status variant: {status_variant}"
+                assert (
+                    mock_order.status == "shipped"
+                ), f"Failed for status variant: {status_variant}"
 
     def test_error_isolation_continues_processing(self):
         """[AI-Review][High] Изоляция ошибок — одна ошибка не останавливает обработку."""
         # ARRANGE — 3 заказа: 1й вызывает исключение при save, 2й и 3й нормальные
-        xml_data = build_multi_order_xml([
-            {"order_id": "order-1", "order_number": "ERROR-ORDER", "status": "Отгружен"},
-            {"order_id": "order-2", "order_number": "GOOD-ORDER-1", "status": "Доставлен"},
-            {"order_id": "order-3", "order_number": "GOOD-ORDER-2", "status": "Подтвержден"},
-        ])
+        xml_data = build_multi_order_xml(
+            [
+                {
+                    "order_id": "order-1",
+                    "order_number": "ERROR-ORDER",
+                    "status": "Отгружен",
+                },
+                {
+                    "order_id": "order-2",
+                    "order_number": "GOOD-ORDER-1",
+                    "status": "Доставлен",
+                },
+                {
+                    "order_id": "order-3",
+                    "order_number": "GOOD-ORDER-2",
+                    "status": "Подтвержден",
+                },
+            ]
+        )
 
         # Mock orders
         error_order = MagicMock()
@@ -1261,11 +1304,13 @@ class TestRound3ReviewFollowups:
         # ARRANGE — создаём много несуществующих заказов
         orders = []
         for i in range(150):
-            orders.append({
-                "order_id": f"order-{i}",
-                "order_number": f"NOT-EXISTS-{i}",
-                "status": "Отгружен",
-            })
+            orders.append(
+                {
+                    "order_id": f"order-{i}",
+                    "order_number": f"NOT-EXISTS-{i}",
+                    "status": "Отгружен",
+                }
+            )
 
         xml_data = build_multi_order_xml(orders)
         service = OrderStatusImportService()
@@ -1330,7 +1375,7 @@ class TestRound6ReviewFollowups:
         # pk:1000 указывает на другой заказ (не связан с текущим XML)
         mock_cache = {
             f"num:{order_number}": mock_order_by_number,  # num:pk:999 -> pk=999
-            f"pk:1000": mock_order_by_pk,  # pk:1000 -> другой заказ
+            "pk:1000": mock_order_by_pk,  # pk:1000 -> другой заказ
         }
 
         with patch.object(service, "_bulk_fetch_orders", return_value=mock_cache):
@@ -1345,7 +1390,8 @@ class TestRound6ReviewFollowups:
     def test_bulk_fetch_creates_correct_cache_keys(self):
         """[AI-Review][High] _bulk_fetch_orders создаёт ключи с правильными префиксами."""
         # ARRANGE
-        from unittest.mock import MagicMock, patch as mock_patch
+        from unittest.mock import MagicMock
+        from unittest.mock import patch as mock_patch
 
         order_updates = [
             OrderUpdateData(
@@ -1428,7 +1474,8 @@ class TestRound6ReviewFollowups:
     def test_find_order_fallback_uses_select_for_update(self):
         """[AI-Review][Medium] Race Condition Risk: select_for_update() в fallback запросе."""
         # ARRANGE
-        from unittest.mock import MagicMock, patch as mock_patch
+        from unittest.mock import MagicMock
+        from unittest.mock import patch as mock_patch
 
         order_data = OrderUpdateData(
             order_id="order-77",
@@ -1451,7 +1498,9 @@ class TestRound6ReviewFollowups:
             mock_objects.select_for_update.return_value = mock_select_for_update
 
             # ACT — вызываем без кэша (None), чтобы сработал fallback
-            found_order, conflict_msg = service._find_order(order_data, orders_cache=None)
+            found_order, conflict_msg = service._find_order(
+                order_data, orders_cache=None
+            )
 
             # ASSERT — select_for_update() должен быть вызван
             mock_objects.select_for_update.assert_called_once()
@@ -1464,7 +1513,8 @@ class TestRound6ReviewFollowups:
     def test_find_order_fallback_pk_uses_select_for_update(self):
         """[AI-Review][Medium] select_for_update() используется при поиске по pk."""
         # ARRANGE
-        from unittest.mock import MagicMock, patch as mock_patch
+        from unittest.mock import MagicMock
+        from unittest.mock import patch as mock_patch
 
         order_data = OrderUpdateData(
             order_id="order-88",
@@ -1487,7 +1537,9 @@ class TestRound6ReviewFollowups:
             mock_objects.select_for_update.return_value = mock_select_for_update
 
             # ACT
-            found_order, conflict_msg = service._find_order(order_data, orders_cache=None)
+            found_order, conflict_msg = service._find_order(
+                order_data, orders_cache=None
+            )
 
             # ASSERT
             assert conflict_msg is None
@@ -1726,15 +1778,15 @@ class TestRound7ReviewFollowups:
 
         with patch.object(service, "_bulk_fetch_orders", return_value=mock_cache):
             # ACT
-            caplog.set_level(logging.DEBUG, logger="apps.orders.services.order_status_import")
+            caplog.set_level(
+                logging.DEBUG, logger="apps.orders.services.order_status_import"
+            )
             result = service.process(xml_data)
 
         # ASSERT
         assert result.updated == 1
         update_logs = [
-            record
-            for record in caplog.records
-            if "status updated to" in record.message
+            record for record in caplog.records if "status updated to" in record.message
         ]
         assert update_logs, "Ожидали debug-лог обновления статуса"
         assert all(record.levelno == logging.DEBUG for record in update_logs)
@@ -1759,6 +1811,7 @@ class TestRound7ReviewFollowups:
         </Документ>"""
 
         import defusedxml.ElementTree as ET
+
         document = ET.fromstring(xml_str)
 
         service = OrderStatusImportService()
@@ -1865,7 +1918,9 @@ class TestRound13ReviewFollowups:
 
             # ASSERT — ошибка парсинга даты должна быть в errors
             assert result.processed == 1
-            date_errors = [e for e in result.errors if "invalid paid_at date" in e.lower()]
+            date_errors = [
+                e for e in result.errors if "invalid paid_at date" in e.lower()
+            ]
             assert len(date_errors) == 1
             assert "2026-02-30" in date_errors[0]
 
@@ -1893,6 +1948,7 @@ class TestRound13ReviewFollowups:
         </Документ>"""
 
         import defusedxml.ElementTree as ET
+
         document = ET.fromstring(xml_str)
 
         service = OrderStatusImportService()
@@ -1907,39 +1963,34 @@ class TestRound13ReviewFollowups:
 
     def test_final_statuses_derived_from_order_statuses(self):
         """[AI-Review][Low] DRY: FINAL_STATUSES производное от ORDER_STATUSES."""
-        from apps.orders.constants import (
-            ALL_ORDER_STATUSES,
-            FINAL_STATUSES,
-            ORDER_STATUSES,
-        )
+        from apps.orders.constants import (ALL_ORDER_STATUSES, FINAL_STATUSES,
+                                           ORDER_STATUSES)
 
         # ASSERT — все финальные статусы должны быть в ORDER_STATUSES
         order_status_codes = {status for status, _ in ORDER_STATUSES}
         for final_status in FINAL_STATUSES:
-            assert final_status in order_status_codes, f"{final_status} not in ORDER_STATUSES"
+            assert (
+                final_status in order_status_codes
+            ), f"{final_status} not in ORDER_STATUSES"
             assert final_status in ALL_ORDER_STATUSES
 
     def test_active_statuses_derived_from_order_statuses(self):
         """[AI-Review][Low] DRY: ACTIVE_STATUSES производное от ORDER_STATUSES."""
-        from apps.orders.constants import (
-            ACTIVE_STATUSES,
-            ALL_ORDER_STATUSES,
-            ORDER_STATUSES,
-        )
+        from apps.orders.constants import (ACTIVE_STATUSES, ALL_ORDER_STATUSES,
+                                           ORDER_STATUSES)
 
         # ASSERT — все активные статусы должны быть в ORDER_STATUSES
         order_status_codes = {status for status, _ in ORDER_STATUSES}
         for active_status in ACTIVE_STATUSES:
-            assert active_status in order_status_codes, f"{active_status} not in ORDER_STATUSES"
+            assert (
+                active_status in order_status_codes
+            ), f"{active_status} not in ORDER_STATUSES"
             assert active_status in ALL_ORDER_STATUSES
 
     def test_all_order_statuses_covers_final_and_active(self):
         """[AI-Review][Low] DRY: ALL_ORDER_STATUSES = FINAL_STATUSES ∪ ACTIVE_STATUSES."""
-        from apps.orders.constants import (
-            ACTIVE_STATUSES,
-            ALL_ORDER_STATUSES,
-            FINAL_STATUSES,
-        )
+        from apps.orders.constants import (ACTIVE_STATUSES, ALL_ORDER_STATUSES,
+                                           FINAL_STATUSES)
 
         # ASSERT — объединение должно равняться ALL_ORDER_STATUSES
         combined = FINAL_STATUSES | ACTIVE_STATUSES

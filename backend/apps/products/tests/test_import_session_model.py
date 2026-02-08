@@ -17,7 +17,7 @@ class TestImportSessionModel(TestCase):
     def test_create_session_defaults(self) -> None:
         """Проверка дефолтных значений при создании сессии."""
         session = ImportSession.objects.create()
-        
+
         assert session.status == ImportSession.ImportStatus.PENDING
         assert session.import_type == ImportSession.ImportType.CATALOG
         assert session.created_at is not None
@@ -41,21 +41,26 @@ class TestImportSessionModel(TestCase):
     def test_all_import_types_present(self) -> None:
         """Проверка наличия всех ожидаемых типов импорта."""
         expected_types = [
-            "catalog", "variants", "attributes", 
-            "images", "stocks", "prices", "customers"
+            "catalog",
+            "variants",
+            "attributes",
+            "images",
+            "stocks",
+            "prices",
+            "customers",
         ]
         choices_values = [choice[0] for choice in ImportSession.ImportType.choices]
 
         for expected_type in expected_types:
-            assert expected_type in choices_values, f"Тип '{expected_type}' отсутствует в choices"
+            assert (
+                expected_type in choices_values
+            ), f"Тип '{expected_type}' отсутствует в choices"
 
     def test_all_import_statuses_present(self) -> None:
         """Проверка наличия всех ожидаемых статусов."""
-        expected_statuses = [
-            "pending", "started", "in_progress", "completed", "failed"
-        ]
+        expected_statuses = ["pending", "started", "in_progress", "completed", "failed"]
         choices_values = [choice[0] for choice in ImportSession.ImportStatus.choices]
-        
+
         for expected_status in expected_statuses:
             assert expected_status in choices_values
 
@@ -63,7 +68,7 @@ class TestImportSessionModel(TestCase):
         """Проверка строкового представления."""
         session = ImportSession.objects.create(
             import_type=ImportSession.ImportType.CATALOG,
-            status=ImportSession.ImportStatus.PENDING
+            status=ImportSession.ImportStatus.PENDING,
         )
         # Пример: "Каталог товаров - В очереди (2025-01-01...)"
         str_val = str(session)

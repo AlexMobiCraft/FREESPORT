@@ -17,7 +17,8 @@ import xml.etree.ElementTree as ET
 import pytest
 from rest_framework.test import APIClient
 
-from tests.conftest import OrderFactory, OrderItemFactory, ProductVariantFactory, UserFactory
+from tests.conftest import (OrderFactory, OrderItemFactory,
+                            ProductVariantFactory, UserFactory)
 from tests.utils import parse_commerceml_response, perform_1c_checkauth
 
 pytestmark = pytest.mark.django_db
@@ -70,14 +71,22 @@ class TestFullExportCycleWithTaxId:
         v2 = ProductVariantFactory.create()
         order = OrderFactory.create(user=b2b_user, sent_to_1c=False)
         OrderItemFactory.create(
-            order=order, product=v1.product, variant=v1,
-            product_name=v1.product.name, unit_price=v1.retail_price,
-            quantity=1, total_price=v1.retail_price,
+            order=order,
+            product=v1.product,
+            variant=v1,
+            product_name=v1.product.name,
+            unit_price=v1.retail_price,
+            quantity=1,
+            total_price=v1.retail_price,
         )
         OrderItemFactory.create(
-            order=order, product=v2.product, variant=v2,
-            product_name=v2.product.name, unit_price=v2.retail_price,
-            quantity=1, total_price=v2.retail_price,
+            order=order,
+            product=v2.product,
+            variant=v2,
+            product_name=v2.product.name,
+            unit_price=v2.retail_price,
+            quantity=1,
+            total_price=v2.retail_price,
         )
 
         # ACT — query
@@ -107,20 +116,26 @@ class TestFullExportCycleWithTaxId:
         v2 = ProductVariantFactory.create()
         order = OrderFactory.create(user=b2b_user, sent_to_1c=False)
         OrderItemFactory.create(
-            order=order, product=v1.product, variant=v1,
-            product_name=v1.product.name, unit_price=v1.retail_price,
-            quantity=1, total_price=v1.retail_price,
+            order=order,
+            product=v1.product,
+            variant=v1,
+            product_name=v1.product.name,
+            unit_price=v1.retail_price,
+            quantity=1,
+            total_price=v1.retail_price,
         )
         OrderItemFactory.create(
-            order=order, product=v2.product, variant=v2,
-            product_name=v2.product.name, unit_price=v2.retail_price,
-            quantity=1, total_price=v2.retail_price,
+            order=order,
+            product=v2.product,
+            variant=v2,
+            product_name=v2.product.name,
+            unit_price=v2.retail_price,
+            quantity=1,
+            total_price=v2.retail_price,
         )
 
         # ACT
-        resp = auth_client.get(
-            "/api/integration/1c/exchange/", data={"mode": "query"}
-        )
+        resp = auth_client.get("/api/integration/1c/exchange/", data={"mode": "query"})
         assert resp.status_code == 200
 
         # ASSERT — parse full XML
@@ -157,24 +172,24 @@ class TestFullExportCycleWithTaxId:
 class TestFullExportCycleWithoutTaxId:
     """E2E: Counterparty without tax_id omits <ИНН>."""
 
-    def test_full_cycle_without_tax_id_omits_inn_tag(
-        self, auth_client, log_dir, db
-    ):
+    def test_full_cycle_without_tax_id_omits_inn_tag(self, auth_client, log_dir, db):
         """AC2: XML valid, <ИНН> absent when user has no tax_id."""
         # ARRANGE
         user_no_tax = UserFactory.create()
         variant = ProductVariantFactory.create()
         order = OrderFactory.create(user=user_no_tax, sent_to_1c=False)
         OrderItemFactory.create(
-            order=order, product=variant.product, variant=variant,
-            product_name=variant.product.name, unit_price=variant.retail_price,
-            quantity=1, total_price=variant.retail_price,
+            order=order,
+            product=variant.product,
+            variant=variant,
+            product_name=variant.product.name,
+            unit_price=variant.retail_price,
+            quantity=1,
+            total_price=variant.retail_price,
         )
 
         # ACT
-        resp = auth_client.get(
-            "/api/integration/1c/exchange/", data={"mode": "query"}
-        )
+        resp = auth_client.get("/api/integration/1c/exchange/", data={"mode": "query"})
         assert resp.status_code == 200
         root = parse_commerceml_response(resp)
 
@@ -207,9 +222,13 @@ class TestFullExportCycleMultipleOrders:
             variant = ProductVariantFactory.create()
             order = OrderFactory.create(user=user, sent_to_1c=False)
             OrderItemFactory.create(
-                order=order, product=variant.product, variant=variant,
-                product_name=variant.product.name, unit_price=variant.retail_price,
-                quantity=1, total_price=variant.retail_price,
+                order=order,
+                product=variant.product,
+                variant=variant,
+                product_name=variant.product.name,
+                unit_price=variant.retail_price,
+                quantity=1,
+                total_price=variant.retail_price,
             )
             orders.append(order)
 
@@ -233,9 +252,9 @@ class TestFullExportCycleMultipleOrders:
         for order in orders:
             order.refresh_from_db()
             assert order.sent_to_1c is True, f"Order {order.order_number} not marked"
-            assert order.sent_to_1c_at is not None, (
-                f"Order {order.order_number} sent_to_1c_at is None"
-            )
+            assert (
+                order.sent_to_1c_at is not None
+            ), f"Order {order.order_number} sent_to_1c_at is None"
 
 
 # ---------------------------------------------------------------------------
@@ -263,15 +282,17 @@ class TestFullExportCycleGuestOrder:
             customer_phone="+79991112233",
         )
         OrderItemFactory.create(
-            order=order, product=variant.product, variant=variant,
-            product_name=variant.product.name, unit_price=variant.retail_price,
-            quantity=1, total_price=variant.retail_price,
+            order=order,
+            product=variant.product,
+            variant=variant,
+            product_name=variant.product.name,
+            unit_price=variant.retail_price,
+            quantity=1,
+            total_price=variant.retail_price,
         )
 
         # ACT
-        resp = auth_client.get(
-            "/api/integration/1c/exchange/", data={"mode": "query"}
-        )
+        resp = auth_client.get("/api/integration/1c/exchange/", data={"mode": "query"})
         assert resp.status_code == 200
         root = parse_commerceml_response(resp)
 
@@ -285,15 +306,13 @@ class TestFullExportCycleGuestOrder:
 
         # AC5/9.3: Verify contact types match values (Почта for email, Телефон for phone)
         contact_list = contacts.findall("Контакт")
-        contact_map = {
-            c.findtext("Тип"): c.findtext("Значение") for c in contact_list
-        }
-        assert contact_map.get("Почта") == "guest-e2e@test.com", (
-            f"Expected email contact type 'Почта', got: {contact_map}"
-        )
-        assert contact_map.get("Телефон") == "+79991112233", (
-            f"Expected phone contact type 'Телефон', got: {contact_map}"
-        )
+        contact_map = {c.findtext("Тип"): c.findtext("Значение") for c in contact_list}
+        assert (
+            contact_map.get("Почта") == "guest-e2e@test.com"
+        ), f"Expected email contact type 'Почта', got: {contact_map}"
+        assert (
+            contact_map.get("Телефон") == "+79991112233"
+        ), f"Expected phone contact type 'Телефон', got: {contact_map}"
 
     def test_full_cycle_guest_order_marked_as_sent_after_success(
         self, auth_client, log_dir, db
@@ -311,15 +330,17 @@ class TestFullExportCycleGuestOrder:
             customer_phone="+79992223344",
         )
         OrderItemFactory.create(
-            order=order, product=variant.product, variant=variant,
-            product_name=variant.product.name, unit_price=variant.retail_price,
-            quantity=1, total_price=variant.retail_price,
+            order=order,
+            product=variant.product,
+            variant=variant,
+            product_name=variant.product.name,
+            unit_price=variant.retail_price,
+            quantity=1,
+            total_price=variant.retail_price,
         )
 
         # ACT
-        auth_client.get(
-            "/api/integration/1c/exchange/", data={"mode": "query"}
-        )
+        auth_client.get("/api/integration/1c/exchange/", data={"mode": "query"})
         resp_s = auth_client.get(
             "/api/integration/1c/exchange/", data={"mode": "success"}
         )
@@ -348,30 +369,30 @@ class TestFullExportCycleRepeat:
         variant = ProductVariantFactory.create()
         order = OrderFactory.create(user=user, sent_to_1c=False)
         OrderItemFactory.create(
-            order=order, product=variant.product, variant=variant,
-            product_name=variant.product.name, unit_price=variant.retail_price,
-            quantity=1, total_price=variant.retail_price,
+            order=order,
+            product=variant.product,
+            variant=variant,
+            product_name=variant.product.name,
+            unit_price=variant.retail_price,
+            quantity=1,
+            total_price=variant.retail_price,
         )
 
         # ACT — first cycle
-        auth_client.get(
-            "/api/integration/1c/exchange/", data={"mode": "query"}
-        )
-        auth_client.get(
-            "/api/integration/1c/exchange/", data={"mode": "success"}
-        )
+        auth_client.get("/api/integration/1c/exchange/", data={"mode": "query"})
+        auth_client.get("/api/integration/1c/exchange/", data={"mode": "success"})
 
         # ACT — repeat query
-        resp = auth_client.get(
-            "/api/integration/1c/exchange/", data={"mode": "query"}
-        )
+        resp = auth_client.get("/api/integration/1c/exchange/", data={"mode": "query"})
         assert resp.status_code == 200
 
         # ASSERT (9.4: Use XML parsing instead of string check)
         root = parse_commerceml_response(resp)
         assert root.tag == "КоммерческаяИнформация", f"Unexpected root: {root.tag}"
         documents = root.findall(".//Документ")
-        assert len(documents) == 0, f"Expected 0 documents after success, got {len(documents)}"
+        assert (
+            len(documents) == 0
+        ), f"Expected 0 documents after success, got {len(documents)}"
 
     def test_new_order_after_success_appears_in_next_query(
         self, auth_client, log_dir, db
@@ -382,31 +403,33 @@ class TestFullExportCycleRepeat:
         variant = ProductVariantFactory.create()
         order1 = OrderFactory.create(user=user, sent_to_1c=False)
         OrderItemFactory.create(
-            order=order1, product=variant.product, variant=variant,
-            product_name=variant.product.name, unit_price=variant.retail_price,
-            quantity=1, total_price=variant.retail_price,
+            order=order1,
+            product=variant.product,
+            variant=variant,
+            product_name=variant.product.name,
+            unit_price=variant.retail_price,
+            quantity=1,
+            total_price=variant.retail_price,
         )
 
-        auth_client.get(
-            "/api/integration/1c/exchange/", data={"mode": "query"}
-        )
-        auth_client.get(
-            "/api/integration/1c/exchange/", data={"mode": "success"}
-        )
+        auth_client.get("/api/integration/1c/exchange/", data={"mode": "query"})
+        auth_client.get("/api/integration/1c/exchange/", data={"mode": "success"})
 
         # ARRANGE — new order
         variant2 = ProductVariantFactory.create()
         order2 = OrderFactory.create(user=user, sent_to_1c=False)
         OrderItemFactory.create(
-            order=order2, product=variant2.product, variant=variant2,
-            product_name=variant2.product.name, unit_price=variant2.retail_price,
-            quantity=1, total_price=variant2.retail_price,
+            order=order2,
+            product=variant2.product,
+            variant=variant2,
+            product_name=variant2.product.name,
+            unit_price=variant2.retail_price,
+            quantity=1,
+            total_price=variant2.retail_price,
         )
 
         # ACT — second query
-        resp = auth_client.get(
-            "/api/integration/1c/exchange/", data={"mode": "query"}
-        )
+        resp = auth_client.get("/api/integration/1c/exchange/", data={"mode": "query"})
         assert resp.status_code == 200
         root = parse_commerceml_response(resp)
 

@@ -7,6 +7,7 @@ Celery tasks для отправки email-уведомлений о заказ�
 
 import logging
 from smtplib import SMTPException
+from typing import Any
 
 from celery import shared_task
 from django.conf import settings
@@ -26,7 +27,7 @@ logger = logging.getLogger(__name__)
     retry_backoff=True,
     retry_backoff_max=600,
 )
-def send_order_confirmation_to_customer(self, order_id: int) -> bool:
+def send_order_confirmation_to_customer(self: Any, order_id: int) -> bool:
     """
     Асинхронная отправка email-подтверждения клиенту при создании заказа.
 
@@ -47,7 +48,7 @@ def send_order_confirmation_to_customer(self, order_id: int) -> bool:
 
     customer_email = None
     if order.user and hasattr(order.user, "email"):
-        customer_email = order.user.email
+        customer_email = str(order.user.email or "")
     elif order.customer_email:
         customer_email = order.customer_email
 
@@ -75,9 +76,7 @@ def send_order_confirmation_to_customer(self, order_id: int) -> bool:
         )
         return True
     except SMTPException as exc:
-        logger.error(
-            f"Ошибка отправки email для заказа {order.order_number}: {exc}"
-        )
+        logger.error(f"Ошибка отправки email для заказа {order.order_number}: {exc}")
         raise self.retry(exc=exc)
 
 
@@ -135,7 +134,7 @@ def _build_order_email_text(order):
     retry_backoff=True,
     retry_backoff_max=600,  # 10 минут максимум
 )
-def send_order_notification_email(self, order_id: int) -> bool:
+def send_order_notification_email(self: Any, order_id: int) -> bool:
     """
     Отправить email-уведомление о новом заказе.
 
@@ -203,9 +202,10 @@ def send_order_notification_email(self, order_id: int) -> bool:
     }
 
     # Рендерим шаблоны
+    plain_message: str
     try:
         html_message = render_to_string("emails/admin_new_order.html", context)
-        plain_message = render_to_string("emails/admin_new_order.txt", context)
+        plain_message = str(render_to_string("emails/admin_new_order.txt", context))
     except Exception as e:
         logger.error(
             "Failed to render order notification template",
@@ -265,7 +265,7 @@ def send_order_notification_email(self, order_id: int) -> bool:
     retry_backoff=True,
     retry_backoff_max=600,
 )
-def send_order_cancelled_notification_email(self, order_id: int) -> bool:
+def send_order_cancelled_notification_email(self: Any, order_id: int) -> bool:
     """
     Отправить email-уведомление об отмене заказа.
 
@@ -300,11 +300,12 @@ def send_order_cancelled_notification_email(self, order_id: int) -> bool:
 
     customer_name = order.customer_display_name or order.customer_email
 
+    site_url = getattr(settings, 'SITE_URL', 'http://localhost:8001')
     message = (
         f"Заказ #{order.order_number} был отменён.\n\n"
         f"Клиент: {customer_name}\n"
         f"Сумма: {order.total_amount} ₽\n\n"
-        f"Подробности в Django Admin: {getattr(settings, 'SITE_URL', 'http://localhost:8001')}/admin/orders/order/{order.id}/change/"
+        f"Подробности в Django Admin: {site_url}/admin/orders/order/{order.id}/change/"
     )
 
     try:

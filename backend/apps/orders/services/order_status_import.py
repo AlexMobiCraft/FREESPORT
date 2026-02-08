@@ -17,24 +17,16 @@ from zoneinfo import ZoneInfo
 
 import defusedxml.ElementTree as ET
 from defusedxml.common import DefusedXmlException
-
 from django.conf import settings
 from django.db import OperationalError, transaction
 from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_datetime
 
-from apps.orders.constants import (
-    ACTIVE_STATUSES,
-    ALLOWED_REQUISITES,
-    FINAL_STATUSES,
-    MAX_CONSECUTIVE_ERRORS,
-    MAX_ERRORS,
-    ORDER_ID_PREFIX,
-    ProcessingStatus,
-    STATUS_MAPPING,
-    STATUS_MAPPING_LOWER,
-    STATUS_PRIORITY,
-)
+from apps.orders.constants import (ACTIVE_STATUSES, ALLOWED_REQUISITES,
+                                   FINAL_STATUSES, MAX_CONSECUTIVE_ERRORS,
+                                   MAX_ERRORS, ORDER_ID_PREFIX, STATUS_MAPPING,
+                                   STATUS_MAPPING_LOWER, STATUS_PRIORITY,
+                                   ProcessingStatus)
 from apps.orders.models import Order
 
 logger = logging.getLogger(__name__)
@@ -137,7 +129,9 @@ class OrderStatusImportService:
 
         # PARSE: извлечь данные из XML
         try:
-            order_updates, total_documents, parse_errors = self._parse_orders_xml(xml_data)
+            order_updates, total_documents, parse_errors = self._parse_orders_xml(
+                xml_data
+            )
         except DefusedXmlException as e:
             logger.error(f"XML security error: {e}")
             result.errors.append(f"XML security error: {e}")
@@ -175,7 +169,7 @@ class OrderStatusImportService:
 
         # [AI-Review][High] Защита от race condition — блокировки в bulk fetch
         for start in range(0, len(order_updates), batch_size):
-            batch = order_updates[start:start + batch_size]
+            batch = order_updates[start : start + batch_size]
             try:
                 with transaction.atomic():
                     # BULK FETCH: загрузить заказы для пакета (оптимизация N+1)
@@ -183,7 +177,9 @@ class OrderStatusImportService:
 
                     for order_data in batch:
                         try:
-                            status, error_msg = self._process_order_update(order_data, orders_cache)
+                            status, update_error = self._process_order_update(
+                                order_data, orders_cache
+                            )
                             # [AI-Review][Medium] Используем Enum вместо magic strings
                             if status == ProcessingStatus.UPDATED:
                                 result.updated += 1
@@ -201,17 +197,17 @@ class OrderStatusImportService:
                                 consecutive_errors += 1
 
                             # Сбор ошибок из _process_order_update
-                            if error_msg and len(result.errors) < MAX_ERRORS:
-                                result.errors.append(error_msg)
+                            if update_error and len(result.errors) < MAX_ERRORS:
+                                result.errors.append(update_error)
 
                         except Exception as e:
                             consecutive_errors += 1
                             order_ref = order_data.order_number or order_data.order_id
-                            error_msg = f"Error processing order {order_ref}: {e}"
+                            update_error = f"Error processing order {order_ref}: {e}"
 
                             # Rate-limited logging: предотвращаем флуд логов
                             if consecutive_errors <= MAX_CONSECUTIVE_ERRORS:
-                                logger.exception(error_msg)
+                                logger.exception(update_error)
                             elif not log_suppressed:
                                 logger.warning(
                                     f"Suppressing further error logs after "
@@ -220,12 +216,12 @@ class OrderStatusImportService:
                                 log_suppressed = True
 
                             if len(result.errors) < MAX_ERRORS:
-                                result.errors.append(error_msg)
+                                result.errors.append(update_error)
             except OperationalError as e:
                 consecutive_errors += 1
-                error_msg = f"Database error during bulk fetch: {e}"
+                update_error = f"Database error during bulk fetch: {e}"
                 if consecutive_errors <= MAX_CONSECUTIVE_ERRORS:
-                    logger.exception(error_msg)
+                    logger.exception(update_error)
                 elif not log_suppressed:
                     logger.warning(
                         f"Suppressing further error logs after "
@@ -233,7 +229,7 @@ class OrderStatusImportService:
                     )
                     log_suppressed = True
                 if len(result.errors) < MAX_ERRORS:
-                    result.errors.append(error_msg)
+                    result.errors.append(update_error)
                 continue
 
         # Итоговое сообщение, если логи были подавлены
@@ -359,7 +355,11 @@ class OrderStatusImportService:
             parse_warnings.append(
                 f"Order {order_ref}: invalid paid_at date format: '{paid_at_value}'"
             )
-        if shipped_at_value is not None and shipped_at_value.strip() and shipped_at is None:
+        if (
+            shipped_at_value is not None
+            and shipped_at_value.strip()
+            and shipped_at is None
+        ):
             shipped_at_present = False
             parse_warnings.append(
                 f"Order {order_ref}: invalid shipped_at date format: '{shipped_at_value}'"
@@ -396,8 +396,7 @@ class OrderStatusImportService:
 
         # Pre-compute normalized whitelist for O(1) lookup
         _allowed_normalized = {
-            REQUISITE_NAME_WHITESPACE_RE.sub("", r).lower()
-            for r in ALLOWED_REQUISITES
+            REQUISITE_NAME_WHITESPACE_RE.sub("", r).lower() for r in ALLOWED_REQUISITES
         }
 
         for req in requisites.findall("ЗначениеРеквизита"):
@@ -412,9 +411,7 @@ class OrderStatusImportService:
                     continue
                 # [Story 5.2, AC14] Field whitelist — skip unknown requisites
                 if normalized_name not in _allowed_normalized:
-                    logger.debug(
-                        "Skipping unknown requisite: '%s'", name_elem.text
-                    )
+                    logger.debug("Skipping unknown requisite: '%s'", name_elem.text)
                     continue
                 value = (value_elem.text or "") if value_elem is not None else ""
                 result[normalized_name] = value
@@ -532,7 +529,7 @@ class OrderStatusImportService:
         if not order_id or not order_id.startswith(ORDER_ID_PREFIX):
             return None
         try:
-            return int(order_id[len(ORDER_ID_PREFIX):])
+            return int(order_id[len(ORDER_ID_PREFIX) :])
         except ValueError:
             if log_invalid:
                 logger.warning(f"Invalid order_id format: '{order_id}'")
@@ -684,7 +681,11 @@ class OrderStatusImportService:
         current_priority = STATUS_PRIORITY.get(order.status, 0)
         new_priority = STATUS_PRIORITY.get(new_status, 0)
 
-        if new_priority > 0 and current_priority > 0 and new_priority < current_priority:
+        if (
+            new_priority > 0
+            and current_priority > 0
+            and new_priority < current_priority
+        ):
             error_msg = (
                 f"Order {order.order_number}: status regression from "
                 f"'{order.status}' (p={current_priority}) to "
@@ -694,13 +695,16 @@ class OrderStatusImportService:
             return ProcessingStatus.SKIPPED_STATUS_REGRESSION, error_msg
 
         # Проверяем, нужно ли обновление (идемпотентность AC8)
-        status_changed = order.status != new_status or order.status_1c != order_data.status_1c
+        status_changed = (
+            order.status != new_status or order.status_1c != order_data.status_1c
+        )
         # [AI-Review][Medium] Logic/Data Consistency: учитываем флаги наличия тегов
         # Если тег присутствует в XML — сравниваем значения (включая сброс на None)
         # Если тег отсутствует — не трогаем существующее значение
         dates_changed = (
-            (order_data.paid_at_present and order.paid_at != order_data.paid_at)
-            or (order_data.shipped_at_present and order.shipped_at != order_data.shipped_at)
+            order_data.paid_at_present and order.paid_at != order_data.paid_at
+        ) or (
+            order_data.shipped_at_present and order.shipped_at != order_data.shipped_at
         )
         sent_to_1c_changed = not order.sent_to_1c
         payment_status_needs_update = (
@@ -792,10 +796,12 @@ class OrderStatusImportService:
                 cache_key = f"num:{order_data.order_number}"
                 if cache_key in orders_cache:
                     order = orders_cache[cache_key]
-                    
+
                     # [AI-Review][Medium] Data Integrity check: verify order_id matches if present
                     if order_data.order_id:
-                        pk_from_xml = self._parse_order_id_to_pk(order_data.order_id, log_invalid=False)
+                        pk_from_xml = self._parse_order_id_to_pk(
+                            order_data.order_id, log_invalid=False
+                        )
                         if pk_from_xml is not None and order.pk != pk_from_xml:
                             conflict_msg = (
                                 f"Data conflict: found order by number '{order_data.order_number}' "
@@ -814,23 +820,27 @@ class OrderStatusImportService:
                     order = orders_cache[cache_key]
                     # [AI-Review][Medium] Data Integrity: Validate ID match
                     if order.pk != pk:
-                        # This should theoretically be impossible with cache_key=f"pk:{pk}", 
+                        # This should theoretically be impossible with cache_key=f"pk:{pk}",
                         # but good for sanity.
                         pass
-                    
-                    if order_data.order_number and order.order_number != order_data.order_number:
+
+                    if (
+                        order_data.order_number
+                        and order.order_number != order_data.order_number
+                    ):
                         conflict_msg = (
                             f"Data conflict: found order by ID {order_data.order_id} (pk={pk}) "
-                            f"but order numbers don't match: DB='{order.order_number}' vs XML='{order_data.order_number}'"
+                            f"but order numbers don't match: "
+                            f"DB='{order.order_number}' vs XML='{order_data.order_number}'"
                         )
                         logger.warning(conflict_msg)
                         return None, conflict_msg
-                    
-                    # [AI-Review][Medium] Data Integrity: Even if found by order_number in cache (above), 
+
+                    # [AI-Review][Medium] Data Integrity: Even if found by order_number in cache (above),
                     # we should ideally check if order_id matches if provided.
                     # However, the logic above (step 1) has already returned a result.
                     # We are here only if not found by number.
-                    
+
                     return order, None
 
             return None, None
@@ -839,38 +849,44 @@ class OrderStatusImportService:
         # Используется когда кэш не передан или при критичных concurrent-сценариях
         # 1. Поиск по order_number с блокировкой
         if order_data.order_number:
-            order = (
+            db_order: Order | None = (
                 Order.objects.select_for_update()
                 .filter(order_number=order_data.order_number)
                 .first()
             )
-            if order:
+            if db_order:
                 # [AI-Review][Medium] Data Integrity check: verify order_id matches if present
                 if order_data.order_id:
-                    pk_from_xml = self._parse_order_id_to_pk(order_data.order_id, log_invalid=False)
-                    if pk_from_xml is not None and order.pk != pk_from_xml:
+                    pk_from_xml = self._parse_order_id_to_pk(
+                        order_data.order_id, log_invalid=False
+                    )
+                    if pk_from_xml is not None and db_order.pk != pk_from_xml:
                         conflict_msg = (
                             f"Data conflict: found order by number '{order_data.order_number}' "
-                            f"(pk={order.pk}), but XML ID '{order_data.order_id}' (pk={pk_from_xml}) mismatches"
+                            f"(pk={db_order.pk}), but XML ID '{order_data.order_id}' (pk={pk_from_xml}) mismatches"
                         )
                         logger.warning(conflict_msg)
                         return None, conflict_msg
-                
-                return order, None
+
+                return db_order, None
 
         # 2. Поиск по order_id формата 'order-{id}' [AI-Review][Medium] DRY
         pk = self._parse_order_id_to_pk(order_data.order_id)
         if pk is not None:
-            order = Order.objects.select_for_update().filter(pk=pk).first()
-            if order:
+            db_order_by_id: Order | None = Order.objects.select_for_update().filter(pk=pk).first()
+            if db_order_by_id:
                 # [AI-Review][Medium] Detect data conflict when finding order by ID
-                if order_data.order_number and order.order_number != order_data.order_number:
+                if (
+                    order_data.order_number
+                    and db_order_by_id.order_number != order_data.order_number
+                ):
                     conflict_msg = (
                         f"Data conflict: found order by ID {order_data.order_id} (pk={pk}) "
-                        f"but order numbers don't match: DB='{order.order_number}' vs XML='{order_data.order_number}'"
+                        f"but order numbers don't match: "
+                        f"DB='{db_order_by_id.order_number}' vs XML='{order_data.order_number}'"
                     )
                     logger.warning(conflict_msg)
                     return None, conflict_msg
-                return order, None
+                return db_order_by_id, None
 
         return None, None

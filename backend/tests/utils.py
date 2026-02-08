@@ -85,9 +85,7 @@ def parse_commerceml_response(response) -> ET.Element:
     return ET.fromstring(content)
 
 
-def perform_1c_checkauth(
-    client: "APIClient", email: str, password: str
-) -> "APIClient":
+def perform_1c_checkauth(client: "APIClient", email: str, password: str) -> "APIClient":
     """
     Perform 1C checkauth and set session cookie on the client.
 
@@ -104,9 +102,9 @@ def perform_1c_checkauth(
     Raises:
         AssertionError: If checkauth fails
     """
-    auth_header = "Basic " + base64.b64encode(
-        f"{email}:{password}".encode()
-    ).decode("ascii")
+    auth_header = "Basic " + base64.b64encode(f"{email}:{password}".encode()).decode(
+        "ascii"
+    )
     response = client.get(
         "/api/integration/1c/exchange/",
         data={"mode": "checkauth"},

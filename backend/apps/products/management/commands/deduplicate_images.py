@@ -24,7 +24,9 @@ Management команда для удаления дублированных и 
 
 import logging
 import os
+from argparse import ArgumentParser
 from pathlib import Path
+from typing import Any
 
 from django.conf import settings
 from django.core.files.storage import default_storage
@@ -45,7 +47,7 @@ class Command(BaseCommand):
 
     help = "Удаление дублированных и мелких изображений в базе данных"
 
-    def add_arguments(self, parser):
+    def add_arguments(self, parser: ArgumentParser) -> None:
         """Добавление аргументов командной строки."""
         parser.add_argument(
             "--dry-run",
@@ -81,7 +83,7 @@ class Command(BaseCommand):
             help="Пропустить проверку размера файлов",
         )
 
-    def handle(self, *args, **options):
+    def handle(self, *args: Any, **options: Any) -> None:
         """Основной метод выполнения команды."""
         dry_run = options.get("dry_run", False)
         verbose = options.get("verbose", False)
@@ -526,8 +528,8 @@ class Command(BaseCommand):
         return result
 
     def _print_summary(
-        self, products_result: dict, variants_result: dict, dry_run: bool
-    ):
+        self, products_result: dict[str, int], variants_result: dict[str, int], dry_run: bool
+    ) -> None:
         """Вывод итоговой статистики."""
         status_msg = "✅ Дедупликация завершена" if not dry_run else "🔍 DRY-RUN завершён"
         self.stdout.write(

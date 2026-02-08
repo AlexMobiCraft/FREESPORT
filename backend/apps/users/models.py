@@ -81,7 +81,9 @@ class User(AbstractUser):
 
     # Убираем username, используем email для авторизации
     username = None  # type: ignore[assignment]
-    email = models.EmailField("Email адрес", unique=True, blank=True, null=True)
+    email: models.EmailField = models.EmailField(
+        "Email адрес", unique=True, blank=True, null=True
+    )
 
     # Дополнительные поля
     role = models.CharField(
@@ -206,7 +208,7 @@ class User(AbstractUser):
         db_table = "users"
 
     def __str__(self) -> str:
-        return f"{self.email} ({self.get_role_display()})"
+        return f"{self.email or ''} ({self.get_role_display()})"
 
     @property
     def full_name(self) -> str:
@@ -380,4 +382,4 @@ class Favorite(models.Model):
         ordering = ["-created_at"]
 
     def __str__(self) -> str:
-        return f"{self.user.email} - {self.product.name}"
+        return f"{self.user.email or ''} - {self.product.name}"

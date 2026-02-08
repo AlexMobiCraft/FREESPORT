@@ -6,11 +6,9 @@ import logging
 import re
 from typing import Optional, Tuple
 
-from django.contrib.auth import get_user_model
-
 from apps.common.models import CustomerSyncLog
+from apps.users.models import User
 
-User = get_user_model()
 logger = logging.getLogger(__name__)
 
 
@@ -197,7 +195,7 @@ class CustomerIdentityResolver:
 
         CustomerSyncLog.objects.create(
             session=session,
-            user=customer,
+            customer=customer,
             onec_id=onec_data.get("onec_id", ""),
             operation_type="identify_customer",
             status="success" if customer else "not_found",

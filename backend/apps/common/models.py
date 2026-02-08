@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -214,21 +214,21 @@ class CustomerSyncLog(TimeStampedModel):
     def get_duration_display(self) -> str:
         """Отображение длительности в человекочитаемом формате."""
         if self.duration_ms is None:
-            return _("Не определено")
+            return str(_("Не определено"))
 
         if self.duration_ms < 1000:
-            return _("Менее 1 секунды")
+            return str(_("Менее 1 секунды"))
         elif self.duration_ms < 60000:
             seconds = self.duration_ms / 1000
-            return _(f"{seconds:.1f} сек")
+            return str(_(f"{seconds:.1f} сек"))
         elif self.duration_ms < 3600000:
             minutes = self.duration_ms // 60000
             seconds = (self.duration_ms % 60000) // 1000
-            return _(f"{minutes} мин {seconds} сек")
+            return str(_(f"{minutes} мин {seconds} сек"))
         else:
             hours = self.duration_ms // 3600000
             minutes = (self.duration_ms % 3600000) // 60000
-            return _(f"{hours} ч {minutes} мин")
+            return str(_(f"{hours} ч {minutes} мин"))
 
     @property
     def correlation_id_short(self) -> str:
@@ -238,21 +238,27 @@ class CustomerSyncLog(TimeStampedModel):
     @property
     def customer_email(self) -> str:
         """Email клиента, если доступен."""
-        if self.customer and hasattr(self.customer, "email"):
-            return self.customer.email
-        return _("Нет email")
+        if self.customer:
+            customer: Any = self.customer
+            if hasattr(customer, "email"):
+                return str(customer.email or "")
+        return str(_("Нет email"))
 
     @property
     def customer_name(self) -> str:
         """Имя клиента для отображения."""
-        if self.customer and hasattr(self.customer, "get_full_name"):
-            return self.customer.get_full_name()
-        return str(self.customer) if self.customer else _("Неизвестный клиент")
+        if self.customer:
+            customer: Any = self.customer
+            if hasattr(customer, "get_full_name"):
+                return str(customer.get_full_name())
+            return str(customer)
+        return str(_("Неизвестный клиент"))
 
 
 class SyncConflict(TimeStampedModel):
     """Модель для отслеживания конфликтов синхронизации."""
 
+    # ...
     customer = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -365,13 +371,13 @@ class AuditLog(TimeStampedModel):
         return f"{self.user} - {self.action} {self.resource_type} ({date_str})"
 
     @property
-    def changes(self) -> dict:
+    def changes(self) -> dict[str, Any]:
         """Получить словарь изменений из деталей."""
-        return self.details.get("changes", {})
+        return cast(dict[str, Any], self.details.get("changes", {}))
 
     @staticmethod
     def log_action(
-        user,
+        user: Any,
         action: str,
         resource_type: str,
         resource_id: Any,
@@ -662,7 +668,7 @@ class News(models.Model):
         ]
 
     def __str__(self) -> str:
-        return self.title
+        return str(self.title)
 
     def get_absolute_url(self) -> str:
         """Возвращает абсолютный URL новости."""
@@ -773,7 +779,7 @@ class BlogPost(models.Model):
         ]
 
     def __str__(self) -> str:
-        return self.title
+        return str(self.title)
 
     def get_absolute_url(self) -> str:
         """Возвращает абсолютный URL статьи блога."""

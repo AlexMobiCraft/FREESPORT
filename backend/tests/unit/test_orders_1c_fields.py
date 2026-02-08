@@ -10,11 +10,9 @@ import pytest
 from django.utils import timezone
 
 from apps.orders.models import Order
-from apps.orders.serializers import (
-    OrderCreateSerializer,
-    OrderDetailSerializer,
-    OrderListSerializer,
-)
+from apps.orders.serializers import (OrderCreateSerializer,
+                                     OrderDetailSerializer,
+                                     OrderListSerializer)
 
 pytestmark = [pytest.mark.django_db, pytest.mark.unit]
 

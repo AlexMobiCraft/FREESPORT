@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from rest_framework import serializers
 
@@ -50,5 +50,5 @@ class BannerSerializer(serializers.ModelSerializer):
             Относительный URL изображения или пустая строка
         """
         if obj.image:
-            return obj.image.url  # Returns /media/banners/...
+            return cast(str, obj.image.url)  # Returns /media/banners/...
         return ""

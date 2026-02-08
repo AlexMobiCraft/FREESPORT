@@ -17,10 +17,8 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from apps.integrations.onec_exchange.views import (
-    ICExchangeView,
-    ORDERS_XML_MAX_SIZE,
-)
+from apps.integrations.onec_exchange.views import (ORDERS_XML_MAX_SIZE,
+                                                   ICExchangeView)
 from apps.orders.constants import STATUS_PRIORITY
 from apps.orders.models import Order
 from tests.conftest import get_unique_suffix
@@ -248,9 +246,7 @@ class TestOrdersXmlModeFile:
             payment_method="card",
             total_amount=Decimal("100.00"),
         )
-        xml_data = _build_orders_xml(
-            order_number=order_number, status_1c="Подтвержден"
-        )
+        xml_data = _build_orders_xml(order_number=order_number, status_1c="Подтвержден")
 
         with patch(
             "apps.integrations.onec_exchange.views._save_exchange_log"
@@ -311,9 +307,7 @@ class TestOrdersXmlModeFile:
             payment_method="card",
             total_amount=Decimal("100.00"),
         )
-        xml_data = _build_orders_xml(
-            order_number=order_number, status_1c="Подтвержден"
-        )
+        xml_data = _build_orders_xml(order_number=order_number, status_1c="Подтвержден")
 
         response = self._post_orders_xml(xml_data)
 
@@ -338,9 +332,7 @@ class TestOrdersXmlModeFile:
             payment_method="card",
             total_amount=Decimal("100.00"),
         )
-        xml_data = _build_orders_xml(
-            order_number=order_number, status_1c="Отменен"
-        )
+        xml_data = _build_orders_xml(order_number=order_number, status_1c="Отменен")
 
         response = self._post_orders_xml(xml_data)
 
@@ -426,9 +418,7 @@ class TestOrdersXmlModeFile:
     def test_truncated_body_rejected(self):
         """Content-Length больше реального тела → failure."""
         order_number = f"FS-TRUNC-{get_unique_suffix()}"
-        xml_data = _build_orders_xml(
-            order_number=order_number, status_1c="Отгружен"
-        )
+        xml_data = _build_orders_xml(order_number=order_number, status_1c="Отгружен")
 
         self._authenticate()
         response = self.client.post(
@@ -498,9 +488,7 @@ class TestOrdersXmlModeFile:
         """XML с > MAX_DOCUMENTS_PER_FILE документов → failure."""
         xml_data = _build_orders_xml()
 
-        with patch(
-            "apps.integrations.onec_exchange.views.MAX_DOCUMENTS_PER_FILE", 0
-        ):
+        with patch("apps.integrations.onec_exchange.views.MAX_DOCUMENTS_PER_FILE", 0):
             response = self._post_orders_xml(xml_data)
 
         assert response.status_code == 200
@@ -665,9 +653,7 @@ class TestOrdersXmlModeFile:
             payment_method="card",
             total_amount=Decimal("100.00"),
         )
-        xml_data = _build_orders_xml(
-            order_number=order_number, status_1c="Подтвержден"
-        )
+        xml_data = _build_orders_xml(order_number=order_number, status_1c="Подтвержден")
 
         response = self._post_orders_xml(xml_data)
         assert response.status_code == 200
@@ -688,9 +674,7 @@ class TestOrdersXmlModeFile:
             payment_method="card",
             total_amount=Decimal("100.00"),
         )
-        xml_data = _build_orders_xml(
-            order_number=order_number, status_1c="Отгружен"
-        )
+        xml_data = _build_orders_xml(order_number=order_number, status_1c="Отгружен")
 
         response = self._post_orders_xml(xml_data)
         assert response.status_code == 200
@@ -735,6 +719,6 @@ class TestOrdersXmlModeFile:
 
         # At least one response should be 429
         status_codes = [r.status_code for r in responses]
-        assert 429 in status_codes, (
-            f"Expected at least one 429 response, got: {status_codes}"
-        )
+        assert (
+            429 in status_codes
+        ), f"Expected at least one 429 response, got: {status_codes}"

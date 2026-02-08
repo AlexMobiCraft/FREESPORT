@@ -11,7 +11,8 @@ from django.test import TestCase
 from django.utils import timezone
 
 from apps.products.models import Brand, Category, Product
-from tests.factories import BrandFactory, CategoryFactory, ProductFactory, UserFactory
+from tests.factories import (BrandFactory, CategoryFactory, ProductFactory,
+                             UserFactory)
 
 
 @pytest.mark.django_db

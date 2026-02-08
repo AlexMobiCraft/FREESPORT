@@ -5,21 +5,13 @@ Serializers для каталога товаров
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from django.db.models import Count, Q
 from rest_framework import serializers
 
-from .models import (
-    Attribute,
-    AttributeValue,
-    Brand,
-    Category,
-    ColorMapping,
-    Product,
-    ProductImage,
-    ProductVariant,
-)
+from .models import (Attribute, AttributeValue, Brand, Category, ColorMapping,
+                     Product, ProductImage, ProductVariant)
 
 
 class AttributeValueSerializer(serializers.ModelSerializer):
@@ -126,7 +118,7 @@ class ProductVariantSerializer(serializers.ModelSerializer):
         if obj.main_image:
             # Возвращаем относительный URL с /media/ префиксом
             # Nginx обработает этот путь
-            return obj.main_image.url
+            return str(obj.main_image.url)
         return None
 
     def get_gallery_images(self, obj: ProductVariant) -> list[str]:
@@ -257,7 +249,9 @@ class ProductVariantSerializer(serializers.ModelSerializer):
                 attributes_dict[attr_value.attribute_id] = attr_value
 
         # 3. Сериализуем объединенный список
-        return AttributeValueSerializer(list(attributes_dict.values()), many=True).data
+        return AttributeValueSerializer(  # type: ignore[return-value]
+            list(attributes_dict.values()), many=True
+        ).data
 
 
 class ProductImageSerializer(serializers.ModelSerializer):
@@ -460,7 +454,7 @@ class ProductListSerializer(serializers.ModelSerializer):
         if hasattr(obj, "first_variant_list") and obj.first_variant_list:
             valid_variants = [v for v in obj.first_variant_list if v.retail_price > 0]
             if valid_variants:
-                return valid_variants[0]
+                return cast("ProductVariant", valid_variants[0])
         # Fallback на прямой запрос с фильтрацией
         return obj.variants.filter(retail_price__gt=0).order_by("retail_price").first()
 
@@ -546,18 +540,18 @@ class ProductListSerializer(serializers.ModelSerializer):
         """Получить суммарное количество на складе по всем вариантам"""
         # Используем аннотированное значение если доступно
         if hasattr(obj, "total_stock") and obj.total_stock is not None:
-            return obj.total_stock
+            return int(obj.total_stock)
         # Fallback на агрегацию
         from django.db.models import Sum
 
         result = obj.variants.aggregate(total=Sum("stock_quantity"))
-        return result["total"] or 0
+        return int(result["total"] or 0)
 
     def get_is_in_stock(self, obj: Product) -> bool:
         """Проверить наличие товара (любой вариант в наличии)"""
         # Используем аннотированное значение если доступно
         if hasattr(obj, "has_stock"):
-            return obj.has_stock
+            return bool(obj.has_stock)
         # Используем prefetched данные
         if hasattr(obj, "first_variant_list") and obj.first_variant_list:
             return any(v.stock_quantity > 0 for v in obj.first_variant_list)
@@ -573,7 +567,7 @@ class ProductListSerializer(serializers.ModelSerializer):
         variant = self._get_first_variant(obj)
         if variant and variant.main_image:
             # Возвращаем URL, а не ImageField объект
-            return variant.main_image.url
+            return str(variant.main_image.url)
         # Fallback на base_images
         if obj.base_images and isinstance(obj.base_images, list) and obj.base_images:
             img_url = obj.base_images[0]
@@ -584,7 +578,7 @@ class ProductListSerializer(serializers.ModelSerializer):
                 ("http://", "https://")
             ):
                 return f"/media/{img_url.lstrip('/')}"
-            return img_url
+            return str(img_url)
         return None
 
     def get_can_be_ordered(self, obj: Product) -> bool:
@@ -608,7 +602,15 @@ class ProductListSerializer(serializers.ModelSerializer):
             # Fallback на прямой запрос
             attr_values = obj.attributes.select_related("attribute").all()
 
-        return AttributeValueSerializer(attr_values, many=True).data
+        return [
+            {
+                "name": attr_value.attribute.name,
+                "value": attr_value.value,
+                "slug": attr_value.attribute.slug,
+                "type": attr_value.attribute.type,
+            }
+            for attr_value in attr_values
+        ]
 
 
 class ProductDetailSerializer(ProductListSerializer):
@@ -795,4 +797,6 @@ class AttributeFilterSerializer(serializers.ModelSerializer):
         Returns:
             List[dict]: Список значений атрибута
         """
-        return AttributeValueFilterSerializer(obj.values.all(), many=True).data
+        return AttributeValueFilterSerializer(  # type: ignore[return-value]
+            obj.values.all(), many=True
+        ).data

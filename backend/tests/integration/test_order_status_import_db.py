@@ -13,12 +13,9 @@ from django.test import TestCase
 from django.utils import timezone
 
 from apps.orders.models import Order
-from apps.orders.services.order_status_import import (
-    OrderStatusImportService,
-    ORDER_ID_PREFIX,
-    MAX_ERRORS,
-)
-
+from apps.orders.services.order_status_import import (MAX_ERRORS,
+                                                      ORDER_ID_PREFIX,
+                                                      OrderStatusImportService)
 from tests.conftest import get_unique_suffix
 
 
@@ -73,7 +70,7 @@ def build_test_xml(
 class TestOrderStatusImportDBIntegration(TestCase):
     """
     Интеграционные тесты с реальной БД.
-    
+
     Проверяют, что save(update_fields=...) работает корректно
     и нет опечаток в именах полей модели Order.
     """
@@ -222,7 +219,7 @@ class TestOrderStatusImportDBIntegration(TestCase):
         # ARRANGE — создаём ещё 2 заказа
         order2_number = f"FS-INT2-{get_unique_suffix()}"
         order3_number = f"FS-INT3-{get_unique_suffix()}"
-        
+
         order2 = Order.objects.create(
             order_number=order2_number,
             status="pending",
@@ -347,9 +344,9 @@ class TestMaxErrorsLimit(TestCase):
         """Проверка обнаружения конфликта данных при поиске по ID."""
         # ARRANGE
         from decimal import Decimal
-        
+
         service = OrderStatusImportService()
-        
+
         # Создаем заказ с одним номером
         order_number = f"FS-CONFLICT-{get_unique_suffix()}"
         order = Order.objects.create(
@@ -360,17 +357,17 @@ class TestMaxErrorsLimit(TestCase):
             payment_method="card",
             total_amount=Decimal("100.00"),
         )
-        
+
         # Данные XML с другим номером но тем же ID
         xml_data = build_test_xml(
             order_id=f"order-{order.id}",
             order_number="FS-CONFLICT-999",  # Другой номер
-            status="Отгружен"
+            status="Отгружен",
         )
-        
+
         # ACT
         result = service.process(xml_data)
-        
+
         # ASSERT
         self.assertEqual(result.updated, 0)
         self.assertEqual(result.not_found, 0)

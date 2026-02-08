@@ -9,7 +9,8 @@ import pytest
 from django.core.exceptions import ValidationError
 
 from apps.cart.models import Cart, CartItem
-from tests.conftest import CartFactory, CartItemFactory, ProductFactory, UserFactory
+from tests.conftest import (CartFactory, CartItemFactory, ProductFactory,
+                            UserFactory)
 
 
 @pytest.mark.django_db
@@ -48,10 +49,9 @@ class TestDebugCart:
             )
             super(CartItem, self).delete(*args, **kwargs)
 
-        with patch.object(CartItem, "clean", new_clean), \
-             patch.object(CartItem, "save", new_save), \
-             patch.object(CartItem, "delete", new_delete):
-
+        with patch.object(CartItem, "clean", new_clean), patch.object(
+            CartItem, "save", new_save
+        ), patch.object(CartItem, "delete", new_delete):
             # Логика теста
             product = ProductFactory.create(stock_quantity=10)
             variant = product.variants.first()

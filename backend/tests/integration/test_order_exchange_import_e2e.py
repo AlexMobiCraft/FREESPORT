@@ -12,15 +12,11 @@ from typing import cast
 
 import pytest
 from django.utils import timezone
-from rest_framework.test import APIClient
 from rest_framework.response import Response
+from rest_framework.test import APIClient
 
-from tests.conftest import (
-    OrderFactory,
-    OrderItemFactory,
-    ProductVariantFactory,
-    UserFactory,
-)
+from tests.conftest import (OrderFactory, OrderItemFactory,
+                            ProductVariantFactory, UserFactory)
 from tests.integration.test_orders_xml_mode_file import _build_orders_xml
 from tests.utils import parse_commerceml_response, perform_1c_checkauth
 
@@ -145,9 +141,7 @@ def test_full_cycle_export_then_import_updates_status(auth_client, log_dir, db):
         ("Отменен", "cancelled"),
     ],
 )
-def test_status_mapping_from_1c(
-    auth_client, log_dir, db, status_1c, expected_status
-):
+def test_status_mapping_from_1c(auth_client, log_dir, db, status_1c, expected_status):
     """AC2: 1C status mapping for processing/shipped/delivered/cancelled."""
     # ARRANGE
     order = _create_order_with_item()

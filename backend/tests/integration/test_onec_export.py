@@ -33,7 +33,7 @@ User = get_user_model()
 
 def get_response_content(response) -> bytes:
     """Helper to get content from both HttpResponse and FileResponse."""
-    if hasattr(response, 'streaming_content'):
+    if hasattr(response, "streaming_content"):
         # FileResponse uses streaming_content
         return b"".join(response.streaming_content)
     return response.content
@@ -145,6 +145,7 @@ def log_dir(tmp_path, settings):
 # Task 1: Audit log infrastructure tests (AC6)
 # ============================================================
 
+
 @pytest.mark.django_db
 @pytest.mark.integration
 class TestExchangeLogInfrastructure:
@@ -173,6 +174,7 @@ class TestExchangeLogInfrastructure:
 # Task 2: handle_query tests (AC1, AC2, AC3)
 # ============================================================
 
+
 @pytest.mark.django_db
 @pytest.mark.integration
 class TestModeQuery:
@@ -194,9 +196,7 @@ class TestModeQuery:
         assert "Документ" in content
         assert "FS-TEST-001" in content
 
-    def test_mode_query_empty_when_no_orders(
-        self, authenticated_client, log_dir
-    ):
+    def test_mode_query_empty_when_no_orders(self, authenticated_client, log_dir):
         """AC2: Returns valid XML even when no pending orders."""
         response = authenticated_client.get(
             "/api/integration/1c/exchange/",
@@ -207,9 +207,7 @@ class TestModeQuery:
         assert "КоммерческаяИнформация" in content
         assert "Документ" not in content
 
-    def test_mode_query_zip(
-        self, authenticated_client, order_for_export, log_dir
-    ):
+    def test_mode_query_zip(self, authenticated_client, order_for_export, log_dir):
         """AC3: zip=yes returns a ZIP archive containing orders.xml."""
         response = authenticated_client.get(
             "/api/integration/1c/exchange/",
@@ -295,6 +293,7 @@ class TestModeQuery:
 # Task 3: handle_success tests (AC4, AC5)
 # ============================================================
 
+
 @pytest.mark.django_db
 @pytest.mark.integration
 class TestModeSuccess:
@@ -337,8 +336,12 @@ class TestModeSuccess:
         assert order_for_export.sent_to_1c is False
 
     def test_mode_success_does_not_mark_new_orders(
-        self, authenticated_client, order_for_export, customer_user,
-        product_variant, log_dir
+        self,
+        authenticated_client,
+        order_for_export,
+        customer_user,
+        product_variant,
+        log_dir,
     ):
         """AC5: Orders created after query should NOT be marked as sent (race condition)."""
         # Query existing orders
@@ -412,14 +415,13 @@ class TestModeSuccess:
 # Task 4: Full cycle integration (AC7, AC8)
 # ============================================================
 
+
 @pytest.mark.django_db
 @pytest.mark.integration
 class TestFullExportCycle:
     """Full cycle: checkauth -> query -> success (Task 4)."""
 
-    def test_full_cycle_xml(
-        self, authenticated_client, order_for_export, log_dir
-    ):
+    def test_full_cycle_xml(self, authenticated_client, order_for_export, log_dir):
         """AC7+AC8: Full XML export cycle."""
         # 1. Query
         resp_query = authenticated_client.get(
@@ -447,9 +449,7 @@ class TestFullExportCycle:
         )
         assert "Документ" not in get_response_content(resp_query2).decode("utf-8")
 
-    def test_full_cycle_zip(
-        self, authenticated_client, order_for_export, log_dir
-    ):
+    def test_full_cycle_zip(self, authenticated_client, order_for_export, log_dir):
         """AC7: Full ZIP export cycle."""
         resp_query = authenticated_client.get(
             "/api/integration/1c/exchange/",
@@ -466,9 +466,7 @@ class TestFullExportCycle:
         order_for_export.refresh_from_db()
         assert order_for_export.sent_to_1c is True
 
-    def test_audit_logging(
-        self, authenticated_client, order_for_export, log_dir
-    ):
+    def test_audit_logging(self, authenticated_client, order_for_export, log_dir):
         """AC6: Audit files saved to private log directory (NOT MEDIA_ROOT)."""
         authenticated_client.get(
             "/api/integration/1c/exchange/",
@@ -490,7 +488,9 @@ class TestFullExportCycle:
             data={"mode": "query"},
         )
         media_log_dir = Path(settings.MEDIA_ROOT) / "1c_exchange" / "logs"
-        assert not media_log_dir.exists(), "Exchange logs must not be saved in public MEDIA_ROOT"
+        assert (
+            not media_log_dir.exists()
+        ), "Exchange logs must not be saved in public MEDIA_ROOT"
 
 
 @pytest.mark.django_db
@@ -652,9 +652,9 @@ class TestStreamingBehavior:
             data={"mode": "query"},
         )
         # FileResponse has streaming_content attribute
-        assert hasattr(response, "streaming_content"), (
-            "Response must be a FileResponse with streaming_content"
-        )
+        assert hasattr(
+            response, "streaming_content"
+        ), "Response must be a FileResponse with streaming_content"
 
     def test_audit_log_uses_file_copy(
         self, authenticated_client, order_for_export, log_dir
@@ -667,6 +667,7 @@ class TestStreamingBehavior:
         )
         # Verify log file was created
         from apps.integrations.onec_exchange.views import _get_exchange_log_dir
+
         log_files = list(_get_exchange_log_dir().glob("*orders.xml"))
         assert len(log_files) >= 1, "Audit log should be created"
 
@@ -678,10 +679,9 @@ class TestOrdersFilenameConstant:
 
     def test_constants_exist(self):
         """LOW: Constants are defined at module level."""
-        from apps.integrations.onec_exchange.views import (
-            ORDERS_XML_FILENAME,
-            ORDERS_ZIP_FILENAME,
-        )
+        from apps.integrations.onec_exchange.views import (ORDERS_XML_FILENAME,
+                                                           ORDERS_ZIP_FILENAME)
+
         assert ORDERS_XML_FILENAME == "orders.xml"
         assert ORDERS_ZIP_FILENAME == "orders.zip"
 
@@ -695,13 +695,16 @@ class TestOrdersFilenameConstant:
         )
         buf = io.BytesIO(get_response_content(response))
         with zipfile.ZipFile(buf) as zf:
-            from apps.integrations.onec_exchange.views import ORDERS_XML_FILENAME
+            from apps.integrations.onec_exchange.views import \
+                ORDERS_XML_FILENAME
+
             assert ORDERS_XML_FILENAME in zf.namelist()
 
 
 # ============================================================
 # Cycle 4 Review Follow-ups
 # ============================================================
+
 
 @pytest.mark.django_db
 @pytest.mark.integration
@@ -710,9 +713,11 @@ class TestAsyncEmailInSignal:
 
     def test_signal_dispatches_celery_tasks(self, customer_user, product_variant):
         """MEDIUM: post_save must dispatch Celery tasks, not send email synchronously."""
-        with patch("apps.orders.tasks.send_order_confirmation_to_customer.delay") as mock_customer_delay, \
-             patch("apps.orders.tasks.send_order_notification_email.delay") as mock_admin_delay:
-
+        with patch(
+            "apps.orders.tasks.send_order_confirmation_to_customer.delay"
+        ) as mock_customer_delay, patch(
+            "apps.orders.tasks.send_order_notification_email.delay"
+        ) as mock_admin_delay:
             order = Order.objects.create(
                 user=customer_user,
                 order_number="FS-ASYNC-001",
@@ -730,7 +735,9 @@ class TestAsyncEmailInSignal:
     def test_signal_does_not_call_send_mail_directly(self):
         """Ensure signals.py no longer imports send_mail directly."""
         import inspect
+
         import apps.orders.signals as signals_mod
+
         source = inspect.getsource(signals_mod)
         # send_mail should not be called directly in signals module
         assert "send_mail(" not in source
@@ -741,7 +748,9 @@ class TestAsyncEmailInSignal:
 class TestSiteUrlFallback:
     """Tests for SITE_URL fallback in email tasks (Cycle 5)."""
 
-    def test_notification_email_works_without_site_url(self, settings, customer_user, product_variant):
+    def test_notification_email_works_without_site_url(
+        self, settings, customer_user, product_variant
+    ):
         """LOW: send_order_notification_email must not crash when SITE_URL is missing."""
         if hasattr(settings, "SITE_URL"):
             delattr(settings, "SITE_URL")
@@ -766,9 +775,12 @@ class TestSiteUrlFallback:
         )
 
         from apps.orders.tasks import send_order_notification_email
-        with patch("apps.orders.tasks.send_mail") as mock_send, \
-             patch("apps.orders.tasks.render_to_string", return_value="test"):
+
+        with patch("apps.orders.tasks.send_mail") as mock_send, patch(
+            "apps.orders.tasks.render_to_string", return_value="test"
+        ):
             from apps.common.models import NotificationRecipient
+
             NotificationRecipient.objects.create(
                 email="admin@example.com",
                 is_active=True,
@@ -779,7 +791,9 @@ class TestSiteUrlFallback:
             assert result is True
             mock_send.assert_called_once()
 
-    def test_cancelled_notification_works_without_site_url(self, settings, customer_user):
+    def test_cancelled_notification_works_without_site_url(
+        self, settings, customer_user
+    ):
         """LOW: send_order_cancelled_notification_email handles missing SITE_URL."""
         if hasattr(settings, "SITE_URL"):
             delattr(settings, "SITE_URL")
@@ -795,8 +809,10 @@ class TestSiteUrlFallback:
         )
 
         from apps.orders.tasks import send_order_cancelled_notification_email
+
         with patch("apps.orders.tasks.send_mail") as mock_send:
             from apps.common.models import NotificationRecipient
+
             NotificationRecipient.objects.create(
                 email="admin@example.com",
                 is_active=True,
@@ -806,7 +822,9 @@ class TestSiteUrlFallback:
             assert result is True
             # Verify fallback URL is used
             call_args = mock_send.call_args
-            assert "localhost:8001" in call_args.kwargs.get("message", call_args[0][1] if len(call_args[0]) > 1 else "")
+            assert "localhost:8001" in call_args.kwargs.get(
+                "message", call_args[0][1] if len(call_args[0]) > 1 else ""
+            )
 
 
 @pytest.mark.django_db

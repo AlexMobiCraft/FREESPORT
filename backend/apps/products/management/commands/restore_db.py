@@ -149,7 +149,7 @@ class Command(BaseCommand):
         Story 3.1.2: Поддержка зашифрованных backup файлов
         """
         try:
-            import gnupg
+            import gnupg  # type: ignore
 
             gpg = gnupg.GPG()
             decrypted_file = encrypted_file.with_suffix(".sql.tmp")

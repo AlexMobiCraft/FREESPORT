@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import Any
 
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
@@ -36,7 +37,7 @@ class Command(BaseCommand):
 
     help = "Импорт атрибутов товаров из файлов 1С (propertiesGoods, propertiesOffers)"
 
-    def add_arguments(self, parser) -> None:
+    def add_arguments(self, parser: Any) -> None:
         """Добавление аргументов команды"""
         parser.add_argument(
             "--data-dir",
@@ -70,7 +71,7 @@ class Command(BaseCommand):
             help="Подробный вывод (уровень логирования DEBUG)",
         )
 
-    def handle(self, *args, **options) -> None:
+    def handle(self, *args: Any, **options: Any) -> None:
         """Основная логика команды"""
         # Настройка уровня логирования
         if options["verbose"]:

@@ -65,7 +65,8 @@ def routing_service(session_id, mock_settings):
     with patch(
         "apps.integrations.onec_exchange.routing_service.settings", mock_settings
     ):
-        from apps.integrations.onec_exchange.routing_service import FileRoutingService
+        from apps.integrations.onec_exchange.routing_service import \
+            FileRoutingService
 
         return FileRoutingService(session_id)
 
@@ -74,7 +75,8 @@ def routing_service(session_id, mock_settings):
 def file_service(session_id, mock_settings):
     """Create FileStreamService with mocked settings."""
     with patch("apps.integrations.onec_exchange.file_service.settings", mock_settings):
-        from apps.integrations.onec_exchange.file_service import FileStreamService
+        from apps.integrations.onec_exchange.file_service import \
+            FileStreamService
 
         service = FileStreamService(session_id)
         service._ensure_session_dir()
@@ -106,9 +108,8 @@ class TestXMLGoodsRouting:
                 "TEMP_DIR": file_service.base_dir,
                 "IMPORT_DIR": import_base,
             }
-            from apps.integrations.onec_exchange.routing_service import (
-                FileRoutingService,
-            )
+            from apps.integrations.onec_exchange.routing_service import \
+                FileRoutingService
 
             router = FileRoutingService(session_id)
             target_path = router.move_to_import(filename)
@@ -144,9 +145,8 @@ class TestXMLOffersRouting:
                 "TEMP_DIR": file_service.base_dir,
                 "IMPORT_DIR": import_base,
             }
-            from apps.integrations.onec_exchange.routing_service import (
-                FileRoutingService,
-            )
+            from apps.integrations.onec_exchange.routing_service import \
+                FileRoutingService
 
             router = FileRoutingService(session_id)
             target_path = router.move_to_import(filename)
@@ -180,9 +180,8 @@ class TestImageJpgRouting:
                 "TEMP_DIR": file_service.base_dir,
                 "IMPORT_DIR": import_base,
             }
-            from apps.integrations.onec_exchange.routing_service import (
-                FileRoutingService,
-            )
+            from apps.integrations.onec_exchange.routing_service import \
+                FileRoutingService
 
             router = FileRoutingService(session_id)
             target_path = router.move_to_import(filename)
@@ -216,9 +215,8 @@ class TestImageUppercaseRouting:
                 "TEMP_DIR": file_service.base_dir,
                 "IMPORT_DIR": import_base,
             }
-            from apps.integrations.onec_exchange.routing_service import (
-                FileRoutingService,
-            )
+            from apps.integrations.onec_exchange.routing_service import \
+                FileRoutingService
 
             router = FileRoutingService(session_id)
             target_path = router.move_to_import(filename)
@@ -251,9 +249,8 @@ class TestZipRouting:
                 "TEMP_DIR": file_service.base_dir,
                 "IMPORT_DIR": import_base,
             }
-            from apps.integrations.onec_exchange.routing_service import (
-                FileRoutingService,
-            )
+            from apps.integrations.onec_exchange.routing_service import \
+                FileRoutingService
 
             router = FileRoutingService(session_id)
             target_path = router.move_to_import(filename)
@@ -285,9 +282,8 @@ class TestZipUppercaseRouting:
                 "TEMP_DIR": file_service.base_dir,
                 "IMPORT_DIR": import_base,
             }
-            from apps.integrations.onec_exchange.routing_service import (
-                FileRoutingService,
-            )
+            from apps.integrations.onec_exchange.routing_service import \
+                FileRoutingService
 
             router = FileRoutingService(session_id)
             target_path = router.move_to_import(filename)
@@ -320,9 +316,8 @@ class TestUnknownFileRouting:
                 "TEMP_DIR": file_service.base_dir,
                 "IMPORT_DIR": import_base,
             }
-            from apps.integrations.onec_exchange.routing_service import (
-                FileRoutingService,
-            )
+            from apps.integrations.onec_exchange.routing_service import \
+                FileRoutingService
 
             router = FileRoutingService(session_id)
             target_path = router.move_to_import(filename)
@@ -353,7 +348,8 @@ class TestSessionIsolation:
                 "TEMP_DIR": temp_base,
                 "IMPORT_DIR": import_base,
             }
-            from apps.integrations.onec_exchange.file_service import FileStreamService
+            from apps.integrations.onec_exchange.file_service import \
+                FileStreamService
 
             session1 = "session-aaa-111"
             session2 = "session-bbb-222"
@@ -380,9 +376,8 @@ class TestSessionIsolation:
                 "TEMP_DIR": temp_base,
                 "IMPORT_DIR": import_base,
             }
-            from apps.integrations.onec_exchange.routing_service import (
-                FileRoutingService,
-            )
+            from apps.integrations.onec_exchange.routing_service import \
+                FileRoutingService
 
             router1 = FileRoutingService(session1)
             router2 = FileRoutingService(session2)
@@ -421,9 +416,8 @@ class TestFileOverwrite:
                 "TEMP_DIR": file_service.base_dir,
                 "IMPORT_DIR": import_base,
             }
-            from apps.integrations.onec_exchange.routing_service import (
-                FileRoutingService,
-            )
+            from apps.integrations.onec_exchange.routing_service import \
+                FileRoutingService
 
             # Arrange: Create and route first file
             filename = "goods.xml"
@@ -480,9 +474,8 @@ class TestRoutingRules:
                 "TEMP_DIR": file_service.base_dir,
                 "IMPORT_DIR": import_base,
             }
-            from apps.integrations.onec_exchange.routing_service import (
-                FileRoutingService,
-            )
+            from apps.integrations.onec_exchange.routing_service import \
+                FileRoutingService
 
             router = FileRoutingService(session_id)
             target_path = router.move_to_import(filename)
@@ -507,9 +500,8 @@ class TestRoutingRules:
                 "TEMP_DIR": file_service.base_dir,
                 "IMPORT_DIR": import_base,
             }
-            from apps.integrations.onec_exchange.routing_service import (
-                FileRoutingService,
-            )
+            from apps.integrations.onec_exchange.routing_service import \
+                FileRoutingService
 
             router = FileRoutingService(session_id)
             target_path = router.move_to_import(filename)
@@ -534,9 +526,8 @@ class TestRoutingServiceInit:
                 "TEMP_DIR": tmp_path / "1c_temp",
                 "IMPORT_DIR": tmp_path / "1c_import",
             }
-            from apps.integrations.onec_exchange.routing_service import (
-                FileRoutingService,
-            )
+            from apps.integrations.onec_exchange.routing_service import \
+                FileRoutingService
 
             with pytest.raises(ValueError, match="session_id"):
                 FileRoutingService("")
@@ -550,9 +541,8 @@ class TestRoutingServiceInit:
                 "TEMP_DIR": tmp_path / "1c_temp",
                 "IMPORT_DIR": import_dir,
             }
-            from apps.integrations.onec_exchange.routing_service import (
-                FileRoutingService,
-            )
+            from apps.integrations.onec_exchange.routing_service import \
+                FileRoutingService
 
             service = FileRoutingService(session_id)
             assert service.import_base == import_dir
@@ -573,9 +563,8 @@ class TestShouldRoute:
                 "TEMP_DIR": tmp_path / "1c_temp",
                 "IMPORT_DIR": tmp_path / "1c_import",
             }
-            from apps.integrations.onec_exchange.routing_service import (
-                FileRoutingService,
-            )
+            from apps.integrations.onec_exchange.routing_service import \
+                FileRoutingService
 
             router = FileRoutingService(session_id)
 
@@ -589,9 +578,8 @@ class TestShouldRoute:
                 "TEMP_DIR": tmp_path / "1c_temp",
                 "IMPORT_DIR": tmp_path / "1c_import",
             }
-            from apps.integrations.onec_exchange.routing_service import (
-                FileRoutingService,
-            )
+            from apps.integrations.onec_exchange.routing_service import \
+                FileRoutingService
 
             router = FileRoutingService(session_id)
 
@@ -605,9 +593,8 @@ class TestShouldRoute:
                 "TEMP_DIR": tmp_path / "1c_temp",
                 "IMPORT_DIR": tmp_path / "1c_import",
             }
-            from apps.integrations.onec_exchange.routing_service import (
-                FileRoutingService,
-            )
+            from apps.integrations.onec_exchange.routing_service import \
+                FileRoutingService
 
             router = FileRoutingService(session_id)
 

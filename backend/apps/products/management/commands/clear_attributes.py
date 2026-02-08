@@ -8,6 +8,7 @@ Management команда для полной очистки атрибутов 
 
 from django.core.management.base import BaseCommand
 from django.db import transaction
+from typing import Any
 
 from apps.products.models import Attribute, AttributeValue
 
@@ -15,14 +16,14 @@ from apps.products.models import Attribute, AttributeValue
 class Command(BaseCommand):
     help = "Полная очистка всех атрибутов и значений атрибутов"
 
-    def add_arguments(self, parser) -> None:
+    def add_arguments(self, parser: Any) -> None:
         parser.add_argument(
             "--confirm",
             action="store_true",
             help="Выполнить очистку без интерактивного подтверждения",
         )
 
-    def handle(self, *args, **options) -> None:
+    def handle(self, *args: Any, **options: Any) -> None:
         """Выполнить очистку атрибутов и значений."""
         confirm = options.get("confirm", False)
 

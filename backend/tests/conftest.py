@@ -63,6 +63,7 @@ def create_factories():
         )
         company_name = ""
         tax_id = ""
+
         @factory.post_generation
         def password(self, create, extracted, **kwargs):
             raw_password = extracted or "default_password123"

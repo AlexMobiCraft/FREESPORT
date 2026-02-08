@@ -53,14 +53,14 @@ class Cart(models.Model):
         constraints = [
             # Корзина должна иметь либо пользователя, либо session_key
             models.CheckConstraint(
-                condition=Q(user__isnull=False) | Q(session_key__isnull=False),
+                check=Q(user__isnull=False) | Q(session_key__isnull=False),
                 name="cart_must_have_user_or_session",
             )
         ]
 
     def __str__(self):
         if self.user:
-            return f"Корзина пользователя {self.user.email}"
+            return f"Корзина пользователя {str(self.user.email or '')}"
         return f"Гостевая корзина {self.session_key[:10]}..."
 
     @property
@@ -157,7 +157,9 @@ class CartItem(models.Model):
             )
 
     def save(self, *args, **kwargs):
-        if self.price_snapshot is None:
+        # Используем getattr для обхода проверки типов mypy, так как поле не null=True в модели,
+        # но может быть None до сохранения
+        if getattr(self, "price_snapshot", None) is None:
             user = self.cart.user
             self.price_snapshot = self.variant.get_price_for_user(user)
         self.full_clean()

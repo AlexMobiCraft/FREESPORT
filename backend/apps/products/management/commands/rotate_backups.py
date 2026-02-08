@@ -58,7 +58,7 @@ class Command(BaseCommand):
 
         # Находим все backup файлы
         backup_patterns = ["backup_*.sql", "backup_*.sql.gpg"]
-        all_backups = []
+        all_backups: list[Path] = []
 
         for pattern in backup_patterns:
             all_backups.extend(backup_path.glob(pattern))

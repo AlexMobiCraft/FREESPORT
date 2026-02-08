@@ -9,6 +9,7 @@ Management команда для импорта изображений това�
 
 import logging
 from pathlib import Path
+from typing import Any
 
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
@@ -56,7 +57,7 @@ class Command(BaseCommand):
             help="Подробный вывод в консоль",
         )
 
-    def handle(self, *args, **options):
+    def handle(self, *args: Any, **options: Any) -> None:
         """Основной метод выполнения команды."""
         data_dir = options.get("data_dir")
         dry_run = options.get("dry_run", False)
@@ -294,7 +295,7 @@ class Command(BaseCommand):
 
         return image_paths
 
-    def _print_summary(self, result: dict):
+    def _print_summary(self, result: dict[str, int]) -> None:
         """Вывод итоговой статистики."""
         self.stdout.write(
             self.style.SUCCESS(

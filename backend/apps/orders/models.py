@@ -13,8 +13,8 @@ from typing import TYPE_CHECKING, Any, cast
 from django.contrib.auth import get_user_model
 from django.core.validators import MinValueValidator
 from django.db import models
-from apps.orders.constants import ORDER_STATUSES
 
+from apps.orders.constants import ORDER_STATUSES
 
 if TYPE_CHECKING:
     from django.db.models.manager import RelatedManager
@@ -31,7 +31,7 @@ class Order(models.Model):
 
     Хранит ключевые сведения о заказе, покупателе и оплате и используется как в B2C,
     так и в B2B-сценариях.
-    
+
     Поля интеграции с 1С:
     - sent_to_1c: флаг отправки заказа в 1С
     - sent_to_1c_at: дата/время отправки в 1С

@@ -21,12 +21,8 @@ import pytest
 
 from apps.orders.models import Order, OrderItem
 from apps.orders.services import OrderExportService
-from tests.factories import (
-    ProductFactory,
-    ProductVariantFactory,
-    UserFactory,
-    get_unique_suffix,
-)
+from tests.factories import (ProductFactory, ProductVariantFactory,
+                             UserFactory, get_unique_suffix)
 
 
 @pytest.mark.unit
@@ -157,7 +153,7 @@ class TestOrderExportServiceTimezone:
         Orders created near midnight UTC should show correct local date.
         """
         from django.utils import timezone
-        
+
         # Arrange - Create order with UTC time that could be different day locally
         user = UserFactory(email=f"test-tz-{get_unique_suffix()}@example.com")
         variant = ProductVariantFactory(
@@ -218,7 +214,7 @@ class TestOrderExportServiceEmptyCounterpartyId:
         user.email = ""
         user.onec_id = ""
         user.save()
-        
+
         variant = ProductVariantFactory(
             onec_id=f"variant-{get_unique_suffix()}",
             retail_price=Decimal("1000.00"),
@@ -274,7 +270,7 @@ class TestOrderExportServiceMissingOnecId:
         # Manually clear onec_id since factory may set it
         variant_no_onec.onec_id = ""
         variant_no_onec.save()
-        
+
         order = Order.objects.create(
             user=user,
             total_amount=Decimal("1000.00"),
@@ -406,7 +402,7 @@ class TestOrderExportServiceXMLEscaping:
         # Arrange
         user = UserFactory(
             email=f"test-{get_unique_suffix()}@example.com",
-            company_name="ООО \"Тест & Компания\"",  # Contains & and quotes
+            company_name='ООО "Тест & Компания"',  # Contains & and quotes
             role="wholesale_level1",
         )
         variant = ProductVariantFactory(
@@ -427,7 +423,7 @@ class TestOrderExportServiceXMLEscaping:
             quantity=1,
             unit_price=Decimal("1000.00"),
             total_price=Decimal("1000.00"),
-            product_name="Товар \"Special\" & <Edition>",
+            product_name='Товар "Special" & <Edition>',
             product_sku=variant.sku,
         )
 
@@ -437,10 +433,10 @@ class TestOrderExportServiceXMLEscaping:
 
         # Assert - Check for double escaping patterns (should NOT exist)
         assert "&amp;amp;" not in xml_str  # Double-escaped &
-        assert "&amp;lt;" not in xml_str   # Double-escaped <
-        assert "&amp;gt;" not in xml_str   # Double-escaped >
-        assert "&amp;quot;" not in xml_str # Double-escaped "
-        
+        assert "&amp;lt;" not in xml_str  # Double-escaped <
+        assert "&amp;gt;" not in xml_str  # Double-escaped >
+        assert "&amp;quot;" not in xml_str  # Double-escaped "
+
         # Verify XML is still valid
         root = ET.fromstring(xml_str)
         assert root is not None
@@ -705,12 +701,12 @@ class TestOrderExportServiceDocumentStructure:
         assert product is not None
         assert product.find("Ид").text == variant.onec_id
         assert product.find("Наименование").text == "Тестовый товар"
-        
+
         unit = product.find("БазоваяЕдиница")
         assert unit is not None
         assert unit.get("Код") == "796"
         assert unit.text == "шт"
-        
+
         assert product.find("ЦенаЗаЕдиницу").text == "1500.00"
         assert product.find("Количество").text == "2"
         assert product.find("Сумма").text == "3000.00"
@@ -817,7 +813,7 @@ class TestOrderExportServicePrivacySafeCounterpartyId:
         not plain email to avoid PII leak.
         """
         import hashlib
-        
+
         # Arrange
         email = f"privacy-test-{get_unique_suffix()}@example.com"
         user = UserFactory(
@@ -826,7 +822,7 @@ class TestOrderExportServicePrivacySafeCounterpartyId:
         )
         user.onec_id = ""
         user.save()
-        
+
         variant = ProductVariantFactory(
             onec_id=f"variant-{get_unique_suffix()}",
             retail_price=Decimal("1000.00"),
@@ -859,7 +855,7 @@ class TestOrderExportServicePrivacySafeCounterpartyId:
         assert counterparty_id is not None
         assert email not in counterparty_id.text  # No plain email
         assert "@" not in counterparty_id.text  # No email format
-        
+
         # Should be hashed email format
         expected_hash = hashlib.sha256(email.encode()).hexdigest()[:16]
         assert counterparty_id.text == f"email-{expected_hash}"
@@ -875,10 +871,11 @@ class TestOrderExportServiceRefactoring:
         Review Follow-up: generate_xml should delegate to generate_xml_streaming
         to avoid code duplication.
         """
-        from unittest.mock import patch
-        from django.utils import timezone as dj_timezone
         from datetime import datetime
-        
+        from unittest.mock import patch
+
+        from django.utils import timezone as dj_timezone
+
         # Arrange
         user = UserFactory(email=f"refactor-{get_unique_suffix()}@example.com")
         variant = ProductVariantFactory(
@@ -907,27 +904,29 @@ class TestOrderExportServiceRefactoring:
         fixed_time = dj_timezone.now()
         service = OrderExportService()
         queryset = Order.objects.filter(id=order.id)
-        
-        with patch("apps.orders.services.order_export.timezone.now", return_value=fixed_time):
+
+        with patch(
+            "apps.orders.services.order_export.timezone.now", return_value=fixed_time
+        ):
             regular_xml = service.generate_xml(queryset)
             streaming_xml = "".join(service.generate_xml_streaming(queryset))
 
         # Assert - Both methods should produce identical XML
         assert regular_xml == streaming_xml
-        
+
         # Both should be valid XML
         regular_root = ET.fromstring(regular_xml)
         streaming_root = ET.fromstring(streaming_xml)
-        
+
         # Same structure
         assert regular_root.tag == streaming_root.tag
         assert regular_root.get("ВерсияСхемы") == streaming_root.get("ВерсияСхемы")
-        
+
         # Same documents
         regular_docs = regular_root.findall("Контейнер/Документ")
         streaming_docs = streaming_root.findall("Контейнер/Документ")
         assert len(regular_docs) == len(streaming_docs) == 1
-        
+
         # Same content
         regular_doc = regular_docs[0]
         streaming_doc = streaming_docs[0]
@@ -969,23 +968,23 @@ class TestOrderExportServiceRefactoring:
                 product_sku=variant.sku,
             )
             orders.append(order)
-        
+
         # Act
         service = OrderExportService()
         order_ids = [o.id for o in orders]
         queryset = Order.objects.filter(id__in=order_ids)
-        
+
         # Both methods should work
         regular_xml = service.generate_xml(queryset)
         streaming_xml = "".join(service.generate_xml_streaming(queryset))
-        
+
         # Assert - Both should produce valid, identical XML
         regular_root = ET.fromstring(regular_xml)
         streaming_root = ET.fromstring(streaming_xml)
-        
+
         documents = regular_root.findall("Контейнер/Документ")
         assert len(documents) == 2
-        
+
         # Verify all orders are present
         order_ids_in_xml = {doc.find("Ид").text for doc in documents}
         expected_ids = {f"order-{order.id}" for order in orders}
@@ -1102,7 +1101,7 @@ class TestOrderExportServiceEmptyCounterparty:
 
         # Should log info about guest order
         assert "guest order" in caplog.text
-        
+
         # Document should still be valid with other elements
         document = root.find("Контейнер/Документ")
         assert document is not None
@@ -1146,7 +1145,7 @@ class TestOrderExportServiceEmptyCounterparty:
         counterparties = root.find(".//Контрагенты")
         assert counterparties is not None
         assert len(list(counterparties)) == 1  # One child element
-        
+
         counterparty = counterparties.find("Контрагент")
         assert counterparty is not None
         assert counterparty.find("Ид") is not None
@@ -1163,9 +1162,9 @@ class TestOrderExportServicePerformance:
         Review Follow-up: _validate_order should use prefetched items
         to avoid N+1 queries when processing multiple orders.
         """
-        from django.test.utils import override_settings
         from django.db import connection
-        
+        from django.test.utils import override_settings
+
         # Arrange - Create multiple orders with items
         users = [
             UserFactory(email=f"user-perf-{i}-{get_unique_suffix()}@example.com")
@@ -1195,31 +1194,31 @@ class TestOrderExportServicePerformance:
                 product_sku=variant.sku,
             )
             orders.append(order)
-        
+
         # Act - Generate XML with prefetch (recommended way)
         service = OrderExportService()
         order_ids = [o.id for o in orders]
-        
+
         # Reset query count and use prefetched queryset
         with override_settings(DEBUG=True):
             connection.queries_log.clear()
             queryset = Order.objects.filter(id__in=order_ids).prefetch_related(
-                'items__variant', 'user'
+                "items__variant", "user"
             )
             xml_str = service.generate_xml(queryset)
-            
+
             # Assert - Should be valid XML
             root = ET.fromstring(xml_str)
             assert root is not None
             documents = root.findall("Контейнер/Документ")
             assert len(documents) == 3
-            
+
             # Check query count - should be minimal due to prefetch
             # With prefetch, we expect: 1 for orders + 1 for items + 1 for variants + 1 for users = ~4 queries
             # Without prefetch, it would be 1 + N*additional queries per order
             query_count = len(connection.queries)
             assert query_count <= 6, f"Too many queries: {query_count} (expected <= 6)"
-            
+
         # Verify all orders were processed
         for doc in documents:
             assert doc.find("Ид") is not None
@@ -1261,9 +1260,9 @@ class TestOrderExportServiceStreaming:
 
         # Act
         service = OrderExportService()
-        xml_parts = list(service.generate_xml_streaming(
-            Order.objects.filter(id=order.id)
-        ))
+        xml_parts = list(
+            service.generate_xml_streaming(Order.objects.filter(id=order.id))
+        )
         xml_str = "".join(xml_parts)
 
         # Assert - Should be valid XML
@@ -1271,7 +1270,7 @@ class TestOrderExportServiceStreaming:
         assert root is not None
         assert root.tag == "КоммерческаяИнформация"
         assert root.get("ВерсияСхемы") == "3.1"
-        
+
         # Should have document
         documents = root.findall("Контейнер/Документ")
         assert len(documents) == 1
@@ -1307,21 +1306,21 @@ class TestOrderExportServiceStreaming:
         # Act
         service = OrderExportService()
         queryset = Order.objects.filter(id=order.id)
-        
+
         regular_xml = service.generate_xml(queryset)
         streaming_xml = "".join(service.generate_xml_streaming(queryset))
 
         # Assert - Both should parse and have same structure
         regular_root = ET.fromstring(regular_xml)
         streaming_root = ET.fromstring(streaming_xml)
-        
+
         # Same root attributes
         assert regular_root.get("ВерсияСхемы") == streaming_root.get("ВерсияСхемы")
-        
+
         # Same number of documents
         regular_docs = regular_root.findall("Контейнер/Документ")
         streaming_docs = streaming_root.findall("Контейнер/Документ")
         assert len(regular_docs) == len(streaming_docs)
-        
+
         # Same order ID
         assert regular_docs[0].find("Ид").text == streaming_docs[0].find("Ид").text

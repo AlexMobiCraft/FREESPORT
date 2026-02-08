@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     from django.db.models import QuerySet
 
     from apps.orders.models import Order
+    from apps.users.models import User
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +28,7 @@ logger = logging.getLogger(__name__)
 class OrderExportService:
     """
     Сервис генерации XML заказов в формате CommerceML 3.1 для экспорта в 1С.
-    
+
     Реализует Service Layer паттерн — вся бизнес-логика генерации XML
     инкапсулирована в этом классе.
     """
@@ -38,7 +39,8 @@ class OrderExportService:
     def SCHEMA_VERSION(self) -> str:
         """Read CommerceML version from settings, falling back to default."""
         exchange_cfg = getattr(settings, "ONEC_EXCHANGE", {})
-        return exchange_cfg.get("COMMERCEML_VERSION", self.DEFAULT_SCHEMA_VERSION)
+        return str(exchange_cfg.get("COMMERCEML_VERSION", self.DEFAULT_SCHEMA_VERSION))
+
     CURRENCY = "RUB"
     EXCHANGE_RATE = "1"
     OPERATION_TYPE = "Заказ товара"
@@ -123,7 +125,7 @@ class OrderExportService:
                 exported_ids.append(order.pk)
 
         # Root element close tag
-        yield '</КоммерческаяИнформация>'
+        yield "</КоммерческаяИнформация>"
 
     def _validate_order(self, order: "Order") -> bool:
         """Валидация заказа перед генерацией XML."""
@@ -137,40 +139,40 @@ class OrderExportService:
     def _create_document_element(self, order: "Order") -> ET.Element:
         """Создание элемента Документ для заказа."""
         document = ET.Element("Документ")
-        
+
         # Основные теги документа
         self._add_text_element(document, "Ид", self._get_order_id(order))
         self._add_text_element(document, "Номер", order.order_number)
         # Convert to local time before formatting to ensure correct date
         local_created_at = timezone.localtime(order.created_at)
-        self._add_text_element(
-            document, "Дата", local_created_at.strftime("%Y-%m-%d")
-        )
+        self._add_text_element(document, "Дата", local_created_at.strftime("%Y-%m-%d"))
         self._add_text_element(document, "ХозОперация", self.OPERATION_TYPE)
         self._add_text_element(document, "Роль", self.ROLE)
         self._add_text_element(document, "Валюта", self.CURRENCY)
         self._add_text_element(document, "Курс", self.EXCHANGE_RATE)
-        self._add_text_element(document, "Сумма", self._format_price(order.total_amount))
-        
+        self._add_text_element(
+            document, "Сумма", self._format_price(order.total_amount)
+        )
+
         # Блок контрагентов
         counterparties = self._create_counterparties_element(order)
         document.append(counterparties)
-        
+
         # Блок товаров
         products = self._create_products_element(order)
         document.append(products)
-        
+
         return document
 
     def _create_counterparties_element(self, order: "Order") -> ET.Element:
         """Создание блока Контрагенты.
-        
+
         Supports both registered users and guest orders. For guest orders,
         uses order.customer_name, customer_email, customer_phone fields.
         """
         counterparties = ET.Element("Контрагенты")
         counterparty = ET.Element("Контрагент")
-        
+
         user = order.user
         if user:
             # Registered user: use User model fields
@@ -181,7 +183,7 @@ class OrderExportService:
                     f"using fallback ID: {counterparty_id}"
                 )
             self._add_text_element(counterparty, "Ид", counterparty_id)
-            
+
             # Наименование: company_name для B2B или full_name для B2C
             if user.is_b2b_user and user.company_name:
                 self._add_text_element(
@@ -193,11 +195,11 @@ class OrderExportService:
             else:
                 name = str(user.full_name or user.email or "")
                 self._add_text_element(counterparty, "Наименование", name)
-            
+
             # ИНН только если есть tax_id
             if user.tax_id:
                 self._add_text_element(counterparty, "ИНН", str(user.tax_id))
-            
+
             # Контакты
             contacts = ET.Element("Контакты")
             if user.email:
@@ -217,11 +219,15 @@ class OrderExportService:
             # Generate stable ID from email hash or order number
             counterparty_id = self._get_guest_counterparty_id(order)
             self._add_text_element(counterparty, "Ид", counterparty_id)
-            
+
             # Наименование from customer_name or email
-            name = order.customer_name or order.customer_email or f"Гость #{order.order_number}"
+            name = (
+                order.customer_name
+                or order.customer_email
+                or f"Гость #{order.order_number}"
+            )
             self._add_text_element(counterparty, "Наименование", name)
-            
+
             # Контакты from order fields
             contacts = ET.Element("Контакты")
             if order.customer_email:
@@ -236,9 +242,11 @@ class OrderExportService:
                 contacts.append(contact_phone)
             if len(contacts) > 0:
                 counterparty.append(contacts)
-            
-            logger.info(f"Order {order.order_number}: guest order, using customer fields for counterparty")
-        
+
+            logger.info(
+                f"Order {order.order_number}: guest order, using customer fields for counterparty"
+            )
+
         # Адрес регистрации (common for both user and guest orders)
         if order.delivery_address:
             address_reg = ET.Element("АдресРегистрации")
@@ -246,14 +254,14 @@ class OrderExportService:
                 address_reg, "Представление", str(order.delivery_address)
             )
             counterparty.append(address_reg)
-        
+
         counterparties.append(counterparty)
         return counterparties
 
     def _create_products_element(self, order: "Order") -> ET.Element:
         """Создание блока Товары."""
         products = ET.Element("Товары")
-        
+
         for item in order.items.all():
             # Defensive check: пропуск OrderItem с variant=None
             if item.variant is None:
@@ -261,7 +269,7 @@ class OrderExportService:
                     f"OrderItem {item.id}: variant is None (deleted?), skipping"
                 )
                 continue
-            
+
             # Defensive check: пропуск товара без onec_id
             if not item.variant.onec_id:
                 logger.warning(
@@ -269,13 +277,11 @@ class OrderExportService:
                     f"missing onec_id, skipping"
                 )
                 continue
-            
+
             product = ET.Element("Товар")
             self._add_text_element(product, "Ид", item.variant.onec_id)
-            self._add_text_element(
-                product, "Наименование", item.product_name
-            )
-            
+            self._add_text_element(product, "Наименование", item.product_name)
+
             # Базовая единица измерения (configurable via settings.ONEC_EXCHANGE.DEFAULT_UNIT)
             ud = self._unit_defaults
             unit = ET.Element("БазоваяЕдиница")
@@ -284,18 +290,20 @@ class OrderExportService:
             unit.set("МеждународноеСокращение", ud["name_intl"])
             unit.text = ud["name_short"]
             product.append(unit)
-            
-            self._add_text_element(product, "ЦенаЗаЕдиницу", self._format_price(item.unit_price))
+
+            self._add_text_element(
+                product, "ЦенаЗаЕдиницу", self._format_price(item.unit_price)
+            )
             self._add_text_element(product, "Количество", str(item.quantity))
-            self._add_text_element(product, "Сумма", self._format_price(item.total_price))
-            
+            self._add_text_element(
+                product, "Сумма", self._format_price(item.total_price)
+            )
+
             products.append(product)
-        
+
         return products
 
-    def _add_text_element(
-        self, parent: ET.Element, tag: str, text: str
-    ) -> ET.Element:
+    def _add_text_element(self, parent: ET.Element, tag: str, text: str) -> ET.Element:
         """Добавление текстового элемента к родителю."""
         element = ET.SubElement(parent, tag)
         element.text = text
@@ -308,7 +316,7 @@ class OrderExportService:
     def _format_price(self, value: Union[Decimal, float, int]) -> str:
         """
         Format price with exactly 2 decimal places.
-        
+
         CommerceML 3.1 expects prices in format like "1500.00", not "1500".
         """
         return f"{Decimal(value):.2f}"
@@ -316,32 +324,32 @@ class OrderExportService:
     def _get_order_id(self, order: "Order") -> str:
         """
         Get immutable order identifier for XML <Ид> element.
-        
+
         Uses order.id (database primary key) which is immutable,
         unlike order_number which could theoretically be changed.
         Format: 'order-{id}' for clarity in 1C.
         """
         return f"order-{order.id}"
 
-    def _get_counterparty_id(self, user) -> str:
+    def _get_counterparty_id(self, user: "User") -> str:
         """
         Get counterparty identifier with privacy-safe fallback.
-        
+
         Priority: onec_id → SHA256(email)[:16] → user-{id}
         Uses hashed email to avoid PII leak while maintaining uniqueness.
         """
         if user.onec_id:
-            return user.onec_id
+            return str(user.onec_id)
         if user.email:
             # Use first 16 chars of SHA256 hash for reasonable uniqueness
-            email_hash = hashlib.sha256(user.email.encode()).hexdigest()[:16]
+            email_hash = hashlib.sha256(str(user.email).encode()).hexdigest()[:16]
             return f"email-{email_hash}"
         return f"user-{user.id}"
 
     def _get_guest_counterparty_id(self, order: "Order") -> str:
         """
         Get counterparty identifier for guest orders.
-        
+
         Priority: SHA256(customer_email)[:16] → guest-order-{id}
         Uses hashed email to avoid PII leak while maintaining uniqueness.
         """

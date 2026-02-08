@@ -5,6 +5,7 @@ import shutil
 import time
 import zipfile
 from pathlib import Path
+from typing import Any
 from xml.etree.ElementTree import ParseError as ETParseError
 
 from defusedxml.common import DefusedXmlException
@@ -21,11 +22,12 @@ from apps.orders.services.order_export import OrderExportService
 from apps.orders.services.order_status_import import OrderStatusImportService
 from apps.orders.signals import orders_bulk_updated
 
-from .authentication import Basic1CAuthentication, CsrfExemptSessionAuthentication
+from .authentication import (Basic1CAuthentication,
+                             CsrfExemptSessionAuthentication)
 from .file_service import FileLockError, FileStreamService
+from .import_orchestrator import ImportOrchestratorService
 from .permissions import Is1CExchangeUser
 from .renderers import PlainTextRenderer
-from .import_orchestrator import ImportOrchestratorService
 from .routing_service import FileRoutingService
 from .throttling import OneCAuthThrottle, OneCExchangeThrottle
 
@@ -40,10 +42,14 @@ ORDERS_IMPORT_MAX_RETRIES = 3  # FM5.1/FM5.2: DB retry attempts
 XML_TIMESTAMP_SCAN_BYTES = 2048  # Review follow-up: avoid missing timestamp
 
 # Simple regex to count <Документ> tags without full XML parsing
-_DOCUMENT_TAG_RE = re.compile(rb"<\xd0\x94\xd0\xbe\xd0\xba\xd1\x83\xd0\xbc\xd0\xb5\xd0\xbd\xd1\x82[\s>/]")
+_DOCUMENT_TAG_RE = re.compile(
+    rb"<\xd0\x94\xd0\xbe\xd0\xba\xd1\x83\xd0\xbc\xd0\xb5\xd0\xbd\xd1\x82[\s>/]"
+)
 
 # Regex to detect encoding from XML declaration (AC10)
-_XML_ENCODING_RE = re.compile(rb'<\?xml[^>]+encoding=["\']([^"\']+)["\']', re.IGNORECASE)
+_XML_ENCODING_RE = re.compile(
+    rb'<\?xml[^>]+encoding=["\']([^"\']+)["\']', re.IGNORECASE
+)
 
 
 def _validate_xml_timestamp(xml_data: bytes, max_age_hours: int = 24) -> bool:
@@ -55,8 +61,8 @@ def _validate_xml_timestamp(xml_data: bytes, max_age_hours: int = 24) -> bool:
     try:
         header = xml_data[:XML_TIMESTAMP_SCAN_BYTES]
         match = re.search(
-            rb'\xd0\x94\xd0\xb0\xd1\x82\xd0\xb0\xd0\xa4\xd0\xbe\xd1\x80\xd0\xbc'
-            rb'\xd0\xb8\xd1\x80\xd0\xbe\xd0\xb2\xd0\xb0\xd0\xbd\xd0\xb8\xd1\x8f'
+            rb"\xd0\x94\xd0\xb0\xd1\x82\xd0\xb0\xd0\xa4\xd0\xbe\xd1\x80\xd0\xbc"
+            rb"\xd0\xb8\xd1\x80\xd0\xbe\xd0\xb2\xd0\xb0\xd0\xbd\xd0\xb8\xd1\x8f"
             rb'="([^"]+)"',
             header,
         )
@@ -127,7 +133,7 @@ def _get_exchange_log_dir() -> Path:
     return Path(settings.BASE_DIR) / "var" / EXCHANGE_LOG_SUBDIR
 
 
-def _save_exchange_log(filename: str, content, is_binary: bool = False) -> None:
+def _save_exchange_log(filename: str, content: bytes | str, is_binary: bool = False) -> None:
     """Save a copy of exchange output to a private log directory for audit."""
     try:
         log_dir = _get_exchange_log_dir()
@@ -135,8 +141,12 @@ def _save_exchange_log(filename: str, content, is_binary: bool = False) -> None:
         timestamp = timezone.now().strftime("%Y%m%d_%H%M%S")
         filepath = log_dir / f"{timestamp}_{filename}"
         if is_binary:
+            if isinstance(content, str):
+                content = content.encode("utf-8")
             filepath.write_bytes(content)
         else:
+            if isinstance(content, bytes):
+                content = content.decode("utf-8")
             filepath.write_text(content, encoding="utf-8")
     except Exception as e:
         logger.error(f"[EXCHANGE LOG] Failed to save audit log {filename}: {e}")
@@ -144,7 +154,7 @@ def _save_exchange_log(filename: str, content, is_binary: bool = False) -> None:
 
 def _copy_file_to_log(source_path: Path, filename: str) -> None:
     """Copy a file to the exchange log directory without loading it into RAM.
-    
+
     This avoids OOM issues when logging large XML/ZIP files by using
     filesystem-level copy instead of reading content into memory.
     """
@@ -162,7 +172,7 @@ class ICExchangeView(APIView):
     def _get_exchange_identity(self, request):
         """
         Return a unique exchange identity per session to avoid race conditions.
-        
+
         Uses session_key which is unique per browser/1C client connection.
         This ensures multiple concurrent 1C exchanges don't interfere with
         each other's temp files and import directories.
@@ -171,9 +181,10 @@ class ICExchangeView(APIView):
         sessid = request.query_params.get("sessid")
         if sessid:
             return sessid
-        
+
         # Fall back to Django session key (unique per connection)
         return request.session.session_key
+
     """
     Main entry point for 1C exchange protocol.
     Handles authentication, file uploads, and import triggering.
@@ -275,7 +286,7 @@ class ICExchangeView(APIView):
     def handle_complete(self, request):
         """
         Signal from 1C that all files for the current cycle are uploaded.
-        
+
         Delegates to ImportOrchestratorService.finalize_batch() following
         the Fat Services / Thin Views pattern.
         """
@@ -327,7 +338,8 @@ class ICExchangeView(APIView):
             else:
                 request.user.backend = (
                     settings.AUTHENTICATION_BACKENDS[0]
-                    if hasattr(settings, "AUTHENTICATION_BACKENDS") and settings.AUTHENTICATION_BACKENDS
+                    if hasattr(settings, "AUTHENTICATION_BACKENDS")
+                    and settings.AUTHENTICATION_BACKENDS
                     else "django.contrib.auth.backends.ModelBackend"
                 )
 
@@ -358,15 +370,19 @@ class ICExchangeView(APIView):
 
         try:
             file_service = FileStreamService(sessid)
-            
-            # If the PREVIOUS exchange was marked as complete, 
+
+            # If the PREVIOUS exchange was marked as complete,
             # this 'init' starts a NEW cycle -> Full Cleanup.
             if file_service.is_complete():
-                logger.info(f"New exchange cycle detected for {sessid}. Performing full cleanup.")
+                logger.info(
+                    f"New exchange cycle detected for {sessid}. Performing full cleanup."
+                )
                 file_service.cleanup_session(force=True)
                 file_service.clear_complete()
             else:
-                logger.info(f"Continuing existing exchange cycle for {sessid}. Accumulating files.")
+                logger.info(
+                    f"Continuing existing exchange cycle for {sessid}. Accumulating files."
+                )
         except Exception as e:
             logger.warning(f"Init cleanup logic fail: {e}")
 
@@ -375,8 +391,10 @@ class ICExchangeView(APIView):
         file_limit = exchange_cfg.get("FILE_LIMIT_BYTES", 100 * 1024 * 1024)
         version = exchange_cfg.get("COMMERCEML_VERSION", "3.1")
 
-        response_text = f"zip={'yes' if zip_support else 'no'}\r\nfile_limit={file_limit}\r\n" \
-                        f"sessid={sessid}\r\nversion={version}"
+        response_text = (
+            f"zip={'yes' if zip_support else 'no'}\r\nfile_limit={file_limit}\r\n"
+            f"sessid={sessid}\r\nversion={version}"
+        )
         return HttpResponse(response_text, content_type="text/plain; charset=utf-8")
 
     def handle_query(self, request):
@@ -384,7 +402,7 @@ class ICExchangeView(APIView):
         Handle order export requests (mode=query).
         Protocol: GET /?mode=query[&zip=yes]
         Returns XML (or ZIP) with pending orders for 1C.
-        
+
         Memory optimization: Uses streaming for XML responses to avoid
         materializing large exports in RAM. For ZIP, uses tempfile to
         avoid doubling memory pressure.
@@ -405,6 +423,7 @@ class ICExchangeView(APIView):
         use_zip = request.query_params.get("zip", "").lower() == "yes"
 
         import tempfile
+
         exported_ids: list[int] = []
         skipped_ids: list[int] = []
 
@@ -413,7 +432,9 @@ class ICExchangeView(APIView):
             # Using NamedTemporaryFile to allow FileResponse streaming
             xml_tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".xml")
             try:
-                for chunk in service.generate_xml_streaming(orders, exported_ids, skipped_ids):
+                for chunk in service.generate_xml_streaming(
+                    orders, exported_ids, skipped_ids
+                ):
                     xml_tmp.write(chunk.encode("utf-8"))
                 xml_tmp.close()
 
@@ -446,7 +467,7 @@ class ICExchangeView(APIView):
                     )
                     # Mark temp file for cleanup after response is sent
                     zip_path = Path(zip_tmp.name)
-                    response._resource_closers.append(lambda p=zip_path: p.unlink(missing_ok=True))
+                    response._resource_closers.append(lambda p=zip_path: p.unlink(missing_ok=True))  # type: ignore
                     return response
                 finally:
                     # Cleanup XML temp file
@@ -457,11 +478,15 @@ class ICExchangeView(APIView):
                 raise
 
         # Non-ZIP: Stream XML directly via FileResponse
-        xml_tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".xml", mode="w", encoding="utf-8")
+        xml_file = tempfile.NamedTemporaryFile(
+            delete=False, suffix=".xml", mode="w", encoding="utf-8"
+        )
         try:
-            for chunk in service.generate_xml_streaming(orders, exported_ids, skipped_ids):
-                xml_tmp.write(chunk)
-            xml_tmp.close()
+            for chunk in service.generate_xml_streaming(
+                orders, exported_ids, skipped_ids
+            ):
+                xml_file.write(chunk)
+            xml_file.close()
 
             # Mark skipped orders to prevent poison queue
             if skipped_ids:
@@ -474,20 +499,20 @@ class ICExchangeView(APIView):
             cache.set(cache_key, exported_ids, timeout=3600)
 
             # Save audit log via file copy (avoids loading into RAM)
-            _copy_file_to_log(Path(xml_tmp.name), ORDERS_XML_FILENAME)
+            _copy_file_to_log(Path(xml_file.name), ORDERS_XML_FILENAME)
 
             # Stream XML file as response
             response = FileResponse(
-                open(xml_tmp.name, "rb"),
+                open(xml_file.name, "rb"),
                 content_type="application/xml",
             )
             # Mark temp file for cleanup after response is sent
-            xml_path = Path(xml_tmp.name)
-            response._resource_closers.append(lambda p=xml_path: p.unlink(missing_ok=True))
+            xml_path = Path(xml_file.name)
+            response._resource_closers.append(lambda p=xml_path: p.unlink(missing_ok=True))  # type: ignore
             return response
         except Exception:
             # Cleanup on error
-            Path(xml_tmp.name).unlink(missing_ok=True)
+            Path(xml_file.name).unlink(missing_ok=True)
             raise
 
     def handle_success(self, request):
@@ -519,10 +544,11 @@ class ICExchangeView(APIView):
             )
             try:
                 from datetime import datetime
+
                 last_query_time = datetime.fromisoformat(last_query_iso)
                 if timezone.is_naive(last_query_time):
                     last_query_time = timezone.make_aware(last_query_time)
-                
+
                 # Fallback: mark orders that match the time window and are not skipped
                 now = timezone.now()
                 with transaction.atomic():
@@ -535,12 +561,12 @@ class ICExchangeView(APIView):
                         sent_to_1c_at=now,
                         updated_at=now,
                     )
-                
+
                 logger.info(
                     f"[EXPORT SUCCESS] Fallback: marked {updated} orders as sent_to_1c "
                     f"(time-window: created_at <= {last_query_time})"
                 )
-                
+
                 # Clean up session state
                 del request.session["last_1c_query_time"]
                 return HttpResponse("success", content_type="text/plain; charset=utf-8")
@@ -552,7 +578,9 @@ class ICExchangeView(APIView):
                 )
 
         if not exported_ids:
-            logger.info("[EXPORT SUCCESS] No orders were exported in last query — nothing to mark.")
+            logger.info(
+                "[EXPORT SUCCESS] No orders were exported in last query — nothing to mark."
+            )
             # Clean up session state
             del request.session["last_1c_query_time"]
             cache.delete(cache_key)
@@ -569,7 +597,9 @@ class ICExchangeView(APIView):
                 updated_at=now,
             )
 
-        logger.info(f"[EXPORT SUCCESS] Marked {updated} orders as sent_to_1c (of {len(exported_ids)} exported)")
+        logger.info(
+            f"[EXPORT SUCCESS] Marked {updated} orders as sent_to_1c (of {len(exported_ids)} exported)"
+        )
 
         # Send custom signal for audit (QuerySet.update bypasses post_save)
         if updated > 0:
@@ -587,7 +617,7 @@ class ICExchangeView(APIView):
 
         return HttpResponse("success", content_type="text/plain; charset=utf-8")
 
-    def _handle_orders_xml(self, request) -> HttpResponse:
+    def _handle_orders_xml(self, request: Any) -> HttpResponse:
         """Handle orders.xml import synchronously (ADR-001).
 
         Unlike catalog files (streamed to disk), orders.xml is processed
@@ -678,11 +708,7 @@ class ICExchangeView(APIView):
                 raise RuntimeError(f"Service returned no result: {last_db_error}")
 
             parse_error = next(
-                (
-                    err
-                    for err in result.errors
-                    if "xml parse error" in err.lower()
-                ),
+                (err for err in result.errors if "xml parse error" in err.lower()),
                 None,
             )
             if parse_error:
@@ -692,11 +718,7 @@ class ICExchangeView(APIView):
                     content_type="text/plain; charset=utf-8",
                 )
             security_error = next(
-                (
-                    err
-                    for err in result.errors
-                    if "xml security error" in err.lower()
-                ),
+                (err for err in result.errors if "xml security error" in err.lower()),
                 None,
             )
             if security_error:
@@ -723,15 +745,11 @@ class ICExchangeView(APIView):
                 )
 
             if result.errors:
-                logger.warning(
-                    f"[ORDERS IMPORT] Errors: {result.errors[:5]}"
-                )
+                logger.warning(f"[ORDERS IMPORT] Errors: {result.errors[:5]}")
 
             # ADR-003: Partial Success = Success
             if result.updated > 0 or not result.errors:
-                return HttpResponse(
-                    "success", content_type="text/plain; charset=utf-8"
-                )
+                return HttpResponse("success", content_type="text/plain; charset=utf-8")
 
             # Complete failure: nothing updated AND errors present
             summary = (
@@ -785,7 +803,7 @@ class ICExchangeView(APIView):
         try:
             file_service = FileStreamService(sessid)
             wsgi_request = request._request
-            
+
             with file_service.open_for_write(filename) as writer:
                 chunk_size = 64 * 1024
                 while True:

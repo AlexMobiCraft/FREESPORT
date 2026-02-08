@@ -18,7 +18,7 @@ AC3: Старые данные Products очищены через management com
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
@@ -65,7 +65,7 @@ class Command(BaseCommand):
             help="Пропустить интерактивное подтверждение (для CI/CD)",
         )
 
-    def handle(self, *args, **options) -> None:
+    def handle(self, *args: Any, **options: Any) -> None:
         """Основная логика команды."""
         dry_run: bool = options["dry_run"]
         confirm: bool = options["confirm"]

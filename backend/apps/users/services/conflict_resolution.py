@@ -9,15 +9,14 @@ import uuid
 from typing import Any, Dict, List, Optional
 
 from django.conf import settings
-from django.contrib.auth import get_user_model
 from django.core.mail import send_mail
 from django.db import transaction
 from django.template.loader import render_to_string
 from django.utils import timezone
 
 from apps.common.models import CustomerSyncLog, SyncConflict
+from apps.users.models import User
 
-User = get_user_model()
 logger = logging.getLogger(__name__)
 
 
@@ -175,10 +174,10 @@ class CustomerConflictResolver:
             changes_made["onec_id"] = {"old": old_value, "new": onec_id}
 
         if onec_guid := onec_data.get("onec_guid"):
-            old_value = existing_customer.onec_guid
+            old_guid_value = existing_customer.onec_guid
             existing_customer.onec_guid = onec_guid
             changes_made["onec_guid"] = {
-                "old": str(old_value) if old_value else None,
+                "old": str(old_guid_value) if old_guid_value else None,
                 "new": str(onec_guid),
             }
 
@@ -213,7 +212,7 @@ class CustomerConflictResolver:
         """
         return {
             "id": customer.id,
-            "email": customer.email,
+            "email": str(customer.email or ""),
             "first_name": customer.first_name,
             "last_name": customer.last_name,
             "phone": customer.phone,
@@ -398,14 +397,14 @@ class CustomerConflictResolver:
         if source == "portal_registration":
             subject = (
                 f"[1C Sync] Попытка регистрации существующего клиента: "
-                f"{customer.email}"
+                f"{str(customer.email or '')}"
             )
         else:
-            subject = f"[1C Sync] Обновление данных клиента из 1C: " f"{customer.email}"
+            subject = f"[1C Sync] Обновление данных клиента из 1C: {str(customer.email or '')}"
 
         # Отправляем email
         send_mail(
-            subject=subject,
+            subject=str(subject),
             message="",  # Текстовая версия (опционально)
             html_message=html_content,
             from_email=settings.DEFAULT_FROM_EMAIL,

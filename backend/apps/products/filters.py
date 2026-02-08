@@ -8,7 +8,8 @@ from typing import TYPE_CHECKING, Any
 
 import django_filters
 from django.conf import settings
-from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector
+from django.contrib.postgres.search import (SearchQuery, SearchRank,
+                                            SearchVector)
 from django.db import connection
 from django.db.models import Q, QuerySet
 

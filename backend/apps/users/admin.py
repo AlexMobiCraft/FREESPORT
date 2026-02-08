@@ -334,7 +334,7 @@ class UserAdmin(BaseUserAdmin):
                 resource_type="User",
                 resource_id=user.id,
                 changes={
-                    "email": user.email,
+                    "email": str(user.email or ""),
                     "role": user.role,
                     "verified": True,
                 },
@@ -395,7 +395,7 @@ class UserAdmin(BaseUserAdmin):
                 resource_type="User",
                 resource_id=user.id,
                 changes={
-                    "email": user.email,
+                    "email": str(user.email or ""),
                     "role": user.role,
                     "verified": False,
                 },
@@ -446,7 +446,7 @@ class UserAdmin(BaseUserAdmin):
                 resource_type="User",
                 resource_id=user.id,
                 changes={
-                    "email": user.email,
+                    "email": str(user.email or ""),
                     "role": user.role,
                     "blocked": True,
                 },
@@ -468,7 +468,7 @@ class UserAdmin(BaseUserAdmin):
             ip = x_forwarded_for.split(",")[0]
         else:
             ip = request.META.get("REMOTE_ADDR", "0.0.0.0")
-        return ip
+        return str(ip)
 
 
 @admin.register(Company)
