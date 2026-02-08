@@ -270,9 +270,13 @@ class TestSystemHealth(TestCase):
         """Подготовка к тестам."""
         self.monitor = CustomerSyncMonitor()
 
+    @patch("apps.common.services.customer_sync_monitor.cache")
     @patch("apps.common.services.customer_sync_monitor.IntegrationHealthCheck")
-    def test_system_health_all_ok(self, mock_health_check: MagicMock) -> None:
+    def test_system_health_all_ok(
+        self, mock_health_check: MagicMock, mock_cache: MagicMock
+    ) -> None:
         """Тест когда все компоненты здоровы."""
+        mock_cache.get.return_value = None
         mock_checker = MagicMock()
         mock_checker.check_database_connection.return_value = {
             "component": "database",
@@ -297,9 +301,13 @@ class TestSystemHealth(TestCase):
         self.assertEqual(len(health["critical_issues"]), 0)
         self.assertIn("components", health)
 
+    @patch("apps.common.services.customer_sync_monitor.cache")
     @patch("apps.common.services.customer_sync_monitor.IntegrationHealthCheck")
-    def test_system_health_with_issues(self, mock_health_check: MagicMock) -> None:
+    def test_system_health_with_issues(
+        self, mock_health_check: MagicMock, mock_cache: MagicMock
+    ) -> None:
         """Тест когда есть проблемы с компонентами."""
+        mock_cache.get.return_value = None
         mock_checker = MagicMock()
         mock_checker.check_database_connection.return_value = {
             "component": "database",

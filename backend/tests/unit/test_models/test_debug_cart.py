@@ -3,6 +3,7 @@
 """
 
 from decimal import Decimal
+from unittest.mock import patch
 
 import pytest
 from django.core.exceptions import ValidationError

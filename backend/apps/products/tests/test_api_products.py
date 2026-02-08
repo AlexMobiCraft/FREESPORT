@@ -308,7 +308,7 @@ class TestProductAPIPerformance:
         Тест: prefetch_related используется (количество queries ~3-5)
         Избегаем N+1 queries проблемы
         """
-        product = ProductFactory()
+        product = ProductFactory(create_variant=False)
         ProductVariantFactory.create_batch(10, product=product)
 
         url = reverse("products:product-detail", kwargs={"slug": product.slug})
@@ -340,7 +340,7 @@ class TestProductAPIPerformance:
         timings = []
 
         for num_variants in test_cases:
-            product = ProductFactory()
+            product = ProductFactory(create_variant=False)
             ProductVariantFactory.create_batch(num_variants, product=product)
 
             url = reverse("products:product-detail", kwargs={"slug": product.slug})
@@ -416,7 +416,7 @@ class TestIntegrationVerification:
             "federation_rep",
         ]
 
-        product = ProductFactory()
+        product = ProductFactory(create_variant=False)
         variant = ProductVariantFactory(
             product=product,
             retail_price=Decimal("1000.00"),

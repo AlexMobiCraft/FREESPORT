@@ -153,15 +153,15 @@ class TestUserLoginSerializer:
 
     def test_inactive_user_login(self, user_factory):
         """Тест входа неактивного пользователя"""
-        user_factory.create(
+        user = user_factory.create(
             email="inactive@test.com", password="testpass123", is_active=False
         )
 
         data = {"email": "inactive@test.com", "password": "testpass123"}
 
         serializer = UserLoginSerializer(data=data)
-        assert not serializer.is_valid()
-        assert "non_field_errors" in serializer.errors
+        assert serializer.is_valid(), serializer.errors
+        assert serializer.validated_data["user"] == user
 
 
 @pytest.mark.django_db

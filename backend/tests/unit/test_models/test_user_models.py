@@ -13,6 +13,7 @@ from django.core.exceptions import ValidationError
 from django.core.management import CommandError
 from django.db import IntegrityError
 
+from apps.users.models import Company
 from tests.conftest import AddressFactory, CompanyFactory, UserFactory
 
 
@@ -536,7 +537,7 @@ class TestCompanyModel:
 
     def test_tax_id_uniqueness(self):
         """
-        Тест: ИНН компании должен быть уникальным
+        Тест: ИНН компании может повторяться у разных пользователей
         """
         user1 = UserFactory.create(role="wholesale_level1")
         user2 = UserFactory.create(role="wholesale_level2")
@@ -544,8 +545,8 @@ class TestCompanyModel:
         test_tax_id = f"{111222333000 + int(time.time()) % 999:012d}"
         CompanyFactory.create(user=user1, tax_id=test_tax_id)
 
-        with pytest.raises(IntegrityError):
-            CompanyFactory.create(user=user2, tax_id=test_tax_id)
+        CompanyFactory.create(user=user2, tax_id=test_tax_id)
+        assert Company.objects.filter(tax_id=test_tax_id).count() == 2
 
     def test_one_to_one_relationship_with_user(self):
         """

@@ -243,7 +243,7 @@ class TestOrderExportServiceEmptyCounterpartyId:
 
         # Act
         service = OrderExportService()
-        with caplog.at_level(logging.WARNING):
+        with caplog.at_level(logging.INFO):
             xml_str = service.generate_xml(Order.objects.filter(id=order.id))
 
         # Assert - Should use user-{id} fallback
@@ -295,7 +295,7 @@ class TestOrderExportServiceMissingOnecId:
 
         # Act
         service = OrderExportService()
-        with caplog.at_level(logging.WARNING):
+        with caplog.at_level(logging.INFO):
             xml_str = service.generate_xml(Order.objects.filter(id=order.id))
 
         # Assert - XML should be valid but Товары should be empty
@@ -466,7 +466,7 @@ class TestOrderExportServiceOrderWithoutItems:
 
         # Act
         service = OrderExportService()
-        with caplog.at_level(logging.WARNING):
+        with caplog.at_level(logging.INFO):
             xml_str = service.generate_xml(Order.objects.filter(id=order.id))
 
         # Assert
@@ -522,7 +522,7 @@ class TestOrderExportServiceVariantNone:
 
         # Act
         service = OrderExportService()
-        with caplog.at_level(logging.WARNING):
+        with caplog.at_level(logging.INFO):
             xml_str = service.generate_xml(Order.objects.filter(id=order.id))
 
         # Assert - Only valid item should be in XML
@@ -1050,10 +1050,10 @@ class TestOrderExportServicePricePrecision:
 class TestOrderExportServiceEmptyCounterparty:
     """[AI-Review] Tests for handling empty counterparty elements."""
 
-    def test_order_without_user_generates_empty_counterparties_block(self, caplog):
+    def test_order_without_user_generates_guest_counterparty(self, caplog):
         """
-        Review Follow-up: Order without user should not generate empty <Контрагент/> element.
-        Should generate empty <Контрагенты></Контрагенты> block instead.
+        Review Follow-up: Guest order should generate <Контрагент> with fallback name.
+        Контакты отсутствуют, если customer_email/phone не заданы.
         """
         # Arrange - Create order without user (guest order scenario)
         order = Order.objects.create(
@@ -1081,17 +1081,27 @@ class TestOrderExportServiceEmptyCounterparty:
 
         # Act
         service = OrderExportService()
-        with caplog.at_level(logging.WARNING):
+        with caplog.at_level(logging.INFO):
             xml_str = service.generate_xml(Order.objects.filter(id=order.id))
 
-        # Assert - Should have empty Контрагенты block, not empty Контрагент element
+        # Assert - Should have guest counterparty element
         root = ET.fromstring(xml_str)
         counterparties = root.find(".//Контрагенты")
         assert counterparties is not None
-        assert len(list(counterparties)) == 0  # No child elements
-        
-        # Should log warning about missing user
-        assert "no user associated" in caplog.text
+        assert len(list(counterparties)) == 1
+
+        counterparty = counterparties.find("Контрагент")
+        assert counterparty is not None
+        assert counterparty.find("Ид") is not None
+        name_element = counterparty.find("Наименование")
+        assert name_element is not None
+        assert "Гость" in (name_element.text or "")
+
+        # Контактов нет, если customer_email/phone не переданы
+        assert counterparty.find("Контакты") is None
+
+        # Should log info about guest order
+        assert "guest order" in caplog.text
         
         # Document should still be valid with other elements
         document = root.find("Контейнер/Документ")

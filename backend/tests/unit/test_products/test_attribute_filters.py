@@ -7,7 +7,9 @@ Story 14.6: Filtering & Facets API
 from __future__ import annotations
 
 import pytest
+from django.core.cache import cache
 from django.test import RequestFactory
+from django.urls import reverse
 from rest_framework.test import APIClient
 
 from apps.products.filters import ProductFilter
@@ -28,6 +30,10 @@ from tests.utils import get_unique_suffix
 @pytest.mark.unit
 class TestAttributeFilters:
     """Тесты для динамических фильтров атрибутов"""
+
+    @pytest.fixture(autouse=True)
+    def clear_attribute_cache(self):
+        cache.delete("active_attributes_for_filters")
 
     def test_filter_by_single_attribute_value(self):
         """AC1: Фильтр по одному значению атрибута ?attr_color=red"""
@@ -464,6 +470,10 @@ class TestAttributeFacets:
 class TestAttributeFiltersAPI:
     """Интеграционные тесты API с фильтрами атрибутов"""
 
+    @pytest.fixture(autouse=True)
+    def clear_attribute_cache(self):
+        cache.delete("active_attributes_for_filters")
+
     def test_api_filter_by_attribute(self):
         """API: Фильтрация через GET параметр ?attr_<slug>=<value>"""
         suffix = get_unique_suffix()
@@ -489,7 +499,10 @@ class TestAttributeFiltersAPI:
 
         # API запрос
         client = APIClient()
-        response = client.get(f"/api/products/?attr_color-{suffix}={red_value.slug}")
+        response = client.get(
+            reverse("products:product-list"),
+            {f"attr_color-{suffix}": red_value.slug},
+        )
 
         assert response.status_code == 200
         assert response.data["count"] >= 1
@@ -519,7 +532,7 @@ class TestAttributeFiltersAPI:
 
         # API запрос
         client = APIClient()
-        response = client.get("/api/products/")
+        response = client.get(reverse("products:product-list"))
 
         assert response.status_code == 200
         assert "facets" in response.data

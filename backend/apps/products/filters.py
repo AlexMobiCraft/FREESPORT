@@ -58,7 +58,7 @@ class ProductFilter(django_filters.FilterSet):
         for attr in active_attributes:
             filter_name = f"attr_{attr.slug}"
             # Создаем CharFilter с методом filter_attribute
-            self.filters[filter_name] = django_filters.CharFilter(
+            filter_obj = django_filters.CharFilter(
                 method="filter_attribute",
                 label=attr.name,
                 help_text=(
@@ -66,8 +66,12 @@ class ProductFilter(django_filters.FilterSet):
                     f"Поддерживает множественные значения: {filter_name}=value1,value2"
                 ),
             )
+            # Важно: динамически созданный фильтр требует parent и field_name
+            filter_obj.parent = self
+            filter_obj.field_name = filter_name
             # Сохраняем slug атрибута для использования в filter_attribute
-            self.filters[filter_name].attribute_slug = attr.slug
+            filter_obj.attribute_slug = attr.slug
+            self.filters[filter_name] = filter_obj
 
     # Фильтр по бренду (поддерживает как ID, так и slug)
     brand = django_filters.CharFilter(
