@@ -13,11 +13,7 @@ from django.test import TestCase
 from django.utils import timezone
 
 from apps.orders.models import Order
-from apps.orders.services.order_status_import import (
-    MAX_ERRORS,
-    ORDER_ID_PREFIX,
-    OrderStatusImportService,
-)
+from apps.orders.services.order_status_import import MAX_ERRORS, ORDER_ID_PREFIX, OrderStatusImportService
 from tests.conftest import get_unique_suffix
 
 

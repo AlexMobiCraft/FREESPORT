@@ -128,8 +128,12 @@ class TestImportPostRequest(TestCase):
         self.client.force_login(self.admin_user)
 
     @patch("apps.integrations.views.run_selective_import_task")
-    def test_post_images_type_creates_session_with_correct_type(self, mock_task: MagicMock) -> None:
+    @patch("apps.integrations.views.Path.exists")
+    def test_post_images_type_creates_session_with_correct_type(self, mock_exists: MagicMock, mock_task: MagicMock) -> None:
         """Проверка создания сессии с типом IMAGES при POST запросе."""
+        # Мокаем существование директории
+        mock_exists.return_value = True
+
         # Создать товары для прохождения валидации
         ProductFactory.create()
 
@@ -172,8 +176,12 @@ class TestExistingTypesRegression(TestCase):
     def setUp(self) -> None:
         """Настройка тестовых данных."""
         self.client = Client()
-        self.admin_user = User.objects.create_superuser(email="admin@test.com", password="testpass123")
+    @patch("apps.integrations.views.Path.exists")
+        self.admin_user = User.objects.create_supexises: MrgicMock, mock_tauser(email="admin@test.com", password="testpass123")
         self.client.force_login(self.admin_user)
+        # Мокаем существование директории
+        mock_exists.return_value = True
+
 
     @patch("apps.integrations.views.run_selective_import_task")
     def test_catalog_type_still_works(self, mock_task: MagicMock) -> None:

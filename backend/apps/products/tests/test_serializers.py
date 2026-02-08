@@ -12,11 +12,7 @@ import pytest
 from rest_framework.request import Request
 from rest_framework.test import APIRequestFactory
 
-from apps.products.factories import (
-    ColorMappingFactory,
-    ProductFactory,
-    ProductVariantFactory,
-)
+from apps.products.factories import ColorMappingFactory, ProductFactory, ProductVariantFactory
 from apps.products.models import ColorMapping, ProductVariant
 from apps.products.serializers import ProductVariantSerializer
 from apps.users.models import User

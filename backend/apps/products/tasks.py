@@ -76,9 +76,7 @@ def process_1c_import_task(
                 logger.info(f"Found {len(zip_files)} ZIP files in import dir. Unpacking...")
                 import zipfile
 
-                from apps.integrations.onec_exchange.routing_service import (
-                    XML_ROUTING_RULES,
-                )
+                from apps.integrations.onec_exchange.routing_service import XML_ROUTING_RULES
 
                 for zf in zip_files:
                     try:

@@ -18,19 +18,9 @@ from django.db import OperationalError
 from django.test.utils import override_settings
 from django.utils import timezone
 
-from apps.orders.constants import (
-    MAX_ERRORS,
-    ORDER_ID_PREFIX,
-    STATUS_MAPPING,
-    STATUS_MAPPING_LOWER,
-    ProcessingStatus,
-)
+from apps.orders.constants import MAX_ERRORS, ORDER_ID_PREFIX, STATUS_MAPPING, STATUS_MAPPING_LOWER, ProcessingStatus
 from apps.orders.models import Order
-from apps.orders.services.order_status_import import (
-    ImportResult,
-    OrderStatusImportService,
-    OrderUpdateData,
-)
+from apps.orders.services.order_status_import import ImportResult, OrderStatusImportService, OrderUpdateData
 from tests.conftest import get_unique_suffix
 
 pytestmark = pytest.mark.django_db
@@ -1950,11 +1940,7 @@ class TestRound13ReviewFollowups:
 
     def test_final_statuses_derived_from_order_statuses(self):
         """[AI-Review][Low] DRY: FINAL_STATUSES производное от ORDER_STATUSES."""
-        from apps.orders.constants import (
-            ALL_ORDER_STATUSES,
-            FINAL_STATUSES,
-            ORDER_STATUSES,
-        )
+        from apps.orders.constants import ALL_ORDER_STATUSES, FINAL_STATUSES, ORDER_STATUSES
 
         # ASSERT — все финальные статусы должны быть в ORDER_STATUSES
         order_status_codes = {status for status, _ in ORDER_STATUSES}
@@ -1964,11 +1950,7 @@ class TestRound13ReviewFollowups:
 
     def test_active_statuses_derived_from_order_statuses(self):
         """[AI-Review][Low] DRY: ACTIVE_STATUSES производное от ORDER_STATUSES."""
-        from apps.orders.constants import (
-            ACTIVE_STATUSES,
-            ALL_ORDER_STATUSES,
-            ORDER_STATUSES,
-        )
+        from apps.orders.constants import ACTIVE_STATUSES, ALL_ORDER_STATUSES, ORDER_STATUSES
 
         # ASSERT — все активные статусы должны быть в ORDER_STATUSES
         order_status_codes = {status for status, _ in ORDER_STATUSES}
@@ -1978,11 +1960,7 @@ class TestRound13ReviewFollowups:
 
     def test_all_order_statuses_covers_final_and_active(self):
         """[AI-Review][Low] DRY: ALL_ORDER_STATUSES = FINAL_STATUSES ∪ ACTIVE_STATUSES."""
-        from apps.orders.constants import (
-            ACTIVE_STATUSES,
-            ALL_ORDER_STATUSES,
-            FINAL_STATUSES,
-        )
+        from apps.orders.constants import ACTIVE_STATUSES, ALL_ORDER_STATUSES, FINAL_STATUSES
 
         # ASSERT — объединение должно равняться ALL_ORDER_STATUSES
         combined = FINAL_STATUSES | ACTIVE_STATUSES

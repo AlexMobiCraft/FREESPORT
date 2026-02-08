@@ -16,11 +16,7 @@ from django.db.models import Count, QuerySet
 from django.http import HttpRequest, HttpResponseRedirect
 from django.shortcuts import render
 
-from .forms import (
-    MergeAttributesActionForm,
-    MergeBrandsActionForm,
-    TransferMappingsActionForm,
-)
+from .forms import MergeAttributesActionForm, MergeBrandsActionForm, TransferMappingsActionForm
 from .models import (
     Attribute,
     Attribute1CMapping,
