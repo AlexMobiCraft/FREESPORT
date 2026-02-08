@@ -162,9 +162,13 @@ class TestImportPageSubmission:
 
     @patch("apps.integrations.views.get_redis_connection")
     @patch("apps.integrations.views.run_selective_import_task")
-    def test_post_catalog_creates_session_and_redirects(self, mock_task, mock_redis, client, admin_user, onec_data_dir):
+    @patch("apps.integrations.views.Path.exists")
+    def test_post_catalog_creates_session_and_redirects(
+        self, mock_exists, mock_task, mock_redis, client, admin_user, onec_data_dir
+    ):
         """Тест: POST с каталогом создает сессию и перенаправляет."""
         # Setup mocks
+        mock_exists.return_value = True
         mock_task.delay.return_value = MagicMock(id="test-task-123")
 
         mock_lock = MagicMock()
@@ -193,10 +197,12 @@ class TestImportPageSubmission:
 
     @patch("apps.integrations.views.get_redis_connection")
     @patch("apps.integrations.views.run_selective_import_task")
+    @patch("apps.integrations.views.Path.exists")
     def test_post_customers_creates_correct_session_type(
-        self, mock_task, mock_redis, client, admin_user, onec_data_dir
+        self, mock_exists, mock_task, mock_redis, client, admin_user, onec_data_dir
     ):
         """Тест: POST с клиентами создает сессию правильного типа."""
+        mock_exists.return_value = True
         mock_task.delay.return_value = MagicMock(id="test-task-456")
 
         mock_lock = MagicMock()
@@ -230,13 +236,15 @@ class TestImportPageSubmission:
 
     @patch("apps.integrations.views.get_redis_connection")
     @patch("apps.integrations.views.run_selective_import_task")
+    @patch("apps.integrations.views.Path.exists")
     def test_post_stocks_with_products_succeeds(
-        self, mock_task, mock_redis, client, admin_user, product_factory, onec_data_dir
+        self, mock_exists, mock_task, mock_redis, client, admin_user, product_factory, onec_data_dir
     ):
         """Тест: POST с остатками при наличии товаров успешен."""
         # Создаем товар
         product_factory()
 
+        mock_exists.return_value = True
         mock_task.delay.return_value = MagicMock(id="test-task-789")
 
         mock_lock = MagicMock()
@@ -290,8 +298,12 @@ class TestImportPageMessages:
 
     @patch("apps.integrations.views.get_redis_connection")
     @patch("apps.integrations.views.run_selective_import_task")
-    def test_successful_import_shows_success_message(self, mock_task, mock_redis, client, admin_user, onec_data_dir):
+    @patch("apps.integrations.views.Path.exists")
+    def test_successful_import_shows_success_message(
+        self, mock_exists, mock_task, mock_redis, client, admin_user, onec_data_dir
+    ):
         """Тест: успешный импорт показывает success сообщение."""
+        mock_exists.return_value = True
         mock_task.delay.return_value = MagicMock(id="test-task-999")
 
         mock_lock = MagicMock()

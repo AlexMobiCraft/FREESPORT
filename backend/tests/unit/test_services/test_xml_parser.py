@@ -456,6 +456,9 @@ class TestXMLDataParserImageParsing:
         # ARRANGE
         real_file = "data/import_1c/goods/goods_1_1_27c08306-a0aa-453b-b436-f9b494ceb889.xml"
 
+        if not os.path.exists(real_file):
+            pytest.skip(f"Real data file not found: {real_file}")
+
         # ACT
         parser = XMLDataParser()
         goods_list = parser.parse_goods_xml(real_file)
