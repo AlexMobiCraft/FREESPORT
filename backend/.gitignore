@@ -48,7 +48,7 @@ env/
 
 # pytest
 .pytest_cache/
-pytest.ini
+!pytest.ini
 
 # mypy
 .mypy_cache/
