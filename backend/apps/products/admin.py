@@ -96,9 +96,7 @@ class BrandAdmin(admin.ModelAdmin):
     def get_queryset(self, request: HttpRequest) -> QuerySet[Brand]:
         """Оптимизация запросов и аннотация количества маппингов"""
         qs = super().get_queryset(request)
-        return cast(
-            "QuerySet[Brand]", qs.annotate(mappings_count=Count("onec_mappings"))
-        )
+        return cast("QuerySet[Brand]", qs.annotate(mappings_count=Count("onec_mappings")))
 
     @admin.display(description="Маппинги 1С", ordering="mappings_count")
     def mappings_count(self, obj: Brand) -> int:
@@ -121,9 +119,7 @@ class BrandAdmin(admin.ModelAdmin):
 
                             # Перенос маппингов
                             for mapping in source_brand.onec_mappings.all():
-                                if target_brand.onec_mappings.filter(
-                                    onec_id=mapping.onec_id
-                                ).exists():
+                                if target_brand.onec_mappings.filter(onec_id=mapping.onec_id).exists():
                                     logger.warning(
                                         f"Duplicate mapping for brand {target_brand}: "
                                         f"{mapping.onec_id}. Skipping transfer."
@@ -180,9 +176,7 @@ class Brand1CMappingAdmin(admin.ModelAdmin):
     readonly_fields = ("created_at",)
 
     @admin.action(description="Перенести на другой бренд")
-    def transfer_to_brand(
-        self, request: HttpRequest, queryset: QuerySet[Brand1CMapping]
-    ) -> Any:
+    def transfer_to_brand(self, request: HttpRequest, queryset: QuerySet[Brand1CMapping]) -> Any:
         """Действие для переноса маппингов на другой бренд"""
         if "apply" in request.POST:
             form = TransferMappingsActionForm(request.POST)
@@ -192,12 +186,9 @@ class Brand1CMappingAdmin(admin.ModelAdmin):
                     with transaction.atomic():
                         count = 0
                         for mapping in queryset:
-                            if target_brand.onec_mappings.filter(
-                                onec_id=mapping.onec_id
-                            ).exists():
+                            if target_brand.onec_mappings.filter(onec_id=mapping.onec_id).exists():
                                 logger.warning(
-                                    f"Mapping {mapping.onec_id} already exists in "
-                                    f"{target_brand}. Skipping."
+                                    f"Mapping {mapping.onec_id} already exists in " f"{target_brand}. Skipping."
                                 )
                                 continue
                             mapping.brand = target_brand
@@ -305,10 +296,7 @@ class ProductAdmin(admin.ModelAdmin):
             "Изображения (Hybrid подход - Story 13.1)",
             {
                 "fields": ("base_images",),
-                "description": (
-                    "Общие изображения товара из 1С. "
-                    "Используются как fallback для вариантов."
-                ),
+                "description": ("Общие изображения товара из 1С. " "Используются как fallback для вариантов."),
             },
         ),
         (
@@ -408,25 +396,19 @@ class ProductAdmin(admin.ModelAdmin):
         self.message_user(request, f"Отмечено акцией: {updated} товаров")
 
     @admin.action(description="✗ Снять отметку акция")
-    def unmark_as_promo(
-        self, request: HttpRequest, queryset: QuerySet[Product]
-    ) -> None:
+    def unmark_as_promo(self, request: HttpRequest, queryset: QuerySet[Product]) -> None:
         """Массовое действие: снять отметку акция"""
         updated = queryset.update(is_promo=False)
         self.message_user(request, f"Снята отметка акции: {updated} товаров")
 
     @admin.action(description="✓ Отметить как премиум")
-    def mark_as_premium(
-        self, request: HttpRequest, queryset: QuerySet[Product]
-    ) -> None:
+    def mark_as_premium(self, request: HttpRequest, queryset: QuerySet[Product]) -> None:
         """Массовое действие: пометить как премиум"""
         updated = queryset.update(is_premium=True)
         self.message_user(request, f"Отмечено премиум: {updated} товаров")
 
     @admin.action(description="✗ Снять отметку премиум")
-    def unmark_as_premium(
-        self, request: HttpRequest, queryset: QuerySet[Product]
-    ) -> None:
+    def unmark_as_premium(self, request: HttpRequest, queryset: QuerySet[Product]) -> None:
         """Массовое действие: снять отметка премиум"""
         updated = queryset.update(is_premium=False)
         self.message_user(request, f"Снята отметка премиум: {updated} товаров")
@@ -445,12 +427,7 @@ class ProductAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request: HttpRequest) -> QuerySet[Product]:
         """Оптимизация запросов"""
-        return (
-            super()
-            .get_queryset(request)
-            .select_related("brand", "category")
-            .prefetch_related("variants")
-        )
+        return super().get_queryset(request).select_related("brand", "category").prefetch_related("variants")
 
 
 @admin.register(ColorMapping)
@@ -533,8 +510,7 @@ class ProductVariantAdmin(admin.ModelAdmin):
                     "gallery_images",
                 ),
                 "description": (
-                    "Собственные изображения варианта. "
-                    "Если не заданы, используются Product.base_images."
+                    "Собственные изображения варианта. " "Если не заданы, используются Product.base_images."
                 ),
             },
         ),
@@ -641,9 +617,7 @@ class AttributeAdmin(admin.ModelAdmin):
         return obj.onec_mappings.count()
 
     @admin.action(description="✅ Активировать выбранные атрибуты")
-    def activate_attributes(
-        self, request: HttpRequest, queryset: QuerySet[Attribute]
-    ) -> None:
+    def activate_attributes(self, request: HttpRequest, queryset: QuerySet[Attribute]) -> None:
         """Массовая активация атрибутов"""
         updated = queryset.update(is_active=True)
         self.message_user(
@@ -653,9 +627,7 @@ class AttributeAdmin(admin.ModelAdmin):
         )
 
     @admin.action(description="❌ Деактивировать выбранные атрибуты")
-    def deactivate_attributes(
-        self, request: HttpRequest, queryset: QuerySet[Attribute]
-    ) -> None:
+    def deactivate_attributes(self, request: HttpRequest, queryset: QuerySet[Attribute]) -> None:
         """Массовая деактивация атрибутов"""
         updated = queryset.update(is_active=False)
         self.message_user(
@@ -665,9 +637,7 @@ class AttributeAdmin(admin.ModelAdmin):
         )
 
     @admin.action(description="🔗 Объединить выбранные атрибуты")
-    def merge_attributes(
-        self, request: HttpRequest, queryset: QuerySet[Attribute]
-    ) -> Any:
+    def merge_attributes(self, request: HttpRequest, queryset: QuerySet[Attribute]) -> Any:
         """
         Действие для объединения нескольких атрибутов в один.
 
@@ -700,9 +670,7 @@ class AttributeAdmin(admin.ModelAdmin):
 
                             # 1. Перенос маппингов 1С
                             for mapping in source_attribute.onec_mappings.all():
-                                if target_attribute.onec_mappings.filter(
-                                    onec_id=mapping.onec_id
-                                ).exists():
+                                if target_attribute.onec_mappings.filter(onec_id=mapping.onec_id).exists():
                                     logger.warning(
                                         f"Duplicate mapping for attribute "
                                         f"{target_attribute}: {mapping.onec_id}. "
@@ -724,9 +692,7 @@ class AttributeAdmin(admin.ModelAdmin):
                                     # Значение уже существует - переносим только
                                     # маппинги
                                     for value_mapping in value.onec_mappings.all():
-                                        if existing_value.onec_mappings.filter(
-                                            onec_id=value_mapping.onec_id
-                                        ).exists():
+                                        if existing_value.onec_mappings.filter(onec_id=value_mapping.onec_id).exists():
                                             continue
                                         value_mapping.attribute_value = existing_value
                                         value_mapping.save()

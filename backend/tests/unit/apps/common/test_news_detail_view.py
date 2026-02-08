@@ -21,9 +21,7 @@ def create_test_image():
     image = Image.new("RGB", (100, 100), color="red")
     image.save(file_obj, "jpeg")
     file_obj.seek(0)
-    return SimpleUploadedFile(
-        "test_image.jpg", file_obj.read(), content_type="image/jpeg"
-    )
+    return SimpleUploadedFile("test_image.jpg", file_obj.read(), content_type="image/jpeg")
 
 
 @pytest.fixture

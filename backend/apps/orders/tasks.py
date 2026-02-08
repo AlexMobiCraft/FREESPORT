@@ -53,10 +53,7 @@ def send_order_confirmation_to_customer(self: Any, order_id: int) -> bool:
         customer_email = order.customer_email
 
     if not customer_email:
-        logger.warning(
-            f"Не удалось отправить email для заказа {order.order_number}: "
-            "email клиента не указан"
-        )
+        logger.warning(f"Не удалось отправить email для заказа {order.order_number}: " "email клиента не указан")
         return False
 
     subject = f"Заказ #{order.order_number} успешно оформлен - FREESPORT"
@@ -70,10 +67,7 @@ def send_order_confirmation_to_customer(self: Any, order_id: int) -> bool:
             recipient_list=[customer_email],
             fail_silently=False,
         )
-        logger.info(
-            f"Email-уведомление о заказе {order.order_number} "
-            f"отправлено на {customer_email}"
-        )
+        logger.info(f"Email-уведомление о заказе {order.order_number} " f"отправлено на {customer_email}")
         return True
     except SMTPException as exc:
         logger.error(f"Ошибка отправки email для заказа {order.order_number}: {exc}")
@@ -90,15 +84,11 @@ def _build_order_email_text(order):
         "post": "Почтовая доставка",
         "transport": "Транспортная компания",
     }
-    delivery_method_name = delivery_methods.get(
-        order.delivery_method, order.delivery_method
-    )
+    delivery_method_name = delivery_methods.get(order.delivery_method, order.delivery_method)
 
     items_text = ""
     for item in order.items.all():
-        items_text += (
-            f"  - {item.product_name} × {item.quantity}: {item.total_price} ₽\n"
-        )
+        items_text += f"  - {item.product_name} × {item.quantity}: {item.total_price} ₽\n"
 
     message = f"""
 Здравствуйте, {customer_name}!
@@ -195,9 +185,7 @@ def send_order_notification_email(self: Any, order_id: int) -> bool:
         "customer_name": customer_name,
         "customer_email": customer_email,
         "customer_phone": customer_phone,
-        "delivery_method": delivery_methods.get(
-            order.delivery_method, order.delivery_method
-        ),
+        "delivery_method": delivery_methods.get(order.delivery_method, order.delivery_method),
         "admin_url": f"{getattr(settings, 'SITE_URL', 'http://localhost:8001')}/admin/orders/order/{order.id}/change/",
     }
 

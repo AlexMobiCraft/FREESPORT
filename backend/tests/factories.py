@@ -61,9 +61,7 @@ class ProductVariantFactory(DjangoModelFactory):
     product = factory.SubFactory("tests.factories.ProductFactory", create_variant=False)
     sku = factory.LazyAttribute(lambda obj: f"SKU-{uuid.uuid4().hex[:12].upper()}")
     onec_id = factory.LazyAttribute(lambda obj: f"1C-{uuid.uuid4().hex[:16]}")
-    retail_price = factory.Faker(
-        "pydecimal", left_digits=4, right_digits=2, positive=True, min_value=100
-    )
+    retail_price = factory.Faker("pydecimal", left_digits=4, right_digits=2, positive=True, min_value=100)
     stock_quantity = factory.Faker("random_int", min=0, max=100)
     reserved_quantity = 0
 
@@ -83,9 +81,7 @@ class ProductFactory(DjangoModelFactory):
     name = factory.Faker("catch_phrase")
     brand = factory.SubFactory(BrandFactory)
     category = factory.SubFactory(CategoryFactory)
-    slug = factory.LazyAttribute(
-        lambda obj: slugify(obj.name) + "-" + str(uuid.uuid4())[:8]
-    )
+    slug = factory.LazyAttribute(lambda obj: slugify(obj.name) + "-" + str(uuid.uuid4())[:8])
     description = factory.Faker("paragraph")
     is_active = True
 

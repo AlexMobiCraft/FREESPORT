@@ -52,28 +52,19 @@ class Command(BaseCommand):
 
         # Проверка расширения файла
         if backup_path.suffix not in [".sql", ".gpg"]:
-            self.stdout.write(
-                self.style.WARNING(
-                    f"⚠️ Неожиданное расширение файла: {backup_path.suffix}"
-                )
-            )
+            self.stdout.write(self.style.WARNING(f"⚠️ Неожиданное расширение файла: {backup_path.suffix}"))
 
         # Получаем настройки базы данных
         db_settings = settings.DATABASES["default"]
 
         if db_settings["ENGINE"] != "django.db.backends.postgresql":
             raise CommandError(
-                f"Unsupported database engine: {db_settings['ENGINE']}. "
-                "Only PostgreSQL is supported."
+                f"Unsupported database engine: {db_settings['ENGINE']}. " "Only PostgreSQL is supported."
             )
 
         # Подтверждение действия
         if not confirm:
-            self.stdout.write(
-                self.style.WARNING(
-                    "\n⚠️  ВНИМАНИЕ: Эта операция ПЕРЕЗАПИШЕТ текущую базу данных!"
-                )
-            )
+            self.stdout.write(self.style.WARNING("\n⚠️  ВНИМАНИЕ: Эта операция ПЕРЕЗАПИШЕТ текущую базу данных!"))
             self.stdout.write(f"База данных: {db_settings['NAME']}")
             self.stdout.write(f"Backup файл: {backup_path}")
             user_confirm = input("\nВы уверены? Введите 'yes' для подтверждения: ")
@@ -111,14 +102,10 @@ class Command(BaseCommand):
 
         try:
             # Выполняем команду
-            result = subprocess.run(
-                cmd, env=env, capture_output=True, text=True, check=True
-            )
+            result = subprocess.run(cmd, env=env, capture_output=True, text=True, check=True)
 
             if result.returncode == 0:
-                self.stdout.write(
-                    self.style.SUCCESS("✅ База данных успешно восстановлена")
-                )
+                self.stdout.write(self.style.SUCCESS("✅ База данных успешно восстановлена"))
 
                 # Очищаем временный расшифрованный файл
                 if actual_backup != backup_path and actual_backup.exists():
@@ -130,16 +117,10 @@ class Command(BaseCommand):
         except subprocess.CalledProcessError as e:
             raise CommandError(f"Restore failed: {e.stderr}")
         except FileNotFoundError:
-            raise CommandError(
-                "psql not found. Убедитесь что PostgreSQL client установлен."
-            )
+            raise CommandError("psql not found. Убедитесь что PostgreSQL client установлен.")
         finally:
             # Очищаем временный файл даже при ошибке
-            if (
-                actual_backup != backup_path
-                and actual_backup.exists()
-                and actual_backup.suffix == ".tmp"
-            ):
+            if actual_backup != backup_path and actual_backup.exists() and actual_backup.suffix == ".tmp":
                 actual_backup.unlink()
 
     def _decrypt_backup(self, encrypted_file: Path) -> Path:
@@ -162,14 +143,10 @@ class Command(BaseCommand):
                 return decrypted_file
             else:
                 raise CommandError(
-                    f"Расшифровка не удалась: {decrypted.status}. "
-                    "Проверьте что у вас есть приватный ключ."
+                    f"Расшифровка не удалась: {decrypted.status}. " "Проверьте что у вас есть приватный ключ."
                 )
 
         except ImportError:
-            raise CommandError(
-                "python-gnupg не установлен. "
-                "Установите для работы с зашифрованными backup файлами."
-            )
+            raise CommandError("python-gnupg не установлен. " "Установите для работы с зашифрованными backup файлами.")
         except Exception as e:
             raise CommandError(f"Ошибка расшифровки: {e}")

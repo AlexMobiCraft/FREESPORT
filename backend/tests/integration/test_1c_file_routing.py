@@ -52,9 +52,7 @@ def staff_user(db):
 def authenticated_client(staff_user):
     """Create an API client with an established session (post-checkauth)."""
     client = APIClient()
-    auth_header = "Basic " + base64.b64encode(
-        b"1c_routing@example.com:secure_password_routing"
-    ).decode("ascii")
+    auth_header = "Basic " + base64.b64encode(b"1c_routing@example.com:secure_password_routing").decode("ascii")
     # Establish session via checkauth
     response = client.get(
         "/api/integration/1c/exchange/",

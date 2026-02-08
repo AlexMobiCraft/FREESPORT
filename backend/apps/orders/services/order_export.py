@@ -150,9 +150,7 @@ class OrderExportService:
         self._add_text_element(document, "Роль", self.ROLE)
         self._add_text_element(document, "Валюта", self.CURRENCY)
         self._add_text_element(document, "Курс", self.EXCHANGE_RATE)
-        self._add_text_element(
-            document, "Сумма", self._format_price(order.total_amount)
-        )
+        self._add_text_element(document, "Сумма", self._format_price(order.total_amount))
 
         # Блок контрагентов
         counterparties = self._create_counterparties_element(order)
@@ -186,12 +184,8 @@ class OrderExportService:
 
             # Наименование: company_name для B2B или full_name для B2C
             if user.is_b2b_user and user.company_name:
-                self._add_text_element(
-                    counterparty, "Наименование", str(user.company_name)
-                )
-                self._add_text_element(
-                    counterparty, "ПолноеНаименование", str(user.company_name)
-                )
+                self._add_text_element(counterparty, "Наименование", str(user.company_name))
+                self._add_text_element(counterparty, "ПолноеНаименование", str(user.company_name))
             else:
                 name = str(user.full_name or user.email or "")
                 self._add_text_element(counterparty, "Наименование", name)
@@ -221,11 +215,7 @@ class OrderExportService:
             self._add_text_element(counterparty, "Ид", counterparty_id)
 
             # Наименование from customer_name or email
-            name = (
-                order.customer_name
-                or order.customer_email
-                or f"Гость #{order.order_number}"
-            )
+            name = order.customer_name or order.customer_email or f"Гость #{order.order_number}"
             self._add_text_element(counterparty, "Наименование", name)
 
             # Контакты from order fields
@@ -243,16 +233,12 @@ class OrderExportService:
             if len(contacts) > 0:
                 counterparty.append(contacts)
 
-            logger.info(
-                f"Order {order.order_number}: guest order, using customer fields for counterparty"
-            )
+            logger.info(f"Order {order.order_number}: guest order, using customer fields for counterparty")
 
         # Адрес регистрации (common for both user and guest orders)
         if order.delivery_address:
             address_reg = ET.Element("АдресРегистрации")
-            self._add_text_element(
-                address_reg, "Представление", str(order.delivery_address)
-            )
+            self._add_text_element(address_reg, "Представление", str(order.delivery_address))
             counterparty.append(address_reg)
 
         counterparties.append(counterparty)
@@ -265,17 +251,12 @@ class OrderExportService:
         for item in order.items.all():
             # Defensive check: пропуск OrderItem с variant=None
             if item.variant is None:
-                logger.warning(
-                    f"OrderItem {item.id}: variant is None (deleted?), skipping"
-                )
+                logger.warning(f"OrderItem {item.id}: variant is None (deleted?), skipping")
                 continue
 
             # Defensive check: пропуск товара без onec_id
             if not item.variant.onec_id:
-                logger.warning(
-                    f"OrderItem {item.id}: ProductVariant {item.variant.id} "
-                    f"missing onec_id, skipping"
-                )
+                logger.warning(f"OrderItem {item.id}: ProductVariant {item.variant.id} " f"missing onec_id, skipping")
                 continue
 
             product = ET.Element("Товар")
@@ -291,13 +272,9 @@ class OrderExportService:
             unit.text = ud["name_short"]
             product.append(unit)
 
-            self._add_text_element(
-                product, "ЦенаЗаЕдиницу", self._format_price(item.unit_price)
-            )
+            self._add_text_element(product, "ЦенаЗаЕдиницу", self._format_price(item.unit_price))
             self._add_text_element(product, "Количество", str(item.quantity))
-            self._add_text_element(
-                product, "Сумма", self._format_price(item.total_price)
-            )
+            self._add_text_element(product, "Сумма", self._format_price(item.total_price))
 
             products.append(product)
 

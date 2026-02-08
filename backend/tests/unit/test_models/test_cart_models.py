@@ -64,21 +64,16 @@ class TestCartModel:
         wholesale_user = UserFactory.create(role="wholesale_level1")
         cart = CartFactory.create(user=wholesale_user)
 
-        product = ProductFactory.create(
-            retail_price=Decimal("1000.00"), opt1_price=Decimal("900.00")
-        )
+        product = ProductFactory.create(retail_price=Decimal("1000.00"), opt1_price=Decimal("900.00"))
         variant = product.variants.first()
 
         # Обычно цена фиксируется в price_snapshot при добавлении в корзину
         # Логика определения цены лежит в сервисе корзины, но фабрика эмулирует это
-        item = CartItemFactory.create(
-            cart=cart, variant=variant, quantity=1, price_snapshot=Decimal("900.00")
-        )
+        item = CartItemFactory.create(cart=cart, variant=variant, quantity=1, price_snapshot=Decimal("900.00"))
 
         # Проверяем, что snapshot сохранился корректно
         assert item.price_snapshot == Decimal("900.00"), (
-            f"Snapshot is {item.price_snapshot}, expected 900.00. "
-            f"Variant retail: {variant.retail_price}"
+            f"Snapshot is {item.price_snapshot}, expected 900.00. " f"Variant retail: {variant.retail_price}"
         )
 
         # Должна использоваться цена из snapshot (оптовая)
@@ -136,15 +131,11 @@ class TestCartItemModel:
         """Тест стоимости элемента для разных ролей пользователей"""
         trainer_user = UserFactory.create(role="trainer")
         cart = CartFactory.create(user=trainer_user)
-        product = ProductFactory.create(
-            retail_price=Decimal("1000.00"), trainer_price=Decimal("850.00")
-        )
+        product = ProductFactory.create(retail_price=Decimal("1000.00"), trainer_price=Decimal("850.00"))
         variant = product.variants.first()
 
         # Эмулируем добавление с ценой тренера
-        item = CartItemFactory.create(
-            cart=cart, variant=variant, quantity=2, price_snapshot=Decimal("850.00")
-        )
+        item = CartItemFactory.create(cart=cart, variant=variant, quantity=2, price_snapshot=Decimal("850.00"))
 
         # Должна использоваться цена тренера
         assert item.total_price == Decimal("1700.00")
@@ -195,9 +186,7 @@ class TestCartItemModel:
             item = CartItemFactory.build(cart=cart, variant=variant, quantity=10)
             item.full_clean()
 
-    @pytest.mark.skip(
-        reason="Validation for min_order_quantity not implemented in CartItem model yet"
-    )
+    @pytest.mark.skip(reason="Validation for min_order_quantity not implemented in CartItem model yet")
     def test_cart_item_validation_min_order_quantity(self):
         """Тест валидации минимального количества заказа"""
         # min_order_quantity находится в Product, но проверяется для варианта

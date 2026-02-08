@@ -29,9 +29,7 @@ class TestOrderDetailSerializer:
         """Тест сериализации заказа"""
         user = user_factory.create()
         address = address_factory.create(user=user)
-        order = order_factory.create(
-            user=user, delivery_address=address, status="pending"
-        )
+        order = order_factory.create(user=user, delivery_address=address, status="pending")
 
         serializer = OrderDetailSerializer(order)
         data = serializer.data  # type: ignore
@@ -59,19 +57,13 @@ class TestOrderDetailSerializer:
         assert "items" in data
         assert data["customer_display_name"] == "John Doe"  # type: ignore
 
-    def test_order_with_items_serialization(
-        self, user_factory, order_factory, product_factory, order_item_factory
-    ):
+    def test_order_with_items_serialization(self, user_factory, order_factory, product_factory, order_item_factory):
         """Тест сериализации заказа с товарами"""
         user = user_factory.create()
         order = order_factory.create(user=user)
 
-        product1 = product_factory.create(
-            name="Товар 1", retail_price=Decimal("1000.00")
-        )
-        product2 = product_factory.create(
-            name="Товар 2", retail_price=Decimal("1500.00")
-        )
+        product1 = product_factory.create(name="Товар 1", retail_price=Decimal("1000.00"))
+        product2 = product_factory.create(name="Товар 2", retail_price=Decimal("1500.00"))
 
         order_item_factory.create(
             order=order,
@@ -113,15 +105,11 @@ class TestOrderDetailSerializer:
 class TestOrderItemSerializer:
     """Тесты сериализатора элементов заказа"""
 
-    def test_order_item_serialization(
-        self, user_factory, order_factory, product_factory, order_item_factory
-    ):
+    def test_order_item_serialization(self, user_factory, order_factory, product_factory, order_item_factory):
         """Тест сериализации элемента заказа"""
         user = user_factory.create()
         order = order_factory.create(user=user)
-        product = product_factory.create(
-            name="Тестовый товар", retail_price=Decimal("1500.00")
-        )
+        product = product_factory.create(name="Тестовый товар", retail_price=Decimal("1500.00"))
 
         order_item = order_item_factory.create(
             order=order,
@@ -152,9 +140,7 @@ class TestOrderItemSerializer:
         """Тест элемента заказа со скидкой"""
         product = product_factory.create(retail_price=Decimal("1000.00"))
 
-        order_item = order_item_factory.create(
-            product=product, quantity=1, unit_price=Decimal("500.00")
-        )
+        order_item = order_item_factory.create(product=product, quantity=1, unit_price=Decimal("500.00"))
 
         serializer = OrderItemSerializer(order_item)
         data = serializer.data
@@ -223,14 +209,10 @@ class TestOrderCreateSerializer:
                 }
             )
 
-    def test_validate_insufficient_stock(
-        self, user_factory, cart_factory, product_factory, cart_item_factory
-    ):
+    def test_validate_insufficient_stock(self, user_factory, cart_factory, product_factory, cart_item_factory):
         """Тест валидации недостаточного количества товара"""
         user = user_factory.create()
-        product = product_factory.create(
-            stock_quantity=10
-        )  # Создаем с достаточным запасом
+        product = product_factory.create(stock_quantity=10)  # Создаем с достаточным запасом
         cart = cart_factory.create(user=user)
         cart_item_factory.create(cart=cart, product=product, quantity=5)
 
@@ -396,12 +378,8 @@ class TestOrderListSerializer:
     def test_order_list_serialization(self, user_factory, order_factory):
         """Тест сериализации списка заказов"""
         user = user_factory.create()
-        order1 = order_factory.create(
-            user=user, status="pending", total_amount=Decimal("1000.00")
-        )
-        order2 = order_factory.create(
-            user=user, status="confirmed", total_amount=Decimal("2000.00")
-        )
+        order1 = order_factory.create(user=user, status="pending", total_amount=Decimal("1000.00"))
+        order2 = order_factory.create(user=user, status="confirmed", total_amount=Decimal("2000.00"))
 
         orders = [order1, order2]
         serializer = OrderListSerializer(orders, many=True)
@@ -462,9 +440,7 @@ class TestOrderDetailExtended:
         assert "delivery_method" in data
         assert len(data["items"]) == 1  # type: ignore
 
-    def test_order_detail_performance(
-        self, user_factory, order_factory, product_factory, order_item_factory
-    ):
+    def test_order_detail_performance(self, user_factory, order_factory, product_factory, order_item_factory):
         """Тест производительности детального сериализатора"""
         user = user_factory.create()
         order = order_factory.create(user=user)
@@ -562,9 +538,7 @@ class TestOrderIntegration:
         mock_request = Mock()
         mock_request.user = user
 
-        create_serializer = OrderCreateSerializer(
-            data=create_data, context={"request": mock_request}
-        )
+        create_serializer = OrderCreateSerializer(data=create_data, context={"request": mock_request})
         assert create_serializer.is_valid()
         order = create_serializer.save()
 
@@ -614,9 +588,7 @@ class TestOrderIntegration:
         assert len(data["items"]) == 10  # type: ignore
         assert "total_amount" in data
 
-    def test_b2b_order_workflow(
-        self, user_factory, address_factory, order_factory, order_item_factory
-    ):
+    def test_b2b_order_workflow(self, user_factory, address_factory, order_factory, order_item_factory):
         """Тест рабочего процесса B2B заказа"""
         b2b_user = user_factory.create(role="wholesale_level1")
         orders = order_factory.create_batch(3, user=b2b_user)

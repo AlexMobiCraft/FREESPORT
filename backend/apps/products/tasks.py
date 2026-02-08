@@ -54,9 +54,7 @@ def process_1c_import_task(
                 file_service.unpack_zip(zip_filename, import_dir_path)
 
                 timestamp = timezone.now().strftime("%Y-%m-%d %H:%M:%S")
-                session.report += (
-                    f"[{timestamp}] Архив {zip_filename} успешно распакован.\n"
-                )
+                session.report += f"[{timestamp}] Архив {zip_filename} успешно распакован.\n"
                 session.save(update_fields=["report"])
             except Exception as e:
                 timestamp = timezone.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -70,16 +68,12 @@ def process_1c_import_task(
         # Story 3.2: Defered Unpacking
         # Files (including ZIPs) are already moved to import_dir by the view (handle_complete).
         # We need to find them there and unpack.
-        target_import_dir = (
-            Path(data_dir) if data_dir else (Path(settings.MEDIA_ROOT) / "1c_import")
-        )
+        target_import_dir = Path(data_dir) if data_dir else (Path(settings.MEDIA_ROOT) / "1c_import")
 
         if target_import_dir.exists():
             zip_files = list(target_import_dir.glob("*.zip"))
             if zip_files:
-                logger.info(
-                    f"Found {len(zip_files)} ZIP files in import dir. Unpacking..."
-                )
+                logger.info(f"Found {len(zip_files)} ZIP files in import dir. Unpacking...")
                 import zipfile
 
                 from apps.integrations.onec_exchange.routing_service import (
@@ -141,9 +135,7 @@ def process_1c_import_task(
                                     shutil.move(str(file_path), str(dest_path))
                                     routed_count += 1
                                 except Exception as move_err:
-                                    logger.warning(
-                                        f"Failed to route {filename}: {move_err}"
-                                    )
+                                    logger.warning(f"Failed to route {filename}: {move_err}")
 
                         timestamp = timezone.now().strftime("%Y-%m-%d %H:%M:%S")
                         session.report += (
@@ -160,9 +152,7 @@ def process_1c_import_task(
 
                     except Exception as e:
                         logger.error(f"Failed to unpack {zf.name}: {e}")
-                        session.report += (
-                            f"[{timezone.now()}] Ошибка распаковки {zf.name}: {e}\n"
-                        )
+                        session.report += f"[{timezone.now()}] Ошибка распаковки {zf.name}: {e}\n"
 
                 session.save(update_fields=["report"])
 
@@ -187,9 +177,7 @@ def process_1c_import_task(
             # Debug: Log directory structure
             try:
                 files = list(import_path.rglob("*"))
-                logger.info(
-                    f"Import directory ready: {data_dir} ({len(files)} items found)"
-                )
+                logger.info(f"Import directory ready: {data_dir} ({len(files)} items found)")
             except Exception as e:
                 logger.warning(f"Failed to list directory contents: {e}")
 
@@ -199,11 +187,7 @@ def process_1c_import_task(
         detected_file_type = "all"
         if zip_filename:
             fn_lower = zip_filename.lower()
-            if (
-                fn_lower.startswith("goods")
-                or fn_lower.startswith("import")
-                or fn_lower.startswith("propertiesgoods")
-            ):
+            if fn_lower.startswith("goods") or fn_lower.startswith("import") or fn_lower.startswith("propertiesgoods"):
                 detected_file_type = "goods"
             elif fn_lower.startswith("offers"):
                 detected_file_type = "offers"
@@ -235,9 +219,7 @@ def process_1c_import_task(
             session.status = ImportSession.ImportStatus.COMPLETED
             session.finished_at = timezone.now()
             session.report += f"[{timestamp}] Импорт успешно завершен.\n"
-            session.save(
-                update_fields=["status", "finished_at", "report", "updated_at"]
-            )
+            session.save(update_fields=["status", "finished_at", "report", "updated_at"])
 
         return "success"
 
@@ -269,9 +251,7 @@ def process_1c_import_task(
                 session.error_message = msg
 
             session.report += f"[{timestamp}] {error_prefix}: {msg}\n"
-            session.save(
-                update_fields=["status", "error_message", "report", "updated_at"]
-            )
+            session.save(update_fields=["status", "error_message", "report", "updated_at"])
         except Exception as db_err:
             logger.critical(f"Failed to update session status after error: {db_err}")
 
@@ -297,11 +277,7 @@ def cleanup_stale_import_sessions() -> int:
             session.status = ImportSession.ImportStatus.FAILED
             session.error_message = "Зависла/Таймаут (не обновлялась более 2 часов)"
             timestamp = timezone.now().strftime("%Y-%m-%d %H:%M:%S")
-            session.report += (
-                f"[{timestamp}] Сессия помечена как зависшая инструментом очистки.\n"
-            )
-            session.save(
-                update_fields=["status", "error_message", "report", "updated_at"]
-            )
+            session.report += f"[{timestamp}] Сессия помечена как зависшая инструментом очистки.\n"
+            session.save(update_fields=["status", "error_message", "report", "updated_at"])
 
     return count

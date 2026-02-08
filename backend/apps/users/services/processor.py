@@ -86,9 +86,7 @@ class CustomerDataProcessor:
                 email = customer_data.get("email", "").strip()
                 if email:
                     if not self._validate_email(email):
-                        logger.warning(
-                            f"Невалидный email для клиента {onec_id}: {email}"
-                        )
+                        logger.warning(f"Невалидный email для клиента {onec_id}: {email}")
                         self._log_operation(
                             user=None,
                             onec_id=onec_id,
@@ -156,9 +154,7 @@ class CustomerDataProcessor:
             )
             return None
 
-    def process_customers(
-        self, customers_data: list[dict[str, Any]], chunk_size: int = 100
-    ) -> dict[str, int]:
+    def process_customers(self, customers_data: list[dict[str, Any]], chunk_size: int = 100) -> dict[str, int]:
         """
         Обрабатывает список клиентов пакетами.
 
@@ -317,9 +313,7 @@ class CustomerDataProcessor:
         email = customer_data.get("email", "").strip()
         first_name = customer_data.get("first_name", "").strip()
         last_name = customer_data.get("last_name", "").strip()
-        phone = self._normalize_phone(
-            customer_data.get("phone", "")
-        )  # Нормализация телефона
+        phone = self._normalize_phone(customer_data.get("phone", ""))  # Нормализация телефона
         company_name = customer_data.get("company_name", "").strip()
         tax_id = customer_data.get("tax_id", "").strip()
         onec_id = customer_data.get("onec_id")
@@ -353,14 +347,10 @@ class CustomerDataProcessor:
         if customer_type in ["legal_entity", "individual_entrepreneur"]:
             self._create_or_update_company(user, customer_data)
 
-        logger.info(
-            f"Создан новый пользователь: {str(user.email or onec_id)} (role={role})"
-        )
+        logger.info(f"Создан новый пользователь: {str(user.email or onec_id)} (role={role})")
         return user
 
-    def _update_customer(
-        self, user: User, customer_data: dict[str, Any], role: str
-    ) -> User:
+    def _update_customer(self, user: User, customer_data: dict[str, Any], role: str) -> User:
         """
         Обновляет существующего пользователя данными из 1С.
 
@@ -395,9 +385,7 @@ class CustomerDataProcessor:
         if customer_type in ["legal_entity", "individual_entrepreneur"]:
             self._create_or_update_company(user, customer_data)
 
-        logger.info(
-            f"Обновлен пользователь: {str(user.email or user.onec_id)} (role={role})"
-        )
+        logger.info(f"Обновлен пользователь: {str(user.email or user.onec_id)} (role={role})")
         return user
 
     def _log_operation(
@@ -433,9 +421,7 @@ class CustomerDataProcessor:
             correlation_id=uuid.uuid4(),  # Обязательное поле UUID
         )
 
-    def _create_or_update_company(
-        self, user: User, customer_data: dict[str, Any]
-    ) -> Company:
+    def _create_or_update_company(self, user: User, customer_data: dict[str, Any]) -> Company:
         """
         Создает или обновляет объект Company для B2B клиента.
 
@@ -471,8 +457,6 @@ class CustomerDataProcessor:
                 kpp=kpp,
                 legal_address=legal_address,
             )
-            logger.info(
-                f"Создана компания '{legal_name}' для пользователя {user.onec_id}"
-            )
+            logger.info(f"Создана компания '{legal_name}' для пользователя {user.onec_id}")
 
         return company

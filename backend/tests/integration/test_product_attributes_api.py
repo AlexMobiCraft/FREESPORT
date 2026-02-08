@@ -367,9 +367,7 @@ class TestAttributesQueryOptimization:
 
         return {"products": products}
 
-    def test_product_list_query_optimization(
-        self, api_client, setup_multiple_products, django_assert_num_queries
-    ):
+    def test_product_list_query_optimization(self, api_client, setup_multiple_products, django_assert_num_queries):
         """
         Проверяет оптимизацию запросов при получении списка продуктов
 
@@ -404,9 +402,7 @@ class TestAttributesQueryOptimization:
         for product in results:
             assert "attributes" in product
 
-    def test_product_detail_query_optimization(
-        self, api_client, setup_multiple_products, django_assert_num_queries
-    ):
+    def test_product_detail_query_optimization(self, api_client, setup_multiple_products, django_assert_num_queries):
         """
         Проверяет оптимизацию запросов при получении детальной информации о продукте
 

@@ -109,20 +109,14 @@ class Order(models.Model):
     )
 
     # Информация о клиенте (для гостевых заказов)
-    customer_name = cast(
-        str, models.CharField("Имя клиента", max_length=200, blank=True)
-    )
+    customer_name = cast(str, models.CharField("Имя клиента", max_length=200, blank=True))
     customer_email = cast(str, models.EmailField("Email клиента", blank=True))
-    customer_phone = cast(
-        str, models.CharField("Телефон клиента", max_length=20, blank=True)
-    )
+    customer_phone = cast(str, models.CharField("Телефон клиента", max_length=20, blank=True))
 
     # Детали заказа
     status = cast(
         str,
-        models.CharField(
-            "Статус заказа", max_length=50, choices=ORDER_STATUSES, default="pending"
-        ),
+        models.CharField("Статус заказа", max_length=50, choices=ORDER_STATUSES, default="pending"),
     )
     total_amount = cast(
         Decimal,
@@ -160,9 +154,7 @@ class Order(models.Model):
         str,
         models.CharField("Способ доставки", max_length=50, choices=DELIVERY_METHODS),
     )
-    delivery_date = cast(
-        "date | None", models.DateField("Дата доставки", null=True, blank=True)
-    )
+    delivery_date = cast("date | None", models.DateField("Дата доставки", null=True, blank=True))
     tracking_number = cast(
         str,
         models.CharField(
@@ -173,18 +165,12 @@ class Order(models.Model):
         ),
     )
     # Информация об оплате
-    payment_method = cast(
-        str, models.CharField("Способ оплаты", max_length=50, choices=PAYMENT_METHODS)
-    )
+    payment_method = cast(str, models.CharField("Способ оплаты", max_length=50, choices=PAYMENT_METHODS))
     payment_status = cast(
         str,
-        models.CharField(
-            "Статус оплаты", max_length=50, choices=PAYMENT_STATUSES, default="pending"
-        ),
+        models.CharField("Статус оплаты", max_length=50, choices=PAYMENT_STATUSES, default="pending"),
     )
-    payment_id = cast(
-        str, models.CharField("ID платежа (ЮKassa)", max_length=100, blank=True)
-    )
+    payment_id = cast(str, models.CharField("ID платежа (ЮKassa)", max_length=100, blank=True))
 
     # Интеграция с 1С
     sent_to_1c = cast(
@@ -220,9 +206,7 @@ class Order(models.Model):
     notes = cast(str, models.TextField("Комментарии к заказу", blank=True))
 
     # Временные метки
-    created_at = cast(
-        datetime, models.DateTimeField("Дата создания", auto_now_add=True)
-    )
+    created_at = cast(datetime, models.DateTimeField("Дата создания", auto_now_add=True))
     updated_at = cast(datetime, models.DateTimeField("Дата обновления", auto_now=True))
 
     class Meta:
@@ -312,15 +296,11 @@ class OrderItem(models.Model):
 
     order = cast(
         Order,
-        models.ForeignKey(
-            Order, on_delete=models.CASCADE, related_name="items", verbose_name="Заказ"
-        ),
+        models.ForeignKey(Order, on_delete=models.CASCADE, related_name="items", verbose_name="Заказ"),
     )
     product = cast(
         "ProductType | None",
-        models.ForeignKey(
-            "products.Product", on_delete=models.CASCADE, verbose_name="Товар"
-        ),
+        models.ForeignKey("products.Product", on_delete=models.CASCADE, verbose_name="Товар"),
     )
     variant = cast(
         "ProductVariantType | None",
@@ -369,9 +349,7 @@ class OrderItem(models.Model):
         ),
     )
 
-    created_at = cast(
-        datetime, models.DateTimeField("Дата создания", auto_now_add=True)
-    )
+    created_at = cast(datetime, models.DateTimeField("Дата создания", auto_now_add=True))
     updated_at = cast(datetime, models.DateTimeField("Дата обновления", auto_now=True))
 
     class Meta:

@@ -20,14 +20,10 @@ class CartOrderIntegrationTest(TestCase):
     def setUp(self):
         self.client = APIClient()
 
-        self.user = User.objects.create_user(
-            email="test@example.com", password="testpass123", role="retail"
-        )
+        self.user = User.objects.create_user(email="test@example.com", password="testpass123", role="retail")
 
         # Создаем товары
-        self.category = Category.objects.create(
-            name="Test Category", slug="test-category"
-        )
+        self.category = Category.objects.create(name="Test Category", slug="test-category")
         self.brand = Brand.objects.create(name="Test Brand", slug="test-brand")
         self.product1 = Product.objects.create(
             name="Test Product 1",
@@ -66,12 +62,8 @@ class CartOrderIntegrationTest(TestCase):
         self.client.force_authenticate(user=self.user)
 
         # 1. Добавляем товары в корзину
-        self.client.post(
-            "/api/v1/cart/items/", {"variant_id": self.variant1.id, "quantity": 2}
-        )
-        self.client.post(
-            "/api/v1/cart/items/", {"variant_id": self.variant2.id, "quantity": 1}
-        )
+        self.client.post("/api/v1/cart/items/", {"variant_id": self.variant1.id, "quantity": 2})
+        self.client.post("/api/v1/cart/items/", {"variant_id": self.variant2.id, "quantity": 1})
 
         # 2. Проверяем корзину
         cart_response = self.client.get("/api/v1/cart/")
@@ -114,9 +106,7 @@ class CartOrderIntegrationTest(TestCase):
         self.client.force_authenticate(user=self.user)
 
         # Добавляем товар в корзину
-        self.client.post(
-            "/api/v1/cart/items/", {"variant_id": self.variant1.id, "quantity": 1}
-        )
+        self.client.post("/api/v1/cart/items/", {"variant_id": self.variant1.id, "quantity": 1})
 
         # Получаем цену из корзины
         cart_response = self.client.get("/api/v1/cart/")
@@ -157,9 +147,7 @@ class CartOrderIntegrationTest(TestCase):
         self.client.force_authenticate(user=self.user)
 
         # Добавляем товар в корзину
-        self.client.post(
-            "/api/v1/cart/items/", {"variant_id": self.variant1.id, "quantity": 2}
-        )
+        self.client.post("/api/v1/cart/items/", {"variant_id": self.variant1.id, "quantity": 2})
 
         # Уменьшаем остаток товара
         self.variant1.stock_quantity = 1
@@ -181,9 +169,7 @@ class CartOrderIntegrationTest(TestCase):
         self.client.force_authenticate(user=self.user)
 
         # Добавляем товар в корзину
-        self.client.post(
-            "/api/v1/cart/items/", {"variant_id": self.variant1.id, "quantity": 1}
-        )
+        self.client.post("/api/v1/cart/items/", {"variant_id": self.variant1.id, "quantity": 1})
 
         # Получаем начальное количество заказов
         initial_orders_count = Order.objects.count()

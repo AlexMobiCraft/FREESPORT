@@ -162,9 +162,7 @@ class TestImportPageSubmission:
 
     @patch("apps.integrations.views.get_redis_connection")
     @patch("apps.integrations.views.run_selective_import_task")
-    def test_post_catalog_creates_session_and_redirects(
-        self, mock_task, mock_redis, client, admin_user, onec_data_dir
-    ):
+    def test_post_catalog_creates_session_and_redirects(self, mock_task, mock_redis, client, admin_user, onec_data_dir):
         """Тест: POST с каталогом создает сессию и перенаправляет."""
         # Setup mocks
         mock_task.delay.return_value = MagicMock(id="test-task-123")
@@ -176,9 +174,7 @@ class TestImportPageSubmission:
         client.force_login(admin_user)
 
         # Execute
-        response = client.post(
-            "/admin/integrations/import_1c/", {"import_type": "catalog"}
-        )
+        response = client.post("/admin/integrations/import_1c/", {"import_type": "catalog"})
 
         # Assert
         assert response.status_code == 302
@@ -209,9 +205,7 @@ class TestImportPageSubmission:
 
         client.force_login(admin_user)
 
-        response = client.post(
-            "/admin/integrations/import_1c/", {"import_type": "customers"}
-        )
+        response = client.post("/admin/integrations/import_1c/", {"import_type": "customers"})
 
         assert response.status_code == 302
 
@@ -219,9 +213,7 @@ class TestImportPageSubmission:
         assert session.import_type == ImportSession.ImportType.CUSTOMERS
 
     @patch("apps.integrations.views.get_redis_connection")
-    def test_post_stocks_without_products_shows_error(
-        self, mock_redis, client, admin_user, db
-    ):
+    def test_post_stocks_without_products_shows_error(self, mock_redis, client, admin_user, db):
         """Тест: POST с остатками без товаров показывает ошибку."""
         # БД пуста, товаров нет
         mock_lock = MagicMock()
@@ -230,9 +222,7 @@ class TestImportPageSubmission:
 
         client.force_login(admin_user)
 
-        response = client.post(
-            "/admin/integrations/import_1c/", {"import_type": "stocks"}
-        )
+        response = client.post("/admin/integrations/import_1c/", {"import_type": "stocks"})
 
         assert response.status_code == 302
         # Проверяем что сессия НЕ создана
@@ -255,9 +245,7 @@ class TestImportPageSubmission:
 
         client.force_login(admin_user)
 
-        response = client.post(
-            "/admin/integrations/import_1c/", {"import_type": "stocks"}
-        )
+        response = client.post("/admin/integrations/import_1c/", {"import_type": "stocks"})
 
         assert response.status_code == 302
 
@@ -274,9 +262,7 @@ class TestImportPageSubmission:
 
         client.force_login(admin_user)
 
-        response = client.post(
-            "/admin/integrations/import_1c/", {"import_type": "catalog"}
-        )
+        response = client.post("/admin/integrations/import_1c/", {"import_type": "catalog"})
 
         assert response.status_code == 302
         # Проверяем что сессия НЕ создана
@@ -304,9 +290,7 @@ class TestImportPageMessages:
 
     @patch("apps.integrations.views.get_redis_connection")
     @patch("apps.integrations.views.run_selective_import_task")
-    def test_successful_import_shows_success_message(
-        self, mock_task, mock_redis, client, admin_user, onec_data_dir
-    ):
+    def test_successful_import_shows_success_message(self, mock_task, mock_redis, client, admin_user, onec_data_dir):
         """Тест: успешный импорт показывает success сообщение."""
         mock_task.delay.return_value = MagicMock(id="test-task-999")
 

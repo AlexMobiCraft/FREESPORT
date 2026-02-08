@@ -102,9 +102,7 @@ def perform_1c_checkauth(client: "APIClient", email: str, password: str) -> "API
     Raises:
         AssertionError: If checkauth fails
     """
-    auth_header = "Basic " + base64.b64encode(f"{email}:{password}".encode()).decode(
-        "ascii"
-    )
+    auth_header = "Basic " + base64.b64encode(f"{email}:{password}".encode()).decode("ascii")
     response = client.get(
         "/api/integration/1c/exchange/",
         data={"mode": "checkauth"},

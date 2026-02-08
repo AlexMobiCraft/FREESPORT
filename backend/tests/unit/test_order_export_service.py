@@ -909,9 +909,7 @@ class TestOrderExportServiceRefactoring:
         service = OrderExportService()
         queryset = Order.objects.filter(id=order.id)
 
-        with patch(
-            "apps.orders.services.order_export.timezone.now", return_value=fixed_time
-        ):
+        with patch("apps.orders.services.order_export.timezone.now", return_value=fixed_time):
             regular_xml = service.generate_xml(queryset)
             streaming_xml = "".join(service.generate_xml_streaming(queryset))
 
@@ -944,10 +942,7 @@ class TestOrderExportServiceRefactoring:
         while using the more memory-efficient streaming approach internally.
         """
         # Arrange - Create multiple orders to test efficiency
-        users = [
-            UserFactory(email=f"efficiency-{i}-{get_unique_suffix()}@example.com")
-            for i in range(2)
-        ]
+        users = [UserFactory(email=f"efficiency-{i}-{get_unique_suffix()}@example.com") for i in range(2)]
         orders = []
         for i, user in enumerate(users):
             variant = ProductVariantFactory(
@@ -1170,10 +1165,7 @@ class TestOrderExportServicePerformance:
         from django.test.utils import override_settings
 
         # Arrange - Create multiple orders with items
-        users = [
-            UserFactory(email=f"user-perf-{i}-{get_unique_suffix()}@example.com")
-            for i in range(3)
-        ]
+        users = [UserFactory(email=f"user-perf-{i}-{get_unique_suffix()}@example.com") for i in range(3)]
         orders = []
         for i, user in enumerate(users):
             variant = ProductVariantFactory(
@@ -1206,9 +1198,7 @@ class TestOrderExportServicePerformance:
         # Reset query count and use prefetched queryset
         with override_settings(DEBUG=True):
             connection.queries_log.clear()
-            queryset = Order.objects.filter(id__in=order_ids).prefetch_related(
-                "items__variant", "user"
-            )
+            queryset = Order.objects.filter(id__in=order_ids).prefetch_related("items__variant", "user")
             xml_str = service.generate_xml(queryset)
 
             # Assert - Should be valid XML
@@ -1264,9 +1254,7 @@ class TestOrderExportServiceStreaming:
 
         # Act
         service = OrderExportService()
-        xml_parts = list(
-            service.generate_xml_streaming(Order.objects.filter(id=order.id))
-        )
+        xml_parts = list(service.generate_xml_streaming(Order.objects.filter(id=order.id)))
         xml_str = "".join(xml_parts)
 
         # Assert - Should be valid XML

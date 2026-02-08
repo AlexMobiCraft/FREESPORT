@@ -13,9 +13,7 @@ from apps.users.models import User
 class TestICExchangeViewImport:
     def setup_method(self):
         self.client = APIClient()
-        self.user = User.objects.create_user(
-            email="1c_user@example.com", password="password"
-        )
+        self.user = User.objects.create_user(email="1c_user@example.com", password="password")
         self.user.role = "admin"  # Or specific role if needed
         self.user.is_staff = True  # Required for Is1CExchangeUser permission
         self.user.save()
@@ -31,9 +29,9 @@ class TestICExchangeViewImport:
         self.client.force_authenticate(user=self.user)
 
         # Inject session into client
-        self.client.cookies[
-            dict(ImportSession.ImportType.choices).get("default", "sessionid")
-        ] = (self.session_key or "sessionid")
+        self.client.cookies[dict(ImportSession.ImportType.choices).get("default", "sessionid")] = (
+            self.session_key or "sessionid"
+        )
 
         # Mock session on request is handled by middleware, but for APIClient we might need to be careful
         # The view checks request.session.session_key matching 'sessid' param.
@@ -125,9 +123,7 @@ class TestICExchangeViewImport:
         """Test blocking import with invalid session ID."""
         url = reverse("integrations:onec_exchange:exchange")
 
-        response = self.client.get(
-            url, {"mode": "import", "filename": "import.xml", "sessid": "wrong_id"}
-        )
+        response = self.client.get(url, {"mode": "import", "filename": "import.xml", "sessid": "wrong_id"})
 
         assert response.status_code == 200
         assert response.content.decode() == "success"
@@ -135,9 +131,7 @@ class TestICExchangeViewImport:
 
     @patch("apps.integrations.onec_exchange.views.FileStreamService")
     @patch("apps.products.tasks.process_1c_import_task.delay")
-    def test_view_delegates_unpacking_to_task(
-        self, mock_task_delay, mock_file_service_cls
-    ):
+    def test_view_delegates_unpacking_to_task(self, mock_task_delay, mock_file_service_cls):
         """
         Test that Import1CView does NOT unpack ZIPs synchronously,
         but passes the filename to the Celery task.
@@ -193,18 +187,14 @@ class TestICExchangeViewImport:
         url = reverse("integrations:onec_exchange:exchange")
 
         # Create a completed session in DB to simulate past state
-        ImportSession.objects.create(
-            session_key=self.session_key, status=ImportSession.ImportStatus.COMPLETED
-        )
+        ImportSession.objects.create(session_key=self.session_key, status=ImportSession.ImportStatus.COMPLETED)
 
         # Make request
         # Ensure session exists
         s = SessionStore(session_key=self.session_key)
         s.save()
 
-        response = self.client.get(
-            url, {"mode": "complete", "sessid": self.session_key or "sessionid"}
-        )
+        response = self.client.get(url, {"mode": "complete", "sessid": self.session_key or "sessionid"})
 
         assert response.status_code == 200
         assert response.content.decode() == "success"

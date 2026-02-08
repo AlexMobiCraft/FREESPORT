@@ -52,9 +52,7 @@ class ActiveBannersView(viewsets.ViewSet):
                         "id": 1,
                         "title": "Новая коллекция 2025",
                         "subtitle": "Эксклюзивные новинки для профессионалов",
-                        "image_url": (
-                            "http://example.com/media/banners/2025/01/hero.webp"
-                        ),
+                        "image_url": ("http://example.com/media/banners/2025/01/hero.webp"),
                         "image_alt": "Баннер новой коллекции",
                         "cta_text": "Перейти в каталог",
                         "cta_link": "/catalog",
@@ -63,9 +61,7 @@ class ActiveBannersView(viewsets.ViewSet):
                         "id": 2,
                         "title": "Специальные цены для оптовиков",
                         "subtitle": "Скидки до 30% на весь ассортимент",
-                        "image_url": (
-                            "http://example.com/media/banners/2025/01/" "wholesale.webp"
-                        ),
+                        "image_url": ("http://example.com/media/banners/2025/01/" "wholesale.webp"),
                         "image_alt": "Баннер оптовых цен",
                         "cta_text": "Узнать больше",
                         "cta_link": "/wholesale",

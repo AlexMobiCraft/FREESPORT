@@ -96,9 +96,7 @@ class XMLDataParser:
     - parse_price_lists_xml() - парсинг priceLists.xml (типы цен)
     """
 
-    MAX_FILE_SIZE = (
-        getattr(settings, "IMPORT_MAX_FILE_SIZE", 100) * 1024 * 1024
-    )  # MB to bytes
+    MAX_FILE_SIZE = getattr(settings, "IMPORT_MAX_FILE_SIZE", 100) * 1024 * 1024  # MB to bytes
 
     def __init__(self):
         pass
@@ -110,9 +108,7 @@ class XMLDataParser:
 
         file_size = os.path.getsize(file_path)
         if file_size > self.MAX_FILE_SIZE:
-            raise ValueError(
-                f"File size {file_size} bytes exceeds limit {self.MAX_FILE_SIZE} bytes"
-            )
+            raise ValueError(f"File size {file_size} bytes exceeds limit {self.MAX_FILE_SIZE} bytes")
 
     def _safe_parse_xml(self, file_path: str) -> ElementTree:
         """Безопасный парсинг XML с защитой от XXE и XML Bomb"""
@@ -161,9 +157,7 @@ class XMLDataParser:
     def _find_children(self, element: Element, tag: str) -> list[Element]:
         """Возвращает всех прямых потомков с нужным именем тега."""
 
-        return [
-            child for child in list(element) if self._get_local_tag(child.tag) == tag
-        ]
+        return [child for child in list(element) if self._get_local_tag(child.tag) == tag]
 
     def _find_text(self, element: Element, tag: str, default: str = "") -> str:
         """Возвращает текст первого потомка с указанным именем тега."""
@@ -244,33 +238,22 @@ class XMLDataParser:
                     goods_data["category_name"] = category_name
 
             # Извлечение ID бренда и значений свойств из ЗначенияСвойств
-            properties_values_element = self._find_child(
-                product_element, "ЗначенияСвойств"
-            )
+            properties_values_element = self._find_child(product_element, "ЗначенияСвойств")
             property_values_list: list[PropertyValueData] = []
 
             if properties_values_element is not None:
-                for property_value in self._find_children(
-                    properties_values_element, "ЗначенияСвойства"
-                ):
+                for property_value in self._find_children(properties_values_element, "ЗначенияСвойства"):
                     property_id = self._find_text(property_value, "Ид")
                     value_id = self._find_text(property_value, "Значение")
 
                     # Свойство "Бренд" имеет Ид="Бренд"
                     if property_id == "Бренд":
-                        if (
-                            value_id
-                            and value_id != "00000000-0000-0000-0000-000000000000"
-                        ):
+                        if value_id and value_id != "00000000-0000-0000-0000-000000000000":
                             goods_data["brand_id"] = value_id
 
                     # Собираем все свойства (включая бренд) для связывания атрибутов
                     # Фильтруем пустые GUID значения (AC: Task 1.4)
-                    if (
-                        property_id
-                        and value_id
-                        and value_id != "00000000-0000-0000-0000-000000000000"
-                    ):
+                    if property_id and value_id and value_id != "00000000-0000-0000-0000-000000000000":
                         property_values_list.append(
                             {
                                 "property_id": property_id,
@@ -317,14 +300,10 @@ class XMLDataParser:
                 "article": self._find_text(offer_element, "Артикул"),
             }
 
-            characteristics_element = self._find_child(
-                offer_element, "ХарактеристикиТовара"
-            )
+            characteristics_element = self._find_child(offer_element, "ХарактеристикиТовара")
             if characteristics_element is not None:
                 char_list: list[OfferCharacteristic] = []
-                for characteristics_item in self._find_children(
-                    characteristics_element, "ХарактеристикаТовара"
-                ):
+                for characteristics_item in self._find_children(characteristics_element, "ХарактеристикаТовара"):
                     char_name = self._find_text(characteristics_item, "Наименование")
                     char_value = self._find_text(characteristics_item, "Значение")
                     if char_name and char_value:
@@ -400,9 +379,7 @@ class XMLDataParser:
 
                     quantity_value = self._find_text(warehouse_element, "Количество")
                     if not quantity_value:
-                        quantity_value = self._find_text(
-                            rest_element, "Количество", "0"
-                        )
+                        quantity_value = self._find_text(rest_element, "Количество", "0")
                 else:
                     warehouse_id = self._find_text(rest_element, "Склад")
                     quantity_value = self._find_text(rest_element, "Количество", "0")
@@ -485,9 +462,7 @@ class XMLDataParser:
 
         # Ищем корневой элемент Группы в Классификаторе или Каталоге
         groups_container = (
-            root.find(".//Классификатор/Группы")
-            or root.find(".//Каталог/Группы")
-            or root.find(".//Группы")
+            root.find(".//Классификатор/Группы") or root.find(".//Каталог/Группы") or root.find(".//Группы")
         )
 
         if groups_container is not None:
@@ -539,23 +514,14 @@ class XMLDataParser:
 
             if property_name == "Бренд":
                 # Извлекаем варианты значений (бренды)
-                variants_element = self._find_child(
-                    property_element, "ВариантыЗначений"
-                )
+                variants_element = self._find_child(property_element, "ВариантыЗначений")
                 if variants_element is not None:
-                    for variant_element in self._find_children(
-                        variants_element, "Справочник"
-                    ):
+                    for variant_element in self._find_children(variants_element, "Справочник"):
                         brand_id = self._find_text(variant_element, "ИдЗначения")
                         brand_name = self._find_text(variant_element, "Значение")
 
                         # Пропускаем "Без Бренда" и дубликаты
-                        if (
-                            brand_id
-                            and brand_name
-                            and brand_name != "Без Бренда"
-                            and brand_id not in brands_seen
-                        ):
+                        if brand_id and brand_name and brand_name != "Без Бренда" and brand_id not in brands_seen:
                             brands_seen.add(brand_id)
                             brand_data: BrandData = {
                                 "id": brand_id,

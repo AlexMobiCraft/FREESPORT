@@ -52,9 +52,7 @@ class TestImportSessionModel(TestCase):
         choices_values = [choice[0] for choice in ImportSession.ImportType.choices]
 
         for expected_type in expected_types:
-            assert (
-                expected_type in choices_values
-            ), f"Тип '{expected_type}' отсутствует в choices"
+            assert expected_type in choices_values, f"Тип '{expected_type}' отсутствует в choices"
 
     def test_all_import_statuses_present(self) -> None:
         """Проверка наличия всех ожидаемых статусов."""

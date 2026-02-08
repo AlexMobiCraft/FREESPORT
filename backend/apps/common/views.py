@@ -77,10 +77,7 @@ def health_check(_request):
 
 @extend_schema(
     summary="Получить метрики операций синхронизации",
-    description=(
-        "Возвращает метрики операций за указанный период "
-        "(по умолчанию последние 24 часа)"
-    ),
+    description=("Возвращает метрики операций за указанный период " "(по умолчанию последние 24 часа)"),
     parameters=[
         OpenApiParameter(
             name="start_date",
@@ -259,11 +256,7 @@ def system_health(_request: Request) -> Response:
     monitor = CustomerSyncMonitor()
     health_status = monitor.get_system_health()
 
-    http_status = (
-        status.HTTP_200_OK
-        if health_status["is_healthy"]
-        else status.HTTP_503_SERVICE_UNAVAILABLE
-    )
+    http_status = status.HTTP_200_OK if health_status["is_healthy"] else status.HTTP_503_SERVICE_UNAVAILABLE
 
     return Response(health_status, status=http_status)
 
@@ -397,8 +390,7 @@ def subscribe(request: Request) -> Response:
 @extend_schema(
     summary="Отписка от email-рассылки",
     description=(
-        "Отписывает пользователя от email-рассылки. "
-        "Если email не найден или уже отписан - возвращает 404 Not Found."
+        "Отписывает пользователя от email-рассылки. " "Если email не найден или уже отписан - возвращает 404 Not Found."
     ),
     request=UnsubscribeSerializer,
     responses={
@@ -433,9 +425,7 @@ def subscribe(request: Request) -> Response:
                 OpenApiExample(
                     name="not_found",
                     value={
-                        "email": [
-                            "Этот email не найден в списке подписчиков или уже отписан"
-                        ],
+                        "email": ["Этот email не найден в списке подписчиков или уже отписан"],
                     },
                     response_only=True,
                 )
@@ -522,15 +512,9 @@ def unsubscribe(request: Request) -> Response:
                                 "id": 1,
                                 "title": "Новая коллекция 2025",
                                 "slug": "new-collection-2025",
-                                "excerpt": (
-                                    "Представляем новую коллекцию спортивной "
-                                    "одежды..."
-                                ),
+                                "excerpt": ("Представляем новую коллекцию спортивной " "одежды..."),
                                 "content": "Полный текст новости...",
-                                "image": (
-                                    "http://api.example.com/media/news/2025/11/"
-                                    "collection.jpg"
-                                ),
+                                "image": ("http://api.example.com/media/news/2025/11/" "collection.jpg"),
                                 "published_at": "2025-11-18T10:00:00Z",
                                 "created_at": "2025-11-17T15:30:00Z",
                                 "updated_at": "2025-11-18T09:00:00Z",
@@ -603,9 +587,7 @@ class NewsListView(generics.ListAPIView):
                         "slug": "release-2025",
                         "excerpt": "Краткое описание новости",
                         "content": "<p>Полное содержание...</p>",
-                        "image": (
-                            "https://example.com/media/news/images/2025/12/26/cover.jpg"
-                        ),
+                        "image": ("https://example.com/media/news/images/2025/12/26/cover.jpg"),
                         "published_at": "2025-12-26T09:00:00Z",
                         "created_at": "2025-12-25T18:00:00Z",
                         "updated_at": "2025-12-25T18:30:00Z",
@@ -700,14 +682,8 @@ class NewsDetailView(generics.RetrieveAPIView):
                                 "title": "Как выбрать спортивную экипировку",
                                 "slug": "how-to-choose-sports-equipment",
                                 "subtitle": "Полное руководство для начинающих",
-                                "excerpt": (
-                                    "В этой статье мы расскажем о ключевых "
-                                    "критериях выбора..."
-                                ),
-                                "image": (
-                                    "http://api.example.com/media/blog/images/"
-                                    "2025/12/27/equipment.jpg"
-                                ),
+                                "excerpt": ("В этой статье мы расскажем о ключевых " "критериях выбора..."),
+                                "image": ("http://api.example.com/media/blog/images/" "2025/12/27/equipment.jpg"),
                                 "author": "Иван Петров",
                                 "category": {
                                     "id": 1,
@@ -771,10 +747,7 @@ class BlogPostListView(generics.ListAPIView):
                         "subtitle": "Полное руководство для начинающих",
                         "excerpt": "В этой статье мы расскажем о ключевых критериях...",
                         "content": "<p>Полное содержимое статьи...</p>",
-                        "image": (
-                            "https://example.com/media/blog/images/"
-                            "2025/12/27/equipment.jpg"
-                        ),
+                        "image": ("https://example.com/media/blog/images/" "2025/12/27/equipment.jpg"),
                         "author": "Иван Петров",
                         "category": {
                             "id": 1,
@@ -783,9 +756,7 @@ class BlogPostListView(generics.ListAPIView):
                         },
                         "published_at": "2025-12-27T10:00:00Z",
                         "meta_title": "Как выбрать спортивную экипировку | FREESPORT",
-                        "meta_description": (
-                            "Узнайте как правильно выбрать спортивную экипировку"
-                        ),
+                        "meta_description": ("Узнайте как правильно выбрать спортивную экипировку"),
                         "created_at": "2025-12-26T15:00:00Z",
                         "updated_at": "2025-12-26T18:30:00Z",
                     },

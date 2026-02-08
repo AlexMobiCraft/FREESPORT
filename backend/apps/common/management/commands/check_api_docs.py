@@ -39,17 +39,13 @@ class Command(BaseCommand):
         self.verbose = options.get("verbose", False)
         self.fail_on_missing = options.get("fail_on_missing", False)
 
-        self.stdout.write(
-            self.style.HTTP_INFO("Проверка полноты API документации...\n")
-        )
+        self.stdout.write(self.style.HTTP_INFO("Проверка полноты API документации...\n"))
 
         # Получаем все ViewSets из приложений
         viewsets = self._get_all_viewsets()
 
         if not viewsets:
-            self.stdout.write(
-                self.style.WARNING("WARNING: Не найдено ни одного ViewSet для проверки")
-            )
+            self.stdout.write(self.style.WARNING("WARNING: Не найдено ни одного ViewSet для проверки"))
             return
 
         # Проверяем документацию каждого ViewSet
@@ -73,8 +69,7 @@ class Command(BaseCommand):
         # Завершаем с ошибкой если требуется
         if undocumented_items and self.fail_on_missing:
             raise CommandError(
-                "ERROR: Найдено {len(undocumented_items)} "
-                "недокументированных endpoints. CI проверка не пройдена."
+                "ERROR: Найдено {len(undocumented_items)} " "недокументированных endpoints. CI проверка не пройдена."
             )
 
     def _get_all_viewsets(self) -> List[Dict[str, Any]]:
@@ -144,9 +139,7 @@ class Command(BaseCommand):
 
         return methods
 
-    def _check_viewset_documentation(
-        self, viewset_info: Dict[str, Any]
-    ) -> List[Dict[str, Any]]:
+    def _check_viewset_documentation(self, viewset_info: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Проверяет документацию для ViewSet."""
         issues = []
 
@@ -170,9 +163,7 @@ class Command(BaseCommand):
                 issues.append(issue)
 
                 if self.verbose:
-                    self.stdout.write(
-                        f"  [X] {method_name}: отсутствует @extend_schema декоратор"
-                    )
+                    self.stdout.write(f"  [X] {method_name}: отсутствует @extend_schema декоратор")
             else:
                 # Проверяем качество документации
                 schema_issues = self._check_schema_quality(method, method_name)
@@ -207,10 +198,7 @@ class Command(BaseCommand):
         if hasattr(func, "kwargs"):
             # Проверяем есть ли в kwargs spectacular данные
             kwargs = getattr(func, "kwargs", {})
-            if any(
-                key in ["summary", "description", "operation_id", "tags", "parameters"]
-                for key in kwargs.keys()
-            ):
+            if any(key in ["summary", "description", "operation_id", "tags", "parameters"] for key in kwargs.keys()):
                 return True
 
         # 2. Проверяем через _spectacular_annotation атрибут
@@ -234,9 +222,7 @@ class Command(BaseCommand):
             if hasattr(current_func, "kwargs"):
                 kwargs = getattr(current_func, "kwargs", {})
                 if any(
-                    key
-                    in ["summary", "description", "operation_id", "tags", "parameters"]
-                    for key in kwargs.keys()
+                    key in ["summary", "description", "operation_id", "tags", "parameters"] for key in kwargs.keys()
                 ):
                     return True
 
@@ -245,9 +231,7 @@ class Command(BaseCommand):
             from drf_spectacular.openapi import AutoSchema  # noqa: F401
 
             # Если функция имеет атрибуты схемы
-            if hasattr(func, "operation_summary") or hasattr(
-                func, "operation_description"
-            ):
+            if hasattr(func, "operation_summary") or hasattr(func, "operation_description"):
                 return True
         except ImportError:
             pass
@@ -277,20 +261,14 @@ class Command(BaseCommand):
         documented_methods: int,
     ) -> None:
         """Выводит результаты проверки."""
-        coverage_percent = (
-            (documented_methods / total_methods * 100) if total_methods > 0 else 0
-        )
+        coverage_percent = (documented_methods / total_methods * 100) if total_methods > 0 else 0
 
         self.stdout.write("\n" + "=" * 60)
         self.stdout.write("РЕЗУЛЬТАТЫ ПРОВЕРКИ API ДОКУМЕНТАЦИИ")
         self.stdout.write("=" * 60)
 
         if undocumented_items:
-            self.stdout.write(
-                self.style.ERROR(
-                    f"ERROR: Найдено {len(undocumented_items)} проблем с документацией:"
-                )
-            )
+            self.stdout.write(self.style.ERROR(f"ERROR: Найдено {len(undocumented_items)} проблем с документацией:"))
 
             # Группируем проблемы по ViewSet
             issues_by_viewset: dict[str, list[dict[str, Any]]] = {}
@@ -303,13 +281,9 @@ class Command(BaseCommand):
             for viewset, issues in issues_by_viewset.items():
                 self.stdout.write(f"\n{viewset}:")
                 for issue in issues:
-                    self.stdout.write(
-                        f'  - {issue["method"]} ({issue["type"]}): {issue["issue"]}'
-                    )
+                    self.stdout.write(f'  - {issue["method"]} ({issue["type"]}): {issue["issue"]}')
         else:
-            self.stdout.write(
-                self.style.SUCCESS("SUCCESS: Все endpoints имеют proper документацию!")
-            )
+            self.stdout.write(self.style.SUCCESS("SUCCESS: Все endpoints имеют proper документацию!"))
 
         # Статистика
         self.stdout.write("\nСтатистика:")
@@ -327,8 +301,6 @@ class Command(BaseCommand):
             style = self.style.ERROR
             prefix = "POOR"
 
-        self.stdout.write(
-            style(f"  {prefix}: Уровень документированности: {coverage_percent:.1f}%")
-        )
+        self.stdout.write(style(f"  {prefix}: Уровень документированности: {coverage_percent:.1f}%"))
 
         self.stdout.write("\n" + "=" * 60)

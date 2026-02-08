@@ -187,9 +187,7 @@ class TestBannersAPI:
         """Истёкшие баннеры не возвращаются"""
         # Arrange
         active_banner = ActiveGuestBannerFactory(title="Active Banner")
-        expired_banner = ExpiredBannerFactory(
-            title="Expired Banner", show_to_guests=True
-        )
+        expired_banner = ExpiredBannerFactory(title="Expired Banner", show_to_guests=True)
 
         # Act
         response = self.client.get(self.url)
@@ -237,9 +235,7 @@ class TestBannersAPI:
         mid_index = titles.index(banner_mid.title)
         low_index = titles.index(banner_low.title)
 
-        assert (
-            high_index < mid_index < low_index
-        ), "Баннеры должны быть отсортированы по приоритету в порядке убывания"
+        assert high_index < mid_index < low_index, "Баннеры должны быть отсортированы по приоритету в порядке убывания"
 
     def test_response_contains_required_fields(self) -> None:
         """Ответ API содержит все обязательные поля"""

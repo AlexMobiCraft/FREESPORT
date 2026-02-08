@@ -207,8 +207,7 @@ class TestXMLDataParser:
 <Каталог>
   <Товары>
 """
-            + "    <Товар><Ид>id</Ид><Наименование>Товар</Наименование></Товар>\n"
-            * 100000
+            + "    <Товар><Ид>id</Ид><Наименование>Товар</Наименование></Товар>\n" * 100000
             + """
   </Товары>
 </Каталог>"""
@@ -236,9 +235,7 @@ class TestXMLDataParser:
         assert parser._map_price_type_to_field("РРЦ Рекомендованная") == "rrp"
         assert parser._map_price_type_to_field("МРЦ") == "msrp"
         assert parser._map_price_type_to_field("РРЦ") == "retail_price"
-        assert (
-            parser._map_price_type_to_field("Неизвестный тип") == "retail_price"
-        )  # fallback
+        assert parser._map_price_type_to_field("Неизвестный тип") == "retail_price"  # fallback
 
 
 @pytest.mark.unit
@@ -425,23 +422,15 @@ class TestXMLDataParserImageParsing:
         parser = XMLDataParser()
 
         # ACT & ASSERT - тестируем нормализацию
-        assert (
-            parser._validate_image_path("  import_files/73/image.png  ")
-            == "import_files/73/image.png"
-        )
-        assert (
-            parser._validate_image_path("import_files\\73\\image.jpg")
-            == "import_files/73/image.jpg"
-        )
+        assert parser._validate_image_path("  import_files/73/image.png  ") == "import_files/73/image.png"
+        assert parser._validate_image_path("import_files\\73\\image.jpg") == "import_files/73/image.jpg"
 
         # ACT & ASSERT - тестируем валидацию расширений
         assert parser._validate_image_path("import_files/73/image.png") is not None
         assert parser._validate_image_path("import_files/73/image.jpg") is not None
         assert parser._validate_image_path("import_files/73/image.JPEG") is not None
         assert parser._validate_image_path("import_files/73/image.webp") is not None
-        assert (
-            parser._validate_image_path("import_files/73/image.exe") is None
-        )  # Невалидное расширение
+        assert parser._validate_image_path("import_files/73/image.exe") is None  # Невалидное расширение
         assert parser._validate_image_path("") is None  # Пустой путь
         assert parser._validate_image_path("   ") is None  # Только пробелы
 
@@ -454,24 +443,18 @@ class TestXMLDataParserImageParsing:
         valid_extensions = [".jpg", ".jpeg", ".png", ".webp", ".JPG", ".PNG", ".WEBP"]
         for ext in valid_extensions:
             path = f"import_files/73/test{ext}"
-            assert (
-                parser._validate_image_path(path) is not None
-            ), f"Extension {ext} should be valid"
+            assert parser._validate_image_path(path) is not None, f"Extension {ext} should be valid"
 
         # ACT & ASSERT - невалидные расширения
         invalid_extensions = [".gif", ".bmp", ".svg", ".exe", ".txt", ".pdf"]
         for ext in invalid_extensions:
             path = f"import_files/73/test{ext}"
-            assert (
-                parser._validate_image_path(path) is None
-            ), f"Extension {ext} should be invalid"
+            assert parser._validate_image_path(path) is None, f"Extension {ext} should be invalid"
 
     def test_parse_goods_xml_with_real_data(self):
         """Парсинг реального XML из data/import_1c/goods/"""
         # ARRANGE
-        real_file = (
-            "data/import_1c/goods/goods_1_1_27c08306-a0aa-453b-b436-f9b494ceb889.xml"
-        )
+        real_file = "data/import_1c/goods/goods_1_1_27c08306-a0aa-453b-b436-f9b494ceb889.xml"
 
         # ACT
         parser = XMLDataParser()
@@ -481,9 +464,7 @@ class TestXMLDataParserImageParsing:
         assert len(goods_list) > 0, "Должен распарсить хотя бы один товар"
 
         # Проверяем что хотя бы один товар имеет изображения
-        products_with_images = [
-            g for g in goods_list if "images" in g and len(g["images"]) > 0
-        ]
+        products_with_images = [g for g in goods_list if "images" in g and len(g["images"]) > 0]
 
         if len(products_with_images) > 0:
             # Проверяем формат путей изображений
@@ -493,8 +474,7 @@ class TestXMLDataParserImageParsing:
                         "import_files/"
                     ), f"Путь должен начинаться с 'import_files/': {image_path}"
                     assert any(
-                        image_path.lower().endswith(ext)
-                        for ext in [".jpg", ".jpeg", ".png", ".webp"]
+                        image_path.lower().endswith(ext) for ext in [".jpg", ".jpeg", ".png", ".webp"]
                     ), f"Невалидное расширение: {image_path}"
 
 

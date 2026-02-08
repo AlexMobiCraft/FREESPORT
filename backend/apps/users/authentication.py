@@ -116,11 +116,7 @@ def blacklist_access_token(request: Request, user_id: int) -> bool:
 
     jti = access_token.get("jti")
     if not jti:
-        logger.warning(
-            f"[AUDIT] Access token without JTI | "
-            f"user_id={user_id} | "
-            f"ip={_get_client_ip(request)}"
-        )
+        logger.warning(f"[AUDIT] Access token without JTI | " f"user_id={user_id} | " f"ip={_get_client_ip(request)}")
         return False
 
     # TTL = ACCESS_TOKEN_LIFETIME (auto-cleanup)

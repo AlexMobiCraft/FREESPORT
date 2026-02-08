@@ -35,9 +35,7 @@ if sys.platform == "win32":
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 # ВНИМАНИЕ: секретный ключ должен быть изменен в продакшене!
-SECRET_KEY = config(
-    "SECRET_KEY", default="django-insecure-development-key-change-in-production"
-)
+SECRET_KEY = config("SECRET_KEY", default="django-insecure-development-key-change-in-production")
 
 # Основные Django приложения
 DJANGO_APPS = [
@@ -133,9 +131,7 @@ AUTH_USER_MODEL = "users.User"
 # Валидаторы паролей
 AUTH_PASSWORD_VALIDATORS = [
     {
-        "NAME": (
-            "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"
-        ),
+        "NAME": ("django.contrib.auth.password_validation.UserAttributeSimilarityValidator"),
     },
     {
         "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
@@ -199,9 +195,7 @@ SIMPLE_JWT = {
     "AUTH_HEADER_NAME": "HTTP_AUTHORIZATION",
     "USER_ID_FIELD": "id",
     "USER_ID_CLAIM": "user_id",
-    "USER_AUTHENTICATION_RULE": (
-        "rest_framework_simplejwt.authentication.default_user_authentication_rule"
-    ),
+    "USER_AUTHENTICATION_RULE": ("rest_framework_simplejwt.authentication.default_user_authentication_rule"),
     "AUTH_TOKEN_CLASSES": ("rest_framework_simplejwt.tokens.AccessToken",),
     "TOKEN_TYPE_CLAIM": "token_type",
     "TOKEN_USER_CLASS": "rest_framework_simplejwt.models.TokenUser",
@@ -289,8 +283,7 @@ ONEC_EXCHANGE = {
     "ZIP_SUPPORT": True,
     "COMMERCEML_VERSION": "3.1",  # CommerceML protocol version
     "TEMP_DIR": MEDIA_ROOT / "1c_temp",  # Temporary directory for chunked uploads
-    "IMPORT_DIR": MEDIA_ROOT
-    / "1c_import",  # Story 2.2: Directory for routed import files
+    "IMPORT_DIR": MEDIA_ROOT / "1c_import",  # Story 2.2: Directory for routed import files
 }
 
 # Тип первичного ключа по умолчанию
@@ -370,9 +363,7 @@ SPECTACULAR_SETTINGS = {
 }
 
 # Настройки для разрешения конфликтов синхронизации (Story 3.2.2)
-CONFLICT_NOTIFICATION_EMAIL = config(
-    "CONFLICT_NOTIFICATION_EMAIL", default="admin@freesport.ru"
-)
+CONFLICT_NOTIFICATION_EMAIL = config("CONFLICT_NOTIFICATION_EMAIL", default="admin@freesport.ru")
 
 # ============================================================================
 # Email Configuration (Story 29.3)
@@ -380,9 +371,7 @@ CONFLICT_NOTIFICATION_EMAIL = config(
 
 # Email backend: console для development, smtp для production
 # В development это переопределяется в development.py на console backend
-EMAIL_BACKEND = config(
-    "EMAIL_BACKEND", default="django.core.mail.backends.smtp.EmailBackend"
-)
+EMAIL_BACKEND = config("EMAIL_BACKEND", default="django.core.mail.backends.smtp.EmailBackend")
 
 # SMTP сервер настройки
 EMAIL_HOST = config("EMAIL_HOST", default="smtp.yandex.ru")
@@ -416,9 +405,7 @@ LOGS_DIR = BASE_DIR / "logs"
 # Создаём директорию логов безопасно
 try:
     LOGS_DIR.mkdir(exist_ok=True)
-    _base_file_logging_available = LOGS_DIR.exists() and os.access(
-        str(LOGS_DIR), os.W_OK
-    )
+    _base_file_logging_available = LOGS_DIR.exists() and os.access(str(LOGS_DIR), os.W_OK)
 except (OSError, PermissionError):
     _base_file_logging_available = False
 
@@ -453,12 +440,8 @@ if _base_file_logging_available:
     }
 
 # Определяем loggers в зависимости от доступности файлового логирования
-_import_handlers = (
-    ["import_file", "console"] if _base_file_logging_available else ["console"]
-)
-_products_handlers = (
-    ["console", "error_file"] if _base_file_logging_available else ["console"]
-)
+_import_handlers = ["import_file", "console"] if _base_file_logging_available else ["console"]
+_products_handlers = ["console", "error_file"] if _base_file_logging_available else ["console"]
 
 LOGGING = {
     "version": 1,

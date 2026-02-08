@@ -13,9 +13,7 @@ from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 
 # Настройка Django окружения
-backend_path = os.path.dirname(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-)
+backend_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append(backend_path)
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "freesport.settings.test")
 

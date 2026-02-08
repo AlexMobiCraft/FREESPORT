@@ -22,9 +22,7 @@ class CatalogPerformanceTest(TestCase):
         self.client = APIClient()
 
         # Создаем тестовых пользователей
-        self.user = User.objects.create_user(
-            email="perf@example.com", password="testpass123"
-        )
+        self.user = User.objects.create_user(email="perf@example.com", password="testpass123")
 
         # Создаем структуру для performance тестов
         self.categories = []
@@ -33,9 +31,7 @@ class CatalogPerformanceTest(TestCase):
 
         # Создаем 10 категорий
         for i in range(10):
-            category = Category.objects.create(
-                name=f"Category {i}", slug=f"category-{i}"
-            )
+            category = Category.objects.create(name=f"Category {i}", slug=f"category-{i}")
             self.categories.append(category)
 
         # Создаем 5 брендов
@@ -237,9 +233,7 @@ class CatalogPerformanceTest(TestCase):
 
         # Проверяем, что использование памяти разумное
         memory_mb = peak / 1024 / 1024
-        self.assertLess(
-            memory_mb, 50, f"Memory usage {memory_mb:.2f}MB exceeds 50MB limit"
-        )
+        self.assertLess(memory_mb, 50, f"Memory usage {memory_mb:.2f}MB exceeds 50MB limit")
 
         self.assertEqual(response.status_code, 200)
 

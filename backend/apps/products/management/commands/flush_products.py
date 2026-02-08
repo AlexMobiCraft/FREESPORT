@@ -42,10 +42,7 @@ class Command(BaseCommand):
         --skip-interactive: Пропустить интерактивное подтверждение (для CI/CD)
     """
 
-    help = (
-        "Очистка товаров и вариантов перед миграцией "
-        "(сохраняет ColorMapping, бренды, категории)"
-    )
+    help = "Очистка товаров и вариантов перед миграцией " "(сохраняет ColorMapping, бренды, категории)"
 
     def add_arguments(self, parser: ArgumentParser) -> None:
         """Добавление аргументов командной строки."""
@@ -74,8 +71,7 @@ class Command(BaseCommand):
         # Проверка флага --confirm
         if not confirm and not dry_run:
             raise CommandError(
-                "Необходимо подтвердить удаление: --confirm\n"
-                "Или используйте --dry-run для просмотра без удаления"
+                "Необходимо подтвердить удаление: --confirm\n" "Или используйте --dry-run для просмотра без удаления"
             )
 
         # Импорт моделей
@@ -88,9 +84,7 @@ class Command(BaseCommand):
 
         # Вывод информации
         self.stdout.write("\n" + "=" * 60)
-        self.stdout.write(
-            self.style.WARNING("⚠️  FLUSH PRODUCTS - Очистка товаров перед миграцией")
-        )
+        self.stdout.write(self.style.WARNING("⚠️  FLUSH PRODUCTS - Очистка товаров перед миграцией"))
         self.stdout.write("=" * 60)
 
         self.stdout.write("\n📊 Текущее состояние БД:")
@@ -99,33 +93,23 @@ class Command(BaseCommand):
         self.stdout.write(f"   • ColorMapping: {color_count} записей (будут сохранены)")
 
         self.stdout.write("\n🗑️  Будет удалено:")
-        self.stdout.write(
-            self.style.ERROR(f"   • {variant_count} ProductVariant записей")
-        )
+        self.stdout.write(self.style.ERROR(f"   • {variant_count} ProductVariant записей"))
         self.stdout.write(self.style.ERROR(f"   • {product_count} Product записей"))
 
         self.stdout.write("\n✅ Будет сохранено:")
-        self.stdout.write(
-            self.style.SUCCESS(f"   • {color_count} ColorMapping записей")
-        )
+        self.stdout.write(self.style.SUCCESS(f"   • {color_count} ColorMapping записей"))
         self.stdout.write(self.style.SUCCESS("   • Все Brand записи"))
         self.stdout.write(self.style.SUCCESS("   • Все Category записи"))
         self.stdout.write(self.style.SUCCESS("   • Все ImportSession записи"))
 
         # Dry run - только показать
         if dry_run:
-            self.stdout.write(
-                self.style.WARNING("\n🔍 DRY RUN: Никакие данные не были удалены")
-            )
+            self.stdout.write(self.style.WARNING("\n🔍 DRY RUN: Никакие данные не были удалены"))
             return
 
         # Интерактивное подтверждение
         if not skip_interactive:
-            self.stdout.write(
-                self.style.WARNING(
-                    '\n⚠️  Для подтверждения введите "yes" и нажмите Enter:'
-                )
-            )
+            self.stdout.write(self.style.WARNING('\n⚠️  Для подтверждения введите "yes" и нажмите Enter:'))
             user_input = input().strip().lower()
 
             if user_input != "yes":
@@ -162,8 +146,7 @@ class Command(BaseCommand):
 
             self.stdout.write(
                 self.style.SUCCESS(
-                    "\n💡 Теперь можно выполнить импорт из 1С:\n"
-                    "   python manage.py import_products_from_1c --full"
+                    "\n💡 Теперь можно выполнить импорт из 1С:\n" "   python manage.py import_products_from_1c --full"
                 )
             )
 

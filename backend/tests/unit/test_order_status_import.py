@@ -683,9 +683,7 @@ class TestOrderProcessing:
         service = OrderStatusImportService()
 
         with override_settings(ONEC_EXCHANGE={"ORDER_STATUS_IMPORT_BATCH_SIZE": 2}):
-            with patch.object(
-                service, "_bulk_fetch_orders", return_value={}
-            ) as bulk_fetch:
+            with patch.object(service, "_bulk_fetch_orders", return_value={}) as bulk_fetch:
                 with patch.object(
                     service,
                     "_process_order_update",
@@ -768,9 +766,7 @@ class TestFindOrder:
 
         service = OrderStatusImportService()
 
-        with patch.object(
-            Order.objects, "select_for_update", return_value=mock_select_for_update
-        ):
+        with patch.object(Order.objects, "select_for_update", return_value=mock_select_for_update):
             # ACT
             result, conflict_msg = service._find_order(order_data)
 
@@ -1020,12 +1016,8 @@ class TestReviewFollowups:
                 result = service.process(xml_data)
 
                 # ASSERT — статус должен быть смаплен на "shipped"
-                assert (
-                    result.updated == 1
-                ), f"Failed for status variant: {status_variant}"
-                assert (
-                    mock_order.status == "shipped"
-                ), f"Failed for status variant: {status_variant}"
+                assert result.updated == 1, f"Failed for status variant: {status_variant}"
+                assert mock_order.status == "shipped", f"Failed for status variant: {status_variant}"
 
     def test_error_isolation_continues_processing(self):
         """[AI-Review][High] Изоляция ошибок — одна ошибка не останавливает обработку."""
@@ -1505,15 +1497,11 @@ class TestRound6ReviewFollowups:
             mock_objects.select_for_update.return_value = mock_select_for_update
 
             # ACT — вызываем без кэша (None), чтобы сработал fallback
-            found_order, conflict_msg = service._find_order(
-                order_data, orders_cache=None
-            )
+            found_order, conflict_msg = service._find_order(order_data, orders_cache=None)
 
             # ASSERT — select_for_update() должен быть вызван
             mock_objects.select_for_update.assert_called_once()
-            mock_select_for_update.filter.assert_called_once_with(
-                order_number="FS-LOCK-001"
-            )
+            mock_select_for_update.filter.assert_called_once_with(order_number="FS-LOCK-001")
             assert conflict_msg is None
             assert found_order == mock_order
 
@@ -1544,9 +1532,7 @@ class TestRound6ReviewFollowups:
             mock_objects.select_for_update.return_value = mock_select_for_update
 
             # ACT
-            found_order, conflict_msg = service._find_order(
-                order_data, orders_cache=None
-            )
+            found_order, conflict_msg = service._find_order(order_data, orders_cache=None)
 
             # ASSERT
             assert conflict_msg is None
@@ -1785,16 +1771,12 @@ class TestRound7ReviewFollowups:
 
         with patch.object(service, "_bulk_fetch_orders", return_value=mock_cache):
             # ACT
-            caplog.set_level(
-                logging.DEBUG, logger="apps.orders.services.order_status_import"
-            )
+            caplog.set_level(logging.DEBUG, logger="apps.orders.services.order_status_import")
             result = service.process(xml_data)
 
         # ASSERT
         assert result.updated == 1
-        update_logs = [
-            record for record in caplog.records if "status updated to" in record.message
-        ]
+        update_logs = [record for record in caplog.records if "status updated to" in record.message]
         assert update_logs, "Ожидали debug-лог обновления статуса"
         assert all(record.levelno == logging.DEBUG for record in update_logs)
 
@@ -1925,9 +1907,7 @@ class TestRound13ReviewFollowups:
 
             # ASSERT — ошибка парсинга даты должна быть в errors
             assert result.processed == 1
-            date_errors = [
-                e for e in result.errors if "invalid paid_at date" in e.lower()
-            ]
+            date_errors = [e for e in result.errors if "invalid paid_at date" in e.lower()]
             assert len(date_errors) == 1
             assert "2026-02-30" in date_errors[0]
 
@@ -1979,9 +1959,7 @@ class TestRound13ReviewFollowups:
         # ASSERT — все финальные статусы должны быть в ORDER_STATUSES
         order_status_codes = {status for status, _ in ORDER_STATUSES}
         for final_status in FINAL_STATUSES:
-            assert (
-                final_status in order_status_codes
-            ), f"{final_status} not in ORDER_STATUSES"
+            assert final_status in order_status_codes, f"{final_status} not in ORDER_STATUSES"
             assert final_status in ALL_ORDER_STATUSES
 
     def test_active_statuses_derived_from_order_statuses(self):
@@ -1995,9 +1973,7 @@ class TestRound13ReviewFollowups:
         # ASSERT — все активные статусы должны быть в ORDER_STATUSES
         order_status_codes = {status for status, _ in ORDER_STATUSES}
         for active_status in ACTIVE_STATUSES:
-            assert (
-                active_status in order_status_codes
-            ), f"{active_status} not in ORDER_STATUSES"
+            assert active_status in order_status_codes, f"{active_status} not in ORDER_STATUSES"
             assert active_status in ALL_ORDER_STATUSES
 
     def test_all_order_statuses_covers_final_and_active(self):

@@ -323,9 +323,7 @@ class UserAdmin(BaseUserAdmin):
         for user in b2b_users:
             user.is_verified = True
             user.verification_status = "verified"
-            user.save(
-                update_fields=["is_verified", "verification_status", "updated_at"]
-            )
+            user.save(update_fields=["is_verified", "verification_status", "updated_at"])
 
             # AuditLog запись
             AuditLog.log_action(
@@ -384,9 +382,7 @@ class UserAdmin(BaseUserAdmin):
         for user in b2b_users:
             user.is_verified = False
             user.verification_status = "unverified"
-            user.save(
-                update_fields=["is_verified", "verification_status", "updated_at"]
-            )
+            user.save(update_fields=["is_verified", "verification_status", "updated_at"])
 
             # AuditLog запись
             AuditLog.log_action(
@@ -404,9 +400,7 @@ class UserAdmin(BaseUserAdmin):
             )
             count += 1
 
-        self.message_user(
-            request, f"Отклонена верификация {count} B2B пользователей", level="warning"
-        )
+        self.message_user(request, f"Отклонена верификация {count} B2B пользователей", level="warning")
 
     @admin.action(description="🚫 Заблокировать выбранных пользователей")
     def block_users(self, request: HttpRequest, queryset: QuerySet[User]) -> None:
@@ -455,9 +449,7 @@ class UserAdmin(BaseUserAdmin):
             )
             count += 1
 
-        self.message_user(
-            request, f"Заблокировано {count} пользователей", level="success"
-        )
+        self.message_user(request, f"Заблокировано {count} пользователей", level="success")
 
     # Helper methods
 

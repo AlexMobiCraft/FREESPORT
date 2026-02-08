@@ -66,17 +66,13 @@ class TestAttributeModel:
         suffix = get_unique_suffix()
         onec_id = f"attr-duplicate-{suffix}"
         attr1 = Attribute.objects.create(name=f"Атрибут 1 {suffix}")
-        Attribute1CMapping.objects.create(
-            attribute=attr1, onec_id=onec_id, onec_name="Attr 1", source="goods"
-        )
+        Attribute1CMapping.objects.create(attribute=attr1, onec_id=onec_id, onec_name="Attr 1", source="goods")
 
         attr2 = Attribute.objects.create(name=f"Атрибут 2 {suffix}")
 
         # ACT & ASSERT
         with pytest.raises(IntegrityError):
-            Attribute1CMapping.objects.create(
-                attribute=attr2, onec_id=onec_id, onec_name="Attr 2", source="goods"
-            )
+            Attribute1CMapping.objects.create(attribute=attr2, onec_id=onec_id, onec_name="Attr 2", source="goods")
 
 
 @pytest.mark.django_db
@@ -143,16 +139,12 @@ class TestAttributeValueModel:
         attribute = Attribute.objects.create(name=f"Атрибут {suffix}")
         onec_id = f"val-duplicate-{suffix}"
 
-        val1 = AttributeValue.objects.create(
-            attribute=attribute, value=f"Val 1 {suffix}"
-        )
+        val1 = AttributeValue.objects.create(attribute=attribute, value=f"Val 1 {suffix}")
         AttributeValue1CMapping.objects.create(
             attribute_value=val1, onec_id=onec_id, onec_value="Val 1", source="goods"
         )
 
-        val2 = AttributeValue.objects.create(
-            attribute=attribute, value=f"Val 2 {suffix}"
-        )
+        val2 = AttributeValue.objects.create(attribute=attribute, value=f"Val 2 {suffix}")
 
         # ACT & ASSERT
         with pytest.raises(IntegrityError):
@@ -168,9 +160,7 @@ class TestAttributeValueModel:
 class TestProductAttributeRelationship:
     """Тесты связи M2M между Product и AttributeValue."""
 
-    def test_product_can_add_attribute_values(
-        self, brand_factory, category_factory
-    ) -> None:
+    def test_product_can_add_attribute_values(self, brand_factory, category_factory) -> None:
         """Тест: можно добавить атрибуты к Product."""
         # ARRANGE
         suffix = get_unique_suffix()
@@ -185,9 +175,7 @@ class TestProductAttributeRelationship:
             onec_id=f"prod-{suffix}",
         )
         attribute = Attribute.objects.create(name=f"Цвет {suffix}")
-        attr_value = AttributeValue.objects.create(
-            attribute=attribute, value=f"Красный {suffix}"
-        )
+        attr_value = AttributeValue.objects.create(attribute=attribute, value=f"Красный {suffix}")
 
         # ACT
         product.attributes.add(attr_value)
@@ -196,9 +184,7 @@ class TestProductAttributeRelationship:
         assert attr_value in product.attributes.all()
         assert product in attr_value.products.all()
 
-    def test_product_can_have_multiple_attributes(
-        self, brand_factory, category_factory
-    ) -> None:
+    def test_product_can_have_multiple_attributes(self, brand_factory, category_factory) -> None:
         """Тест: Product может иметь несколько атрибутов."""
         # ARRANGE
         suffix = get_unique_suffix()
@@ -215,12 +201,8 @@ class TestProductAttributeRelationship:
         color_attr = Attribute.objects.create(name=f"Цвет {suffix}")
         size_attr = Attribute.objects.create(name=f"Размер {suffix}")
 
-        color_value = AttributeValue.objects.create(
-            attribute=color_attr, value=f"Черный {suffix}"
-        )
-        size_value = AttributeValue.objects.create(
-            attribute=size_attr, value=f"L {suffix}"
-        )
+        color_value = AttributeValue.objects.create(attribute=color_attr, value=f"Черный {suffix}")
+        size_value = AttributeValue.objects.create(attribute=size_attr, value=f"L {suffix}")
 
         # ACT
         product.attributes.add(color_value, size_value)
@@ -235,9 +217,7 @@ class TestProductAttributeRelationship:
 class TestProductVariantAttributeRelationship:
     """Тесты связи M2M между ProductVariant и AttributeValue."""
 
-    def test_variant_can_add_attribute_values(
-        self, brand_factory, category_factory
-    ) -> None:
+    def test_variant_can_add_attribute_values(self, brand_factory, category_factory) -> None:
         """Тест: можно добавить атрибуты к ProductVariant."""
         # ARRANGE
         suffix = get_unique_suffix()
@@ -258,9 +238,7 @@ class TestProductVariantAttributeRelationship:
             retail_price=100.00,
         )
         attribute = Attribute.objects.create(name=f"Цвет {suffix}")
-        attr_value = AttributeValue.objects.create(
-            attribute=attribute, value=f"Зеленый {suffix}"
-        )
+        attr_value = AttributeValue.objects.create(attribute=attribute, value=f"Зеленый {suffix}")
 
         # ACT
         variant.attributes.add(attr_value)
@@ -269,9 +247,7 @@ class TestProductVariantAttributeRelationship:
         assert attr_value in variant.attributes.all()
         assert variant in attr_value.variants.all()
 
-    def test_variant_can_have_multiple_attributes(
-        self, brand_factory, category_factory
-    ) -> None:
+    def test_variant_can_have_multiple_attributes(self, brand_factory, category_factory) -> None:
         """Тест: ProductVariant может иметь несколько атрибутов."""
         # ARRANGE
         suffix = get_unique_suffix()
@@ -294,12 +270,8 @@ class TestProductVariantAttributeRelationship:
         color_attr = Attribute.objects.create(name=f"Цвет {suffix}")
         size_attr = Attribute.objects.create(name=f"Размер {suffix}")
 
-        color_value = AttributeValue.objects.create(
-            attribute=color_attr, value=f"Белый {suffix}"
-        )
-        size_value = AttributeValue.objects.create(
-            attribute=size_attr, value=f"M {suffix}"
-        )
+        color_value = AttributeValue.objects.create(attribute=color_attr, value=f"Белый {suffix}")
+        size_value = AttributeValue.objects.create(attribute=size_attr, value=f"M {suffix}")
 
         # ACT
         variant.attributes.add(color_value, size_value)

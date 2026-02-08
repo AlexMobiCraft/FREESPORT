@@ -26,31 +26,22 @@ class SearchAPITest(TestCase):
         self.client = APIClient()
 
         # Создаем тестовые объекты
-        self.category1 = Category.objects.create(
-            name="Футбольная обувь", slug="football-shoes", is_active=True
-        )
+        self.category1 = Category.objects.create(name="Футбольная обувь", slug="football-shoes", is_active=True)
 
-        self.category2 = Category.objects.create(
-            name="Спортивная одежда", slug="sports-clothing", is_active=True
-        )
+        self.category2 = Category.objects.create(name="Спортивная одежда", slug="sports-clothing", is_active=True)
 
         self.brand_nike = Brand.objects.create(name="Nike", slug="nike", is_active=True)
 
-        self.brand_adidas = Brand.objects.create(
-            name="Adidas", slug="adidas", is_active=True
-        )
+        self.brand_adidas = Brand.objects.create(name="Adidas", slug="adidas", is_active=True)
 
         # Создаем тестовые товары для поиска
         self.products = [
             ProductVariantFactory.create(
                 product__name="Nike Phantom GT2 Elite FG",
                 sku="NIKE-PHT-001",
-                product__short_description=(
-                    "Футбольные бутсы для профессиональных игроков"
-                ),
+                product__short_description=("Футбольные бутсы для профессиональных игроков"),
                 product__description=(
-                    "Высокотехнологичные футбольные бутсы Nike Phantom "
-                    "GT2 Elite FG для профессионалов"
+                    "Высокотехнологичные футбольные бутсы Nike Phantom " "GT2 Elite FG для профессионалов"
                 ),
                 product__brand=self.brand_nike,
                 product__category=self.category1,
@@ -64,10 +55,7 @@ class SearchAPITest(TestCase):
                 product__name="Adidas Predator Freak.1 FG",
                 sku="ADIDAS-PRED-001",
                 product__short_description="Футбольная обувь Adidas для атаки",
-                product__description=(
-                    "Adidas Predator Freak.1 FG футбольные бутсы с технологией "
-                    "Demonskin"
-                ),
+                product__description=("Adidas Predator Freak.1 FG футбольные бутсы с технологией " "Demonskin"),
                 product__brand=self.brand_adidas,
                 product__category=self.category1,
                 retail_price=15999.00,
@@ -80,9 +68,7 @@ class SearchAPITest(TestCase):
                 product__name="Футболка Nike Dri-FIT",
                 sku="NIKE-SHIRT-001",
                 product__short_description="Спортивная футболка Nike",
-                product__description=(
-                    "Легкая спортивная футболка Nike Dri-FIT для тренировок"
-                ),
+                product__description=("Легкая спортивная футболка Nike Dri-FIT для тренировок"),
                 product__brand=self.brand_nike,
                 product__category=self.category2,
                 retail_price=3499.00,
@@ -93,9 +79,7 @@ class SearchAPITest(TestCase):
                 product__name="Перчатки вратарские Nike",
                 sku="NIKE-GK-001",
                 product__short_description="Вратарские перчатки Nike Vapor Grip3",
-                product__description=(
-                    "Профессиональные вратарские перчатки Nike Vapor Grip3"
-                ),
+                product__description=("Профессиональные вратарские перчатки Nike Vapor Grip3"),
                 product__brand=self.brand_nike,
                 product__category=self.category1,
                 retail_price=4999.00,
@@ -105,13 +89,9 @@ class SearchAPITest(TestCase):
         ]
 
         # Создаем тестовых пользователей
-        self.retail_user = User.objects.create_user(
-            email="retail@test.com", password="testpass123", role="retail"
-        )
+        self.retail_user = User.objects.create_user(email="retail@test.com", password="testpass123", role="retail")
 
-        self.trainer_user = User.objects.create_user(
-            email="trainer@test.com", password="testpass123", role="trainer"
-        )
+        self.trainer_user = User.objects.create_user(email="trainer@test.com", password="testpass123", role="trainer")
 
     def test_search_basic_functionality(self):
         """Тест базовой функциональности поиска"""
@@ -128,11 +108,7 @@ class SearchAPITest(TestCase):
         # Проверяем, что все результаты содержат Nike
         for product in data["results"]:
             product_text = (
-                product["name"]
-                + " "
-                + product.get("short_description", "")
-                + " "
-                + product.get("sku", "")
+                product["name"] + " " + product.get("short_description", "") + " " + product.get("sku", "")
             ).lower()
             self.assertIn("nike", product_text)
 
@@ -182,11 +158,7 @@ class SearchAPITest(TestCase):
         self.assertGreater(len(data["results"]), 0)
         # Проверяем, что найдены товары с русскими словами
         for product in data["results"]:
-            desc_text = (
-                product.get("short_description", "")
-                + " "
-                + product.get("description", "")
-            ).lower()
+            desc_text = (product.get("short_description", "") + " " + product.get("description", "")).lower()
             self.assertTrue("футбольн" in desc_text or "бутс" in desc_text)
 
     def test_search_case_insensitive(self):
@@ -213,9 +185,7 @@ class SearchAPITest(TestCase):
     def test_search_with_category_filter(self):
         """Тест комбинирования поиска с фильтром по категории"""
         url = reverse("products:product-list")
-        response = self.client.get(
-            url, {"search": "Nike", "category_id": self.category1.id}
-        )
+        response = self.client.get(url, {"search": "Nike", "category_id": self.category1.id})
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.json()
@@ -245,9 +215,7 @@ class SearchAPITest(TestCase):
     def test_search_with_price_filter(self):
         """Тест комбинирования поиска с фильтром по цене"""
         url = reverse("products:product-list")
-        response = self.client.get(
-            url, {"search": "Nike", "min_price": 5000, "max_price": 20000}
-        )
+        response = self.client.get(url, {"search": "Nike", "min_price": 5000, "max_price": 20000})
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.json()
@@ -382,9 +350,7 @@ class SearchAPITest(TestCase):
     def test_search_with_ordering(self):
         """Тест поиска с дополнительной сортировкой"""
         url = reverse("products:product-list")
-        response = self.client.get(
-            url, {"search": "Nike", "ordering": "min_retail_price"}
-        )
+        response = self.client.get(url, {"search": "Nike", "ordering": "min_retail_price"})
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.json()

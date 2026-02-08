@@ -131,9 +131,7 @@ class TestOrdersXmlModeFile:
             last_name="Test",
             is_staff=True,
         )
-        self.auth_header = "Basic " + base64.b64encode(
-            b"1c-test@example.com:test_password_123"
-        ).decode("ascii")
+        self.auth_header = "Basic " + base64.b64encode(b"1c-test@example.com:test_password_123").decode("ascii")
 
     def _authenticate(self):
         """Perform checkauth + get session cookie."""
@@ -247,9 +245,7 @@ class TestOrdersXmlModeFile:
         )
         xml_data = _build_orders_xml(order_number=order_number, status_1c="Подтвержден")
 
-        with patch(
-            "apps.integrations.onec_exchange.views._save_exchange_log"
-        ) as mock_log:
+        with patch("apps.integrations.onec_exchange.views._save_exchange_log") as mock_log:
             response = self._post_orders_xml(xml_data)
 
         assert response.status_code == 200
@@ -501,9 +497,7 @@ class TestOrdersXmlModeFile:
 
     def test_stale_xml_timestamp_rejected(self):
         """XML с ДатаФормирования старше 24 часов → failure."""
-        stale_time = (timezone.now() - timedelta(hours=25)).strftime(
-            "%Y-%m-%dT%H:%M:%S"
-        )
+        stale_time = (timezone.now() - timedelta(hours=25)).strftime("%Y-%m-%dT%H:%M:%S")
         xml_data = _build_orders_xml(timestamp=stale_time)
 
         response = self._post_orders_xml(xml_data)
@@ -718,6 +712,4 @@ class TestOrdersXmlModeFile:
 
         # At least one response should be 429
         status_codes = [r.status_code for r in responses]
-        assert (
-            429 in status_codes
-        ), f"Expected at least one 429 response, got: {status_codes}"
+        assert 429 in status_codes, f"Expected at least one 429 response, got: {status_codes}"

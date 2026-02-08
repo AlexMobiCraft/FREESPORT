@@ -150,9 +150,7 @@ class TestBlogPostModel(TestCase):
 
         self.assertEqual(blog_post.title, "Полная статья о беге")
         self.assertEqual(blog_post.subtitle, "Всё, что нужно знать о беге")
-        self.assertEqual(
-            blog_post.excerpt, "Краткое описание статьи о беге для начинающих"
-        )
+        self.assertEqual(blog_post.excerpt, "Краткое описание статьи о беге для начинающих")
         self.assertEqual(blog_post.author, "Иван Иванов")
         self.assertEqual(blog_post.category, self.category)
         self.assertTrue(blog_post.is_published)

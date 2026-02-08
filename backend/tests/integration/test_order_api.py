@@ -17,12 +17,8 @@ pytestmark = pytest.mark.django_db
 
 @pytest.fixture
 def variant(sample_image):
-    brand = Brand.objects.create(
-        name=f"Brand-{uuid.uuid4()}", slug=f"brand-{uuid.uuid4()}"
-    )
-    category = Category.objects.create(
-        name=f"Cat-{uuid.uuid4()}", slug=f"cat-{uuid.uuid4()}"
-    )
+    brand = Brand.objects.create(name=f"Brand-{uuid.uuid4()}", slug=f"brand-{uuid.uuid4()}")
+    category = Category.objects.create(name=f"Cat-{uuid.uuid4()}", slug=f"cat-{uuid.uuid4()}")
     product = Product.objects.create(
         name="Test Product",
         slug=f"product-{uuid.uuid4()}",
@@ -42,9 +38,7 @@ def variant(sample_image):
 
 @pytest.fixture
 def authenticated_client(db, api_client):
-    user = User.objects.create_user(
-        email=f"user-{uuid.uuid4()}@example.com", password="testpass"
-    )
+    user = User.objects.create_user(email=f"user-{uuid.uuid4()}@example.com", password="testpass")
     from rest_framework_simplejwt.tokens import RefreshToken
 
     refresh = RefreshToken.for_user(user)
@@ -112,9 +106,7 @@ def test_get_order_detail(authenticated_client, cart_with_item):
     assert response.data["id"] == order_id
 
 
-def test_user_cannot_see_other_users_order(
-    api_client, authenticated_client, cart_with_item
-):
+def test_user_cannot_see_other_users_order(api_client, authenticated_client, cart_with_item):
     """Test that a user cannot see another user's order."""
     # Create an order with the first user
     create_url = reverse("orders:order-list")
@@ -127,9 +119,7 @@ def test_user_cannot_see_other_users_order(
     order_id = create_response.data["id"]
 
     # Create and authenticate a second user
-    other_user = User.objects.create_user(
-        email=f"other-{uuid.uuid4()}@example.com", password="testpass"
-    )
+    other_user = User.objects.create_user(email=f"other-{uuid.uuid4()}@example.com", password="testpass")
     from rest_framework_simplejwt.tokens import RefreshToken
 
     refresh = RefreshToken.for_user(other_user)

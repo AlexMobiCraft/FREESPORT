@@ -9,9 +9,7 @@ from .base import *
 # ВНИМАНИЕ: не используйте debug=True в продакшене!
 DEBUG = True
 
-ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1,backend").split(
-    ","
-)
+ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1,backend").split(",")
 
 # Дополнительные приложения для разработки
 INSTALLED_APPS += [
@@ -75,9 +73,7 @@ SECURE_HSTS_PRELOAD = False
 # EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
 # EMAIL_HOST=mailhog (или localhost)
 # EMAIL_PORT=1025
-EMAIL_BACKEND = os.environ.get(
-    "EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend"
-)
+EMAIL_BACKEND = os.environ.get("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
 
 # Логирование для разработки
 LOGGING = {

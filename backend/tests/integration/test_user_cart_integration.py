@@ -19,9 +19,7 @@ class UserCartIntegrationTest(TestCase):
         self.client = APIClient()
 
         # Создаем пользователей
-        self.retail_user = User.objects.create_user(
-            email="retail@example.com", password="testpass123", role="retail"
-        )
+        self.retail_user = User.objects.create_user(email="retail@example.com", password="testpass123", role="retail")
         self.b2b_user = User.objects.create_user(
             email="b2b@example.com",
             password="testpass123",

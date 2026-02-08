@@ -72,9 +72,7 @@ def merge_guest_cart_on_login(sender, instance, created, **kwargs):
             for guest_item in guest_cart.items.all():
                 try:
                     # Проверяем, есть ли уже такой вариант в корзине пользователя
-                    user_item = CartItem.objects.get(
-                        cart=user_cart, variant=guest_item.variant
-                    )
+                    user_item = CartItem.objects.get(cart=user_cart, variant=guest_item.variant)
                     # Если есть, увеличиваем количество
                     user_item.quantity += guest_item.quantity
                     user_item.save()

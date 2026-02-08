@@ -31,10 +31,7 @@ class TestCustomerDataParser:
 
         if os.path.exists("/app/data"):
             # Docker environment
-            xml_path = Path(
-                "/app/data/import_1c/contragents/"
-                "contragents_1_564750cd-8a00-4926-a2a4-7a1c995605c0.xml"
-            )
+            xml_path = Path("/app/data/import_1c/contragents/" "contragents_1_564750cd-8a00-4926-a2a4-7a1c995605c0.xml")
         else:
             # Local environment
             base_path = Path(__file__).parent.parent.parent.parent.parent
@@ -138,9 +135,7 @@ class TestCustomerDataParser:
         valid_types = ["legal_entity", "individual_entrepreneur", "individual"]
 
         for customer in result:
-            assert (
-                customer["customer_type"] in valid_types
-            ), f"Неверный тип клиента: {customer['customer_type']}"
+            assert customer["customer_type"] in valid_types, f"Неверный тип клиента: {customer['customer_type']}"
 
     def test_parse_handles_empty_kpp(self, parser, real_xml_file):
         """Тест обработки пустого КПП"""
@@ -159,9 +154,7 @@ class TestCustomerDataParser:
     def test_parse_invalid_xml(self, parser, tmp_path):
         """Тест обработки некорректного XML"""
         invalid_xml = tmp_path / "invalid.xml"
-        invalid_xml.write_text(
-            "<КоммерческаяИнформация><Контрагенты>", encoding="utf-8"
-        )
+        invalid_xml.write_text("<КоммерческаяИнформация><Контрагенты>", encoding="utf-8")
 
         from django.core.exceptions import ValidationError
 
@@ -199,13 +192,7 @@ class TestCustomerDataParser:
         result = parser.parse(real_xml_file)
 
         # Для юр.лиц и ИП должно быть заполнено company_name
-        business_customers = [
-            c
-            for c in result
-            if c["customer_type"] in ["legal_entity", "individual_entrepreneur"]
-        ]
+        business_customers = [c for c in result if c["customer_type"] in ["legal_entity", "individual_entrepreneur"]]
 
         for customer in business_customers:
-            assert customer.get(
-                "company_name"
-            ), f"company_name должен быть заполнен для {customer['customer_type']}"
+            assert customer.get("company_name"), f"company_name должен быть заполнен для {customer['customer_type']}"

@@ -38,26 +38,20 @@ def create_user_and_get_token(api_client):
             "role": role,
         }
         if role != "retail":
-            registration_data.update(
-                {"company_name": f"Тестовая компания {role}", "tax_id": "1234567890"}
-            )
+            registration_data.update({"company_name": f"Тестовая компания {role}", "tax_id": "1234567890"})
 
         # Регистрация
         url = reverse("users:register")
         response = api_client.post(url, registration_data, format="json")
         assert response.status_code == 201, (
-            f"Registration failed for role {role} with status {response.status_code}: "
-            f"{response.json()}"
+            f"Registration failed for role {role} with status {response.status_code}: " f"{response.json()}"
         )
 
         # Авторизация
         url = reverse("users:login")
-        response = api_client.post(
-            url, {"email": email, "password": TEST_USER_PASSWORD}, format="json"
-        )
+        response = api_client.post(url, {"email": email, "password": TEST_USER_PASSWORD}, format="json")
         assert response.status_code == 200, (
-            f"Login failed for role {role} with status {response.status_code}: "
-            f"{response.json()}"
+            f"Login failed for role {role} with status {response.status_code}: " f"{response.json()}"
         )
 
         return response.data["access"]
@@ -108,9 +102,7 @@ def test_token_refresh(api_client, create_user_and_get_token):
 
     # Получаем refresh token из ответа логина
     login_url = reverse("users:login")
-    login_response = api_client.post(
-        login_url, {"email": email, "password": TEST_USER_PASSWORD}, format="json"
-    )
+    login_response = api_client.post(login_url, {"email": email, "password": TEST_USER_PASSWORD}, format="json")
     refresh_token = login_response.json()["refresh"]
 
     url = reverse("users:token_refresh")

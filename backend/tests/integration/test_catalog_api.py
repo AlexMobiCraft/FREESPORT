@@ -82,9 +82,7 @@ def setup_test_data():
         # Извлекаем поля для варианта
         variant_fields = {
             "sku": product_data.pop("sku", f"SKU-{uuid.uuid4().hex[:8]}"),
-            "onec_id": product_data.pop(
-                "variant_onec_id", f"1C-VAR-{uuid.uuid4().hex[:8]}"
-            ),
+            "onec_id": product_data.pop("variant_onec_id", f"1C-VAR-{uuid.uuid4().hex[:8]}"),
             "retail_price": product_data.pop("retail_price"),
             "opt1_price": product_data.pop("opt1_price", None),
             "opt2_price": product_data.pop("opt2_price", None),
@@ -97,9 +95,7 @@ def setup_test_data():
         # Создаем продукт
         # Обеспечиваем уникальность onec_id для продукта
         p_onec_id = product_data.pop("onec_id", f"1C-PROD-{uuid.uuid4().hex[:8]}")
-        product = Product.objects.create(
-            **product_data, brand=brand, category=child_category, onec_id=p_onec_id
-        )
+        product = Product.objects.create(**product_data, brand=brand, category=child_category, onec_id=p_onec_id)
 
         # Создаем вариант для товара
         ProductVariant.objects.create(product=product, is_active=True, **variant_fields)
@@ -136,18 +132,12 @@ def register_and_login_user(api_client, role="retail"):
         import random
 
         tax_id = "".join([str(random.randint(0, 9)) for _ in range(10)])
-        registration_data.update(
-            {"company_name": f"Тестовая компания {role}", "tax_id": tax_id}
-        )
+        registration_data.update({"company_name": f"Тестовая компания {role}", "tax_id": tax_id})
 
     # Регистрация
-    url = reverse(
-        "users:register"
-    )  # Предполагается, что у вас есть именованный URL 'register'
+    url = reverse("users:register")  # Предполагается, что у вас есть именованный URL 'register'
     response = api_client.post(url, registration_data, format="json")
-    assert (
-        response.status_code == 201
-    ), f"Registration failed for role {role} with status {response.status_code}"
+    assert response.status_code == 201, f"Registration failed for role {role} with status {response.status_code}"
 
     # Верифицируем B2B пользователей, иначе они не смогут войти (Story 2.1)
     if role != "retail":
@@ -158,15 +148,9 @@ def register_and_login_user(api_client, role="retail"):
         user.save()
 
     # Авторизация
-    url = reverse(
-        "users:login"
-    )  # Предполагается, что у вас есть именованный URL 'login'
-    response = api_client.post(
-        url, {"email": email, "password": TEST_USER_PASSWORD}, format="json"
-    )
-    assert (
-        response.status_code == 200
-    ), f"Login failed for role {role} with status {response.status_code}"
+    url = reverse("users:login")  # Предполагается, что у вас есть именованный URL 'login'
+    response = api_client.post(url, {"email": email, "password": TEST_USER_PASSWORD}, format="json")
+    assert response.status_code == 200, f"Login failed for role {role} with status {response.status_code}"
 
     return response.data["access"]
 

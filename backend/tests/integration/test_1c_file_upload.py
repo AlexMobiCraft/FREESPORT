@@ -54,18 +54,14 @@ def staff_user(db):
 def authenticated_client(staff_user):
     """Create an API client with an established session (post-checkauth)."""
     client = APIClient()
-    auth_header = "Basic " + base64.b64encode(
-        b"1c_file@example.com:secure_password_123"
-    ).decode("ascii")
+    auth_header = "Basic " + base64.b64encode(b"1c_file@example.com:secure_password_123").decode("ascii")
     # Establish session via checkauth
     response: Any = client.get(
         "/api/integration/1c/exchange/",
         data={"mode": "checkauth"},
         HTTP_AUTHORIZATION=auth_header,
     )
-    assert (
-        response.status_code == 200
-    ), f"Failed to establish session: {response.content}"
+    assert response.status_code == 200, f"Failed to establish session: {response.content}"
     return client
 
 
@@ -191,9 +187,7 @@ class Test1CFileUpload:
         assert expected_file.exists()
 
         file_content = expected_file.read_bytes()
-        assert (
-            len(file_content) == 3000
-        ), f"Expected 3000 bytes, got {len(file_content)}"
+        assert len(file_content) == 3000, f"Expected 3000 bytes, got {len(file_content)}"
         assert file_content == chunk1 + chunk2 + chunk3
 
     def test_upload_missing_filename(self, authenticated_client, temp_1c_dir):
@@ -227,9 +221,7 @@ class Test1CFileUpload:
         assert response.status_code == status.HTTP_200_OK
         assert response.content == b"failure\nEmpty body"
 
-    def test_upload_directory_traversal_prevention(
-        self, authenticated_client, temp_1c_dir
-    ):
+    def test_upload_directory_traversal_prevention(self, authenticated_client, temp_1c_dir):
         """
         Security: Filename with path traversal is sanitized.
         """
@@ -319,9 +311,7 @@ class Test1CFileUpload:
         assert not old_file.exists()
         assert not (temp_1c_dir / sessid / ".exchange_complete").exists()
 
-    def test_streaming_upload_uses_chunked_reads(
-        self, authenticated_client, temp_1c_dir
-    ):
+    def test_streaming_upload_uses_chunked_reads(self, authenticated_client, temp_1c_dir):
         """
         Verify that upload uses streaming reads (doesn't load entire body into memory).
         """

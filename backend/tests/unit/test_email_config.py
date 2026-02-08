@@ -98,8 +98,7 @@ class TestEmailPortConfiguration:
         """EMAIL_PORT должен быть одним из стандартных SMTP портов."""
         port = settings.EMAIL_PORT
         assert port in self.COMMON_SMTP_PORTS, (
-            f"EMAIL_PORT {port} не является стандартным SMTP портом. "
-            f"Ожидается один из: {self.COMMON_SMTP_PORTS}"
+            f"EMAIL_PORT {port} не является стандартным SMTP портом. " f"Ожидается один из: {self.COMMON_SMTP_PORTS}"
         )
 
     def test_tls_ssl_mutual_exclusion(self):

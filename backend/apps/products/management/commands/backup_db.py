@@ -61,8 +61,7 @@ class Command(BaseCommand):
 
         if db_settings["ENGINE"] != "django.db.backends.postgresql":
             raise CommandError(
-                f"Unsupported database engine: {db_settings['ENGINE']}. "
-                "Only PostgreSQL is supported."
+                f"Unsupported database engine: {db_settings['ENGINE']}. " "Only PostgreSQL is supported."
             )
 
         self.stdout.write(f"💾 Создание backup: {backup_file}")
@@ -92,17 +91,11 @@ class Command(BaseCommand):
 
         try:
             # Выполняем команду
-            result = subprocess.run(
-                cmd, env=env, capture_output=True, text=True, check=True
-            )
+            result = subprocess.run(cmd, env=env, capture_output=True, text=True, check=True)
 
             if result.returncode == 0:
                 file_size = backup_file.stat().st_size / (1024 * 1024)  # MB
-                self.stdout.write(
-                    self.style.SUCCESS(
-                        f"✅ Backup создан: {backup_file} ({file_size:.2f} MB)"
-                    )
-                )
+                self.stdout.write(self.style.SUCCESS(f"✅ Backup создан: {backup_file} ({file_size:.2f} MB)"))
 
                 # Опциональное шифрование (Story 3.1.2)
                 if encrypt:
@@ -118,9 +111,7 @@ class Command(BaseCommand):
         except subprocess.CalledProcessError as e:
             raise CommandError(f"Backup failed: {e.stderr}")
         except FileNotFoundError:
-            raise CommandError(
-                "pg_dump not found. Убедитесь что PostgreSQL client установлен."
-            )
+            raise CommandError("pg_dump not found. Убедитесь что PostgreSQL client установлен.")
 
     def _encrypt_backup(self, backup_file: Path) -> None:
         """
@@ -137,11 +128,7 @@ class Command(BaseCommand):
             with open(backup_file, "rb") as f:
                 encrypted = gpg.encrypt_file(
                     f,
-                    recipients=[
-                        getattr(
-                            settings, "BACKUP_GPG_RECIPIENT", "backup@freesport.com"
-                        )
-                    ],
+                    recipients=[getattr(settings, "BACKUP_GPG_RECIPIENT", "backup@freesport.com")],
                     output=str(encrypted_file),
                     armor=False,
                 )
@@ -149,27 +136,18 @@ class Command(BaseCommand):
             if encrypted.ok:
                 # Удаляем незашифрованную копию
                 backup_file.unlink()
-                self.stdout.write(
-                    self.style.SUCCESS(f"🔐 Backup зашифрован: {encrypted_file}")
-                )
+                self.stdout.write(self.style.SUCCESS(f"🔐 Backup зашифрован: {encrypted_file}"))
             else:
                 self.stdout.write(
                     self.style.WARNING(
-                        f"⚠️ Шифрование не удалось: {encrypted.status}. "
-                        "Сохранена незашифрованная копия."
+                        f"⚠️ Шифрование не удалось: {encrypted.status}. " "Сохранена незашифрованная копия."
                     )
                 )
 
         except ImportError:
-            self.stdout.write(
-                self.style.WARNING(
-                    "⚠️ python-gnupg не установлен. Пропускаем шифрование."
-                )
-            )
+            self.stdout.write(self.style.WARNING("⚠️ python-gnupg не установлен. Пропускаем шифрование."))
         except Exception as e:
-            self.stdout.write(
-                self.style.WARNING(f"⚠️ Ошибка шифрования: {e}. Backup сохранен.")
-            )
+            self.stdout.write(self.style.WARNING(f"⚠️ Ошибка шифрования: {e}. Backup сохранен."))
 
     def _rotate_backups(self, backup_dir: Path, keep: int = 3) -> None:
         """
@@ -190,6 +168,4 @@ class Command(BaseCommand):
                 old_backup.unlink()
                 self.stdout.write(f"🗑️  Удален старый backup: {old_backup.name}")
             except Exception as e:
-                self.stdout.write(
-                    self.style.WARNING(f"⚠️ Не удалось удалить {old_backup}: {e}")
-                )
+                self.stdout.write(self.style.WARNING(f"⚠️ Не удалось удалить {old_backup}: {e}"))

@@ -29,16 +29,12 @@ class SearchPerformanceTest(TestCase):
 
         # Создаем 5 категорий
         for i in range(5):
-            category = Category.objects.create(
-                name=f"Search Category {i}", slug=f"search-category-{i}"
-            )
+            category = Category.objects.create(name=f"Search Category {i}", slug=f"search-category-{i}")
             self.categories.append(category)
 
         # Создаем 3 бренда
         for i in range(3):
-            brand = Brand.objects.create(
-                name=f"Search Brand {i}", slug=f"search-brand-{i}"
-            )
+            brand = Brand.objects.create(name=f"Search Brand {i}", slug=f"search-brand-{i}")
             self.brands.append(brand)
 
         # Создаем 200 товаров для тестирования поиска
@@ -104,9 +100,7 @@ class SearchPerformanceTest(TestCase):
         """Производительность полнотекстового поиска"""
         start_time = time.time()
 
-        response = self.client.get(
-            "/api/v1/products/", {"search": "Описание товара для теннис"}
-        )
+        response = self.client.get("/api/v1/products/", {"search": "Описание товара для теннис"})
 
         end_time = time.time()
         response_time = end_time - start_time
@@ -122,9 +116,7 @@ class SearchPerformanceTest(TestCase):
         """Производительность поиска без результатов"""
         start_time = time.time()
 
-        response = self.client.get(
-            "/api/v1/products/", {"search": "несуществующий_товар_xyz123"}
-        )
+        response = self.client.get("/api/v1/products/", {"search": "несуществующий_товар_xyz123"})
 
         end_time = time.time()
         response_time = end_time - start_time
@@ -142,9 +134,7 @@ class SearchPerformanceTest(TestCase):
         """Производительность пагинации поиска"""
         start_time = time.time()
 
-        response = self.client.get(
-            "/api/v1/products/", {"search": "Product", "page": 2, "page_size": 20}
-        )
+        response = self.client.get("/api/v1/products/", {"search": "Product", "page": 2, "page_size": 20})
 
         end_time = time.time()
         response_time = end_time - start_time
@@ -164,19 +154,14 @@ class SearchPerformanceTest(TestCase):
             with self.subTest(sort_by=sort_by):
                 start_time = time.time()
 
-                response = self.client.get(
-                    "/api/v1/products/", {"search": "Product", "ordering": sort_by}
-                )
+                response = self.client.get("/api/v1/products/", {"search": "Product", "ordering": sort_by})
 
                 end_time = time.time()
                 response_time = end_time - start_time
                 self.assertLess(
                     response_time,
                     1.5,
-                    (
-                        f"Search sorting by {sort_by} response time "
-                        f"{response_time:.2f}s exceeds 1.5s limit"
-                    ),
+                    (f"Search sorting by {sort_by} response time " f"{response_time:.2f}s exceeds 1.5s limit"),
                 )
                 self.assertEqual(response.status_code, 200)
 
@@ -233,9 +218,7 @@ class SearchPerformanceTest(TestCase):
         queries_count = len(ctx.captured_queries)
 
         # Поиск не должен генерировать слишком много запросов
-        self.assertLess(
-            queries_count, 15, f"Search generates too many DB queries: {queries_count}"
-        )
+        self.assertLess(queries_count, 15, f"Search generates too many DB queries: {queries_count}")
         self.assertEqual(response.status_code, 200)
 
         print(f"Search database queries count: {queries_count}")
@@ -253,9 +236,7 @@ class SearchPerformanceTest(TestCase):
         tracemalloc.stop()
 
         memory_mb = peak / 1024 / 1024
-        self.assertLess(
-            memory_mb, 30, f"Search memory usage {memory_mb:.2f}MB exceeds 30MB limit"
-        )
+        self.assertLess(memory_mb, 30, f"Search memory usage {memory_mb:.2f}MB exceeds 30MB limit")
 
         self.assertEqual(response.status_code, 200)
 

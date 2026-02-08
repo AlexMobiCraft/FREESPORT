@@ -111,9 +111,7 @@ class CustomerDataParser:
             address = self._get_text(address_node, "Представление")
 
         # Определение типа клиента
-        customer_type = self._determine_customer_type(
-            {"full_name": full_name, "tax_id": tax_id, "kpp": kpp}
-        )
+        customer_type = self._determine_customer_type({"full_name": full_name, "tax_id": tax_id, "kpp": kpp})
 
         # Извлечение первого и последнего имени для физ.лиц
         first_name, last_name = self._parse_name(name, customer_type)
@@ -159,22 +157,16 @@ class CustomerDataParser:
 
         if contacts_node is not None:
             # Парсим контакты
-            for contact_node in contacts_node.findall(
-                "cml:Контакт", self.COMMERCEML_NS
-            ) or contacts_node.findall("Контакт"):
+            for contact_node in contacts_node.findall("cml:Контакт", self.COMMERCEML_NS) or contacts_node.findall(
+                "Контакт"
+            ):
                 contact_type = self._get_text(contact_node, "Тип")
                 contact_value = self._get_text(contact_node, "Значение")
 
                 if contact_type and contact_value:
-                    if (
-                        "email" in contact_type.lower()
-                        or "почта" in contact_type.lower()
-                    ):
+                    if "email" in contact_type.lower() or "почта" in contact_type.lower():
                         contact_info["email"] = contact_value
-                    elif (
-                        "телефон" in contact_type.lower()
-                        or "phone" in contact_type.lower()
-                    ):
+                    elif "телефон" in contact_type.lower() or "phone" in contact_type.lower():
                         contact_info["phone"] = contact_value
 
         return contact_info
@@ -222,9 +214,7 @@ class CustomerDataParser:
 
         for field in required_fields:
             if not customer_data.get(field):
-                logger.warning(
-                    f"Пропуск клиента: отсутствует обязательное поле '{field}'"
-                )
+                logger.warning(f"Пропуск клиента: отсутствует обязательное поле '{field}'")
                 return False
 
         return True
