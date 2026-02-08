@@ -89,6 +89,8 @@ class TestBadgesIntegration:
         )
 
         # Фильтр по двум флагам
-        filterset = ProductFilter({"is_hit": True, "is_sale": True}, queryset=Product.objects.all())
+        filterset = ProductFilter(
+            {"is_hit": True, "is_sale": True}, queryset=Product.objects.all()
+        )
         assert filterset.qs.count() == 1
         assert filterset.qs.first() == combo

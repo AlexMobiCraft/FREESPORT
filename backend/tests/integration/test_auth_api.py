@@ -40,7 +40,10 @@ class TestLogoutRouteRegistration:
             status.HTTP_405_METHOD_NOT_ALLOWED,
         ]
 
-    @pytest.mark.skip(reason="Schema generation fails due to existing Decimal import issue " "(not related to logout)")
+    @pytest.mark.skip(
+        reason="Schema generation fails due to existing Decimal import issue "
+        "(not related to logout)"
+    )
     def test_logout_in_openapi_schema(self, api_client: APIClient):
         """Logout endpoint присутствует в OpenAPI схеме"""
         response = api_client.get("/api/schema/")

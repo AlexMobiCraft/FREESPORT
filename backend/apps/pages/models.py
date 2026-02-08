@@ -17,8 +17,12 @@ class Page(models.Model):
     content = models.TextField(verbose_name="Содержимое")
 
     # SEO fields
-    seo_title = models.CharField(max_length=60, blank=True, verbose_name="SEO заголовок")
-    seo_description = models.TextField(max_length=160, blank=True, verbose_name="SEO описание")
+    seo_title = models.CharField(
+        max_length=60, blank=True, verbose_name="SEO заголовок"
+    )
+    seo_description = models.TextField(
+        max_length=160, blank=True, verbose_name="SEO описание"
+    )
 
     # Publication
     is_published = models.BooleanField(default=False, verbose_name="Опубликовано")

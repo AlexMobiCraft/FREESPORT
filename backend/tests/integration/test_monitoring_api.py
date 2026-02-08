@@ -115,7 +115,9 @@ class TestMonitoringAPIEndpoints(TestCase):
         start_date = (self.now - timedelta(hours=1)).isoformat()
         end_date = self.now.isoformat()
 
-        response = self.client.get(url, {"start_date": start_date, "end_date": end_date})
+        response = self.client.get(
+            url, {"start_date": start_date, "end_date": end_date}
+        )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.json()
@@ -185,7 +187,9 @@ class TestMonitoringAPIEndpoints(TestCase):
         url = reverse("common:operation-metrics")
         self.client.force_authenticate(user=self.admin_user)
 
-        response = self.client.get(url, {"start_date": "invalid-date", "end_date": "also-invalid"})
+        response = self.client.get(
+            url, {"start_date": "invalid-date", "end_date": "also-invalid"}
+        )
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         data = response.json()
@@ -199,7 +203,9 @@ class TestMonitoringAPIEndpoints(TestCase):
         start_date = self.now.isoformat()
         end_date = (self.now - timedelta(hours=1)).isoformat()
 
-        response = self.client.get(url, {"start_date": start_date, "end_date": end_date})
+        response = self.client.get(
+            url, {"start_date": start_date, "end_date": end_date}
+        )
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         data = response.json()

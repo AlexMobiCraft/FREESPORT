@@ -402,8 +402,12 @@ class TestAttributeAdminMergeAttributes:
         # Arrange - уникальные имена для теста
         suffix = f"{int(time.time() * 1000)}-{uuid.uuid4().hex[:6]}"
 
-        target_attr = Attribute.objects.create(name=f"TargetAttr-{suffix}", type="Справочник")
-        source_attr = Attribute.objects.create(name=f"SourceAttr-{suffix}", type="Справочник")
+        target_attr = Attribute.objects.create(
+            name=f"TargetAttr-{suffix}", type="Справочник"
+        )
+        source_attr = Attribute.objects.create(
+            name=f"SourceAttr-{suffix}", type="Справочник"
+        )
 
         Attribute1CMapping.objects.create(
             attribute=source_attr,
@@ -435,7 +439,9 @@ class TestAttributeAdminMergeAttributes:
 
         # Assert
         # Маппинг должен быть перенесен на target
-        assert Attribute1CMapping.objects.filter(attribute=target_attr, onec_id=f"source-mapping-{suffix}").exists()
+        assert Attribute1CMapping.objects.filter(
+            attribute=target_attr, onec_id=f"source-mapping-{suffix}"
+        ).exists()
 
         # Source атрибут должен быть удален
         assert not Attribute.objects.filter(pk=source_attr.pk).exists()
@@ -454,18 +460,28 @@ class TestAttributeAdminMergeAttributes:
 
         from django.contrib.auth import get_user_model
 
-        from apps.products.models import Attribute, AttributeValue, AttributeValue1CMapping
+        from apps.products.models import (
+            Attribute,
+            AttributeValue,
+            AttributeValue1CMapping,
+        )
 
         User = get_user_model()
 
         # Arrange
         suffix = f"{int(time.time() * 1000)}-{uuid.uuid4().hex[:6]}"
 
-        target_attr = Attribute.objects.create(name=f"Target-{suffix}", type="Справочник")
-        source_attr = Attribute.objects.create(name=f"Source-{suffix}", type="Справочник")
+        target_attr = Attribute.objects.create(
+            name=f"Target-{suffix}", type="Справочник"
+        )
+        source_attr = Attribute.objects.create(
+            name=f"Source-{suffix}", type="Справочник"
+        )
 
         # Одинаковые значения в обоих атрибутах
-        target_value = AttributeValue.objects.create(attribute=target_attr, value=f"Red-{suffix}")
+        target_value = AttributeValue.objects.create(
+            attribute=target_attr, value=f"Red-{suffix}"
+        )
         source_value = AttributeValue.objects.create(
             attribute=source_attr, value=f"red-{suffix}"  # Same normalized_value
         )

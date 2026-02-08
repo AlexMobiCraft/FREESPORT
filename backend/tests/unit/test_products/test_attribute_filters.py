@@ -157,7 +157,9 @@ class TestAttributeFilters:
 
         # Фильтр: attr_color=red,blue (OR логика)
         factory = RequestFactory()
-        request = factory.get(f"/?attr_color-{suffix}={red_value.slug},{blue_value.slug}")
+        request = factory.get(
+            f"/?attr_color-{suffix}={red_value.slug},{blue_value.slug}"
+        )
         request.user = None
 
         filter_instance = ProductFilter(
@@ -246,7 +248,9 @@ class TestAttributeFilters:
 
         # Фильтр: attr_color=red AND attr_size=xl
         factory = RequestFactory()
-        request = factory.get(f"/?attr_color-{suffix}={red_value.slug}&attr_size-{suffix}={xl_value.slug}")
+        request = factory.get(
+            f"/?attr_color-{suffix}={red_value.slug}&attr_size-{suffix}={xl_value.slug}"
+        )
         request.user = None
 
         filter_instance = ProductFilter(
@@ -378,26 +382,38 @@ class TestAttributeFacets:
         )
 
         # Создаем значения
-        red_value = AttributeValueFactory(attribute=color_attr, value=f"Красный {suffix}", slug=f"red-{suffix}")
-        xl_value = AttributeValueFactory(attribute=size_attr, value=f"XL {suffix}", slug=f"xl-{suffix}")
-        l_value = AttributeValueFactory(attribute=size_attr, value=f"L {suffix}", slug=f"l-{suffix}")
+        red_value = AttributeValueFactory(
+            attribute=color_attr, value=f"Красный {suffix}", slug=f"red-{suffix}"
+        )
+        xl_value = AttributeValueFactory(
+            attribute=size_attr, value=f"XL {suffix}", slug=f"xl-{suffix}"
+        )
+        l_value = AttributeValueFactory(
+            attribute=size_attr, value=f"L {suffix}", slug=f"l-{suffix}"
+        )
 
         # Создаем товары
         brand = BrandFactory(name=f"Brand {suffix}")
         category = CategoryFactory(name=f"Category {suffix}")
 
         # Red XL - входит в queryset
-        red_xl = ProductFactory(name=f"Red XL {suffix}", brand=brand, category=category, is_active=True)
+        red_xl = ProductFactory(
+            name=f"Red XL {suffix}", brand=brand, category=category, is_active=True
+        )
         red_xl_variant = ProductVariantFactory(product=red_xl)
         red_xl.attributes.add(red_value, xl_value)
 
         # Red L - входит в queryset
-        red_l = ProductFactory(name=f"Red L {suffix}", brand=brand, category=category, is_active=True)
+        red_l = ProductFactory(
+            name=f"Red L {suffix}", brand=brand, category=category, is_active=True
+        )
         red_l_variant = ProductVariantFactory(product=red_l)
         red_l.attributes.add(red_value, l_value)
 
         # Фильтруем только по цвету Red
-        queryset = Product.objects.filter(is_active=True, attributes__slug=f"red-{suffix}").distinct()
+        queryset = Product.objects.filter(
+            is_active=True, attributes__slug=f"red-{suffix}"
+        ).distinct()
 
         facets = AttributeFacetService.get_facets(queryset)
 
@@ -426,7 +442,9 @@ class TestAttributeFacets:
         # Создаем товар с неактивным атрибутом
         brand = BrandFactory(name=f"Brand {suffix}")
         category = CategoryFactory(name=f"Category {suffix}")
-        product = ProductFactory(name=f"Product {suffix}", brand=brand, category=category, is_active=True)
+        product = ProductFactory(
+            name=f"Product {suffix}", brand=brand, category=category, is_active=True
+        )
         variant = ProductVariantFactory(product=product)
         product.attributes.add(inactive_value)
 
@@ -466,12 +484,16 @@ class TestAttributeFiltersAPI:
             slug=f"color-{suffix}",
             is_active=True,
         )
-        red_value = AttributeValueFactory(attribute=color_attr, value=f"Красный {suffix}", slug=f"red-{suffix}")
+        red_value = AttributeValueFactory(
+            attribute=color_attr, value=f"Красный {suffix}", slug=f"red-{suffix}"
+        )
 
         # Создаем товар
         brand = BrandFactory(name=f"Brand {suffix}")
         category = CategoryFactory(name=f"Category {suffix}")
-        product = ProductFactory(name=f"Red Product {suffix}", brand=brand, category=category, is_active=True)
+        product = ProductFactory(
+            name=f"Red Product {suffix}", brand=brand, category=category, is_active=True
+        )
         variant = ProductVariantFactory(product=product)
         product.attributes.add(red_value)
 
@@ -495,12 +517,16 @@ class TestAttributeFiltersAPI:
             slug=f"color-{suffix}",
             is_active=True,
         )
-        red_value = AttributeValueFactory(attribute=color_attr, value=f"Красный {suffix}", slug=f"red-{suffix}")
+        red_value = AttributeValueFactory(
+            attribute=color_attr, value=f"Красный {suffix}", slug=f"red-{suffix}"
+        )
 
         # Создаем товар
         brand = BrandFactory(name=f"Brand {suffix}")
         category = CategoryFactory(name=f"Category {suffix}")
-        product = ProductFactory(name=f"Red Product {suffix}", brand=brand, category=category, is_active=True)
+        product = ProductFactory(
+            name=f"Red Product {suffix}", brand=brand, category=category, is_active=True
+        )
         variant = ProductVariantFactory(product=product)
         product.attributes.add(red_value)
 

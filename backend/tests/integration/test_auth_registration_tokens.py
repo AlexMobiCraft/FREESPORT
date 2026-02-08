@@ -30,8 +30,12 @@ class TestRegistrationTokens:
         assert response.status_code == status.HTTP_201_CREATED
 
         # Проверяем наличие токенов
-        assert "access" in response.data, "Access token missing in registration response"
-        assert "refresh" in response.data, "Refresh token missing in registration response"
+        assert (
+            "access" in response.data
+        ), "Access token missing in registration response"
+        assert (
+            "refresh" in response.data
+        ), "Refresh token missing in registration response"
 
         # Проверяем структуру user
         assert response.data["user"]["role"] == "retail"
@@ -65,5 +69,9 @@ class TestRegistrationTokens:
         # ИЛИ user.is_active=False
 
         if not response.data["user"]["is_verified"]:
-            assert "access" not in response.data, "Access token should not be present for unverified B2B"
-            assert "refresh" not in response.data, "Refresh token should not be present for unverified B2B"
+            assert (
+                "access" not in response.data
+            ), "Access token should not be present for unverified B2B"
+            assert (
+                "refresh" not in response.data
+            ), "Refresh token should not be present for unverified B2B"

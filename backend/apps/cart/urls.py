@@ -21,7 +21,9 @@ urlpatterns = [
     ),
     path(
         "items/<int:pk>/",
-        CartItemViewSet.as_view({"get": "retrieve", "patch": "partial_update", "delete": "destroy"}),
+        CartItemViewSet.as_view(
+            {"get": "retrieve", "patch": "partial_update", "delete": "destroy"}
+        ),
         name="cart-items-detail",
     ),
 ]

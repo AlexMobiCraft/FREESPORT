@@ -49,7 +49,9 @@ class ProductFilter(django_filters.FilterSet):
 
         if active_attributes is None:
             # Загружаем только активные атрибуты для создания фильтров
-            active_attributes = list(Attribute.objects.filter(is_active=True).only("id", "slug", "name"))
+            active_attributes = list(
+                Attribute.objects.filter(is_active=True).only("id", "slug", "name")
+            )
             # Кешируем на 5 минут
             cache.set(cache_key, active_attributes, 300)
 
@@ -74,10 +76,14 @@ class ProductFilter(django_filters.FilterSet):
     # Фильтр по бренду (поддерживает как ID, так и slug)
     brand = django_filters.CharFilter(
         method="filter_brand",
-        help_text=("Бренд по ID или slug. Поддерживает множественный выбор: brand=nike,adidas"),
+        help_text=(
+            "Бренд по ID или slug. Поддерживает множественный выбор: brand=nike,adidas"
+        ),
     )
 
-    def filter_attribute(self, queryset: QuerySet[Product], name: str, value: str) -> QuerySet[Product]:
+    def filter_attribute(
+        self, queryset: QuerySet[Product], name: str, value: str
+    ) -> QuerySet[Product]:
         """
         Story 14.6: Фильтрация товаров по динамическим атрибутам
 
@@ -128,30 +134,43 @@ class ProductFilter(django_filters.FilterSet):
     )
 
     # Фильтр по наличию
-    in_stock = django_filters.BooleanFilter(method="filter_in_stock", help_text="Товары в наличии (true/false)")
+    in_stock = django_filters.BooleanFilter(
+        method="filter_in_stock", help_text="Товары в наличии (true/false)"
+    )
 
     # Дополнительные фильтры
-    is_featured = django_filters.BooleanFilter(field_name="is_featured", help_text="Рекомендуемые товары")
+    is_featured = django_filters.BooleanFilter(
+        field_name="is_featured", help_text="Рекомендуемые товары"
+    )
 
     search = django_filters.CharFilter(
         method="filter_search",
         help_text=(
-            "Полнотекстовый поиск по названию, описанию и артикулу " "(PostgreSQL FTS с русскоязычной конфигурацией)"
+            "Полнотекстовый поиск по названию, описанию и артикулу "
+            "(PostgreSQL FTS с русскоязычной конфигурацией)"
         ),
     )
 
     # Фильтр по размеру из JSON specifications
     size = django_filters.CharFilter(
         method="filter_size",
-        help_text=("Размер из спецификаций товара (XS, S, M, L, XL, XXL, 38, 40, 42 и т.д.)"),
+        help_text=(
+            "Размер из спецификаций товара (XS, S, M, L, XL, XXL, 38, 40, 42 и т.д.)"
+        ),
     )
 
     # Story 11.0: Маркетинговые фильтры для бейджей
     is_hit = django_filters.BooleanFilter(field_name="is_hit", help_text="Хиты продаж")
     is_new = django_filters.BooleanFilter(field_name="is_new", help_text="Новинки")
-    is_sale = django_filters.BooleanFilter(field_name="is_sale", help_text="Товары на распродаже")
-    is_promo = django_filters.BooleanFilter(field_name="is_promo", help_text="Акционные товары")
-    is_premium = django_filters.BooleanFilter(field_name="is_premium", help_text="Премиум товары")
+    is_sale = django_filters.BooleanFilter(
+        field_name="is_sale", help_text="Товары на распродаже"
+    )
+    is_promo = django_filters.BooleanFilter(
+        field_name="is_promo", help_text="Акционные товары"
+    )
+    is_premium = django_filters.BooleanFilter(
+        field_name="is_premium", help_text="Премиум товары"
+    )
     has_discount = django_filters.BooleanFilter(
         method="filter_has_discount",
         help_text="Товары со скидкой (имеют discount_percent)",
@@ -177,7 +196,9 @@ class ProductFilter(django_filters.FilterSet):
             "has_discount",
         ]
 
-    def filter_brand(self, queryset: QuerySet[Product], name: str, value: str) -> QuerySet[Product]:
+    def filter_brand(
+        self, queryset: QuerySet[Product], name: str, value: str
+    ) -> QuerySet[Product]:
         """Фильтр по бренду через ID или slug с поддержкой множественного выбора"""
         if not value:
             return queryset
@@ -233,7 +254,9 @@ class ProductFilter(django_filters.FilterSet):
                 if not current_level:
                     break
                 children = list(
-                    Category.objects.filter(parent_id__in=current_level, is_active=True).values_list("id", flat=True)
+                    Category.objects.filter(
+                        parent_id__in=current_level, is_active=True
+                    ).values_list("id", flat=True)
                 )
                 if not children:
                     break
@@ -269,11 +292,17 @@ class ProductFilter(django_filters.FilterSet):
         else:
             user_role = request.user.role
             if user_role == "wholesale_level1":
-                self._variant_filters &= Q(opt1_price__gte=value) | Q(opt1_price__isnull=True, retail_price__gte=value)
+                self._variant_filters &= Q(opt1_price__gte=value) | Q(
+                    opt1_price__isnull=True, retail_price__gte=value
+                )
             elif user_role == "wholesale_level2":
-                self._variant_filters &= Q(opt2_price__gte=value) | Q(opt2_price__isnull=True, retail_price__gte=value)
+                self._variant_filters &= Q(opt2_price__gte=value) | Q(
+                    opt2_price__isnull=True, retail_price__gte=value
+                )
             elif user_role == "wholesale_level3":
-                self._variant_filters &= Q(opt3_price__gte=value) | Q(opt3_price__isnull=True, retail_price__gte=value)
+                self._variant_filters &= Q(opt3_price__gte=value) | Q(
+                    opt3_price__isnull=True, retail_price__gte=value
+                )
             elif user_role == "trainer":
                 self._variant_filters &= Q(trainer_price__gte=value) | Q(
                     trainer_price__isnull=True, retail_price__gte=value
@@ -304,11 +333,17 @@ class ProductFilter(django_filters.FilterSet):
         else:
             user_role = request.user.role
             if user_role == "wholesale_level1":
-                self._variant_filters &= Q(opt1_price__lte=value) | Q(opt1_price__isnull=True, retail_price__lte=value)
+                self._variant_filters &= Q(opt1_price__lte=value) | Q(
+                    opt1_price__isnull=True, retail_price__lte=value
+                )
             elif user_role == "wholesale_level2":
-                self._variant_filters &= Q(opt2_price__lte=value) | Q(opt2_price__isnull=True, retail_price__lte=value)
+                self._variant_filters &= Q(opt2_price__lte=value) | Q(
+                    opt2_price__isnull=True, retail_price__lte=value
+                )
             elif user_role == "wholesale_level3":
-                self._variant_filters &= Q(opt3_price__lte=value) | Q(opt3_price__isnull=True, retail_price__lte=value)
+                self._variant_filters &= Q(opt3_price__lte=value) | Q(
+                    opt3_price__isnull=True, retail_price__lte=value
+                )
             elif user_role == "trainer":
                 self._variant_filters &= Q(trainer_price__lte=value) | Q(
                     trainer_price__isnull=True, retail_price__lte=value
@@ -420,7 +455,9 @@ class ProductFilter(django_filters.FilterSet):
             # Примечание: sku теперь в ProductVariant, используем Exists
             name_match = Q(name__icontains=search_query)
             sku_match = Exists(sku_subquery)
-            desc_match = Q(short_description__icontains=search_query) | Q(description__icontains=search_query)
+            desc_match = Q(short_description__icontains=search_query) | Q(
+                description__icontains=search_query
+            )
 
             # Применяем фильтр
             results = queryset.filter(name_match | sku_match | desc_match)
@@ -433,7 +470,8 @@ class ProductFilter(django_filters.FilterSet):
                     When(name__icontains=search_query, then=Value(1)),
                     When(has_sku_match=True, then=Value(2)),
                     When(
-                        Q(short_description__icontains=search_query) | Q(description__icontains=search_query),
+                        Q(short_description__icontains=search_query)
+                        | Q(description__icontains=search_query),
                         then=Value(3),
                     ),
                     default=Value(4),

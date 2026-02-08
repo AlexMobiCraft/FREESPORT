@@ -52,7 +52,9 @@ def staff_user(db):
 def authenticated_client(staff_user):
     """Create an API client with an established session (post-checkauth)."""
     client = APIClient()
-    auth_header = "Basic " + base64.b64encode(b"1c_routing@example.com:secure_password_routing").decode("ascii")
+    auth_header = "Basic " + base64.b64encode(
+        b"1c_routing@example.com:secure_password_routing"
+    ).decode("ascii")
     # Establish session via checkauth
     response = client.get(
         "/api/integration/1c/exchange/",
@@ -84,8 +86,9 @@ class Test1CFileRouting:
         content = b"<xml>goods</xml>"
         filename = "goods.xml"
 
+        url = f"/api/integration/1c/exchange/?mode=file&filename={filename}&sessid={sessid}"
         response = authenticated_client.post(
-            f"/api/integration/1c/exchange/?mode=file&filename={filename}&sessid={sessid}",
+            url,
             data=content,
             content_type="application/octet-stream",
         )
@@ -110,8 +113,9 @@ class Test1CFileRouting:
         content = b"<xml>offers</xml>"
         filename = "offers_123.xml"
 
+        url = f"/api/integration/1c/exchange/?mode=file&filename={filename}&sessid={sessid}"
         response = authenticated_client.post(
-            f"/api/integration/1c/exchange/?mode=file&filename={filename}&sessid={sessid}",
+            url,
             data=content,
             content_type="application/octet-stream",
         )
@@ -134,8 +138,9 @@ class Test1CFileRouting:
         content = b"fake_image_bytes"
         filename = "product_image.jpg"
 
+        url = f"/api/integration/1c/exchange/?mode=file&filename={filename}&sessid={sessid}"
         response = authenticated_client.post(
-            f"/api/integration/1c/exchange/?mode=file&filename={filename}&sessid={sessid}",
+            url,
             data=content,
             content_type="application/octet-stream",
         )
@@ -158,8 +163,9 @@ class Test1CFileRouting:
         content = b"PK..."
         filename = "data.zip"
 
+        url = f"/api/integration/1c/exchange/?mode=file&filename={filename}&sessid={sessid}"
         response = authenticated_client.post(
-            f"/api/integration/1c/exchange/?mode=file&filename={filename}&sessid={sessid}",
+            url,
             data=content,
             content_type="application/octet-stream",
         )
@@ -182,8 +188,9 @@ class Test1CFileRouting:
         content = b"unknown data"
         filename = "unknown.dat"
 
+        url = f"/api/integration/1c/exchange/?mode=file&filename={filename}&sessid={sessid}"
         response = authenticated_client.post(
-            f"/api/integration/1c/exchange/?mode=file&filename={filename}&sessid={sessid}",
+            url,
             data=content,
             content_type="application/octet-stream",
         )
@@ -206,8 +213,9 @@ class Test1CFileRouting:
         content = b"png bytes"
         filename = "IMAGE.PNG"
 
+        url = f"/api/integration/1c/exchange/?mode=file&filename={filename}&sessid={sessid}"
         response = authenticated_client.post(
-            f"/api/integration/1c/exchange/?mode=file&filename={filename}&sessid={sessid}",
+            url,
             data=content,
             content_type="application/octet-stream",
         )

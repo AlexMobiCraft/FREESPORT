@@ -93,11 +93,15 @@ class TestEpic28Regression:
         )
 
         # Тест 1: Retail может запросить сброс пароля
-        response = self.client.post("/api/v1/auth/password-reset/", {"email": "retail@example.com"})
+        response = self.client.post(
+            "/api/v1/auth/password-reset/", {"email": "retail@example.com"}
+        )
         assert response.status_code == status.HTTP_200_OK
 
         # Тест 2: B2B может запросить сброс пароля
-        response = self.client.post("/api/v1/auth/password-reset/", {"email": "b2b@example.com"})
+        response = self.client.post(
+            "/api/v1/auth/password-reset/", {"email": "b2b@example.com"}
+        )
         assert response.status_code == status.HTTP_200_OK
 
     def test_existing_b2b_registration_flow_continues_working(self) -> None:

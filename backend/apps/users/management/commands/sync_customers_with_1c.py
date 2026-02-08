@@ -76,13 +76,20 @@ class Command(BaseCommand):
 
         # Валидация параметров
         if not any([self.export_new, self.import_updates, self.full_sync]):
-            raise CommandError(("Укажите режим синхронизации: --export-new, " "--import-updates или --full-sync"))
+            raise CommandError(
+                (
+                    "Укажите режим синхронизации: --export-new, "
+                    "--import-updates или --full-sync"
+                )
+            )
 
         # Заголовок
         self.stdout.write(self.style.SUCCESS("🔄 Запуск синхронизации клиентов с 1С"))
 
         if self.dry_run:
-            self.stdout.write(self.style.WARNING("⚠️  РЕЖИМ DRY-RUN: изменения НЕ будут сохранены"))
+            self.stdout.write(
+                self.style.WARNING("⚠️  РЕЖИМ DRY-RUN: изменения НЕ будут сохранены")
+            )
 
         try:
             exported_count = 0
@@ -104,7 +111,8 @@ class Command(BaseCommand):
                     transaction.savepoint_rollback(savepoint)
                     self.stdout.write(
                         self.style.SUCCESS(
-                            f"✅ DRY-RUN завершен: {exported_count} " f"экспортировано, {imported_count} импортировано"
+                            f"✅ DRY-RUN завершен: {exported_count} "
+                            f"экспортировано, {imported_count} импортировано"
                         )
                     )
                 else:
@@ -127,7 +135,9 @@ class Command(BaseCommand):
         if self.force_all:
             customers_to_export = User.objects.filter(is_active=True)
         else:
-            customers_to_export = User.objects.filter(needs_1c_export=True, is_active=True)
+            customers_to_export = User.objects.filter(
+                needs_1c_export=True, is_active=True
+            )
 
         total_count = customers_to_export.count()
         self.stdout.write(f"📊 Найдено клиентов для экспорта: {total_count}")
@@ -172,11 +182,15 @@ class Command(BaseCommand):
                 else:
                     # Обновляем статус с ошибкой
                     customer.sync_status = "error"
-                    customer.sync_error_message = export_result.get("error", "Неизвестная ошибка")
+                    customer.sync_error_message = export_result.get(
+                        "error", "Неизвестная ошибка"
+                    )
                     customer.save(update_fields=["sync_status", "sync_error_message"])
 
             except Exception as e:
-                self.stdout.write(self.style.ERROR(f"❌ Ошибка экспорта клиента {customer.id}: {e}"))
+                self.stdout.write(
+                    self.style.ERROR(f"❌ Ошибка экспорта клиента {customer.id}: {e}")
+                )
                 customer.sync_status = "error"
                 customer.sync_error_message = str(e)
                 customer.save(update_fields=["sync_status", "sync_error_message"])
@@ -196,7 +210,8 @@ class Command(BaseCommand):
 
         return {
             "success": True,
-            "onec_id": customer.onec_id or f"1C-EXPORTED-{uuid.uuid4().hex[:8].upper()}",
+            "onec_id": customer.onec_id
+            or f"1C-EXPORTED-{uuid.uuid4().hex[:8].upper()}",
             "message": "Клиент успешно экспортирован в 1С",
         }
 
@@ -239,7 +254,8 @@ class Command(BaseCommand):
             except Exception as e:
                 self.stdout.write(
                     self.style.ERROR(
-                        f"❌ Ошибка импорта обновления " f'{update_data.get("onec_id", "UNKNOWN")}: {str(e)}'
+                        f"❌ Ошибка импорта обновления "
+                        f'{update_data.get("onec_id", "UNKNOWN")}: {str(e)}'
                     )
                 )
 
@@ -257,7 +273,9 @@ class Command(BaseCommand):
         mock_updates = []
 
         # Находим клиентов с onec_id для имитации обновлений
-        synced_customers = User.objects.filter(onec_id__isnull=False, sync_status="synced")[
+        synced_customers = User.objects.filter(
+            onec_id__isnull=False, sync_status="synced"
+        )[
             :5
         ]  # Берем первые 5 для примера
 
@@ -268,7 +286,11 @@ class Command(BaseCommand):
                     "email": str(customer.email or ""),
                     "first_name": customer.first_name + " (обновлено)",
                     "phone_number": customer.phone,
-                    "company_name": (customer.company_name + " (обновлено)" if customer.company_name else ""),
+                    "company_name": (
+                        customer.company_name + " (обновлено)"
+                        if customer.company_name
+                        else ""
+                    ),
                     "is_active": customer.is_active,
                     "last_updated_in_1c": timezone.now().isoformat(),
                 }
@@ -297,7 +319,9 @@ class Command(BaseCommand):
                 updated_fields.append("phone")
 
             if update_data.get("company_name") != customer.company_name:
-                customer.company_name = update_data.get("company_name", customer.company_name)
+                customer.company_name = update_data.get(
+                    "company_name", customer.company_name
+                )
                 updated_fields.append("company_name")
 
             if update_data.get("is_active") != customer.is_active:
@@ -309,17 +333,23 @@ class Command(BaseCommand):
                 customer.last_sync_at = timezone.now()
                 customer.sync_status = "synced"
                 customer.sync_error_message = ""
-                updated_fields.extend(["last_sync_at", "sync_status", "sync_error_message"])
+                updated_fields.extend(
+                    ["last_sync_at", "sync_status", "sync_error_message"]
+                )
 
                 customer.save(update_fields=updated_fields)
 
                 if getattr(self, "verbosity", 1) >= 2:
-                    self.stdout.write(f"✅ Обновлен клиент {onec_id}: " f'{", ".join(updated_fields)}')
+                    self.stdout.write(
+                        f"✅ Обновлен клиент {onec_id}: " f'{", ".join(updated_fields)}'
+                    )
 
                 return True
 
             return False  # Нет изменений
 
         except User.DoesNotExist:
-            self.stdout.write(self.style.WARNING(f"⚠️  Клиент с onec_id {onec_id} не найден в базе"))
+            self.stdout.write(
+                self.style.WARNING(f"⚠️  Клиент с onec_id {onec_id} не найден в базе")
+            )
             return False

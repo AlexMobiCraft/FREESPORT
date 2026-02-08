@@ -79,12 +79,16 @@ class Command(BaseCommand):
 
         # Dry run режим
         if dry_run:
-            self.stdout.write(self.style.WARNING("\n⚠ DRY RUN режим - логи не будут удалены"))
+            self.stdout.write(
+                self.style.WARNING("\n⚠ DRY RUN режим - логи не будут удалены")
+            )
             return
 
         # Подтверждение от пользователя
         if not force:
-            confirm = input(f"\nВы уверены что хотите удалить {total_count} логов? (yes/no): ")
+            confirm = input(
+                f"\nВы уверены что хотите удалить {total_count} логов? (yes/no): "
+            )
             if confirm.lower() != "yes":
                 self.stdout.write(self.style.WARNING("Отменено пользователем"))
                 return
@@ -103,7 +107,11 @@ class Command(BaseCommand):
             try:
                 return int(env_days)
             except ValueError:
-                self.stdout.write(self.style.WARNING(f"Некорректное значение SYNC_LOG_RETENTION_DAYS: {env_days}"))
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"Некорректное значение SYNC_LOG_RETENTION_DAYS: {env_days}"
+                    )
+                )
 
         # По умолчанию 90 дней
         return 90
@@ -119,7 +127,11 @@ class Command(BaseCommand):
             try:
                 return int(env_batch)
             except ValueError:
-                self.stdout.write(self.style.WARNING(f"Некорректное значение SYNC_LOG_BATCH_SIZE: {env_batch}"))
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"Некорректное значение SYNC_LOG_BATCH_SIZE: {env_batch}"
+                    )
+                )
 
         # По умолчанию 1000
         return 1000
@@ -127,7 +139,11 @@ class Command(BaseCommand):
     def _display_statistics(self, queryset):
         """Отображает статистику логов"""
         # Статистика по типам операций
-        by_type = queryset.values("operation_type").annotate(count=Count("id")).order_by("-count")
+        by_type = (
+            queryset.values("operation_type")
+            .annotate(count=Count("id"))
+            .order_by("-count")
+        )
 
         if by_type:
             self.stdout.write("\nПо типам операций:")
@@ -135,7 +151,9 @@ class Command(BaseCommand):
                 self.stdout.write(f"  - {item['operation_type']}: {item['count']}")
 
         # Статистика по статусам
-        by_status = queryset.values("status").annotate(count=Count("id")).order_by("-count")
+        by_status = (
+            queryset.values("status").annotate(count=Count("id")).order_by("-count")
+        )
 
         if by_status:
             self.stdout.write("\nПо статусам:")
@@ -158,7 +176,9 @@ class Command(BaseCommand):
 
                 # Удаляем пакет
                 with transaction.atomic():
-                    batch_deleted = CustomerSyncLog.objects.filter(id__in=batch_ids).delete()[0]
+                    batch_deleted = CustomerSyncLog.objects.filter(
+                        id__in=batch_ids
+                    ).delete()[0]
                     deleted_count += batch_deleted
 
                 # Показываем прогресс
@@ -169,7 +189,9 @@ class Command(BaseCommand):
                 )
 
             self.stdout.write("")  # Новая строка
-            self.stdout.write(self.style.SUCCESS(f"\n✓ Успешно удалено {deleted_count} логов"))
+            self.stdout.write(
+                self.style.SUCCESS(f"\n✓ Успешно удалено {deleted_count} логов")
+            )
 
         except Exception as e:
             self.stdout.write("")  # Новая строка

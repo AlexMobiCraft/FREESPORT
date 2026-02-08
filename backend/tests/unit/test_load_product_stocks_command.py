@@ -35,7 +35,9 @@ class TestLoadProductStocksCommand:
             call_command("load_product_stocks", file="/nonexistent/file.xml")
 
     @patch("os.path.exists", return_value=True)
-    def test_command_validates_batch_size_positive(self, mock_exists: MagicMock) -> None:
+    def test_command_validates_batch_size_positive(
+        self, mock_exists: MagicMock
+    ) -> None:
         """Проверка валидации batch_size > 0"""
         with pytest.raises(CommandError, match="Некорректный размер пакета"):
             call_command("load_product_stocks", file="test.xml", batch_size=-1)
@@ -43,7 +45,9 @@ class TestLoadProductStocksCommand:
     @pytest.mark.django_db
     @patch("apps.products.services.parser.XMLDataParser.parse_rests_xml")
     @patch("os.path.exists", return_value=True)
-    def test_command_handles_empty_file(self, mock_exists: MagicMock, mock_parser: MagicMock) -> None:
+    def test_command_handles_empty_file(
+        self, mock_exists: MagicMock, mock_parser: MagicMock
+    ) -> None:
         """Проверка обработки пустого файла"""
         mock_parser.return_value = []
 
@@ -58,7 +62,9 @@ class TestLoadProductStocksCommand:
     @pytest.mark.django_db
     @patch("apps.products.services.parser.XMLDataParser.parse_rests_xml")
     @patch("os.path.exists", return_value=True)
-    def test_command_updates_existing_products(self, mock_exists: MagicMock, mock_parser: MagicMock) -> None:
+    def test_command_updates_existing_products(
+        self, mock_exists: MagicMock, mock_parser: MagicMock
+    ) -> None:
         """Проверка обновления существующих товаров"""
         from apps.products.factories import ProductFactory
 
@@ -95,7 +101,9 @@ class TestLoadProductStocksCommand:
     @pytest.mark.django_db
     @patch("apps.products.services.parser.XMLDataParser.parse_rests_xml")
     @patch("os.path.exists", return_value=True)
-    def test_command_handles_missing_products(self, mock_exists: MagicMock, mock_parser: MagicMock) -> None:
+    def test_command_handles_missing_products(
+        self, mock_exists: MagicMock, mock_parser: MagicMock
+    ) -> None:
         """Проверка обработки отсутствующих товаров"""
         mock_parser.return_value = [
             {
@@ -116,7 +124,9 @@ class TestLoadProductStocksCommand:
     @pytest.mark.django_db
     @patch("apps.products.services.parser.XMLDataParser.parse_rests_xml")
     @patch("os.path.exists", return_value=True)
-    def test_command_skips_invalid_records(self, mock_exists: MagicMock, mock_parser: MagicMock) -> None:
+    def test_command_skips_invalid_records(
+        self, mock_exists: MagicMock, mock_parser: MagicMock
+    ) -> None:
         """Проверка пропуска некорректных записей"""
         mock_parser.return_value = [
             {"id": None, "quantity": 10},  # Без onec_id
@@ -131,7 +141,9 @@ class TestLoadProductStocksCommand:
     @pytest.mark.django_db
     @patch("apps.products.services.parser.XMLDataParser.parse_rests_xml")
     @patch("os.path.exists", return_value=True)
-    def test_command_dry_run_mode(self, mock_exists: MagicMock, mock_parser: MagicMock) -> None:
+    def test_command_dry_run_mode(
+        self, mock_exists: MagicMock, mock_parser: MagicMock
+    ) -> None:
         """Проверка режима dry-run"""
         from apps.products.factories import ProductFactory
 
@@ -157,7 +169,9 @@ class TestLoadProductStocksCommand:
     @pytest.mark.django_db
     @patch("apps.products.services.parser.XMLDataParser.parse_rests_xml")
     @patch("os.path.exists", return_value=True)
-    def test_command_batch_processing(self, mock_exists: MagicMock, mock_parser: MagicMock) -> None:
+    def test_command_batch_processing(
+        self, mock_exists: MagicMock, mock_parser: MagicMock
+    ) -> None:
         """Проверка batch processing"""
         from apps.products.factories import ProductFactory
 
@@ -169,7 +183,8 @@ class TestLoadProductStocksCommand:
 
         # Мокируем данные для всех вариантов
         mock_parser.return_value = [
-            {"id": product.variants.first().onec_id, "quantity": i * 10} for i, product in enumerate(products)
+            {"id": product.variants.first().onec_id, "quantity": i * 10}
+            for i, product in enumerate(products)
         ]
 
         call_command("load_product_stocks", file="test.xml", batch_size=1000)
@@ -181,7 +196,9 @@ class TestLoadProductStocksCommand:
     @pytest.mark.django_db
     @patch("apps.products.services.parser.XMLDataParser.parse_rests_xml")
     @patch("os.path.exists", return_value=True)
-    def test_command_handles_parser_exception(self, mock_exists: MagicMock, mock_parser: MagicMock) -> None:
+    def test_command_handles_parser_exception(
+        self, mock_exists: MagicMock, mock_parser: MagicMock
+    ) -> None:
         """Проверка обработки исключений парсера"""
         mock_parser.side_effect = Exception("XML parsing error")
 
@@ -195,7 +212,9 @@ class TestLoadProductStocksCommand:
     @pytest.mark.django_db
     @patch("apps.products.services.parser.XMLDataParser.parse_rests_xml")
     @patch("os.path.exists", return_value=True)
-    def test_command_updates_last_sync_at(self, mock_exists: MagicMock, mock_parser: MagicMock) -> None:
+    def test_command_updates_last_sync_at(
+        self, mock_exists: MagicMock, mock_parser: MagicMock
+    ) -> None:
         """Проверка обновления last_sync_at"""
         from apps.products.factories import ProductFactory
 
@@ -216,7 +235,9 @@ class TestLoadProductStocksCommand:
     @pytest.mark.django_db
     @patch("apps.products.services.parser.XMLDataParser.parse_rests_xml")
     @patch("os.path.exists", return_value=True)
-    def test_command_session_duration_tracking(self, mock_exists: MagicMock, mock_parser: MagicMock) -> None:
+    def test_command_session_duration_tracking(
+        self, mock_exists: MagicMock, mock_parser: MagicMock
+    ) -> None:
         """Проверка отслеживания длительности сессии"""
         from apps.products.factories import ProductFactory
 
@@ -234,10 +255,14 @@ class TestLoadProductStocksCommand:
     @pytest.mark.django_db
     @patch("apps.products.services.parser.XMLDataParser.parse_rests_xml")
     @patch("os.path.exists", return_value=True)
-    def test_command_limits_not_found_skus_list(self, mock_exists: MagicMock, mock_parser: MagicMock) -> None:
+    def test_command_limits_not_found_skus_list(
+        self, mock_exists: MagicMock, mock_parser: MagicMock
+    ) -> None:
         """Проверка ограничения списка not_found_skus до 100 элементов"""
         # Создаем 150 несуществующих товаров
-        mock_parser.return_value = [{"id": f"nonexistent-{i}", "quantity": 10} for i in range(150)]
+        mock_parser.return_value = [
+            {"id": f"nonexistent-{i}", "quantity": 10} for i in range(150)
+        ]
 
         call_command("load_product_stocks", file="test.xml")
 

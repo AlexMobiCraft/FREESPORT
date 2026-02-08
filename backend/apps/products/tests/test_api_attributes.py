@@ -153,7 +153,9 @@ class TestAttributeFilterViewSet:
         assert "Цвет" in attribute_names
         assert "Материал" not in attribute_names
 
-    def test_catalog_filters_returns_attribute_values(self, api_client: APIClient, active_attribute: Attribute) -> None:
+    def test_catalog_filters_returns_attribute_values(
+        self, api_client: APIClient, active_attribute: Attribute
+    ) -> None:
         """
         AC 14.3.6.2: Ответ содержит значения атрибутов
 
@@ -226,7 +228,9 @@ class TestCatalogFiltersIntegration:
     def api_client(self) -> APIClient:
         return APIClient()
 
-    def test_prefetch_related_used_no_n_plus_one(self, api_client, db, django_assert_num_queries):
+    def test_prefetch_related_used_no_n_plus_one(
+        self, api_client, db, django_assert_num_queries
+    ):
         """
         Тест: prefetch_related используется (избегаем N+1 queries)
 

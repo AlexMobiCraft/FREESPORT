@@ -28,7 +28,9 @@ class OrderItemInline(admin.TabularInline):
     readonly_fields = ["total_price"]
     can_delete = False
 
-    def has_add_permission(self, request: HttpRequest, obj: Order | None = None) -> bool:
+    def has_add_permission(
+        self, request: HttpRequest, obj: Order | None = None
+    ) -> bool:
         """Запрещаем добавление новых позиций через admin."""
         return False
 
@@ -154,7 +156,9 @@ class OrderAdmin(admin.ModelAdmin):
         return format_html(template, status_display)
 
     @admin.action(description="Export selected orders to CSV")
-    def export_to_csv(self, request: HttpRequest, queryset: QuerySet[Order]) -> HttpResponse:
+    def export_to_csv(
+        self, request: HttpRequest, queryset: QuerySet[Order]
+    ) -> HttpResponse:
         """Экспорт выбранных заказов в CSV файл."""
         response = HttpResponse(content_type="text/csv; charset=utf-8")
         response["Content-Disposition"] = 'attachment; filename="orders_export.csv"'

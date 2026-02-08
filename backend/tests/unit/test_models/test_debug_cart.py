@@ -20,13 +20,17 @@ class TestDebugCart:
         # Переопределяем методы для отладки через патч, чтобы они не текли в другие тесты
         def new_clean(self):
             print(
-                f"[DEBUG] Cleaning CartItem {self.id} for product " f"{self.variant.product.id} (qty: {self.quantity})"
+                f"[DEBUG] Cleaning CartItem {self.id} for product "
+                f"{self.variant.product.id} (qty: {self.quantity})"
             )
             # ... упрощенная логика clean ...
             if not self.variant.product.is_active:
                 raise ValidationError("Товар неактивен")
             if self.quantity > self.variant.stock_quantity:
-                raise ValidationError(f"Недостаточно товара на складе. " f"Доступно: {self.variant.stock_quantity}")
+                raise ValidationError(
+                    f"Недостаточно товара на складе. "
+                    f"Доступно: {self.variant.stock_quantity}"
+                )
 
         def new_save(self, *args, **kwargs):
             print(
@@ -39,17 +43,21 @@ class TestDebugCart:
 
         def new_delete(self, *args, **kwargs):
             print(
-                f"[DEBUG] Deleting CartItem {self.id} for product " f"{self.variant.product.id} (qty: {self.quantity})"
+                f"[DEBUG] Deleting CartItem {self.id} for product "
+                f"{self.variant.product.id} (qty: {self.quantity})"
             )
             super(CartItem, self).delete(*args, **kwargs)
 
-        with patch.object(CartItem, "clean", new_clean), patch.object(CartItem, "save", new_save), patch.object(
-            CartItem, "delete", new_delete
-        ):
+        with patch.object(CartItem, "clean", new_clean), patch.object(
+            CartItem, "save", new_save
+        ), patch.object(CartItem, "delete", new_delete):
             # Логика теста
             product = ProductFactory.create(stock_quantity=10)
             variant = product.variants.first()
-            print(f"Product {product.id} created with variant stock={variant.stock_quantity}")
+            print(
+                f"Product {product.id} created with "
+                f"variant stock={variant.stock_quantity}"
+            )
 
             cart = CartFactory.create()
             print(f"Cart {cart.id} created.")
@@ -65,7 +73,10 @@ class TestDebugCart:
             print("Creating CartItem 2...")
             product2 = ProductFactory.create(stock_quantity=5)
             variant2 = product2.variants.first()
-            print(f"Product {product2.id} created with variant stock={variant2.stock_quantity}")
+            print(
+                f"Product {product2.id} created with "
+                f"variant stock={variant2.stock_quantity}"
+            )
             item2 = CartItemFactory.create(cart=cart, product=product2, quantity=3)
             variant2.refresh_from_db()
             print(

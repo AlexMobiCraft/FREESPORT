@@ -19,7 +19,9 @@ class TestImportSessionAdminActions:
     @pytest.fixture
     def admin_user(self):
         """Создание администратора для доступа к admin панели"""
-        return User.objects.create_superuser(email="admin@test.com", password="testpass123")
+        return User.objects.create_superuser(
+            email="admin@test.com", password="testpass123"
+        )
 
     @pytest.fixture
     def client(self, admin_user):
@@ -141,13 +143,17 @@ class TestImportSessionAdminActions:
         try:
             url = reverse("admin:integrations_session_changelist")
         except Exception:
-            pytest.fail("URL не найден. Проверьте что модель правильно зарегистрирована")
+            pytest.fail(
+                "URL не найден. Проверьте что модель правильно зарегистрирована"
+            )
 
         # Act
         response = client.get(url)
 
         # Assert
-        assert response.status_code == 200, "Страница сессий должна быть доступна по новому URL"
+        assert (
+            response.status_code == 200
+        ), "Страница сессий должна быть доступна по новому URL"
         # Проверяем что сессии отображаются
         content = response.content.decode("utf-8")
         for session in import_sessions:
@@ -221,8 +227,12 @@ class TestImportSessionAdminActions:
         content = response.content.decode("utf-8")
 
         # Проверяем что action "trigger_selective_import" отсутствует
-        assert "trigger_selective_import" not in content, "Admin action 'trigger_selective_import' должен быть удален"
-        assert "🚀 Запустить импорт" not in content, "Текст действия '🚀 Запустить импорт' не должен отображаться"
+        assert (
+            "trigger_selective_import" not in content
+        ), "Admin action 'trigger_selective_import' должен быть удален"
+        assert (
+            "🚀 Запустить импорт" not in content
+        ), "Текст действия '🚀 Запустить импорт' не должен отображаться"
 
     def test_filters_work_correctly(self, client):
         """
@@ -326,7 +336,9 @@ class TestImportSessionAdminActions:
 
         # Проверяем наличие пагинации
         assert (
-            "paginator" in content.lower() or "page" in content.lower() or "1 of" in content
+            "paginator" in content.lower()
+            or "page" in content.lower()
+            or "1 of" in content
         ), "Пагинация должна работать для больших списков"
 
     def test_auto_refresh_javascript_file_loaded(self, client):
@@ -368,8 +380,14 @@ class TestImportSessionAdminActions:
 
         # Act & Assert
         assert js_file_path, "JavaScript файл должен существовать в staticfiles"
-        assert os.path.exists(js_file_path), f"JavaScript файл должен существовать по пути: {js_file_path}"
-        assert os.path.isfile(js_file_path), f"Путь должен указывать на файл, а не директорию: {js_file_path}"
+        assert os.path.exists(
+            js_file_path
+        ), f"JavaScript файл должен существовать по пути: {js_file_path}"
+        assert os.path.isfile(
+            js_file_path
+        ), f"Путь должен указывать на файл, а не директорию: {js_file_path}"
 
         # Дополнительно: проверяем что файл не пустой
-        assert os.path.getsize(js_file_path) > 0, "JavaScript файл не должен быть пустым"
+        assert (
+            os.path.getsize(js_file_path) > 0
+        ), "JavaScript файл не должен быть пустым"

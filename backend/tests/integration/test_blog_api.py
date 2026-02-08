@@ -137,7 +137,9 @@ class TestBlogListEndpoint:
         assert "results" in response.data
         assert isinstance(response.data["results"], list)
 
-    def test_get_blog_list_sorted_by_published_date(self, api_client, published_blog_posts):
+    def test_get_blog_list_sorted_by_published_date(
+        self, api_client, published_blog_posts
+    ):
         """Проверяет сортировку статей по дате публикации (новые первые)."""
         url = reverse("common:blog-list")
 

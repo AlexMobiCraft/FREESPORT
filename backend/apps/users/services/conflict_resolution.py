@@ -61,16 +61,21 @@ class CustomerConflictResolver:
             platform_data = self._serialize_customer(existing_customer)
 
             # 2. Определяем конфликтующие поля
-            conflicting_fields = self._detect_conflicting_fields(existing_customer, onec_data)
+            conflicting_fields = self._detect_conflicting_fields(
+                existing_customer, onec_data
+            )
 
             # 3. Применяем стратегию в зависимости от источника конфликта
             if conflict_source == "portal_registration":
                 result = self._handle_portal_registration(existing_customer, onec_data)
             elif conflict_source == "data_import":
-                result = self._handle_data_import(existing_customer, onec_data, conflicting_fields)
+                result = self._handle_data_import(
+                    existing_customer, onec_data, conflicting_fields
+                )
             else:
                 raise ValueError(
-                    f"Unknown conflict_source: {conflict_source}. " f"Expected 'portal_registration' or 'data_import'"
+                    f"Unknown conflict_source: {conflict_source}. "
+                    f"Expected 'portal_registration' or 'data_import'"
                 )
 
             # 4. Создаем запись в SyncConflict для аудита
@@ -83,7 +88,9 @@ class CustomerConflictResolver:
             )
 
             # 5. Логируем операцию
-            self._log_conflict_resolution(existing_customer, conflicting_fields, conflict_source)
+            self._log_conflict_resolution(
+                existing_customer, conflicting_fields, conflict_source
+            )
 
             # 6. Регистрируем отправку email уведомления ВНЕ транзакции
             # Используем transaction.on_commit для отправки после успешного
@@ -113,7 +120,9 @@ class CustomerConflictResolver:
 
             return result
 
-    def _handle_portal_registration(self, existing_customer: User, onec_data: Dict[str, Any]) -> Dict[str, Any]:
+    def _handle_portal_registration(
+        self, existing_customer: User, onec_data: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """
         Обработка регистрации на портале существующего клиента из 1С.
 
@@ -134,7 +143,9 @@ class CustomerConflictResolver:
 
         return {
             "action": "verified_client",
-            "message": ("Client from 1C verified, password set, " "no other data modified"),
+            "message": (
+                "Client from 1C verified, password set, " "no other data modified"
+            ),
         }
 
     def _handle_data_import(
@@ -211,10 +222,16 @@ class CustomerConflictResolver:
             "onec_guid": str(customer.onec_guid) if customer.onec_guid else None,
             "verification_status": customer.verification_status,
             "created_in_1c": customer.created_in_1c,
-            "last_sync_from_1c": (customer.last_sync_from_1c.isoformat() if customer.last_sync_from_1c else None),
+            "last_sync_from_1c": (
+                customer.last_sync_from_1c.isoformat()
+                if customer.last_sync_from_1c
+                else None
+            ),
         }
 
-    def _detect_conflicting_fields(self, customer: User, onec_data: Dict[str, Any]) -> List[str]:
+    def _detect_conflicting_fields(
+        self, customer: User, onec_data: Dict[str, Any]
+    ) -> List[str]:
         """
         Определение полей с различиями между порталом и 1С.
 
@@ -260,7 +277,11 @@ class CustomerConflictResolver:
             source: Источник конфликта
         """
         # Определяем тип конфликта в зависимости от источника
-        conflict_type = "portal_registration_blocked" if source == "portal_registration" else "customer_data"
+        conflict_type = (
+            "portal_registration_blocked"
+            if source == "portal_registration"
+            else "customer_data"
+        )
 
         SyncConflict.objects.create(
             conflict_type=conflict_type,
@@ -279,7 +300,9 @@ class CustomerConflictResolver:
             resolved_at=timezone.now(),
         )
 
-    def _log_conflict_resolution(self, customer: User, conflicting_fields: List[str], source: str) -> None:
+    def _log_conflict_resolution(
+        self, customer: User, conflicting_fields: List[str], source: str
+    ) -> None:
         """
         Логирование операции разрешения конфликта.
 
@@ -321,7 +344,9 @@ class CustomerConflictResolver:
             source: Источник конфликта
         """
         try:
-            self._send_notification(customer, platform_data, onec_data, conflicting_fields, source)
+            self._send_notification(
+                customer, platform_data, onec_data, conflicting_fields, source
+            )
         except Exception as e:
             # Логируем ошибку, но не прерываем процесс
             logger.error(f"Failed to send conflict notification: {e}")
@@ -346,8 +371,13 @@ class CustomerConflictResolver:
             source: Источник конфликта
         """
         # Проверяем наличие настройки email
-        if not hasattr(settings, "CONFLICT_NOTIFICATION_EMAIL") or not settings.CONFLICT_NOTIFICATION_EMAIL:
-            logger.warning("CONFLICT_NOTIFICATION_EMAIL not configured, " "skipping notification")
+        if (
+            not hasattr(settings, "CONFLICT_NOTIFICATION_EMAIL")
+            or not settings.CONFLICT_NOTIFICATION_EMAIL
+        ):
+            logger.warning(
+                "CONFLICT_NOTIFICATION_EMAIL not configured, " "skipping notification"
+            )
             return
 
         context = {
@@ -365,7 +395,10 @@ class CustomerConflictResolver:
 
         # Определяем subject в зависимости от типа конфликта
         if source == "portal_registration":
-            subject = f"[1C Sync] Попытка регистрации существующего клиента: " f"{str(customer.email or '')}"
+            subject = (
+                f"[1C Sync] Попытка регистрации существующего клиента: "
+                f"{str(customer.email or '')}"
+            )
         else:
             subject = f"[1C Sync] Обновление данных клиента из 1C: {str(customer.email or '')}"
 

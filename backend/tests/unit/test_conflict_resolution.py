@@ -76,9 +76,13 @@ class TestCustomerConflictResolver:
         assert serialized["onec_id"] == "1C-123"
         assert serialized["created_in_1c"] is True
 
-    def test_detect_conflicting_fields(self, resolver, existing_customer, onec_data_import):
+    def test_detect_conflicting_fields(
+        self, resolver, existing_customer, onec_data_import
+    ):
         """Тест определения конфликтующих полей"""
-        conflicting = resolver._detect_conflicting_fields(existing_customer, onec_data_import)
+        conflicting = resolver._detect_conflicting_fields(
+            existing_customer, onec_data_import
+        )
 
         # Должны быть обнаружены различия
         assert "email" in conflicting
@@ -103,9 +107,13 @@ class TestCustomerConflictResolver:
 
         assert len(conflicting) == 0
 
-    def test_handle_portal_registration(self, resolver, existing_customer, onec_data_portal_registration):
+    def test_handle_portal_registration(
+        self, resolver, existing_customer, onec_data_portal_registration
+    ):
         """Тест обработки регистрации на портале"""
-        result = resolver._handle_portal_registration(existing_customer, onec_data_portal_registration)
+        result = resolver._handle_portal_registration(
+            existing_customer, onec_data_portal_registration
+        )
 
         # Проверяем результат
         assert result["action"] == "verified_client"
@@ -124,7 +132,9 @@ class TestCustomerConflictResolver:
         """Тест обработки импорта данных из 1С"""
         conflicting_fields = ["email", "first_name", "last_name", "phone"]
 
-        result = resolver._handle_data_import(existing_customer, onec_data_import, conflicting_fields)
+        result = resolver._handle_data_import(
+            existing_customer, onec_data_import, conflicting_fields
+        )
 
         # Проверяем результат
         assert result["action"] == "data_updated"
@@ -165,14 +175,20 @@ class TestCustomerConflictResolver:
         assert conflict.resolution_strategy == "onec_wins"
 
         # Проверяем создание записи в CustomerSyncLog
-        log = CustomerSyncLog.objects.filter(customer=existing_customer, operation_type="conflict_resolution").first()
+        log = CustomerSyncLog.objects.filter(
+            customer=existing_customer, operation_type="conflict_resolution"
+        ).first()
         assert log is not None
         assert log.status == "success"
 
     @patch("apps.users.services.conflict_resolution.send_mail")
-    def test_resolve_conflict_data_import(self, mock_send_mail, resolver, existing_customer, onec_data_import):
+    def test_resolve_conflict_data_import(
+        self, mock_send_mail, resolver, existing_customer, onec_data_import
+    ):
         """Тест полного цикла разрешения конфликта при импорте"""
-        result = resolver.resolve_conflict(existing_customer, onec_data_import, "data_import")
+        result = resolver.resolve_conflict(
+            existing_customer, onec_data_import, "data_import"
+        )
 
         # Проверяем результат
         assert result["action"] == "data_updated"
@@ -190,7 +206,9 @@ class TestCustomerConflictResolver:
         assert conflict.details["onec_data"]["email"] == "newemail@example.com"
 
     @patch("apps.users.services.conflict_resolution.send_mail")
-    def test_email_notification_sent(self, mock_send_mail, resolver, existing_customer, onec_data_import):
+    def test_email_notification_sent(
+        self, mock_send_mail, resolver, existing_customer, onec_data_import
+    ):
         """Тест отправки email уведомления"""
         with patch(
             "django.conf.settings.CONFLICT_NOTIFICATION_EMAIL",
@@ -200,23 +218,31 @@ class TestCustomerConflictResolver:
                 "django.conf.settings.DEFAULT_FROM_EMAIL",
                 "noreply@example.com",
             ):
-                resolver.resolve_conflict(existing_customer, onec_data_import, "data_import")
+                resolver.resolve_conflict(
+                    existing_customer, onec_data_import, "data_import"
+                )
 
                 # Email должен быть отправлен (через on_commit)
                 # В тестах on_commit выполняется сразу
                 assert mock_send_mail.called
 
     @patch("apps.users.services.conflict_resolution.send_mail")
-    def test_email_notification_no_config(self, mock_send_mail, resolver, existing_customer, onec_data_import):
+    def test_email_notification_no_config(
+        self, mock_send_mail, resolver, existing_customer, onec_data_import
+    ):
         """Тест когда email не настроен"""
         with patch("django.conf.settings.CONFLICT_NOTIFICATION_EMAIL", None):
-            resolver.resolve_conflict(existing_customer, onec_data_import, "data_import")
+            resolver.resolve_conflict(
+                existing_customer, onec_data_import, "data_import"
+            )
 
             # Email НЕ должен быть отправлен
             assert not mock_send_mail.called
 
     @patch("apps.users.services.conflict_resolution.send_mail")
-    def test_email_notification_error_handling(self, mock_send_mail, resolver, existing_customer, onec_data_import):
+    def test_email_notification_error_handling(
+        self, mock_send_mail, resolver, existing_customer, onec_data_import
+    ):
         """Тест обработки ошибки отправки email"""
         mock_send_mail.side_effect = Exception("SMTP Error")
 
@@ -225,20 +251,28 @@ class TestCustomerConflictResolver:
             "admin@example.com",
         ):
             # Не должно вызвать исключение
-            result = resolver.resolve_conflict(existing_customer, onec_data_import, "data_import")
+            result = resolver.resolve_conflict(
+                existing_customer, onec_data_import, "data_import"
+            )
 
             # Конфликт должен быть разрешен несмотря на ошибку email
             assert result["action"] == "data_updated"
 
             # Должна быть создана запись об ошибке
-            error_log = CustomerSyncLog.objects.filter(operation_type="notification_failed").first()
+            error_log = CustomerSyncLog.objects.filter(
+                operation_type="notification_failed"
+            ).first()
             assert error_log is not None
             assert "SMTP Error" in error_log.error_message
 
-    def test_invalid_conflict_source(self, resolver, existing_customer, onec_data_import):
+    def test_invalid_conflict_source(
+        self, resolver, existing_customer, onec_data_import
+    ):
         """Тест обработки неверного источника конфликта"""
         with pytest.raises(ValueError) as exc_info:
-            resolver.resolve_conflict(existing_customer, onec_data_import, "invalid_source")
+            resolver.resolve_conflict(
+                existing_customer, onec_data_import, "invalid_source"
+            )
 
         assert "Unknown conflict_source" in str(exc_info.value)
 
@@ -266,7 +300,9 @@ class TestCustomerConflictResolver:
 
         conflicting_fields = ["first_name"]
 
-        result = resolver._handle_data_import(existing_customer, onec_data, conflicting_fields)
+        result = resolver._handle_data_import(
+            existing_customer, onec_data, conflicting_fields
+        )
 
         # Проверяем что обновлено только одно поле
         existing_customer.refresh_from_db()

@@ -208,7 +208,8 @@ class TestProductFilterPriceFilters:
         product_filter.filter_min_price(queryset, "min_price", 100)
 
         assert hasattr(product_filter, "_variant_filters")
-        # Для wholesale_level1 должно быть Q(opt1_price__gte=100) | Q(opt1_price__isnull=True, retail_price__gte=100)
+        # Для wholesale_level1 должно быть:
+        # Q(opt1_price__gte=100) | Q(opt1_price__isnull=True, retail_price__gte=100)
         assert "opt1_price__gte" in str(product_filter._variant_filters)
 
     def test_filter_max_price_trainer_user(self):

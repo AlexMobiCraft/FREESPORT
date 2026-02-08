@@ -53,7 +53,9 @@ class OrderDetailSerializer(serializers.ModelSerializer):
     customer_display_name = serializers.CharField(read_only=True)
     subtotal = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
     total_items = serializers.IntegerField(read_only=True)
-    calculated_total = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+    calculated_total = serializers.DecimalField(
+        max_digits=10, decimal_places=2, read_only=True
+    )
     can_be_cancelled = serializers.BooleanField(read_only=True)
 
     class Meta:
@@ -147,11 +149,14 @@ class OrderCreateSerializer(serializers.ModelSerializer):
 
             if not product or not product.is_active:
                 raise serializers.ValidationError(
-                    f"Товар '{product.name if product else 'неизвестен'}' " "больше недоступен"
+                    f"Товар '{product.name if product else 'неизвестен'}' "
+                    "больше недоступен"
                 )
 
             if not variant or not variant.is_active:
-                raise serializers.ValidationError(f"Вариант товара '{product.name}' больше недоступен")
+                raise serializers.ValidationError(
+                    f"Вариант товара '{product.name}' больше недоступен"
+                )
 
             available_stock = variant.stock_quantity
             if item.quantity > available_stock:
@@ -162,9 +167,13 @@ class OrderCreateSerializer(serializers.ModelSerializer):
                 )
 
             # Проверка минимального количества заказа
-            if product.min_order_quantity > 1 and item.quantity < product.min_order_quantity:
+            if (
+                product.min_order_quantity > 1
+                and item.quantity < product.min_order_quantity
+            ):
                 raise serializers.ValidationError(
-                    f"Минимальное количество для заказа товара '{product.name}': " f"{product.min_order_quantity} шт."
+                    f"Минимальное количество для заказа товара '{product.name}': "
+                    f"{product.min_order_quantity} шт."
                 )
 
         # Валидация способов доставки и оплаты
@@ -177,7 +186,10 @@ class OrderCreateSerializer(serializers.ModelSerializer):
                 "payment_on_delivery",
             ]:
                 raise serializers.ValidationError(
-                    ("Для оптовых покупателей доступны только банковский перевод и " "оплата при получении")
+                    (
+                        "Для оптовых покупателей доступны только банковский перевод и "
+                        "оплата при получении"
+                    )
                 )
 
         attrs["_cart"] = cart
@@ -238,7 +250,9 @@ class OrderCreateSerializer(serializers.ModelSerializer):
 
             # Если по какой-то причине вариант потерян, валимся с понятной ошибкой
             if not variant or not product:
-                raise serializers.ValidationError("Некорректный товар в корзине. Обновите корзину и попробуйте снова.")
+                raise serializers.ValidationError(
+                    "Некорректный товар в корзине. Обновите корзину и попробуйте снова."
+                )
 
             user_price = variant.get_price_for_user(user)
             item_total = user_price * cart_item.quantity
@@ -277,9 +291,13 @@ class OrderCreateSerializer(serializers.ModelSerializer):
         order_item_manager.bulk_create(order_items)
 
         # Списываем физические остатки со склада
-        variant_manager = cast(BaseManager[ProductVariant], getattr(ProductVariant, "objects"))
+        variant_manager = cast(
+            BaseManager[ProductVariant], getattr(ProductVariant, "objects")
+        )
         for variant_pk, quantity in variant_updates:
-            variant_manager.filter(pk=variant_pk).update(stock_quantity=F("stock_quantity") - quantity)
+            variant_manager.filter(pk=variant_pk).update(
+                stock_quantity=F("stock_quantity") - quantity
+            )
 
         # Очищаем корзину (это вызовет сигнал для уменьшения reserved_quantity)
         cart.clear()

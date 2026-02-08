@@ -13,7 +13,16 @@ from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
 from django.utils import timezone
 
-from .models import AuditLog, BlogPost, CustomerSyncLog, News, Newsletter, NotificationRecipient, SyncConflict, SyncLog
+from .models import (
+    AuditLog,
+    BlogPost,
+    CustomerSyncLog,
+    News,
+    Newsletter,
+    NotificationRecipient,
+    SyncConflict,
+    SyncLog,
+)
 from .services import CustomerSyncMonitor
 
 
@@ -137,7 +146,9 @@ class CustomerSyncLogAdmin(admin.ModelAdmin):
     correlation_id_short.short_description = "Correlation ID"  # type: ignore
 
     @admin.action(description="Экспортировать выбранные логи в CSV")
-    def export_to_csv(self, _request: HttpRequest, queryset: QuerySet[CustomerSyncLog]) -> HttpResponse:
+    def export_to_csv(
+        self, _request: HttpRequest, queryset: QuerySet[CustomerSyncLog]
+    ) -> HttpResponse:
         """Экспорт выбранных логов в CSV файл"""
         response = HttpResponse(content_type="text/csv; charset=utf-8-sig")
         response["Content-Disposition"] = 'attachment; filename="sync_logs.csv"'
@@ -173,7 +184,9 @@ class CustomerSyncLogAdmin(admin.ModelAdmin):
         return response
 
     @admin.action(description="Отметить как просмотренные")
-    def mark_as_reviewed(self, request: HttpRequest, queryset: QuerySet[CustomerSyncLog]) -> None:
+    def mark_as_reviewed(
+        self, request: HttpRequest, queryset: QuerySet[CustomerSyncLog]
+    ) -> None:
         """Пометка логов как просмотренных (добавляет метку в details)"""
         count = 0
         user_email = getattr(request.user, "email", "unknown")
@@ -187,7 +200,9 @@ class CustomerSyncLogAdmin(admin.ModelAdmin):
             log.save()
             count += 1
 
-        self.message_user(request, f"Отмечено как просмотренные: {count} лог(ов)", level="success")
+        self.message_user(
+            request, f"Отмечено как просмотренные: {count} лог(ов)", level="success"
+        )
 
     def _resolve_operation_label(self, operation_value: str) -> str:
         """Возвращает человеко-понятное название типа операции."""

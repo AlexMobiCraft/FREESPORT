@@ -117,7 +117,9 @@ class TestOrderAdminQuerysetOptimization:
     def test_n_plus_one_queries_prevention(self, django_assert_max_num_queries) -> None:
         """Тест отсутствия N+1 queries при отображении списка заказов."""
         # Создаем тестовые данные
-        user = User.objects.create_user(email=f"user{User.objects.count()}@example.com", password="testpass123")
+        user = User.objects.create_user(
+            email=f"user{User.objects.count()}@example.com", password="testpass123"
+        )
         product = ProductFactory(
             name="Test Product",
             sku="TEST-001",
@@ -147,7 +149,9 @@ class TestOrderAdminQuerysetOptimization:
         site = AdminSite()
         admin = OrderAdmin(Order, site)
         request = RequestFactory().get("/admin/orders/order/")
-        request.user = User.objects.create_superuser(email="admin@test.com", password="password")
+        request.user = User.objects.create_superuser(
+            email="admin@test.com", password="password"
+        )
 
         # Проверяем количество запросов для получения списка
         # Должно быть фиксированное количество вне зависимости от числа заказов

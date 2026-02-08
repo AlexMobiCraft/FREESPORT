@@ -10,7 +10,16 @@ from typing import TYPE_CHECKING, Any, cast
 from django.db.models import Count, Q
 from rest_framework import serializers
 
-from .models import Attribute, AttributeValue, Brand, Category, ColorMapping, Product, ProductImage, ProductVariant
+from .models import (
+    Attribute,
+    AttributeValue,
+    Brand,
+    Category,
+    ColorMapping,
+    Product,
+    ProductImage,
+    ProductVariant,
+)
 
 
 class AttributeValueSerializer(serializers.ModelSerializer):
@@ -161,7 +170,9 @@ class ProductVariantSerializer(serializers.ModelSerializer):
             # Добавляем /media/ префикс если путь относительный
             if img_url.startswith("/products/"):
                 result.append(f"/media{img_url}")
-            elif not img_url.startswith("/media/") and not img_url.startswith(("http://", "https://")):
+            elif not img_url.startswith("/media/") and not img_url.startswith(
+                ("http://", "https://")
+            ):
                 result.append(f"/media/{img_url.lstrip('/')}")
             else:
                 result.append(img_url)
@@ -199,7 +210,9 @@ class ProductVariantSerializer(serializers.ModelSerializer):
 
         # Кэшируем ColorMapping для избежания N+1 queries
         if not hasattr(self, "_color_mapping_cache"):
-            self._color_mapping_cache = {mapping.name: mapping.hex_code for mapping in ColorMapping.objects.all()}
+            self._color_mapping_cache = {
+                mapping.name: mapping.hex_code for mapping in ColorMapping.objects.all()
+            }
 
         return self._color_mapping_cache.get(obj.color_name)
 
@@ -332,7 +345,9 @@ class CategorySerializer(serializers.ModelSerializer):
             # Загружаем дочерние категории с подсчетом товаров
             children = (
                 obj.children.filter(is_active=True)
-                .annotate(products_count=Count("products", filter=Q(products__is_active=True)))
+                .annotate(
+                    products_count=Count("products", filter=Q(products__is_active=True))
+                )
                 .order_by("sort_order", "name")
             )
 
@@ -350,7 +365,9 @@ class CategorySerializer(serializers.ModelSerializer):
         current = obj
 
         while current:
-            breadcrumbs.insert(0, {"id": current.id, "name": current.name, "slug": current.slug})
+            breadcrumbs.insert(
+                0, {"id": current.id, "name": current.name, "slug": current.slug}
+            )
             current = current.parent
 
         return breadcrumbs
@@ -563,7 +580,9 @@ class ProductListSerializer(serializers.ModelSerializer):
             # Добавляем /media/ префикс если путь начинается с /products/
             if img_url.startswith("/products/"):
                 return f"/media{img_url}"
-            elif not img_url.startswith("/media/") and not img_url.startswith(("http://", "https://")):
+            elif not img_url.startswith("/media/") and not img_url.startswith(
+                ("http://", "https://")
+            ):
                 return f"/media/{img_url.lstrip('/')}"
             return str(img_url)
         return None
@@ -690,7 +709,9 @@ class ProductDetailSerializer(ProductListSerializer):
         else:
             related_products = list(related_by_category)
 
-        return ProductListSerializer(related_products, many=True, context=self.context).data
+        return ProductListSerializer(
+            related_products, many=True, context=self.context
+        ).data
 
     def get_category_breadcrumbs(self, obj):
         """Получить навигационную цепочку для категории товара"""
@@ -698,7 +719,9 @@ class ProductDetailSerializer(ProductListSerializer):
         current = obj.category
 
         while current:
-            breadcrumbs.insert(0, {"id": current.id, "name": current.name, "slug": current.slug})
+            breadcrumbs.insert(
+                0, {"id": current.id, "name": current.name, "slug": current.slug}
+            )
             current = current.parent
 
         return breadcrumbs
@@ -728,7 +751,9 @@ class CategoryTreeSerializer(serializers.ModelSerializer):
         """Рекурсивно получить все дочерние категории"""
         children = (
             obj.children.filter(is_active=True)
-            .annotate(products_count=Count("products", filter=Q(products__is_active=True)))
+            .annotate(
+                products_count=Count("products", filter=Q(products__is_active=True))
+            )
             .order_by("sort_order", "name")
         )
 

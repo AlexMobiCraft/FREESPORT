@@ -66,7 +66,9 @@ class PrometheusMetrics:
         avg_duration = recent_logs.aggregate(avg=Avg("duration_ms"))["avg"] or 0
 
         # Количество успешных операций
-        success_count = recent_logs.filter(status=CustomerSyncLog.StatusType.SUCCESS).count()
+        success_count = recent_logs.filter(
+            status=CustomerSyncLog.StatusType.SUCCESS
+        ).count()
 
         return {
             "sync_operations_total": total_operations,
@@ -74,7 +76,11 @@ class PrometheusMetrics:
             "sync_errors_total": error_count,
             "sync_success_total": success_count,
             "sync_duration_avg_ms": round(avg_duration, 2),
-            "sync_success_rate": (round(success_count / total_operations * 100, 2) if total_operations > 0 else 0),
+            "sync_success_rate": (
+                round(success_count / total_operations * 100, 2)
+                if total_operations > 0
+                else 0
+            ),
             "timestamp": timezone.now().isoformat(),
         }
 
@@ -181,7 +187,9 @@ class WebhookAlerts:
             return True
 
         except requests.exceptions.RequestException as e:
-            logger.error("Ошибка при отправке webhook алерта: %s", str(e), exc_info=True)
+            logger.error(
+                "Ошибка при отправке webhook алерта: %s", str(e), exc_info=True
+            )
             return False
 
     @classmethod
@@ -230,7 +238,9 @@ class WebhookAlerts:
             True если алерт успешно отправлен
         """
         title = "Высокий процент ошибок синхронизации"
-        message = f"Обнаружено {total_errors} ошибок " f"({error_rate:.1f}% от всех операций)"
+        message = (
+            f"Обнаружено {total_errors} ошибок " f"({error_rate:.1f}% от всех операций)"
+        )
 
         details = {
             "total_errors": total_errors,

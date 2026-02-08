@@ -62,7 +62,10 @@ class Command(BaseCommand):
         parser.add_argument(
             "--prefer-new-path",
             action="store_true",
-            help=("Предпочитать новый формат пути (XX/...) вместо старого " "(import_files/...)"),
+            help=(
+                "Предпочитать новый формат пути (XX/...) вместо старого "
+                "(import_files/...)"
+            ),
         )
         parser.add_argument(
             "--min-size",
@@ -89,20 +92,30 @@ class Command(BaseCommand):
         skip_size_check = options.get("skip_size_check", False)
 
         self.stdout.write(
-            self.style.SUCCESS(f"\n{'=' * 60}\n" f"  Дедупликация изображений в базе данных\n" f"{'=' * 60}\n")
+            self.style.SUCCESS(
+                f"\n{'=' * 60}\n"
+                f"  Дедупликация изображений в базе данных\n"
+                f"{'=' * 60}\n"
+            )
         )
 
         if dry_run:
-            self.stdout.write(self.style.WARNING("🔍 Режим DRY-RUN: изменения НЕ будут сохранены\n"))
+            self.stdout.write(
+                self.style.WARNING("🔍 Режим DRY-RUN: изменения НЕ будут сохранены\n")
+            )
 
         if not skip_size_check:
             self.stdout.write(f"📏 Минимальный размер файла: {min_size_kb}KB\n")
 
         # Обработка Product.base_images
-        products_result = self._deduplicate_products(dry_run, verbose, prefer_new_path, min_size_kb, skip_size_check)
+        products_result = self._deduplicate_products(
+            dry_run, verbose, prefer_new_path, min_size_kb, skip_size_check
+        )
 
         # Обработка ProductVariant.gallery_images
-        variants_result = self._deduplicate_variants(dry_run, verbose, prefer_new_path, min_size_kb, skip_size_check)
+        variants_result = self._deduplicate_variants(
+            dry_run, verbose, prefer_new_path, min_size_kb, skip_size_check
+        )
 
         # Итоговая статистика
         self._print_summary(products_result, variants_result, dry_run)
@@ -142,7 +155,9 @@ class Command(BaseCommand):
         """
         self.stdout.write("\n📦 Обработка Product.base_images...")
 
-        products = Product.objects.exclude(base_images__isnull=True).exclude(base_images=[])
+        products = Product.objects.exclude(base_images__isnull=True).exclude(
+            base_images=[]
+        )
         total = products.count()
 
         if total == 0:
@@ -181,7 +196,9 @@ class Command(BaseCommand):
                         # Возвращаем первое изображение
                         filtered_images = [original_images[0]]
                         # Убираем его из списка мелких
-                        small_files = [(p, s) for p, s in small_files if p != original_images[0]]
+                        small_files = [
+                            (p, s) for p, s in small_files if p != original_images[0]
+                        ]
 
                     small_removed += len(small_files)
 
@@ -203,14 +220,21 @@ class Command(BaseCommand):
                         # Показать удалённые мелкие файлы
                         for img_path, size_kb in small_files:
                             self.stdout.write(
-                                self.style.ERROR(f"      ❌ {img_path} ({size_kb:.1f}KB < " f"{min_size_kb}KB)")
+                                self.style.ERROR(
+                                    f"      ❌ {img_path} ({size_kb:.1f}KB < "
+                                    f"{min_size_kb}KB)"
+                                )
                             )
 
                         # Показать удалённые дубли
                         kept_set = set(deduplicated)
-                        removed_as_dups = [img for img in filtered_images if img not in kept_set]
+                        removed_as_dups = [
+                            img for img in filtered_images if img not in kept_set
+                        ]
                         for img in removed_as_dups:
-                            self.stdout.write(self.style.WARNING(f"      - {img} (дубликат)"))
+                            self.stdout.write(
+                                self.style.WARNING(f"      - {img} (дубликат)")
+                            )
 
                     if not dry_run:
                         product.base_images = deduplicated
@@ -286,8 +310,13 @@ class Command(BaseCommand):
                             # main_image маленький - ищем замену в gallery_images
                             if original_images and len(original_images) > 0:
                                 for gallery_img in original_images:
-                                    gallery_size_kb = self._get_file_size_kb(gallery_img)
-                                    if gallery_size_kb is not None and gallery_size_kb >= min_size_kb:
+                                    gallery_size_kb = self._get_file_size_kb(
+                                        gallery_img
+                                    )
+                                    if (
+                                        gallery_size_kb is not None
+                                        and gallery_size_kb >= min_size_kb
+                                    ):
                                         # Нашли подходящую замену
                                         new_main_image = gallery_img
                                         old_main_image_path = main_image_path
@@ -307,8 +336,12 @@ class Command(BaseCommand):
 
                 # Если мы нашли замену для main_image, удаляем её из списка галереи
                 if new_main_image:
-                    filtered_images = [img for img in original_images if img != new_main_image]
-                    original_images = filtered_images  # Обновляем для подсчёта removed_count
+                    filtered_images = [
+                        img for img in original_images if img != new_main_image
+                    ]
+                    original_images = (
+                        filtered_images  # Обновляем для подсчёта removed_count
+                    )
 
                 if not skip_size_check:
                     temp_filtered = []
@@ -322,14 +355,25 @@ class Command(BaseCommand):
 
                     # Если после фильтрации не осталось изображений,
                     # оставляем первое (даже маленькое)
-                    if len(filtered_images) == 0 and len(variant.gallery_images or []) > 0:
+                    if (
+                        len(filtered_images) == 0
+                        and len(variant.gallery_images or []) > 0
+                    ):
                         # Возвращаем первое изображение (если не использовано
                         # как main_image)
-                        fallback_images = [img for img in (variant.gallery_images or []) if img != new_main_image]
+                        fallback_images = [
+                            img
+                            for img in (variant.gallery_images or [])
+                            if img != new_main_image
+                        ]
                         if fallback_images:
                             filtered_images = [fallback_images[0]]
                             # Убираем его из списка мелких
-                            small_files = [(p, s) for p, s in small_files if p != fallback_images[0]]
+                            small_files = [
+                                (p, s)
+                                for p, s in small_files
+                                if p != fallback_images[0]
+                            ]
 
                     small_removed += len(small_files)
 
@@ -338,17 +382,27 @@ class Command(BaseCommand):
                 seen_filenames = set()
 
                 # Используем новый main_image если есть замена, иначе текущий
-                effective_main_image = new_main_image if new_main_image else (str(main_image) if main_image else "")
+                effective_main_image = (
+                    new_main_image
+                    if new_main_image
+                    else (str(main_image) if main_image else "")
+                )
                 if effective_main_image:
                     main_filename = Path(effective_main_image).name
                     if main_filename:
                         seen_filenames.add(main_filename)
 
-                deduplicated = self._deduplicate_list(filtered_images, prefer_new_path, seen_filenames)
+                deduplicated = self._deduplicate_list(
+                    filtered_images, prefer_new_path, seen_filenames
+                )
 
                 # Сравниваем с оригинальными gallery_images (без
                 # перемещённого в main_image)
-                compare_original = [img for img in (variant.gallery_images or []) if img != new_main_image]
+                compare_original = [
+                    img
+                    for img in (variant.gallery_images or [])
+                    if img != new_main_image
+                ]
                 removed_count = len(compare_original) - len(deduplicated)
 
                 if removed_count > 0 or variant_modified:
@@ -357,7 +411,9 @@ class Command(BaseCommand):
                         total_removed += removed_count
 
                     if verbose:
-                        self.stdout.write(f"\n   [{variant.onec_id}] SKU: {variant.sku}:")
+                        self.stdout.write(
+                            f"\n   [{variant.onec_id}] SKU: {variant.sku}:"
+                        )
 
                         # Показать замену main_image
                         if main_image_replacement_info:
@@ -376,14 +432,21 @@ class Command(BaseCommand):
                             )
 
                         if removed_count > 0:
-                            self.stdout.write(f"      Галерея было: {len(compare_original)}")
-                            self.stdout.write(f"      Галерея стало: {len(deduplicated)}")
+                            self.stdout.write(
+                                f"      Галерея было: {len(compare_original)}"
+                            )
+                            self.stdout.write(
+                                f"      Галерея стало: {len(deduplicated)}"
+                            )
                             self.stdout.write(f"      Удалено: {removed_count}")
 
                         # Показать удалённые мелкие файлы
                         for img_path, size_kb in small_files:
                             self.stdout.write(
-                                self.style.ERROR(f"      ❌ {img_path} ({size_kb:.1f}KB < " f"{min_size_kb}KB)")
+                                self.style.ERROR(
+                                    f"      ❌ {img_path} ({size_kb:.1f}KB < "
+                                    f"{min_size_kb}KB)"
+                                )
                             )
 
                     if not dry_run:
@@ -472,45 +535,75 @@ class Command(BaseCommand):
     ) -> None:
         """Вывод итоговой статистики."""
         status_msg = "✅ Дедупликация завершена" if not dry_run else "🔍 DRY-RUN завершён"
-        self.stdout.write(self.style.SUCCESS(f"\n{'=' * 60}\n" f"  {status_msg}\n" f"{'=' * 60}\n"))
+        self.stdout.write(
+            self.style.SUCCESS(f"\n{'=' * 60}\n" f"  {status_msg}\n" f"{'=' * 60}\n")
+        )
 
         self.stdout.write("📊 Статистика Product.base_images:")
-        self.stdout.write(f"   • Всего товаров с изображениями: {products_result['total']}")
-        self.stdout.write(f"   • Товаров с дублями/мелкими: {products_result['with_duplicates']}")
+        self.stdout.write(
+            f"   • Всего товаров с изображениями: {products_result['total']}"
+        )
+        self.stdout.write(
+            f"   • Товаров с дублями/мелкими: {products_result['with_duplicates']}"
+        )
         self.stdout.write(
             self.style.SUCCESS(f"   • Удалено записей: {products_result['removed']}")
             if products_result["removed"] > 0
             else "   • Удалено записей: 0"
         )
         if products_result.get("small_removed", 0) > 0:
-            self.stdout.write(self.style.ERROR(f"   • Из них мелких файлов: {products_result['small_removed']}"))
+            self.stdout.write(
+                self.style.ERROR(
+                    f"   • Из них мелких файлов: {products_result['small_removed']}"
+                )
+            )
 
         self.stdout.write("\n📊 Статистика ProductVariant.gallery_images и main_image:")
-        self.stdout.write(f"   • Всего вариантов с изображениями: {variants_result['total']}")
-        self.stdout.write(f"   • Вариантов с дублями/мелкими: {variants_result['with_duplicates']}")
         self.stdout.write(
-            self.style.SUCCESS(f"   • Удалено записей из галереи: {variants_result['removed']}")
+            f"   • Всего вариантов с изображениями: {variants_result['total']}"
+        )
+        self.stdout.write(
+            f"   • Вариантов с дублями/мелкими: {variants_result['with_duplicates']}"
+        )
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"   • Удалено записей из галереи: {variants_result['removed']}"
+            )
             if variants_result["removed"] > 0
             else "   • Удалено записей из галереи: 0"
         )
         if variants_result.get("small_removed", 0) > 0:
-            self.stdout.write(self.style.ERROR(f"   • Из них мелких файлов: {variants_result['small_removed']}"))
+            self.stdout.write(
+                self.style.ERROR(
+                    f"   • Из них мелких файлов: {variants_result['small_removed']}"
+                )
+            )
         if variants_result.get("main_image_replaced", 0) > 0:
             self.stdout.write(
-                self.style.WARNING(f"   • Заменено main_image: " f"{variants_result['main_image_replaced']}")
+                self.style.WARNING(
+                    f"   • Заменено main_image: "
+                    f"{variants_result['main_image_replaced']}"
+                )
             )
 
         total_removed = products_result["removed"] + variants_result["removed"]
-        total_small = products_result.get("small_removed", 0) + variants_result.get("small_removed", 0)
+        total_small = products_result.get("small_removed", 0) + variants_result.get(
+            "small_removed", 0
+        )
 
-        self.stdout.write(self.style.SUCCESS(f"\n🎯 Всего удалено записей: {total_removed}"))
+        self.stdout.write(
+            self.style.SUCCESS(f"\n🎯 Всего удалено записей: {total_removed}")
+        )
         if total_small > 0:
-            self.stdout.write(self.style.ERROR(f"   Из них мелких файлов (<100KB): {total_small}"))
+            self.stdout.write(
+                self.style.ERROR(f"   Из них мелких файлов (<100KB): {total_small}")
+            )
 
         if dry_run and total_removed > 0:
             self.stdout.write(
                 self.style.WARNING(
-                    "\n⚠️  Это был тестовый запуск. " "Запустите без --dry-run для сохранения изменений."
+                    "\n⚠️  Это был тестовый запуск. "
+                    "Запустите без --dry-run для сохранения изменений."
                 )
             )
 

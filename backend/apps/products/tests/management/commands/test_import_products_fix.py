@@ -27,7 +27,9 @@ class TestImportProductsFallback(TestCase):
         with patch("os.path.exists") as mock_exists:
             # First check: offers/import_files exists
             mock_exists.side_effect = (
-                lambda result: True if result == os.path.join(data_dir, "offers", "import_files") else False
+                lambda result: True
+                if result == os.path.join(data_dir, "offers", "import_files")
+                else False
             )
 
             # Mock _collect_xml_files to return one file
@@ -39,7 +41,9 @@ class TestImportProductsFallback(TestCase):
                 # Mock stdout
                 command.stdout = MagicMock()
 
-                command._import_variants_from_offers(data_dir, mock_parser, mock_processor, skip_images=False)
+                command._import_variants_from_offers(
+                    data_dir, mock_parser, mock_processor, skip_images=False
+                )
 
                 # Verify no fallback message
                 # The stdout.write calls are for step description (which we ignore) and fallback info
@@ -70,7 +74,9 @@ class TestImportProductsFallback(TestCase):
             ):
                 command.stdout = MagicMock()
 
-                command._import_variants_from_offers(data_dir, mock_parser, mock_processor, skip_images=False)
+                command._import_variants_from_offers(
+                    data_dir, mock_parser, mock_processor, skip_images=False
+                )
 
                 # Verify fallback message WAS printed
                 fallback_msg = "Изображения будут загружаться из"

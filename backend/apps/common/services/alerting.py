@@ -31,8 +31,12 @@ class AlertManager:
 
     # Пороговые значения для алертов (можно переопределить через ENV)
     ERROR_RATE_THRESHOLD = float(os.getenv("ALERT_ERROR_RATE_THRESHOLD", "10.0"))  # %
-    RESPONSE_TIME_P95_THRESHOLD = int(os.getenv("ALERT_RESPONSE_TIME_P95_THRESHOLD", "2000"))  # мс
-    FAILED_OPERATIONS_THRESHOLD = int(os.getenv("ALERT_FAILED_OPERATIONS_THRESHOLD", "50"))
+    RESPONSE_TIME_P95_THRESHOLD = int(
+        os.getenv("ALERT_RESPONSE_TIME_P95_THRESHOLD", "2000")
+    )  # мс
+    FAILED_OPERATIONS_THRESHOLD = int(
+        os.getenv("ALERT_FAILED_OPERATIONS_THRESHOLD", "50")
+    )
 
     # Время между повторными алертами (дедупликация)
     ALERT_COOLDOWN_MINUTES = int(os.getenv("ALERT_COOLDOWN_MINUTES", "15"))
@@ -103,7 +107,9 @@ class AlertManager:
             "alerts_suppressed": alerts_suppressed,
         }
 
-    def _check_high_error_rate(self, start_date: datetime, end_date: datetime) -> dict[str, Any] | None:
+    def _check_high_error_rate(
+        self, start_date: datetime, end_date: datetime
+    ) -> dict[str, Any] | None:
         """
         Проверяет превышение порога error rate.
 
@@ -143,7 +149,9 @@ class AlertManager:
 
         return None
 
-    def _check_slow_response_times(self, start_date: datetime, end_date: datetime) -> dict[str, Any] | None:
+    def _check_slow_response_times(
+        self, start_date: datetime, end_date: datetime
+    ) -> dict[str, Any] | None:
         """
         Проверяет превышение порога времени ответа (p95).
 
@@ -197,7 +205,8 @@ class AlertManager:
             return {
                 "title": "Проблемы со здоровьем системы",
                 "message": (
-                    f"Обнаружено {len(critical_issues)} критических проблем:\n" + "\n".join(issue_descriptions)
+                    f"Обнаружено {len(critical_issues)} критических проблем:\n"
+                    + "\n".join(issue_descriptions)
                 ),
                 "details": {
                     "critical_issues": critical_issues,
@@ -207,7 +216,9 @@ class AlertManager:
 
         return None
 
-    def _check_failed_operations_spike(self, start_date: datetime, end_date: datetime) -> dict[str, Any] | None:
+    def _check_failed_operations_spike(
+        self, start_date: datetime, end_date: datetime
+    ) -> dict[str, Any] | None:
         """
         Проверяет всплеск количества неудачных операций.
 
@@ -293,8 +304,12 @@ class RealTimeAlertMonitor:
     """
 
     # Пороги для real-time мониторинга
-    REALTIME_ERROR_RATE_THRESHOLD = float(os.getenv("REALTIME_ERROR_RATE_THRESHOLD", "20.0"))  # %
-    REALTIME_PENDING_THRESHOLD = int(os.getenv("REALTIME_PENDING_THRESHOLD", "100"))  # операций
+    REALTIME_ERROR_RATE_THRESHOLD = float(
+        os.getenv("REALTIME_ERROR_RATE_THRESHOLD", "20.0")
+    )  # %
+    REALTIME_PENDING_THRESHOLD = int(
+        os.getenv("REALTIME_PENDING_THRESHOLD", "100")
+    )  # операций
 
     def __init__(self) -> None:
         """Инициализация RealTimeAlertMonitor."""

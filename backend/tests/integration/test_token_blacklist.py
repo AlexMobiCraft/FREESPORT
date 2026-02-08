@@ -16,7 +16,10 @@ from django.db import connection
 from rest_framework import status
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.exceptions import TokenError
-from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
+from rest_framework_simplejwt.token_blacklist.models import (
+    BlacklistedToken,
+    OutstandingToken,
+)
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.users.models import User
@@ -35,11 +38,15 @@ class TestTokenBlacklistConfiguration:
 
     def test_jwt_rotate_refresh_tokens_enabled(self) -> None:
         """Проверка включения ROTATE_REFRESH_TOKENS"""
-        assert settings.SIMPLE_JWT.get("ROTATE_REFRESH_TOKENS") is True, "ROTATE_REFRESH_TOKENS должен быть True"
+        assert (
+            settings.SIMPLE_JWT.get("ROTATE_REFRESH_TOKENS") is True
+        ), "ROTATE_REFRESH_TOKENS должен быть True"
 
     def test_jwt_blacklist_after_rotation_enabled(self) -> None:
         """Проверка включения BLACKLIST_AFTER_ROTATION"""
-        assert settings.SIMPLE_JWT.get("BLACKLIST_AFTER_ROTATION") is True, "BLACKLIST_AFTER_ROTATION должен быть True"
+        assert (
+            settings.SIMPLE_JWT.get("BLACKLIST_AFTER_ROTATION") is True
+        ), "BLACKLIST_AFTER_ROTATION должен быть True"
 
 
 @pytest.mark.integration
@@ -88,8 +95,12 @@ class TestTokenBlacklistDatabaseTables:
             indexes = [row[0] for row in cursor.fetchall()]
 
         # Проверяем ключевые индексы
-        assert any("jti" in idx for idx in indexes), "Должен быть индекс на поле jti_hex"
-        assert any("user" in idx for idx in indexes), "Должен быть индекс на поле user_id"
+        assert any(
+            "jti" in idx for idx in indexes
+        ), "Должен быть индекс на поле jti_hex"
+        assert any(
+            "user" in idx for idx in indexes
+        ), "Должен быть индекс на поле user_id"
 
 
 @pytest.mark.integration
@@ -126,7 +137,9 @@ class TestTokenBlacklistMechanism:
 
         # Проверка создания записи
         final_count = OutstandingToken.objects.filter(user=self.test_user).count()
-        assert final_count == initial_count + 1, "Должна быть создана запись в OutstandingToken"
+        assert (
+            final_count == initial_count + 1
+        ), "Должна быть создана запись в OutstandingToken"
 
     def test_blacklist_token_creates_blacklisted_record(self) -> None:
         """Blacklist токена создаёт запись в BlacklistedToken"""
@@ -138,7 +151,9 @@ class TestTokenBlacklistMechanism:
 
         # Проверка создания записи
         final_count = BlacklistedToken.objects.count()
-        assert final_count == initial_count + 1, "Должна быть создана запись в BlacklistedToken"
+        assert (
+            final_count == initial_count + 1
+        ), "Должна быть создана запись в BlacklistedToken"
 
     def test_blacklisted_token_cannot_be_used(self) -> None:
         """Blacklisted токен не может быть использован для refresh"""
@@ -153,7 +168,8 @@ class TestTokenBlacklistMechanism:
             RefreshToken(refresh_token_str)
 
         assert (
-            "черный список" in str(exc_info.value).lower() or "blacklist" in str(exc_info.value).lower()
+            "черный список" in str(exc_info.value).lower()
+            or "blacklist" in str(exc_info.value).lower()
         ), "Должна быть ошибка о blacklist"
 
     def test_non_blacklisted_token_works_normally(self) -> None:
@@ -179,7 +195,9 @@ class TestTokenBlacklistMechanism:
 
         # Проверка количества записей
         final_count = BlacklistedToken.objects.count()
-        assert final_count == initial_count + 3, "Должно быть добавлено 3 записи в BlacklistedToken"
+        assert (
+            final_count == initial_count + 3
+        ), "Должно быть добавлено 3 записи в BlacklistedToken"
 
 
 @pytest.mark.integration
@@ -225,7 +243,9 @@ class TestTokenRotationWithBlacklist:
         initial_blacklist_count = BlacklistedToken.objects.count()
 
         # Refresh токена через API
-        response = self.client.post("/api/v1/auth/refresh/", {"refresh": old_refresh_token}, format="json")
+        response = self.client.post(
+            "/api/v1/auth/refresh/", {"refresh": old_refresh_token}, format="json"
+        )
 
         assert (
             response.status_code == status.HTTP_200_OK
@@ -234,14 +254,20 @@ class TestTokenRotationWithBlacklist:
         assert "access" in response.data, "Должен быть возвращён новый access токен"
 
         new_refresh_token = response.data["refresh"]
-        assert new_refresh_token != old_refresh_token, "Новый refresh токен должен отличаться"
+        assert (
+            new_refresh_token != old_refresh_token
+        ), "Новый refresh токен должен отличаться"
 
         # Проверка что старый токен добавлен в blacklist
         final_blacklist_count = BlacklistedToken.objects.count()
-        assert final_blacklist_count == initial_blacklist_count + 1, "Старый токен должен быть добавлен в blacklist"
+        assert (
+            final_blacklist_count == initial_blacklist_count + 1
+        ), "Старый токен должен быть добавлен в blacklist"
 
         # Проверка что старый токен больше не работает
-        old_token_response = self.client.post("/api/v1/auth/refresh/", {"refresh": old_refresh_token}, format="json")
+        old_token_response = self.client.post(
+            "/api/v1/auth/refresh/", {"refresh": old_refresh_token}, format="json"
+        )
         assert (
             old_token_response.status_code == status.HTTP_401_UNAUTHORIZED
         ), "Старый токен не должен работать после ротации"
@@ -283,7 +309,9 @@ class TestLogoutView:
 
         # Act - выполнить logout
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {access_token}")
-        response = self.client.post("/api/v1/auth/logout/", data={"refresh": refresh_token}, format="json")
+        response = self.client.post(
+            "/api/v1/auth/logout/", data={"refresh": refresh_token}, format="json"
+        )
 
         # Assert - проверка ответа
         assert (
@@ -291,12 +319,16 @@ class TestLogoutView:
         ), f"Logout должен вернуть 204, получен {response.status_code}"
 
         # Проверка что токен в blacklist
-        assert BlacklistedToken.objects.filter(token__jti=refresh["jti"]).exists(), "Токен должен быть в blacklist"
+        assert BlacklistedToken.objects.filter(
+            token__jti=refresh["jti"]
+        ).exists(), "Токен должен быть в blacklist"
 
     def test_logout_without_authentication(self) -> None:
         """Logout без аутентификации возвращает 401"""
         # Act - попытка logout без токена
-        response = self.client.post("/api/v1/auth/logout/", data={"refresh": "fake-token"}, format="json")
+        response = self.client.post(
+            "/api/v1/auth/logout/", data={"refresh": "fake-token"}, format="json"
+        )
 
         # Assert
         assert (
@@ -331,10 +363,14 @@ class TestLogoutView:
         refresh_token = str(refresh)
 
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {access_token}")
-        self.client.post("/api/v1/auth/logout/", data={"refresh": refresh_token}, format="json")
+        self.client.post(
+            "/api/v1/auth/logout/", data={"refresh": refresh_token}, format="json"
+        )
 
         # Act - попытка refresh с blacklisted токеном
-        response = self.client.post("/api/v1/auth/refresh/", data={"refresh": refresh_token}, format="json")
+        response = self.client.post(
+            "/api/v1/auth/refresh/", data={"refresh": refresh_token}, format="json"
+        )
 
         # Assert
         assert (
@@ -351,7 +387,9 @@ class TestLogoutView:
 
         # Act - попытка logout с blacklisted токеном
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {access_token}")
-        response = self.client.post("/api/v1/auth/logout/", data={"refresh": refresh_token}, format="json")
+        response = self.client.post(
+            "/api/v1/auth/logout/", data={"refresh": refresh_token}, format="json"
+        )
 
         # Assert
         assert (
@@ -383,7 +421,11 @@ class TestLogoutView:
 
         # Проверка audit log записи
         log_record = next(
-            (r for r in caplog.records if "[AUDIT]" in r.message and "User logout successful" in r.message),
+            (
+                r
+                for r in caplog.records
+                if "[AUDIT]" in r.message and "User logout successful" in r.message
+            ),
             None,
         )
         assert log_record is not None, "Audit log не найден"
@@ -425,7 +467,11 @@ class TestLogoutView:
 
         # Проверка WARNING log записи
         log_record = next(
-            (r for r in caplog.records if "[AUDIT]" in r.message and "failed" in r.message),
+            (
+                r
+                for r in caplog.records
+                if "[AUDIT]" in r.message and "failed" in r.message
+            ),
             None,
         )
         assert log_record is not None, "WARNING audit log не найден"

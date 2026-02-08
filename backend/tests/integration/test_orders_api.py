@@ -33,7 +33,9 @@ class TestOrderAPI:
             role="retail",
         )
         self.brand = Brand.objects.create(name="Test Brand", slug="test-brand")
-        self.category = Category.objects.create(name="Test Category", slug="test-category")
+        self.category = Category.objects.create(
+            name="Test Category", slug="test-category"
+        )
         self.product = Product.objects.create(
             name="Test Product",
             slug="test-product",
@@ -203,7 +205,9 @@ class TestOrderAPI:
     def test_get_order_detail_access_denied(self, db):
         """Тест доступа к чужому заказу"""
         # Создаем другого пользователя
-        other_user = User.objects.create_user(email="other@example.com", password="testpass")
+        other_user = User.objects.create_user(
+            email="other@example.com", password="testpass"
+        )
 
         # Создаем заказ от имени другого пользователя
         order = Order.objects.create(
@@ -305,7 +309,9 @@ class TestOrderAPI:
     def test_b2b_minimum_quantity_validation(self, db):
         """Тест валидации минимального количества для B2B пользователей"""
         # Создаем B2B пользователя
-        b2b_user = User.objects.create_user(email="b2b@example.com", password="testpass", role="wholesale_level1")
+        b2b_user = User.objects.create_user(
+            email="b2b@example.com", password="testpass", role="wholesale_level1"
+        )
         self.client.force_authenticate(user=b2b_user)
 
         # Устанавливаем минимальное количество для заказа

@@ -36,7 +36,9 @@ class CustomerSyncMonitor:
     # Настройки кэширования
     CACHE_TTL = int(os.getenv("METRICS_CACHE_TTL", 300))  # 5 минут по умолчанию
 
-    def get_operation_metrics(self, start_date: datetime, end_date: datetime) -> dict[str, Any]:
+    def get_operation_metrics(
+        self, start_date: datetime, end_date: datetime
+    ) -> dict[str, Any]:
         """
         Получает метрики операций за заданный период.
 
@@ -47,14 +49,18 @@ class CustomerSyncMonitor:
         Returns:
             Словарь с метриками операций
         """
-        cache_key = f"metrics:operations:{start_date.isoformat()}:{end_date.isoformat()}"
+        cache_key = (
+            f"metrics:operations:{start_date.isoformat()}:{end_date.isoformat()}"
+        )
         cached = cache.get(cache_key)
 
         if cached is not None:
             logger.debug("Возвращены кэшированные метрики операций")
             return cast("dict[str, Any]", cached)
 
-        logs = CustomerSyncLog.objects.filter(created_at__gte=start_date, created_at__lt=end_date)
+        logs = CustomerSyncLog.objects.filter(
+            created_at__gte=start_date, created_at__lt=end_date
+        )
 
         # Общее количество операций
         total_operations = logs.count()
@@ -74,8 +80,16 @@ class CustomerSyncMonitor:
         ).count()
         warning_count = logs.filter(status=CustomerSyncLog.StatusType.WARNING).count()
 
-        success_rate = round(success_count / total_operations * 100, 2) if total_operations > 0 else 0.0
-        error_rate = round(error_count / total_operations * 100, 2) if total_operations > 0 else 0.0
+        success_rate = (
+            round(success_count / total_operations * 100, 2)
+            if total_operations > 0
+            else 0.0
+        )
+        error_rate = (
+            round(error_count / total_operations * 100, 2)
+            if total_operations > 0
+            else 0.0
+        )
 
         # Время выполнения
         duration_stats = logs.exclude(duration_ms__isnull=True).aggregate(
@@ -151,7 +165,9 @@ class CustomerSyncMonitor:
             result = cursor.fetchone()
             return float(round(result[0], 2)) if result and result[0] else 0.0
 
-    def get_business_metrics(self, start_date: datetime, end_date: datetime) -> dict[str, Any]:
+    def get_business_metrics(
+        self, start_date: datetime, end_date: datetime
+    ) -> dict[str, Any]:
         """
         Получает бизнес-метрики за заданный период.
 
@@ -169,10 +185,17 @@ class CustomerSyncMonitor:
             logger.debug("Возвращены кэшированные бизнес-метрики")
             return cast("dict[str, Any]", cached)
 
-        logs = CustomerSyncLog.objects.filter(created_at__gte=start_date, created_at__lt=end_date)
+        logs = CustomerSyncLog.objects.filter(
+            created_at__gte=start_date, created_at__lt=end_date
+        )
 
         # Количество синхронизированных клиентов
-        synced_customers = logs.filter(status=CustomerSyncLog.StatusType.SUCCESS).values("customer").distinct().count()
+        synced_customers = (
+            logs.filter(status=CustomerSyncLog.StatusType.SUCCESS)
+            .values("customer")
+            .distinct()
+            .count()
+        )
 
         # Автоматически разрешенные конфликты по типам
         conflicts_resolved: dict[str, int] = {}
@@ -183,7 +206,9 @@ class CustomerSyncMonitor:
 
         for log in conflict_logs:
             conflict_type = log.details.get("conflict_type", "unknown")
-            conflicts_resolved[conflict_type] = conflicts_resolved.get(conflict_type, 0) + 1
+            conflicts_resolved[conflict_type] = (
+                conflicts_resolved.get(conflict_type, 0) + 1
+            )
 
         # Успешная идентификация клиентов по методам
         identification_methods: dict[str, int] = {}
@@ -215,9 +240,15 @@ class CustomerSyncMonitor:
         admin_notifications_sent = notification_logs.count()
 
         # ROI от автоматизации (процент автоматических разрешений)
-        total_conflicts = logs.filter(operation_type=CustomerSyncLog.OperationType.CONFLICT_RESOLUTION).count()
+        total_conflicts = logs.filter(
+            operation_type=CustomerSyncLog.OperationType.CONFLICT_RESOLUTION
+        ).count()
 
-        auto_resolution_rate = round(len(conflicts_resolved) / total_conflicts * 100, 2) if total_conflicts > 0 else 0.0
+        auto_resolution_rate = (
+            round(len(conflicts_resolved) / total_conflicts * 100, 2)
+            if total_conflicts > 0
+            else 0.0
+        )
 
         metrics = {
             "synced_customers_count": synced_customers,
@@ -237,7 +268,8 @@ class CustomerSyncMonitor:
         cache.set(cache_key, metrics, timeout=self.CACHE_TTL)
 
         logger.info(
-            "Собраны бизнес-метрики: %d клиентов синхронизировано, " "автоматическое разрешение конфликтов: %.2f%%",
+            "Собраны бизнес-метрики: %d клиентов синхронизировано, "
+            "автоматическое разрешение конфликтов: %.2f%%",
             synced_customers,
             auto_resolution_rate,
         )
@@ -267,7 +299,9 @@ class CustomerSyncMonitor:
 
         # Опционально проверяем 1С API (если URL настроен)
         api_1c_url = os.getenv("HEALTH_CHECK_1C_API_URL")
-        api_1c_health = health_checker.check_1c_api_availability() if api_1c_url else None
+        api_1c_health = (
+            health_checker.check_1c_api_availability() if api_1c_url else None
+        )
 
         # Агрегированный статус
         components = [db_health, redis_health, disk_health]
@@ -345,11 +379,15 @@ class CustomerSyncMonitor:
 
         # Текущий error rate
         current_error_rate = (
-            round(errors_last_5min / operations_last_5min * 100, 2) if operations_last_5min > 0 else 0.0
+            round(errors_last_5min / operations_last_5min * 100, 2)
+            if operations_last_5min > 0
+            else 0.0
         )
 
         # Операции в процессе
-        pending_operations = CustomerSyncLog.objects.filter(status=CustomerSyncLog.StatusType.PENDING).count()
+        pending_operations = CustomerSyncLog.objects.filter(
+            status=CustomerSyncLog.StatusType.PENDING
+        ).count()
 
         # Throughput (операций в минуту)
         throughput = operations_last_5min / 5.0  # За 5 минут
@@ -368,7 +406,9 @@ class CustomerSyncMonitor:
 
         return metrics
 
-    def get_hourly_breakdown(self, start_date: datetime, end_date: datetime) -> list[dict[str, Any]]:
+    def get_hourly_breakdown(
+        self, start_date: datetime, end_date: datetime
+    ) -> list[dict[str, Any]]:
         """
         Получает почасовую разбивку метрик.
 
@@ -379,14 +419,18 @@ class CustomerSyncMonitor:
         Returns:
             Список с метриками по часам
         """
-        logs = CustomerSyncLog.objects.filter(created_at__gte=start_date, created_at__lt=end_date)
+        logs = CustomerSyncLog.objects.filter(
+            created_at__gte=start_date, created_at__lt=end_date
+        )
 
         hourly_data = (
             logs.annotate(hour=TruncHour("created_at"))
             .values("hour")
             .annotate(
                 total=Count("id"),
-                success=Count("id", filter=Q(status=CustomerSyncLog.StatusType.SUCCESS)),
+                success=Count(
+                    "id", filter=Q(status=CustomerSyncLog.StatusType.SUCCESS)
+                ),
                 errors=Count(
                     "id",
                     filter=Q(
@@ -408,7 +452,11 @@ class CustomerSyncMonitor:
                 "successful_operations": item["success"],
                 "failed_operations": item["errors"],
                 "avg_duration_ms": round(item["avg_duration"] or 0, 2),
-                "success_rate": (round(item["success"] / item["total"] * 100, 2) if item["total"] > 0 else 0.0),
+                "success_rate": (
+                    round(item["success"] / item["total"] * 100, 2)
+                    if item["total"] > 0
+                    else 0.0
+                ),
             }
             for item in hourly_data
         ]
@@ -557,7 +605,12 @@ class IntegrationHealthCheck:
                 "used_percent": round(used_percent, 2),
                 "threshold_percent": threshold,
                 "message": (
-                    "OK" if is_available else (f"Disk usage {used_percent:.1f}% " f"exceeds threshold {threshold}%")
+                    "OK"
+                    if is_available
+                    else (
+                        f"Disk usage {used_percent:.1f}% "
+                        f"exceeds threshold {threshold}%"
+                    )
                 ),
             }
 

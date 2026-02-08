@@ -35,7 +35,9 @@ User = get_user_model()
 class TestProductListSerializer:
     """Тесты сериализатора списка товаров"""
 
-    def test_product_list_serialization(self, category_factory, brand_factory, product_variant_factory):
+    def test_product_list_serialization(
+        self, category_factory, brand_factory, product_variant_factory
+    ):
         """Тест сериализации товара в списке"""
         category = category_factory.create(name="Спорт")
         brand = brand_factory.create(name="Nike")
@@ -53,13 +55,19 @@ class TestProductListSerializer:
 
         assert data["name"] == "Кроссовки"
         assert float(data["retail_price"]) == 5000.00
-        assert data["category"] == "Спорт"  # StringRelatedField возвращает __str__ модели
+        assert (
+            data["category"] == "Спорт"
+        )  # StringRelatedField возвращает __str__ модели
         assert data["brand"]["name"] == "Nike"
 
-    def test_product_list_with_user_context(self, user_factory, product_variant_factory):
+    def test_product_list_with_user_context(
+        self, user_factory, product_variant_factory
+    ):
         """Тест сериализации с контекстом пользователя"""
         user = user_factory.create()
-        variant = product_variant_factory.create(product__name="Товар", retail_price=Decimal("1000.00"))
+        variant = product_variant_factory.create(
+            product__name="Товар", retail_price=Decimal("1000.00")
+        )
         product = variant.product
 
         # Тест для retail пользователя
@@ -71,14 +79,18 @@ class TestProductListSerializer:
                 return f"http://testserver{url}" if url else ""
 
         retail_user = user_factory.create(role="retail")
-        serializer = ProductListSerializer(product, context={"request": MockRequest(retail_user)})
+        serializer = ProductListSerializer(
+            product, context={"request": MockRequest(retail_user)}
+        )
         data = serializer.data
         assert "current_price" in data
 
     def test_product_list_b2b_pricing(self, user_factory, product_variant_factory):
         """Тест отображения B2B цен"""
         user = user_factory.create(role="wholesale_level1")
-        variant = product_variant_factory.create(product__name="B2B Товар", retail_price=Decimal("1000.00"))
+        variant = product_variant_factory.create(
+            product__name="B2B Товар", retail_price=Decimal("1000.00")
+        )
         product = variant.product
 
         class MockRequest:
@@ -88,14 +100,18 @@ class TestProductListSerializer:
             def build_absolute_uri(self, url):
                 return f"http://testserver{url}" if url else ""
 
-        serializer = ProductListSerializer(product, context={"request": MockRequest(user)})
+        serializer = ProductListSerializer(
+            product, context={"request": MockRequest(user)}
+        )
         data = serializer.data
         assert "current_price" in data  # Поле существует в сериализаторе
 
     def test_product_list_filtering(self, user_factory, product_variant_factory):
         """Тест фильтрации товаров"""
         user = user_factory.create()
-        variant = product_variant_factory.create(product__name="Активный товар", product__is_active=True)
+        variant = product_variant_factory.create(
+            product__name="Активный товар", product__is_active=True
+        )
         product = variant.product
 
         serializer = ProductListSerializer(product)
@@ -124,7 +140,9 @@ class TestProductDetailSerializer:
             description="Спортивная футболка",
             category=category,
             brand=brand,
-            base_images=["/media/products/img1.jpg"],  # Добавляем изображения в JSON поле
+            base_images=[
+                "/media/products/img1.jpg"
+            ],  # Добавляем изображения в JSON поле
         )
 
         class MockRequest:
@@ -140,11 +158,15 @@ class TestProductDetailSerializer:
             (object,),
             {
                 "user": user,
-                "build_absolute_uri": (lambda self, url: f"http://testserver{url}" if url else ""),
+                "build_absolute_uri": (
+                    lambda self, url: f"http://testserver{url}" if url else ""
+                ),
             },
         )()
 
-        serializer = ProductDetailSerializer(product, context={"request": MockRequest(user)})
+        serializer = ProductDetailSerializer(
+            product, context={"request": MockRequest(user)}
+        )
         data = serializer.data
 
         assert data["name"] == "Футболка"
@@ -154,7 +176,9 @@ class TestProductDetailSerializer:
         # factory)
         assert len(data["images"]) >= 1
 
-    def test_product_detail_with_related_products(self, category_factory, product_factory, user_factory):
+    def test_product_detail_with_related_products(
+        self, category_factory, product_factory, user_factory
+    ):
         """Тест с похожими товарами"""
         category = category_factory.create(name="Обувь")
         main_product = product_factory.create(name="Основной товар", category=category)
@@ -173,11 +197,15 @@ class TestProductDetailSerializer:
             (object,),
             {
                 "user": user,
-                "build_absolute_uri": (lambda self, url: f"http://testserver{url}" if url else ""),
+                "build_absolute_uri": (
+                    lambda self, url: f"http://testserver{url}" if url else ""
+                ),
             },
         )()
 
-        serializer = ProductDetailSerializer(main_product, context={"request": MockRequest(user)})
+        serializer = ProductDetailSerializer(
+            main_product, context={"request": MockRequest(user)}
+        )
         data = serializer.data
 
         assert "related_products" in data
@@ -264,7 +292,9 @@ class TestProductImageSerializer:
     def test_product_image_serialization(self, product_factory, product_image_factory):
         """Тест сериализации изображения"""
         product = product_factory.create(name="Товар с фото")
-        image = product_image_factory.create(product=product, is_main=True, alt_text="Основное фото")
+        image = product_image_factory.create(
+            product=product, is_main=True, alt_text="Основное фото"
+        )
 
         serializer = ProductImageSerializer(image)
         data = serializer.data
@@ -308,7 +338,9 @@ class TestProductSpecificationSerializer:
 
     def test_empty_specifications(self, product_factory):
         """Тест пустых характеристик"""
-        product = product_factory.create(name="Товар без характеристик", specifications={})
+        product = product_factory.create(
+            name="Товар без характеристик", specifications={}
+        )
 
         serializer = ProductSpecificationSerializer(product)
         data = serializer.data
@@ -321,7 +353,9 @@ class TestProductSpecificationSerializer:
 class TestProductSearchAndFiltering:
     """Тесты поиска и фильтрации товаров"""
 
-    def test_price_range_filtering(self, category_factory, brand_factory, product_variant_factory):
+    def test_price_range_filtering(
+        self, category_factory, brand_factory, product_variant_factory
+    ):
         """Тест фильтрации по диапазону цен"""
         category = category_factory.create(name="Тест")
         brand = brand_factory.create(name="Тест")
@@ -373,11 +407,15 @@ class TestProductSearchAndFiltering:
 class TestProductPerformance:
     """Тесты производительности сериализаторов"""
 
-    def test_bulk_serialization_performance(self, category_factory, brand_factory, product_variant_factory):
+    def test_bulk_serialization_performance(
+        self, category_factory, brand_factory, product_variant_factory
+    ):
         """Тест производительности массовой сериализации"""
         category = category_factory.create(name="Тест")
         brand = brand_factory.create(name="Тест")
-        variants = product_variant_factory.create_batch(10, product__category=category, product__brand=brand)
+        variants = product_variant_factory.create_batch(
+            10, product__category=category, product__brand=brand
+        )
         products = [v.product for v in variants]
 
         serializer = ProductListSerializer(products, many=True)
@@ -395,7 +433,9 @@ class TestOnecBrandIdSerializerGuardrail:
 
     def test_onec_brand_id_not_in_product_list_serializer(self, product_factory):
         """Тест что ProductListSerializer не возвращает onec_brand_id"""
-        product = product_factory.create(onec_brand_id="fb3f263e-dfd0-11ef-8361-fa163ea88911")
+        product = product_factory.create(
+            onec_brand_id="fb3f263e-dfd0-11ef-8361-fa163ea88911"
+        )
 
         serializer = ProductListSerializer(product)
         data = serializer.data
@@ -405,7 +445,9 @@ class TestOnecBrandIdSerializerGuardrail:
 
     def test_onec_brand_id_not_in_product_detail_serializer(self, product_factory):
         """Тест что ProductDetailSerializer не возвращает onec_brand_id"""
-        product = product_factory.create(onec_brand_id="fb3f263e-dfd0-11ef-8361-fa163ea88911")
+        product = product_factory.create(
+            onec_brand_id="fb3f263e-dfd0-11ef-8361-fa163ea88911"
+        )
 
         serializer = ProductDetailSerializer(product)
         data = serializer.data

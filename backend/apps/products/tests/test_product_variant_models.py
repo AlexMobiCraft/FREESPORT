@@ -99,13 +99,17 @@ class TestProductVariant:
 
     def test_get_price_for_retail_user(self, variant, db):
         """AC7: get_price_for_user возвращает retail_price для retail пользователя"""
-        user = User.objects.create_user(email="retail@test.com", password="pass", role="retail")
+        user = User.objects.create_user(
+            email="retail@test.com", password="pass", role="retail"
+        )
         price = variant.get_price_for_user(user)
         assert price == variant.retail_price
 
     def test_get_price_for_wholesale_level1(self, variant, db):
         """AC7: get_price_for_user возвращает opt1_price для wholesale_level1"""
-        user = User.objects.create_user(email="ws1@test.com", password="pass", role="wholesale_level1")
+        user = User.objects.create_user(
+            email="ws1@test.com", password="pass", role="wholesale_level1"
+        )
         price = variant.get_price_for_user(user)
         assert price == variant.opt1_price
 
@@ -113,7 +117,9 @@ class TestProductVariant:
         """AC7: get_price_for_user возвращает opt2_price для wholesale_level2"""
         variant.opt2_price = Decimal("850.00")
         variant.save()
-        user = User.objects.create_user(email="ws2@test.com", password="pass", role="wholesale_level2")
+        user = User.objects.create_user(
+            email="ws2@test.com", password="pass", role="wholesale_level2"
+        )
         price = variant.get_price_for_user(user)
         assert price == Decimal("850.00")
 
@@ -121,7 +127,9 @@ class TestProductVariant:
         """AC7: get_price_for_user возвращает opt3_price для wholesale_level3"""
         variant.opt3_price = Decimal("800.00")
         variant.save()
-        user = User.objects.create_user(email="ws3@test.com", password="pass", role="wholesale_level3")
+        user = User.objects.create_user(
+            email="ws3@test.com", password="pass", role="wholesale_level3"
+        )
         price = variant.get_price_for_user(user)
         assert price == Decimal("800.00")
 
@@ -129,7 +137,9 @@ class TestProductVariant:
         """AC7: get_price_for_user возвращает trainer_price для trainer"""
         variant.trainer_price = Decimal("750.00")
         variant.save()
-        user = User.objects.create_user(email="trainer@test.com", password="pass", role="trainer")
+        user = User.objects.create_user(
+            email="trainer@test.com", password="pass", role="trainer"
+        )
         price = variant.get_price_for_user(user)
         assert price == Decimal("750.00")
 
@@ -137,7 +147,9 @@ class TestProductVariant:
         """AC7: get_price_for_user возвращает federation_price для federation_rep"""
         variant.federation_price = Decimal("700.00")
         variant.save()
-        user = User.objects.create_user(email="fed@test.com", password="pass", role="federation_rep")
+        user = User.objects.create_user(
+            email="fed@test.com", password="pass", role="federation_rep"
+        )
         price = variant.get_price_for_user(user)
         assert price == Decimal("700.00")
 
@@ -188,7 +200,9 @@ class TestProductVariant:
         image.save(image_io, format="JPEG")
         image_io.seek(0)
 
-        uploaded_file = SimpleUploadedFile("test_variant_image.jpg", image_io.read(), content_type="image/jpeg")
+        uploaded_file = SimpleUploadedFile(
+            "test_variant_image.jpg", image_io.read(), content_type="image/jpeg"
+        )
 
         # Создаем вариант с реальным main_image
         variant = ProductVariant.objects.create(
@@ -245,7 +259,9 @@ class TestProductVariant:
         """
         variant.opt1_price = None
         variant.save()
-        user = User.objects.create_user(email="ws1null@test.com", password="pass", role="wholesale_level1")
+        user = User.objects.create_user(
+            email="ws1null@test.com", password="pass", role="wholesale_level1"
+        )
         price = variant.get_price_for_user(user)
         assert price == variant.retail_price
 
@@ -270,7 +286,9 @@ class TestProductVariant:
         for role, email in roles_data:
             user = User.objects.create_user(email=email, password="pass", role=role)
             price = variant.get_price_for_user(user)
-            assert price == variant.retail_price, f"Role {role} should fallback to retail_price"
+            assert (
+                price == variant.retail_price
+            ), f"Role {role} should fallback to retail_price"
 
     # TEST-GAP-6: Edge cases
     def test_variant_with_empty_color_and_size(self, product, caplog):

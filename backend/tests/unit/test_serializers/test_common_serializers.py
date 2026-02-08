@@ -174,7 +174,9 @@ class TestAddressSerializerIntegration:
         serializer2 = AddressSerializer(data=data2, context={"user": user})
         assert serializer2.is_valid(), serializer2.errors
 
-    def test_address_performance_with_large_dataset(self, user_factory, address_factory):
+    def test_address_performance_with_large_dataset(
+        self, user_factory, address_factory
+    ):
         """Тест производительности с большим количеством адресов"""
         user = user_factory.create()
         addresses = address_factory.create_batch(20, user=user)

@@ -77,7 +77,10 @@ def run_selective_import_task(
             try:
                 result = _execute_import_type(import_type, task_id)
                 results.append(result)
-                logger.info(f"[Task {task_id}] Импорт {import_type} завершен: " f"{result['message']}")
+                logger.info(
+                    f"[Task {task_id}] Импорт {import_type} завершен: "
+                    f"{result['message']}"
+                )
             except Exception as e:
                 error_msg = f"Ошибка импорта {import_type}: {e}"
                 logger.error(f"[Task {task_id}] {error_msg}", exc_info=True)
@@ -140,7 +143,9 @@ def _execute_import_type(import_type: str, task_id: str) -> dict[str, str]:
         }
 
     elif import_type == "stocks":
-        logger.info(f"[Task {task_id}] Запуск import_products_from_1c --file-type=rests")
+        logger.info(
+            f"[Task {task_id}] Запуск import_products_from_1c --file-type=rests"
+        )
         call_command(
             "import_products_from_1c",
             "--file-type",
@@ -151,7 +156,9 @@ def _execute_import_type(import_type: str, task_id: str) -> dict[str, str]:
         return {"type": "stocks", "message": "Остатки обновлены"}
 
     elif import_type == "prices":
-        logger.info(f"[Task {task_id}] Запуск import_products_from_1c --file-type=prices")
+        logger.info(
+            f"[Task {task_id}] Запуск import_products_from_1c --file-type=prices"
+        )
         call_command(
             "import_products_from_1c",
             "--file-type",
@@ -166,7 +173,10 @@ def _execute_import_type(import_type: str, task_id: str) -> dict[str, str]:
         onec_data_dir = getattr(settings, "ONEC_DATA_DIR", None)
         if not onec_data_dir:
             raise ValueError("Настройка ONEC_DATA_DIR не найдена в settings")
-        logger.info(f"[Task {task_id}] Запуск import_customers_from_1c " f"--data-dir={onec_data_dir}")
+        logger.info(
+            f"[Task {task_id}] Запуск import_customers_from_1c "
+            f"--data-dir={onec_data_dir}"
+        )
         call_command("import_customers_from_1c", "--data-dir", onec_data_dir)
         return {"type": "customers", "message": "Клиенты импортированы"}
 
@@ -251,7 +261,9 @@ def _run_image_import(task_id: str) -> dict[str, str]:
     if session:
         session.status = ImportSession.ImportStatus.IN_PROGRESS
         session.save(update_fields=["status"])
-        logger.info(f"[Task {task_id}] ImportSession {session.id} установлена в IN_PROGRESS")
+        logger.info(
+            f"[Task {task_id}] ImportSession {session.id} установлена в IN_PROGRESS"
+        )
 
     try:
         # Получить директорию с данными 1С
@@ -265,13 +277,16 @@ def _run_image_import(task_id: str) -> dict[str, str]:
         # Проверить существование директории
         if not base_dir.exists():
             raise FileNotFoundError(
-                f"Директория изображений не найдена: {base_dir}. " f"Убедитесь что данные из 1С синхронизированы."
+                f"Директория изображений не найдена: {base_dir}. "
+                f"Убедитесь что данные из 1С синхронизированы."
             )
 
         logger.info(f"[Task {task_id}] Директория изображений: {base_dir}")
 
         # Получить все активные товары с onec_id
-        products_qs = Product.objects.filter(is_active=True, onec_id__isnull=False).exclude(onec_id="")
+        products_qs = Product.objects.filter(
+            is_active=True, onec_id__isnull=False
+        ).exclude(onec_id="")
 
         total_products = products_qs.count()
         processed = 0
@@ -279,7 +294,9 @@ def _run_image_import(task_id: str) -> dict[str, str]:
         total_skipped = 0
         total_errors = 0
 
-        logger.info(f"[Task {task_id}] Найдено {total_products} активных товаров с onec_id")
+        logger.info(
+            f"[Task {task_id}] Найдено {total_products} активных товаров с onec_id"
+        )
 
         # Создать экземпляр процессора, используя ID текущей сессии (если найдена)
         processor_session_id = session.id if session else 0
@@ -341,7 +358,8 @@ def _run_image_import(task_id: str) -> dict[str, str]:
 
             except Exception as e:
                 logger.error(
-                    f"[Task {task_id}] Ошибка обработки товара {product.id} " f"(onec_id: {product.onec_id}): {e}"
+                    f"[Task {task_id}] Ошибка обработки товара {product.id} "
+                    f"(onec_id: {product.onec_id}): {e}"
                 )
                 total_errors += 1
                 processed += 1
@@ -360,7 +378,9 @@ def _run_image_import(task_id: str) -> dict[str, str]:
                 "completed_at": timezone.now().isoformat(),
             }
             session.save(update_fields=["status", "finished_at", "report_details"])
-            logger.info(f"[Task {task_id}] ImportSession {session.id} завершена успешно")
+            logger.info(
+                f"[Task {task_id}] ImportSession {session.id} завершена успешно"
+            )
 
         logger.info(
             f"[Task {task_id}] Импорт изображений завершен. "
@@ -387,7 +407,9 @@ def _run_image_import(task_id: str) -> dict[str, str]:
             session.finished_at = timezone.now()
             session.error_message = str(e)
             session.save(update_fields=["status", "finished_at", "error_message"])
-            logger.info(f"[Task {task_id}] ImportSession {session.id} помечена как FAILED")
+            logger.info(
+                f"[Task {task_id}] ImportSession {session.id} помечена как FAILED"
+            )
 
         # Поднять исключение для retry механизма Celery
         raise

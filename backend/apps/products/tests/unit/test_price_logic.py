@@ -3,7 +3,14 @@ from decimal import Decimal
 import pytest
 from django.contrib.auth import get_user_model
 
-from apps.products.models import Brand, Category, ImportSession, PriceType, Product, ProductVariant
+from apps.products.models import (
+    Brand,
+    Category,
+    ImportSession,
+    PriceType,
+    Product,
+    ProductVariant,
+)
 from apps.products.services.variant_import import VariantImportProcessor
 
 User = get_user_model()
@@ -58,7 +65,9 @@ class TestPriceImportLogic:
         # Import data with only retail price
         price_data = {
             "id": variant.onec_id,
-            "prices": [{"price_type_id": "price-retail-id", "value": Decimal("150.00")}],
+            "prices": [
+                {"price_type_id": "price-retail-id", "value": Decimal("150.00")}
+            ],
         }
 
         # Act
@@ -77,7 +86,9 @@ class TestPriceImportLogic:
             onec_name="Розничная",
             product_field="retail_price",
         )
-        PriceType.objects.create(onec_id="price-rrp-id", onec_name="РРЦ", product_field="rrp")
+        PriceType.objects.create(
+            onec_id="price-rrp-id", onec_name="РРЦ", product_field="rrp"
+        )
 
         price_data = {
             "id": variant.onec_id,
@@ -96,7 +107,9 @@ class TestPriceImportLogic:
     def test_msrp_import(self, processor, variant):
         """Test AC3: msrp is imported correctly"""
 
-        PriceType.objects.create(onec_id="price-msrp-id", onec_name="МРЦ", product_field="msrp")
+        PriceType.objects.create(
+            onec_id="price-msrp-id", onec_name="МРЦ", product_field="msrp"
+        )
 
         price_data = {
             "id": variant.onec_id,
@@ -115,7 +128,9 @@ class TestPriceFallbackLogic:
         """Test AC4: federation_rep sees retail_price if federation_price is missing"""
 
         # Setup user
-        user = User.objects.create_user(email="fed@example.com", password="password", role="federation_rep")
+        user = User.objects.create_user(
+            email="fed@example.com", password="password", role="federation_rep"
+        )
 
         # Case 1: No federation price
         variant.retail_price = Decimal("100.00")

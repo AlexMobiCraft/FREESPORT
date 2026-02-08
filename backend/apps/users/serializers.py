@@ -24,7 +24,9 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         validators=[validate_password],
         style={"input_type": "password"},
     )
-    password_confirm = serializers.CharField(write_only=True, style={"input_type": "password"})
+    password_confirm = serializers.CharField(
+        write_only=True, style={"input_type": "password"}
+    )
 
     class Meta:
         model = User
@@ -47,14 +49,18 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
     def validate_email(self, value: str) -> str:
         """Проверка уникальности email"""
         if User.objects.filter(email=value).exists():
-            raise serializers.ValidationError("Пользователь с таким email уже существует.")
+            raise serializers.ValidationError(
+                "Пользователь с таким email уже существует."
+            )
         return value.lower()
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         """Валидация полей"""
         # Проверка совпадения паролей
         if attrs["password"] != attrs["password_confirm"]:
-            raise serializers.ValidationError({"password_confirm": "Пароли не совпадают."})
+            raise serializers.ValidationError(
+                {"password_confirm": "Пароли не совпадают."}
+            )
 
         # Валидация B2B полей
         role = attrs.get("role", "retail")
@@ -62,14 +68,23 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             # Для B2B пользователей требуется название компании
             if not attrs.get("company_name"):
                 raise serializers.ValidationError(
-                    {"company_name": ("Название компании обязательно для B2B " "пользователей.")}
+                    {
+                        "company_name": (
+                            "Название компании обязательно для B2B " "пользователей."
+                        )
+                    }
                 )
 
             # Для оптовиков и представителей федерации требуется ИНН
             if role.startswith("wholesale") or role == "federation_rep":
                 if not attrs.get("tax_id"):
                     raise serializers.ValidationError(
-                        {"tax_id": ("ИНН обязателен для оптовых покупателей и " "представителей федерации.")}
+                        {
+                            "tax_id": (
+                                "ИНН обязателен для оптовых покупателей и "
+                                "представителей федерации."
+                            )
+                        }
                     )
 
         return attrs
@@ -147,7 +162,9 @@ class UserLoginSerializer(serializers.Serializer):
             attrs["user"] = user
             return attrs
         else:
-            raise serializers.ValidationError("Необходимо указать email и пароль.", code="authorization")
+            raise serializers.ValidationError(
+                "Необходимо указать email и пароль.", code="authorization"
+            )
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
@@ -193,7 +210,9 @@ class UserProfileSerializer(serializers.ModelSerializer):
         if value:
             # Простая валидация длины ИНН (10 или 12 цифр)
             if not value.isdigit() or len(value) not in [10, 12]:
-                raise serializers.ValidationError("ИНН должен содержать 10 или 12 цифр.")
+                raise serializers.ValidationError(
+                    "ИНН должен содержать 10 или 12 цифр."
+                )
         return value
 
     def to_representation(self, instance):
@@ -234,7 +253,9 @@ class AddressSerializer(serializers.ModelSerializer):
     def validate_postal_code(self, value):
         """Валидация почтового индекса"""
         if not value.isdigit() or len(value) != 6:
-            raise serializers.ValidationError("Почтовый индекс должен содержать 6 цифр.")
+            raise serializers.ValidationError(
+                "Почтовый индекс должен содержать 6 цифр."
+            )
         return value
 
     def save(self, **kwargs):
@@ -289,8 +310,12 @@ class UserDashboardSerializer(serializers.Serializer):
     addresses_count = serializers.IntegerField(read_only=True)
 
     # Дополнительная статистика для B2B
-    total_order_amount = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True, required=False)
-    avg_order_amount = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True, required=False)
+    total_order_amount = serializers.DecimalField(
+        max_digits=10, decimal_places=2, read_only=True, required=False
+    )
+    avg_order_amount = serializers.DecimalField(
+        max_digits=10, decimal_places=2, read_only=True, required=False
+    )
 
     # Статус верификации для B2B
     verification_status = serializers.CharField(read_only=True, required=False)
@@ -397,7 +422,9 @@ class FavoriteCreateSerializer(serializers.ModelSerializer):
         product = attrs["product"]
 
         if Favorite.objects.filter(user=user, product=product).exists():
-            raise serializers.ValidationError({"product": "Товар уже добавлен в избранное."})
+            raise serializers.ValidationError(
+                {"product": "Товар уже добавлен в избранное."}
+            )
 
         return attrs
 
@@ -415,7 +442,9 @@ class OrderHistorySerializer(serializers.ModelSerializer):
     items_count = serializers.SerializerMethodField()
     customer_display_name = serializers.ReadOnlyField()
     status_display = serializers.CharField(source="get_status_display", read_only=True)
-    payment_status_display = serializers.CharField(source="get_payment_status_display", read_only=True)
+    payment_status_display = serializers.CharField(
+        source="get_payment_status_display", read_only=True
+    )
 
     class Meta:
         model = Order
@@ -487,7 +516,9 @@ class LogoutSerializer(serializers.Serializer):
     Валидирует refresh token для его инвалидации через blacklist механизм.
     """
 
-    refresh = serializers.CharField(required=True, help_text="Refresh token для инвалидации")
+    refresh = serializers.CharField(
+        required=True, help_text="Refresh token для инвалидации"
+    )
 
     def validate_refresh(self, value: str) -> str:
         """Валидация refresh токена"""

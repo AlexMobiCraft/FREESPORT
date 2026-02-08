@@ -15,7 +15,10 @@ from django.contrib.auth import get_user_model
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
-from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
+from rest_framework_simplejwt.token_blacklist.models import (
+    BlacklistedToken,
+    OutstandingToken,
+)
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 
 from tests.conftest import get_unique_suffix
@@ -470,7 +473,9 @@ class TestLogoutAPIEdgeCases:
         user = create_test_user()
         refresh = RefreshToken.for_user(user)
 
-        logout_api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {str(refresh.access_token)}")
+        logout_api_client.credentials(
+            HTTP_AUTHORIZATION=f"Bearer {str(refresh.access_token)}"
+        )
 
         # Act
         response = logout_api_client.post(
@@ -742,10 +747,14 @@ class TestAccessTokenBlacklist:
 
         # Act - logout обоих пользователей
         logout_api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {access1}")
-        logout_api_client.post(get_logout_url, data={"refresh": str(refresh1)}, format="json")
+        logout_api_client.post(
+            get_logout_url, data={"refresh": str(refresh1)}, format="json"
+        )
 
         logout_api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {access2}")
-        logout_api_client.post(get_logout_url, data={"refresh": str(refresh2)}, format="json")
+        logout_api_client.post(
+            get_logout_url, data={"refresh": str(refresh2)}, format="json"
+        )
 
         # Assert - оба токена в blacklist
         assert cache.get(f"{ACCESS_BLACKLIST_PREFIX}{jti1}") is not None

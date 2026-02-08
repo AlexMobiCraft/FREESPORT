@@ -19,7 +19,9 @@ class GuestSessionIntegrationTest(TestCase):
 
     def setUp(self):
         # Создаем товар для тестов
-        self.category = Category.objects.create(name="Test Category", slug="test-category")
+        self.category = Category.objects.create(
+            name="Test Category", slug="test-category"
+        )
         self.brand = Brand.objects.create(name="Test Brand", slug="test-brand")
         self.product = Product.objects.create(
             name="Test Product",
@@ -53,7 +55,9 @@ class GuestSessionIntegrationTest(TestCase):
         # Обновляем количество
         cart_item_id = cart_response.data["items"][0]["id"]
         update_data = {"quantity": 3}
-        update_response = client.patch(f"/api/v1/cart/items/{cart_item_id}/", update_data)
+        update_response = client.patch(
+            f"/api/v1/cart/items/{cart_item_id}/", update_data
+        )
         self.assertEqual(update_response.status_code, 200)
 
         # Проверяем обновление
@@ -78,7 +82,9 @@ class GuestSessionIntegrationTest(TestCase):
         # Проверяем объединение (FR6.1)
         final_cart = client.get("/api/v1/cart/")
         self.assertEqual(final_cart.data["total_items"], 2)
-        self.assertEqual(len(final_cart.data["items"]), 1)  # Один товар, но количество 2
+        self.assertEqual(
+            len(final_cart.data["items"]), 1
+        )  # Один товар, но количество 2
 
     def test_guest_cart_to_user_cart_transfer(self):
         """Перенос гостевой корзины при регистрации/авторизации"""
@@ -94,7 +100,9 @@ class GuestSessionIntegrationTest(TestCase):
         self.assertIsNotNone(session_key)
 
         # Создаем пользователя и авторизуемся
-        user = User.objects.create_user(email="test@example.com", password="testpass123")
+        user = User.objects.create_user(
+            email="test@example.com", password="testpass123"
+        )
         client.force_authenticate(user=user)
 
         # TODO: Реализовать автоматический перенос корзины в сигналах
@@ -147,7 +155,9 @@ class GuestSessionIntegrationTest(TestCase):
 
         # TODO: Тестировать management команду cleanup_guest_carts
         # Пока проверяем только наличие старых корзин
-        old_carts = Cart.objects.filter(user__isnull=True, created_at__lt=timezone.now() - timedelta(days=7)).count()
+        old_carts = Cart.objects.filter(
+            user__isnull=True, created_at__lt=timezone.now() - timedelta(days=7)
+        ).count()
         self.assertGreater(old_carts, 0)
 
     def test_guest_cart_with_product_pricing(self):

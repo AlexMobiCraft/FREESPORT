@@ -17,7 +17,9 @@ def clear_abandoned_carts_task(hours: int = 24) -> None:
         hours (int): Количество часов, после которых корзина считается "брошенной".
     """
     try:
-        logger.info("Запуск задачи clear_abandoned_carts_task с параметром hours=%s", hours)
+        logger.info(
+            "Запуск задачи clear_abandoned_carts_task с параметром hours=%s", hours
+        )
         call_command("clear_abandoned_carts", f"--hours={hours}")
         logger.info("Задача clear_abandoned_carts_task успешно завершена.")
     except Exception as e:

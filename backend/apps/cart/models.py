@@ -93,14 +93,18 @@ class CartItem(models.Model):
     Элемент корзины - вариант товара (ProductVariant) с количеством
     """
 
-    cart = models.ForeignKey(Cart, on_delete=models.CASCADE, related_name="items", verbose_name="Корзина")
+    cart = models.ForeignKey(
+        Cart, on_delete=models.CASCADE, related_name="items", verbose_name="Корзина"
+    )
     variant = models.ForeignKey(
         "products.ProductVariant",
         on_delete=models.CASCADE,
         verbose_name="Вариант товара",
         help_text="SKU-вариант товара с конкретными характеристиками (цвет, размер)",
     )
-    quantity = models.PositiveIntegerField("Количество", default=1, validators=[MinValueValidator(1)])
+    quantity = models.PositiveIntegerField(
+        "Количество", default=1, validators=[MinValueValidator(1)]
+    )
     price_snapshot = models.DecimalField(
         "Снимок цены",
         max_digits=10,
@@ -147,7 +151,10 @@ class CartItem(models.Model):
 
         # Проверяем наличие на складе
         if self.quantity > self.variant.stock_quantity:
-            raise ValidationError(f"Недостаточно товара на складе. " f"Доступно: {self.variant.stock_quantity}")
+            raise ValidationError(
+                f"Недостаточно товара на складе. "
+                f"Доступно: {self.variant.stock_quantity}"
+            )
 
     def save(self, *args, **kwargs):
         # Используем getattr для обхода проверки типов mypy, так как поле не null=True в модели,

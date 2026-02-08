@@ -9,7 +9,9 @@ from apps.products.models import ImportSession
 class TestImportSessionStructure(TestCase):
     def test_import_session_fields(self):
         """Verify ImportSession has all required fields for Story 3.1"""
-        session = ImportSession.objects.create(import_type=ImportSession.ImportType.CATALOG)
+        session = ImportSession.objects.create(
+            import_type=ImportSession.ImportType.CATALOG
+        )
 
         # Check for existence of fields
         assert hasattr(session, "created_at")

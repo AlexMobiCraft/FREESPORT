@@ -42,12 +42,16 @@ class Brand(models.Model):
             help_text="Нормализованное название для дедупликации брендов",
         ),
     )
-    logo = cast(models.ImageField, models.ImageField("Логотип", upload_to="brands/", blank=True))
+    logo = cast(
+        models.ImageField, models.ImageField("Логотип", upload_to="brands/", blank=True)
+    )
     description = cast(str, models.TextField("Описание", blank=True))
     website = cast(str, models.URLField("Веб-сайт", blank=True))
     is_active = cast(bool, models.BooleanField("Активный", default=True))
 
-    created_at = cast(datetime, models.DateTimeField("Дата создания", auto_now_add=True))
+    created_at = cast(
+        datetime, models.DateTimeField("Дата создания", auto_now_add=True)
+    )
     updated_at = cast(datetime, models.DateTimeField("Дата обновления", auto_now=True))
 
     class Meta:
@@ -112,7 +116,9 @@ class Brand1CMapping(models.Model):
             help_text="Оригинальное название бренда из 1С",
         ),
     )
-    created_at = cast(datetime, models.DateTimeField("Дата создания", auto_now_add=True))
+    created_at = cast(
+        datetime, models.DateTimeField("Дата создания", auto_now_add=True)
+    )
 
     class Meta:
         verbose_name = "Маппинг бренда 1С"
@@ -167,7 +173,9 @@ class Category(models.Model):
         ),
     )
 
-    created_at = cast(datetime, models.DateTimeField("Дата создания", auto_now_add=True))
+    created_at = cast(
+        datetime, models.DateTimeField("Дата создания", auto_now_add=True)
+    )
     updated_at = cast(datetime, models.DateTimeField("Дата обновления", auto_now=True))
 
     class Meta:
@@ -229,8 +237,12 @@ class Product(models.Model):
         ),
     )
     description = cast(str, models.TextField("Описание"))
-    short_description = cast(str, models.CharField("Краткое описание", max_length=500, blank=True))
-    specifications = cast(dict, models.JSONField("Технические характеристики", default=dict, blank=True))
+    short_description = cast(
+        str, models.CharField("Краткое описание", max_length=500, blank=True)
+    )
+    specifications = cast(
+        dict, models.JSONField("Технические характеристики", default=dict, blank=True)
+    )
 
     # Изображения (Hybrid подход)
     # Структура: ['url1.jpg', 'url2.jpg', ...] - список URL изображений из 1С
@@ -241,7 +253,10 @@ class Product(models.Model):
             "Базовые изображения",
             default=list,
             blank=True,
-            help_text=("Общие изображения товара из 1С " "(используются как fallback для вариантов)"),
+            help_text=(
+                "Общие изображения товара из 1С "
+                "(используются как fallback для вариантов)"
+            ),
         ),
     )
 
@@ -320,7 +335,9 @@ class Product(models.Model):
     )
 
     # Временные метки и интеграция с 1С
-    created_at = cast(datetime, models.DateTimeField("Дата создания", auto_now_add=True))
+    created_at = cast(
+        datetime, models.DateTimeField("Дата создания", auto_now_add=True)
+    )
     updated_at = cast(datetime, models.DateTimeField("Дата обновления", auto_now=True))
 
     # 1С Integration fields (Story 3.1.1 AC: 3)
@@ -361,7 +378,10 @@ class Product(models.Model):
             null=True,
             blank=True,
             db_index=True,
-            help_text=("Исходный идентификатор бренда из CommerceML " "для обратной синхронизации"),
+            help_text=(
+                "Исходный идентификатор бренда из CommerceML "
+                "для обратной синхронизации"
+            ),
         ),
     )
     sync_status = cast(
@@ -459,11 +479,15 @@ class ProductImage(models.Model):
         models.ImageField,
         models.ImageField("Изображение", upload_to="products/gallery/"),
     )
-    alt_text = cast(str, models.CharField("Альтернативный текст", max_length=255, blank=True))
+    alt_text = cast(
+        str, models.CharField("Альтернативный текст", max_length=255, blank=True)
+    )
     is_main = cast(bool, models.BooleanField("Основное изображение", default=False))
     sort_order = cast(int, models.PositiveIntegerField("Порядок сортировки", default=0))
 
-    created_at = cast(datetime, models.DateTimeField("Дата создания", auto_now_add=True))
+    created_at = cast(
+        datetime, models.DateTimeField("Дата создания", auto_now_add=True)
+    )
     updated_at = cast(datetime, models.DateTimeField("Дата обновления", auto_now=True))
 
     class Meta:
@@ -483,7 +507,9 @@ class ProductImage(models.Model):
     def save(self, *args: Any, **kwargs: Any) -> None:
         # Если это основное изображение, убираем флаг у других изображений этого товара
         if self.is_main:
-            ProductImage.objects.filter(product=self.product, is_main=True).exclude(pk=self.pk).update(is_main=False)
+            ProductImage.objects.filter(product=self.product, is_main=True).exclude(
+                pk=self.pk
+            ).update(is_main=False)
         super().save(*args, **kwargs)
 
 
@@ -542,8 +568,12 @@ class ImportSession(models.Model):
             help_text="ID сессии из URL (sessid) для отслеживания транзакции",
         ),
     )
-    created_at = cast(datetime, models.DateTimeField("Дата создания", auto_now_add=True))
-    started_at = cast(datetime, models.DateTimeField("Начало импорта", auto_now_add=True))
+    created_at = cast(
+        datetime, models.DateTimeField("Дата создания", auto_now_add=True)
+    )
+    started_at = cast(
+        datetime, models.DateTimeField("Начало импорта", auto_now_add=True)
+    )
     updated_at = cast(datetime, models.DateTimeField("Дата обновления", auto_now=True))
     finished_at = cast(
         datetime | None,
@@ -613,7 +643,10 @@ class ImportSession(models.Model):
             return ""
 
     def __str__(self) -> str:
-        return f"{self.get_import_type_display()} - " f"{self.get_status_display()} ({self.created_at})"
+        return (
+            f"{self.get_import_type_display()} - "
+            f"{self.get_status_display()} ({self.created_at})"
+        )
 
 
 class PriceType(models.Model):
@@ -672,7 +705,9 @@ class PriceType(models.Model):
         ),
     )
     is_active = cast(bool, models.BooleanField("Активный", default=True))
-    created_at = cast(datetime, models.DateTimeField("Дата создания", auto_now_add=True))
+    created_at = cast(
+        datetime, models.DateTimeField("Дата создания", auto_now_add=True)
+    )
 
     class Meta:
         verbose_name = "Тип цены"
@@ -1122,7 +1157,9 @@ class Attribute(models.Model):
             help_text="Атрибут активен и отображается в каталоге",
         ),
     )
-    created_at = cast(datetime, models.DateTimeField("Дата создания", auto_now_add=True))
+    created_at = cast(
+        datetime, models.DateTimeField("Дата создания", auto_now_add=True)
+    )
     updated_at = cast(datetime, models.DateTimeField("Дата обновления", auto_now=True))
 
     class Meta:
@@ -1185,7 +1222,9 @@ class AttributeValue(models.Model):
         models.CharField(
             "Значение",
             max_length=255,
-            help_text=("Конкретное значение атрибута " "(например, 'Красный', 'XL', 'Хлопок')"),
+            help_text=(
+                "Конкретное значение атрибута " "(например, 'Красный', 'XL', 'Хлопок')"
+            ),
         ),
     )
     slug = cast(
@@ -1208,7 +1247,9 @@ class AttributeValue(models.Model):
             help_text="Нормализованное значение для дедупликации",
         ),
     )
-    created_at = cast(datetime, models.DateTimeField("Дата создания", auto_now_add=True))
+    created_at = cast(
+        datetime, models.DateTimeField("Дата создания", auto_now_add=True)
+    )
     updated_at = cast(datetime, models.DateTimeField("Дата обновления", auto_now=True))
 
     class Meta:
@@ -1231,7 +1272,9 @@ class AttributeValue(models.Model):
         # Вычисляем normalized_value для дедупликации
         from apps.products.utils.attributes import normalize_attribute_value
 
-        self.normalized_value = normalize_attribute_value(self.value) if self.value else ""
+        self.normalized_value = (
+            normalize_attribute_value(self.value) if self.value else ""
+        )
 
         # Автогенерация slug
         if not self.slug:

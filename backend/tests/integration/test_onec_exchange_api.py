@@ -40,11 +40,16 @@ class Test1CCheckAuth:
 
     def test_checkauth_success(self):
         """
-        AC 1: GET ?mode=checkauth with valid Basic Auth returns 200, text/plain, and success lines.
+        AC 1: GET ?mode=checkauth with valid Basic Auth
+        returns 200, text/plain, and success lines.
         """
-        auth_header = "Basic " + base64.b64encode(b"1c@example.com:secure_password_123").decode("ascii")
+        auth_header = "Basic " + base64.b64encode(
+            b"1c@example.com:secure_password_123"
+        ).decode("ascii")
 
-        response = self.client.get(self.url, data={"mode": "checkauth"}, HTTP_AUTHORIZATION=auth_header)
+        response = self.client.get(
+            self.url, data={"mode": "checkauth"}, HTTP_AUTHORIZATION=auth_header
+        )
 
         assert response.status_code == status.HTTP_200_OK
         assert "text/plain" in response["Content-Type"]
@@ -58,9 +63,13 @@ class Test1CCheckAuth:
         """
         AC 2: GET ?mode=checkauth with invalid Basic Auth returns 401.
         """
-        auth_header = "Basic " + base64.b64encode(b"wrong_user:wrong_pass").decode("ascii")
+        auth_header = "Basic " + base64.b64encode(b"wrong_user:wrong_pass").decode(
+            "ascii"
+        )
 
-        response = self.client.get(self.url, data={"mode": "checkauth"}, HTTP_AUTHORIZATION=auth_header)
+        response = self.client.get(
+            self.url, data={"mode": "checkauth"}, HTTP_AUTHORIZATION=auth_header
+        )
 
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
@@ -82,9 +91,13 @@ class Test1CCheckAuth:
             last_name="User",
             is_staff=False,
         )
-        auth_header = "Basic " + base64.b64encode(b"regular@example.com:password123").decode("ascii")
+        auth_header = "Basic " + base64.b64encode(
+            b"regular@example.com:password123"
+        ).decode("ascii")
 
-        response = self.client.get(self.url, data={"mode": "checkauth"}, HTTP_AUTHORIZATION=auth_header)
+        response = self.client.get(
+            self.url, data={"mode": "checkauth"}, HTTP_AUTHORIZATION=auth_header
+        )
 
         assert response.status_code == status.HTTP_403_FORBIDDEN
 
@@ -104,9 +117,13 @@ class Test1CCheckAuth:
         permission = Permission.objects.get(codename="can_exchange_1c")
         perm_user.user_permissions.add(permission)
 
-        auth_header = "Basic " + base64.b64encode(b"perm@example.com:password123").decode("ascii")
+        auth_header = "Basic " + base64.b64encode(
+            b"perm@example.com:password123"
+        ).decode("ascii")
 
-        response = self.client.get(self.url, data={"mode": "checkauth"}, HTTP_AUTHORIZATION=auth_header)
+        response = self.client.get(
+            self.url, data={"mode": "checkauth"}, HTTP_AUTHORIZATION=auth_header
+        )
 
         assert response.status_code == status.HTTP_200_OK
         assert b"success" in response.content
@@ -131,7 +148,9 @@ class Test1CInitMode:
             is_staff=True,
         )
 
-    def _get_auth_header(self, email="1c_init@example.com", password="secure_password_123"):
+    def _get_auth_header(
+        self, email="1c_init@example.com", password="secure_password_123"
+    ):
         """Helper to create Basic Auth header."""
         credentials = f"{email}:{password}".encode("utf-8")
         return "Basic " + base64.b64encode(credentials).decode("ascii")
@@ -146,7 +165,9 @@ class Test1CInitMode:
         auth_header = self._get_auth_header()
 
         # First authenticate to establish session
-        self.client.get(self.url, data={"mode": "checkauth"}, HTTP_AUTHORIZATION=auth_header)
+        self.client.get(
+            self.url, data={"mode": "checkauth"}, HTTP_AUTHORIZATION=auth_header
+        )
 
         # Subsequent request uses the cookie automatically managed by APIClient
         response = self.client.get(self.url, data={"mode": "init"})
@@ -157,10 +178,18 @@ class Test1CInitMode:
         assert len(content) == 4, f"Expected 4 lines, got {len(content)}: {content}"
 
         # Validate each line format with REGEX (AI-Review LOW priority fix)
-        assert re.match(r"^zip=(yes|no)$", content[0]), f"Line 1 format error: {content[0]}"
-        assert re.match(r"^file_limit=\d+$", content[1]), f"Line 2 format error: {content[1]}"
-        assert re.match(r"^sessid=[a-zA-Z0-9]+$", content[2]), f"Line 3 format error: {content[2]}"
-        assert re.match(r"^version=\d+\.\d+$", content[3]), f"Line 4 format error: {content[3]}"
+        assert re.match(
+            r"^zip=(yes|no)$", content[0]
+        ), f"Line 1 format error: {content[0]}"
+        assert re.match(
+            r"^file_limit=\d+$", content[1]
+        ), f"Line 2 format error: {content[1]}"
+        assert re.match(
+            r"^sessid=[a-zA-Z0-9]+$", content[2]
+        ), f"Line 3 format error: {content[2]}"
+        assert re.match(
+            r"^version=\d+\.\d+$", content[3]
+        ), f"Line 4 format error: {content[3]}"
         assert content[3] == "version=3.1"
 
     def test_init_unauthenticated(self):
@@ -182,7 +211,9 @@ class Test1CInitMode:
         auth_header = self._get_auth_header()
 
         # We explicitly DO NOT call checkauth first
-        response = self.client.get(self.url, data={"mode": "init"}, HTTP_AUTHORIZATION=auth_header)
+        response = self.client.get(
+            self.url, data={"mode": "init"}, HTTP_AUTHORIZATION=auth_header
+        )
 
         assert response.status_code == status.HTTP_200_OK
         assert response.content == b"failure\nNo session"
@@ -211,7 +242,9 @@ class Test1CInitMode:
         TC4: POST ?mode=init returns same result as GET (1C compatibility).
         """
         auth_header = self._get_auth_header()
-        self.client.get(self.url, data={"mode": "checkauth"}, HTTP_AUTHORIZATION=auth_header)
+        self.client.get(
+            self.url, data={"mode": "checkauth"}, HTTP_AUTHORIZATION=auth_header
+        )
 
         response = self.client.post(self.url + "?mode=init")
 
@@ -226,7 +259,9 @@ class Test1CInitMode:
         auth_header = self._get_auth_header()
 
         # 1. CheckAuth
-        resp1 = self.client.get(self.url, data={"mode": "checkauth"}, HTTP_AUTHORIZATION=auth_header)
+        resp1 = self.client.get(
+            self.url, data={"mode": "checkauth"}, HTTP_AUTHORIZATION=auth_header
+        )
         assert resp1.status_code == 200
         lines1 = resp1.content.decode("utf-8").splitlines()
         cookie_name = lines1[1]
@@ -247,20 +282,28 @@ class Test1CInitMode:
         """
         auth_header = self._get_auth_header()
 
-        resp1 = self.client.get(self.url, data={"mode": "checkauth"}, HTTP_AUTHORIZATION=auth_header)
+        resp1 = self.client.get(
+            self.url, data={"mode": "checkauth"}, HTTP_AUTHORIZATION=auth_header
+        )
         sessid1 = resp1.content.decode("utf-8").splitlines()[2]
 
-        resp2 = self.client.get(self.url, data={"mode": "checkauth"}, HTTP_AUTHORIZATION=auth_header)
+        resp2 = self.client.get(
+            self.url, data={"mode": "checkauth"}, HTTP_AUTHORIZATION=auth_header
+        )
         sessid2 = resp2.content.decode("utf-8").splitlines()[2]
 
-        assert sessid1 == sessid2, "Session ID should be stable across consecutive checkauth calls"
+        assert (
+            sessid1 == sessid2
+        ), "Session ID should be stable across consecutive checkauth calls"
 
     def test_init_content_type(self):
         """
         TC7: Content-Type header is text/plain.
         """
         auth_header = self._get_auth_header()
-        self.client.get(self.url, data={"mode": "checkauth"}, HTTP_AUTHORIZATION=auth_header)
+        self.client.get(
+            self.url, data={"mode": "checkauth"}, HTTP_AUTHORIZATION=auth_header
+        )
 
         response = self.client.get(self.url, data={"mode": "init"})
 
@@ -284,7 +327,9 @@ class TestImportConcurrency:
             last_name="Robot",
             is_staff=True,
         )
-        self.auth_header = "Basic " + base64.b64encode(b"1c_import@example.com:password").decode("ascii")
+        self.auth_header = "Basic " + base64.b64encode(
+            b"1c_import@example.com:password"
+        ).decode("ascii")
 
     def test_idempotency_active_session(self):
         """
@@ -402,7 +447,9 @@ class TestImportConcurrency:
 
     def test_concurrent_import_requests(self):
         """
-        [AI-Review][CRITICAL] AC 5: Concurrent requests with same sessid -> Only 1 session created.
+       
+        [AI-Review][CRITICAL] AC 5: Concurrent requests with sam
+       e sessid -> Only 1 session created.
         Simulates race condition by bypassing the 'exists' check and hitting the database constraint.
         """
         from django.db import IntegrityError, transaction
@@ -427,6 +474,7 @@ class TestImportConcurrency:
                     status=ImportSession.ImportStatus.IN_PROGRESS,
                     import_type=ImportSession.ImportType.CATALOG,
                 )
+        #
 
         # 3. Verify via View (simulating Request B hitting the API)
         # The view should handle this gracefully (catch race or see it exists) and return success

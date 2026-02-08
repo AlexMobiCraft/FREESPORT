@@ -73,7 +73,11 @@ class CustomerSyncLogger:
             operation_type=CustomerSyncLog.OperationType.IMPORT_FROM_1C,
             customer=customer if success else None,
             onec_id=customer_data.get("id", ""),
-            status=(CustomerSyncLog.StatusType.SUCCESS if success else CustomerSyncLog.StatusType.ERROR),
+            status=(
+                CustomerSyncLog.StatusType.SUCCESS
+                if success
+                else CustomerSyncLog.StatusType.ERROR
+            ),
             details=details,
             error_message=result.get("error_message", ""),
             duration_ms=duration_ms,
@@ -120,7 +124,11 @@ class CustomerSyncLogger:
             operation_type=CustomerSyncLog.OperationType.EXPORT_TO_1C,
             customer=platform_customer,
             onec_id=result.get("onec_id", platform_customer.onec_id or ""),
-            status=(CustomerSyncLog.StatusType.SUCCESS if success else CustomerSyncLog.StatusType.ERROR),
+            status=(
+                CustomerSyncLog.StatusType.SUCCESS
+                if success
+                else CustomerSyncLog.StatusType.ERROR
+            ),
             details=details,
             error_message=result.get("error_message", ""),
             duration_ms=duration_ms,
@@ -159,7 +167,11 @@ class CustomerSyncLogger:
             operation_type=CustomerSyncLog.OperationType.CUSTOMER_IDENTIFICATION,
             customer=customer,
             onec_id=onec_data.get("onec_id", ""),
-            status=(CustomerSyncLog.StatusType.SUCCESS if found else CustomerSyncLog.StatusType.SKIPPED),
+            status=(
+                CustomerSyncLog.StatusType.SUCCESS
+                if found
+                else CustomerSyncLog.StatusType.SKIPPED
+            ),
             details=details,
             duration_ms=duration_ms,
             correlation_id=self.correlation_id,
@@ -203,7 +215,11 @@ class CustomerSyncLogger:
             operation_type=CustomerSyncLog.OperationType.CONFLICT_RESOLUTION,
             customer=existing_customer,
             onec_id=onec_data.get("onec_id", ""),
-            status=(CustomerSyncLog.StatusType.SUCCESS if success else CustomerSyncLog.StatusType.ERROR),
+            status=(
+                CustomerSyncLog.StatusType.SUCCESS
+                if success
+                else CustomerSyncLog.StatusType.ERROR
+            ),
             details=details,
             error_message=resolution_result.get("error_message", ""),
             duration_ms=duration_ms,
@@ -241,7 +257,11 @@ class CustomerSyncLogger:
             operation_type=CustomerSyncLog.OperationType.SYNC_CHANGES,
             customer=customer,
             onec_id=customer.onec_id or "",
-            status=(CustomerSyncLog.StatusType.SUCCESS if success else CustomerSyncLog.StatusType.ERROR),
+            status=(
+                CustomerSyncLog.StatusType.SUCCESS
+                if success
+                else CustomerSyncLog.StatusType.ERROR
+            ),
             details=details,
             error_message=error_message,
             duration_ms=duration_ms,
@@ -274,7 +294,9 @@ class CustomerSyncLogger:
             "total_count": total_count,
             "success_count": success_count,
             "error_count": error_count,
-            "success_rate": (round(success_count / total_count * 100, 2) if total_count > 0 else 0),
+            "success_rate": (
+                round(success_count / total_count * 100, 2) if total_count > 0 else 0
+            ),
             "timestamp": timezone.now().isoformat(),
         }
 
@@ -291,7 +313,9 @@ class CustomerSyncLogger:
             onec_id="",
             status=status,
             details=details,
-            error_message=(f"{error_count} ошибок из {total_count}" if error_count > 0 else ""),
+            error_message=(
+                f"{error_count} ошибок из {total_count}" if error_count > 0 else ""
+            ),
             duration_ms=duration_ms,
             correlation_id=self.correlation_id,
         )
@@ -331,7 +355,11 @@ class CustomerSyncLogger:
             operation_type=CustomerSyncLog.OperationType.DATA_VALIDATION,
             customer=None,
             onec_id=onec_id,
-            status=(CustomerSyncLog.StatusType.SUCCESS if is_valid else CustomerSyncLog.StatusType.ERROR),
+            status=(
+                CustomerSyncLog.StatusType.SUCCESS
+                if is_valid
+                else CustomerSyncLog.StatusType.ERROR
+            ),
             details=details,
             error_message="; ".join(errors) if errors else "",
             duration_ms=duration_ms,

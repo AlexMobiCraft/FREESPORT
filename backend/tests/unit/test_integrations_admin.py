@@ -33,7 +33,9 @@ class TestImportSessionAdmin:
     @pytest.fixture
     def superuser(self):
         """Создание суперпользователя для тестов"""
-        return User.objects.create_superuser(email="admin@test.com", password="testpass123")
+        return User.objects.create_superuser(
+            email="admin@test.com", password="testpass123"
+        )
 
     @pytest.fixture
     def request_factory(self):
@@ -154,7 +156,9 @@ class TestImportSessionAdmin:
             "Сессии создаются автоматически через /admin/integrations/import_1c/"
         )
 
-    def test_has_change_permission_returns_false(self, import_session_admin, mock_request, import_session):
+    def test_has_change_permission_returns_false(
+        self, import_session_admin, mock_request, import_session
+    ):
         """
         Тест: has_change_permission возвращает False
 
@@ -165,13 +169,21 @@ class TestImportSessionAdmin:
         result_without_obj = import_session_admin.has_change_permission(mock_request)
 
         # Act - с объектом
-        result_with_obj = import_session_admin.has_change_permission(mock_request, import_session)
+        result_with_obj = import_session_admin.has_change_permission(
+            mock_request, import_session
+        )
 
         # Assert
-        assert result_without_obj is False, "Редактирование сессий импорта должно быть запрещено (без объекта)"
-        assert result_with_obj is False, "Редактирование сессий импорта должно быть запрещено (с объектом)"
+        assert (
+            result_without_obj is False
+        ), "Редактирование сессий импорта должно быть запрещено (без объекта)"
+        assert (
+            result_with_obj is False
+        ), "Редактирование сессий импорта должно быть запрещено (с объектом)"
 
-    def test_has_delete_permission_returns_true(self, import_session_admin, mock_request, import_session):
+    def test_has_delete_permission_returns_true(
+        self, import_session_admin, mock_request, import_session
+    ):
         """
         Тест: has_delete_permission возвращает True
 
@@ -184,11 +196,17 @@ class TestImportSessionAdmin:
         result_without_obj = import_session_admin.has_delete_permission(mock_request)
 
         # Act - с объектом
-        result_with_obj = import_session_admin.has_delete_permission(mock_request, import_session)
+        result_with_obj = import_session_admin.has_delete_permission(
+            mock_request, import_session
+        )
 
         # Assert
-        assert result_without_obj is True, "Удаление сессий должно быть разрешено для cleanup (без объекта)"
-        assert result_with_obj is True, "Удаление сессий должно быть разрешено для cleanup (с объектом)"
+        assert (
+            result_without_obj is True
+        ), "Удаление сессий должно быть разрешено для cleanup (без объекта)"
+        assert (
+            result_with_obj is True
+        ), "Удаление сессий должно быть разрешено для cleanup (с объектом)"
 
     def test_actions_list_is_empty(self, import_session_admin):
         """
@@ -202,7 +220,8 @@ class TestImportSessionAdmin:
 
         # Assert
         assert actions == [], (
-            "Admin actions должны быть пустыми. " "Запуск импорта выполняется через /admin/integrations/import_1c/"
+            "Admin actions должны быть пустыми. "
+            "Запуск импорта выполняется через /admin/integrations/import_1c/"
         )
 
     def test_celery_task_status_method_exists(self, import_session_admin):
@@ -232,7 +251,9 @@ class TestImportSessionAdmin:
         assert "blue" in result  # Цвет для STARTED
         assert "Выполняется" in result
 
-    def test_celery_task_status_without_task_id(self, import_session_admin, import_session):
+    def test_celery_task_status_without_task_id(
+        self, import_session_admin, import_session
+    ):
         """
         Тест: celery_task_status без task_id возвращает "-"
         """

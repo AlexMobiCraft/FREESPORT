@@ -52,7 +52,10 @@ class Command(BaseCommand):
         python manage.py import_products_from_1c --data-dir /path --variants-only
     """
 
-    help = "Импорт каталога товаров из файлов 1С (CommerceML 3.1) " "с поддержкой ProductVariant"
+    help = (
+        "Импорт каталога товаров из файлов 1С (CommerceML 3.1) "
+        "с поддержкой ProductVariant"
+    )
 
     def add_arguments(self, parser):
         """Добавление аргументов команды"""
@@ -60,7 +63,10 @@ class Command(BaseCommand):
             "--data-dir",
             type=str,
             default=None,
-            help=("Путь к директории с XML файлами из 1С. " "Если не указан, используется ONEC_DATA_DIR из settings."),
+            help=(
+                "Путь к директории с XML файлами из 1С. "
+                "Если не указан, используется ONEC_DATA_DIR из settings."
+            ),
         )
         parser.add_argument(
             "--dry-run",
@@ -88,7 +94,10 @@ class Command(BaseCommand):
         parser.add_argument(
             "--clear-existing",
             action="store_true",
-            help=("Очистить существующие данные перед импортом " "(ВНИМАНИЕ: удалит все товары и варианты)"),
+            help=(
+                "Очистить существующие данные перед импортом "
+                "(ВНИМАНИЕ: удалит все товары и варианты)"
+            ),
         )
         parser.add_argument(
             "--skip-backup",
@@ -173,27 +182,40 @@ class Command(BaseCommand):
             for subdir in required_subdirs:
                 subdir_path = os.path.join(data_dir, subdir)
                 if not os.path.exists(subdir_path):
-                    raise CommandError(f"Отсутствует обязательная поддиректория: {subdir}")
+                    raise CommandError(
+                        f"Отсутствует обязательная поддиректория: {subdir}"
+                    )
         elif file_type == "offers" or variants_only:
             # Для --variants-only нужны только offers, prices, rests
             required_subdirs = ["offers", "prices", "rests"]
             for subdir in required_subdirs:
                 subdir_path = os.path.join(data_dir, subdir)
                 if not os.path.exists(subdir_path):
-                    raise CommandError(f"Отсутствует обязательная поддиректория для " f"импорта вариантов: {subdir}")
+                    raise CommandError(
+                        f"Отсутствует обязательная поддиректория для "
+                        f"импорта вариантов: {subdir}"
+                    )
 
         if dry_run:
-            self.stdout.write(self.style.WARNING("🔍 DRY RUN MODE: Изменения не будут сохранены в БД"))
+            self.stdout.write(
+                self.style.WARNING("🔍 DRY RUN MODE: Изменения не будут сохранены в БД")
+            )
             return self._dry_run_import(data_dir)
 
         # Автоматический backup перед полным импортом
         if not dry_run and file_type == "all" and not skip_backup:
-            self.stdout.write(self.style.WARNING("\n💾 Создание backup перед импортом..."))
+            self.stdout.write(
+                self.style.WARNING("\n💾 Создание backup перед импортом...")
+            )
             try:
                 call_command("backup_db")
                 self.stdout.write(self.style.SUCCESS("✅ Backup создан успешно"))
             except Exception as e:
-                self.stdout.write(self.style.WARNING(f"⚠️ Не удалось создать backup: {e}. Продолжаем импорт..."))
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"⚠️ Не удалось создать backup: {e}. Продолжаем импорт..."
+                    )
+                )
 
         # Очистка существующих данных
         if clear_existing:
@@ -218,7 +240,11 @@ class Command(BaseCommand):
         self.stdout.write("=" * 60)
 
         # Создание или получение существующей сессии импорта
-        session_type = ImportSession.ImportType.VARIANTS if variants_only else ImportSession.ImportType.CATALOG
+        session_type = (
+            ImportSession.ImportType.VARIANTS
+            if variants_only
+            else ImportSession.ImportType.CATALOG
+        )
 
         session = None
 
@@ -230,9 +256,17 @@ class Command(BaseCommand):
                 if celery_task_id:
                     session.celery_task_id = celery_task_id
                 session.save(update_fields=["status", "celery_task_id", "updated_at"])
-                self.stdout.write(self.style.SUCCESS(f"\n✅ Используется существующая сессия импорта ID: {session.pk}"))
+                self.stdout.write(
+                    self.style.SUCCESS(
+                        f"\n✅ Используется существующая сессия импорта ID: {session.pk}"
+                    )
+                )
             except ImportSession.DoesNotExist:
-                self.stdout.write(self.style.WARNING(f"\n⚠️ Сессия с id={import_session_id} не найдена."))
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"\n⚠️ Сессия с id={import_session_id} не найдена."
+                    )
+                )
 
         # 2. Если не нашли, пробуем по celery_task_id
         if session is None and celery_task_id:
@@ -240,7 +274,11 @@ class Command(BaseCommand):
                 session = ImportSession.objects.get(celery_task_id=celery_task_id)
                 session.status = ImportSession.ImportStatus.IN_PROGRESS
                 session.save(update_fields=["status", "updated_at"])
-                self.stdout.write(self.style.SUCCESS(f"\n✅ Найдена сессия по Celery Task ID: {session.pk}"))
+                self.stdout.write(
+                    self.style.SUCCESS(
+                        f"\n✅ Найдена сессия по Celery Task ID: {session.pk}"
+                    )
+                )
             except ImportSession.DoesNotExist:
                 pass
 
@@ -251,7 +289,9 @@ class Command(BaseCommand):
                 status=ImportSession.ImportStatus.IN_PROGRESS,
                 celery_task_id=celery_task_id,
             )
-            self.stdout.write(self.style.SUCCESS(f"\n✅ Создана НОВАЯ сессия импорта ID: {session.pk}"))
+            self.stdout.write(
+                self.style.SUCCESS(f"\n✅ Создана НОВАЯ сессия импорта ID: {session.pk}")
+            )
 
         session_id = session.pk
 
@@ -287,12 +327,18 @@ class Command(BaseCommand):
             # ШАГ 2: Парсинг goods.xml → Product (базовая информация)
             if file_type in ["all", "goods"]:
                 variant_processor.log_progress("Начало импорта товаров (goods.xml)...")
-                self._import_products_from_goods(data_dir, parser, variant_processor, skip_images)
+                self._import_products_from_goods(
+                    data_dir, parser, variant_processor, skip_images
+                )
 
             # ШАГ 3: Парсинг offers.xml → ProductVariant
             if file_type in ["all", "offers"]:
-                variant_processor.log_progress("Начало импорта вариантов (offers.xml)...")
-                self._import_variants_from_offers(data_dir, parser, variant_processor, skip_images)
+                variant_processor.log_progress(
+                    "Начало импорта вариантов (offers.xml)..."
+                )
+                self._import_variants_from_offers(
+                    data_dir, parser, variant_processor, skip_images
+                )
 
             # ШАГ 3.5: Создание default variants для товаров без вариантов
             if file_type in ["all", "offers"] and not skip_default_variants:
@@ -310,7 +356,9 @@ class Command(BaseCommand):
                 self._import_variant_stocks(data_dir, parser, variant_processor)
 
             # Финализация сессии
-            variant_processor.finalize_session(status=ImportSession.ImportStatus.COMPLETED)
+            variant_processor.finalize_session(
+                status=ImportSession.ImportStatus.COMPLETED
+            )
 
             # Очистка файлов после успешного импорта
             if not dry_run and not options.get("keep_files", False):
@@ -326,7 +374,9 @@ class Command(BaseCommand):
             session.save()
             raise CommandError(f"Импорт завершился с ошибкой: {e}")
 
-    def _import_categories(self, data_dir: str, parser: XMLDataParser, processor: VariantImportProcessor) -> None:
+    def _import_categories(
+        self, data_dir: str, parser: XMLDataParser, processor: VariantImportProcessor
+    ) -> None:
         """Импорт категорий из groups.xml"""
         self.stdout.write("\n📁 Шаг 0.5: Загрузка категорий...")
         groups_files = self._collect_xml_files(data_dir, "groups", "groups.xml")
@@ -337,21 +387,34 @@ class Command(BaseCommand):
                 categories_data = parser.parse_groups_xml(file_path)
                 result = processor.process_categories(categories_data)
                 total_categories += result["created"] + result["updated"]
-                self.stdout.write(f"   • {Path(file_path).name}: категорий {len(categories_data)}")
+                self.stdout.write(
+                    f"   • {Path(file_path).name}: категорий {len(categories_data)}"
+                )
 
                 if result["cycles_detected"] > 0:
                     self.stdout.write(
-                        self.style.WARNING(f"   ⚠️ Обнаружено циклических ссылок: " f"{result['cycles_detected']}")
+                        self.style.WARNING(
+                            f"   ⚠️ Обнаружено циклических ссылок: "
+                            f"{result['cycles_detected']}"
+                        )
                     )
 
-            self.stdout.write(self.style.SUCCESS(f"   ✅ Загружено категорий (всего): {total_categories}"))
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f"   ✅ Загружено категорий (всего): {total_categories}"
+                )
+            )
         else:
             self.stdout.write(self.style.WARNING("   ⚠️ Файлы groups.xml не найдены"))
 
-    def _import_brands(self, data_dir: str, parser: XMLDataParser, processor: VariantImportProcessor) -> None:
+    def _import_brands(
+        self, data_dir: str, parser: XMLDataParser, processor: VariantImportProcessor
+    ) -> None:
         """Импорт брендов из propertiesGoods.xml"""
         self.stdout.write("\n🏷️  Шаг 0.6: Загрузка брендов...")
-        properties_files = self._collect_xml_files(data_dir, "propertiesGoods", "propertiesGoods.xml")
+        properties_files = self._collect_xml_files(
+            data_dir, "propertiesGoods", "propertiesGoods.xml"
+        )
 
         if properties_files:
             total_brands = 0
@@ -361,16 +424,28 @@ class Command(BaseCommand):
                 result = processor.process_brands(brands_data)
                 total_brands += result["brands_created"]
                 total_mappings += result["mappings_created"]
-                self.stdout.write(f"   • {Path(file_path).name}: брендов {len(brands_data)}")
+                self.stdout.write(
+                    f"   • {Path(file_path).name}: брендов {len(brands_data)}"
+                )
 
-            self.stdout.write(self.style.SUCCESS(f"   ✅ Создано брендов: {total_brands}, маппингов: {total_mappings}"))
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f"   ✅ Создано брендов: {total_brands}, маппингов: {total_mappings}"
+                )
+            )
         else:
-            self.stdout.write(self.style.WARNING("   ⚠️ Файлы propertiesGoods*.xml не найдены"))
+            self.stdout.write(
+                self.style.WARNING("   ⚠️ Файлы propertiesGoods*.xml не найдены")
+            )
 
-    def _import_price_types(self, data_dir: str, parser: XMLDataParser, processor: VariantImportProcessor) -> None:
+    def _import_price_types(
+        self, data_dir: str, parser: XMLDataParser, processor: VariantImportProcessor
+    ) -> None:
         """Импорт типов цен из priceLists.xml"""
         self.stdout.write("\n📋 Шаг 1: Загрузка типов цен...")
-        price_list_files = self._collect_xml_files(data_dir, "priceLists", "priceLists.xml")
+        price_list_files = self._collect_xml_files(
+            data_dir, "priceLists", "priceLists.xml"
+        )
 
         if price_list_files:
             total_price_types = 0
@@ -379,11 +454,19 @@ class Command(BaseCommand):
                 for price_type in price_types_data:
                     processor.process_price_types([price_type])
                 total_price_types += len(price_types_data)
-                self.stdout.write(f"   • {Path(file_path).name}: типов цен {len(price_types_data)}")
+                self.stdout.write(
+                    f"   • {Path(file_path).name}: типов цен {len(price_types_data)}"
+                )
 
-            self.stdout.write(self.style.SUCCESS(f"   ✅ Загружено типов цен (всего): {total_price_types}"))
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f"   ✅ Загружено типов цен (всего): {total_price_types}"
+                )
+            )
         else:
-            self.stdout.write(self.style.WARNING("   ⚠️ Файлы priceLists*.xml не найдены"))
+            self.stdout.write(
+                self.style.WARNING("   ⚠️ Файлы priceLists*.xml не найдены")
+            )
 
     def _import_products_from_goods(
         self,
@@ -397,14 +480,20 @@ class Command(BaseCommand):
         goods_files = self._collect_xml_files(data_dir, "goods", "goods.xml")
 
         if not goods_files:
-            self.stdout.write(self.style.WARNING("   ⚠️ Файлы товаров (goods_*.xml) не найдены. Пропуск шага."))
+            self.stdout.write(
+                self.style.WARNING(
+                    "   ⚠️ Файлы товаров (goods_*.xml) не найдены. Пропуск шага."
+                )
+            )
             return
 
         for file_path in goods_files:
             goods_data = parser.parse_goods_xml(file_path)
             base_dir = os.path.join(data_dir, "goods", "import_files")
 
-            for i, goods_item in enumerate(tqdm(goods_data, desc=f"   Обработка {Path(file_path).name}")):
+            for i, goods_item in enumerate(
+                tqdm(goods_data, desc=f"   Обработка {Path(file_path).name}")
+            ):
                 processor.process_product_from_goods(
                     cast("dict[str, Any]", goods_item),
                     base_dir=base_dir,
@@ -412,14 +501,18 @@ class Command(BaseCommand):
                 )
                 if (i + 1) % 20 == 0:
                     processor.log_progress(
-                        f"Обработка товаров ({Path(file_path).name}): " f"{i + 1} из {len(goods_data)}"
+                        f"Обработка товаров ({Path(file_path).name}): "
+                        f"{i + 1} из {len(goods_data)}"
                     )
 
             self.stdout.write(f"   • {Path(file_path).name}: товаров {len(goods_data)}")
 
         stats = processor.get_stats()
         self.stdout.write(
-            self.style.SUCCESS(f"   ✅ Создано: {stats['products_created']}, " f"обновлено: {stats['products_updated']}")
+            self.style.SUCCESS(
+                f"   ✅ Создано: {stats['products_created']}, "
+                f"обновлено: {stats['products_updated']}"
+            )
         )
 
     def _import_variants_from_offers(
@@ -434,7 +527,11 @@ class Command(BaseCommand):
         offers_files = self._collect_xml_files(data_dir, "offers", "offers.xml")
 
         if not offers_files:
-            self.stdout.write(self.style.WARNING("   ⚠️ Файлы вариантов (offers_*.xml) не найдены. Пропуск шага."))
+            self.stdout.write(
+                self.style.WARNING(
+                    "   ⚠️ Файлы вариантов (offers_*.xml) не найдены. Пропуск шага."
+                )
+            )
             return
 
         for file_path in offers_files:
@@ -446,9 +543,13 @@ class Command(BaseCommand):
                 alt_dir = os.path.join(data_dir, "goods", "import_files")
                 if os.path.exists(alt_dir):
                     base_dir = alt_dir
-                    self.stdout.write(f"   ℹ️ Изображения будут загружаться из: {Path(base_dir).relative_to(data_dir)}")
+                    self.stdout.write(
+                        f"   ℹ️ Изображения будут загружаться из: {Path(base_dir).relative_to(data_dir)}"
+                    )
 
-            for i, offer_item in enumerate(tqdm(offers_data, desc=f"   Обработка {Path(file_path).name}")):
+            for i, offer_item in enumerate(
+                tqdm(offers_data, desc=f"   Обработка {Path(file_path).name}")
+            ):
                 processor.process_variant_from_offer(
                     cast("dict[str, Any]", offer_item),
                     base_dir=base_dir,
@@ -456,10 +557,13 @@ class Command(BaseCommand):
                 )
                 if (i + 1) % 20 == 0:
                     processor.log_progress(
-                        f"Обработка вариантов ({Path(file_path).name}): " f"{i + 1} из {len(offers_data)}"
+                        f"Обработка вариантов ({Path(file_path).name}): "
+                        f"{i + 1} из {len(offers_data)}"
                     )
 
-            self.stdout.write(f"   • {Path(file_path).name}: предложений {len(offers_data)}")
+            self.stdout.write(
+                f"   • {Path(file_path).name}: предложений {len(offers_data)}"
+            )
 
         stats = processor.get_stats()
         self.stdout.write(
@@ -493,17 +597,24 @@ class Command(BaseCommand):
         for file_path in prices_files:
             prices_data = parser.parse_prices_xml(file_path)
 
-            for i, price_item in enumerate(tqdm(prices_data, desc=f"   Обработка {Path(file_path).name}")):
+            for i, price_item in enumerate(
+                tqdm(prices_data, desc=f"   Обработка {Path(file_path).name}")
+            ):
                 processor.update_variant_prices(cast("dict[str, Any]", price_item))
                 if (i + 1) % 20 == 0:
                     processor.log_progress(
-                        f"Обновление цен ({Path(file_path).name}): " f"{i + 1} из {len(prices_data)}"
+                        f"Обновление цен ({Path(file_path).name}): "
+                        f"{i + 1} из {len(prices_data)}"
                     )
 
-            self.stdout.write(f"   • {Path(file_path).name}: записей цен {len(prices_data)}")
+            self.stdout.write(
+                f"   • {Path(file_path).name}: записей цен {len(prices_data)}"
+            )
 
         stats = processor.get_stats()
-        self.stdout.write(self.style.SUCCESS(f"   ✅ Обновлено цен: {stats['prices_updated']}"))
+        self.stdout.write(
+            self.style.SUCCESS(f"   ✅ Обновлено цен: {stats['prices_updated']}")
+        )
 
     def _import_variant_stocks(
         self,
@@ -512,7 +623,9 @@ class Command(BaseCommand):
         processor: VariantImportProcessor,
     ) -> None:
         """Импорт остатков в ProductVariant из rests.xml (AC8)"""
-        self.stdout.write("\n📊 Шаг 5: Обновление остатков ProductVariant из rests.xml...")
+        self.stdout.write(
+            "\n📊 Шаг 5: Обновление остатков ProductVariant из rests.xml..."
+        )
         rests_files = self._collect_xml_files(data_dir, "rests", "rests.xml")
 
         if not rests_files:
@@ -522,17 +635,24 @@ class Command(BaseCommand):
         for file_path in rests_files:
             rests_data = parser.parse_rests_xml(file_path)
 
-            for i, rest_item in enumerate(tqdm(rests_data, desc=f"   Обработка {Path(file_path).name}")):
+            for i, rest_item in enumerate(
+                tqdm(rests_data, desc=f"   Обработка {Path(file_path).name}")
+            ):
                 processor.update_variant_stock(cast("dict[str, Any]", rest_item))
                 if (i + 1) % 20 == 0:
                     processor.log_progress(
-                        f"Обновление остатков ({Path(file_path).name}): " f"{i + 1} из {len(rests_data)}"
+                        f"Обновление остатков ({Path(file_path).name}): "
+                        f"{i + 1} из {len(rests_data)}"
                     )
 
-            self.stdout.write(f"   • {Path(file_path).name}: записей остатков {len(rests_data)}")
+            self.stdout.write(
+                f"   • {Path(file_path).name}: записей остатков {len(rests_data)}"
+            )
 
         stats = processor.get_stats()
-        self.stdout.write(self.style.SUCCESS(f"   ✅ Обновлено остатков: {stats['stocks_updated']}"))
+        self.stdout.write(
+            self.style.SUCCESS(f"   ✅ Обновлено остатков: {stats['stocks_updated']}")
+        )
 
     def _cleanup_files(self, data_dir: str, file_type: str) -> None:
         """
@@ -575,7 +695,9 @@ class Command(BaseCommand):
                     file_path.unlink()
                     deleted_xml_count += 1
                 except OSError as e:
-                    self.stdout.write(self.style.ERROR(f"   ❌ Ошибка удаления {file_path.name}: {e}"))
+                    self.stdout.write(
+                        self.style.ERROR(f"   ❌ Ошибка удаления {file_path.name}: {e}")
+                    )
 
         self.stdout.write(f"   ✅ Удалено XML файлов: {deleted_xml_count}")
 
@@ -607,13 +729,18 @@ class Command(BaseCommand):
                         )
                         deleted_img_dir_count += 1
                 except OSError as e:
-                    self.stdout.write(self.style.ERROR(f"   ❌ Ошибка очистки папки {img_dir.name}: {e}"))
+                    self.stdout.write(
+                        self.style.ERROR(
+                            f"   ❌ Ошибка очистки папки {img_dir.name}: {e}"
+                        )
+                    )
 
     def _clear_existing_data(self) -> None:
         """Очистка существующих данных"""
         self.stdout.write(
             self.style.WARNING(
-                "\n⚠️ ВНИМАНИЕ: Удаление всех существующих товаров, вариантов, " "категорий и брендов..."
+                "\n⚠️ ВНИМАНИЕ: Удаление всех существующих товаров, вариантов, "
+                "категорий и брендов..."
             )
         )
         confirm = input("Вы уверены? Введите 'yes' для подтверждения: ")
@@ -634,24 +761,46 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS("✅ ИМПОРТ ЗАВЕРШЕН УСПЕШНО"))
         self.stdout.write("=" * 60)
         self.stdout.write("\n📊 СТАТИСТИКА:")
-        self.stdout.write(f"   Products создано:        {stats.get('products_created', 0)}")
-        self.stdout.write(f"   Products обновлено:      {stats.get('products_updated', 0)}")
-        self.stdout.write(f"   Variants создано:        {stats.get('variants_created', 0)}")
-        self.stdout.write(f"   Variants обновлено:      {stats.get('variants_updated', 0)}")
-        self.stdout.write(f"   Default variants:        {stats.get('default_variants_created', 0)}")
-        self.stdout.write(f"   Цен обновлено:           {stats.get('prices_updated', 0)}")
-        self.stdout.write(f"   Остатков обновлено:      {stats.get('stocks_updated', 0)}")
+        self.stdout.write(
+            f"   Products создано:        {stats.get('products_created', 0)}"
+        )
+        self.stdout.write(
+            f"   Products обновлено:      {stats.get('products_updated', 0)}"
+        )
+        self.stdout.write(
+            f"   Variants создано:        {stats.get('variants_created', 0)}"
+        )
+        self.stdout.write(
+            f"   Variants обновлено:      {stats.get('variants_updated', 0)}"
+        )
+        self.stdout.write(
+            f"   Default variants:        {stats.get('default_variants_created', 0)}"
+        )
+        self.stdout.write(
+            f"   Цен обновлено:           {stats.get('prices_updated', 0)}"
+        )
+        self.stdout.write(
+            f"   Остатков обновлено:      {stats.get('stocks_updated', 0)}"
+        )
         self.stdout.write(f"   Пропущено:               {stats.get('skipped', 0)}")
         self.stdout.write(f"   Предупреждений:          {stats.get('warnings', 0)}")
         self.stdout.write(f"   Ошибок:                  {stats.get('errors', 0)}")
 
         self.stdout.write("\n📸 ИЗОБРАЖЕНИЯ:")
-        self.stdout.write(f"   Скопировано:             {stats.get('images_copied', 0)}")
-        self.stdout.write(f"   Пропущено (существуют):  {stats.get('images_skipped', 0)}")
-        self.stdout.write(f"   Ошибок:                  {stats.get('images_errors', 0)}")
+        self.stdout.write(
+            f"   Скопировано:             {stats.get('images_copied', 0)}"
+        )
+        self.stdout.write(
+            f"   Пропущено (существуют):  {stats.get('images_skipped', 0)}"
+        )
+        self.stdout.write(
+            f"   Ошибок:                  {stats.get('images_errors', 0)}"
+        )
         self.stdout.write("=" * 60)
 
-    def _collect_xml_files(self, base_dir: str, subdir: str, filename: str) -> list[str]:
+    def _collect_xml_files(
+        self, base_dir: str, subdir: str, filename: str
+    ) -> list[str]:
         """
         Сбор XML файлов из директории с поддержкой альтернативных имен и папок.
 
@@ -707,7 +856,9 @@ class Command(BaseCommand):
         parser = XMLDataParser()
 
         self.stdout.write("\n📋 Проверка priceLists.xml...")
-        price_list_files = self._collect_xml_files(data_dir, "priceLists", "priceLists.xml")
+        price_list_files = self._collect_xml_files(
+            data_dir, "priceLists", "priceLists.xml"
+        )
         if price_list_files:
             total = sum(len(parser.parse_price_lists_xml(f)) for f in price_list_files)
             self.stdout.write(f"   ✅ Найдено типов цен: {total}")
@@ -747,5 +898,7 @@ class Command(BaseCommand):
             self.stdout.write("   ⚠️ Файлы не найдены")
 
         self.stdout.write("\n" + "=" * 60)
-        self.stdout.write(self.style.SUCCESS("✅ DRY RUN ЗАВЕРШЕН: Структура файлов корректна"))
+        self.stdout.write(
+            self.style.SUCCESS("✅ DRY RUN ЗАВЕРШЕН: Структура файлов корректна")
+        )
         self.stdout.write("=" * 60)

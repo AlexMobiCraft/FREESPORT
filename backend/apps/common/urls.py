@@ -12,8 +12,12 @@ urlpatterns = [
         views.operation_metrics,
         name="operation-metrics",
     ),
-    path("monitoring/metrics/business/", views.business_metrics, name="business-metrics"),
-    path("monitoring/metrics/realtime/", views.realtime_metrics, name="realtime-metrics"),
+    path(
+        "monitoring/metrics/business/", views.business_metrics, name="business-metrics"
+    ),
+    path(
+        "monitoring/metrics/realtime/", views.realtime_metrics, name="realtime-metrics"
+    ),
     path("monitoring/health/", views.system_health, name="system-health"),
     # Newsletter & News endpoints
     path("subscribe/", views.subscribe, name="subscribe"),

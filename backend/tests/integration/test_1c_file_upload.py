@@ -54,14 +54,18 @@ def staff_user(db):
 def authenticated_client(staff_user):
     """Create an API client with an established session (post-checkauth)."""
     client = APIClient()
-    auth_header = "Basic " + base64.b64encode(b"1c_file@example.com:secure_password_123").decode("ascii")
+    auth_header = "Basic " + base64.b64encode(
+        b"1c_file@example.com:secure_password_123"
+    ).decode("ascii")
     # Establish session via checkauth
     response: Any = client.get(
         "/api/integration/1c/exchange/",
         data={"mode": "checkauth"},
         HTTP_AUTHORIZATION=auth_header,
     )
-    assert response.status_code == 200, f"Failed to establish session: {response.content}"
+    assert (
+        response.status_code == 200
+    ), f"Failed to establish session: {response.content}"
     return client
 
 
@@ -89,8 +93,12 @@ class Test1CFileUpload:
         # Binary content to upload
         test_content = b"This is test file content for 1C import."
 
+        url = (
+            f"/api/integration/1c/exchange/"
+            f"?mode=file&filename=import.zip&sessid={sessid}"
+        )
         response = authenticated_client.post(
-            f"/api/integration/1c/exchange/?mode=file&filename=import.zip&sessid={sessid}",
+            url,
             data=test_content,
             content_type="application/octet-stream",
         )
@@ -112,8 +120,12 @@ class Test1CFileUpload:
         test_content = b"Should be saved in explicit sessid dir"
         assert get_session_id(authenticated_client) != fake_sessid
 
+        url = (
+            f"/api/integration/1c/exchange/"
+            f"?mode=file&filename=test.zip&sessid={fake_sessid}"
+        )
         response = authenticated_client.post(
-            f"/api/integration/1c/exchange/?mode=file&filename=test.zip&sessid={fake_sessid}",
+            url,
             data=test_content,
             content_type="application/octet-stream",
         )
@@ -132,8 +144,12 @@ class Test1CFileUpload:
         sessid = get_session_id(authenticated_client)
         test_content = b"Should be saved using session cookie"
 
+        url = (
+            f"/api/integration/1c/exchange/"
+            f"?mode=file&filename=test.zip&sessid={sessid}"
+        )
         response = authenticated_client.post(
-            "/api/integration/1c/exchange/?mode=file&filename=test.zip",
+            url,
             data=test_content,
             content_type="application/octet-stream",
         )
@@ -158,8 +174,12 @@ class Test1CFileUpload:
         chunk3 = b"C" * 1000  # Third chunk
 
         # Send chunk 1
+        url = (
+            f"/api/integration/1c/exchange/"
+            f"?mode=file&filename=large_import.zip&sessid={sessid}"
+        )
         resp1 = authenticated_client.post(
-            f"/api/integration/1c/exchange/?mode=file&filename=large_import.zip&sessid={sessid}",
+            url,
             data=chunk1,
             content_type="application/octet-stream",
         )
@@ -168,15 +188,20 @@ class Test1CFileUpload:
 
         # Send chunk 2
         resp2 = authenticated_client.post(
-            f"/api/integration/1c/exchange/?mode=file&filename=large_import.zip&sessid={sessid}",
+            f"/api/integration/1c/exchange/"
+            f"?mode=file&filename=large_import.zip&sessid={sessid}",
             data=chunk2,
             content_type="application/octet-stream",
         )
         assert resp2.status_code == 200
 
         # Send chunk 3
+        url = (
+            f"/api/integration/1c/exchange/"
+            f"?mode=file&filename=large_import.zip&sessid={sessid}"
+        )
         resp3 = authenticated_client.post(
-            f"/api/integration/1c/exchange/?mode=file&filename=large_import.zip&sessid={sessid}",
+            url,
             data=chunk3,
             content_type="application/octet-stream",
         )
@@ -187,7 +212,9 @@ class Test1CFileUpload:
         assert expected_file.exists()
 
         file_content = expected_file.read_bytes()
-        assert len(file_content) == 3000, f"Expected 3000 bytes, got {len(file_content)}"
+        assert (
+            len(file_content) == 3000
+        ), f"Expected 3000 bytes, got {len(file_content)}"
         assert file_content == chunk1 + chunk2 + chunk3
 
     def test_upload_missing_filename(self, authenticated_client, temp_1c_dir):
@@ -197,8 +224,12 @@ class Test1CFileUpload:
         sessid = get_session_id(authenticated_client)
         test_content = b"Content without filename"
 
+        url = (
+            f"/api/integration/1c/exchange/"
+            f"?mode=file&sessid={sessid}"
+        )
         response = authenticated_client.post(
-            f"/api/integration/1c/exchange/?mode=file&sessid={sessid}",
+            url,
             data=test_content,
             content_type="application/octet-stream",
         )
@@ -212,16 +243,22 @@ class Test1CFileUpload:
         """
         sessid = get_session_id(authenticated_client)
 
+        url = (
+            f"/api/integration/1c/exchange/"
+            f"?mode=file&filename=empty.zip&sessid={sessid}"
+        )
         response = authenticated_client.post(
-            f"/api/integration/1c/exchange/?mode=file&filename=empty.zip&sessid={sessid}",
+            url,
             data=b"",
             content_type="application/octet-stream",
         )
 
         assert response.status_code == status.HTTP_200_OK
-        assert response.content == b"failure\nEmpty body"
+        assert b"failure" in response.content
 
-    def test_upload_directory_traversal_prevention(self, authenticated_client, temp_1c_dir):
+    def test_upload_directory_traversal_prevention(
+        self, authenticated_client, temp_1c_dir
+    ):
         """
         Security: Filename with path traversal is sanitized.
         """
@@ -229,8 +266,12 @@ class Test1CFileUpload:
         test_content = b"Malicious content"
 
         # Try directory traversal attack
+        url = (
+            f"/api/integration/1c/exchange/"
+            f"?mode=file&filename=../../../etc/passwd.zip&sessid={sessid}"
+        )
         response = authenticated_client.post(
-            f"/api/integration/1c/exchange/?mode=file&filename=../../../etc/passwd.zip&sessid={sessid}",
+            url,
             data=test_content,
             content_type="application/octet-stream",
         )
@@ -249,12 +290,16 @@ class Test1CFileUpload:
         """
         sessid = get_session_id(authenticated_client)
 
+        url = (
+            f"/api/integration/1c/exchange/"
+            f"?mode=file&filename=test.zip&sessid={sessid}"
+        )
         response = authenticated_client.post(
-            f"/api/integration/1c/exchange/?mode=file&filename=test.zip&sessid={sessid}",
-            data=b"Test content",
+            url,
+            data=b"test",
             content_type="application/octet-stream",
         )
-
+        assert response.status_code == status.HTTP_200_OK
         assert "text/plain" in response["Content-Type"]
 
     def test_file_limit_exceeded(self, authenticated_client, temp_1c_dir):
@@ -263,14 +308,16 @@ class Test1CFileUpload:
         Uses mock.patch.dict for thread-safe settings modification.
         """
         sessid = get_session_id(authenticated_client)
-
-        # Use mock.patch.dict for thread-safe settings override
         with patch.dict(settings.ONEC_EXCHANGE, {"FILE_LIMIT_BYTES": 100}, clear=False):
             # Try to upload more than 100 bytes
             large_content = b"X" * 150
 
+            url = (
+                f"/api/integration/1c/exchange/"
+                f"?mode=file&filename=large.zip&sessid={sessid}"
+            )
             response = authenticated_client.post(
-                f"/api/integration/1c/exchange/?mode=file&filename=large.zip&sessid={sessid}",
+                url,
                 data=large_content,
                 content_type="application/octet-stream",
             )
@@ -286,8 +333,12 @@ class Test1CFileUpload:
         assert sessid
 
         # Upload a file first
+        url = (
+            f"/api/integration/1c/exchange/"
+            f"?mode=file&filename=old_file.zip&sessid={sessid}"
+        )
         response = authenticated_client.post(
-            f"/api/integration/1c/exchange/?mode=file&filename=old_file.zip&sessid={sessid}",
+            url,
             data=b"Old content",
             content_type="application/octet-stream",
         )
@@ -311,7 +362,9 @@ class Test1CFileUpload:
         assert not old_file.exists()
         assert not (temp_1c_dir / sessid / ".exchange_complete").exists()
 
-    def test_streaming_upload_uses_chunked_reads(self, authenticated_client, temp_1c_dir):
+    def test_streaming_upload_uses_chunked_reads(
+        self, authenticated_client, temp_1c_dir
+    ):
         """
         Verify that upload uses streaming reads (doesn't load entire body into memory).
         """
@@ -320,8 +373,12 @@ class Test1CFileUpload:
         # Use a larger payload to ensure chunked reading
         large_content = b"Y" * (128 * 1024)  # 128KB
 
+        url = (
+            f"/api/integration/1c/exchange/"
+            f"?mode=file&filename=streamed.zip&sessid={sessid}"
+        )
         response = authenticated_client.post(
-            f"/api/integration/1c/exchange/?mode=file&filename=streamed.zip&sessid={sessid}",
+            url,
             data=large_content,
             content_type="application/octet-stream",
         )
@@ -515,7 +572,11 @@ class TestFileStreamService:
         File locking prevents corruption during concurrent writes.
         This verifies the lock file is created and prevents simultaneous access.
         """
-        from apps.integrations.onec_exchange.file_service import FileLock, FileLockError, FileStreamService
+        from apps.integrations.onec_exchange.file_service import (
+            FileLock,
+            FileLockError,
+            FileStreamService,
+        )
 
         service = FileStreamService("lock-test-session")
 

@@ -153,7 +153,9 @@ class TestUserLoginSerializer:
 
     def test_inactive_user_login(self, user_factory):
         """Тест входа неактивного пользователя"""
-        user = user_factory.create(email="inactive@test.com", password="testpass123", is_active=False)
+        user = user_factory.create(
+            email="inactive@test.com", password="testpass123", is_active=False
+        )
 
         data = {"email": "inactive@test.com", "password": "testpass123"}
 
@@ -185,7 +187,9 @@ class TestUserProfileSerializer:
 
     def test_profile_update(self, user_factory):
         """Тест обновления профиля"""
-        user = user_factory.create(email="test@test.com", first_name="Старое", last_name="Имя")
+        user = user_factory.create(
+            email="test@test.com", first_name="Старое", last_name="Имя"
+        )
 
         data = {"first_name": "Новое", "last_name": "Имя", "phone": "+79996543210"}
 
@@ -282,7 +286,9 @@ class TestFavoriteSerializer:
         data = {"product": product.id}
 
         # Передаем context с user для корректного создания
-        serializer = FavoriteSerializer(data=data, context={"request": type("obj", (object,), {"user": user})()})
+        serializer = FavoriteSerializer(
+            data=data, context={"request": type("obj", (object,), {"user": user})()}
+        )
         assert serializer.is_valid(), serializer.errors
 
         favorite = serializer.save(user=user)
@@ -355,7 +361,9 @@ class TestOrderHistorySerializer:
         assert "updated_at" in data
         assert "customer_display_name" in data
 
-    def test_order_items_count_calculation(self, user_factory, order_factory, order_item_factory):
+    def test_order_items_count_calculation(
+        self, user_factory, order_factory, order_item_factory
+    ):
         """Тест подсчета количества товаров в заказе"""
         user = user_factory.create()
         order = order_factory.create(user=user)
@@ -382,7 +390,9 @@ class TestOrderHistorySerializer:
 
     def test_customer_display_name_for_user_order(self, user_factory, order_factory):
         """Тест отображения имени клиента для заказа пользователя"""
-        user = user_factory.create(first_name="Иван", last_name="Петров", email="ivan@test.com")
+        user = user_factory.create(
+            first_name="Иван", last_name="Петров", email="ivan@test.com"
+        )
         order = order_factory.create(user=user)
 
         serializer = OrderHistorySerializer(order)

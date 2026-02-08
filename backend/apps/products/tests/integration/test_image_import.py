@@ -13,7 +13,10 @@ import pytest
 from django.test import override_settings
 
 from apps.products.models import Brand, Category, ImportSession, Product, ProductVariant
-from apps.products.services.variant_import import VariantImportProcessor, normalize_image_path
+from apps.products.services.variant_import import (
+    VariantImportProcessor,
+    normalize_image_path,
+)
 
 
 @pytest.fixture
@@ -100,7 +103,9 @@ def temp_import_dir(tmp_path):
 class TestImageImportWithNormalization:
     """Integration тесты импорта изображений с разными форматами путей (AC4)"""
 
-    def test_import_base_images_with_import_files_prefix(self, processor, product, temp_import_dir):
+    def test_import_base_images_with_import_files_prefix(
+        self, processor, product, temp_import_dir
+    ):
         """Импорт base_images с путём import_files/xx/test1.jpg - путь нормализуется"""
         image_paths = ["import_files/xx/test1.jpg"]
 
@@ -112,7 +117,9 @@ class TestImageImportWithNormalization:
         source_path = Path(temp_import_dir) / normalized
         assert source_path.exists()
 
-    def test_import_base_images_without_prefix(self, processor, product, temp_import_dir):
+    def test_import_base_images_without_prefix(
+        self, processor, product, temp_import_dir
+    ):
         """Импорт base_images с путём xx/test1.jpg (без prefix)"""
         image_paths = ["xx/test1.jpg"]
 
@@ -124,7 +131,9 @@ class TestImageImportWithNormalization:
         source_path = Path(temp_import_dir) / normalized
         assert source_path.exists()
 
-    def test_import_variant_images_with_import_files_prefix(self, processor, variant, temp_import_dir):
+    def test_import_variant_images_with_import_files_prefix(
+        self, processor, variant, temp_import_dir
+    ):
         """
         Импорт variant images с путём import_files/xx/test1.jpg - путь нормализуется
         """
@@ -138,7 +147,9 @@ class TestImageImportWithNormalization:
         source_path = Path(temp_import_dir) / normalized
         assert source_path.exists()
 
-    def test_import_variant_images_without_prefix(self, processor, variant, temp_import_dir):
+    def test_import_variant_images_without_prefix(
+        self, processor, variant, temp_import_dir
+    ):
         """Импорт variant images с путём xx/test1.jpg (без prefix)"""
         image_paths = ["xx/test1.jpg"]
 
@@ -178,7 +189,9 @@ class TestImageImportWithNormalization:
         initial_copied = processor.stats["images_copied"]
         initial_errors = processor.stats["images_errors"]
 
-        with patch("apps.products.services.variant_import.default_storage") as mock_storage:
+        with patch(
+            "apps.products.services.variant_import.default_storage"
+        ) as mock_storage:
             mock_storage.exists.return_value = False
             mock_storage.save.return_value = "products/base/xx/test1.jpg"
 
@@ -186,7 +199,9 @@ class TestImageImportWithNormalization:
 
             # Проверяем что статистика изменилась
             total_changes = (
-                processor.stats["images_copied"] + processor.stats["images_skipped"] + processor.stats["images_errors"]
+                processor.stats["images_copied"]
+                + processor.stats["images_skipped"]
+                + processor.stats["images_errors"]
             )
             assert total_changes >= initial_copied + initial_errors
 

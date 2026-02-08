@@ -136,7 +136,9 @@ class OrderStatusImportService:
 
         # PARSE: извлечь данные из XML
         try:
-            order_updates, total_documents, parse_errors = self._parse_orders_xml(xml_data)
+            order_updates, total_documents, parse_errors = self._parse_orders_xml(
+                xml_data
+            )
         except DefusedXmlException as e:
             logger.error(f"XML security error: {e}")
             result.errors.append(f"XML security error: {e}")
@@ -182,7 +184,9 @@ class OrderStatusImportService:
 
                     for order_data in batch:
                         try:
-                            status, update_error = self._process_order_update(order_data, orders_cache)
+                            status, update_error = self._process_order_update(
+                                order_data, orders_cache
+                            )
                             # [AI-Review][Medium] Используем Enum вместо magic strings
                             if status == ProcessingStatus.UPDATED:
                                 result.updated += 1
@@ -227,7 +231,8 @@ class OrderStatusImportService:
                     logger.exception(update_error)
                 elif not log_suppressed:
                     logger.warning(
-                        f"Suppressing further error logs after " f"{MAX_CONSECUTIVE_ERRORS} consecutive errors"
+                        f"Suppressing further error logs after "
+                        f"{MAX_CONSECUTIVE_ERRORS} consecutive errors"
                     )
                     log_suppressed = True
                 if len(result.errors) < MAX_ERRORS:
@@ -237,7 +242,8 @@ class OrderStatusImportService:
         # Итоговое сообщение, если логи были подавлены
         if log_suppressed:
             logger.info(
-                f"Processing complete. Total errors suppressed: " f"{consecutive_errors - MAX_CONSECUTIVE_ERRORS}"
+                f"Processing complete. Total errors suppressed: "
+                f"{consecutive_errors - MAX_CONSECUTIVE_ERRORS}"
             )
 
         return result
@@ -246,7 +252,9 @@ class OrderStatusImportService:
     # Parser Methods
     # =========================================================================
 
-    def _parse_orders_xml(self, xml_data: str | bytes) -> tuple[list[OrderUpdateData], int, list[str]]:
+    def _parse_orders_xml(
+        self, xml_data: str | bytes
+    ) -> tuple[list[OrderUpdateData], int, list[str]]:
         """
         Парсинг XML orders.xml в формате CommerceML 3.1.
 
@@ -330,7 +338,9 @@ class OrderStatusImportService:
         # Извлечь статус из реквизитов (нормализация уже в _extract_all_requisites)
         status_1c = requisites.get("статусзаказа")
         if not status_1c:
-            error_msg = f"Document {order_id or order_number}: no СтатусЗаказа requisite"
+            error_msg = (
+                f"Document {order_id or order_number}: no СтатусЗаказа requisite"
+            )
             logger.warning(error_msg)
             raise DocumentParseError(error_msg)
 
@@ -349,10 +359,18 @@ class OrderStatusImportService:
 
         if paid_at_value is not None and paid_at_value.strip() and paid_at is None:
             paid_at_present = False
-            parse_warnings.append(f"Order {order_ref}: invalid paid_at date format: '{paid_at_value}'")
-        if shipped_at_value is not None and shipped_at_value.strip() and shipped_at is None:
+            parse_warnings.append(
+                f"Order {order_ref}: invalid paid_at date format: '{paid_at_value}'"
+            )
+        if (
+            shipped_at_value is not None
+            and shipped_at_value.strip()
+            and shipped_at is None
+        ):
             shipped_at_present = False
-            parse_warnings.append(f"Order {order_ref}: invalid shipped_at date format: '{shipped_at_value}'")
+            parse_warnings.append(
+                f"Order {order_ref}: invalid shipped_at date format: '{shipped_at_value}'"
+            )
 
         return OrderUpdateData(
             order_id=order_id or "",
@@ -384,14 +402,18 @@ class OrderStatusImportService:
             return result
 
         # Pre-compute normalized whitelist for O(1) lookup
-        _allowed_normalized = {REQUISITE_NAME_WHITESPACE_RE.sub("", r).lower() for r in ALLOWED_REQUISITES}
+        _allowed_normalized = {
+            REQUISITE_NAME_WHITESPACE_RE.sub("", r).lower() for r in ALLOWED_REQUISITES
+        }
 
         for req in requisites.findall("ЗначениеРеквизита"):
             name_elem = req.find("Наименование")
             value_elem = req.find("Значение")
             if name_elem is not None and name_elem.text:
                 # Нормализуем имя: удаляем все whitespace, приводим к lowercase
-                normalized_name = REQUISITE_NAME_WHITESPACE_RE.sub("", name_elem.text).lower()
+                normalized_name = REQUISITE_NAME_WHITESPACE_RE.sub(
+                    "", name_elem.text
+                ).lower()
                 if not normalized_name:
                     continue
                 # [Story 5.2, AC14] Field whitelist — skip unknown requisites
@@ -441,7 +463,9 @@ class OrderStatusImportService:
             )
             return 500
         if batch_size <= 0:
-            logger.warning("ORDER_STATUS_IMPORT_BATCH_SIZE must be > 0, using default 500")
+            logger.warning(
+                "ORDER_STATUS_IMPORT_BATCH_SIZE must be > 0, using default 500"
+            )
             return 500
         return batch_size
 
@@ -495,7 +519,9 @@ class OrderStatusImportService:
     # Bulk Fetch Methods (N+1 Optimization)
     # =========================================================================
 
-    def _parse_order_id_to_pk(self, order_id: str, log_invalid: bool = True) -> int | None:
+    def _parse_order_id_to_pk(
+        self, order_id: str, log_invalid: bool = True
+    ) -> int | None:
         """
         Парсинг order-{id} формата для извлечения pk.
 
@@ -516,7 +542,9 @@ class OrderStatusImportService:
                 logger.warning(f"Invalid order_id format: '{order_id}'")
             return None
 
-    def _bulk_fetch_orders(self, order_updates: list[OrderUpdateData]) -> dict[str, Order]:
+    def _bulk_fetch_orders(
+        self, order_updates: list[OrderUpdateData]
+    ) -> dict[str, Order]:
         """
         Загрузить все заказы одним запросом для оптимизации N+1.
 
@@ -588,7 +616,9 @@ class OrderStatusImportService:
                 cache[f"num:{order.order_number}"] = order
             cache[f"pk:{order.pk}"] = order
 
-        logger.debug(f"Bulk fetched {len(cache)} orders for {len(order_updates)} updates")
+        logger.debug(
+            f"Bulk fetched {len(cache)} orders for {len(order_updates)} updates"
+        )
         return cache
 
     # =========================================================================
@@ -619,7 +649,10 @@ class OrderStatusImportService:
             return ProcessingStatus.SKIPPED_DATA_CONFLICT, conflict_msg
 
         if order is None:
-            error_msg = f"Order not found: number='{order_data.order_number}', " f"id='{order_data.order_id}'"
+            error_msg = (
+                f"Order not found: number='{order_data.order_number}', "
+                f"id='{order_data.order_id}'"
+            )
             logger.error(error_msg)
             return ProcessingStatus.NOT_FOUND, error_msg
 
@@ -633,7 +666,10 @@ class OrderStatusImportService:
             new_status = STATUS_MAPPING_LOWER.get(normalized_status.lower())
 
         if new_status is None:
-            error_msg = f"Order {order.order_number}: unknown 1C status " f"'{order_data.status_1c}', skipping update"
+            error_msg = (
+                f"Order {order.order_number}: unknown 1C status "
+                f"'{order_data.status_1c}', skipping update"
+            )
             logger.warning(error_msg)
             return ProcessingStatus.SKIPPED_UNKNOWN_STATUS, error_msg
 
@@ -652,7 +688,11 @@ class OrderStatusImportService:
         current_priority = STATUS_PRIORITY.get(order.status, 0)
         new_priority = STATUS_PRIORITY.get(new_status, 0)
 
-        if new_priority > 0 and current_priority > 0 and new_priority < current_priority:
+        if (
+            new_priority > 0
+            and current_priority > 0
+            and new_priority < current_priority
+        ):
             error_msg = (
                 f"Order {order.order_number}: status regression from "
                 f"'{order.status}' (p={current_priority}) to "
@@ -662,11 +702,15 @@ class OrderStatusImportService:
             return ProcessingStatus.SKIPPED_STATUS_REGRESSION, error_msg
 
         # Проверяем, нужно ли обновление (идемпотентность AC8)
-        status_changed = order.status != new_status or order.status_1c != order_data.status_1c
+        status_changed = (
+            order.status != new_status or order.status_1c != order_data.status_1c
+        )
         # [AI-Review][Medium] Logic/Data Consistency: учитываем флаги наличия тегов
         # Если тег присутствует в XML — сравниваем значения (включая сброс на None)
         # Если тег отсутствует — не трогаем существующее значение
-        dates_changed = (order_data.paid_at_present and order.paid_at != order_data.paid_at) or (
+        dates_changed = (
+            order_data.paid_at_present and order.paid_at != order_data.paid_at
+        ) or (
             order_data.shipped_at_present and order.shipped_at != order_data.shipped_at
         )
         sent_to_1c_changed = not order.sent_to_1c
@@ -677,8 +721,15 @@ class OrderStatusImportService:
         )
         sync_time = timezone.now()
 
-        if not status_changed and not dates_changed and not sent_to_1c_changed and not payment_status_needs_update:
-            logger.debug(f"Order {order.order_number}: up-to-date, updating sync timestamp")
+        if (
+            not status_changed
+            and not dates_changed
+            and not sent_to_1c_changed
+            and not payment_status_needs_update
+        ):
+            logger.debug(
+                f"Order {order.order_number}: up-to-date, updating sync timestamp"
+            )
             order.sent_to_1c_at = sync_time
             order.save(update_fields=["sent_to_1c_at", "updated_at"])
             return ProcessingStatus.SKIPPED_UP_TO_DATE, None
@@ -719,7 +770,10 @@ class OrderStatusImportService:
 
         order.save(update_fields=update_fields)
 
-        logger.debug(f"Order {order.order_number}: status updated to " f"'{new_status}' (1C: '{order_data.status_1c}')")
+        logger.debug(
+            f"Order {order.order_number}: status updated to "
+            f"'{new_status}' (1C: '{order_data.status_1c}')"
+        )
         return ProcessingStatus.UPDATED, None
 
     def _find_order(
@@ -752,7 +806,9 @@ class OrderStatusImportService:
 
                     # [AI-Review][Medium] Data Integrity check: verify order_id matches if present
                     if order_data.order_id:
-                        pk_from_xml = self._parse_order_id_to_pk(order_data.order_id, log_invalid=False)
+                        pk_from_xml = self._parse_order_id_to_pk(
+                            order_data.order_id, log_invalid=False
+                        )
                         if pk_from_xml is not None and order.pk != pk_from_xml:
                             conflict_msg = (
                                 f"Data conflict: found order by number '{order_data.order_number}' "
@@ -775,7 +831,10 @@ class OrderStatusImportService:
                         # but good for sanity.
                         pass
 
-                    if order_data.order_number and order.order_number != order_data.order_number:
+                    if (
+                        order_data.order_number
+                        and order.order_number != order_data.order_number
+                    ):
                         conflict_msg = (
                             f"Data conflict: found order by ID {order_data.order_id} (pk={pk}) "
                             f"but order numbers don't match: "
@@ -798,12 +857,16 @@ class OrderStatusImportService:
         # 1. Поиск по order_number с блокировкой
         if order_data.order_number:
             db_order: Order | None = (
-                Order.objects.select_for_update().filter(order_number=order_data.order_number).first()
+                Order.objects.select_for_update()
+                .filter(order_number=order_data.order_number)
+                .first()
             )
             if db_order:
                 # [AI-Review][Medium] Data Integrity check: verify order_id matches if present
                 if order_data.order_id:
-                    pk_from_xml = self._parse_order_id_to_pk(order_data.order_id, log_invalid=False)
+                    pk_from_xml = self._parse_order_id_to_pk(
+                        order_data.order_id, log_invalid=False
+                    )
                     if pk_from_xml is not None and db_order.pk != pk_from_xml:
                         conflict_msg = (
                             f"Data conflict: found order by number '{order_data.order_number}' "
@@ -817,10 +880,15 @@ class OrderStatusImportService:
         # 2. Поиск по order_id формата 'order-{id}' [AI-Review][Medium] DRY
         pk = self._parse_order_id_to_pk(order_data.order_id)
         if pk is not None:
-            db_order_by_id: Order | None = Order.objects.select_for_update().filter(pk=pk).first()
+            db_order_by_id: Order | None = (
+                Order.objects.select_for_update().filter(pk=pk).first()
+            )
             if db_order_by_id:
                 # [AI-Review][Medium] Detect data conflict when finding order by ID
-                if order_data.order_number and db_order_by_id.order_number != order_data.order_number:
+                if (
+                    order_data.order_number
+                    and db_order_by_id.order_number != order_data.order_number
+                ):
                     conflict_msg = (
                         f"Data conflict: found order by ID {order_data.order_id} (pk={pk}) "
                         f"but order numbers don't match: "

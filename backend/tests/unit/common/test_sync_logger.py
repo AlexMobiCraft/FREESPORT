@@ -112,9 +112,13 @@ class TestCustomerSyncLogger:
             "normalized_value": "test@example.com",
         }
 
-        log = sync_logger.log_customer_identification(onec_data, identification_result, duration_ms=50)
+        log = sync_logger.log_customer_identification(
+            onec_data, identification_result, duration_ms=50
+        )
 
-        assert log.operation_type == CustomerSyncLog.OperationType.CUSTOMER_IDENTIFICATION  # noqa
+        assert (
+            log.operation_type == CustomerSyncLog.OperationType.CUSTOMER_IDENTIFICATION
+        )  # noqa
         assert log.status == CustomerSyncLog.StatusType.SUCCESS
         assert log.customer == test_user
         assert log.details["search_method"] == "email"
@@ -160,7 +164,9 @@ class TestCustomerSyncLogger:
             duration_ms=300,
         )
 
-        assert log.operation_type == CustomerSyncLog.OperationType.CONFLICT_RESOLUTION  # noqa
+        assert (
+            log.operation_type == CustomerSyncLog.OperationType.CONFLICT_RESOLUTION
+        )  # noqa
         assert log.status == CustomerSyncLog.StatusType.SUCCESS
         assert log.details["conflict_source"] == "portal_registration"
         assert log.details["resolution_strategy"] == "onec_wins"

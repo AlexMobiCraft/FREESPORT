@@ -17,7 +17,12 @@ import xml.etree.ElementTree as ET
 import pytest
 from rest_framework.test import APIClient
 
-from tests.conftest import OrderFactory, OrderItemFactory, ProductVariantFactory, UserFactory
+from tests.conftest import (
+    OrderFactory,
+    OrderItemFactory,
+    ProductVariantFactory,
+    UserFactory,
+)
 from tests.utils import parse_commerceml_response, perform_1c_checkauth
 
 pytestmark = pytest.mark.django_db
@@ -60,7 +65,9 @@ def auth_client(onec_user) -> APIClient:
 class TestFullExportCycleWithTaxId:
     """E2E: checkauth -> query -> success for B2B user with tax_id."""
 
-    def test_full_cycle_checkauth_query_success_marks_order_as_sent(self, auth_client, log_dir, db):
+    def test_full_cycle_checkauth_query_success_marks_order_as_sent(
+        self, auth_client, log_dir, db
+    ):
         """AC1: Full cycle marks order as sent_to_1c=True."""
         # ARRANGE
         b2b_user = UserFactory.create(tax_id="1234567890", company_name="TestCo")
@@ -87,11 +94,15 @@ class TestFullExportCycleWithTaxId:
         )
 
         # ACT — query
-        resp_q = auth_client.get("/api/integration/1c/exchange/", data={"mode": "query"})
+        resp_q = auth_client.get(
+            "/api/integration/1c/exchange/", data={"mode": "query"}
+        )
         assert resp_q.status_code == 200
 
         # ACT — success
-        resp_s = auth_client.get("/api/integration/1c/exchange/", data={"mode": "success"})
+        resp_s = auth_client.get(
+            "/api/integration/1c/exchange/", data={"mode": "success"}
+        )
         assert resp_s.status_code == 200
 
         # ASSERT
@@ -99,7 +110,9 @@ class TestFullExportCycleWithTaxId:
         assert order.sent_to_1c is True
         assert order.sent_to_1c_at is not None
 
-    def test_full_cycle_xml_contains_valid_commerceml_structure(self, auth_client, log_dir, db):
+    def test_full_cycle_xml_contains_valid_commerceml_structure(
+        self, auth_client, log_dir, db
+    ):
         """AC3: XML structure follows CommerceML 3.1."""
         # ARRANGE
         b2b_user = UserFactory.create(tax_id="1234567890", company_name="XmlCo")
@@ -202,7 +215,9 @@ class TestFullExportCycleWithoutTaxId:
 class TestFullExportCycleMultipleOrders:
     """E2E: >=3 orders all marked as sent after success."""
 
-    def test_full_cycle_multiple_orders_all_marked_as_sent(self, auth_client, log_dir, db):
+    def test_full_cycle_multiple_orders_all_marked_as_sent(
+        self, auth_client, log_dir, db
+    ):
         """AC4: 3 orders from different users — all sent_to_1c=True."""
         # ARRANGE
         orders = []
@@ -222,7 +237,9 @@ class TestFullExportCycleMultipleOrders:
             orders.append(order)
 
         # ACT
-        resp_q = auth_client.get("/api/integration/1c/exchange/", data={"mode": "query"})
+        resp_q = auth_client.get(
+            "/api/integration/1c/exchange/", data={"mode": "query"}
+        )
         assert resp_q.status_code == 200
 
         # Verify XML has 3 documents (AC4: check <Документ> count, not <Контейнер>)
@@ -230,14 +247,18 @@ class TestFullExportCycleMultipleOrders:
         documents = root.findall(".//Документ")
         assert len(documents) == 3, f"Expected 3 documents, got {len(documents)}"
 
-        resp_s = auth_client.get("/api/integration/1c/exchange/", data={"mode": "success"})
+        resp_s = auth_client.get(
+            "/api/integration/1c/exchange/", data={"mode": "success"}
+        )
         assert resp_s.status_code == 200
 
         # ASSERT
         for order in orders:
             order.refresh_from_db()
             assert order.sent_to_1c is True, f"Order {order.order_number} not marked"
-            assert order.sent_to_1c_at is not None, f"Order {order.order_number} sent_to_1c_at is None"
+            assert (
+                order.sent_to_1c_at is not None
+            ), f"Order {order.order_number} sent_to_1c_at is None"
 
 
 # ---------------------------------------------------------------------------
@@ -249,7 +270,9 @@ class TestFullExportCycleMultipleOrders:
 class TestFullExportCycleGuestOrder:
     """E2E: Guest order (user=None) with customer contact in XML."""
 
-    def test_full_cycle_guest_order_includes_customer_contact_in_xml(self, auth_client, log_dir, db):
+    def test_full_cycle_guest_order_includes_customer_contact_in_xml(
+        self, auth_client, log_dir, db
+    ):
         """AC5: Guest contact data appears in <Контрагенты>."""
         # ARRANGE
         variant = ProductVariantFactory.create()
@@ -295,7 +318,9 @@ class TestFullExportCycleGuestOrder:
             contact_map.get("Телефон") == "+79991112233"
         ), f"Expected phone contact type 'Телефон', got: {contact_map}"
 
-    def test_full_cycle_guest_order_marked_as_sent_after_success(self, auth_client, log_dir, db):
+    def test_full_cycle_guest_order_marked_as_sent_after_success(
+        self, auth_client, log_dir, db
+    ):
         """AC5: Guest order marked sent_to_1c=True after success."""
         # ARRANGE
         variant = ProductVariantFactory.create()
@@ -320,7 +345,9 @@ class TestFullExportCycleGuestOrder:
 
         # ACT
         auth_client.get("/api/integration/1c/exchange/", data={"mode": "query"})
-        resp_s = auth_client.get("/api/integration/1c/exchange/", data={"mode": "success"})
+        resp_s = auth_client.get(
+            "/api/integration/1c/exchange/", data={"mode": "success"}
+        )
         assert resp_s.status_code == 200
 
         # ASSERT
@@ -337,7 +364,9 @@ class TestFullExportCycleGuestOrder:
 class TestFullExportCycleRepeat:
     """E2E: Repeat query after success returns empty; new order appears."""
 
-    def test_repeat_query_after_success_returns_empty_xml(self, auth_client, log_dir, db):
+    def test_repeat_query_after_success_returns_empty_xml(
+        self, auth_client, log_dir, db
+    ):
         """AC6: After success, second query has no <Документ>."""
         # ARRANGE
         user = UserFactory.create()
@@ -365,9 +394,13 @@ class TestFullExportCycleRepeat:
         root = parse_commerceml_response(resp)
         assert root.tag == "КоммерческаяИнформация", f"Unexpected root: {root.tag}"
         documents = root.findall(".//Документ")
-        assert len(documents) == 0, f"Expected 0 documents after success, got {len(documents)}"
+        assert (
+            len(documents) == 0
+        ), f"Expected 0 documents after success, got {len(documents)}"
 
-    def test_new_order_after_success_appears_in_next_query(self, auth_client, log_dir, db):
+    def test_new_order_after_success_appears_in_next_query(
+        self, auth_client, log_dir, db
+    ):
         """AC6: New order created after success appears in next query."""
         # ARRANGE — first order + cycle
         user = UserFactory.create()

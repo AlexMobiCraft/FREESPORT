@@ -30,7 +30,9 @@ class CustomerIdentityResolver:
         "email",  # Приоритет 4: email для B2C клиентов
     ]
 
-    def identify_customer(self, onec_customer_data: dict) -> Tuple[Optional[User], Optional[str]]:
+    def identify_customer(
+        self, onec_customer_data: dict
+    ) -> Tuple[Optional[User], Optional[str]]:
         """
         Главный метод идентификации клиента.
 
@@ -169,7 +171,9 @@ class CustomerIdentityResolver:
 
         return normalized
 
-    def _log_identification(self, method: str, customer: Optional[User], onec_data: dict) -> None:
+    def _log_identification(
+        self, method: str, customer: Optional[User], onec_data: dict
+    ) -> None:
         """
         Логирование попытки идентификации.
 
@@ -184,7 +188,8 @@ class CustomerIdentityResolver:
         # Если нет session, не логируем (для unit-тестов)
         if not session:
             logger.debug(
-                f"Identification attempt: method={method}, " f"customer={'found' if customer else 'not_found'}"
+                f"Identification attempt: method={method}, "
+                f"customer={'found' if customer else 'not_found'}"
             )
             return
 
@@ -196,7 +201,11 @@ class CustomerIdentityResolver:
             status="success" if customer else "not_found",
             details={
                 "identification_method": method,
-                "onec_guid": (str(onec_data.get("onec_guid")) if onec_data.get("onec_guid") else None),
+                "onec_guid": (
+                    str(onec_data.get("onec_guid"))
+                    if onec_data.get("onec_guid")
+                    else None
+                ),
                 "tax_id": onec_data.get("tax_id"),
                 "email": onec_data.get("email"),
             },

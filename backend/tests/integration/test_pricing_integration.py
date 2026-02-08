@@ -20,7 +20,9 @@ class PricingIntegrationTest(TestCase):
         self.client = APIClient()
 
         # Создаем пользователей с разными ролями
-        self.retail_user = User.objects.create_user(email="retail@example.com", password="testpass123", role="retail")
+        self.retail_user = User.objects.create_user(
+            email="retail@example.com", password="testpass123", role="retail"
+        )
         self.wholesale_l1_user = User.objects.create_user(
             email="wholesale1@example.com",
             password="testpass123",
@@ -36,7 +38,9 @@ class PricingIntegrationTest(TestCase):
         )
 
         # Создаем товар с разными ценами
-        self.category = Category.objects.create(name="Test Category", slug="test-category")
+        self.category = Category.objects.create(
+            name="Test Category", slug="test-category"
+        )
         self.brand = Brand.objects.create(name="Test Brand", slug="test-brand")
         from apps.products.models import ProductVariant
 
@@ -72,7 +76,9 @@ class PricingIntegrationTest(TestCase):
         for user, expected_price in test_cases:
             with self.subTest(user=user.role):
                 self.client.force_authenticate(user=user)
-                url = reverse("products:product-detail", kwargs={"slug": self.product.slug})
+                url = reverse(
+                    "products:product-detail", kwargs={"slug": self.product.slug}
+                )
                 response = self.client.get(url)
                 self.assertEqual(response.status_code, 200)
 
@@ -172,7 +178,9 @@ class PricingIntegrationTest(TestCase):
         product_price = float(product_response.data["current_price"])
 
         # Добавляем в корзину и получаем цену из Cart API
-        self.client.post("/api/v1/cart/items/", {"variant_id": self.variant.id, "quantity": 1})
+        self.client.post(
+            "/api/v1/cart/items/", {"variant_id": self.variant.id, "quantity": 1}
+        )
         cart_response = self.client.get("/api/v1/cart/")
         cart_price = float(cart_response.data["items"][0]["unit_price"])
 

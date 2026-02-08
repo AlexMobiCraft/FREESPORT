@@ -39,15 +39,26 @@ def send_order_confirmation_email(sender, instance, created, **kwargs):
         from apps.orders.tasks import send_order_confirmation_to_customer
 
         send_order_confirmation_to_customer.delay(instance.id)
-        logger.info(f"Задача отправки подтверждения клиенту для заказа " f"{instance.order_number} добавлена в очередь")
+        logger.info(
+            f"Задача отправки подтверждения клиенту для заказа "
+            f"{instance.order_number} добавлена в очередь"
+        )
     except Exception as e:
-        logger.error(f"Ошибка добавления задачи подтверждения клиенту для заказа " f"{instance.order_number}: {e}")
+        logger.error(
+            f"Ошибка добавления задачи подтверждения клиенту для заказа "
+            f"{instance.order_number}: {e}"
+        )
 
     # --- Отправка уведомления администраторам (async через Celery) ---
     try:
         from apps.orders.tasks import send_order_notification_email
 
         send_order_notification_email.delay(instance.id)
-        logger.info(f"Задача уведомления администраторов о заказе {instance.order_number} " "добавлена в очередь")
+        logger.info(
+            f"Задача уведомления администраторов о заказе {instance.order_number} "
+            "добавлена в очередь"
+        )
     except Exception as e:
-        logger.error(f"Ошибка добавления задачи уведомления для заказа {instance.order_number}: {e}")
+        logger.error(
+            f"Ошибка добавления задачи уведомления для заказа {instance.order_number}: {e}"
+        )

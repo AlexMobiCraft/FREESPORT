@@ -68,7 +68,9 @@ class TestDashboardAPI:
     def test_b2b_dashboard_with_verification_status(self, user_factory, order_factory):
         """Тест B2B дашборда с верификацией"""
         # Создаем B2B пользователя
-        user = user_factory.create(role="wholesale_level1", is_verified=True, company_name="Test B2B Company")
+        user = user_factory.create(
+            role="wholesale_level1", is_verified=True, company_name="Test B2B Company"
+        )
 
         # Создаем заказы
         order_factory.create(user=user, total_amount=5000.00)

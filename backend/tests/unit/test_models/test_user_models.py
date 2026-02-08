@@ -40,7 +40,9 @@ class TestUserModel:
         assert user.role == "retail"
         assert user.is_active is True
         assert user.is_verified is False  # По умолчанию не верифицирован
-        assert hasattr(user, "username") is False or user.username is None  # Используем email для авторизации
+        assert (
+            hasattr(user, "username") is False or user.username is None
+        )  # Используем email для авторизации
 
     def test_user_str_representation(self):
         """
@@ -72,7 +74,9 @@ class TestUserModel:
         """
         Тест уникальности email
         """
-        email = f"duplicate-test-{int(time.time())}-{uuid.uuid4().hex[:8]}@freesport.com"
+        email = (
+            f"duplicate-test-{int(time.time())}-{uuid.uuid4().hex[:8]}@freesport.com"
+        )
         UserFactory.create(email=email)
 
         with pytest.raises(IntegrityError):
@@ -250,7 +254,9 @@ class TestUserModel:
         Тест аутентификации пользователя через email
         """
         # Фабрика автоматически хеширует пароль через PostGenerationMethodCall
-        user = UserFactory.create(email="auth@freesport.com", password="test_password123")
+        user = UserFactory.create(
+            email="auth@freesport.com", password="test_password123"
+        )
 
         authenticated_user = authenticate(
             username="auth@freesport.com",  # USERNAME_FIELD = email
@@ -520,7 +526,9 @@ class TestCompanyModel:
         Тест успешного создания компании
         """
         user = UserFactory.create(role="wholesale_level1", is_verified=True)
-        company = CompanyFactory.create(user=user, legal_name='ООО "Рога и Копыта"', tax_id="123456789012")
+        company = CompanyFactory.create(
+            user=user, legal_name='ООО "Рога и Копыта"', tax_id="123456789012"
+        )
 
         assert company.user == user
         assert company.legal_name == 'ООО "Рога и Копыта"'
@@ -646,8 +654,12 @@ class TestAddressModel:
         """
         user = UserFactory.create()
 
-        shipping_address = AddressFactory.create(user=user, address_type="shipping", is_default=True)
-        legal_address = AddressFactory.create(user=user, address_type="legal", is_default=False)
+        shipping_address = AddressFactory.create(
+            user=user, address_type="shipping", is_default=True
+        )
+        legal_address = AddressFactory.create(
+            user=user, address_type="legal", is_default=False
+        )
 
         assert user.addresses.count() == 2
         assert shipping_address.address_type == "shipping"
@@ -675,7 +687,9 @@ class TestAddressModel:
         """
         Тест строкового представления адреса
         """
-        address = AddressFactory.create(full_name="Петр Петров", city="Екатеринбург", street="Ленина", building="25")
+        address = AddressFactory.create(
+            full_name="Петр Петров", city="Екатеринбург", street="Ленина", building="25"
+        )
 
         expected = "Петр Петров - Екатеринбург, Ленина 25"
         assert str(address) == expected
@@ -697,10 +711,14 @@ class TestAddressModel:
         user = UserFactory.create()
 
         # Создаем первый адрес как основной
-        addr1 = AddressFactory.create(user=user, address_type="shipping", is_default=True)
+        addr1 = AddressFactory.create(
+            user=user, address_type="shipping", is_default=True
+        )
 
         # Создаем второй адрес как не основной
-        addr2 = AddressFactory.create(user=user, address_type="shipping", is_default=False)
+        addr2 = AddressFactory.create(
+            user=user, address_type="shipping", is_default=False
+        )
 
         # Устанавливаем второй адрес как основной и сохраняем
         addr2.is_default = True
@@ -712,7 +730,9 @@ class TestAddressModel:
         # Проверяем, что флаг со старого адреса снят, а у нового установлен
         assert addr1.is_default is False
         assert addr2.is_default is True
-        assert user.addresses.filter(address_type="shipping", is_default=True).count() == 1
+        assert (
+            user.addresses.filter(address_type="shipping", is_default=True).count() == 1
+        )
 
     def test_multiple_default_addresses_for_different_types(self):
         """
@@ -721,10 +741,14 @@ class TestAddressModel:
         user = UserFactory.create()
 
         # Создаем основной адрес доставки
-        shipping_addr = AddressFactory.create(user=user, address_type="shipping", is_default=True)
+        shipping_addr = AddressFactory.create(
+            user=user, address_type="shipping", is_default=True
+        )
 
         # Создаем основной юридический адрес
-        legal_addr = AddressFactory.create(user=user, address_type="legal", is_default=True)
+        legal_addr = AddressFactory.create(
+            user=user, address_type="legal", is_default=True
+        )
 
         # Оба адреса должны остаться основными для своих типов
         assert shipping_addr.is_default is True
@@ -732,7 +756,9 @@ class TestAddressModel:
         assert user.addresses.filter(is_default=True).count() == 2
 
         # Но для каждого типа должен быть только один основной
-        assert user.addresses.filter(address_type="shipping", is_default=True).count() == 1
+        assert (
+            user.addresses.filter(address_type="shipping", is_default=True).count() == 1
+        )
         assert user.addresses.filter(address_type="legal", is_default=True).count() == 1
 
     def test_creating_multiple_default_addresses_same_type_via_factory(self):
@@ -743,10 +769,14 @@ class TestAddressModel:
         user = UserFactory.create()
 
         # Создаем первый основной адрес
-        addr1 = AddressFactory.create(user=user, address_type="shipping", is_default=True)
+        addr1 = AddressFactory.create(
+            user=user, address_type="shipping", is_default=True
+        )
 
         # Создаем второй основной адрес - должен автоматически снять флаг с первого
-        addr2 = AddressFactory.create(user=user, address_type="shipping", is_default=True)
+        addr2 = AddressFactory.create(
+            user=user, address_type="shipping", is_default=True
+        )
 
         # Обновляем первый адрес из базы
         addr1.refresh_from_db()
@@ -754,7 +784,9 @@ class TestAddressModel:
         # У первого адреса флаг должен быть снят
         assert addr1.is_default is False
         assert addr2.is_default is True
-        assert user.addresses.filter(address_type="shipping", is_default=True).count() == 1
+        assert (
+            user.addresses.filter(address_type="shipping", is_default=True).count() == 1
+        )
 
     @pytest.mark.parametrize(
         "address_type, expected_display",

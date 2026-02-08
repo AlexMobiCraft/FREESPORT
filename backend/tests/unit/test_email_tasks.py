@@ -15,7 +15,11 @@ import pytest
 from django.utils import timezone
 
 from apps.users.models import User
-from apps.users.tasks import monitor_pending_verification_queue, send_admin_verification_email, send_user_pending_email
+from apps.users.tasks import (
+    monitor_pending_verification_queue,
+    send_admin_verification_email,
+    send_user_pending_email,
+)
 from tests.factories import UserFactory
 
 
@@ -39,7 +43,9 @@ class TestSendAdminVerificationEmail:
     """Unit тесты для send_admin_verification_email task."""
 
     @patch("apps.users.tasks.send_mail")
-    def test_send_admin_verification_email_success(self, mock_send_mail, settings, verification_recipient):
+    def test_send_admin_verification_email_success(
+        self, mock_send_mail, settings, verification_recipient
+    ):
         """Успешная отправка email админу при B2B регистрации."""
         # Настраиваем ADMINS (хотя теперь используется NotificationRecipient)
         settings.ADMINS = [("Admin", "admin@example.com")]
@@ -87,7 +93,9 @@ class TestSendAdminVerificationEmail:
         assert result is False
 
     @patch("apps.users.tasks.send_mail")
-    def test_send_admin_email_with_tax_id(self, mock_send_mail, settings, verification_recipient):
+    def test_send_admin_email_with_tax_id(
+        self, mock_send_mail, settings, verification_recipient
+    ):
         """Email с ИНН для wholesale пользователей."""
         settings.ADMINS = [("Admin", "admin@test.com")]
         settings.SITE_URL = "http://localhost"
@@ -175,7 +183,9 @@ class TestMonitorPendingVerificationQueue:
         mock_send_mail.assert_not_called()
 
     @patch("apps.users.tasks.send_mail")
-    def test_alert_above_threshold(self, mock_send_mail, settings, verification_recipient):
+    def test_alert_above_threshold(
+        self, mock_send_mail, settings, verification_recipient
+    ):
         """Alert отправляется если pending > threshold."""
         settings.ADMINS = [("Admin", "admin@test.com")]
 
@@ -224,7 +234,9 @@ class TestEmailRetryLogic:
     """Тесты для retry логики при SMTP ошибках."""
 
     @patch("apps.users.tasks.send_mail")
-    def test_smtp_error_triggers_retry(self, mock_send_mail, settings, verification_recipient):
+    def test_smtp_error_triggers_retry(
+        self, mock_send_mail, settings, verification_recipient
+    ):
         """SMTP ошибка должна вызывать retry."""
         settings.ADMINS = [("Admin", "admin@test.com")]
         settings.SITE_URL = "http://localhost"

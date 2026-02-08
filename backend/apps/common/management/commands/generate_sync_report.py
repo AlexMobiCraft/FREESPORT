@@ -62,7 +62,9 @@ class Command(BaseCommand):
             if report_type == "daily":
                 self._generate_daily_report(generator, target_date, recipients, no_send)
             elif report_type == "weekly":
-                self._generate_weekly_report(generator, target_date, recipients, no_send)
+                self._generate_weekly_report(
+                    generator, target_date, recipients, no_send
+                )
             else:
                 raise CommandError(f"Неизвестный тип отчета: {report_type}")
 
@@ -84,7 +86,8 @@ class Command(BaseCommand):
             return [email for name, email in settings.ADMINS]
 
         raise CommandError(
-            "Не указаны получатели. Используйте --recipients или " "установите SYNC_REPORT_EMAILS в .env"
+            "Не указаны получатели. Используйте --recipients или "
+            "установите SYNC_REPORT_EMAILS в .env"
         )
 
     def _parse_date(self, date_str):
@@ -95,7 +98,9 @@ class Command(BaseCommand):
         try:
             return datetime.strptime(date_str, "%Y-%m-%d").date()
         except ValueError:
-            raise CommandError(f"Неверный формат даты: {date_str}. " f"Используйте формат YYYY-MM-DD")
+            raise CommandError(
+                f"Неверный формат даты: {date_str}. " f"Используйте формат YYYY-MM-DD"
+            )
 
     def _generate_daily_report(self, generator, target_date, recipients, no_send):
         """Генерирует ежедневный отчет"""
@@ -113,7 +118,11 @@ class Command(BaseCommand):
             success = generator.send_daily_report(recipients, target_date)
 
             if success:
-                self.stdout.write(self.style.SUCCESS(f"✓ Отчет успешно отправлен {len(recipients)} получателям"))
+                self.stdout.write(
+                    self.style.SUCCESS(
+                        f"✓ Отчет успешно отправлен {len(recipients)} получателям"
+                    )
+                )
             else:
                 self.stdout.write(self.style.ERROR("✗ Ошибка при отправке отчета"))
         else:
@@ -135,7 +144,11 @@ class Command(BaseCommand):
             success = generator.send_weekly_error_report(recipients, start_date)
 
             if success:
-                self.stdout.write(self.style.SUCCESS(f"✓ Отчет успешно отправлен {len(recipients)} получателям"))
+                self.stdout.write(
+                    self.style.SUCCESS(
+                        f"✓ Отчет успешно отправлен {len(recipients)} получателям"
+                    )
+                )
             else:
                 self.stdout.write(self.style.ERROR("✗ Ошибка при отправке отчета"))
         else:
@@ -147,7 +160,9 @@ class Command(BaseCommand):
         self.stdout.write(f"ЕЖЕДНЕВНЫЙ ОТЧЕТ - {report['date']}")
         self.stdout.write("=" * 60)
         self.stdout.write(f"\nВсего операций: {report['total_operations']}")
-        self.stdout.write(f"Успешных: {report['success_count']} " f"({report['success_rate']}%)")
+        self.stdout.write(
+            f"Успешных: {report['success_count']} " f"({report['success_rate']}%)"
+        )
         self.stdout.write(f"Средняя длительность: {report['avg_duration_ms']} мс")
 
         if report["by_type"]:

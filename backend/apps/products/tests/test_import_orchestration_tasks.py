@@ -13,10 +13,14 @@ class TestImportOrchestrationTasks:
     @patch("apps.products.tasks.call_command")
     def test_process_1c_import_task_success(self, mock_call_command):
         """Test successful execution of import task."""
-        session = ImportSession.objects.create(status=ImportSession.ImportStatus.PENDING)
+        session = ImportSession.objects.create(
+            status=ImportSession.ImportStatus.PENDING
+        )
 
         # Use apply to simulate task execution with a specific task_id
-        result = process_1c_import_task.apply(args=(session.id,), task_id="task-123").get()
+        result = process_1c_import_task.apply(
+            args=(session.id,), task_id="task-123"
+        ).get()
 
         assert result == "success"
 
@@ -34,12 +38,16 @@ class TestImportOrchestrationTasks:
     @patch("apps.products.tasks.call_command")
     def test_process_1c_import_task_failure(self, mock_call_command):
         """Test execution when a generic error occurs."""
-        session = ImportSession.objects.create(status=ImportSession.ImportStatus.PENDING)
+        session = ImportSession.objects.create(
+            status=ImportSession.ImportStatus.PENDING
+        )
 
         mock_call_command.side_effect = Exception("Integration error")
 
         # Use apply to execute synchronously
-        result = process_1c_import_task.apply(args=(session.id,), task_id="task-err").get()
+        result = process_1c_import_task.apply(
+            args=(session.id,), task_id="task-err"
+        ).get()
 
         assert result == "failure"
 
@@ -53,11 +61,15 @@ class TestImportOrchestrationTasks:
         """Test execution when a CommandError occurs."""
         from django.core.management import CommandError
 
-        session = ImportSession.objects.create(status=ImportSession.ImportStatus.PENDING)
+        session = ImportSession.objects.create(
+            status=ImportSession.ImportStatus.PENDING
+        )
 
         mock_call_command.side_effect = CommandError("Invalid arguments")
 
-        result = process_1c_import_task.apply(args=(session.id,), task_id="task-cmd-err").get()
+        result = process_1c_import_task.apply(
+            args=(session.id,), task_id="task-cmd-err"
+        ).get()
 
         assert result == "failure"
         session.refresh_from_db()
@@ -70,11 +82,15 @@ class TestImportOrchestrationTasks:
         """Test execution when a time limit is exceeded."""
         from celery.exceptions import SoftTimeLimitExceeded
 
-        session = ImportSession.objects.create(status=ImportSession.ImportStatus.PENDING)
+        session = ImportSession.objects.create(
+            status=ImportSession.ImportStatus.PENDING
+        )
 
         mock_call_command.side_effect = SoftTimeLimitExceeded()
 
-        result = process_1c_import_task.apply(args=(session.id,), task_id="task-timeout").get()
+        result = process_1c_import_task.apply(
+            args=(session.id,), task_id="task-timeout"
+        ).get()
 
         assert result == "failure"
         session.refresh_from_db()
@@ -87,16 +103,28 @@ class TestImportOrchestrationTasks:
         now = timezone.now()
 
         # Stale session (updated 3 hours ago)
-        stale_session = ImportSession.objects.create(status=ImportSession.ImportStatus.IN_PROGRESS)
-        ImportSession.objects.filter(pk=stale_session.pk).update(updated_at=now - timedelta(hours=3))
+        stale_session = ImportSession.objects.create(
+            status=ImportSession.ImportStatus.IN_PROGRESS
+        )
+        ImportSession.objects.filter(pk=stale_session.pk).update(
+            updated_at=now - timedelta(hours=3)
+        )
 
         # Fresh session (updated 1 hour ago)
-        fresh_session = ImportSession.objects.create(status=ImportSession.ImportStatus.IN_PROGRESS)
-        ImportSession.objects.filter(pk=fresh_session.pk).update(updated_at=now - timedelta(hours=1))
+        fresh_session = ImportSession.objects.create(
+            status=ImportSession.ImportStatus.IN_PROGRESS
+        )
+        ImportSession.objects.filter(pk=fresh_session.pk).update(
+            updated_at=now - timedelta(hours=1)
+        )
 
         # Completed session (should be ignored)
-        completed_session = ImportSession.objects.create(status=ImportSession.ImportStatus.COMPLETED)
-        ImportSession.objects.filter(pk=completed_session.pk).update(updated_at=now - timedelta(hours=3))
+        completed_session = ImportSession.objects.create(
+            status=ImportSession.ImportStatus.COMPLETED
+        )
+        ImportSession.objects.filter(pk=completed_session.pk).update(
+            updated_at=now - timedelta(hours=3)
+        )
 
         count = cleanup_stale_import_sessions()
 
@@ -113,12 +141,16 @@ class TestImportOrchestrationTasks:
         assert completed_session.status == ImportSession.ImportStatus.COMPLETED
 
     @patch("apps.products.tasks.call_command")
-    def test_process_1c_import_task_status_transition_integration(self, mock_call_command):
+    def test_process_1c_import_task_status_transition_integration(
+        self, mock_call_command
+    ):
         """
         Integration test verifying that the task respects status changes made by the management command.
         If the command sets status to COMPLETED, the task should not overwrite it.
         """
-        session = ImportSession.objects.create(status=ImportSession.ImportStatus.PENDING)
+        session = ImportSession.objects.create(
+            status=ImportSession.ImportStatus.PENDING
+        )
 
         # Define side effect to simulate the management command updating the session
         def command_side_effect(*args, **kwargs):
@@ -131,7 +163,9 @@ class TestImportOrchestrationTasks:
         mock_call_command.side_effect = command_side_effect
 
         # Execute task
-        result = process_1c_import_task.apply(args=(session.id,), task_id="task-integration").get()
+        result = process_1c_import_task.apply(
+            args=(session.id,), task_id="task-integration"
+        ).get()
 
         assert result == "success"
 
@@ -142,9 +176,13 @@ class TestImportOrchestrationTasks:
 
     @patch("apps.products.tasks.call_command")
     @patch("apps.products.tasks.FileStreamService")
-    def test_process_1c_import_task_with_zip_unpacking(self, mock_file_service_cls, mock_call_command):
+    def test_process_1c_import_task_with_zip_unpacking(
+        self, mock_file_service_cls, mock_call_command
+    ):
         """Test import task with synchronous ZIP unpacking."""
-        session = ImportSession.objects.create(status=ImportSession.ImportStatus.PENDING)
+        session = ImportSession.objects.create(
+            status=ImportSession.ImportStatus.PENDING
+        )
         zip_filename = "data.zip"
         data_dir = "/media/1c_import/abc_123"
 
@@ -185,12 +223,16 @@ class TestImportOrchestrationTasks:
         Test that the task explicitly sets status to COMPLETED upon success,
         even if the management command doesn't.
         """
-        session = ImportSession.objects.create(status=ImportSession.ImportStatus.PENDING)
+        session = ImportSession.objects.create(
+            status=ImportSession.ImportStatus.PENDING
+        )
 
         # Mock call_command to do nothing (simulate successful run that implies 'success' but doesn't touch DB)
         mock_call_command.return_value = None
 
-        process_1c_import_task.apply(args=(session.id,), task_id="task-ensure-complete").get()
+        process_1c_import_task.apply(
+            args=(session.id,), task_id="task-ensure-complete"
+        ).get()
 
         session.refresh_from_db()
         assert session.status == ImportSession.ImportStatus.COMPLETED

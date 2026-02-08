@@ -53,7 +53,9 @@ class TestPortalRegistrationScenario:
             "django.conf.settings.CONFLICT_NOTIFICATION_EMAIL",
             "admin@test.com",
         ):
-            result = resolver.resolve_conflict(existing_customer, registration_data, "portal_registration")
+            result = resolver.resolve_conflict(
+                existing_customer, registration_data, "portal_registration"
+            )
 
         # Проверяем результат
         assert result["action"] == "verified_client"
@@ -101,7 +103,9 @@ class TestPortalRegistrationScenario:
             "django.conf.settings.CONFLICT_NOTIFICATION_EMAIL",
             "admin@test.com",
         ):
-            result = resolver.resolve_conflict(existing_customer, registration_data, "portal_registration")
+            result = resolver.resolve_conflict(
+                existing_customer, registration_data, "portal_registration"
+            )
 
         # Проверяем результат
         existing_customer.refresh_from_db()
@@ -148,7 +152,9 @@ class TestDataImportScenario:
             "django.conf.settings.CONFLICT_NOTIFICATION_EMAIL",
             "admin@test.com",
         ):
-            result = resolver.resolve_conflict(portal_customer, onec_data, "data_import")
+            result = resolver.resolve_conflict(
+                portal_customer, onec_data, "data_import"
+            )
 
         # Проверяем результат
         assert result["action"] == "data_updated"
@@ -247,13 +253,17 @@ class TestEdgeCases:
             "django.conf.settings.CONFLICT_NOTIFICATION_EMAIL",
             "admin@test.com",
         ):
-            result = resolver.resolve_conflict(customer, onec_data, "portal_registration")
+            result = resolver.resolve_conflict(
+                customer, onec_data, "portal_registration"
+            )
 
         # Конфликт разрешен
         assert result["action"] == "verified_client"
 
         # Ошибка залогирована
-        error_log = CustomerSyncLog.objects.filter(operation_type="notification_failed").first()
+        error_log = CustomerSyncLog.objects.filter(
+            operation_type="notification_failed"
+        ).first()
         assert error_log is not None
 
     @patch("apps.users.services.conflict_resolution.send_mail")
@@ -300,7 +310,9 @@ class TestEdgeCases:
 
         # Email не настроен
         with patch("django.conf.settings.CONFLICT_NOTIFICATION_EMAIL", None):
-            result = resolver.resolve_conflict(customer, onec_data, "portal_registration")
+            result = resolver.resolve_conflict(
+                customer, onec_data, "portal_registration"
+            )
 
         # Конфликт разрешен
         assert result["action"] == "verified_client"
@@ -354,7 +366,9 @@ class TestAuditTrail:
         assert conflict.details["onec_data"]["first_name"] == "Новое"
 
         # Проверяем CustomerSyncLog
-        log = CustomerSyncLog.objects.filter(customer=customer, operation_type="conflict_resolution").first()
+        log = CustomerSyncLog.objects.filter(
+            customer=customer, operation_type="conflict_resolution"
+        ).first()
         assert log is not None
         assert log.status == "success"
 

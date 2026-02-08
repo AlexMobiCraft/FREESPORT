@@ -13,7 +13,13 @@ from .authentication import (
     ValidateTokenView,
 )
 from .misc import user_roles_view
-from .personal_cabinet import AddressViewSet, CompanyView, FavoriteViewSet, OrderHistoryView, UserDashboardView
+from .personal_cabinet import (
+    AddressViewSet,
+    CompanyView,
+    FavoriteViewSet,
+    OrderHistoryView,
+    UserDashboardView,
+)
 from .profile import UserProfileView
 
 __all__ = [

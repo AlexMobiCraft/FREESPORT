@@ -11,7 +11,14 @@ import factory
 from django.utils.text import slugify
 from factory import fuzzy
 
-from apps.products.models import Brand, Brand1CMapping, Category, ColorMapping, Product, ProductVariant
+from apps.products.models import (
+    Brand,
+    Brand1CMapping,
+    Category,
+    ColorMapping,
+    Product,
+    ProductVariant,
+)
 
 # Глобальный счетчик для обеспечения уникальности
 _unique_counter = 0
@@ -123,7 +130,9 @@ class ColorMappingFactory(factory.django.DjangoModelFactory):
         model = ColorMapping
 
     name = factory.LazyFunction(lambda: f"Color-{get_unique_suffix()}")
-    hex_code = fuzzy.FuzzyChoice(["#FF0000", "#00FF00", "#0000FF", "#FFFF00", "#FF00FF"])
+    hex_code = fuzzy.FuzzyChoice(
+        ["#FF0000", "#00FF00", "#0000FF", "#FFFF00", "#FF00FF"]
+    )
 
 
 class ProductVariantFactory(factory.django.DjangoModelFactory):
@@ -136,7 +145,9 @@ class ProductVariantFactory(factory.django.DjangoModelFactory):
     sku = factory.LazyFunction(lambda: f"SKU-{get_unique_suffix().upper()}")
     onec_id = factory.LazyFunction(lambda: f"variant-1c-{get_unique_suffix()}")
     color_name = factory.LazyFunction(lambda: f"Color-{get_unique_suffix()}")
-    size_value = fuzzy.FuzzyChoice(["XS", "S", "M", "L", "XL", "XXL", "38", "40", "42", "44"])
+    size_value = fuzzy.FuzzyChoice(
+        ["XS", "S", "M", "L", "XL", "XXL", "38", "40", "42", "44"]
+    )
 
     # Цены для различных ролей
     retail_price = fuzzy.FuzzyDecimal(100.0, 10000.0, 2)

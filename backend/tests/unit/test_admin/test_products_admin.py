@@ -9,9 +9,20 @@ from django.contrib import messages
 from django.contrib.admin.sites import AdminSite
 from django.test import RequestFactory, TestCase
 
-from apps.products.admin import Brand1CMappingAdmin, Brand1CMappingInline, BrandAdmin, ProductAdmin
+from apps.products.admin import (
+    Brand1CMappingAdmin,
+    Brand1CMappingInline,
+    BrandAdmin,
+    ProductAdmin,
+)
 from apps.products.models import Brand, Brand1CMapping, Product
-from tests.factories import Brand1CMappingFactory, BrandFactory, CategoryFactory, ProductFactory, UserFactory
+from tests.factories import (
+    Brand1CMappingFactory,
+    BrandFactory,
+    CategoryFactory,
+    ProductFactory,
+    UserFactory,
+)
 
 
 @pytest.mark.django_db
@@ -23,7 +34,9 @@ class TestProductAdmin(TestCase):
         self.site = AdminSite()
         self.admin = ProductAdmin(Product, self.site)
         self.factory = RequestFactory()
-        self.superuser = UserFactory.create(is_staff=True, is_superuser=True, email="admin@test.com")
+        self.superuser = UserFactory.create(
+            is_staff=True, is_superuser=True, email="admin@test.com"
+        )
 
     def test_onec_brand_id_in_readonly_fields(self):
         """
@@ -35,7 +48,9 @@ class TestProductAdmin(TestCase):
         """
         readonly_fields = self.admin.get_readonly_fields(request=None, obj=None)
 
-        assert "onec_brand_id" in readonly_fields, "onec_brand_id должен быть в readonly_fields"
+        assert (
+            "onec_brand_id" in readonly_fields
+        ), "onec_brand_id должен быть в readonly_fields"
 
     def test_onec_brand_id_in_search_fields(self):
         """
@@ -47,7 +62,9 @@ class TestProductAdmin(TestCase):
         """
         search_fields = self.admin.search_fields
 
-        assert "onec_brand_id" in search_fields, "onec_brand_id должен быть в search_fields"
+        assert (
+            "onec_brand_id" in search_fields
+        ), "onec_brand_id должен быть в search_fields"
 
     def test_onec_brand_id_in_fieldsets(self):
         """
@@ -105,7 +122,9 @@ class TestProductAdmin(TestCase):
 
         readonly_fields = self.admin.get_readonly_fields(request, obj=product)
 
-        assert "onec_brand_id" in readonly_fields, "onec_brand_id должен быть readonly при редактировании товара"
+        assert (
+            "onec_brand_id" in readonly_fields
+        ), "onec_brand_id должен быть readonly при редактировании товара"
 
     def test_onec_brand_id_display_in_list(self):
         """
@@ -121,7 +140,9 @@ class TestProductAdmin(TestCase):
         # Это не обязательное требование, но проверяем если есть
         if "onec_brand_id" in list_display:
             # Создаем товар для проверки отображения
-            product = ProductFactory.create(onec_brand_id="fb3f263e-dfd0-11ef-8361-fa163ea88911")
+            product = ProductFactory.create(
+                onec_brand_id="fb3f263e-dfd0-11ef-8361-fa163ea88911"
+            )
 
             # Проверяем что значение можно получить
             assert product.onec_brand_id == "fb3f263e-dfd0-11ef-8361-fa163ea88911"
@@ -158,7 +179,9 @@ class TestProductAdmin(TestCase):
         )
 
         # Создаем запрос с поиском
-        request = self.factory.get("/admin/products/product/", {"q": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"})
+        request = self.factory.get(
+            "/admin/products/product/", {"q": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"}
+        )
         request.user = self.superuser
 
         # Получаем queryset с примененным поиском
@@ -166,10 +189,14 @@ class TestProductAdmin(TestCase):
         queryset = changelist.get_queryset(request)
 
         # Проверяем что нашли правильный товар
-        assert queryset.filter(id=product1.id).exists(), "Поиск должен найти товар с указанным onec_brand_id"
+        assert queryset.filter(
+            id=product1.id
+        ).exists(), "Поиск должен найти товар с указанным onec_brand_id"
 
         # Проверяем что другие товары не найдены
-        assert not queryset.filter(id=product2.id).exists(), "Поиск не должен найти товар с другим onec_brand_id"
+        assert not queryset.filter(
+            id=product2.id
+        ).exists(), "Поиск не должен найти товар с другим onec_brand_id"
 
     def test_onec_brand_id_null_display(self):
         """
@@ -189,7 +216,9 @@ class TestProductAdmin(TestCase):
         readonly_fields = self.admin.get_readonly_fields(request, obj=product)
 
         assert "onec_brand_id" in readonly_fields
-        assert product.onec_brand_id is None, "onec_brand_id должен быть None для товара без бренда"
+        assert (
+            product.onec_brand_id is None
+        ), "onec_brand_id должен быть None для товара без бренда"
 
 
 @pytest.mark.django_db
@@ -200,7 +229,9 @@ class TestBrandAdmin(TestCase):
         self.site = AdminSite()
         self.admin = BrandAdmin(Brand, self.site)
         self.factory = RequestFactory()
-        self.superuser = UserFactory.create(is_staff=True, is_superuser=True, email="admin@test.com")
+        self.superuser = UserFactory.create(
+            is_staff=True, is_superuser=True, email="admin@test.com"
+        )
 
     def test_brand_admin_inline(self):
         """AC1: Проверка наличия Brand1CMappingInline"""

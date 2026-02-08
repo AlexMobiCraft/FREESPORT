@@ -62,7 +62,9 @@ def mock_settings(tmp_path, temp_base, import_base):
 @pytest.fixture
 def routing_service(session_id, mock_settings):
     """Create FileRoutingService with mocked settings."""
-    with patch("apps.integrations.onec_exchange.routing_service.settings", mock_settings):
+    with patch(
+        "apps.integrations.onec_exchange.routing_service.settings", mock_settings
+    ):
         from apps.integrations.onec_exchange.routing_service import FileRoutingService
 
         return FileRoutingService(session_id)
@@ -87,7 +89,9 @@ def file_service(session_id, mock_settings):
 class TestXMLGoodsRouting:
     """TC1: Загрузка goods.xml -> перемещён в 1c_import/goods/"""
 
-    def test_goods_xml_routed_to_goods_folder(self, routing_service, file_service, import_base, session_id):
+    def test_goods_xml_routed_to_goods_folder(
+        self, routing_service, file_service, import_base, session_id
+    ):
         """goods.xml should be moved to import/goods/ directory."""
         # Arrange: Create goods.xml in temp directory
         filename = "goods.xml"
@@ -102,7 +106,9 @@ class TestXMLGoodsRouting:
                 "TEMP_DIR": file_service.base_dir,
                 "IMPORT_DIR": import_base,
             }
-            from apps.integrations.onec_exchange.routing_service import FileRoutingService
+            from apps.integrations.onec_exchange.routing_service import (
+                FileRoutingService,
+            )
 
             router = FileRoutingService(session_id)
             target_path = router.move_to_import(filename)
@@ -123,7 +129,9 @@ class TestXMLGoodsRouting:
 class TestXMLOffersRouting:
     """TC2: Загрузка offers_1_uuid.xml -> перемещён в 1c_import/offers/"""
 
-    def test_offers_xml_with_uuid_routed_to_offers_folder(self, routing_service, file_service, import_base, session_id):
+    def test_offers_xml_with_uuid_routed_to_offers_folder(
+        self, routing_service, file_service, import_base, session_id
+    ):
         """offers_*.xml files should be moved to import/offers/ directory."""
         # Arrange: Create offers file with typical 1C naming pattern
         filename = "offers_1_a1b2c3d4-e5f6-7890-abcd-ef1234567890.xml"
@@ -136,7 +144,9 @@ class TestXMLOffersRouting:
                 "TEMP_DIR": file_service.base_dir,
                 "IMPORT_DIR": import_base,
             }
-            from apps.integrations.onec_exchange.routing_service import FileRoutingService
+            from apps.integrations.onec_exchange.routing_service import (
+                FileRoutingService,
+            )
 
             router = FileRoutingService(session_id)
             target_path = router.move_to_import(filename)
@@ -155,7 +165,9 @@ class TestXMLOffersRouting:
 class TestImageJpgRouting:
     """TC3: Загрузка image.jpg -> перемещён в 1c_import/goods/import_files/"""
 
-    def test_jpg_image_routed_to_import_files(self, routing_service, file_service, import_base, session_id):
+    def test_jpg_image_routed_to_import_files(
+        self, routing_service, file_service, import_base, session_id
+    ):
         """JPG images should be moved to import_files/ directory."""
         # Arrange: Create image file
         filename = "image.jpg"
@@ -168,7 +180,9 @@ class TestImageJpgRouting:
                 "TEMP_DIR": file_service.base_dir,
                 "IMPORT_DIR": import_base,
             }
-            from apps.integrations.onec_exchange.routing_service import FileRoutingService
+            from apps.integrations.onec_exchange.routing_service import (
+                FileRoutingService,
+            )
 
             router = FileRoutingService(session_id)
             target_path = router.move_to_import(filename)
@@ -187,7 +201,9 @@ class TestImageJpgRouting:
 class TestImageUppercaseRouting:
     """TC4: Загрузка photo.PNG (uppercase) -> перемещён в goods/import_files/"""
 
-    def test_uppercase_png_routed_to_import_files(self, routing_service, file_service, import_base, session_id):
+    def test_uppercase_png_routed_to_import_files(
+        self, routing_service, file_service, import_base, session_id
+    ):
         """Uppercase image extensions should be handled case-insensitively."""
         # Arrange: Create image with uppercase extension
         filename = "photo.PNG"
@@ -200,7 +216,9 @@ class TestImageUppercaseRouting:
                 "TEMP_DIR": file_service.base_dir,
                 "IMPORT_DIR": import_base,
             }
-            from apps.integrations.onec_exchange.routing_service import FileRoutingService
+            from apps.integrations.onec_exchange.routing_service import (
+                FileRoutingService,
+            )
 
             router = FileRoutingService(session_id)
             target_path = router.move_to_import(filename)
@@ -218,7 +236,9 @@ class TestImageUppercaseRouting:
 class TestZipRouting:
     """TC5: Загрузка import.zip -> перемещён в 1c_import/"""
 
-    def test_zip_file_routed_to_import_root(self, file_service, import_base, session_id):
+    def test_zip_file_routed_to_import_root(
+        self, file_service, import_base, session_id
+    ):
         """ZIP files should be routed to import root for later unpacking."""
         # Arrange: Create ZIP file
         filename = "import.zip"
@@ -231,7 +251,9 @@ class TestZipRouting:
                 "TEMP_DIR": file_service.base_dir,
                 "IMPORT_DIR": import_base,
             }
-            from apps.integrations.onec_exchange.routing_service import FileRoutingService
+            from apps.integrations.onec_exchange.routing_service import (
+                FileRoutingService,
+            )
 
             router = FileRoutingService(session_id)
             target_path = router.move_to_import(filename)
@@ -263,7 +285,9 @@ class TestZipUppercaseRouting:
                 "TEMP_DIR": file_service.base_dir,
                 "IMPORT_DIR": import_base,
             }
-            from apps.integrations.onec_exchange.routing_service import FileRoutingService
+            from apps.integrations.onec_exchange.routing_service import (
+                FileRoutingService,
+            )
 
             router = FileRoutingService(session_id)
             target_path = router.move_to_import(filename)
@@ -281,7 +305,9 @@ class TestZipUppercaseRouting:
 class TestUnknownFileRouting:
     """TC7: Загрузка unknown.dat -> перемещён в корень 1c_import/"""
 
-    def test_unknown_extension_routed_to_import_root(self, file_service, import_base, session_id):
+    def test_unknown_extension_routed_to_import_root(
+        self, file_service, import_base, session_id
+    ):
         """Files with unknown extensions should be moved to import root."""
         # Arrange: Create file with unknown extension
         filename = "unknown.dat"
@@ -294,7 +320,9 @@ class TestUnknownFileRouting:
                 "TEMP_DIR": file_service.base_dir,
                 "IMPORT_DIR": import_base,
             }
-            from apps.integrations.onec_exchange.routing_service import FileRoutingService
+            from apps.integrations.onec_exchange.routing_service import (
+                FileRoutingService,
+            )
 
             router = FileRoutingService(session_id)
             target_path = router.move_to_import(filename)
@@ -345,12 +373,16 @@ class TestSessionIsolation:
             assert (temp_base / session1 / filename1).exists()
             assert (temp_base / session2 / filename2).exists()
 
-        with patch("apps.integrations.onec_exchange.routing_service.settings") as mock_rs:
+        with patch(
+            "apps.integrations.onec_exchange.routing_service.settings"
+        ) as mock_rs:
             mock_rs.ONEC_EXCHANGE = {
                 "TEMP_DIR": temp_base,
                 "IMPORT_DIR": import_base,
             }
-            from apps.integrations.onec_exchange.routing_service import FileRoutingService
+            from apps.integrations.onec_exchange.routing_service import (
+                FileRoutingService,
+            )
 
             router1 = FileRoutingService(session1)
             router2 = FileRoutingService(session2)
@@ -380,14 +412,18 @@ class TestSessionIsolation:
 class TestFileOverwrite:
     """TC9: Повторная загрузка файла с тем же именем -> перезаписывает существующий"""
 
-    def test_repeated_upload_overwrites_existing(self, file_service, import_base, session_id):
+    def test_repeated_upload_overwrites_existing(
+        self, file_service, import_base, session_id
+    ):
         """Re-uploading a file with the same name should overwrite the previous one."""
         with patch("apps.integrations.onec_exchange.routing_service.settings") as mock:
             mock.ONEC_EXCHANGE = {
                 "TEMP_DIR": file_service.base_dir,
                 "IMPORT_DIR": import_base,
             }
-            from apps.integrations.onec_exchange.routing_service import FileRoutingService
+            from apps.integrations.onec_exchange.routing_service import (
+                FileRoutingService,
+            )
 
             # Arrange: Create and route first file
             filename = "goods.xml"
@@ -430,7 +466,9 @@ class TestRoutingRules:
             ("groups_1_uuid.xml", "groups"),
         ],
     )
-    def test_xml_routing_by_prefix(self, file_service, import_base, session_id, filename, expected_subdir):
+    def test_xml_routing_by_prefix(
+        self, file_service, import_base, session_id, filename, expected_subdir
+    ):
         """XML files should be routed based on filename prefix."""
         # Arrange
         content = b"<root>test</root>"
@@ -442,7 +480,9 @@ class TestRoutingRules:
                 "TEMP_DIR": file_service.base_dir,
                 "IMPORT_DIR": import_base,
             }
-            from apps.integrations.onec_exchange.routing_service import FileRoutingService
+            from apps.integrations.onec_exchange.routing_service import (
+                FileRoutingService,
+            )
 
             router = FileRoutingService(session_id)
             target_path = router.move_to_import(filename)
@@ -452,7 +492,9 @@ class TestRoutingRules:
         assert target_path.parent == expected_dir
 
     @pytest.mark.parametrize("extension", [".jpg", ".jpeg", ".png", ".gif", ".webp"])
-    def test_all_image_extensions_routed(self, file_service, import_base, session_id, extension):
+    def test_all_image_extensions_routed(
+        self, file_service, import_base, session_id, extension
+    ):
         """All supported image extensions should be routed to import_files/."""
         # Arrange
         filename = f"image{extension}"
@@ -465,7 +507,9 @@ class TestRoutingRules:
                 "TEMP_DIR": file_service.base_dir,
                 "IMPORT_DIR": import_base,
             }
-            from apps.integrations.onec_exchange.routing_service import FileRoutingService
+            from apps.integrations.onec_exchange.routing_service import (
+                FileRoutingService,
+            )
 
             router = FileRoutingService(session_id)
             target_path = router.move_to_import(filename)
@@ -490,7 +534,9 @@ class TestRoutingServiceInit:
                 "TEMP_DIR": tmp_path / "1c_temp",
                 "IMPORT_DIR": tmp_path / "1c_import",
             }
-            from apps.integrations.onec_exchange.routing_service import FileRoutingService
+            from apps.integrations.onec_exchange.routing_service import (
+                FileRoutingService,
+            )
 
             with pytest.raises(ValueError, match="session_id"):
                 FileRoutingService("")
@@ -504,7 +550,9 @@ class TestRoutingServiceInit:
                 "TEMP_DIR": tmp_path / "1c_temp",
                 "IMPORT_DIR": import_dir,
             }
-            from apps.integrations.onec_exchange.routing_service import FileRoutingService
+            from apps.integrations.onec_exchange.routing_service import (
+                FileRoutingService,
+            )
 
             service = FileRoutingService(session_id)
             assert service.import_base == import_dir
@@ -525,7 +573,9 @@ class TestShouldRoute:
                 "TEMP_DIR": tmp_path / "1c_temp",
                 "IMPORT_DIR": tmp_path / "1c_import",
             }
-            from apps.integrations.onec_exchange.routing_service import FileRoutingService
+            from apps.integrations.onec_exchange.routing_service import (
+                FileRoutingService,
+            )
 
             router = FileRoutingService(session_id)
 
@@ -539,7 +589,9 @@ class TestShouldRoute:
                 "TEMP_DIR": tmp_path / "1c_temp",
                 "IMPORT_DIR": tmp_path / "1c_import",
             }
-            from apps.integrations.onec_exchange.routing_service import FileRoutingService
+            from apps.integrations.onec_exchange.routing_service import (
+                FileRoutingService,
+            )
 
             router = FileRoutingService(session_id)
 
@@ -553,7 +605,9 @@ class TestShouldRoute:
                 "TEMP_DIR": tmp_path / "1c_temp",
                 "IMPORT_DIR": tmp_path / "1c_import",
             }
-            from apps.integrations.onec_exchange.routing_service import FileRoutingService
+            from apps.integrations.onec_exchange.routing_service import (
+                FileRoutingService,
+            )
 
             router = FileRoutingService(session_id)
 

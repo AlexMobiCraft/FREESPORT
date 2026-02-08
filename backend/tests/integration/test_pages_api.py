@@ -94,7 +94,9 @@ class PagesAPITest(TestCase):
         """Тест HTML sanitization"""
         page = Page.objects.create(
             title="Тест HTML",
-            content=('<p>Нормальный текст</p><script>alert("XSS")</script><h1>Заголовок</h1>'),
+            content=(
+                '<p>Нормальный текст</p><script>alert("XSS")</script><h1>Заголовок</h1>'
+            ),
             is_published=True,
         )
 
@@ -239,7 +241,9 @@ class PagesAPIEdgeCasesTest(TestCase):
         """Тест обработки очень длинного контента"""
         long_content = "<p>" + "Очень длинный контент. " * 1000 + "</p>"
 
-        page = Page.objects.create(title="Длинная страница", content=long_content, is_published=True)
+        page = Page.objects.create(
+            title="Длинная страница", content=long_content, is_published=True
+        )
 
         url = reverse("pages:pages-detail", kwargs={"slug": page.slug})
         response = self.client.get(url)
@@ -256,7 +260,9 @@ class PagesAPIEdgeCasesTest(TestCase):
         <p>Арабский: العربية</p>
         """
 
-        page = Page.objects.create(title="Unicode тест 🌟", content=unicode_content, is_published=True)
+        page = Page.objects.create(
+            title="Unicode тест 🌟", content=unicode_content, is_published=True
+        )
 
         url = reverse("pages:pages-detail", kwargs={"slug": page.slug})
         response = self.client.get(url)
@@ -302,7 +308,9 @@ class PagesAPIEdgeCasesTest(TestCase):
 
     def test_api_response_structure(self):
         """Тест структуры API ответа"""
-        page = Page.objects.create(title="Структура тест", content="<p>Контент</p>", is_published=True)
+        page = Page.objects.create(
+            title="Структура тест", content="<p>Контент</p>", is_published=True
+        )
 
         url = reverse("pages:pages-detail", kwargs={"slug": page.slug})
         response = self.client.get(url)

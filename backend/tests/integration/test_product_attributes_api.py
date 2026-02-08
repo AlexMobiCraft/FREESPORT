@@ -11,7 +11,14 @@ import pytest
 from django.test import override_settings
 from rest_framework.test import APIClient
 
-from apps.products.models import Attribute, AttributeValue, Brand, Category, Product, ProductVariant
+from apps.products.models import (
+    Attribute,
+    AttributeValue,
+    Brand,
+    Category,
+    Product,
+    ProductVariant,
+)
 
 
 @pytest.mark.django_db
@@ -360,7 +367,9 @@ class TestAttributesQueryOptimization:
 
         return {"products": products}
 
-    def test_product_list_query_optimization(self, api_client, setup_multiple_products, django_assert_num_queries):
+    def test_product_list_query_optimization(
+        self, api_client, setup_multiple_products, django_assert_num_queries
+    ):
         """
         Проверяет оптимизацию запросов при получении списка продуктов
 
@@ -395,7 +404,9 @@ class TestAttributesQueryOptimization:
         for product in results:
             assert "attributes" in product
 
-    def test_product_detail_query_optimization(self, api_client, setup_multiple_products, django_assert_num_queries):
+    def test_product_detail_query_optimization(
+        self, api_client, setup_multiple_products, django_assert_num_queries
+    ):
         """
         Проверяет оптимизацию запросов при получении детальной информации о продукте
 

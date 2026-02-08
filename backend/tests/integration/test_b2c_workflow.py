@@ -29,7 +29,9 @@ class B2CWorkflowTest(TestCase):
         )
 
         # Создаем товар
-        self.category = Category.objects.create(name="Sports Equipment", slug="sports-equipment")
+        self.category = Category.objects.create(
+            name="Sports Equipment", slug="sports-equipment"
+        )
         self.brand = Brand.objects.create(name="Nike", slug="nike")
         self.product = Product.objects.create(
             name="Running Shoes",
@@ -143,7 +145,9 @@ class B2CWorkflowTest(TestCase):
         self.client.force_authenticate(user=self.retail_user)
 
         # Добавляем товар в корзину
-        self.client.post("/api/v1/cart/items/", {"variant_id": self.variant.id, "quantity": 1})
+        self.client.post(
+            "/api/v1/cart/items/", {"variant_id": self.variant.id, "quantity": 1}
+        )
 
         # Тестируем B2C способы оплаты
         b2c_payment_methods = ["card", "cash", "payment_on_delivery"]
@@ -171,7 +175,9 @@ class B2CWorkflowTest(TestCase):
         self.client.force_authenticate(user=self.retail_user)
 
         # Добавляем товар
-        self.client.post("/api/v1/cart/items/", {"variant_id": self.variant.id, "quantity": 1})
+        self.client.post(
+            "/api/v1/cart/items/", {"variant_id": self.variant.id, "quantity": 1}
+        )
 
         # Тестируем B2C способы доставки
         b2c_delivery_methods = ["courier", "pickup", "post"]
@@ -228,7 +234,9 @@ class B2CWorkflowTest(TestCase):
         # Список избранного - проверяем только для текущего пользователя
         favorites_list = self.client.get("/api/v1/users/favorites/")
         self.assertEqual(favorites_list.status_code, 200)
-        product_ids_in_favorites = [item["product"] for item in favorites_list.data["results"]]
+        product_ids_in_favorites = [
+            item["product"] for item in favorites_list.data["results"]
+        ]
         self.assertIn(self.product.id, product_ids_in_favorites)
         self.assertEqual(Favorite.objects.filter(user=self.retail_user).count(), 1)
 
@@ -237,7 +245,9 @@ class B2CWorkflowTest(TestCase):
         self.client.force_authenticate(user=self.retail_user)
 
         # Создаем первый заказ
-        self.client.post("/api/v1/cart/items/", {"variant_id": self.variant.id, "quantity": 1})
+        self.client.post(
+            "/api/v1/cart/items/", {"variant_id": self.variant.id, "quantity": 1}
+        )
 
         order_data = {
             "delivery_address": "Home Address",
@@ -249,7 +259,9 @@ class B2CWorkflowTest(TestCase):
 
         # Проверяем, что можем легко повторить заказ
         # (добавляя тот же товар снова)
-        repeat_cart = self.client.post("/api/v1/cart/items/", {"variant_id": self.variant.id, "quantity": 1})
+        repeat_cart = self.client.post(
+            "/api/v1/cart/items/", {"variant_id": self.variant.id, "quantity": 1}
+        )
         self.assertEqual(repeat_cart.status_code, 201)
 
         second_order = self.client.post("/api/v1/orders/", order_data)

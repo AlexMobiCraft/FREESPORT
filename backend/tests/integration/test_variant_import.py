@@ -677,7 +677,9 @@ class TestIntegrationVerification(TestCase):
         </КоммерческаяИнформация>
         """
 
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".xml", delete=False, encoding="utf-8") as f:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".xml", delete=False, encoding="utf-8"
+        ) as f:
             f.write(xml_with_namespace)
             f.flush()
 
@@ -731,10 +733,14 @@ class TestHybridImagesLogic(TransactionTestCase):
     def setUp(self):
         """Настройка тестовых данных"""
         # Создание Brand
-        self.brand = Brand.objects.create(name="Test Brand", slug="test-brand", is_active=True)
+        self.brand = Brand.objects.create(
+            name="Test Brand", slug="test-brand", is_active=True
+        )
 
         # Создание Category
-        self.category = Category.objects.create(name="Test Category", slug="test-category", is_active=True)
+        self.category = Category.objects.create(
+            name="Test Category", slug="test-category", is_active=True
+        )
 
         # Создание ImportSession
         self.session = ImportSession.objects.create(
@@ -837,7 +843,9 @@ class TestHybridImagesLogic(TransactionTestCase):
         }
 
         # Обработка варианта
-        variant = self.processor.process_variant_from_offer(offer_data, base_dir=temp_dir, skip_images=False)
+        variant = self.processor.process_variant_from_offer(
+            offer_data, base_dir=temp_dir, skip_images=False
+        )
 
         # Проверка: variant создан
         assert variant is not None

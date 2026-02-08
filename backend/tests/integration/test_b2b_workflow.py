@@ -27,7 +27,9 @@ class B2BWorkflowTest(TestCase):
         )
 
         # Создаем товар
-        self.category = Category.objects.create(name="Test Category", slug="test-category")
+        self.category = Category.objects.create(
+            name="Test Category", slug="test-category"
+        )
         self.brand = Brand.objects.create(name="Test Brand", slug="test-brand")
         self.product = Product.objects.create(
             name="Test Product",
@@ -70,7 +72,9 @@ class B2BWorkflowTest(TestCase):
             "quantity": 5,
         }
         cart_response = self.client.post("/api/v1/cart/items/", cart_data)
-        self.assertEqual(cart_response.status_code, 201, f"Cart error: {cart_response.data}")
+        self.assertEqual(
+            cart_response.status_code, 201, f"Cart error: {cart_response.data}"
+        )
 
         # 4. Проверка корзины с B2B ценами
         cart_check = self.client.get("/api/v1/cart/")
@@ -86,7 +90,9 @@ class B2BWorkflowTest(TestCase):
             "notes": "B2B order for Test Company",
         }
         order_response = self.client.post("/api/v1/orders/", order_data)
-        self.assertEqual(order_response.status_code, 201, f"Order error: {order_response.data}")
+        self.assertEqual(
+            order_response.status_code, 201, f"Order error: {order_response.data}"
+        )
 
         # 6. Проверка созданного заказа
         order_id = order_response.data["id"]
@@ -147,7 +153,9 @@ class B2BWorkflowTest(TestCase):
         self.client.force_authenticate(user=self.b2b_user)
 
         # Добавляем товар
-        self.client.post("/api/v1/cart/items/", {"variant_id": self.variant.id, "quantity": 10})
+        self.client.post(
+            "/api/v1/cart/items/", {"variant_id": self.variant.id, "quantity": 10}
+        )
 
         # Тестируем B2B способы доставки
         b2b_delivery_methods = ["transport_company", "pickup"]

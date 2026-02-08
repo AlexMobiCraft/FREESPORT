@@ -356,13 +356,17 @@ class VariantImportProcessor:
 
         # Создание директории
         if subdir:
-            subdir_path = os.path.join(settings.MEDIA_ROOT, "products", destination_prefix, subdir)
+            subdir_path = os.path.join(
+                settings.MEDIA_ROOT, "products", destination_prefix, subdir
+            )
             os.makedirs(subdir_path, exist_ok=True)
 
         # Копирование файла
         try:
             with open(source_path, "rb") as f:
-                saved_path = default_storage.save(destination_path, ContentFile(f.read()))
+                saved_path = default_storage.save(
+                    destination_path, ContentFile(f.read())
+                )
             self.stats["images_copied"] += 1
             return saved_path
         except Exception as e:
@@ -406,16 +410,22 @@ class VariantImportProcessor:
 
             # Ensure types
             parent_id = str(parent_id)
-            brand_id = str(goods_data.get("brand_id")) if goods_data.get("brand_id") else None
+            brand_id = (
+                str(goods_data.get("brand_id")) if goods_data.get("brand_id") else None
+            )
 
             logger.info(f"Processing product from goods.xml: {parent_id}")
 
             # Проверка существующего товара
-            existing = Product.objects.filter(models.Q(onec_id=parent_id) | models.Q(parent_onec_id=parent_id)).first()
+            existing = Product.objects.filter(
+                models.Q(onec_id=parent_id) | models.Q(parent_onec_id=parent_id)
+            ).first()
 
             if existing:
                 # Обновление существующего Product
-                return self._update_existing_product(existing, goods_data, base_dir, skip_images)
+                return self._update_existing_product(
+                    existing, goods_data, base_dir, skip_images
+                )
 
             # Создание нового Product
             return self._create_new_product(goods_data, base_dir, skip_images)
@@ -435,7 +445,9 @@ class VariantImportProcessor:
         from apps.products.models import Brand, Brand1CMapping
 
         parent_id = str(goods_data.get("id"))
-        brand_id = str(goods_data.get("brand_id")) if goods_data.get("brand_id") else None
+        brand_id = (
+            str(goods_data.get("brand_id")) if goods_data.get("brand_id") else None
+        )
 
         # Убедимся что onec_id установлен
         if not product.onec_id:
@@ -558,7 +570,9 @@ class VariantImportProcessor:
                 # Нормализация пути (убираем import_files/ если есть)
                 normalized_path = normalize_image_path(image_path)
                 source_path = Path(base_dir) / normalized_path
-                saved_path = self._save_image_if_not_exists(source_path, normalized_path, "base")
+                saved_path = self._save_image_if_not_exists(
+                    source_path, normalized_path, "base"
+                )
 
                 if saved_path:
                     saved_filename = Path(saved_path).name
@@ -578,7 +592,10 @@ class VariantImportProcessor:
         if base_images != list(product.base_images or []):
             product.base_images = base_images
             product.save(update_fields=["base_images"])
-            logger.info(f"Product {product.onec_id} base_images updated: " f"{len(base_images)} images")
+            logger.info(
+                f"Product {product.onec_id} base_images updated: "
+                f"{len(base_images)} images"
+            )
 
     # ========================================================================
     # Task 2: Парсер offers.xml для ProductVariant (AC: 2, 3, 4)
@@ -623,7 +640,8 @@ class VariantImportProcessor:
                 # AC3: логировать warning и пропустить
                 if parent_id not in self._missing_products_logged:
                     logger.warning(
-                        f"Skipping <Предложение> {onec_id}: " f"parent Product not found (parent_id={parent_id})"
+                        f"Skipping <Предложение> {onec_id}: "
+                        f"parent Product not found (parent_id={parent_id})"
                     )
                     self._missing_products_logged.add(parent_id)
                 self.stats["skipped"] += 1
@@ -632,10 +650,14 @@ class VariantImportProcessor:
             # Проверка существующего варианта
             existing_variant = ProductVariant.objects.filter(onec_id=onec_id).first()
             if existing_variant:
-                return self._update_existing_variant(existing_variant, offer_data, base_dir, skip_images)
+                return self._update_existing_variant(
+                    existing_variant, offer_data, base_dir, skip_images
+                )
 
             # Создание нового варианта
-            return self._create_new_variant(product, onec_id, offer_data, base_dir, skip_images)
+            return self._create_new_variant(
+                product, onec_id, offer_data, base_dir, skip_images
+            )
 
         except Exception as e:
             self._log_error(f"Error processing variant from offer: {e}", offer_data)
@@ -668,11 +690,17 @@ class VariantImportProcessor:
         if not parsed_chars["size_value"]:
             parsed_chars["size_value"] = extract_size_from_name(name)
 
-        if parsed_chars["color_name"] and variant.color_name != parsed_chars["color_name"]:
+        if (
+            parsed_chars["color_name"]
+            and variant.color_name != parsed_chars["color_name"]
+        ):
             variant.color_name = parsed_chars["color_name"]
             fields_to_update.append("color_name")
 
-        if parsed_chars["size_value"] and variant.size_value != parsed_chars["size_value"]:
+        if (
+            parsed_chars["size_value"]
+            and variant.size_value != parsed_chars["size_value"]
+        ):
             variant.size_value = parsed_chars["size_value"]
             fields_to_update.append("size_value")
 
@@ -696,7 +724,10 @@ class VariantImportProcessor:
             try:
                 self._link_variant_attributes(variant, characteristics)
             except Exception as attr_error:
-                logger.error(f"Error linking attributes for variant {variant.onec_id}: " f"{attr_error}")
+                logger.error(
+                    f"Error linking attributes for variant {variant.onec_id}: "
+                    f"{attr_error}"
+                )
                 self.stats["errors"] += 1
 
         self.stats["variants_updated"] += 1
@@ -777,7 +808,10 @@ class VariantImportProcessor:
                 try:
                     self._link_variant_attributes(variant, characteristics)
                 except Exception as attr_error:
-                    logger.error(f"Error linking attributes for new variant {variant.onec_id}: " f"{attr_error}")
+                    logger.error(
+                        f"Error linking attributes for new variant {variant.onec_id}: "
+                        f"{attr_error}"
+                    )
                     self.stats["errors"] += 1
 
             return variant
@@ -827,7 +861,9 @@ class VariantImportProcessor:
                 # Нормализация пути (убираем import_files/ если есть)
                 normalized_path = normalize_image_path(image_path)
                 source_path = Path(base_dir) / normalized_path
-                saved_path = self._save_image_if_not_exists(source_path, normalized_path, "variants")
+                saved_path = self._save_image_if_not_exists(
+                    source_path, normalized_path, "variants"
+                )
 
                 if saved_path:
                     saved_filename = Path(saved_path).name
@@ -876,7 +912,9 @@ class VariantImportProcessor:
         logger.info(f"Found {count} products without variants")
 
         if count == 0:
-            logger.info("No products without variants found, skipping default variant creation")
+            logger.info(
+                "No products without variants found, skipping default variant creation"
+            )
             return 0
 
         default_variants: list[ProductVariant] = []
@@ -904,13 +942,16 @@ class VariantImportProcessor:
             default_variants.append(variant)
 
             logger.info(
-                f"Creating default variant for product: {product.name} " f"(onec_id={product.onec_id}, sku={sku})"
+                f"Creating default variant for product: {product.name} "
+                f"(onec_id={product.onec_id}, sku={sku})"
             )
 
             # Batch processing (NFR4)
             if len(default_variants) >= self.batch_size:
                 with transaction.atomic():
-                    ProductVariant.objects.bulk_create(default_variants, ignore_conflicts=True)
+                    ProductVariant.objects.bulk_create(
+                        default_variants, ignore_conflicts=True
+                    )
                 batch_count += len(default_variants)
                 logger.info(f"Processed {batch_count} default variants")
                 default_variants = []
@@ -918,7 +959,9 @@ class VariantImportProcessor:
         # Сохранение оставшихся
         if default_variants:
             with transaction.atomic():
-                ProductVariant.objects.bulk_create(default_variants, ignore_conflicts=True)
+                ProductVariant.objects.bulk_create(
+                    default_variants, ignore_conflicts=True
+                )
             batch_count += len(default_variants)
 
         self.stats["default_variants_created"] = batch_count
@@ -951,7 +994,9 @@ class VariantImportProcessor:
             variant = self._get_variant_by_onec_id(onec_id)
             if not variant:
                 if onec_id not in self._missing_variants_logged:
-                    logger.warning(f"ProductVariant not found for price update: {onec_id}")
+                    logger.warning(
+                        f"ProductVariant not found for price update: {onec_id}"
+                    )
                     self._missing_variants_logged.add(onec_id)
                 self.stats["warnings"] += 1
                 return False
@@ -968,7 +1013,9 @@ class VariantImportProcessor:
                     continue
 
                 # Находим маппинг типа цены
-                price_type = PriceType.objects.filter(onec_id=price_type_id, is_active=True).first()
+                price_type = PriceType.objects.filter(
+                    onec_id=price_type_id, is_active=True
+                ).first()
 
                 if price_type:
                     field_name = price_type.product_field
@@ -1028,7 +1075,9 @@ class VariantImportProcessor:
             variant = self._get_variant_by_onec_id(onec_id)
             if not variant:
                 if onec_id not in self._missing_variants_logged:
-                    logger.warning(f"ProductVariant not found for stock update: {onec_id}")
+                    logger.warning(
+                        f"ProductVariant not found for stock update: {onec_id}"
+                    )
                     self._missing_variants_logged.add(onec_id)
                 self.stats["warnings"] += 1
                 return False
@@ -1060,7 +1109,9 @@ class VariantImportProcessor:
     # Story 14.4: Link attributes to ProductVariant
     # ========================================================================
 
-    def _link_variant_attributes(self, variant: Any, characteristics: list[dict[str, str]]) -> None:
+    def _link_variant_attributes(
+        self, variant: Any, characteristics: list[dict[str, str]]
+    ) -> None:
         """
         Связывание атрибутов с ProductVariant по normalized name/value (offers.xml).
 
@@ -1076,7 +1127,10 @@ class VariantImportProcessor:
             - Update stats: attributes_linked, attributes_missing
         """
         from apps.products.models import Attribute, AttributeValue
-        from apps.products.utils.attributes import normalize_attribute_name, normalize_attribute_value
+        from apps.products.utils.attributes import (
+            normalize_attribute_name,
+            normalize_attribute_value,
+        )
 
         if not characteristics:
             return
@@ -1095,7 +1149,9 @@ class VariantImportProcessor:
             normalized_value = normalize_attribute_value(char_value)
 
             # Поиск Attribute по normalized_name (БЕЗ фильтрации по is_active)
-            attribute = Attribute.objects.filter(normalized_name=normalized_name).first()
+            attribute = Attribute.objects.filter(
+                normalized_name=normalized_name
+            ).first()
 
             if not attribute:
                 logger.warning(
@@ -1164,7 +1220,9 @@ class VariantImportProcessor:
         if parent_id in self._product_cache:
             return self._product_cache[parent_id]
 
-        product = Product.objects.filter(models.Q(parent_onec_id=parent_id) | models.Q(onec_id=parent_id)).first()
+        product = Product.objects.filter(
+            models.Q(parent_onec_id=parent_id) | models.Q(onec_id=parent_id)
+        ).first()
 
         if product:
             self._product_cache[parent_id] = product
@@ -1196,12 +1254,17 @@ class VariantImportProcessor:
         from apps.products.models import Brand, Brand1CMapping
 
         if brand_id:
-            mapping = Brand1CMapping.objects.select_related("brand").filter(onec_id=brand_id).first()
+            mapping = (
+                Brand1CMapping.objects.select_related("brand")
+                .filter(onec_id=brand_id)
+                .first()
+            )
             if mapping and mapping.brand:
                 return mapping.brand
 
             logger.warning(
-                f"Brand1CMapping not found for onec_id={brand_id}, " f"product={parent_id}, using 'No Brand' fallback"
+                f"Brand1CMapping not found for onec_id={brand_id}, "
+                f"product={parent_id}, using 'No Brand' fallback"
             )
 
         return self._get_no_brand()
@@ -1210,7 +1273,9 @@ class VariantImportProcessor:
         """Возвращает fallback бренд 'No Brand'"""
         from apps.products.models import Brand
 
-        brand, _ = Brand.objects.get_or_create(name="No Brand", defaults={"slug": "no-brand", "is_active": True})
+        brand, _ = Brand.objects.get_or_create(
+            name="No Brand", defaults={"slug": "no-brand", "is_active": True}
+        )
         return brand
 
     def _get_or_create_category(self, goods_data: dict[str, Any]) -> Any:
@@ -1300,10 +1365,14 @@ class VariantImportProcessor:
         stats["updated_variants_ids"] = self.updated_variants[:limit]
 
         if len(self.updated_products) > limit:
-            stats["updated_products_ids"].append(f"...and {len(self.updated_products) - limit} more")
+            stats["updated_products_ids"].append(
+                f"...and {len(self.updated_products) - limit} more"
+            )
 
         if len(self.updated_variants) > limit:
-            stats["updated_variants_ids"].append(f"...and {len(self.updated_variants) - limit} more")
+            stats["updated_variants_ids"].append(
+                f"...and {len(self.updated_variants) - limit} more"
+            )
 
         return stats
 
@@ -1500,14 +1569,18 @@ class VariantImportProcessor:
                 onec_name = brand_data.get("name")
 
                 if not onec_id or not onec_name:
-                    logger.warning(f"Skipping brand with missing id or name: {brand_data}")
+                    logger.warning(
+                        f"Skipping brand with missing id or name: {brand_data}"
+                    )
                     continue
 
                 # Нормализуем название для поиска дубликатов
                 normalized = normalize_brand_name(onec_name)
 
                 # Проверяем существующий маппинг для этого onec_id
-                existing_mapping = Brand1CMapping.objects.filter(onec_id=onec_id).first()
+                existing_mapping = Brand1CMapping.objects.filter(
+                    onec_id=onec_id
+                ).first()
 
                 if existing_mapping:
                     # Маппинг уже существует - обновляем onec_name если изменилось
@@ -1529,7 +1602,9 @@ class VariantImportProcessor:
                     continue
 
                 # Ищем существующий бренд по normalized_name
-                existing_brand = Brand.objects.filter(normalized_name=normalized).first()
+                existing_brand = Brand.objects.filter(
+                    normalized_name=normalized
+                ).first()
 
                 if existing_brand:
                     # Бренд существует - создаём только маппинг (объединение дубликатов)
@@ -1655,15 +1730,23 @@ class VariantImportProcessor:
                 }
             )
             if len(self.updated_products) > 100:
-                self.stats["updated_products_ids"].append(f"...and {len(self.updated_products) - 100} more")
+                self.stats["updated_products_ids"].append(
+                    f"...and {len(self.updated_products) - 100} more"
+                )
             if len(self.updated_variants) > 100:
-                self.stats["updated_variants_ids"].append(f"...and {len(self.updated_variants) - 100} more")
+                self.stats["updated_variants_ids"].append(
+                    f"...and {len(self.updated_variants) - 100} more"
+                )
 
             session.report_details = self.stats
 
             timestamp = timezone.now().strftime("%Y-%m-%d %H:%M:%S")
-            status_display = dict(ImportSession.ImportStatus.choices).get(status, status)
-            completion_message = f"[{timestamp}] Импорт завершен со статусом: {status_display}\n"
+            status_display = dict(ImportSession.ImportStatus.choices).get(
+                status, status
+            )
+            completion_message = (
+                f"[{timestamp}] Импорт завершен со статусом: {status_display}\n"
+            )
             if error_message:
                 completion_message += f"[{timestamp}] Ошибка: {error_message}\n"
                 session.error_message = error_message
@@ -1671,7 +1754,9 @@ class VariantImportProcessor:
             session.report = (session.report or "") + completion_message
             session.save()
 
-            logger.info(f"Import session {self.session_id} finalized with status: {status}")
+            logger.info(
+                f"Import session {self.session_id} finalized with status: {status}"
+            )
             logger.info(f"Import stats: {self.stats}")
 
         except ImportSession.DoesNotExist:

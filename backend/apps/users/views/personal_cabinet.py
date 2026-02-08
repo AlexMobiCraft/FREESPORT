@@ -108,7 +108,9 @@ class UserDashboardView(APIView):
         return {
             "count": stats["orders_count"] or 0,
             "total_amount": (float(stats["total_sum"]) if stats["total_sum"] else None),
-            "avg_amount": (float(stats["average_amount"]) if stats["average_amount"] else None),
+            "avg_amount": (
+                float(stats["average_amount"]) if stats["average_amount"] else None
+            ),
         }
 
 
@@ -314,7 +316,9 @@ class CompanyView(APIView):
             serializer.save()
 
             # Синхронизируем company_name и tax_id в User
-            user.company_name = serializer.validated_data.get("legal_name", user.company_name)
+            user.company_name = serializer.validated_data.get(
+                "legal_name", user.company_name
+            )
             user.tax_id = serializer.validated_data.get("tax_id", user.tax_id)
             user.save(update_fields=["company_name", "tax_id"])
 

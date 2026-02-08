@@ -21,7 +21,12 @@ import pytest
 
 from apps.orders.models import Order, OrderItem
 from apps.orders.services import OrderExportService
-from tests.factories import ProductFactory, ProductVariantFactory, UserFactory, get_unique_suffix
+from tests.factories import (
+    ProductFactory,
+    ProductVariantFactory,
+    UserFactory,
+    get_unique_suffix,
+)
 
 
 @pytest.mark.unit
@@ -904,7 +909,9 @@ class TestOrderExportServiceRefactoring:
         service = OrderExportService()
         queryset = Order.objects.filter(id=order.id)
 
-        with patch("apps.orders.services.order_export.timezone.now", return_value=fixed_time):
+        with patch(
+            "apps.orders.services.order_export.timezone.now", return_value=fixed_time
+        ):
             regular_xml = service.generate_xml(queryset)
             streaming_xml = "".join(service.generate_xml_streaming(queryset))
 
@@ -937,7 +944,10 @@ class TestOrderExportServiceRefactoring:
         while using the more memory-efficient streaming approach internally.
         """
         # Arrange - Create multiple orders to test efficiency
-        users = [UserFactory(email=f"efficiency-{i}-{get_unique_suffix()}@example.com") for i in range(2)]
+        users = [
+            UserFactory(email=f"efficiency-{i}-{get_unique_suffix()}@example.com")
+            for i in range(2)
+        ]
         orders = []
         for i, user in enumerate(users):
             variant = ProductVariantFactory(
@@ -1160,7 +1170,10 @@ class TestOrderExportServicePerformance:
         from django.test.utils import override_settings
 
         # Arrange - Create multiple orders with items
-        users = [UserFactory(email=f"user-perf-{i}-{get_unique_suffix()}@example.com") for i in range(3)]
+        users = [
+            UserFactory(email=f"user-perf-{i}-{get_unique_suffix()}@example.com")
+            for i in range(3)
+        ]
         orders = []
         for i, user in enumerate(users):
             variant = ProductVariantFactory(
@@ -1193,7 +1206,9 @@ class TestOrderExportServicePerformance:
         # Reset query count and use prefetched queryset
         with override_settings(DEBUG=True):
             connection.queries_log.clear()
-            queryset = Order.objects.filter(id__in=order_ids).prefetch_related("items__variant", "user")
+            queryset = Order.objects.filter(id__in=order_ids).prefetch_related(
+                "items__variant", "user"
+            )
             xml_str = service.generate_xml(queryset)
 
             # Assert - Should be valid XML
@@ -1203,7 +1218,9 @@ class TestOrderExportServicePerformance:
             assert len(documents) == 3
 
             # Check query count - should be minimal due to prefetch
-            # With prefetch, we expect: 1 for orders + 1 for items + 1 for variants + 1 for users = ~4 queries
+            # With prefetch, we expect:
+            # 1 for orders + 1 for items + 1 for variants + 1 for users
+            # = ~4 queries
             # Without prefetch, it would be 1 + N*additional queries per order
             query_count = len(connection.queries)
             assert query_count <= 6, f"Too many queries: {query_count} (expected <= 6)"
@@ -1249,7 +1266,9 @@ class TestOrderExportServiceStreaming:
 
         # Act
         service = OrderExportService()
-        xml_parts = list(service.generate_xml_streaming(Order.objects.filter(id=order.id)))
+        xml_parts = list(
+            service.generate_xml_streaming(Order.objects.filter(id=order.id))
+        )
         xml_str = "".join(xml_parts)
 
         # Assert - Should be valid XML

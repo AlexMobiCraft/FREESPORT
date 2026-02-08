@@ -25,7 +25,9 @@ class Banner(models.Model):
     # Поля контента
     title = cast(
         str,
-        models.CharField("Заголовок", max_length=200, help_text="Основной заголовок баннера"),
+        models.CharField(
+            "Заголовок", max_length=200, help_text="Основной заголовок баннера"
+        ),
     )
     subtitle = cast(
         str,
@@ -63,7 +65,9 @@ class Banner(models.Model):
     )
     cta_link = cast(
         str,
-        models.CharField("Ссылка кнопки", max_length=200, help_text="URL для перехода по клику"),
+        models.CharField(
+            "Ссылка кнопки", max_length=200, help_text="URL для перехода по клику"
+        ),
     )
 
     # Поля таргетинга
@@ -145,7 +149,9 @@ class Banner(models.Model):
     )
 
     # Метаданные
-    created_at = cast(datetime, models.DateTimeField("Дата создания", auto_now_add=True))
+    created_at = cast(
+        datetime, models.DateTimeField("Дата создания", auto_now_add=True)
+    )
     updated_at = cast(datetime, models.DateTimeField("Дата обновления", auto_now=True))
 
     class Meta:
@@ -198,9 +204,9 @@ class Banner(models.Model):
         queryset = cls.objects.filter(is_active=True)
 
         # Фильтрация по датам
-        queryset = queryset.filter(Q(start_date__isnull=True) | Q(start_date__lte=now)).filter(
-            Q(end_date__isnull=True) | Q(end_date__gte=now)
-        )
+        queryset = queryset.filter(
+            Q(start_date__isnull=True) | Q(start_date__lte=now)
+        ).filter(Q(end_date__isnull=True) | Q(end_date__gte=now))
 
         # Фильтрация по роли пользователя
         if user is None or not user.is_authenticated:

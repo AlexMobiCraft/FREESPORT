@@ -31,7 +31,9 @@ def get_unique_order_number():
     _unique_counter += 1
     date_part = timezone.now().strftime("%y%m%d")
     unique_part = f"{_unique_counter:04d}{uuid.uuid4().hex[:3].upper()}"
-    timestamp = int(time.time() * 1000) % 100000  # последние 5 цифр microsecond timestamp
+    timestamp = (
+        int(time.time() * 1000) % 100000
+    )  # последние 5 цифр microsecond timestamp
     return f"FS-{date_part}-{unique_part}-{timestamp}"
 
 
@@ -56,7 +58,9 @@ def create_factories():
         role = "retail"
         is_active = True
         is_verified = False
-        phone = factory.LazyFunction(lambda: f"+7{random.randint(9000000000, 9999999999)}")
+        phone = factory.LazyFunction(
+            lambda: f"+7{random.randint(9000000000, 9999999999)}"
+        )
         company_name = ""
         tax_id = ""
 
@@ -73,9 +77,13 @@ def create_factories():
         class Meta:
             model = "users.Company"
 
-        user = factory.SubFactory(UserFactory, role="wholesale_level1", is_verified=True)
+        user = factory.SubFactory(
+            UserFactory, role="wholesale_level1", is_verified=True
+        )
         legal_name = factory.Faker("company", locale="ru_RU")
-        tax_id = factory.LazyFunction(lambda: f"{123456789000 + int(time.time()) % 999999:012d}")
+        tax_id = factory.LazyFunction(
+            lambda: f"{123456789000 + int(time.time()) % 999999:012d}"
+        )
         kpp = factory.Sequence(lambda n: f"{123456000 + n:09d}")
         legal_address = factory.Faker("address", locale="ru_RU")
         bank_name = factory.Faker("company", locale="ru_RU")
@@ -90,7 +98,9 @@ def create_factories():
 
         user = factory.SubFactory(UserFactory)
         address_type = "shipping"
-        full_name = factory.LazyAttribute(lambda obj: f"{obj.user.first_name} {obj.user.last_name}")
+        full_name = factory.LazyAttribute(
+            lambda obj: f"{obj.user.first_name} {obj.user.last_name}"
+        )
         phone = "+79001234567"
         city = factory.Faker("city", locale="ru_RU")
         street = factory.Faker("street_name", locale="ru_RU")
@@ -117,7 +127,9 @@ def create_factories():
             model = "products.Category"
 
         name = factory.Faker("word", locale="ru_RU")
-        slug = factory.LazyAttribute(lambda obj: f"{obj.name.lower()}-{get_unique_suffix()}")
+        slug = factory.LazyAttribute(
+            lambda obj: f"{obj.name.lower()}-{get_unique_suffix()}"
+        )
         description = factory.Faker("text", max_nb_chars=200, locale="ru_RU")
         is_active = True
         sort_order = factory.Sequence(lambda n: n)
@@ -232,12 +244,24 @@ def create_factories():
         onec_id = factory.LazyFunction(lambda: f"1C-VAR-{get_unique_suffix()}")
 
         # Цены
-        retail_price = factory.Faker("pydecimal", left_digits=4, right_digits=2, positive=True)
-        opt1_price = factory.LazyAttribute(lambda obj: obj.retail_price * Decimal("0.9"))
-        opt2_price = factory.LazyAttribute(lambda obj: obj.retail_price * Decimal("0.8"))
-        opt3_price = factory.LazyAttribute(lambda obj: obj.retail_price * Decimal("0.7"))
-        trainer_price = factory.LazyAttribute(lambda obj: obj.retail_price * Decimal("0.85"))
-        federation_price = factory.LazyAttribute(lambda obj: obj.retail_price * Decimal("0.75"))
+        retail_price = factory.Faker(
+            "pydecimal", left_digits=4, right_digits=2, positive=True
+        )
+        opt1_price = factory.LazyAttribute(
+            lambda obj: obj.retail_price * Decimal("0.9")
+        )
+        opt2_price = factory.LazyAttribute(
+            lambda obj: obj.retail_price * Decimal("0.8")
+        )
+        opt3_price = factory.LazyAttribute(
+            lambda obj: obj.retail_price * Decimal("0.7")
+        )
+        trainer_price = factory.LazyAttribute(
+            lambda obj: obj.retail_price * Decimal("0.85")
+        )
+        federation_price = factory.LazyAttribute(
+            lambda obj: obj.retail_price * Decimal("0.75")
+        )
 
         stock_quantity = 100
         is_active = True
@@ -302,7 +326,9 @@ def create_factories():
         user = factory.SubFactory(UserFactory)
         order_number = factory.LazyFunction(get_unique_order_number)
         status = "pending"
-        total_amount = factory.Faker("pydecimal", left_digits=5, right_digits=2, positive=True)
+        total_amount = factory.Faker(
+            "pydecimal", left_digits=5, right_digits=2, positive=True
+        )
         delivery_address = factory.Faker("address", locale="ru_RU")
         delivery_method = "courier"
         payment_method = "card"
@@ -318,8 +344,12 @@ def create_factories():
         product = factory.SubFactory(ProductFactory)
         variant = factory.SubFactory(ProductVariantFactory)
         quantity = factory.Faker("random_int", min=1, max=10)
-        unit_price = factory.Faker("pydecimal", left_digits=4, right_digits=2, positive=True)
-        product_name = factory.LazyAttribute(lambda obj: obj.product.name if obj.product else "Test Product")
+        unit_price = factory.Faker(
+            "pydecimal", left_digits=4, right_digits=2, positive=True
+        )
+        product_name = factory.LazyAttribute(
+            lambda obj: obj.product.name if obj.product else "Test Product"
+        )
         product_sku = factory.LazyAttribute(
             lambda obj: obj.variant.sku if obj.variant else f"SKU-{get_unique_suffix()}"
         )
@@ -557,7 +587,9 @@ def admin_user(db, user_factory):
     """
     Пользователь-администратор
     """
-    return user_factory.create(role="admin", is_staff=True, is_superuser=True, is_verified=True)
+    return user_factory.create(
+        role="admin", is_staff=True, is_superuser=True, is_verified=True
+    )
 
 
 @pytest.fixture
@@ -626,7 +658,9 @@ def sample_image():
     img.save(img_io, format="PNG")
     img_io.seek(0)
 
-    return InMemoryUploadedFile(img_io, None, "test.png", "image/png", len(img_io.getvalue()), None)
+    return InMemoryUploadedFile(
+        img_io, None, "test.png", "image/png", len(img_io.getvalue()), None
+    )
 
 
 @pytest.fixture

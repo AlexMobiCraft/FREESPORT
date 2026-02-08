@@ -55,7 +55,8 @@ def send_admin_verification_email(self: Any, user_id: int) -> bool:
 
         if not admin_emails:
             logger.warning(
-                "No recipients configured for verification notifications. " "Skipping notification for user %s",
+                "No recipients configured for verification notifications. "
+                "Skipping notification for user %s",
                 user_id,
                 extra={
                     "user_id": user_id,
@@ -75,12 +76,19 @@ def send_admin_verification_email(self: Any, user_id: int) -> bool:
             "admin_url": f"{settings.SITE_URL}/admin/users/user/{user.id}/change/",
         }
 
-        html_message = render_to_string("emails/admin_new_verification_request.html", context)
-        plain_message = render_to_string("emails/admin_new_verification_request.txt", context)
+        html_message = render_to_string(
+            "emails/admin_new_verification_request.html", context
+        )
+        plain_message = render_to_string(
+            "emails/admin_new_verification_request.txt", context
+        )
 
         # Отправляем email
         send_mail(
-            subject=(f"[FREESPORT] Новая заявка: {user.get_role_display()} - " f"{user.company_name}"),
+            subject=(
+                f"[FREESPORT] Новая заявка: {user.get_role_display()} - "
+                f"{user.company_name}"
+            ),
             message=plain_message,
             from_email=None,  # Uses DEFAULT_FROM_EMAIL
             recipient_list=admin_emails,
@@ -148,8 +156,12 @@ def send_user_pending_email(self: Any, user_id: int) -> bool:
             "company_name": user.company_name,
         }
 
-        html_message = render_to_string("emails/user_registration_pending.html", context)
-        plain_message = render_to_string("emails/user_registration_pending.txt", context)
+        html_message = render_to_string(
+            "emails/user_registration_pending.html", context
+        )
+        plain_message = render_to_string(
+            "emails/user_registration_pending.txt", context
+        )
 
         send_mail(
             subject="[FREESPORT] Ваша заявка принята",
@@ -203,7 +215,9 @@ def monitor_pending_verification_queue() -> dict:
     threshold = 10
     time_window = timezone.now() - timedelta(hours=24)
 
-    pending_count = User.objects.filter(verification_status="pending", created_at__gte=time_window).count()
+    pending_count = User.objects.filter(
+        verification_status="pending", created_at__gte=time_window
+    ).count()
 
     alert_sent = False
 
@@ -229,7 +243,9 @@ def monitor_pending_verification_queue() -> dict:
 
         if admin_emails:
             send_mail(
-                subject=(f"⚠️ [FREESPORT] Alert: {pending_count} заявок ожидают верификации"),
+                subject=(
+                    f"⚠️ [FREESPORT] Alert: {pending_count} заявок ожидают верификации"
+                ),
                 message=f"За последние 24 часа поступило {pending_count} заявок "
                 f"на верификацию B2B партнеров.\n\n"
                 f"Пороговое значение: {threshold}\n\n"

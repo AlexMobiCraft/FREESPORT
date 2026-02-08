@@ -15,7 +15,12 @@ from django.utils import timezone
 from rest_framework.response import Response
 from rest_framework.test import APIClient
 
-from tests.conftest import OrderFactory, OrderItemFactory, ProductVariantFactory, UserFactory
+from tests.conftest import (
+    OrderFactory,
+    OrderItemFactory,
+    ProductVariantFactory,
+    UserFactory,
+)
 from tests.integration.test_orders_xml_mode_file import _build_orders_xml
 from tests.utils import parse_commerceml_response, perform_1c_checkauth
 

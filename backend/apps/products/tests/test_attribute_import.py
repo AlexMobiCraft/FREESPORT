@@ -218,7 +218,9 @@ class TestAttributeImportServiceIntegration:
         </КоммерческаяИнформация>
         """
 
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".xml", delete=False, encoding="utf-8") as tmp_file:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".xml", delete=False, encoding="utf-8"
+        ) as tmp_file:
             tmp_file.write(xml_data)
             tmp_file_path = tmp_file.name
 
@@ -267,7 +269,9 @@ class TestAttributeImportServiceIntegration:
         </КоммерческаяИнформация>
         """
 
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".xml", delete=False, encoding="utf-8") as tmp_file:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".xml", delete=False, encoding="utf-8"
+        ) as tmp_file:
             tmp_file.write(xml_data)
             tmp_file_path = tmp_file.name
 
@@ -275,19 +279,25 @@ class TestAttributeImportServiceIntegration:
             service1 = AttributeImportService()
             service1.import_from_file(tmp_file_path)
 
-            count_after_first = Attribute.objects.filter(onec_mappings__onec_id="test-idempotent-001").count()
+            count_after_first = Attribute.objects.filter(
+                onec_mappings__onec_id="test-idempotent-001"
+            ).count()
             assert count_after_first == 1
 
             # Второй импорт того же файла
             service2 = AttributeImportService()
             service2.import_from_file(tmp_file_path)
 
-            count_after_second = Attribute.objects.filter(onec_mappings__onec_id="test-idempotent-001").count()
+            count_after_second = Attribute.objects.filter(
+                onec_mappings__onec_id="test-idempotent-001"
+            ).count()
             assert count_after_second == 1  # Не должно быть дубликатов
 
             # Проверяем статистику второго импорта
             stats2 = service2.get_stats()
-            assert stats2.get("attributes_updated", 0) == 0  # Service doesn't count "updated" if no changes
+            assert (
+                stats2.get("attributes_updated", 0) == 0
+            )  # Service doesn't count "updated" if no changes
             assert stats2["attributes_deduplicated"] == 0
             assert stats2["attributes_created"] == 0
 
@@ -313,7 +323,9 @@ class TestAttributeImportServiceIntegration:
         </КоммерческаяИнформация>
         """
 
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".xml", delete=False, encoding="utf-8") as tmp_file:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".xml", delete=False, encoding="utf-8"
+        ) as tmp_file:
             tmp_file.write(xml_data_1)
             tmp_file_path = tmp_file.name
 
@@ -336,7 +348,9 @@ class TestAttributeImportServiceIntegration:
             </КоммерческаяИнформация>
             """
 
-            with tempfile.NamedTemporaryFile(mode="w", suffix=".xml", delete=False, encoding="utf-8") as tmp_file2:
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".xml", delete=False, encoding="utf-8"
+            ) as tmp_file2:
                 tmp_file2.write(xml_data_2)
                 tmp_file_path2 = tmp_file2.name
 
@@ -349,7 +363,9 @@ class TestAttributeImportServiceIntegration:
             assert attribute.type == "Строка"
 
             # Проверяем что запись одна (не создано дубликатов)
-            count = Attribute.objects.filter(onec_mappings__onec_id="test-update-001").count()
+            count = Attribute.objects.filter(
+                onec_mappings__onec_id="test-update-001"
+            ).count()
             assert count == 1
 
             Path(tmp_file_path2).unlink()
@@ -399,8 +415,12 @@ class TestAttributeImportServiceIntegration:
             stats = service.import_from_directory(tmp_dir)
 
             # Проверяем что оба атрибута созданы
-            assert Attribute.objects.filter(onec_mappings__onec_id="test-dir-001").exists()
-            assert Attribute.objects.filter(onec_mappings__onec_id="test-dir-002").exists()
+            assert Attribute.objects.filter(
+                onec_mappings__onec_id="test-dir-001"
+            ).exists()
+            assert Attribute.objects.filter(
+                onec_mappings__onec_id="test-dir-002"
+            ).exists()
 
             # Проверяем статистику
             assert stats["attributes_created"] == 2
@@ -433,16 +453,24 @@ class TestAttributeAdminUI:
 
         # Создаем атрибут с несколькими значениями
         attribute = Attribute.objects.create(name="Тестовый атрибут", type="Справочник")
-        Attribute1CMapping.objects.create(attribute=attribute, onec_id="test-admin-001", onec_name="Тест")
+        Attribute1CMapping.objects.create(
+            attribute=attribute, onec_id="test-admin-001", onec_name="Тест"
+        )
 
         val1 = AttributeValue.objects.create(attribute=attribute, value="Значение 1")
-        AttributeValue1CMapping.objects.create(attribute_value=val1, onec_id="test-admin-val-001")
+        AttributeValue1CMapping.objects.create(
+            attribute_value=val1, onec_id="test-admin-val-001"
+        )
 
         val2 = AttributeValue.objects.create(attribute=attribute, value="Значение 2")
-        AttributeValue1CMapping.objects.create(attribute_value=val2, onec_id="test-admin-val-002")
+        AttributeValue1CMapping.objects.create(
+            attribute_value=val2, onec_id="test-admin-val-002"
+        )
 
         val3 = AttributeValue.objects.create(attribute=attribute, value="Значение 3")
-        AttributeValue1CMapping.objects.create(attribute_value=val3, onec_id="test-admin-val-003")
+        AttributeValue1CMapping.objects.create(
+            attribute_value=val3, onec_id="test-admin-val-003"
+        )
 
         # Создаем инстанс AdminSite и AttributeAdmin
         site = AdminSite()

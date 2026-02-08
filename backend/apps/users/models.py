@@ -18,7 +18,9 @@ class UserManager(BaseUserManager["User"]):
     Кастомный менеджер для модели User с email аутентификацией
     """
 
-    def create_user(self, email: str, password: str | None = None, **extra_fields: Any) -> "User":
+    def create_user(
+        self, email: str, password: str | None = None, **extra_fields: Any
+    ) -> "User":
         """Создание обычного пользователя"""
         if not email:
             raise ValueError("Email обязателен для создания пользователя")
@@ -29,7 +31,9 @@ class UserManager(BaseUserManager["User"]):
         user.save(using=self._db)
         return user
 
-    def create_superuser(self, email: str, password: str | None = None, **extra_fields: Any) -> "User":
+    def create_superuser(
+        self, email: str, password: str | None = None, **extra_fields: Any
+    ) -> "User":
         """Создание суперпользователя"""
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)
@@ -77,7 +81,9 @@ class User(AbstractUser):
 
     # Убираем username, используем email для авторизации
     username = None  # type: ignore[assignment]
-    email: models.EmailField = models.EmailField("Email адрес", unique=True, blank=True, null=True)
+    email: models.EmailField = models.EmailField(
+        "Email адрес", unique=True, blank=True, null=True
+    )
 
     # Дополнительные поля
     role = models.CharField(
@@ -106,7 +112,9 @@ class User(AbstractUser):
         help_text="Для B2B пользователей",
     )
 
-    tax_id = models.CharField("ИНН", max_length=12, blank=True, help_text="ИНН для B2B пользователей")
+    tax_id = models.CharField(
+        "ИНН", max_length=12, blank=True, help_text="ИНН для B2B пользователей"
+    )
 
     # Статус верификации для B2B
     is_verified = models.BooleanField(
@@ -290,7 +298,9 @@ class Address(models.Model):
         verbose_name="Пользователь",
     )
 
-    address_type = models.CharField("Тип адреса", max_length=10, choices=ADDRESS_TYPES, default="shipping")
+    address_type = models.CharField(
+        "Тип адреса", max_length=10, choices=ADDRESS_TYPES, default="shipping"
+    )
 
     full_name = models.CharField("Полное имя получателя", max_length=100)
     phone = models.CharField("Телефон", max_length=12)
@@ -322,9 +332,9 @@ class Address(models.Model):
         if self.is_default and hasattr(self, "user") and self.user:
             # Сбросить флаг is_default у всех других адресов
             # этого же типа для этого пользователя
-            Address.objects.filter(user=self.user, address_type=self.address_type).exclude(pk=self.pk).update(
-                is_default=False
-            )
+            Address.objects.filter(
+                user=self.user, address_type=self.address_type
+            ).exclude(pk=self.pk).update(is_default=False)
 
         # Сохраняем объект
         super().save(*args, **kwargs)

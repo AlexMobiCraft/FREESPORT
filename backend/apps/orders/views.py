@@ -10,7 +10,11 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from .models import Order
-from .serializers import OrderCreateSerializer, OrderDetailSerializer, OrderListSerializer
+from .serializers import (
+    OrderCreateSerializer,
+    OrderDetailSerializer,
+    OrderListSerializer,
+)
 
 
 class OrderViewSet(viewsets.ModelViewSet):
@@ -100,7 +104,9 @@ class OrderViewSet(viewsets.ModelViewSet):
     )
     def create(self, request, *args, **kwargs):
         """Создать новый заказ из корзины"""
-        serializer = self.get_serializer(data=request.data, context={"request": request})
+        serializer = self.get_serializer(
+            data=request.data, context={"request": request}
+        )
         serializer.is_valid(raise_exception=True)
         order = serializer.save()
 
@@ -110,7 +116,9 @@ class OrderViewSet(viewsets.ModelViewSet):
 
     @extend_schema(
         summary="Отмена заказа",
-        description=("Отмена заказа пользователем (только для статусов pending, " "confirmed)"),
+        description=(
+            "Отмена заказа пользователем (только для статусов pending, " "confirmed)"
+        ),
         responses={
             200: OrderDetailSerializer,
             400: OpenApiResponse(
@@ -118,7 +126,9 @@ class OrderViewSet(viewsets.ModelViewSet):
                 examples=[
                     OpenApiExample(
                         "Неверный статус",
-                        value={"error": "Заказ не может быть отменен в текущем статусе"},
+                        value={
+                            "error": "Заказ не может быть отменен в текущем статусе"
+                        },
                         media_type="application/json",
                     )
                 ],
@@ -144,7 +154,12 @@ class OrderViewSet(viewsets.ModelViewSet):
         if order.status not in ["pending", "confirmed"]:
             order_identifier = f" {pk}" if pk is not None else ""
             return Response(
-                {"error": (f"Заказ{order_identifier} не может быть отменен " f"в текущем статусе")},
+                {
+                    "error": (
+                        f"Заказ{order_identifier} не может быть отменен "
+                        f"в текущем статусе"
+                    )
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 

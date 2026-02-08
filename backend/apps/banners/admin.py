@@ -64,7 +64,9 @@ class BannerAdmin(admin.ModelAdmin):
                     "show_to_wholesale",
                     "show_to_federation",
                 ),
-                "description": ("Выберите целевые группы пользователей для показа баннера"),
+                "description": (
+                    "Выберите целевые группы пользователей для показа баннера"
+                ),
             },
         ),
         (

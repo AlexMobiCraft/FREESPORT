@@ -61,7 +61,8 @@ class ImportOrchestratorService:
         # If session is IN_PROGRESS, do NOT touch import_dir — another import is running
         if session.status == ImportSession.ImportStatus.IN_PROGRESS:
             logger.info(
-                f"[IMPORT] Session {session.pk} is IN_PROGRESS, " "returning success without modifying import_dir"
+                f"[IMPORT] Session {session.pk} is IN_PROGRESS, "
+                "returning success without modifying import_dir"
             )
             return True, "already_in_progress"
 
@@ -88,7 +89,10 @@ class ImportOrchestratorService:
             logger.warning("[IMPORT] Request rejected: No identifier found.")
             return None
 
-        logger.info(f"[IMPORT] Received mode=import for sessid={self.sessid}, " f"filename={self.filename}")
+        logger.info(
+            f"[IMPORT] Received mode=import for sessid={self.sessid}, "
+            f"filename={self.filename}"
+        )
 
         with transaction.atomic():
             # Lazy Expiration: Mark sessions older than 2 hours as FAILED
@@ -122,9 +126,13 @@ class ImportOrchestratorService:
 
             if active_session:
                 if active_session.status == ImportSession.ImportStatus.IN_PROGRESS:
-                    logger.info(f"[IMPORT] Session {active_session.pk} is IN_PROGRESS, " "skipping duplicate")
+                    logger.info(
+                        f"[IMPORT] Session {active_session.pk} is IN_PROGRESS, "
+                        "skipping duplicate"
+                    )
                     active_session.report += (
-                        f"[{timezone.now()}] mode=import для {self.filename} " "- сессия уже обрабатывается\n"
+                        f"[{timezone.now()}] mode=import для {self.filename} "
+                        "- сессия уже обрабатывается\n"
                     )
                     active_session.save(update_fields=["report", "updated_at"])
                     # Return a sentinel to indicate "already running" — caller treats as success
@@ -132,20 +140,28 @@ class ImportOrchestratorService:
 
                 session = active_session
                 logger.info(f"[IMPORT] Using existing PENDING session {session.pk}")
-                session.report += f"[{timezone.now()}] Получен mode=import для {self.filename}, " "запускаем импорт\n"
+                session.report += (
+                    f"[{timezone.now()}] Получен mode=import для {self.filename}, "
+                    "запускаем импорт\n"
+                )
                 session.save(update_fields=["report", "updated_at"])
             else:
                 session = ImportSession.objects.create(
                     session_key=self.sessid,
                     status=ImportSession.ImportStatus.PENDING,
                     import_type=ImportSession.ImportType.CATALOG,
-                    report=(f"[{timezone.now()}] Сессия создана по mode=import. " f"Файл: {self.filename}\n"),
+                    report=(
+                        f"[{timezone.now()}] Сессия создана по mode=import. "
+                        f"Файл: {self.filename}\n"
+                    ),
                 )
                 logger.info(f"[IMPORT] Created NEW session id={session.pk}")
 
         return session
 
-    def _transfer_files(self, session: "ImportSession", label: str = "IMPORT") -> tuple[bool, str]:
+    def _transfer_files(
+        self, session: "ImportSession", label: str = "IMPORT"
+    ) -> tuple[bool, str]:
         """Transfer files from temp to import directory.
 
         Args:
@@ -174,7 +190,10 @@ class ImportOrchestratorService:
                     failed_files.append(f)
 
             logger.info(f"[{label}] Transferred {transferred_count}/{len(files)} files")
-            session.report += f"[{timezone.now()}] Перенесено файлов: " f"{transferred_count}/{len(files)}\n"
+            session.report += (
+                f"[{timezone.now()}] Перенесено файлов: "
+                f"{transferred_count}/{len(files)}\n"
+            )
             session.save(update_fields=["report"])
 
             if failed_files:
@@ -206,11 +225,19 @@ class ImportOrchestratorService:
                         # Zip Slip protection
                         for member in unpacked_files:
                             member_path = (self.import_dir / member).resolve()
-                            if not str(member_path).startswith(str(self.import_dir.resolve())):
-                                raise ValueError(f"Zip Slip detected: {member} resolves " "outside import dir")
+                            if not str(member_path).startswith(
+                                str(self.import_dir.resolve())
+                            ):
+                                raise ValueError(
+                                    f"Zip Slip detected: {member} resolves "
+                                    "outside import dir"
+                                )
                         zip_ref.extractall(self.import_dir)
 
-                    logger.info(f"[IMPORT] Unpacked: {zf.name} " f"({len(unpacked_files)} files)")
+                    logger.info(
+                        f"[IMPORT] Unpacked: {zf.name} "
+                        f"({len(unpacked_files)} files)"
+                    )
 
                     routed_count = self._route_unpacked_files(unpacked_files)
 
@@ -227,7 +254,10 @@ class ImportOrchestratorService:
 
                 except Exception as unzip_err:
                     logger.error(f"[IMPORT] Failed to unpack {zf.name}: {unzip_err}")
-                    session.report += f"[{timezone.now()}] Ошибка распаковки {zf.name}: " f"{unzip_err}\n"
+                    session.report += (
+                        f"[{timezone.now()}] Ошибка распаковки {zf.name}: "
+                        f"{unzip_err}\n"
+                    )
 
             session.save(update_fields=["report"])
 
@@ -272,7 +302,9 @@ class ImportOrchestratorService:
                     shutil.move(str(file_path), str(dest_path))
                     routed_count += 1
                 except Exception as move_err:
-                    logger.warning(f"[IMPORT] Failed to route {unpacked_name}: {move_err}")
+                    logger.warning(
+                        f"[IMPORT] Failed to route {unpacked_name}: {move_err}"
+                    )
 
         return routed_count
 
@@ -299,14 +331,23 @@ class ImportOrchestratorService:
             return
 
         file_type = self._detect_file_type()
-        logger.info(f"[IMPORT] Dispatching Celery import task for " f"session_id={session.pk}, file_type={file_type}")
+        logger.info(
+            f"[IMPORT] Dispatching Celery import task for "
+            f"session_id={session.pk}, file_type={file_type}"
+        )
 
-        session.report += f"[{timezone.now()}] Celery import task dispatched " f"(file_type={file_type})\n"
+        session.report += (
+            f"[{timezone.now()}] Celery import task dispatched "
+            f"(file_type={file_type})\n"
+        )
         session.save(update_fields=["report", "updated_at"])
 
         task_result = process_1c_import_task.delay(session.pk, str(self.import_dir))
 
-        logger.info(f"[IMPORT] Celery task dispatched: task_id={task_result.id}, " f"session_id={session.pk}")
+        logger.info(
+            f"[IMPORT] Celery task dispatched: task_id={task_result.id}, "
+            f"session_id={session.pk}"
+        )
 
     def _detect_file_type(self) -> str:
         """Determine import file type from filename."""
@@ -350,7 +391,8 @@ class ImportOrchestratorService:
             file_service = FileStreamService(self.sessid)
             if file_service.is_complete():
                 logger.info(
-                    f"[COMPLETE] Cycle already completed for {self.sessid}. " "Ignoring duplicate complete signal."
+                    f"[COMPLETE] Cycle already completed for {self.sessid}. "
+                    "Ignoring duplicate complete signal."
                 )
                 return True, "already_complete"
         except Exception as e:
@@ -365,7 +407,10 @@ class ImportOrchestratorService:
         ok, msg = self._transfer_files(session, label="COMPLETE")
         if not ok:
             logger.error(f"[COMPLETE] File transfer failed: {msg}")
-            session.report += f"[{timezone.now()}] ОШИБКА: перенос файлов не удался, " f"импорт прерван: {msg}\n"
+            session.report += (
+                f"[{timezone.now()}] ОШИБКА: перенос файлов не удался, "
+                f"импорт прерван: {msg}\n"
+            )
             session.save(update_fields=["report"])
             return False, f"File transfer failed: {msg}"
 
@@ -388,18 +433,30 @@ class ImportOrchestratorService:
         )
 
         if not session:
-            logger.warning(f"[COMPLETE] No PENDING session found for {self.sessid}. " "Creating NEW session.")
+            logger.warning(
+                f"[COMPLETE] No PENDING session found for {self.sessid}. "
+                "Creating NEW session."
+            )
             session = ImportSession.objects.create(
                 session_key=self.sessid,
                 status=ImportSession.ImportStatus.PENDING,
                 import_type=ImportSession.ImportType.CATALOG,
-                report=(f"[{timezone.now()}] Сессия создана по сигналу complete " "(Fix check skipped?).\n"),
+                report=(
+                    f"[{timezone.now()}] Сессия создана по сигналу complete "
+                    "(Fix check skipped?).\n"
+                ),
             )
-            logger.info(f"[COMPLETE] Created NEW session id={session.pk} " f"for sessid={self.sessid}")
+            logger.info(
+                f"[COMPLETE] Created NEW session id={session.pk} "
+                f"for sessid={self.sessid}"
+            )
         else:
             session.report += f"[{timezone.now()}] Получен сигнал complete.\n"
             session.save(update_fields=["report"])
-            logger.info(f"[COMPLETE] Found EXISTING session id={session.pk}, " f"status={session.status}")
+            logger.info(
+                f"[COMPLETE] Found EXISTING session id={session.pk}, "
+                f"status={session.status}"
+            )
 
         return session
 
@@ -413,25 +470,38 @@ class ImportOrchestratorService:
             file_service = FileStreamService(self.sessid)
 
             if dry_run:
-                zip_files = [f for f in file_service.list_files() if f.lower().endswith(".zip")]
+                zip_files = [
+                    f for f in file_service.list_files() if f.lower().endswith(".zip")
+                ]
                 logger.info(f"[COMPLETE] DRY RUN mode, unpacking {len(zip_files)} ZIPs")
                 for zf in zip_files:
                     file_service.unpack_zip(zf, self.import_dir)
-                    session.report += f"[{timezone.now()}] DRY RUN: Архив {zf} распакован.\n"
+                    session.report += (
+                        f"[{timezone.now()}] DRY RUN: Архив {zf} распакован.\n"
+                    )
                 session.report += f"[{timezone.now()}] DRY RUN: Импорт пропущен.\n"
                 session.save(update_fields=["report"])
             else:
                 logger.info(
-                    f"[COMPLETE] Dispatching Celery task for " f"session_id={session.pk}, import_dir={self.import_dir}"
+                    f"[COMPLETE] Dispatching Celery task for "
+                    f"session_id={session.pk}, import_dir={self.import_dir}"
                 )
-                task_result = process_1c_import_task.delay(session.pk, str(self.import_dir))
-                logger.info(f"[COMPLETE] Celery task dispatched: task_id={task_result.id}")
-                session.report += f"[{timezone.now()}] Celery task запущен: {task_result.id}\n"
+                task_result = process_1c_import_task.delay(
+                    session.pk, str(self.import_dir)
+                )
+                logger.info(
+                    f"[COMPLETE] Celery task dispatched: task_id={task_result.id}"
+                )
+                session.report += (
+                    f"[{timezone.now()}] Celery task запущен: {task_result.id}\n"
+                )
                 session.save(update_fields=["report"])
 
             # Mark exchange cycle complete for next init
             file_service.mark_complete()
-            logger.info(f"[COMPLETE] Exchange cycle marked as complete for {self.sessid}")
+            logger.info(
+                f"[COMPLETE] Exchange cycle marked as complete for {self.sessid}"
+            )
 
         except Exception as e:
             logger.error(f"[COMPLETE] Protocol error: {e}", exc_info=True)

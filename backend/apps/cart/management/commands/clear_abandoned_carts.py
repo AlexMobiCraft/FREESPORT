@@ -36,7 +36,11 @@ class Command(BaseCommand):
         hours = options["hours"]
         time_threshold = timezone.now() - timedelta(hours=hours)
 
-        self.stdout.write(self.style.NOTICE(f"Начинаю поиск корзин, неактивных более {hours} часов..."))
+        self.stdout.write(
+            self.style.NOTICE(
+                f"Начинаю поиск корзин, неактивных более {hours} часов..."
+            )
+        )
 
         # Находим все элементы корзин, которые старше заданного порога
         # Мы используем `added_at` из CartItem, так как это поле отражает
@@ -46,16 +50,25 @@ class Command(BaseCommand):
         count = abandoned_cart_items.count()
 
         if count == 0:
-            self.stdout.write(self.style.SUCCESS('"Брошенных" корзин не найдено. Завершаю работу.'))
+            self.stdout.write(
+                self.style.SUCCESS('"Брошенных" корзин не найдено. Завершаю работу.')
+            )
 
-        self.stdout.write(self.style.WARNING(f"Найдено {count} устаревших позиций в корзинах. Начинаю удаление..."))
+        self.stdout.write(
+            self.style.WARNING(
+                f"Найдено {count} устаревших позиций в корзинах. Начинаю удаление..."
+            )
+        )
         # Удаляем найденные элементы. Сигнал post_delete на CartItem
         # позаботится об обновлении reserved_quantity у товаров.
         deleted_count, _ = abandoned_cart_items.delete()
 
         self.stdout.write(
             self.style.SUCCESS(
-                (f'Успешно удалено {deleted_count} позиций из "брошенных" корзин. ' "Резервы освобождены.")
+                (
+                    f'Успешно удалено {deleted_count} позиций из "брошенных" корзин. '
+                    "Резервы освобождены."
+                )
             )
         )
         logger.info(f"Task clear_abandoned_carts: удалено {deleted_count} позиций.")

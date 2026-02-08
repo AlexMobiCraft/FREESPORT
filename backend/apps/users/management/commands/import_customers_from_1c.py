@@ -40,7 +40,10 @@ class Command(BaseCommand):
             "--data-dir",
             type=str,
             required=True,
-            help=("Путь к директории с данными 1С (содержит поддиректорию " "contragents/)."),
+            help=(
+                "Путь к директории с данными 1С (содержит поддиректорию "
+                "contragents/)."
+            ),
         )
         parser.add_argument(
             "--chunk-size",
@@ -76,13 +79,18 @@ class Command(BaseCommand):
         contragents_files = sorted(contragents_dir.glob("contragents*.xml"))
         if not contragents_files:
             raise CommandError(
-                f"Файлы contragents*.xml не найдены в {contragents_dir}. " f"Убедитесь, что данные из 1С выгружены."
+                f"Файлы contragents*.xml не найдены в {contragents_dir}. "
+                f"Убедитесь, что данные из 1С выгружены."
             )
 
         if chunk_size <= 0:
             raise CommandError("chunk-size должен быть положительным числом.")
 
-        self.stdout.write(self.style.SUCCESS(f"Найдено {len(contragents_files)} файлов контрагентов для импорта"))
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"Найдено {len(contragents_files)} файлов контрагентов для импорта"
+            )
+        )
 
         # Проверяем наличие активной сессии (созданной из views.py)
         # Если есть - используем ее, если нет - создаем новую
@@ -97,7 +105,11 @@ class Command(BaseCommand):
 
         session_created_here = False
         if session:
-            self.stdout.write(self.style.SUCCESS(f"Используется существующая сессия импорта #{session.pk}"))
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f"Используется существующая сессия импорта #{session.pk}"
+                )
+            )
         else:
             # Создаем новую сессию если нет активной
             session = ImportSession.objects.create(
@@ -105,7 +117,9 @@ class Command(BaseCommand):
                 status=ImportSession.ImportStatus.STARTED,
             )
             session_created_here = True
-            self.stdout.write(self.style.SUCCESS(f"Создана новая сессия импорта #{session.pk}"))
+            self.stdout.write(
+                self.style.SUCCESS(f"Создана новая сессия импорта #{session.pk}")
+            )
 
         try:
             # Парсер и процессор
@@ -123,7 +137,10 @@ class Command(BaseCommand):
 
             for idx, file_path in enumerate(contragents_files, 1):
                 self.stdout.write(
-                    self.style.SUCCESS(f"\n[{idx}/{len(contragents_files)}] " f"Обработка файла: {file_path.name}")
+                    self.style.SUCCESS(
+                        f"\n[{idx}/{len(contragents_files)}] "
+                        f"Обработка файла: {file_path.name}"
+                    )
                 )
 
                 try:
@@ -132,11 +149,17 @@ class Command(BaseCommand):
                         self.stdout.write("  Парсинг файла...")
                         customer_data = parser.parse(str(file_path))
 
-                        self.stdout.write(self.style.SUCCESS(f"  Распознано {len(customer_data)} клиентов"))
+                        self.stdout.write(
+                            self.style.SUCCESS(
+                                f"  Распознано {len(customer_data)} клиентов"
+                            )
+                        )
 
                         # Обработка данных
                         self.stdout.write("  Обработка клиентов...")
-                        result = processor.process_customers(customer_data, chunk_size=chunk_size)
+                        result = processor.process_customers(
+                            customer_data, chunk_size=chunk_size
+                        )
 
                         # Суммируем статистику
                         for key in total_stats.keys():
@@ -165,7 +188,9 @@ class Command(BaseCommand):
 
             # Dry-run сообщение
             if dry_run:
-                self.stdout.write(self.style.WARNING("\n⚠️  DRY-RUN режим: изменения не сохранены"))
+                self.stdout.write(
+                    self.style.WARNING("\n⚠️  DRY-RUN режим: изменения не сохранены")
+                )
             else:
                 # Обновление сессии с итоговой статистикой
                 session.status = ImportSession.ImportStatus.COMPLETED
@@ -201,7 +226,8 @@ class Command(BaseCommand):
 
                 self.stdout.write(
                     self.style.ERROR(
-                        f"\n❌ Критическая ошибка импорта: {str(e)}\n" f"Сессия #{session.pk} завершена с ошибкой"
+                        f"\n❌ Критическая ошибка импорта: {str(e)}\n"
+                        f"Сессия #{session.pk} завершена с ошибкой"
                     )
                 )
             else:

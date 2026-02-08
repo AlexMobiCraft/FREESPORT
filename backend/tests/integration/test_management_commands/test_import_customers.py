@@ -59,7 +59,9 @@ class TestImportCustomersCommand:
         assert "Импорт успешно завершен" in output
 
         # Проверить что сессия создана и завершена успешно
-        session = ImportSession.objects.filter(import_type=ImportSession.ImportType.CUSTOMERS).latest("started_at")
+        session = ImportSession.objects.filter(
+            import_type=ImportSession.ImportType.CUSTOMERS
+        ).latest("started_at")
 
         assert session.status == ImportSession.ImportStatus.COMPLETED
         assert session.finished_at is not None
@@ -84,7 +86,9 @@ class TestImportCustomersCommand:
         initial_users_count = User.objects.count()
 
         out = StringIO()
-        call_command("import_customers_from_1c", data_dir=real_data_dir, dry_run=True, stdout=out)
+        call_command(
+            "import_customers_from_1c", data_dir=real_data_dir, dry_run=True, stdout=out
+        )
 
         output = out.getvalue()
 
@@ -96,7 +100,9 @@ class TestImportCustomersCommand:
         assert User.objects.count() == initial_users_count
 
         # Проверить что сессия создана, но не завершена
-        sessions_count = ImportSession.objects.filter(import_type=ImportSession.ImportType.CUSTOMERS).count()
+        sessions_count = ImportSession.objects.filter(
+            import_type=ImportSession.ImportType.CUSTOMERS
+        ).count()
         assert sessions_count == 1
         session = ImportSession.objects.latest("started_at")
         assert session.status == ImportSession.ImportStatus.STARTED
@@ -106,7 +112,9 @@ class TestImportCustomersCommand:
         out = StringIO()
 
         # Запустить с малым chunk_size
-        call_command("import_customers_from_1c", data_dir=real_data_dir, chunk_size=2, stdout=out)
+        call_command(
+            "import_customers_from_1c", data_dir=real_data_dir, chunk_size=2, stdout=out
+        )
 
         output = out.getvalue()
 
@@ -131,7 +139,9 @@ class TestImportCustomersCommand:
         from django.core.management.base import CommandError
 
         with pytest.raises(CommandError) as exc_info:
-            call_command("import_customers_from_1c", data_dir=real_data_dir, chunk_size=0)
+            call_command(
+                "import_customers_from_1c", data_dir=real_data_dir, chunk_size=0
+            )
 
         assert "chunk-size" in str(exc_info.value).lower()
 
@@ -147,10 +157,17 @@ class TestImportCustomersCommand:
         call_command("import_customers_from_1c", data_dir=real_data_dir, stdout=out)
 
         output = out.getvalue()
-        assert f"Используется существующая сессия импорта #{active_session.pk}" in output
+        assert (
+            f"Используется существующая сессия импорта #{active_session.pk}" in output
+        )
 
         # Проверить, что не создана новая сессия
-        assert ImportSession.objects.filter(import_type=ImportSession.ImportType.CUSTOMERS).count() == 1
+        assert (
+            ImportSession.objects.filter(
+                import_type=ImportSession.ImportType.CUSTOMERS
+            ).count()
+            == 1
+        )
         session = ImportSession.objects.latest("started_at")
         assert session.pk == active_session.pk
         assert session.status == ImportSession.ImportStatus.COMPLETED
@@ -158,13 +175,17 @@ class TestImportCustomersCommand:
     def test_command_handles_malformed_xml(self, tmp_path):
         """Тест обработки некорректного XML"""
         malformed_xml = tmp_path / "malformed.xml"
-        malformed_xml.write_text("<КоммерческаяИнформация><Контрагенты>", encoding="utf-8")
+        malformed_xml.write_text(
+            "<КоммерческаяИнформация><Контрагенты>", encoding="utf-8"
+        )
 
         with pytest.raises(Exception):  # Может быть CommandError или ValidationError
             call_command("import_customers_from_1c", file=str(malformed_xml))
 
         # Проверить что сессия помечена как failed
-        sessions = ImportSession.objects.filter(import_type=ImportSession.ImportType.CUSTOMERS)
+        sessions = ImportSession.objects.filter(
+            import_type=ImportSession.ImportType.CUSTOMERS
+        )
         if sessions.exists():
             session = sessions.latest("started_at")
             assert session.status == ImportSession.ImportStatus.FAILED
@@ -229,7 +250,9 @@ class TestImportCustomersCommand:
 
         # Должно быть столько же логов, сколько обработано клиентов
         total_processed = session.report_details["total"]
-        assert logs_count >= total_processed  # >= потому что может быть несколько логов на клиента
+        assert (
+            logs_count >= total_processed
+        )  # >= потому что может быть несколько логов на клиента
 
     def test_command_sets_sync_status(self, real_data_dir):
         """Тест установки статуса синхронизации"""

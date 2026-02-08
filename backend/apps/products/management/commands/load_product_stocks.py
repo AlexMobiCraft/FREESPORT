@@ -62,13 +62,19 @@ class Command(BaseCommand):
             raise CommandError(f"Файл не найден: {file_path}")
 
         if batch_size <= 0:
-            raise CommandError(f"Некорректный размер пакета: {batch_size}. Должен быть > 0.")
+            raise CommandError(
+                f"Некорректный размер пакета: {batch_size}. Должен быть > 0."
+            )
 
         if dry_run:
-            self.stdout.write(self.style.WARNING("РЕЖИМ ТЕСТИРОВАНИЯ: изменения не будут сохранены."))
+            self.stdout.write(
+                self.style.WARNING("РЕЖИМ ТЕСТИРОВАНИЯ: изменения не будут сохранены.")
+            )
 
         # Создание сессии импорта
-        session = ImportSession.objects.create(import_type=ImportSession.ImportType.STOCKS)
+        session = ImportSession.objects.create(
+            import_type=ImportSession.ImportType.STOCKS
+        )
         self.stdout.write(f"Начата сессия обновления остатков #{session.pk}...")
 
         updated_count = 0
@@ -83,7 +89,9 @@ class Command(BaseCommand):
 
             # Валидация результата парсинга
             if not stock_data:
-                self.stdout.write(self.style.WARNING("Файл пуст или не содержит данных об остатках."))
+                self.stdout.write(
+                    self.style.WARNING("Файл пуст или не содержит данных об остатках.")
+                )
                 session.status = ImportSession.ImportStatus.COMPLETED
                 session.report_details = {
                     "warning": "Empty file",
@@ -108,14 +116,17 @@ class Command(BaseCommand):
                     # Валидация данных записи
                     if not onec_id:
                         skipped_count += 1
-                        self.stdout.write(self.style.WARNING("Пропущена запись без onec_id"))
+                        self.stdout.write(
+                            self.style.WARNING("Пропущена запись без onec_id")
+                        )
                         continue
 
                     if quantity < 0:
                         skipped_count += 1
                         self.stdout.write(
                             self.style.WARNING(
-                                f"Пропущена запись с некорректным количеством: " f"{onec_id} (quantity={quantity})"
+                                f"Пропущена запись с некорректным количеством: "
+                                f"{onec_id} (quantity={quantity})"
                             )
                         )
                         continue
@@ -130,13 +141,17 @@ class Command(BaseCommand):
                     except ProductVariant.DoesNotExist:
                         not_found_count += 1
                         not_found_skus.append(onec_id)
-                        self.stdout.write(self.style.WARNING(f"Вариант не найден: {onec_id}"))
+                        self.stdout.write(
+                            self.style.WARNING(f"Вариант не найден: {onec_id}")
+                        )
 
                 # Массовое обновление с batch processing
                 if variants_to_update:
                     for i in range(0, len(variants_to_update), batch_size):
                         batch = variants_to_update[i : i + batch_size]
-                        ProductVariant.objects.bulk_update(batch, ["stock_quantity", "last_sync_at"])
+                        ProductVariant.objects.bulk_update(
+                            batch, ["stock_quantity", "last_sync_at"]
+                        )
                         self.stdout.write(
                             f"Обновлено {min(i + batch_size, len(variants_to_update))} "
                             f"из {len(variants_to_update)} вариантов"
@@ -145,7 +160,11 @@ class Command(BaseCommand):
                 # Откат транзакции в режиме dry-run
                 if dry_run:
                     transaction.set_rollback(True)
-                    self.stdout.write(self.style.SUCCESS("ТЕСТИРОВАНИЕ: транзакция откатана, изменения не сохранены."))
+                    self.stdout.write(
+                        self.style.SUCCESS(
+                            "ТЕСТИРОВАНИЕ: транзакция откатана, изменения не сохранены."
+                        )
+                    )
 
             # Обновление сессии при успехе
             session.status = ImportSession.ImportStatus.COMPLETED
@@ -155,10 +174,14 @@ class Command(BaseCommand):
                 "updated_count": updated_count,
                 "not_found_count": not_found_count,
                 "skipped_count": skipped_count,
-                "not_found_skus": not_found_skus[:100],  # Ограничение для больших списков
+                "not_found_skus": not_found_skus[
+                    :100
+                ],  # Ограничение для больших списков
                 "batch_size": batch_size,
                 "dry_run": dry_run,
-                "duration_seconds": (timezone.now() - session.started_at).total_seconds(),
+                "duration_seconds": (
+                    timezone.now() - session.started_at
+                ).total_seconds(),
             }
             self.stdout.write(
                 self.style.SUCCESS(
@@ -178,4 +201,6 @@ class Command(BaseCommand):
         finally:
             session.finished_at = timezone.now()
             session.save()
-            self.stdout.write(f"Сессия #{session.pk} завершена со статусом '{session.status}'.")
+            self.stdout.write(
+                f"Сессия #{session.pk} завершена со статусом '{session.status}'."
+            )

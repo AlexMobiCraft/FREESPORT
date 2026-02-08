@@ -77,7 +77,9 @@ class FileLock:
                 logger.warning(f"Lock acquisition error: {e}")
                 time.sleep(LOCK_RETRY_INTERVAL)
 
-        raise FileLockError(f"Could not acquire lock within {self.timeout}s: {self.lock_path}")
+        raise FileLockError(
+            f"Could not acquire lock within {self.timeout}s: {self.lock_path}"
+        )
 
     def release(self) -> None:
         """Release the file lock by removing the lock file."""
@@ -147,7 +149,9 @@ class FileStreamService:
             raise ValueError("session_id is required for FileStreamService")
 
         self.session_id = session_id
-        temp_dir = settings.ONEC_EXCHANGE.get("TEMP_DIR", Path(settings.MEDIA_ROOT) / "1c_temp")
+        temp_dir = settings.ONEC_EXCHANGE.get(
+            "TEMP_DIR", Path(settings.MEDIA_ROOT) / "1c_temp"
+        )
         self.base_dir = Path(str(temp_dir))
         self.session_dir = self.base_dir / session_id
 
@@ -197,7 +201,10 @@ class FileStreamService:
         with open(file_path, "ab") as f:
             f.write(content)
 
-        logger.info(f"Appended {bytes_written} bytes to {file_path.name} " f"(session: {self.session_id[:8]}...)")
+        logger.info(
+            f"Appended {bytes_written} bytes to {file_path.name} "
+            f"(session: {self.session_id[:8]}...)"
+        )
 
         return bytes_written
 
@@ -392,5 +399,6 @@ class FileStreamService:
 
             if writer:
                 logger.info(
-                    f"Wrote {writer.bytes_written} bytes to {file_path.name} " f"(session: {self.session_id[:8]}...)"
+                    f"Wrote {writer.bytes_written} bytes to {file_path.name} "
+                    f"(session: {self.session_id[:8]}...)"
                 )

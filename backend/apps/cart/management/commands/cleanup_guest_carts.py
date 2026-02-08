@@ -44,15 +44,24 @@ class Command(BaseCommand):
 
         if dry_run:
             self.stdout.write(
-                self.style.WARNING(f"Найдено {count} гостевых корзин старше {days} дней " f"для удаления")
+                self.style.WARNING(
+                    f"Найдено {count} гостевых корзин старше {days} дней "
+                    f"для удаления"
+                )
             )
             return
 
         if count == 0:
-            self.stdout.write(self.style.SUCCESS("Нет старых гостевых корзин для удаления"))
+            self.stdout.write(
+                self.style.SUCCESS("Нет старых гостевых корзин для удаления")
+            )
             return
 
         # Удаляем старые корзины
         deleted_count, _ = old_guest_carts.delete()
 
-        self.stdout.write(self.style.SUCCESS(f"Успешно удалено {deleted_count} старых гостевых корзин"))
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"Успешно удалено {deleted_count} старых гостевых корзин"
+            )
+        )

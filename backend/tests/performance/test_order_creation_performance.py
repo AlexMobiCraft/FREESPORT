@@ -34,8 +34,12 @@ class OrderCreationPerformanceTest(TestCase):
         )
 
         # Создаем товары для тестов
-        self.category = Category.objects.create(name="Performance Category", slug="performance-category")
-        self.brand = Brand.objects.create(name="Performance Brand", slug="performance-brand")
+        self.category = Category.objects.create(
+            name="Performance Category", slug="performance-category"
+        )
+        self.brand = Brand.objects.create(
+            name="Performance Brand", slug="performance-brand"
+        )
 
         self.products = []
         for i in range(20):
@@ -65,7 +69,9 @@ class OrderCreationPerformanceTest(TestCase):
         self.client.force_authenticate(user=self.retail_user)
 
         # Добавляем товар в корзину
-        self.client.post("/api/v1/cart/items/", {"variant_id": self.products[0].id, "quantity": 1})
+        self.client.post(
+            "/api/v1/cart/items/", {"variant_id": self.products[0].id, "quantity": 1}
+        )
 
         # Создаем заказ и измеряем время
         start_time = time.time()
@@ -131,7 +137,9 @@ class OrderCreationPerformanceTest(TestCase):
         self.client.force_authenticate(user=self.wholesale_user)
 
         # Добавляем товар с минимальным B2B количеством
-        self.client.post("/api/v1/cart/items/", {"variant_id": self.products[0].id, "quantity": 10})
+        self.client.post(
+            "/api/v1/cart/items/", {"variant_id": self.products[0].id, "quantity": 10}
+        )
 
         start_time = time.time()
 
@@ -158,7 +166,9 @@ class OrderCreationPerformanceTest(TestCase):
         self.client.force_authenticate(user=self.wholesale_user)
 
         # Добавляем товар с большим количеством
-        self.client.post("/api/v1/cart/items/", {"variant_id": self.products[0].id, "quantity": 50})
+        self.client.post(
+            "/api/v1/cart/items/", {"variant_id": self.products[0].id, "quantity": 50}
+        )
 
         start_time = time.time()
 
@@ -175,7 +185,10 @@ class OrderCreationPerformanceTest(TestCase):
         self.assertLess(
             response_time,
             2.5,
-            (f"Large quantity order creation time {response_time:.2f}s " "exceeds 2.5s limit"),
+            (
+                f"Large quantity order creation time {response_time:.2f}s "
+                "exceeds 2.5s limit"
+            ),
         )
         self.assertEqual(response.status_code, 201)
 
@@ -233,8 +246,12 @@ class OrderCreationPerformanceTest(TestCase):
             client.force_authenticate(user=user)
 
             # Добавляем товар
-            cart_response = client.post("/api/v1/cart/items/", {"variant_id": product_id, "quantity": 1})
-            self.assertEqual(cart_response.status_code, 201, f"Cart creation failed for user {i}")
+            cart_response = client.post(
+                "/api/v1/cart/items/", {"variant_id": product_id, "quantity": 1}
+            )
+            self.assertEqual(
+                cart_response.status_code, 201, f"Cart creation failed for user {i}"
+            )
 
             # Создаем заказ
             order_start_time = time.time()
@@ -285,7 +302,9 @@ class OrderCreationPerformanceTest(TestCase):
         self.client.force_authenticate(user=self.retail_user)
 
         # Добавляем товар в корзину
-        self.client.post("/api/v1/cart/items/", {"variant_id": self.products[0].id, "quantity": 2})
+        self.client.post(
+            "/api/v1/cart/items/", {"variant_id": self.products[0].id, "quantity": 2}
+        )
 
         connection.queries_log.clear()
 

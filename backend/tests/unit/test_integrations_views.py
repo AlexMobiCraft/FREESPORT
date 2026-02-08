@@ -275,7 +275,9 @@ class TestHandleImportRequest:
         mock_session.celery_task_id = "task-123"
         mock_create_import.return_value = mock_session
 
-        request = request_factory.post("/admin/integrations/import_1c/", {"import_type": "catalog"})
+        request = request_factory.post(
+            "/admin/integrations/import_1c/", {"import_type": "catalog"}
+        )
         request.user = admin_user
         request._messages = MagicMock()
 
@@ -291,7 +293,9 @@ class TestHandleImportRequest:
 
     @patch("apps.integrations.views.get_redis_connection")
     @patch("apps.integrations.views._validate_dependencies")
-    def test_post_with_active_lock_shows_warning(self, mock_validate, mock_redis, admin_user, request_factory):
+    def test_post_with_active_lock_shows_warning(
+        self, mock_validate, mock_redis, admin_user, request_factory
+    ):
         """Тест: POST при активном lock показывает предупреждение."""
         # Setup
         mock_validate.return_value = (True, "")
@@ -299,7 +303,9 @@ class TestHandleImportRequest:
         mock_lock.acquire.return_value = False  # Lock занят
         mock_redis.return_value.lock.return_value = mock_lock
 
-        request = request_factory.post("/admin/integrations/import_1c/", {"import_type": "catalog"})
+        request = request_factory.post(
+            "/admin/integrations/import_1c/", {"import_type": "catalog"}
+        )
         request.user = admin_user
         request._messages = MagicMock()
 
@@ -311,12 +317,16 @@ class TestHandleImportRequest:
         assert "/admin/integrations/import_1c/" in response.url
 
     @patch("apps.integrations.views._validate_dependencies")
-    def test_post_with_invalid_dependencies_shows_error(self, mock_validate, admin_user, request_factory):
+    def test_post_with_invalid_dependencies_shows_error(
+        self, mock_validate, admin_user, request_factory
+    ):
         """Тест: POST с невалидными зависимостями показывает ошибку."""
         # Setup
         mock_validate.return_value = (False, "Каталог товаров пуст")
 
-        request = request_factory.post("/admin/integrations/import_1c/", {"import_type": "stocks"})
+        request = request_factory.post(
+            "/admin/integrations/import_1c/", {"import_type": "stocks"}
+        )
         request.user = admin_user
         request._messages = MagicMock()
 

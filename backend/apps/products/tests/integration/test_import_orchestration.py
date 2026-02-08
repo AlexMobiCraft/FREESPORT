@@ -44,7 +44,10 @@ class TestImportOrchestration:
         # Get session id
         session_key = api_client.session.session_key
 
-        url = reverse("integrations:onec_exchange:exchange") + f"?mode=import&filename=test.xml&sessid={session_key}"
+        url = (
+            reverse("integrations:onec_exchange:exchange")
+            + f"?mode=import&filename=test.xml&sessid={session_key}"
+        )
 
         with patch("apps.products.tasks.process_1c_import_task.delay") as mock_task:
             response = api_client.get(url)
@@ -59,12 +62,16 @@ class TestImportOrchestration:
             assert "test.xml" in session.report
 
             # Check task triggered
-            mock_task.assert_called_once_with(session.pk, str(Path(settings.MEDIA_ROOT) / "1c_import"))
+            mock_task.assert_called_once_with(
+                session.pk, str(Path(settings.MEDIA_ROOT) / "1c_import")
+            )
 
     def test_mode_import_blocks_duplicate(self, api_client, exchange_user):
         """TC7: mode=import blocks if another import is active"""
         api_client.login(email="exchange@example.com", password="password")
-        api_client.get(reverse("integrations:onec_exchange:exchange") + "?mode=checkauth")
+        api_client.get(
+            reverse("integrations:onec_exchange:exchange") + "?mode=checkauth"
+        )
         session_key = api_client.session.session_key
 
         # Create an active session for the same sessid
@@ -74,7 +81,10 @@ class TestImportOrchestration:
             status=ImportSession.ImportStatus.IN_PROGRESS,
         )
 
-        url = reverse("integrations:onec_exchange:exchange") + f"?mode=import&filename=test.xml&sessid={session_key}"
+        url = (
+            reverse("integrations:onec_exchange:exchange")
+            + f"?mode=import&filename=test.xml&sessid={session_key}"
+        )
 
         response = api_client.get(url)
 
@@ -90,11 +100,15 @@ class TestImportOrchestration:
     def test_zip_passing_to_task(self, api_client, exchange_user, tmp_path):
         """Test that ZIP filename is passed to the task for async unpacking"""
         api_client.login(email="exchange@example.com", password="password")
-        api_client.get(reverse("integrations:onec_exchange:exchange") + "?mode=checkauth")
+        api_client.get(
+            reverse("integrations:onec_exchange:exchange") + "?mode=checkauth"
+        )
         session_key = api_client.session.session_key
 
         # Mock FileStreamService to ensure it is NOT used for unpacking in view
-        with patch("apps.integrations.onec_exchange.views.FileStreamService") as mock_service_class:
+        with patch(
+            "apps.integrations.onec_exchange.views.FileStreamService"
+        ) as mock_service_class:
             mock_service = mock_service_class.return_value
 
             url = (
@@ -139,7 +153,9 @@ class TestImportOrchestration:
         # This bypasses Celery's task wrapper but keeps the 'self' argument
         # Use cast(Any, ...) to avoid mypy error about __wrapped__
         task_func = cast(Any, process_1c_import_task)
-        task_func.__wrapped__.__get__(mock_self, type(mock_self))(session_id=session.pk, data_dir="/tmp/1c_import")
+        task_func.__wrapped__.__get__(mock_self, type(mock_self))(
+            session_id=session.pk, data_dir="/tmp/1c_import"
+        )
 
         # Verification
         session.refresh_from_db()

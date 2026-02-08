@@ -95,7 +95,9 @@ class TestProductModel:
 
     def test_product_creation(self):
         """Тест создания товара"""
-        product = ProductFactory.create(name="Футбольный мяч Nike", retail_price=Decimal("2500.00"))
+        product = ProductFactory.create(
+            name="Футбольный мяч Nike", retail_price=Decimal("2500.00")
+        )
 
         assert product.name == "Футбольный мяч Nike"
         assert product.is_active is True
@@ -121,7 +123,9 @@ class ProductComputedPropertiesTest(TestCase):
         from apps.products.models import ProductVariant
 
         self.brand = Brand.objects.create(name="Test Brand", slug="test-brand")
-        self.category = Category.objects.create(name="Test Category", slug="test-category")
+        self.category = Category.objects.create(
+            name="Test Category", slug="test-category"
+        )
         self.product = Product.objects.create(
             name="Test Product",
             slug="test-product",
@@ -456,7 +460,9 @@ class TestProductStockLogic:
         """
         Тест базовой логики can_be_ordered в ProductVariant
         """
-        product = ProductFactory.create(is_active=True, stock_quantity=10, reserved_quantity=2)
+        product = ProductFactory.create(
+            is_active=True, stock_quantity=10, reserved_quantity=2
+        )
         product.min_order_quantity = 1
         product.save()
 
@@ -482,7 +488,9 @@ class TestProductStockLogic:
         """
         Тест can_be_ordered для неактивного товара
         """
-        product = ProductFactory.create(is_active=False, stock_quantity=10, reserved_quantity=0)
+        product = ProductFactory.create(
+            is_active=False, stock_quantity=10, reserved_quantity=0
+        )
 
         variant = product.variants.first()
         assert variant.can_be_ordered is False
@@ -491,7 +499,9 @@ class TestProductStockLogic:
         """
         Тест can_be_ordered для товара без остатков
         """
-        product = ProductFactory.create(is_active=True, stock_quantity=0, reserved_quantity=0)
+        product = ProductFactory.create(
+            is_active=True, stock_quantity=0, reserved_quantity=0
+        )
 
         variant = product.variants.first()
         assert variant.can_be_ordered is False
@@ -501,7 +511,9 @@ class TestProductStockLogic:
         Тест реалистичных сценариев остатков
         """
         # Сценарий 1: Высокий остаток
-        high_stock_product = ProductFactory.create(stock_quantity=100, reserved_quantity=5)
+        high_stock_product = ProductFactory.create(
+            stock_quantity=100, reserved_quantity=5
+        )
         high_stock_product.min_order_quantity = 1
         high_stock_product.save()
         variant = high_stock_product.variants.first()

@@ -51,7 +51,9 @@ class Command(BaseCommand):
         backup_path = Path(backup_dir)
 
         if not backup_path.exists():
-            self.stdout.write(self.style.WARNING(f"⚠️ Директория backup не найдена: {backup_dir}"))
+            self.stdout.write(
+                self.style.WARNING(f"⚠️ Директория backup не найдена: {backup_dir}")
+            )
             return
 
         # Находим все backup файлы
@@ -62,11 +64,15 @@ class Command(BaseCommand):
             all_backups.extend(backup_path.glob(pattern))
 
         if not all_backups:
-            self.stdout.write(self.style.WARNING(f"⚠️ Backup файлы не найдены в {backup_dir}"))
+            self.stdout.write(
+                self.style.WARNING(f"⚠️ Backup файлы не найдены в {backup_dir}")
+            )
             return
 
         # Сортируем по времени модификации (новые первые)
-        sorted_backups = sorted(all_backups, key=lambda p: p.stat().st_mtime, reverse=True)
+        sorted_backups = sorted(
+            all_backups, key=lambda p: p.stat().st_mtime, reverse=True
+        )
 
         total_count = len(sorted_backups)
         to_keep = sorted_backups[:keep]
@@ -81,7 +87,9 @@ class Command(BaseCommand):
         self.stdout.write("=" * 50)
 
         if dry_run:
-            self.stdout.write(self.style.WARNING("\n🔍 DRY RUN MODE: Файлы не будут удалены"))
+            self.stdout.write(
+                self.style.WARNING("\n🔍 DRY RUN MODE: Файлы не будут удалены")
+            )
 
         # Выводим файлы которые будут сохранены
         if to_keep:
@@ -90,7 +98,8 @@ class Command(BaseCommand):
                 file_time = datetime.fromtimestamp(backup.stat().st_mtime)
                 file_size = backup.stat().st_size / (1024 * 1024)  # MB
                 self.stdout.write(
-                    f"   • {backup.name} ({file_time.strftime('%Y-%m-%d %H:%M:%S')}, " f"{file_size:.2f} MB)"
+                    f"   • {backup.name} ({file_time.strftime('%Y-%m-%d %H:%M:%S')}, "
+                    f"{file_size:.2f} MB)"
                 )
 
         # Выводим и удаляем файлы
@@ -105,7 +114,9 @@ class Command(BaseCommand):
 
                 if dry_run:
                     log_msg = (
-                        f"   • {backup.name} " f"({file_time.strftime('%Y-%m-%d %H:%M:%S')}, " f"{file_size:.2f} MB)"
+                        f"   • {backup.name} "
+                        f"({file_time.strftime('%Y-%m-%d %H:%M:%S')}, "
+                        f"{file_size:.2f} MB)"
                     )
                     self.stdout.write(log_msg)
                 else:
@@ -125,16 +136,29 @@ class Command(BaseCommand):
             # Итоговое сообщение
             self.stdout.write("\n" + "=" * 50)
             if dry_run:
-                self.stdout.write(self.style.SUCCESS(f"✅ DRY RUN ЗАВЕРШЕН: Будет удалено {len(to_delete)} файлов"))
+                self.stdout.write(
+                    self.style.SUCCESS(
+                        f"✅ DRY RUN ЗАВЕРШЕН: Будет удалено {len(to_delete)} файлов"
+                    )
+                )
             else:
                 if errors == 0:
-                    self.stdout.write(self.style.SUCCESS(f"✅ РОТАЦИЯ ЗАВЕРШЕНА: Удалено {deleted_count} файлов"))
+                    self.stdout.write(
+                        self.style.SUCCESS(
+                            f"✅ РОТАЦИЯ ЗАВЕРШЕНА: Удалено {deleted_count} файлов"
+                        )
+                    )
                 else:
                     self.stdout.write(
                         self.style.WARNING(
-                            f"⚠️ РОТАЦИЯ ЗАВЕРШЕНА С ОШИБКАМИ: " f"Удалено {deleted_count}, ошибок {errors}"
+                            f"⚠️ РОТАЦИЯ ЗАВЕРШЕНА С ОШИБКАМИ: "
+                            f"Удалено {deleted_count}, ошибок {errors}"
                         )
                     )
             self.stdout.write("=" * 50)
         else:
-            self.stdout.write(self.style.SUCCESS(f"\n✅ Файлов для удаления нет (всего {total_count}, хранить {keep})"))
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f"\n✅ Файлов для удаления нет (всего {total_count}, хранить {keep})"
+                )
+            )

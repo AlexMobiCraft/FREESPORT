@@ -73,10 +73,14 @@ class FileRoutingService:
         self.session_id = session_id
 
         # Get directories from settings
-        temp_dir = settings.ONEC_EXCHANGE.get("TEMP_DIR", Path(settings.MEDIA_ROOT) / "1c_temp")
+        temp_dir = settings.ONEC_EXCHANGE.get(
+            "TEMP_DIR", Path(settings.MEDIA_ROOT) / "1c_temp"
+        )
         self.temp_base = Path(str(temp_dir))
 
-        import_dir = settings.ONEC_EXCHANGE.get("IMPORT_DIR", Path(settings.MEDIA_ROOT) / "1c_import")
+        import_dir = settings.ONEC_EXCHANGE.get(
+            "IMPORT_DIR", Path(settings.MEDIA_ROOT) / "1c_import"
+        )
         self.import_base = Path(str(import_dir))
 
         self.temp_dir = self.temp_base / session_id
@@ -133,7 +137,9 @@ class FileRoutingService:
         if suffix == ".xml":
             # Sort rules by length of prefix descending to match most specific first
             # e.g. 'propertiesOffers' (len 16) before 'properties' (len 10)
-            sorted_rules = sorted(XML_ROUTING_RULES.items(), key=lambda x: len(x[0]), reverse=True)
+            sorted_rules = sorted(
+                XML_ROUTING_RULES.items(), key=lambda x: len(x[0]), reverse=True
+            )
             for prefix, subdir in sorted_rules:
                 if name_lower.startswith(prefix):
                     return subdir.rstrip("/")
@@ -186,6 +192,9 @@ class FileRoutingService:
         # Move file (overwrites if exists)
         shutil.move(str(source_path), str(target_path))
 
-        logger.info(f"Routed file: {filename} -> {subdir or 'root'} " f"(session: {self.session_id[:8]}...)")
+        logger.info(
+            f"Routed file: {filename} -> {subdir or 'root'} "
+            f"(session: {self.session_id[:8]}...)"
+        )
 
         return target_path

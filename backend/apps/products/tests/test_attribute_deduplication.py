@@ -12,9 +12,17 @@ from pathlib import Path
 import pytest
 from django.db import IntegrityError
 
-from apps.products.models import Attribute, Attribute1CMapping, AttributeValue, AttributeValue1CMapping
+from apps.products.models import (
+    Attribute,
+    Attribute1CMapping,
+    AttributeValue,
+    AttributeValue1CMapping,
+)
 from apps.products.services.attribute_import import AttributeImportService
-from apps.products.utils.attributes import normalize_attribute_name, normalize_attribute_value
+from apps.products.utils.attributes import (
+    normalize_attribute_name,
+    normalize_attribute_value,
+)
 
 # Глобальный счетчик для обеспечения уникальности в тестах
 _unique_counter = 0
@@ -367,7 +375,12 @@ class TestAttributeValueModelUpdates:
 
         # Оба значения должны существовать
         assert value1.normalized_value == value2.normalized_value
-        assert AttributeValue.objects.filter(normalized_value=value1.normalized_value).count() == 2
+        assert (
+            AttributeValue.objects.filter(
+                normalized_value=value1.normalized_value
+            ).count()
+            == 2
+        )
 
 
 @pytest.mark.integration
@@ -554,10 +567,20 @@ class TestAttributeImportServiceDeduplication:
         service._save_properties(properties)
 
         # Должен быть создан только 1 атрибут
-        assert Attribute.objects.filter(normalized_name=normalize_attribute_name(f"Размер-{suffix}")).count() == 1
+        assert (
+            Attribute.objects.filter(
+                normalized_name=normalize_attribute_name(f"Размер-{suffix}")
+            ).count()
+            == 1
+        )
 
         # Должно быть создано 2 маппинга
-        assert Attribute1CMapping.objects.filter(onec_id__in=[f"attr1-{suffix}", f"attr2-{suffix}"]).count() == 2
+        assert (
+            Attribute1CMapping.objects.filter(
+                onec_id__in=[f"attr1-{suffix}", f"attr2-{suffix}"]
+            ).count()
+            == 2
+        )
 
         # Проверяем статистику
         stats = service.get_stats()
@@ -596,7 +619,9 @@ class TestAttributeImportServiceDeduplication:
         service._save_properties(properties)
 
         # Должно быть создано только 1 значение
-        attribute = Attribute.objects.get(normalized_name=normalize_attribute_name(f"Цвет-{suffix}"))
+        attribute = Attribute.objects.get(
+            normalized_name=normalize_attribute_name(f"Цвет-{suffix}")
+        )
         assert attribute.values.count() == 1
 
         # Должно быть создано 3 маппинга значений
@@ -639,7 +664,9 @@ class TestAttributeImportServiceDeduplication:
         service_offers._save_properties(properties)
 
         # Должен быть создан 1 атрибут
-        attribute = Attribute.objects.get(normalized_name=normalize_attribute_name(f"Бренд-{suffix}"))
+        attribute = Attribute.objects.get(
+            normalized_name=normalize_attribute_name(f"Бренд-{suffix}")
+        )
 
         # Должно быть 2 маппинга с разными source
         assert attribute.onec_mappings.count() == 2
@@ -671,10 +698,14 @@ class TestAttributeImportServiceDeduplication:
         service._save_properties(properties)
 
         # Не должно быть создано атрибутов
-        assert not Attribute.objects.filter(normalized_name=normalize_attribute_name(f"TestAttr-{suffix}")).exists()
+        assert not Attribute.objects.filter(
+            normalized_name=normalize_attribute_name(f"TestAttr-{suffix}")
+        ).exists()
 
         # Не должно быть создано маппингов
-        assert not Attribute1CMapping.objects.filter(onec_id=f"attr-dry-{suffix}").exists()
+        assert not Attribute1CMapping.objects.filter(
+            onec_id=f"attr-dry-{suffix}"
+        ).exists()
 
     def test_new_attributes_created_with_is_active_false(self) -> None:
         """Тест что новые атрибуты создаются с is_active=False"""
@@ -696,7 +727,9 @@ class TestAttributeImportServiceDeduplication:
         service._save_properties(properties)
 
         # Атрибут должен быть создан с is_active=False
-        attribute = Attribute.objects.get(normalized_name=normalize_attribute_name(f"NewAttribute-{suffix}"))
+        attribute = Attribute.objects.get(
+            normalized_name=normalize_attribute_name(f"NewAttribute-{suffix}")
+        )
         assert attribute.is_active is False
 
     def test_existing_mapping_reuses_attribute(self) -> None:
@@ -773,9 +806,16 @@ class TestAttributeImportServiceDeduplication:
         service._save_properties(properties)
 
         # Должен быть создан 1 атрибут
-        assert Attribute.objects.filter(normalized_name=normalize_attribute_name(f"Размер-{suffix}")).count() == 1
+        assert (
+            Attribute.objects.filter(
+                normalized_name=normalize_attribute_name(f"Размер-{suffix}")
+            ).count()
+            == 1
+        )
 
-        attribute = Attribute.objects.get(normalized_name=normalize_attribute_name(f"Размер-{suffix}"))
+        attribute = Attribute.objects.get(
+            normalized_name=normalize_attribute_name(f"Размер-{suffix}")
+        )
 
         # Должно быть создано 2 уникальных значения (XL и L)
         assert attribute.values.count() == 2
@@ -819,7 +859,9 @@ class TestAttributeImportServiceValidation:
         with pytest.raises(ValueError, match="Path is not a directory"):
             service.import_from_directory(str(temp_file))
 
-    def test_import_from_directory_returns_stats_on_no_xml(self, tmp_path: Path) -> None:
+    def test_import_from_directory_returns_stats_on_no_xml(
+        self, tmp_path: Path
+    ) -> None:
         """Тест что import_from_directory возвращает stats если нет XML файлов"""
         # Создаем пустую директорию
         empty_dir = tmp_path / "empty"
@@ -849,7 +891,9 @@ class TestAttributeImportServiceValidation:
         with pytest.raises(ValueError, match="is empty"):
             service._validate_file(str(empty_file))
 
-    def test_import_from_file_increments_errors_on_invalid_xml(self, tmp_path: Path) -> None:
+    def test_import_from_file_increments_errors_on_invalid_xml(
+        self, tmp_path: Path
+    ) -> None:
         """Тест что import_from_file увеличивает счетчик ошибок при невалидном XML"""
         # Создаем файл с невалидным XML
         invalid_xml = tmp_path / "invalid.xml"
@@ -862,7 +906,9 @@ class TestAttributeImportServiceValidation:
 
         assert service.stats["errors"] == 1
 
-    def test_import_from_directory_continues_on_file_error(self, tmp_path: Path) -> None:
+    def test_import_from_directory_continues_on_file_error(
+        self, tmp_path: Path
+    ) -> None:
         """
         Тест что import_from_directory продолжает обработку
         после ошибки в одном файле
@@ -1082,7 +1128,9 @@ class TestAttributeValueAdminDisplay:
             name=f"Size-{suffix}",
             type="text",
         )
-        attr_value = AttributeValue.objects.create(attribute=attribute, value=f"Large-{suffix}")
+        attr_value = AttributeValue.objects.create(
+            attribute=attribute, value=f"Large-{suffix}"
+        )
 
         # Создаем маппинги значений
         AttributeValue1CMapping.objects.create(
