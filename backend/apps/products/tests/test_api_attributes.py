@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
+from django.conf import settings
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
@@ -245,14 +246,17 @@ class TestCatalogFiltersIntegration:
 
         url = reverse("products:catalog-filter-list")
 
-        # Должно быть фиксированное количество запросов (~3 основные + 2 savepoint):
-        # 1. SAVEPOINT (из-за ATOMIC_REQUESTS=True в settings/test.py)
-        # 2. SELECT Attributes (с фильтром is_active=True)
-        # 3. SELECT AttributeValues (prefetch_related)
-        # 4. COUNT (пагинация)
-        # 5. RELEASE SAVEPOINT
+        # Calculate expected queries based on ATOMIC_REQUESTS
+        # 3 base queries:
+        # 1. SELECT Attributes
+        # 2. SELECT AttributeValues
+        # 3. COUNT
+        expected_queries = 3
+        if settings.DATABASES["default"].get("ATOMIC_REQUESTS", False):
+            expected_queries += 2  # SAVEPOINT + RELEASE SAVEPOINT
+
         # Главное: НЕ должно быть N+1, т.е. количество не должно расти с числом атрибутов
-        with django_assert_num_queries(5):
+        with django_assert_num_queries(expected_queries):
             response = api_client.get(url)
 
         assert response.status_code == status.HTTP_200_OK
