@@ -20,7 +20,11 @@ export const profileHandlers = [
 
     // PUT Profile
     http.put(`${API_BASE_URL}/users/profile/`, async ({ request }) => {
-        const body = (await request.json()) as any;
+        const body = (await request.json()) as {
+            first_name?: string;
+            last_name?: string;
+            phone?: string;
+        };
 
         // Simulate validation error
         if (!body.first_name) {

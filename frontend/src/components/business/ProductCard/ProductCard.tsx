@@ -145,7 +145,7 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
       layout = 'grid',
       mode = 'b2c',
       userRole = 'retail',
-      showRRP = false,
+      // showRRP = false,
       onAddToCart,
       onToggleFavorite,
       isFavorite = false,

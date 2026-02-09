@@ -479,7 +479,7 @@ export const authHandlers = [
   }),
 
   http.post(`${API_BASE_URL}/auth/password-reset/confirm/`, async ({ request }) => {
-    const body = (await request.json()) as any;
+    const body = (await request.json()) as { token: string; new_password1?: string };
     if (body.token === 'invalid-token') {
       return HttpResponse.json({ detail: 'Invalid token' }, { status: 404 });
     }
@@ -494,7 +494,7 @@ export const authHandlers = [
 
   // Token Refresh
   http.post(`${API_BASE_URL}/auth/refresh/`, async ({ request }) => {
-    const body = (await request.json()) as any;
+    const body = (await request.json()) as { refresh: string };
     if (body.refresh === 'expired-token') {
       return HttpResponse.json({ detail: 'Token expired' }, { status: 401 });
     }

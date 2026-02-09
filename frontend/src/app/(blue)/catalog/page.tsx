@@ -386,7 +386,7 @@ const CatalogContent: React.FC = () => {
         // we might want to check isFavorite status before toggling OR update store to return status.
         // For now, let's just rely on the UI update.
         // To verify action we can check if it is NOW in favorites.
-      } catch (error) {
+      } catch {
         // Error is handled in store but we can show toast here if needed
       }
     },

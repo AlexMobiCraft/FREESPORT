@@ -133,7 +133,7 @@ export default function ProductSummary({
     }
     try {
       await toggleFavorite(product.id);
-    } catch (error) {
+    } catch {
       // handled in store
       toastError('Не удалось обновить избранное');
     }

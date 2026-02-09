@@ -18,7 +18,8 @@ afterEach(() => {
 });
 
 // Закрываем server после всех тестов
-server.close();
+afterAll(() => {
+  server.close();
 });
 
 // Mock Next.js Image component
