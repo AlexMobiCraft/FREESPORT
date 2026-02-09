@@ -381,9 +381,6 @@ class TestMaxErrorsLimit(TestCase):
         self.assertEqual(len(result.errors), 1)  # Ошибка конфликта должна быть записана
 
 
-    
-   
-    
 @pytest.mark.integration
 @pytest.mark.django_db
 class TestFinalStatusTransitionsDB(TestCase):

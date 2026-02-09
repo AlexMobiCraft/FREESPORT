@@ -447,10 +447,10 @@ class TestImportConcurrency:
 
     def test_concurrent_import_requests(self):
         """
-       
-        [AI-Review][CRITICAL] AC 5: Concurrent requests with sam
-       e sessid -> Only 1 session created.
-        Simulates race condition by bypassing the 'exists' check and hitting the database constraint.
+
+         [AI-Review][CRITICAL] AC 5: Concurrent requests with sam
+        e sessid -> Only 1 session created.
+         Simulates race condition by bypassing the 'exists' check and hitting the database constraint.
         """
         from django.db import IntegrityError, transaction
 

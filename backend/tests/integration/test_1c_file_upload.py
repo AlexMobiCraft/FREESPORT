@@ -224,10 +224,7 @@ class Test1CFileUpload:
         sessid = get_session_id(authenticated_client)
         test_content = b"Content without filename"
 
-        url = (
-            f"/api/integration/1c/exchange/"
-            f"?mode=file&sessid={sessid}"
-        )
+        url = f"/api/integration/1c/exchange/" f"?mode=file&sessid={sessid}"
         response = authenticated_client.post(
             url,
             data=test_content,
