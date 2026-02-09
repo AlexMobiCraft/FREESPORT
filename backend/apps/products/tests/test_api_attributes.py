@@ -245,12 +245,14 @@ class TestCatalogFiltersIntegration:
 
         url = reverse("products:catalog-filter-list")
 
-        # Должно быть фиксированное количество запросов (~3):
-        # 1. SELECT Attributes (с фильтром is_active=True)
-        # 2. SELECT AttributeValues (prefetch_related)
-        # 3. COUNT (пагинация)
+        # Должно быть фиксированное количество запросов (~3 основные + 2 savepoint):
+        # 1. SAVEPOINT (из-за ATOMIC_REQUESTS=True в settings/test.py)
+        # 2. SELECT Attributes (с фильтром is_active=True)
+        # 3. SELECT AttributeValues (prefetch_related)
+        # 4. COUNT (пагинация)
+        # 5. RELEASE SAVEPOINT
         # Главное: НЕ должно быть N+1, т.е. количество не должно расти с числом атрибутов
-        with django_assert_num_queries(3):
+        with django_assert_num_queries(5):
             response = api_client.get(url)
 
         assert response.status_code == status.HTTP_200_OK
