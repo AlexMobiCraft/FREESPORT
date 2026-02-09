@@ -2,6 +2,7 @@
 Serializers для API управления пользователями
 """
 
+from decimal import Decimal
 from typing import Any, cast
 
 from django.contrib.auth import authenticate

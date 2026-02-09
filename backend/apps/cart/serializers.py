@@ -4,6 +4,7 @@ Serializers для корзины покупок
 
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import TYPE_CHECKING, Any, Dict
 
 from django.contrib.auth import get_user_model
