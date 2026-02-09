@@ -1667,6 +1667,8 @@ class TestRound7ReviewFollowups:
                         </ЗначениеРеквизита>
                     </ЗначенияРеквизитов>
                 </Документ>
+            </Контейнер>
+        </КоммерческаяИнформация>"""
 
         mock_order = MagicMock()
         mock_order.order_number = order_number
@@ -1971,7 +1973,7 @@ class TestRound13ReviewFollowups:
 
         service = OrderStatusImportService()
 
-        with patch.object(service, "_bulk_fetch_orders", return_value={}):
+        with patch.object(service, "_bulk_fetch_orders", return_value=dict()):
             # ACT
             result = service.process(xml_data)
 

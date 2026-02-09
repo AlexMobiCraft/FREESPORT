@@ -472,11 +472,40 @@ export const authHandlers = [
       { status: 201 }
     );
   }),
+
+  // Password Reset
+  http.post(`${API_BASE_URL}/auth/password-reset/`, async () => {
+    return HttpResponse.json({ detail: 'Password reset e-mail has been sent.' });
+  }),
+
+  http.post(`${API_BASE_URL}/auth/password-reset/confirm/`, async ({ request }) => {
+    const body = (await request.json()) as any;
+    if (body.token === 'invalid-token') {
+      return HttpResponse.json({ detail: 'Invalid token' }, { status: 404 });
+    }
+    if (body.token === 'expired-token') {
+      return HttpResponse.json({ detail: 'Token expired' }, { status: 410 });
+    }
+    if (body.new_password1 === 'weak') {
+      return HttpResponse.json({ new_password: ['Password too weak'] }, { status: 400 });
+    }
+    return HttpResponse.json({ detail: 'Password has been reset.' });
+  }),
+
+  // Token Refresh
+  http.post(`${API_BASE_URL}/auth/refresh/`, async ({ request }) => {
+    const body = (await request.json()) as any;
+    if (body.refresh === 'expired-token') {
+      return HttpResponse.json({ detail: 'Token expired' }, { status: 401 });
+    }
+    return HttpResponse.json({ access: 'new-access-token', refresh: 'new-refresh-token' });
+  }),
 ];
 
 // Import handlers from separate files
 import { ordersHandlers } from '../handlers/ordersHandlers';
 import { deliveryHandlers } from '../handlers/deliveryHandlers';
+import { profileHandlers } from '../handlers/profileHandlers';
 
 /**
  * Banners Handlers
@@ -506,6 +535,7 @@ export const handlers = [
   ...authHandlers,
   ...ordersHandlers,
   ...deliveryHandlers,
+  ...profileHandlers,
   ...bannersHandlersLocal,
   // Хиты продаж (AC 1)
   http.get(`${API_BASE_URL}/products/`, ({ request }) => {
