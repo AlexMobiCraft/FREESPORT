@@ -3,7 +3,8 @@
  * Настройка MSW и тестового окружения
  */
 
-import { beforeAll, afterEach, afterAll } from 'vitest';
+import { beforeAll, afterEach, afterAll, vi } from 'vitest';
+import React from 'react';
 import { server } from '@/__mocks__/api/server';
 
 // Запускаем MSW server перед всеми тестами
@@ -17,6 +18,13 @@ afterEach(() => {
 });
 
 // Закрываем server после всех тестов
-afterAll(() => {
-  server.close();
+server.close();
 });
+
+// Mock Next.js Image component
+vi.mock('next/image', () => ({
+  default: (props: any) => {
+    // eslint-disable-next-line @next/next/no-img-element
+    return React.createElement('img', { ...props, alt: props.alt });
+  },
+}));
