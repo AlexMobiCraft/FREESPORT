@@ -32,11 +32,7 @@ class Command(BaseCommand):
         attr_count = Attribute.objects.count()
         value_count = AttributeValue.objects.count()
 
-        self.stdout.write(
-            self.style.WARNING(
-                "\n⚠️  ВНИМАНИЕ: Будут удалены все атрибуты и значения атрибутов!"
-            )
-        )
+        self.stdout.write(self.style.WARNING("\n⚠️  ВНИМАНИЕ: Будут удалены все атрибуты и значения атрибутов!"))
         self.stdout.write(f"   Атрибутов: {attr_count}")
         self.stdout.write(f"   Значений атрибутов: {value_count}\n")
 
@@ -51,33 +47,22 @@ class Command(BaseCommand):
             with transaction.atomic():
                 # Сначала удаляем значения атрибутов (из-за FK)
                 deleted_values = AttributeValue.objects.all().delete()
-                self.stdout.write(
-                    self.style.SUCCESS(
-                        f"✓ Удалено значений атрибутов: {deleted_values[0]}"
-                    )
-                )
+                self.stdout.write(self.style.SUCCESS(f"✓ Удалено значений атрибутов: {deleted_values[0]}"))
 
                 # Затем удаляем атрибуты
                 deleted_attrs = Attribute.objects.all().delete()
-                self.stdout.write(
-                    self.style.SUCCESS(f"✓ Удалено атрибутов: {deleted_attrs[0]}")
-                )
+                self.stdout.write(self.style.SUCCESS(f"✓ Удалено атрибутов: {deleted_attrs[0]}"))
 
                 # Подтверждаем результат
                 remaining_attrs = Attribute.objects.count()
                 remaining_values = AttributeValue.objects.count()
 
                 if remaining_attrs == 0 and remaining_values == 0:
-                    self.stdout.write(
-                        self.style.SUCCESS(
-                            "\n✅ Все атрибуты и значения успешно удалены!"
-                        )
-                    )
+                    self.stdout.write(self.style.SUCCESS("\n✅ Все атрибуты и значения успешно удалены!"))
                 else:
                     self.stdout.write(
                         self.style.ERROR(
-                            f"\n⚠️  Остались записи: атрибутов={remaining_attrs}, "
-                            f"значений={remaining_values}"
+                            f"\n⚠️  Остались записи: атрибутов={remaining_attrs}, " f"значений={remaining_values}"
                         )
                     )
 

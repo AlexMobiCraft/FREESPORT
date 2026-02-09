@@ -39,12 +39,8 @@ class TestOrderHistoryAPI:
         user = user_factory.create(role="retail")
 
         # Создаем заказы
-        order_factory.create(
-            user=user, order_number="TEST-001", status="delivered", total_amount=1000.00
-        )
-        order_factory.create(
-            user=user, order_number="TEST-002", status="pending", total_amount=2000.00
-        )
+        order_factory.create(user=user, order_number="TEST-001", status="delivered", total_amount=1000.00)
+        order_factory.create(user=user, order_number="TEST-002", status="pending", total_amount=2000.00)
 
         # Аутентификация
         refresh = RefreshToken.for_user(user)

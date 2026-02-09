@@ -78,9 +78,7 @@ class TestImportStocksIntegration:
         ]
         return variants
 
-    def test_full_import_cycle(
-        self, test_rests_xml: str, test_products: list[ProductVariant]
-    ) -> None:
+    def test_full_import_cycle(self, test_rests_xml: str, test_products: list[ProductVariant]) -> None:
         """Тест полного цикла импорта остатков"""
         # Запускаем команду
         call_command("load_product_stocks", file=test_rests_xml)
@@ -103,16 +101,13 @@ class TestImportStocksIntegration:
         assert session.report_details["not_found_count"] == 0
         assert session.finished_at is not None
 
-    def test_transaction_rollback_on_error(
-        self, test_rests_xml: str, test_products: list[ProductVariant]
-    ) -> None:
+    def test_transaction_rollback_on_error(self, test_rests_xml: str, test_products: list[ProductVariant]) -> None:
         """Тест отката транзакции при ошибке"""
         initial_quantity = test_products[0].stock_quantity
 
         # Мокируем ошибку в процессе обновления
         with patch(
-            "apps.products.management.commands.load_product_stocks."
-            "ProductVariant.objects.bulk_update",
+            "apps.products.management.commands.load_product_stocks." "ProductVariant.objects.bulk_update",
             side_effect=Exception("Database error"),
         ):
             with pytest.raises(Exception, match="Database error"):
@@ -126,9 +121,7 @@ class TestImportStocksIntegration:
         session = ImportSession.objects.latest("started_at")
         assert session.status == ImportSession.ImportStatus.FAILED
 
-    def test_mixed_scenario_with_missing_products(
-        self, tmp_path: Path, test_products: list[ProductVariant]
-    ) -> None:
+    def test_mixed_scenario_with_missing_products(self, tmp_path: Path, test_products: list[ProductVariant]) -> None:
         """Тест со смешанным сценарием: существующие и отсутствующие товары"""
         xml_content = """<?xml version="1.0" encoding="UTF-8"?>
 <ПакетПредложений>
@@ -262,9 +255,7 @@ class TestImportStocksIntegration:
         assert variants[0].stock_quantity == 10
         assert variants[49].stock_quantity == 500
 
-    def test_dry_run_integration(
-        self, test_rests_xml: str, test_products: list[ProductVariant]
-    ) -> None:
+    def test_dry_run_integration(self, test_rests_xml: str, test_products: list[ProductVariant]) -> None:
         """Интеграционный тест режима dry-run"""
         initial_quantities = [p.stock_quantity for p in test_products]
 
@@ -279,22 +270,16 @@ class TestImportStocksIntegration:
         # Проверяем что сессия записана с флагом dry_run
         session = ImportSession.objects.latest("started_at")
         assert session.report_details["dry_run"] is True
-        assert (
-            session.report_details["updated_count"] == 2
-        )  # Посчитаны, но не сохранены
+        assert session.report_details["updated_count"] == 2  # Посчитаны, но не сохранены
 
-    def test_concurrent_updates_handling(
-        self, test_rests_xml: str, test_products: list[ProductVariant]
-    ) -> None:
+    def test_concurrent_updates_handling(self, test_rests_xml: str, test_products: list[ProductVariant]) -> None:
         """Тест обработки параллельных обновлений"""
         # Запускаем команду дважды подряд
         call_command("load_product_stocks", file=test_rests_xml)
         call_command("load_product_stocks", file=test_rests_xml)
 
         # Проверяем что создано 2 сессии
-        sessions = ImportSession.objects.filter(
-            import_type=ImportSession.ImportType.STOCKS
-        ).order_by("-started_at")
+        sessions = ImportSession.objects.filter(import_type=ImportSession.ImportType.STOCKS).order_by("-started_at")
 
         assert sessions.count() == 2
         assert all(s.status == ImportSession.ImportStatus.COMPLETED for s in sessions)

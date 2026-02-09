@@ -142,14 +142,9 @@ class TestRestoreDbCommand(TestCase):
     def test_restore_validates_file_exists(self):
         """Тест валидации существования backup файла"""
         with pytest.raises(CommandError) as exc_info:
-            call_command(
-                "restore_db", "--backup-file=/nonexistent/backup.sql", "--confirm"
-            )
+            call_command("restore_db", "--backup-file=/nonexistent/backup.sql", "--confirm")
 
-        assert (
-            "не найден" in str(exc_info.value).lower()
-            or "not found" in str(exc_info.value).lower()
-        )
+        assert "не найден" in str(exc_info.value).lower() or "not found" in str(exc_info.value).lower()
 
     @patch("subprocess.run")
     def test_restore_with_confirm_flag(self, mock_subprocess):
@@ -183,9 +178,7 @@ class TestRotateBackupsCommand(TestCase):
         self.backup_dir = Path(self.temp_dir) / "backups"
         self.backup_dir.mkdir()
 
-    @override_settings(
-        BACKUP_DIR=str(Path(tempfile.gettempdir()) / "test_backups_rotate")
-    )
+    @override_settings(BACKUP_DIR=str(Path(tempfile.gettempdir()) / "test_backups_rotate"))
     def test_rotate_with_keep_parameter(self):
         """Тест ротации с параметром --keep"""
         backup_dir = Path(tempfile.gettempdir()) / "test_backups_rotate"
@@ -203,9 +196,7 @@ class TestRotateBackupsCommand(TestCase):
         output = out.getvalue()
         assert "3" in output  # keep=3
 
-    @override_settings(
-        BACKUP_DIR=str(Path(tempfile.gettempdir()) / "test_backups_rotate_dry")
-    )
+    @override_settings(BACKUP_DIR=str(Path(tempfile.gettempdir()) / "test_backups_rotate_dry"))
     def test_rotate_dry_run(self):
         """Тест dry-run режима (без фактического удаления)"""
         backup_dir = Path(tempfile.gettempdir()) / "test_backups_rotate_dry"

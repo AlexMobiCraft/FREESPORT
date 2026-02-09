@@ -41,14 +41,10 @@ ORDERS_IMPORT_MAX_RETRIES = 3  # FM5.1/FM5.2: DB retry attempts
 XML_TIMESTAMP_SCAN_BYTES = 2048  # Review follow-up: avoid missing timestamp
 
 # Simple regex to count <Документ> tags without full XML parsing
-_DOCUMENT_TAG_RE = re.compile(
-    rb"<\xd0\x94\xd0\xbe\xd0\xba\xd1\x83\xd0\xbc\xd0\xb5\xd0\xbd\xd1\x82[\s>/]"
-)
+_DOCUMENT_TAG_RE = re.compile(rb"<\xd0\x94\xd0\xbe\xd0\xba\xd1\x83\xd0\xbc\xd0\xb5\xd0\xbd\xd1\x82[\s>/]")
 
 # Regex to detect encoding from XML declaration (AC10)
-_XML_ENCODING_RE = re.compile(
-    rb'<\?xml[^>]+encoding=["\']([^"\']+)["\']', re.IGNORECASE
-)
+_XML_ENCODING_RE = re.compile(rb'<\?xml[^>]+encoding=["\']([^"\']+)["\']', re.IGNORECASE)
 
 
 def _validate_xml_timestamp(xml_data: bytes, max_age_hours: int = 24) -> bool:
@@ -78,9 +74,7 @@ def _validate_xml_timestamp(xml_data: bytes, max_age_hours: int = 24) -> bool:
             xml_time = timezone.make_aware(xml_time)
         age = timezone.now() - xml_time
         if age > timedelta(hours=max_age_hours):
-            logger.warning(
-                f"[SECURITY] XML ДатаФормирования is {age} old (max {max_age_hours}h)"
-            )
+            logger.warning(f"[SECURITY] XML ДатаФормирования is {age} old (max {max_age_hours}h)")
             return False
         return True
     except Exception as exc:
@@ -132,9 +126,7 @@ def _get_exchange_log_dir() -> Path:
     return Path(settings.BASE_DIR) / "var" / EXCHANGE_LOG_SUBDIR
 
 
-def _save_exchange_log(
-    filename: str, content: bytes | str, is_binary: bool = False
-) -> None:
+def _save_exchange_log(filename: str, content: bytes | str, is_binary: bool = False) -> None:
     """Save a copy of exchange output to a private log directory for audit."""
     try:
         log_dir = _get_exchange_log_dir()
@@ -223,9 +215,7 @@ class ICExchangeView(APIView):
         elif mode == "deactivate":
             return self.handle_complete(request)
 
-        return HttpResponse(
-            "failure\nUnknown mode", content_type="text/plain; charset=utf-8"
-        )
+        return HttpResponse("failure\nUnknown mode", content_type="text/plain; charset=utf-8")
 
     def post(self, request, *args, **kwargs):
         """
@@ -251,9 +241,7 @@ class ICExchangeView(APIView):
             logger.info("[DEACTIVATE] Exchange completed notification from 1C")
             return HttpResponse("success", content_type="text/plain; charset=utf-8")
 
-        return HttpResponse(
-            "failure\nUnknown mode (POST)", content_type="text/plain; charset=utf-8"
-        )
+        return HttpResponse("failure\nUnknown mode (POST)", content_type="text/plain; charset=utf-8")
 
     def handle_import(self, request):
         """
@@ -270,9 +258,7 @@ class ICExchangeView(APIView):
 
         if not sessid:
             logger.warning("[IMPORT] Request rejected: No identifier found.")
-            return HttpResponse(
-                "failure\nMissing sessid", content_type="text/plain; charset=utf-8"
-            )
+            return HttpResponse("failure\nMissing sessid", content_type="text/plain; charset=utf-8")
 
         orchestrator = ImportOrchestratorService(sessid, filename)
         success, message = orchestrator.execute()
@@ -296,9 +282,7 @@ class ICExchangeView(APIView):
 
         if not sessid:
             logger.warning("[COMPLETE] Rejected: Missing sessid")
-            return HttpResponse(
-                "failure\nMissing sessid", content_type="text/plain; charset=utf-8"
-            )
+            return HttpResponse("failure\nMissing sessid", content_type="text/plain; charset=utf-8")
 
         dry_run = request.query_params.get("dry_run") == "1"
         orchestrator = ImportOrchestratorService(sessid, "complete")
@@ -333,14 +317,11 @@ class ICExchangeView(APIView):
             backends = get_backends()
             if backends:
                 backend = backends[0]
-                request.user.backend = (
-                    f"{backend.__module__}.{backend.__class__.__name__}"
-                )
+                request.user.backend = f"{backend.__module__}.{backend.__class__.__name__}"
             else:
                 request.user.backend = (
                     settings.AUTHENTICATION_BACKENDS[0]
-                    if hasattr(settings, "AUTHENTICATION_BACKENDS")
-                    and settings.AUTHENTICATION_BACKENDS
+                    if hasattr(settings, "AUTHENTICATION_BACKENDS") and settings.AUTHENTICATION_BACKENDS
                     else "django.contrib.auth.backends.ModelBackend"
                 )
 
@@ -365,9 +346,7 @@ class ICExchangeView(APIView):
         """
         sessid = self._get_exchange_identity(request)
         if not sessid:
-            return HttpResponse(
-                "failure\nNo session", content_type="text/plain; charset=utf-8"
-            )
+            return HttpResponse("failure\nNo session", content_type="text/plain; charset=utf-8")
 
         try:
             file_service = FileStreamService(sessid)
@@ -375,15 +354,11 @@ class ICExchangeView(APIView):
             # If the PREVIOUS exchange was marked as complete,
             # this 'init' starts a NEW cycle -> Full Cleanup.
             if file_service.is_complete():
-                logger.info(
-                    f"New exchange cycle detected for {sessid}. Performing full cleanup."
-                )
+                logger.info(f"New exchange cycle detected for {sessid}. Performing full cleanup.")
                 file_service.cleanup_session(force=True)
                 file_service.clear_complete()
             else:
-                logger.info(
-                    f"Continuing existing exchange cycle for {sessid}. Accumulating files."
-                )
+                logger.info(f"Continuing existing exchange cycle for {sessid}. Accumulating files.")
         except Exception as e:
             logger.warning(f"Init cleanup logic fail: {e}")
 
@@ -433,9 +408,7 @@ class ICExchangeView(APIView):
             # Using NamedTemporaryFile to allow FileResponse streaming
             xml_tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".xml")
             try:
-                for chunk in service.generate_xml_streaming(
-                    orders, exported_ids, skipped_ids
-                ):
+                for chunk in service.generate_xml_streaming(orders, exported_ids, skipped_ids):
                     xml_tmp.write(chunk.encode("utf-8"))
                 xml_tmp.close()
 
@@ -479,13 +452,9 @@ class ICExchangeView(APIView):
                 raise
 
         # Non-ZIP: Stream XML directly via FileResponse
-        xml_file = tempfile.NamedTemporaryFile(
-            delete=False, suffix=".xml", mode="w", encoding="utf-8"
-        )
+        xml_file = tempfile.NamedTemporaryFile(delete=False, suffix=".xml", mode="w", encoding="utf-8")
         try:
-            for chunk in service.generate_xml_streaming(
-                orders, exported_ids, skipped_ids
-            ):
+            for chunk in service.generate_xml_streaming(orders, exported_ids, skipped_ids):
                 xml_file.write(chunk)
             xml_file.close()
 
@@ -579,9 +548,7 @@ class ICExchangeView(APIView):
                 )
 
         if not exported_ids:
-            logger.info(
-                "[EXPORT SUCCESS] No orders were exported in last query — nothing to mark."
-            )
+            logger.info("[EXPORT SUCCESS] No orders were exported in last query — nothing to mark.")
             # Clean up session state
             del request.session["last_1c_query_time"]
             cache.delete(cache_key)
@@ -598,9 +565,7 @@ class ICExchangeView(APIView):
                 updated_at=now,
             )
 
-        logger.info(
-            f"[EXPORT SUCCESS] Marked {updated} orders as sent_to_1c (of {len(exported_ids)} exported)"
-        )
+        logger.info(f"[EXPORT SUCCESS] Marked {updated} orders as sent_to_1c (of {len(exported_ids)} exported)")
 
         # Send custom signal for audit (QuerySet.update bypasses post_save)
         if updated > 0:
@@ -631,9 +596,7 @@ class ICExchangeView(APIView):
             # ADR-004: Check file size BEFORE reading
             content_length = int(request.META.get("CONTENT_LENGTH", 0))
             if content_length > ORDERS_XML_MAX_SIZE:
-                logger.warning(
-                    f"[ORDERS IMPORT] Rejected: file too large ({content_length} bytes)"
-                )
+                logger.warning(f"[ORDERS IMPORT] Rejected: file too large ({content_length} bytes)")
                 return HttpResponse(
                     "failure\nFile too large for inline processing",
                     content_type="text/plain; charset=utf-8",
@@ -643,9 +606,7 @@ class ICExchangeView(APIView):
             xml_data = request._request.read(ORDERS_XML_MAX_SIZE + 1)
 
             if len(xml_data) > ORDERS_XML_MAX_SIZE:
-                logger.warning(
-                    f"[ORDERS IMPORT] Rejected: file too large ({len(xml_data)} bytes)"
-                )
+                logger.warning(f"[ORDERS IMPORT] Rejected: file too large ({len(xml_data)} bytes)")
                 return HttpResponse(
                     "failure\nFile too large for inline processing",
                     content_type="text/plain; charset=utf-8",
@@ -653,10 +614,7 @@ class ICExchangeView(APIView):
 
             # FM1.1: Body integrity check
             if content_length > 0 and len(xml_data) != content_length:
-                logger.warning(
-                    f"[ORDERS IMPORT] Truncated body: expected {content_length}, "
-                    f"got {len(xml_data)}"
-                )
+                logger.warning(f"[ORDERS IMPORT] Truncated body: expected {content_length}, " f"got {len(xml_data)}")
                 return HttpResponse(
                     "failure\nIncomplete request body",
                     content_type="text/plain; charset=utf-8",
@@ -679,10 +637,7 @@ class ICExchangeView(APIView):
             # FM4.5: Guard against oversized XML
             doc_count = len(_DOCUMENT_TAG_RE.findall(xml_data))
             if doc_count > MAX_DOCUMENTS_PER_FILE:
-                logger.warning(
-                    f"[ORDERS IMPORT] Too many documents: {doc_count} "
-                    f"(max {MAX_DOCUMENTS_PER_FILE})"
-                )
+                logger.warning(f"[ORDERS IMPORT] Too many documents: {doc_count} " f"(max {MAX_DOCUMENTS_PER_FILE})")
                 return HttpResponse(
                     "failure\nToo many documents",
                     content_type="text/plain; charset=utf-8",
@@ -700,9 +655,7 @@ class ICExchangeView(APIView):
                     last_db_error = e
                     if attempt == ORDERS_IMPORT_MAX_RETRIES - 1:
                         raise
-                    logger.warning(
-                        f"[ORDERS IMPORT] DB error, retry {attempt + 1}: {e}"
-                    )
+                    logger.warning(f"[ORDERS IMPORT] DB error, retry {attempt + 1}: {e}")
                     time.sleep(0.5 * (attempt + 1))
 
             if result is None:
@@ -723,9 +676,7 @@ class ICExchangeView(APIView):
                 None,
             )
             if security_error:
-                logger.warning(
-                    f"[ORDERS IMPORT] XML security violation: {security_error}"
-                )
+                logger.warning(f"[ORDERS IMPORT] XML security violation: {security_error}")
                 return HttpResponse(
                     "failure\nXML security violation",
                     content_type="text/plain; charset=utf-8",
@@ -741,8 +692,7 @@ class ICExchangeView(APIView):
             # AC9/Pre-mortem #1: Alert on zero processed from non-empty XML
             if result.processed == 0 and len(xml_data) > 100:
                 logger.error(
-                    "[ORDERS IMPORT] Zero documents processed from non-empty XML "
-                    f"(body size={len(xml_data)} bytes)"
+                    "[ORDERS IMPORT] Zero documents processed from non-empty XML " f"(body size={len(xml_data)} bytes)"
                 )
 
             if result.errors:
@@ -753,10 +703,7 @@ class ICExchangeView(APIView):
                 return HttpResponse("success", content_type="text/plain; charset=utf-8")
 
             # Complete failure: nothing updated AND errors present
-            summary = (
-                f"processed={result.processed}, updated={result.updated}, "
-                f"errors={len(result.errors)}"
-            )
+            summary = f"processed={result.processed}, updated={result.updated}, " f"errors={len(result.errors)}"
             return HttpResponse(
                 f"failure\nNo orders updated. {summary}",
                 content_type="text/plain; charset=utf-8",
@@ -819,18 +766,12 @@ class ICExchangeView(APIView):
                     writer.write(chunk)
 
             if writer.bytes_written == 0:
-                return HttpResponse(
-                    "failure\nEmpty body", content_type="text/plain; charset=utf-8"
-                )
+                return HttpResponse("failure\nEmpty body", content_type="text/plain; charset=utf-8")
 
             return HttpResponse("success", content_type="text/plain; charset=utf-8")
 
         except FileLockError:
-            return HttpResponse(
-                "failure\nFile busy", content_type="text/plain; charset=utf-8"
-            )
+            return HttpResponse("failure\nFile busy", content_type="text/plain; charset=utf-8")
         except Exception as e:
             logger.exception(f"Upload error: {e}")
-            return HttpResponse(
-                "failure\nInternal error", content_type="text/plain; charset=utf-8"
-            )
+            return HttpResponse("failure\nInternal error", content_type="text/plain; charset=utf-8")

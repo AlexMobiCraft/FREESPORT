@@ -23,9 +23,7 @@ class PageModelSecurityTest(TestCase):
         <h2>Заголовок</h2>
         """
 
-        page = Page.objects.create(
-            title="Security Test", content=dangerous_content, is_published=True
-        )
+        page = Page.objects.create(title="Security Test", content=dangerous_content, is_published=True)
 
         # Script теги должны быть полностью удалены
         self.assertNotIn("<script>", page.content)
@@ -46,9 +44,7 @@ class PageModelSecurityTest(TestCase):
         <div style="background: url(javascript:alert('XSS'))">Content</div>
         """
 
-        page = Page.objects.create(
-            title="Attributes Test", content=dangerous_content, is_published=True
-        )
+        page = Page.objects.create(title="Attributes Test", content=dangerous_content, is_published=True)
 
         # Опасные теги должны быть удалены, но текст может остаться
         # Важно что опасные теги и их атрибуты удаляются
@@ -67,9 +63,7 @@ class PageModelSecurityTest(TestCase):
         <object data="malicious.swf"></object>
         """
 
-        page = Page.objects.create(
-            title="Iframe Test", content=dangerous_content, is_published=True
-        )
+        page = Page.objects.create(title="Iframe Test", content=dangerous_content, is_published=True)
 
         # Опасные теги должны быть удалены
         self.assertNotIn("<iframe", page.content)
@@ -99,9 +93,7 @@ class PageModelSecurityTest(TestCase):
         <br>
         """
 
-        page = Page.objects.create(
-            title="Safe Tags Test", content=safe_content, is_published=True
-        )
+        page = Page.objects.create(title="Safe Tags Test", content=safe_content, is_published=True)
 
         # Все безопасные теги должны сохраниться
         safe_tags = ["h1", "h2", "h3", "p", "strong", "em", "ul", "ol", "li", "a", "br"]
@@ -115,9 +107,7 @@ class PageModelSecurityTest(TestCase):
         <div style="expression(alert('XSS'))">IE Expression</div>
         """
 
-        page = Page.objects.create(
-            title="CSS Test", content=dangerous_content, is_published=True
-        )
+        page = Page.objects.create(title="CSS Test", content=dangerous_content, is_published=True)
 
         # Опасный CSS должен быть удален
         self.assertNotIn("javascript:", page.content)
@@ -131,9 +121,7 @@ class PageModelSecurityTest(TestCase):
         <a href="data:text/html,<script>alert('XSS')</script>">Link</a>
         """
 
-        page = Page.objects.create(
-            title="Data URI Test", content=dangerous_content, is_published=True
-        )
+        page = Page.objects.create(title="Data URI Test", content=dangerous_content, is_published=True)
 
         # Data URI со скриптами должны быть удалены
         self.assertNotIn("data:text/html", page.content)
@@ -146,18 +134,14 @@ class PageModelTest(TestCase):
 
     def test_slug_auto_generation(self):
         """Тест автогенерации slug"""
-        page = Page.objects.create(
-            title="Тестовая Страница", content="<p>Контент</p>", is_published=True
-        )
+        page = Page.objects.create(title="Тестовая Страница", content="<p>Контент</p>", is_published=True)
 
         self.assertEqual(page.slug, "testovaja-stranitsa")
 
     def test_seo_title_auto_generation(self):
         """Тест автогенерации SEO заголовка"""
         long_title = "Очень длинный заголовок страницы который должен быть обрезан"
-        page = Page.objects.create(
-            title=long_title, content="<p>Контент</p>", is_published=True
-        )
+        page = Page.objects.create(title=long_title, content="<p>Контент</p>", is_published=True)
 
         self.assertEqual(len(page.seo_title), 60)
         self.assertTrue(page.seo_title.startswith("Очень длинный"))
@@ -165,9 +149,7 @@ class PageModelTest(TestCase):
     def test_seo_description_auto_generation(self):
         """Тест автогенерации SEO описания"""
         long_content = "<p>" + "Длинный контент страницы. " * 20 + "</p>"
-        page = Page.objects.create(
-            title="Тест", content=long_content, is_published=True
-        )
+        page = Page.objects.create(title="Тест", content=long_content, is_published=True)
 
         self.assertEqual(len(page.seo_description), 160)
         self.assertNotIn("<p>", page.seo_description)

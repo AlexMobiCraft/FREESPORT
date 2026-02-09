@@ -85,9 +85,7 @@ class ImportSessionAdmin(admin.ModelAdmin):
         """
         return False
 
-    def has_change_permission(
-        self, request: HttpRequest, obj: Session | None = None
-    ) -> bool:
+    def has_change_permission(self, request: HttpRequest, obj: Session | None = None) -> bool:
         """
         Запрещаем редактирование существующих сессий.
 
@@ -96,9 +94,7 @@ class ImportSessionAdmin(admin.ModelAdmin):
         """
         return False
 
-    def has_delete_permission(
-        self, request: HttpRequest, obj: Session | None = None
-    ) -> bool:
+    def has_delete_permission(self, request: HttpRequest, obj: Session | None = None) -> bool:
         """
         Разрешаем удаление сессий для периодического cleanup.
 
@@ -174,8 +170,7 @@ class ImportSessionAdmin(admin.ModelAdmin):
             icon, color, label = status_map.get(state, ("❓", "black", state))
 
             return format_html(
-                '<span style="color: {}; font-weight: bold;" title="Task ID: {}">'
-                "{} {}</span>",
+                '<span style="color: {}; font-weight: bold;" title="Task ID: {}">' "{} {}</span>",
                 color,
                 obj.celery_task_id,
                 icon,
@@ -228,11 +223,7 @@ class ImportSessionAdmin(admin.ModelAdmin):
                 or obj.report_details.get("total_customers")
                 or 0
             )
-            processed = (
-                obj.report_details.get("processed_items")
-                or obj.report_details.get("processed")
-                or 0
-            )
+            processed = obj.report_details.get("processed_items") or obj.report_details.get("processed") or 0
 
             if total > 0:
                 progress = (processed / total) * 100

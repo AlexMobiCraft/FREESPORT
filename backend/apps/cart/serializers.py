@@ -57,30 +57,20 @@ class CartItemSerializer(serializers.ModelSerializer):
         if obj.variant.main_image:
             image_url = obj.variant.main_image.url
         # 2. Fallback на gallery_images варианта
-        elif obj.variant.gallery_images and isinstance(
-            obj.variant.gallery_images, list
-        ):
+        elif obj.variant.gallery_images and isinstance(obj.variant.gallery_images, list):
             img = obj.variant.gallery_images[0]
             if img.startswith("/products/"):
                 image_url = f"/media{img}"
-            elif not img.startswith("/media/") and not img.startswith(
-                ("http://", "https://")
-            ):
+            elif not img.startswith("/media/") and not img.startswith(("http://", "https://")):
                 image_url = f"/media/{img.lstrip('/')}"
             else:
                 image_url = img
         # 3. Fallback на base_images товара
-        elif (
-            product.base_images
-            and isinstance(product.base_images, list)
-            and product.base_images
-        ):
+        elif product.base_images and isinstance(product.base_images, list) and product.base_images:
             img = product.base_images[0]
             if img.startswith("/products/"):
                 image_url = f"/media{img}"
-            elif not img.startswith("/media/") and not img.startswith(
-                ("http://", "https://")
-            ):
+            elif not img.startswith("/media/") and not img.startswith(("http://", "https://")):
                 image_url = f"/media/{img.lstrip('/')}"
             else:
                 image_url = img
@@ -182,9 +172,7 @@ class CartItemUpdateSerializer(serializers.ModelSerializer):
 
         # Проверяем наличие на складе
         if quantity > variant.stock_quantity:
-            raise serializers.ValidationError(
-                f"Недостаточно товара на складе. Доступно: {variant.stock_quantity}"
-            )
+            raise serializers.ValidationError(f"Недостаточно товара на складе. Доступно: {variant.stock_quantity}")
 
         return attrs
 

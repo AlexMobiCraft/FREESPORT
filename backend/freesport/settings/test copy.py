@@ -124,9 +124,7 @@ SIMPLE_JWT = {
     "ALGORITHM": "HS256",
     "VERIFYING_KEY": None,
     "AUTH_HEADER_TYPES": ("Bearer",),
-    "TOKEN_OBTAIN_SERIALIZER": (
-        "rest_framework_simplejwt.serializers.TokenObtainPairSerializer"
-    ),
+    "TOKEN_OBTAIN_SERIALIZER": ("rest_framework_simplejwt.serializers.TokenObtainPairSerializer"),
 }
 
 # Разрешаем все домены для тестов

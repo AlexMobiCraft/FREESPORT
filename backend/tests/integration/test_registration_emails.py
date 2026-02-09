@@ -55,9 +55,7 @@ class TestRegistrationEmailsIntegration:
 
     @patch("apps.users.serializers.send_admin_verification_email.delay")
     @patch("apps.users.serializers.send_user_pending_email.delay")
-    def test_wholesale_registration_triggers_emails(
-        self, mock_user_email, mock_admin_email
-    ):
+    def test_wholesale_registration_triggers_emails(self, mock_user_email, mock_admin_email):
         """Wholesale регистрация вызывает отправку email."""
         client = APIClient()
 
@@ -85,9 +83,7 @@ class TestRegistrationEmailsIntegration:
 
     @patch("apps.users.serializers.send_admin_verification_email.delay")
     @patch("apps.users.serializers.send_user_pending_email.delay")
-    def test_retail_registration_does_not_trigger_emails(
-        self, mock_user_email, mock_admin_email
-    ):
+    def test_retail_registration_does_not_trigger_emails(self, mock_user_email, mock_admin_email):
         """Retail регистрация НЕ вызывает отправку verification emails."""
         client = APIClient()
 
@@ -119,9 +115,7 @@ class TestRegistrationEmailsIntegration:
 
     @patch("apps.users.serializers.send_admin_verification_email.delay")
     @patch("apps.users.serializers.send_user_pending_email.delay")
-    def test_federation_rep_registration_triggers_emails(
-        self, mock_user_email, mock_admin_email
-    ):
+    def test_federation_rep_registration_triggers_emails(self, mock_user_email, mock_admin_email):
         """Регистрация представителя федерации вызывает email."""
         client = APIClient()
 

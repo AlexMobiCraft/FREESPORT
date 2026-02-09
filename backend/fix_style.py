@@ -43,18 +43,14 @@ def fix_order_export_service():
 
     new_lines = []
     target_line_part = (
-        "# With prefetch, we expect: 1 for orders + 1 for items + 1 for variants "
-        "+ 1 for users = ~4 queries"
+        "# With prefetch, we expect: 1 for orders + 1 for items + 1 for variants " "+ 1 for users = ~4 queries"
     )
 
     for line in lines:
         if target_line_part in line:
             indent = line[: line.find("#")]
             new_lines.append(f"{indent}# With prefetch, we expect:\n")
-            new_lines.append(
-                f"{indent}# 1 for orders + 1 for items + 1 for variants "
-                "+ 1 for users = ~4 queries\n"
-            )
+            new_lines.append(f"{indent}# 1 for orders + 1 for items + 1 for variants " "+ 1 for users = ~4 queries\n")
         else:
             new_lines.append(line)
 

@@ -83,13 +83,9 @@ class TestProductRetrieveWithVariants:
 
         return product
 
-    def test_retrieve_product_returns_variants_array(
-        self, api_client, product_with_variants
-    ):
+    def test_retrieve_product_returns_variants_array(self, api_client, product_with_variants):
         """Тест: GET /products/{slug}/ возвращает массив variants"""
-        url = reverse(
-            "products:product-detail", kwargs={"slug": product_with_variants.slug}
-        )
+        url = reverse("products:product-detail", kwargs={"slug": product_with_variants.slug})
         response = api_client.get(url)
 
         assert response.status_code == status.HTTP_200_OK
@@ -101,9 +97,7 @@ class TestProductRetrieveWithVariants:
 
     def test_variants_contain_correct_fields(self, api_client, product_with_variants):
         """Тест: variants содержат все необходимые поля"""
-        url = reverse(
-            "products:product-detail", kwargs={"slug": product_with_variants.slug}
-        )
+        url = reverse("products:product-detail", kwargs={"slug": product_with_variants.slug})
         response = api_client.get(url)
 
         assert response.status_code == status.HTTP_200_OK
@@ -129,15 +123,11 @@ class TestProductRetrieveWithVariants:
         for field in required_fields:
             assert field in variant, f"Field '{field}' отсутствует в variant"
 
-    def test_current_price_for_retail_user(
-        self, api_client, product_with_variants, retail_user
-    ):
+    def test_current_price_for_retail_user(self, api_client, product_with_variants, retail_user):
         """Тест: current_price рассчитывается для retail пользователя"""
         api_client.force_authenticate(user=retail_user)
 
-        url = reverse(
-            "products:product-detail", kwargs={"slug": product_with_variants.slug}
-        )
+        url = reverse("products:product-detail", kwargs={"slug": product_with_variants.slug})
         response = api_client.get(url)
 
         assert response.status_code == status.HTTP_200_OK
@@ -148,15 +138,11 @@ class TestProductRetrieveWithVariants:
             variant = ProductVariant.objects.get(id=variant_data["id"])
             assert variant_data["current_price"] == str(variant.retail_price)
 
-    def test_current_price_for_wholesale_user(
-        self, api_client, product_with_variants, wholesale_user
-    ):
+    def test_current_price_for_wholesale_user(self, api_client, product_with_variants, wholesale_user):
         """Тест: current_price рассчитывается для wholesale пользователя"""
         api_client.force_authenticate(user=wholesale_user)
 
-        url = reverse(
-            "products:product-detail", kwargs={"slug": product_with_variants.slug}
-        )
+        url = reverse("products:product-detail", kwargs={"slug": product_with_variants.slug})
         response = api_client.get(url)
 
         assert response.status_code == status.HTTP_200_OK
@@ -170,9 +156,7 @@ class TestProductRetrieveWithVariants:
     def test_current_price_for_anonymous_user(self, api_client, product_with_variants):
         """Тест: current_price = retail_price для анонимного пользователя"""
         # Не аутентифицируемся
-        url = reverse(
-            "products:product-detail", kwargs={"slug": product_with_variants.slug}
-        )
+        url = reverse("products:product-detail", kwargs={"slug": product_with_variants.slug})
         response = api_client.get(url)
 
         assert response.status_code == status.HTTP_200_OK
@@ -186,16 +170,10 @@ class TestProductRetrieveWithVariants:
     def test_color_hex_with_color_mapping(self, api_client, product_with_variants):
         """Тест: color_hex возвращается из ColorMapping"""
         # Создаем ColorMapping для цветов (get_or_create для избежания дубликатов)
-        ColorMapping.objects.get_or_create(
-            name="Красный", defaults={"hex_code": "#FF0000"}
-        )
-        ColorMapping.objects.get_or_create(
-            name="Синий", defaults={"hex_code": "#0000FF"}
-        )
+        ColorMapping.objects.get_or_create(name="Красный", defaults={"hex_code": "#FF0000"})
+        ColorMapping.objects.get_or_create(name="Синий", defaults={"hex_code": "#0000FF"})
 
-        url = reverse(
-            "products:product-detail", kwargs={"slug": product_with_variants.slug}
-        )
+        url = reverse("products:product-detail", kwargs={"slug": product_with_variants.slug})
         response = api_client.get(url)
 
         assert response.status_code == status.HTTP_200_OK
@@ -212,13 +190,9 @@ class TestProductRetrieveWithVariants:
         # проверяем что поле есть
         assert "color_hex" in black_variant
 
-    def test_is_in_stock_reflects_stock_quantity(
-        self, api_client, product_with_variants
-    ):
+    def test_is_in_stock_reflects_stock_quantity(self, api_client, product_with_variants):
         """Тест: is_in_stock корректно отражает наличие товара"""
-        url = reverse(
-            "products:product-detail", kwargs={"slug": product_with_variants.slug}
-        )
+        url = reverse("products:product-detail", kwargs={"slug": product_with_variants.slug})
         response = api_client.get(url)
 
         assert response.status_code == status.HTTP_200_OK
@@ -274,9 +248,7 @@ class TestProductAPIPerformance:
         return APIClient()
 
     @pytest.mark.slow
-    def test_retrieve_product_with_100_variants_under_500ms(
-        self, api_client, db, django_assert_num_queries
-    ):
+    def test_retrieve_product_with_100_variants_under_500ms(self, api_client, db, django_assert_num_queries):
         """
         NFR1: Response time <= 500ms для товара с 100 вариантами
         """
@@ -293,17 +265,13 @@ class TestProductAPIPerformance:
         elapsed_time = (time.time() - start_time) * 1000  # ms
 
         assert response.status_code == status.HTTP_200_OK
-        assert (
-            elapsed_time <= 500
-        ), f"Response time {elapsed_time:.2f}ms превышает 500ms (NFR1)"
+        assert elapsed_time <= 500, f"Response time {elapsed_time:.2f}ms превышает 500ms (NFR1)"
 
         # Проверяем что все 100 вариантов в response
         data = response.json()
         assert len(data["variants"]) == 100
 
-    def test_prefetch_related_used_no_n_plus_one(
-        self, api_client, db, django_assert_num_queries
-    ):
+    def test_prefetch_related_used_no_n_plus_one(self, api_client, db, django_assert_num_queries):
         """
         Тест: prefetch_related используется (количество queries ~3-5)
         Избегаем N+1 queries проблемы
@@ -320,9 +288,7 @@ class TestProductAPIPerformance:
         # 4. PREFETCH ProductVariants
         # 5. SELECT ColorMappings (одним запросом для кэша всех вариантов)
         # Дополнительные запросы могут идти на ContentTypes и системные нужды
-        with django_assert_num_queries(
-            20, exact=False
-        ):  # Оптимизированный лимит без N+1
+        with django_assert_num_queries(20, exact=False):  # Оптимизированный лимит без N+1
             response = api_client.get(url)
 
         assert response.status_code == status.HTTP_200_OK
@@ -358,8 +324,7 @@ class TestProductAPIPerformance:
         time_100 = timings[2][1]
 
         assert time_100 <= time_10 * 15, (
-            f"Performance не масштабируется линейно: 10v={time_10:.2f}ms, "
-            f"100v={time_100:.2f}ms"
+            f"Performance не масштабируется линейно: 10v={time_10:.2f}ms, " f"100v={time_100:.2f}ms"
         )
 
 
@@ -399,9 +364,7 @@ class TestIntegrationVerification:
             assert "name" in results[0]
             assert "slug" in results[0]
 
-    def test_iv3_current_price_uses_same_roles(
-        self, api_client, product_with_variants, db
-    ):
+    def test_iv3_current_price_uses_same_roles(self, api_client, product_with_variants, db):
         """
         IV3: current_price использует те же роли
         (retail, wholesale_level1-3, trainer, federation_rep)

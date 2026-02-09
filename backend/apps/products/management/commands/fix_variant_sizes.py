@@ -54,9 +54,7 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING("=== ТЕСТОВЫЙ ЗАПУСК (dry-run) ===\n"))
 
         # Поиск вариантов с невалидными значениями size_value
-        invalid_variants = ProductVariant.objects.filter(
-            size_value__in=self.INVALID_VALUES
-        )
+        invalid_variants = ProductVariant.objects.filter(size_value__in=self.INVALID_VALUES)
 
         count = invalid_variants.count()
         self.stdout.write(f"Найдено вариантов с невалидным size_value: {count}\n")
@@ -78,6 +76,4 @@ class Command(BaseCommand):
             )
         else:
             self.stdout.write(f"\nБудет очищено: {count} вариантов")
-            self.stdout.write(
-                self.style.WARNING("\nДля применения изменений запустите без --dry-run")
-            )
+            self.stdout.write(self.style.WARNING("\nДля применения изменений запустите без --dry-run"))

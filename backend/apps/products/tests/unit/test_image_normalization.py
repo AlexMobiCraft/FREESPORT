@@ -77,9 +77,7 @@ class TestNormalizeImagePath:
 
     def test_path_with_uuid(self):
         """Путь с UUID в имени файла (реальный формат из 1С)"""
-        result = normalize_image_path(
-            "import_files/00/001a16a4-b810-11ed-860f-fa163edba792_24062354.jpg"
-        )
+        result = normalize_image_path("import_files/00/001a16a4-b810-11ed-860f-fa163edba792_24062354.jpg")
         assert result == "00/001a16a4-b810-11ed-860f-fa163edba792_24062354.jpg"
 
     def test_path_with_cyrillic_characters(self):

@@ -43,9 +43,7 @@ def onec_user(db):
 def authenticated_client(onec_user):
     """APIClient that performs checkauth first to establish session."""
     client = APIClient()
-    auth_header = "Basic " + base64.b64encode(
-        b"1c_import@example.com:secure_pass_123"
-    ).decode("ascii")
+    auth_header = "Basic " + base64.b64encode(b"1c_import@example.com:secure_pass_123").decode("ascii")
     response = client.get(
         "/api/integration/1c/exchange/",
         data={"mode": "checkauth"},
@@ -96,35 +94,15 @@ class TestImportOrchestratorService:
             ImportOrchestratorService,
         )
 
-        assert (
-            ImportOrchestratorService("s", "goods_1.xml")._detect_file_type() == "goods"
-        )
-        assert (
-            ImportOrchestratorService("s", "import_data.xml")._detect_file_type()
-            == "goods"
-        )
-        assert (
-            ImportOrchestratorService("s", "offers_1.xml")._detect_file_type()
-            == "offers"
-        )
-        assert (
-            ImportOrchestratorService("s", "prices_1.xml")._detect_file_type()
-            == "prices"
-        )
-        assert (
-            ImportOrchestratorService("s", "pricelists_1.xml")._detect_file_type()
-            == "prices"
-        )
-        assert (
-            ImportOrchestratorService("s", "rests_1.xml")._detect_file_type() == "rests"
-        )
-        assert (
-            ImportOrchestratorService("s", "unknown.xml")._detect_file_type() == "all"
-        )
+        assert ImportOrchestratorService("s", "goods_1.xml")._detect_file_type() == "goods"
+        assert ImportOrchestratorService("s", "import_data.xml")._detect_file_type() == "goods"
+        assert ImportOrchestratorService("s", "offers_1.xml")._detect_file_type() == "offers"
+        assert ImportOrchestratorService("s", "prices_1.xml")._detect_file_type() == "prices"
+        assert ImportOrchestratorService("s", "pricelists_1.xml")._detect_file_type() == "prices"
+        assert ImportOrchestratorService("s", "rests_1.xml")._detect_file_type() == "rests"
+        assert ImportOrchestratorService("s", "unknown.xml")._detect_file_type() == "all"
 
-    def test_handle_import_delegates_to_orchestrator(
-        self, authenticated_client, settings, tmp_path
-    ):
+    def test_handle_import_delegates_to_orchestrator(self, authenticated_client, settings, tmp_path):
         """handle_import in view delegates to ImportOrchestratorService."""
         settings.MEDIA_ROOT = str(tmp_path)
         (tmp_path / "1c_import").mkdir(parents=True, exist_ok=True)
@@ -152,11 +130,9 @@ class TestAsyncImportDispatch:
         with patch("apps.products.tasks.process_1c_import_task") as mock_task:
             mock_task.delay.return_value.id = "fake-task-id"
             svc = ImportOrchestratorService("test-sessid", "goods.xml")
-            with patch.object(
-                svc, "_transfer_files", return_value=(True, "")
-            ), patch.object(svc, "_unpack_zips"), patch.object(
-                svc, "_resolve_session"
-            ) as mock_resolve:
+            with patch.object(svc, "_transfer_files", return_value=(True, "")), patch.object(
+                svc, "_unpack_zips"
+            ), patch.object(svc, "_resolve_session") as mock_resolve:
                 from apps.products.models import ImportSession
 
                 mock_session = MagicMock()
@@ -167,9 +143,7 @@ class TestAsyncImportDispatch:
 
                 success, msg = svc.execute()
                 assert success is True
-                mock_task.delay.assert_called_once_with(
-                    999, str(tmp_path / "1c_import")
-                )
+                mock_task.delay.assert_called_once_with(999, str(tmp_path / "1c_import"))
 
     def test_execute_no_call_command(self):
         """Import orchestrator must not use call_command (synchronous)."""
@@ -197,16 +171,14 @@ class TestFinalizeBatchReliability:
 
         svc = ImportOrchestratorService("test-finalize-fail", "goods.xml")
 
-        with patch.object(
-            svc, "_transfer_files", return_value=(False, "disk full")
-        ), patch.object(svc, "_resolve_complete_session") as mock_resolve:
+        with patch.object(svc, "_transfer_files", return_value=(False, "disk full")), patch.object(
+            svc, "_resolve_complete_session"
+        ) as mock_resolve:
             mock_session = MagicMock()
             mock_session.report = ""
             mock_resolve.return_value = mock_session
 
-            with patch(
-                "apps.integrations.onec_exchange.import_orchestrator.FileStreamService"
-            ) as mock_fs_cls:
+            with patch("apps.integrations.onec_exchange.import_orchestrator.FileStreamService") as mock_fs_cls:
                 mock_fs_cls.return_value.is_complete.return_value = False
 
                 success, msg = svc.finalize_batch()
@@ -224,9 +196,7 @@ class TestFinalizeBatchReliability:
 
         svc = ImportOrchestratorService("test-partial", "goods.xml")
 
-        with patch(
-            "apps.integrations.onec_exchange.import_orchestrator.FileStreamService"
-        ) as mock_fs_cls, patch(
+        with patch("apps.integrations.onec_exchange.import_orchestrator.FileStreamService") as mock_fs_cls, patch(
             "apps.integrations.onec_exchange.import_orchestrator.FileRoutingService"
         ) as mock_rs_cls:
             mock_fs_cls.return_value.list_files.return_value = ["a.xml", "b.xml"]
@@ -276,9 +246,7 @@ class TestTransferFilesUnified:
 class TestZipSlipProtection:
     """Tests for Zip Slip vulnerability protection in handle_import."""
 
-    def test_handle_import_rejects_zip_slip(
-        self, authenticated_client, settings, tmp_path
-    ):
+    def test_handle_import_rejects_zip_slip(self, authenticated_client, settings, tmp_path):
         """CRITICAL: Malicious ZIP with path traversal must be rejected."""
         import_dir = tmp_path / "1c_import"
         import_dir.mkdir(parents=True, exist_ok=True)
@@ -304,16 +272,12 @@ class TestZipSlipProtection:
 class TestModeComplete:
     """View-level integration test for GET /?mode=complete."""
 
-    def test_mode_complete_delegates_to_orchestrator(
-        self, authenticated_client, settings, tmp_path
-    ):
+    def test_mode_complete_delegates_to_orchestrator(self, authenticated_client, settings, tmp_path):
         """Verify mode=complete delegates to ImportOrchestratorService.finalize_batch."""
         settings.MEDIA_ROOT = str(tmp_path)
         (tmp_path / "1c_import").mkdir(parents=True, exist_ok=True)
 
-        with patch(
-            "apps.integrations.onec_exchange.views.ImportOrchestratorService"
-        ) as MockOrch:
+        with patch("apps.integrations.onec_exchange.views.ImportOrchestratorService") as MockOrch:
             MockOrch.return_value.finalize_batch.return_value = (True, "ok")
 
             response = authenticated_client.get(
@@ -325,16 +289,12 @@ class TestModeComplete:
             assert "success" in content
             MockOrch.return_value.finalize_batch.assert_called_once()
 
-    def test_mode_complete_returns_failure_on_error(
-        self, authenticated_client, settings, tmp_path
-    ):
+    def test_mode_complete_returns_failure_on_error(self, authenticated_client, settings, tmp_path):
         """Verify mode=complete returns failure when finalize_batch fails."""
         settings.MEDIA_ROOT = str(tmp_path)
         (tmp_path / "1c_import").mkdir(parents=True, exist_ok=True)
 
-        with patch(
-            "apps.integrations.onec_exchange.views.ImportOrchestratorService"
-        ) as MockOrch:
+        with patch("apps.integrations.onec_exchange.views.ImportOrchestratorService") as MockOrch:
             MockOrch.return_value.finalize_batch.return_value = (
                 False,
                 "transfer error",
@@ -349,9 +309,7 @@ class TestModeComplete:
             assert "failure" in content
             assert "transfer error" in content
 
-    def test_mode_complete_without_sessid(
-        self, authenticated_client, settings, tmp_path
-    ):
+    def test_mode_complete_without_sessid(self, authenticated_client, settings, tmp_path):
         """Verify mode=complete without sessid returns failure."""
         settings.MEDIA_ROOT = str(tmp_path)
 

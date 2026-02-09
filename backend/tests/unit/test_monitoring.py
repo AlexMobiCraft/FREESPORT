@@ -272,9 +272,7 @@ class TestSystemHealth(TestCase):
 
     @patch("apps.common.services.customer_sync_monitor.cache")
     @patch("apps.common.services.customer_sync_monitor.IntegrationHealthCheck")
-    def test_system_health_all_ok(
-        self, mock_health_check: MagicMock, mock_cache: MagicMock
-    ) -> None:
+    def test_system_health_all_ok(self, mock_health_check: MagicMock, mock_cache: MagicMock) -> None:
         """Тест когда все компоненты здоровы."""
         mock_cache.get.return_value = None
         mock_checker = MagicMock()
@@ -303,9 +301,7 @@ class TestSystemHealth(TestCase):
 
     @patch("apps.common.services.customer_sync_monitor.cache")
     @patch("apps.common.services.customer_sync_monitor.IntegrationHealthCheck")
-    def test_system_health_with_issues(
-        self, mock_health_check: MagicMock, mock_cache: MagicMock
-    ) -> None:
+    def test_system_health_with_issues(self, mock_health_check: MagicMock, mock_cache: MagicMock) -> None:
         """Тест когда есть проблемы с компонентами."""
         mock_cache.get.return_value = None
         mock_checker = MagicMock()

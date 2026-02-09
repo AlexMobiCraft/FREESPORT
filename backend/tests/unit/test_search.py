@@ -27,9 +27,7 @@ class SearchFilterTest(TestCase):
                 name="Nike Phantom GT2 Elite FG",
                 sku="NikePhantom001",
                 short_description="Футбольные бутсы для профессионалов",
-                description=(
-                    "Высокотехнологичные футбольные бутсы Nike Phantom GT2 " "Elite FG"
-                ),
+                description=("Высокотехнологичные футбольные бутсы Nike Phantom GT2 " "Elite FG"),
                 retail_price=18999.00,
                 stock_quantity=15,
                 is_active=True,
@@ -119,9 +117,7 @@ class SearchFilterTest(TestCase):
 
         # Должен найтись товар с Phantom в артикуле или названии
         # У продуктов нет поля sku, проверяем через варианты
-        result_has_sku = any(
-            p.variants.filter(sku__icontains="Phantom").exists() for p in result
-        )
+        result_has_sku = any(p.variants.filter(sku__icontains="Phantom").exists() for p in result)
         self.assertTrue(result_has_sku)
 
     def test_search_by_description(self):
@@ -205,9 +201,7 @@ class SearchFilterTest(TestCase):
 
         # Проверяем, что есть какая-то сортировка
         nike_in_name = [p for p in result if "Nike" in p.name]
-        nike_in_desc_only = [
-            p for p in result if "Nike" not in p.name and "Nike" in p.short_description
-        ]
+        nike_in_desc_only = [p for p in result if "Nike" not in p.name and "Nike" in p.short_description]
 
         if nike_in_name and nike_in_desc_only:
             # Если есть товары обоих типов, товары с Nike в названии должны быть первыми

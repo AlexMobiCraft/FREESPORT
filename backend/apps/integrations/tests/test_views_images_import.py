@@ -71,9 +71,7 @@ class TestImportFromView(TestCase):
         """Настройка тестовых данных."""
         self.client = Client()
         # Создать admin пользователя
-        self.admin_user = User.objects.create_superuser(
-            email="admin@test.com", password="testpass123"
-        )
+        self.admin_user = User.objects.create_superuser(email="admin@test.com", password="testpass123")
         self.client.force_login(self.admin_user)
 
     def test_import_form_displays_images_type(self) -> None:
@@ -126,9 +124,7 @@ class TestImportPostRequest(TestCase):
     def setUp(self) -> None:
         """Настройка тестовых данных."""
         self.client = Client()
-        self.admin_user = User.objects.create_superuser(
-            email="admin@test.com", password="testpass123"
-        )
+        self.admin_user = User.objects.create_superuser(email="admin@test.com", password="testpass123")
         self.client.force_login(self.admin_user)
 
     @patch("apps.integrations.views.run_selective_import_task")
@@ -154,9 +150,7 @@ class TestImportPostRequest(TestCase):
         assert response.status_code == 302
 
         # Проверяем создание сессии
-        session = ImportSession.objects.filter(
-            import_type=ImportSession.ImportType.IMAGES
-        ).first()
+        session = ImportSession.objects.filter(import_type=ImportSession.ImportType.IMAGES).first()
 
         assert session is not None
         assert session.status == ImportSession.ImportStatus.STARTED
@@ -174,9 +168,7 @@ class TestImportPostRequest(TestCase):
         assert response.status_code == 302
 
         # Проверяем, что сессия НЕ создана
-        assert not ImportSession.objects.filter(
-            import_type=ImportSession.ImportType.IMAGES
-        ).exists()
+        assert not ImportSession.objects.filter(import_type=ImportSession.ImportType.IMAGES).exists()
 
 
 @pytest.mark.integration
@@ -186,16 +178,12 @@ class TestExistingTypesRegression(TestCase):
     def setUp(self) -> None:
         """Настройка тестовых данных."""
         self.client = Client()
-        self.admin_user = User.objects.create_superuser(
-            email="admin@test.com", password="testpass123"
-        )
+        self.admin_user = User.objects.create_superuser(email="admin@test.com", password="testpass123")
         self.client.force_login(self.admin_user)
 
     @patch("apps.integrations.views.run_selective_import_task")
     @patch("apps.integrations.views.Path.exists")
-    def test_catalog_type_still_works(
-        self, mock_exists: MagicMock, mock_task: MagicMock
-    ) -> None:
+    def test_catalog_type_still_works(self, mock_exists: MagicMock, mock_task: MagicMock) -> None:
         """Проверка: тип catalog работает как прежде."""
         # Мокаем существование директории
         mock_exists.return_value = True
@@ -207,9 +195,7 @@ class TestExistingTypesRegression(TestCase):
 
         assert response.status_code == 302
 
-        session = ImportSession.objects.filter(
-            import_type=ImportSession.ImportType.CATALOG
-        ).first()
+        session = ImportSession.objects.filter(import_type=ImportSession.ImportType.CATALOG).first()
 
         assert session is not None
 

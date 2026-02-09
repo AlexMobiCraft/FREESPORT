@@ -99,9 +99,7 @@ class CartItemViewSet(viewsets.ModelViewSet):
         if self.request.user.is_authenticated:
             try:
                 cart = Cart.objects.get(user=self.request.user)
-                return CartItem.objects.filter(cart=cart).select_related(
-                    "variant__product"
-                )
+                return CartItem.objects.filter(cart=cart).select_related("variant__product")
             except Cart.DoesNotExist:
                 return CartItem.objects.none()
         else:
@@ -109,9 +107,7 @@ class CartItemViewSet(viewsets.ModelViewSet):
             if session_key:
                 try:
                     cart = Cart.objects.get(session_key=session_key)
-                    return CartItem.objects.filter(cart=cart).select_related(
-                        "variant__product"
-                    )
+                    return CartItem.objects.filter(cart=cart).select_related("variant__product")
                 except Cart.DoesNotExist:
                     return CartItem.objects.none()
             return CartItem.objects.none()
@@ -204,9 +200,7 @@ class CartItemViewSet(viewsets.ModelViewSet):
         self.perform_create(serializer)
 
         # Возвращаем сериализованный cart_item
-        response_serializer = CartItemSerializer(
-            self.cart_item, context={"request": request}
-        )
+        response_serializer = CartItemSerializer(self.cart_item, context={"request": request})
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
     @extend_schema(

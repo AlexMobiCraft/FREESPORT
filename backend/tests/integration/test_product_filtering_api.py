@@ -24,17 +24,11 @@ class TestProductFilteringAPI:
         suffix = get_unique_suffix()
 
         # Создаем бренды
-        self.brand_nike = Brand.objects.create(
-            name=f"Nike-{suffix}", slug=f"nike-{suffix}", is_active=True
-        )
-        self.brand_adidas = Brand.objects.create(
-            name=f"Adidas-{suffix}", slug=f"adidas-{suffix}", is_active=True
-        )
+        self.brand_nike = Brand.objects.create(name=f"Nike-{suffix}", slug=f"nike-{suffix}", is_active=True)
+        self.brand_adidas = Brand.objects.create(name=f"Adidas-{suffix}", slug=f"adidas-{suffix}", is_active=True)
 
         # Создаем категорию
-        self.category = Category.objects.create(
-            name=f"Одежда-{suffix}", slug=f"clothes-{suffix}", is_active=True
-        )
+        self.category = Category.objects.create(name=f"Одежда-{suffix}", slug=f"clothes-{suffix}", is_active=True)
 
         # Создаем товары с различными размерами и ценами
         self.product1 = Product.objects.create(
@@ -302,9 +296,7 @@ class TestProductFilteringAPI:
         url = reverse("products:product-list")
 
         # Комбинируем фильтры: бренд + цена + размер
-        response = self.client.get(
-            url, {"brand": self.brand_nike.slug, "max_price": "5000", "size": "XL"}
-        )
+        response = self.client.get(url, {"brand": self.brand_nike.slug, "max_price": "5000", "size": "XL"})
         assert response.status_code == status.HTTP_200_OK
 
         results = response.data["results"]
@@ -416,15 +408,11 @@ class TestProductFilteringPerformance:
         # Создаем бренды
         self.brands = []
         for i in range(5):
-            brand = Brand.objects.create(
-                name=f"Brand{i}-{suffix}", slug=f"brand{i}-{suffix}", is_active=True
-            )
+            brand = Brand.objects.create(name=f"Brand{i}-{suffix}", slug=f"brand{i}-{suffix}", is_active=True)
             self.brands.append(brand)
 
         # Создаем категорию
-        self.category = Category.objects.create(
-            name=f"Category-{suffix}", slug=f"category-{suffix}", is_active=True
-        )
+        self.category = Category.objects.create(name=f"Category-{suffix}", slug=f"category-{suffix}", is_active=True)
 
         # Создаем много товаров
         sizes = ["XS", "S", "M", "L", "XL", "XXL", "38", "40", "42", "44"]

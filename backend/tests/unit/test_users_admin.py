@@ -123,9 +123,7 @@ class TestUserAdmin(TestCase):
         self.assertEqual(result, "Retail User")
 
         # Тест с пустым именем
-        empty_user = User.objects.create_user(
-            email="empty@test.com", password="testpass123"
-        )
+        empty_user = User.objects.create_user(email="empty@test.com", password="testpass123")
         result = self.admin.full_name(empty_user)
         self.assertEqual(result, "-")
 
@@ -284,9 +282,7 @@ class TestUserAdmin(TestCase):
         self.admin.approve_b2b_users(request, queryset)
 
         # Проверяем что AuditLog не создан
-        audit_count = AuditLog.objects.filter(
-            action="approve_b2b", resource_id=str(b2b_super.id)
-        ).count()
+        audit_count = AuditLog.objects.filter(action="approve_b2b", resource_id=str(b2b_super.id)).count()
         self.assertEqual(audit_count, 0)
 
     def test_reject_b2b_users_action(self):
@@ -377,9 +373,7 @@ class TestUserAdmin(TestCase):
         self.assertTrue(self.superuser.is_active)
 
         # Проверяем что AuditLog не создан
-        audit_log = AuditLog.objects.filter(
-            action="block_user", resource_id=str(self.superuser.id)
-        ).first()
+        audit_log = AuditLog.objects.filter(action="block_user", resource_id=str(self.superuser.id)).first()
         self.assertIsNone(audit_log)
 
     def test_block_users_empty_queryset_validation(self):
@@ -512,9 +506,7 @@ class TestCompanyAdmin(TestCase):
         self.site = AdminSite()
         self.admin = CompanyAdmin(Company, self.site)
 
-        self.user = User.objects.create_user(
-            email="test@test.com", password="testpass123"
-        )
+        self.user = User.objects.create_user(email="test@test.com", password="testpass123")
 
         self.company = Company.objects.create(
             user=self.user,
@@ -544,9 +536,7 @@ class TestAuditLogIntegration(TestCase):
         self.admin = UserAdmin(User, self.site)
         self.factory = RequestFactory()
 
-        self.superuser = User.objects.create_superuser(
-            email="admin@test.com", password="testpass123"
-        )
+        self.superuser = User.objects.create_superuser(email="admin@test.com", password="testpass123")
 
         self.b2b_user = User.objects.create_user(
             email="b2b@test.com",

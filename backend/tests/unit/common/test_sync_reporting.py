@@ -48,9 +48,7 @@ class TestSyncReportGenerator:
                 onec_id=f"1C_SUCCESS_{i}",
                 duration_ms=100 + i * 10,
                 correlation_id=uuid.uuid4(),
-                created_at=timezone.make_aware(
-                    timezone.datetime.combine(today, timezone.datetime.min.time())
-                ),
+                created_at=timezone.make_aware(timezone.datetime.combine(today, timezone.datetime.min.time())),
             )
 
         # Ошибочные операции
@@ -63,9 +61,7 @@ class TestSyncReportGenerator:
                 duration_ms=50 + i * 5,
                 error_message="Connection failed",
                 correlation_id=uuid.uuid4(),
-                created_at=timezone.make_aware(
-                    timezone.datetime.combine(today, timezone.datetime.min.time())
-                ),
+                created_at=timezone.make_aware(timezone.datetime.combine(today, timezone.datetime.min.time())),
             )
 
     def test_generate_daily_summary_structure(self, generator, create_test_logs):
@@ -100,9 +96,7 @@ class TestSyncReportGenerator:
         assert report["success_rate"] == 0
         assert report["avg_duration_ms"] == 0
 
-    def test_generate_weekly_error_analysis_structure(
-        self, generator, create_test_logs
-    ):
+    def test_generate_weekly_error_analysis_structure(self, generator, create_test_logs):
         """Тест структуры еженедельного анализа ошибок"""
         start_date = timezone.now().date() - timedelta(days=7)
         report = generator.generate_weekly_error_analysis(start_date)
@@ -145,9 +139,7 @@ class TestSyncReportGenerator:
                 correlation_id=uuid.uuid4(),
             )
 
-        error_logs = CustomerSyncLog.objects.filter(
-            status=CustomerSyncLog.StatusType.ERROR
-        )
+        error_logs = CustomerSyncLog.objects.filter(status=CustomerSyncLog.StatusType.ERROR)
         common_errors = generator._analyze_common_errors(error_logs)
 
         assert len(common_errors) > 0
@@ -155,9 +147,7 @@ class TestSyncReportGenerator:
         assert common_errors[0]["count"] >= common_errors[-1]["count"]
 
     @patch("apps.common.services.reporting.send_mail")
-    def test_send_daily_report_success(
-        self, mock_send_mail, generator, create_test_logs
-    ):
+    def test_send_daily_report_success(self, mock_send_mail, generator, create_test_logs):
         """Тест успешной отправки ежедневного отчета"""
         recipients = ["admin@example.com"]
         result = generator.send_daily_report(recipients)
@@ -179,9 +169,7 @@ class TestSyncReportGenerator:
         assert result is False
 
     @patch("apps.common.services.reporting.send_mail")
-    def test_send_weekly_error_report(
-        self, mock_send_mail, generator, create_test_logs
-    ):
+    def test_send_weekly_error_report(self, mock_send_mail, generator, create_test_logs):
         """Тест отправки еженедельного отчета"""
         recipients = ["admin@example.com", "manager@example.com"]
         result = generator.send_weekly_error_report(recipients)

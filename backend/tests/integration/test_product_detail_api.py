@@ -15,9 +15,7 @@ def product_detail_setup(db):
     parent_category = CategoryFactory.create(name="Parent Category")
     category = CategoryFactory.create(name="Test Category", parent=parent_category)
 
-    product = ProductFactory.create(
-        brand=brand, category=category, specifications={"color": "red", "size": "L"}
-    )
+    product = ProductFactory.create(brand=brand, category=category, specifications={"color": "red", "size": "L"})
     # Вариант создается автоматически через post_generation в ProductFactory
     for _ in range(5):
         ProductFactory.create(category=category, brand=brand)

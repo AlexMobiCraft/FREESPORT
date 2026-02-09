@@ -18,9 +18,7 @@ class TestPersonalCabinetWorkflow:
         """Настройка для каждого теста"""
         self.client = APIClient()
 
-    def test_complete_order_workflow(
-        self, user_factory, order_factory, order_item_factory, product_factory
-    ):
+    def test_complete_order_workflow(self, user_factory, order_factory, order_item_factory, product_factory):
         """
         Тест полного workflow: создание заказа → отображение в дашборде →
         история заказов
@@ -66,12 +64,8 @@ class TestPersonalCabinetWorkflow:
         )
 
         # Создаем варианты для товаров
-        variant1 = product1.variants.create(
-            sku="PROD1-VAR1", retail_price=2000.00, onec_id="PROD1-VAR1-1C"
-        )
-        variant2 = product2.variants.create(
-            sku="PROD2-VAR1", retail_price=1000.00, onec_id="PROD2-VAR1-1C"
-        )
+        variant1 = product1.variants.create(sku="PROD1-VAR1", retail_price=2000.00, onec_id="PROD1-VAR1-1C")
+        variant2 = product2.variants.create(sku="PROD2-VAR1", retail_price=1000.00, onec_id="PROD2-VAR1-1C")
 
         # Добавляем товары в заказ
         order_item_factory.create(

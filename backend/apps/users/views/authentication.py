@@ -48,8 +48,7 @@ class UserRegistrationView(APIView):
     @extend_schema(
         summary="Регистрация пользователя",
         description=(
-            "Создание нового пользователя с указанием роли "
-            "(retail, wholesale_level1-3, trainer, federation_rep)"
+            "Создание нового пользователя с указанием роли " "(retail, wholesale_level1-3, trainer, federation_rep)"
         ),
         request=UserRegistrationSerializer,
         responses={
@@ -272,8 +271,7 @@ class PasswordResetRequestView(APIView):
     @extend_schema(
         summary="Запрос на сброс пароля",
         description=(
-            "Отправка email с ссылкой для сброса пароля. "
-            "Всегда возвращает 200 OK (security best practice)."
+            "Отправка email с ссылкой для сброса пароля. " "Всегда возвращает 200 OK (security best practice)."
         ),
         request=PasswordResetRequestSerializer,
         responses={
@@ -306,9 +304,7 @@ class PasswordResetRequestView(APIView):
 
                 # Используем Celery task для отправки email
                 # В development (если configured console backend) это тоже сработает
-                reset_url = (
-                    f"http://localhost:3000/password-reset/confirm/{uid}/{token}/"
-                )
+                reset_url = f"http://localhost:3000/password-reset/confirm/{uid}/{token}/"
 
                 # Запускаем задачу асинхронно
                 send_password_reset_email.delay(user.id, reset_url)
@@ -323,9 +319,7 @@ class PasswordResetRequestView(APIView):
                 pass
 
             # Всегда возвращаем успех (security best practice)
-            return Response(
-                {"detail": "Password reset email sent."}, status=status.HTTP_200_OK
-            )
+            return Response({"detail": "Password reset email sent."}, status=status.HTTP_200_OK)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -390,14 +384,10 @@ class ValidateTokenView(APIView):
                 if password_reset_token.check_token(user, token):
                     return Response({"valid": True}, status=status.HTTP_200_OK)
                 else:
-                    return Response(
-                        {"detail": "Token expired"}, status=status.HTTP_410_GONE
-                    )
+                    return Response({"detail": "Token expired"}, status=status.HTTP_410_GONE)
 
             except (TypeError, ValueError, OverflowError, User.DoesNotExist):
-                return Response(
-                    {"detail": "Invalid token"}, status=status.HTTP_404_NOT_FOUND
-                )
+                return Response({"detail": "Invalid token"}, status=status.HTTP_404_NOT_FOUND)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -470,9 +460,7 @@ class PasswordResetConfirmView(APIView):
 
                 # Проверяем токен
                 if not password_reset_token.check_token(user, token):
-                    return Response(
-                        {"detail": "Token expired"}, status=status.HTTP_410_GONE
-                    )
+                    return Response({"detail": "Token expired"}, status=status.HTTP_410_GONE)
 
                 # Устанавливаем новый пароль
                 user.set_password(new_password)
@@ -484,9 +472,7 @@ class PasswordResetConfirmView(APIView):
                 )
 
             except (TypeError, ValueError, OverflowError, User.DoesNotExist):
-                return Response(
-                    {"detail": "Invalid token"}, status=status.HTTP_404_NOT_FOUND
-                )
+                return Response({"detail": "Invalid token"}, status=status.HTTP_404_NOT_FOUND)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -559,9 +545,7 @@ class LogoutView(GenericAPIView):
                 examples=[
                     OpenApiExample(
                         name="unauthenticated",
-                        value={
-                            "detail": "Authentication credentials were not provided."
-                        },
+                        value={"detail": "Authentication credentials were not provided."},
                     )
                 ],
             ),
@@ -613,9 +597,7 @@ class LogoutView(GenericAPIView):
 
         except TokenError as e:
             # Audit logging - неуспешная попытка logout
-            user_id_value = (
-                request.user.id if request.user.is_authenticated else "anonymous"
-            )
+            user_id_value = request.user.id if request.user.is_authenticated else "anonymous"
             logger.warning(
                 f"[AUDIT] User logout failed | "
                 f"user_id={user_id_value} | "

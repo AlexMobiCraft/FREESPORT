@@ -109,9 +109,7 @@ class TestSyncLoggingSystem:
             "export_format": "json",
             "exported_fields": ["email"],
         }
-        export_log = logger.log_customer_export(
-            test_user, export_result, duration_ms=200
-        )
+        export_log = logger.log_customer_export(test_user, export_result, duration_ms=200)
 
         # Проверяем что все логи связаны через correlation ID
         assert import_log.correlation_id == correlation_id
@@ -137,9 +135,7 @@ class TestSyncLoggingSystem:
         assert queryset.count() == 7  # 5 успешных + 2 ошибки
 
         # Проверяем что можем фильтровать по operation_type
-        import_logs = queryset.filter(
-            operation_type=CustomerSyncLog.OperationType.IMPORT_FROM_1C
-        )
+        import_logs = queryset.filter(operation_type=CustomerSyncLog.OperationType.IMPORT_FROM_1C)
         assert import_logs.count() == 5
 
         # Проверяем фильтрацию по статусу
@@ -215,12 +211,7 @@ class TestSyncLoggingSystem:
 
         # Старые логи должны быть удалены
         assert CustomerSyncLog.objects.count() == 2
-        assert (
-            CustomerSyncLog.objects.filter(
-                operation_type=CustomerSyncLog.OperationType.IMPORT_FROM_1C
-            ).count()
-            == 2
-        )
+        assert CustomerSyncLog.objects.filter(operation_type=CustomerSyncLog.OperationType.IMPORT_FROM_1C).count() == 2
 
     def test_report_generation_with_real_data(self, create_sync_logs):
         """Тест генерации отчета с реальными данными"""
@@ -259,23 +250,14 @@ class TestSyncLoggingSystem:
         )
 
         # Все операции должны иметь одинаковый correlation ID
-        chain_logs = CustomerSyncLog.objects.filter(
-            correlation_id=logger.correlation_id
-        )
+        chain_logs = CustomerSyncLog.objects.filter(correlation_id=logger.correlation_id)
         assert chain_logs.count() == 3
 
         # Проверяем хронологию
         logs_list = list(chain_logs.order_by("created_at"))
-        assert (
-            logs_list[0].operation_type == CustomerSyncLog.OperationType.IMPORT_FROM_1C
-        )  # noqa
-        assert (
-            logs_list[1].operation_type
-            == CustomerSyncLog.OperationType.CUSTOMER_IDENTIFICATION
-        )  # noqa
-        assert (
-            logs_list[2].operation_type == CustomerSyncLog.OperationType.EXPORT_TO_1C
-        )  # noqa
+        assert logs_list[0].operation_type == CustomerSyncLog.OperationType.IMPORT_FROM_1C  # noqa
+        assert logs_list[1].operation_type == CustomerSyncLog.OperationType.CUSTOMER_IDENTIFICATION  # noqa
+        assert logs_list[2].operation_type == CustomerSyncLog.OperationType.EXPORT_TO_1C  # noqa
 
     def test_error_aggregation_and_reporting(self, test_user):
         """Тест агрегации ошибок и генерации отчета"""

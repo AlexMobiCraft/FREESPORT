@@ -74,9 +74,7 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
                 # Фильтруем варианты с ценой > 0, чтобы избежать отображения цены 0
                 Prefetch(
                     "variants",
-                    queryset=ProductVariant.objects.filter(retail_price__gt=0).order_by(
-                        "retail_price"
-                    ),
+                    queryset=ProductVariant.objects.filter(retail_price__gt=0).order_by("retail_price"),
                     to_attr="first_variant_list",
                 ),
             )
@@ -88,11 +86,7 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
                     "variants__retail_price",
                     filter=Q(variants__retail_price__gt=0),
                 ),
-                has_stock=Exists(
-                    ProductVariant.objects.filter(
-                        product=OuterRef("pk"), stock_quantity__gt=0
-                    )
-                ),
+                has_stock=Exists(ProductVariant.objects.filter(product=OuterRef("pk"), stock_quantity__gt=0)),
             )
         )
 
@@ -104,34 +98,18 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
 
     @extend_schema(
         summary="Список товаров",
-        description=(
-            "Получение списка товаров с фильтрацией, сортировкой и ролевым "
-            "ценообразованием"
-        ),
+        description=("Получение списка товаров с фильтрацией, сортировкой и ролевым " "ценообразованием"),
         parameters=[
-            OpenApiParameter(
-                "category_id", OpenApiTypes.INT, description="ID категории"
-            ),
+            OpenApiParameter("category_id", OpenApiTypes.INT, description="ID категории"),
             OpenApiParameter(
                 "brand",
                 OpenApiTypes.STR,
-                description=(
-                    "Бренд (ID или slug). Поддерживает множественный выбор: "
-                    "brand=nike,adidas"
-                ),
+                description=("Бренд (ID или slug). Поддерживает множественный выбор: " "brand=nike,adidas"),
             ),
-            OpenApiParameter(
-                "min_price", OpenApiTypes.NUMBER, description="Минимальная цена"
-            ),
-            OpenApiParameter(
-                "max_price", OpenApiTypes.NUMBER, description="Максимальная цена"
-            ),
-            OpenApiParameter(
-                "in_stock", OpenApiTypes.BOOL, description="Товары в наличии"
-            ),
-            OpenApiParameter(
-                "is_featured", OpenApiTypes.BOOL, description="Рекомендуемые товары"
-            ),
+            OpenApiParameter("min_price", OpenApiTypes.NUMBER, description="Минимальная цена"),
+            OpenApiParameter("max_price", OpenApiTypes.NUMBER, description="Максимальная цена"),
+            OpenApiParameter("in_stock", OpenApiTypes.BOOL, description="Товары в наличии"),
+            OpenApiParameter("is_featured", OpenApiTypes.BOOL, description="Рекомендуемые товары"),
             OpenApiParameter(
                 "search",
                 OpenApiTypes.STR,
@@ -144,19 +122,14 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
             OpenApiParameter(
                 "size",
                 OpenApiTypes.STR,
-                description=(
-                    "Размер товара из спецификаций (XS, S, M, L, XL, XXL, 38, 40, "
-                    "42 и т.д.)"
-                ),
+                description=("Размер товара из спецификаций (XS, S, M, L, XL, XXL, 38, 40, " "42 и т.д.)"),
             ),
             # Story 11.0: Маркетинговые фильтры для бейджей
             OpenApiParameter("is_hit", OpenApiTypes.BOOL, description="Хиты продаж"),
             OpenApiParameter("is_new", OpenApiTypes.BOOL, description="Новинки"),
             OpenApiParameter("is_sale", OpenApiTypes.BOOL, description="Распродажа"),
             OpenApiParameter("is_promo", OpenApiTypes.BOOL, description="Акции"),
-            OpenApiParameter(
-                "is_premium", OpenApiTypes.BOOL, description="Премиум товары"
-            ),
+            OpenApiParameter("is_premium", OpenApiTypes.BOOL, description="Премиум товары"),
             OpenApiParameter(
                 "has_discount",
                 OpenApiTypes.BOOL,
@@ -165,10 +138,7 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
             OpenApiParameter(
                 "ordering",
                 OpenApiTypes.STR,
-                description=(
-                    "Сортировка: name, -name, retail_price, -retail_price, "
-                    "created_at, -created_at"
-                ),
+                description=("Сортировка: name, -name, retail_price, -retail_price, " "created_at, -created_at"),
             ),
         ],
         tags=["Products"],
@@ -212,16 +182,12 @@ class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
         """QuerySet с подсчетом товаров в категориях"""
         return (
             Category.objects.filter(is_active=True)
-            .annotate(
-                products_count=Count("products", filter=Q(products__is_active=True))
-            )
+            .annotate(products_count=Count("products", filter=Q(products__is_active=True)))
             .prefetch_related(
                 Prefetch(
                     "children",
                     queryset=Category.objects.filter(is_active=True).annotate(
-                        products_count=Count(
-                            "products", filter=Q(products__is_active=True)
-                        )
+                        products_count=Count("products", filter=Q(products__is_active=True))
                     ),
                     to_attr="prefetched_children",
                 )
@@ -239,9 +205,7 @@ class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
 
     @extend_schema(
         summary="Детали категории",
-        description=(
-            "Получение детальной информации о категории с навигационной цепочкой"
-        ),
+        description=("Получение детальной информации о категории с навигационной цепочкой"),
         tags=["Categories"],
     )
     def retrieve(self, request, *args, **kwargs):
@@ -260,9 +224,7 @@ class CategoryTreeViewSet(viewsets.ReadOnlyModelViewSet):
         """Только корневые категории с рекурсивной предзагрузкой дочерних"""
         return (
             Category.objects.filter(is_active=True, parent__isnull=True)
-            .annotate(
-                products_count=Count("products", filter=Q(products__is_active=True))
-            )
+            .annotate(products_count=Count("products", filter=Q(products__is_active=True)))
             .order_by("sort_order", "name")
         )
 

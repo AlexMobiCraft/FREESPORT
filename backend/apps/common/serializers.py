@@ -115,9 +115,7 @@ class UnsubscribeSerializer(serializers.Serializer):
 
         # Проверка на существование активной подписки
         if not Newsletter.objects.filter(email=value, is_active=True).exists():
-            raise serializers.ValidationError(
-                "Этот email не найден в списке подписчиков или уже отписан"
-            )
+            raise serializers.ValidationError("Этот email не найден в списке подписчиков или уже отписан")
 
         return value
 

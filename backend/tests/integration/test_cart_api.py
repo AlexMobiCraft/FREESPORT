@@ -61,13 +61,9 @@ def test_add_same_item_merges_quantity(authenticated_client, product):
     url = reverse("cart:cart-items-list")
     variant = product.variants.first()
     # Add first time
-    authenticated_client.post(
-        url, {"variant_id": variant.id, "quantity": 1}, format="json"
-    )
+    authenticated_client.post(url, {"variant_id": variant.id, "quantity": 1}, format="json")
     # Add second time
-    response = authenticated_client.post(
-        url, {"variant_id": variant.id, "quantity": 2}, format="json"
-    )
+    response = authenticated_client.post(url, {"variant_id": variant.id, "quantity": 2}, format="json")
     assert response.status_code == status.HTTP_201_CREATED  # Merging returns 201
     assert CartItem.objects.count() == 1
     cart = Cart.objects.get(user=authenticated_client.user)
@@ -80,9 +76,7 @@ def test_update_item_quantity(authenticated_client, product):
     # Add item first
     add_url = reverse("cart:cart-items-list")
     variant = product.variants.first()
-    authenticated_client.post(
-        add_url, {"variant_id": variant.id, "quantity": 1}, format="json"
-    )
+    authenticated_client.post(add_url, {"variant_id": variant.id, "quantity": 1}, format="json")
     cart_item = CartItem.objects.first()
 
     update_url = reverse("cart:cart-items-detail", kwargs={"pk": cart_item.pk})
@@ -97,9 +91,7 @@ def test_delete_item_from_cart(authenticated_client, product):
     """Test deleting an item from the cart."""
     add_url = reverse("cart:cart-items-list")
     variant = product.variants.first()
-    authenticated_client.post(
-        add_url, {"variant_id": variant.id, "quantity": 1}, format="json"
-    )
+    authenticated_client.post(add_url, {"variant_id": variant.id, "quantity": 1}, format="json")
     cart_item = CartItem.objects.first()
 
     delete_url = reverse("cart:cart-items-detail", kwargs={"pk": cart_item.pk})
@@ -113,9 +105,7 @@ def test_guest_cart_persistence(api_client, product):
     """Test that a guest cart persists across requests."""
     url = reverse("cart:cart-items-list")
     variant = product.variants.first()
-    response = api_client.post(
-        url, {"variant_id": variant.id, "quantity": 1}, format="json"
-    )
+    response = api_client.post(url, {"variant_id": variant.id, "quantity": 1}, format="json")
     assert response.status_code == status.HTTP_201_CREATED
     session_key = api_client.session.session_key
     assert Cart.objects.filter(session_key=session_key).exists()

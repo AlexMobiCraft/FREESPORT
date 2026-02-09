@@ -93,9 +93,7 @@ class TestProductVariantSerializer:
 
         assert data["current_price"] == str(variant.retail_price)
 
-    def test_get_current_price_for_wholesale_user(
-        self, variant, wholesale_user, api_factory
-    ):
+    def test_get_current_price_for_wholesale_user(self, variant, wholesale_user, api_factory):
         """Тест: current_price для wholesale_level1 пользователя = opt1_price"""
         request = api_factory.get("/")
         request.user = wholesale_user
@@ -131,9 +129,7 @@ class TestProductVariantSerializer:
         # Создаем ColorMapping для цвета варианта
         from apps.products.models import ColorMapping
 
-        ColorMapping.objects.update_or_create(
-            name=variant.color_name, defaults={"hex_code": "#FF0000"}
-        )
+        ColorMapping.objects.update_or_create(name=variant.color_name, defaults={"hex_code": "#FF0000"})
 
         request = api_factory.get("/")
         serializer = ProductVariantSerializer(variant, context={"request": request})
@@ -222,9 +218,7 @@ class TestProductVariantSerializer:
         variants = ProductVariantFactory.create_batch(3, product=product)
 
         request = api_factory.get("/")
-        serializer = ProductVariantSerializer(
-            variants, many=True, context={"request": request}
-        )
+        serializer = ProductVariantSerializer(variants, many=True, context={"request": request})
         data = serializer.data
 
         assert len(data) == 3

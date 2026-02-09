@@ -68,9 +68,7 @@ class TestDeliveryMethodsListAPI:
             results = response.data.get("results", response.data)
         assert len(results) == 2  # Только is_available=True
 
-    def test_list_excludes_unavailable(
-        self, api_client: APIClient, delivery_methods: Sequence[DeliveryMethod]
-    ) -> None:
+    def test_list_excludes_unavailable(self, api_client: APIClient, delivery_methods: Sequence[DeliveryMethod]) -> None:
         """Проверяет, что недоступные способы исключаются из списка."""
         response = api_client.get("/api/v1/delivery/methods/")
         if isinstance(response.data, list):
@@ -80,9 +78,7 @@ class TestDeliveryMethodsListAPI:
         ids = [m["id"] for m in results]
         assert "disabled" not in ids
 
-    def test_response_structure(
-        self, api_client: APIClient, delivery_methods: Sequence[DeliveryMethod]
-    ) -> None:
+    def test_response_structure(self, api_client: APIClient, delivery_methods: Sequence[DeliveryMethod]) -> None:
         """Проверяет структуру ответа API."""
         response = api_client.get("/api/v1/delivery/methods/")
         if isinstance(response.data, list):
@@ -106,9 +102,7 @@ class TestDeliveryMethodsListAPI:
             results = response.data.get("results", response.data)
         assert results == []
 
-    def test_ordering_by_sort_order(
-        self, api_client: APIClient, delivery_methods: Sequence[DeliveryMethod]
-    ) -> None:
+    def test_ordering_by_sort_order(self, api_client: APIClient, delivery_methods: Sequence[DeliveryMethod]) -> None:
         """Проверяет сортировку по sort_order."""
         response = api_client.get("/api/v1/delivery/methods/")
         if isinstance(response.data, list):
@@ -123,9 +117,7 @@ class TestDeliveryMethodsListAPI:
 class TestDeliveryMethodRetrieveAPI:
     """Тесты для GET /api/v1/delivery/methods/{id}/."""
 
-    def test_retrieve_single_method(
-        self, api_client: APIClient, delivery_methods: Sequence[DeliveryMethod]
-    ) -> None:
+    def test_retrieve_single_method(self, api_client: APIClient, delivery_methods: Sequence[DeliveryMethod]) -> None:
         """Проверяет получение одного способа доставки по ID."""
         response = api_client.get("/api/v1/delivery/methods/courier/")
         assert response.status_code == 200
@@ -140,9 +132,7 @@ class TestDeliveryMethodRetrieveAPI:
         response = api_client.get("/api/v1/delivery/methods/disabled/")
         assert response.status_code == 404
 
-    def test_retrieve_nonexistent_method_returns_404(
-        self, api_client: APIClient
-    ) -> None:
+    def test_retrieve_nonexistent_method_returns_404(self, api_client: APIClient) -> None:
         """Проверяет, что несуществующий ID возвращает 404."""
         response = api_client.get("/api/v1/delivery/methods/nonexistent/")
         assert response.status_code == 404

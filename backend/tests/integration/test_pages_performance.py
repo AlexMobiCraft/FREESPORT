@@ -71,9 +71,7 @@ class PagesCachePerformanceTest(TransactionTestCase):
 
         # Проверяем что обновления отражены в ответе
         updated_titles = [page["title"] for page in response.data["results"]]
-        updated_count = sum(
-            1 for title in updated_titles if title.startswith("Updated")
-        )
+        updated_count = sum(1 for title in updated_titles if title.startswith("Updated"))
         self.assertEqual(updated_count, 5)
 
     def test_concurrent_cache_access_performance(self):
@@ -237,9 +235,7 @@ class PagesCachePerformanceTest(TransactionTestCase):
         avg_cache_time = sum(cache_times) / len(cache_times)
 
         # Средний кэшированный запрос должен быть быстрым
-        self.assertLess(
-            avg_cache_time, 0.1, f"Cached requests too slow: {avg_cache_time}s"
-        )
+        self.assertLess(avg_cache_time, 0.1, f"Cached requests too slow: {avg_cache_time}s")
 
 
 @pytest.mark.integration
@@ -283,9 +279,7 @@ class PagesAPIStressTest(TestCase):
         self.assertGreater(len(response.data["results"]), 0)
 
         # Даже с 200 страницами ответ должен быть быстрым
-        self.assertLess(
-            response_time, 2.0, f"Large dataset response too slow: {response_time}s"
-        )
+        self.assertLess(response_time, 2.0, f"Large dataset response too slow: {response_time}s")
 
     def test_rapid_page_creation_performance(self):
         """Тест производительности быстрого создания страниц"""

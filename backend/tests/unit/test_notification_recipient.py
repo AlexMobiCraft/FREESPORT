@@ -101,9 +101,7 @@ class TestNotificationRecipientModel:
         assert recipient.notify_low_stock is False
         assert recipient.notify_daily_summary is False
 
-    def test_filter_by_notification_type(
-        self, notification_recipient, inactive_recipient
-    ):
+    def test_filter_by_notification_type(self, notification_recipient, inactive_recipient):
         """Тест фильтрации по типу уведомления."""
         # Только активные получатели с notify_new_orders
         active_order_recipients = NotificationRecipient.objects.filter(
@@ -146,9 +144,7 @@ class TestSendOrderNotificationEmail:
         return order
 
     @patch("apps.orders.tasks.send_mail")
-    def test_send_order_notification_success(
-        self, mock_send_mail, notification_recipient, order
-    ):
+    def test_send_order_notification_success(self, mock_send_mail, notification_recipient, order):
         """Успешная отправка уведомления о заказе."""
         result = send_order_notification_email(order.id)
 
@@ -184,9 +180,7 @@ class TestSendOrderNotificationEmail:
         assert result is False
 
     @patch("apps.orders.tasks.send_mail")
-    def test_multiple_recipients(
-        self, mock_send_mail, notification_recipient, order, db
-    ):
+    def test_multiple_recipients(self, mock_send_mail, notification_recipient, order, db):
         """Отправка нескольким получателям."""
         # Создаём второго получателя
         NotificationRecipient.objects.create(
@@ -239,9 +233,7 @@ class TestMigratedUserVerificationTasks:
         assert notification_recipient.email in call_kwargs.kwargs["recipient_list"]
 
     @patch("apps.users.tasks.send_mail")
-    def test_monitor_pending_queue_uses_notification_recipient(
-        self, mock_send_mail, db
-    ):
+    def test_monitor_pending_queue_uses_notification_recipient(self, mock_send_mail, db):
         """
         Проверка что monitor_pending_verification_queue
         использует NotificationRecipient.

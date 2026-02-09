@@ -79,8 +79,7 @@ class AttributeFacetService:
         attribute_values = (
             AttributeValue.objects.filter(
                 # Только значения, связанные с товарами из queryset
-                Q(products__id__in=product_ids)
-                | Q(variants__product__id__in=product_ids),
+                Q(products__id__in=product_ids) | Q(variants__product__id__in=product_ids),
                 # Только активные атрибуты
                 attribute__is_active=True,
             )
@@ -131,8 +130,4 @@ class AttributeFacetService:
         Returns:
             QuerySet активных атрибутов с предзагруженными значениями
         """
-        return (
-            Attribute.objects.filter(is_active=True)
-            .prefetch_related("values")
-            .order_by("name")
-        )
+        return Attribute.objects.filter(is_active=True).prefetch_related("values").order_by("name")

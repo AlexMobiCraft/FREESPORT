@@ -57,12 +57,10 @@ def import_from_1c_view(request: HttpRequest) -> HttpResponse:
                 "value": "catalog",
                 "label": "Полный каталог",
                 "description": (
-                    "Импорт всех данных: товары, категории, бренды, цены, "
-                    "остатки, свойства, справочники"
+                    "Импорт всех данных: товары, категории, бренды, цены, " "остатки, свойства, справочники"
                 ),
                 "files": (
-                    "goods_*.xml, offers_*.xml, prices_*.xml, rests_*.xml, "
-                    "groups.xml, units.xml, storages.xml"
+                    "goods_*.xml, offers_*.xml, prices_*.xml, rests_*.xml, " "groups.xml, units.xml, storages.xml"
                 ),
                 "requires_catalog": False,
             },
@@ -93,10 +91,7 @@ def import_from_1c_view(request: HttpRequest) -> HttpResponse:
             {
                 "value": "images",
                 "label": "Только изображения товаров",
-                "description": (
-                    "Обновление изображений товаров из директории 1С "
-                    "(main_image и gallery_images)"
-                ),
+                "description": ("Обновление изображений товаров из директории 1С " "(main_image и gallery_images)"),
                 "files": "data/import_1c/goods/import_files/**/*.jpg, **/*.png",
                 "requires_catalog": True,
             },
@@ -233,25 +228,19 @@ def _create_and_run_import(import_type: str) -> ImportSession:
     # Проверяем наличие настройки ONEC_DATA_DIR
     data_dir = getattr(settings, "ONEC_DATA_DIR", None)
     if not data_dir:
-        raise ValueError(
-            "Настройка ONEC_DATA_DIR не найдена в settings. "
-            "Убедитесь, что путь к данным 1С настроен."
-        )
+        raise ValueError("Настройка ONEC_DATA_DIR не найдена в settings. " "Убедитесь, что путь к данным 1С настроен.")
 
     # Проверяем существование директории данных
     data_path = Path(data_dir)
     if not data_path.exists():
         raise FileNotFoundError(
-            f"Директория данных 1С не найдена: {data_dir}. "
-            f"Убедитесь, что данные выгружены из 1С."
+            f"Директория данных 1С не найдена: {data_dir}. " f"Убедитесь, что данные выгружены из 1С."
         )
 
     # Проверяем наличие необходимых поддиректорий в зависимости от типа импорта
     if import_type == "catalog":
         required_subdirs = ["goods", "offers", "prices", "rests"]
-        missing_subdirs = [
-            subdir for subdir in required_subdirs if not (data_path / subdir).exists()
-        ]
+        missing_subdirs = [subdir for subdir in required_subdirs if not (data_path / subdir).exists()]
         if missing_subdirs:
             raise FileNotFoundError(
                 f"Отсутствуют обязательные поддиректории в {data_dir}: "
@@ -261,14 +250,12 @@ def _create_and_run_import(import_type: str) -> ImportSession:
     elif import_type == "stocks":
         if not (data_path / "rests").exists():
             raise FileNotFoundError(
-                f"Директория остатков не найдена: {data_path / 'rests'}. "
-                f"Убедитесь, что данные выгружены из 1С."
+                f"Директория остатков не найдена: {data_path / 'rests'}. " f"Убедитесь, что данные выгружены из 1С."
             )
     elif import_type == "prices":
         if not (data_path / "prices").exists():
             raise FileNotFoundError(
-                f"Директория цен не найдена: {data_path / 'prices'}. "
-                f"Убедитесь, что данные выгружены из 1С."
+                f"Директория цен не найдена: {data_path / 'prices'}. " f"Убедитесь, что данные выгружены из 1С."
             )
     elif import_type == "customers":
         if not (data_path / "contragents").exists():
@@ -285,9 +272,7 @@ def _create_and_run_import(import_type: str) -> ImportSession:
             )
     elif import_type == "variants":
         required_subdirs = ["offers", "prices", "rests"]
-        missing_subdirs = [
-            subdir for subdir in required_subdirs if not (data_path / subdir).exists()
-        ]
+        missing_subdirs = [subdir for subdir in required_subdirs if not (data_path / subdir).exists()]
         if missing_subdirs:
             raise FileNotFoundError(
                 f"Отсутствуют обязательные поддиректории в {data_dir}: "
@@ -305,9 +290,7 @@ def _create_and_run_import(import_type: str) -> ImportSession:
         "customers": ImportSession.ImportType.CUSTOMERS,
     }
 
-    session_import_type = session_type_map.get(
-        import_type, ImportSession.ImportType.CATALOG
-    )
+    session_import_type = session_type_map.get(import_type, ImportSession.ImportType.CATALOG)
 
     # Запускаем Celery задачу
     task = run_selective_import_task.delay([import_type])
@@ -321,9 +304,6 @@ def _create_and_run_import(import_type: str) -> ImportSession:
         celery_task_id=task.id,
     )
 
-    logger.info(
-        f"[Request {request_id}] Импорт запущен. "
-        f"Session ID: {session.pk}, Task ID: {task.id}"
-    )
+    logger.info(f"[Request {request_id}] Импорт запущен. " f"Session ID: {session.pk}, Task ID: {task.id}")
 
     return session

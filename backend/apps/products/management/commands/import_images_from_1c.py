@@ -77,22 +77,13 @@ class Command(BaseCommand):
         base_dir = Path(data_dir) / "goods" / "import_files"
         if not base_dir.exists():
             raise CommandError(
-                f"Директория изображений не найдена: {base_dir}\n"
-                "Убедитесь что данные из 1С синхронизированы."
+                f"Директория изображений не найдена: {base_dir}\n" "Убедитесь что данные из 1С синхронизированы."
             )
 
-        self.stdout.write(
-            self.style.SUCCESS(
-                f"\n{'=' * 60}\n"
-                f"  Импорт изображений товаров из 1С\n"
-                f"{'=' * 60}\n"
-            )
-        )
+        self.stdout.write(self.style.SUCCESS(f"\n{'=' * 60}\n" f"  Импорт изображений товаров из 1С\n" f"{'=' * 60}\n"))
 
         if dry_run:
-            self.stdout.write(
-                self.style.WARNING("🔍 Режим DRY-RUN: изображения НЕ будут записаны\n")
-            )
+            self.stdout.write(self.style.WARNING("🔍 Режим DRY-RUN: изображения НЕ будут записаны\n"))
 
         self.stdout.write(f"📁 Директория изображений: {base_dir}")
 
@@ -156,9 +147,7 @@ class Command(BaseCommand):
             Dict со статистикой импорта
         """
         # Получаем товары с onec_id
-        products_qs = Product.objects.filter(
-            is_active=True, onec_id__isnull=False
-        ).exclude(onec_id="")
+        products_qs = Product.objects.filter(is_active=True, onec_id__isnull=False).exclude(onec_id="")
 
         if limit:
             products_qs = products_qs[:limit]
@@ -203,10 +192,7 @@ class Command(BaseCommand):
                         continue
 
                     if verbose:
-                        self.stdout.write(
-                            f"  [{product.onec_id}] {product.name}: "
-                            f"{len(image_paths)} изображений"
-                        )
+                        self.stdout.write(f"  [{product.onec_id}] {product.name}: " f"{len(image_paths)} изображений")
 
                     if not dry_run:
                         # Импорт в base_images
@@ -230,13 +216,8 @@ class Command(BaseCommand):
 
                 except Exception as e:
                     if verbose:
-                        self.stdout.write(
-                            self.style.ERROR(f"  ❌ Ошибка [{product.onec_id}]: {e}")
-                        )
-                    logger.error(
-                        f"Ошибка обработки товара {product.id} "
-                        f"(onec_id: {product.onec_id}): {e}"
-                    )
+                        self.stdout.write(self.style.ERROR(f"  ❌ Ошибка [{product.onec_id}]: {e}"))
+                    logger.error(f"Ошибка обработки товара {product.id} " f"(onec_id: {product.onec_id}): {e}")
                     total_errors += 1
                     processed += 1
 
@@ -297,17 +278,11 @@ class Command(BaseCommand):
 
     def _print_summary(self, result: dict[str, int]) -> None:
         """Вывод итоговой статистики."""
-        self.stdout.write(
-            self.style.SUCCESS(
-                f"\n{'=' * 60}\n" f"  ✅ Импорт изображений завершён\n" f"{'=' * 60}\n"
-            )
-        )
+        self.stdout.write(self.style.SUCCESS(f"\n{'=' * 60}\n" f"  ✅ Импорт изображений завершён\n" f"{'=' * 60}\n"))
         self.stdout.write("📊 Статистика:")
         self.stdout.write(f"   • Всего товаров: {result['total_products']}")
         self.stdout.write(f"   • Обработано: {result['processed']}")
-        self.stdout.write(
-            self.style.SUCCESS(f"   • Изображений скопировано: {result['copied']}")
-        )
+        self.stdout.write(self.style.SUCCESS(f"   • Изображений скопировано: {result['copied']}"))
         self.stdout.write(f"   • Пропущено (без изображений): {result['skipped']}")
 
         if result["errors"] > 0:

@@ -26,9 +26,7 @@ SECRET_KEY = os.environ.get("SECRET_KEY", "django-insecure-test-key-for-ci")
 # мы устанавливаем в .github/workflows/main.yml.
 
 
-def _get_env_value(
-    primary_key: str, fallback_keys: tuple[str, ...], default: str
-) -> str:
+def _get_env_value(primary_key: str, fallback_keys: tuple[str, ...], default: str) -> str:
     """Возвращает значение переменной окружения с поддержкой fallback."""
 
     for key in (primary_key, *fallback_keys):
@@ -41,9 +39,7 @@ def _get_env_value(
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": _get_env_value(
-            "DB_NAME", ("POSTGRES_DB", "PGDATABASE"), "freesport_test"
-        ),
+        "NAME": _get_env_value("DB_NAME", ("POSTGRES_DB", "PGDATABASE"), "freesport_test"),
         "USER": _get_env_value("DB_USER", ("POSTGRES_USER", "PGUSER"), "postgres"),
         "PASSWORD": _get_env_value(
             "DB_PASSWORD",
@@ -99,13 +95,7 @@ LOGGING: dict[str, Any] = {}  # type: ignore[no-redef]  # type: ignore[no-redef]
 # Гарантированно отключаем Django Debug Toolbar в тестах,
 # даже если он был добавлен в другом файле настроек.
 INSTALLED_APPS = [app for app in INSTALLED_APPS if app != "debug_toolbar"]
-if (
-    "apps.integrations" not in INSTALLED_APPS
-    and "apps.integrations.apps.IntegrationsConfig" not in INSTALLED_APPS
-):
+if "apps.integrations" not in INSTALLED_APPS and "apps.integrations.apps.IntegrationsConfig" not in INSTALLED_APPS:
     INSTALLED_APPS.append("apps.integrations")
-if (
-    "apps.integrations" not in INSTALLED_APPS
-    and "apps.integrations.apps.IntegrationsConfig" not in INSTALLED_APPS
-):
+if "apps.integrations" not in INSTALLED_APPS and "apps.integrations.apps.IntegrationsConfig" not in INSTALLED_APPS:
     INSTALLED_APPS.append("apps.integrations")

@@ -43,10 +43,7 @@ class Command(BaseCommand):
             "--data-dir",
             type=str,
             default=None,
-            help=(
-                "Путь к директории с XML файлами из 1С. "
-                "Если не указан, используется ONEC_DATA_DIR из settings."
-            ),
+            help=("Путь к директории с XML файлами из 1С. " "Если не указан, используется ONEC_DATA_DIR из settings."),
         )
         parser.add_argument(
             "--file-type",
@@ -77,17 +74,14 @@ class Command(BaseCommand):
         if options["verbose"]:
             import logging
 
-            logging.getLogger("apps.products.services.attribute_import").setLevel(
-                logging.DEBUG
-            )
+            logging.getLogger("apps.products.services.attribute_import").setLevel(logging.DEBUG)
 
         # Определение корневой директории с данными
         data_dir = options.get("data_dir") or getattr(settings, "ONEC_DATA_DIR", None)
 
         if not data_dir:
             raise CommandError(
-                "Не указана директория с данными. "
-                "Используйте --data-dir или установите ONEC_DATA_DIR в settings."
+                "Не указана директория с данными. " "Используйте --data-dir или установите ONEC_DATA_DIR в settings."
             )
 
         data_dir_path = Path(data_dir)
@@ -102,17 +96,9 @@ class Command(BaseCommand):
         dry_run = options["dry_run"]
 
         if dry_run:
-            self.stdout.write(
-                self.style.WARNING(
-                    "\n⚠️  DRY-RUN MODE: Данные не будут записаны в БД\n"
-                )
-            )
+            self.stdout.write(self.style.WARNING("\n⚠️  DRY-RUN MODE: Данные не будут записаны в БД\n"))
 
-        self.stdout.write(
-            self.style.SUCCESS(
-                f"\n{'=' * 70}\n" f"📦 Импорт атрибутов товаров из 1С\n" f"{'=' * 70}\n"
-            )
-        )
+        self.stdout.write(self.style.SUCCESS(f"\n{'=' * 70}\n" f"📦 Импорт атрибутов товаров из 1С\n" f"{'=' * 70}\n"))
         self.stdout.write(f"📁 Директория данных: {data_dir}\n")
         self.stdout.write(f"📋 Тип файлов: {file_type}\n")
 
@@ -154,8 +140,7 @@ class Command(BaseCommand):
         if not properties_goods_dir.exists():
             self.stdout.write(
                 self.style.WARNING(
-                    f"\n⚠️  Директория не найдена: {properties_goods_dir}\n"
-                    "   Пропуск propertiesGoods\n"
+                    f"\n⚠️  Директория не найдена: {properties_goods_dir}\n" "   Пропуск propertiesGoods\n"
                 )
             )
             return {
@@ -168,11 +153,7 @@ class Command(BaseCommand):
                 "errors": 0,
             }
 
-        self.stdout.write(
-            self.style.SUCCESS(
-                f"\n{'─' * 70}\n" f"📄 Обработка propertiesGoods/*.xml\n" f"{'─' * 70}\n"
-            )
-        )
+        self.stdout.write(self.style.SUCCESS(f"\n{'─' * 70}\n" f"📄 Обработка propertiesGoods/*.xml\n" f"{'─' * 70}\n"))
 
         # Создаем отдельный сервис для goods с source="goods"
         service = AttributeImportService(source="goods", dry_run=dry_run)
@@ -186,17 +167,14 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS("✅ propertiesGoods обработаны\n"))
         return service.get_stats()
 
-    def _import_properties_offers(
-        self, data_dir: Path, dry_run: bool
-    ) -> dict[str, int]:
+    def _import_properties_offers(self, data_dir: Path, dry_run: bool) -> dict[str, int]:
         """Импорт свойств предложений (propertiesOffers)"""
         properties_offers_dir = data_dir / "propertiesOffers"
 
         if not properties_offers_dir.exists():
             self.stdout.write(
                 self.style.WARNING(
-                    f"\n⚠️  Директория не найдена: {properties_offers_dir}\n"
-                    "   Пропуск propertiesOffers\n"
+                    f"\n⚠️  Директория не найдена: {properties_offers_dir}\n" "   Пропуск propertiesOffers\n"
                 )
             )
             return {
@@ -209,13 +187,7 @@ class Command(BaseCommand):
                 "errors": 0,
             }
 
-        self.stdout.write(
-            self.style.SUCCESS(
-                f"\n{'─' * 70}\n"
-                f"📄 Обработка propertiesOffers/*.xml\n"
-                f"{'─' * 70}\n"
-            )
-        )
+        self.stdout.write(self.style.SUCCESS(f"\n{'─' * 70}\n" f"📄 Обработка propertiesOffers/*.xml\n" f"{'─' * 70}\n"))
 
         # Создаем отдельный сервис для offers с source="offers"
         service = AttributeImportService(source="offers", dry_run=dry_run)
@@ -257,16 +229,10 @@ class Command(BaseCommand):
 
     def _print_stats(self, stats: dict[str, int], dry_run: bool) -> None:
         """Вывод итоговой статистики импорта с дедупликацией"""
-        self.stdout.write(
-            self.style.SUCCESS(
-                f"\n{'=' * 70}\n" f"📊 Итоговая статистика импорта\n" f"{'=' * 70}\n"
-            )
-        )
+        self.stdout.write(self.style.SUCCESS(f"\n{'=' * 70}\n" f"📊 Итоговая статистика импорта\n" f"{'=' * 70}\n"))
 
         if dry_run:
-            self.stdout.write(
-                self.style.WARNING("⚠️  DRY-RUN: Данные не были сохранены в БД\n\n")
-            )
+            self.stdout.write(self.style.WARNING("⚠️  DRY-RUN: Данные не были сохранены в БД\n\n"))
         else:
             self.stdout.write(
                 f"✨ Атрибуты:\n"

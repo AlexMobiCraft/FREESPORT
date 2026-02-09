@@ -15,9 +15,7 @@ class FilteringAPITest(APITestCase):
     """Тестирование Filtering API endpoints"""
 
     def setUp(self):
-        self.user = User.objects.create_user(
-            email="test@example.com", password="testpass123"
-        )
+        self.user = User.objects.create_user(email="test@example.com", password="testpass123")
 
     def test_filtering_placeholder(self):
         """Заглушка для filtering API тестов"""
