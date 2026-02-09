@@ -110,10 +110,10 @@ export default function ProductPageClient({ product, userRole }: ProductPageClie
                 },
                 aggregateRating: product.rating
                   ? {
-                    '@type': 'AggregateRating',
-                    ratingValue: product.rating,
-                    reviewCount: product.reviews_count || 0,
-                  }
+                      '@type': 'AggregateRating',
+                      ratingValue: product.rating,
+                      reviewCount: product.reviews_count || 0,
+                    }
                   : undefined,
               }),
             }}

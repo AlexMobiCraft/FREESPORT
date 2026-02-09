@@ -134,12 +134,7 @@ function OrdersPageContent() {
       {error && (
         <div className="p-4 mb-6 bg-accent-danger/10 border border-accent-danger rounded-md">
           <p className="text-body-m text-accent-danger">{error}</p>
-          <Button
-            variant="tertiary"
-            size="small"
-            onClick={fetchOrders}
-            className="mt-2"
-          >
+          <Button variant="tertiary" size="small" onClick={fetchOrders} className="mt-2">
             Попробовать снова
           </Button>
         </div>

@@ -258,7 +258,15 @@ describe('RegisterForm', () => {
       mockRegister.mockResolvedValue({
         access: 'mock-token',
         refresh: 'mock-refresh',
-        user: { id: 2, email: 'user@example.com', first_name: 'Test', role: 'retail', is_verified: true, last_name: '', phone: '' },
+        user: {
+          id: 2,
+          email: 'user@example.com',
+          first_name: 'Test',
+          role: 'retail',
+          is_verified: true,
+          last_name: '',
+          phone: '',
+        },
       });
 
       render(<RegisterForm redirectUrl="/custom/path" />);

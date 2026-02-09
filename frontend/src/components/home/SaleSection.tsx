@@ -38,7 +38,14 @@ export const SaleSection: React.FC = () => {
   // Auth integration
   const user = useAuthStore(state => state.user);
   const userRole = user?.role || 'guest';
-  const isB2B = ['wholesale_level1', 'wholesale_level2', 'wholesale_level3', 'trainer', 'federation_rep', 'admin'].includes(userRole);
+  const isB2B = [
+    'wholesale_level1',
+    'wholesale_level2',
+    'wholesale_level3',
+    'trainer',
+    'federation_rep',
+    'admin',
+  ].includes(userRole);
 
   const fetchSale = async () => {
     try {
@@ -177,7 +184,11 @@ export const SaleSection: React.FC = () => {
           role="list"
         >
           {products.map(product => (
-            <div key={product.id} className="flex-shrink-0 w-[calc(50%-4px)] md:w-[200px] snap-start" role="listitem">
+            <div
+              key={product.id}
+              className="flex-shrink-0 w-[calc(50%-4px)] md:w-[200px] snap-start"
+              role="listitem"
+            >
               <ProductCard
                 product={product}
                 layout="compact"

@@ -79,7 +79,6 @@ const resolveImageUrl = (path?: string | null): string | null => {
   return path;
 };
 
-
 /**
  * Props компонента ProductCard
  */
@@ -441,7 +440,8 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
                     <p className="text-body-s text-[var(--color-text-secondary)]">
                       РРЦ: {formatPrice(product.rrp)}
                     </p>
-                  </div>)}
+                  </div>
+                )}
 
                 {/* Кнопка "В корзину" */}
                 {isInStock && onAddToCart && (

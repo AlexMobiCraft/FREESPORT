@@ -233,11 +233,7 @@ const ProfileForm: React.FC = () => {
         </div>
 
         {/* Телефон */}
-        <PhoneInput
-          {...register('phone')}
-          label="Телефон *"
-          error={errors.phone?.message}
-        />
+        <PhoneInput {...register('phone')} label="Телефон *" error={errors.phone?.message} />
       </div>
 
       {/* B2B поля - только для B2B пользователей */}

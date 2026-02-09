@@ -1,7 +1,7 @@
 /**
  * Checks if a URL is safe for redirection (internal only).
  * Prevents Open Redirect vulnerabilities.
- * 
+ *
  * @param url The URL to check
  * @returns true if the URL starts with '/' and does NOT start with '//'
  */

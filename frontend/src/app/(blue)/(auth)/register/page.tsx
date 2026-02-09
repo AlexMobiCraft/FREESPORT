@@ -54,7 +54,9 @@ export default function RegisterPage() {
         </div>
 
         {/* Register Form with Suspense */}
-        <Suspense fallback={<div className="bg-white rounded-lg shadow p-8 h-[500px] animate-pulse" />}>
+        <Suspense
+          fallback={<div className="bg-white rounded-lg shadow p-8 h-[500px] animate-pulse" />}
+        >
           <RegisterFormContent />
         </Suspense>
       </div>

@@ -204,7 +204,10 @@ export const NewsSection: React.FC<NewsSectionProps> = ({
 
   // Default variant
   return (
-    <section className="max-w-[1280px] mx-auto px-3 md:px-4 lg:px-6 py-12" aria-labelledby="news-heading">
+    <section
+      className="max-w-[1280px] mx-auto px-3 md:px-4 lg:px-6 py-12"
+      aria-labelledby="news-heading"
+    >
       {/* Header with button */}
       <div className="flex items-center justify-between mb-8">
         <h2 id="news-heading" className="text-3xl font-bold text-text-primary">

@@ -24,19 +24,20 @@ describe('Middleware', () => {
     if (nextParam) {
       url.searchParams.set('next', nextParam);
     }
-    
+
     const req = {
       nextUrl: url,
       cookies: {
-        get: (name: string) => (name === 'refreshToken' && hasToken ? { value: 'token' } : undefined),
+        get: (name: string) =>
+          name === 'refreshToken' && hasToken ? { value: 'token' } : undefined,
       },
       url: url.toString(),
     } as unknown as NextRequest;
-    
+
     // Helper needed because NextRequest clone() is complex to mock fully
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     req.nextUrl.clone = () => new URL(url.toString()) as any;
-    
+
     return req;
   };
 

@@ -84,7 +84,9 @@ export default function B2BRegisterPage() {
         </div>
 
         {/* B2B Register Form with Suspense */}
-        <Suspense fallback={<div className="bg-white rounded-lg shadow p-8 h-[800px] animate-pulse" />}>
+        <Suspense
+          fallback={<div className="bg-white rounded-lg shadow p-8 h-[800px] animate-pulse" />}
+        >
           <B2BRegisterContent />
         </Suspense>
 

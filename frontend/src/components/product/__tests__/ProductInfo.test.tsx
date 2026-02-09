@@ -128,8 +128,6 @@ describe('ProductInfo', () => {
     expect(stars.length).toBe(0);
   });
 
-
-
   it('применяет корректный CSS класс для статуса "В наличии"', () => {
     render(<ProductInfo product={mockProduct} />);
     const badge = screen.getByText('В наличии');

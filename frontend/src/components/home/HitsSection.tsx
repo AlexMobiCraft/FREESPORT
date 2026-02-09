@@ -101,7 +101,14 @@ export const HitsSection: React.FC<HitsSectionProps> = ({
   // Auth integration
   const user = useAuthStore(state => state.user);
   const userRole = user?.role || 'guest';
-  const isB2B = ['wholesale_level1', 'wholesale_level2', 'wholesale_level3', 'trainer', 'federation_rep', 'admin'].includes(userRole);
+  const isB2B = [
+    'wholesale_level1',
+    'wholesale_level2',
+    'wholesale_level3',
+    'trainer',
+    'federation_rep',
+    'admin',
+  ].includes(userRole);
 
   const styles = VARIANT_STYLES[variant];
   const isElectric = variant === 'electric';
@@ -321,7 +328,7 @@ export const HitsSection: React.FC<HitsSectionProps> = ({
                     inStock={product.is_in_stock}
                     onAddToCart={() => handleAddToCart(product.id)}
                     isFavorite={false}
-                    onToggleFavorite={() => { }}
+                    onToggleFavorite={() => {}}
                   />
                 ) : (
                   <ProductCard

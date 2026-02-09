@@ -137,14 +137,14 @@ describe('productsService', () => {
                 is_in_stock: true,
                 available_quantity: 10,
                 rrp: '3000.00',
-                msrp: '3500.00'
-              }
-            ]
+                msrp: '3500.00',
+              },
+            ],
           });
         })
       );
 
-      const headers = { 'Cookie': 'sessionid=123' };
+      const headers = { Cookie: 'sessionid=123' };
       const result = await productsService.getProductBySlug('test-product', headers);
 
       expect(result.slug).toBe('test-product');

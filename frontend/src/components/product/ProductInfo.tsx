@@ -14,7 +14,11 @@ interface ProductInfoProps {
   selectedVariant?: ProductVariant | null;
 }
 
-export default function ProductInfo({ product, userRole = 'guest', selectedVariant }: ProductInfoProps) {
+export default function ProductInfo({
+  product,
+  userRole = 'guest',
+  selectedVariant,
+}: ProductInfoProps) {
   // Защита от undefined для product.price
   const defaultPrice = { retail: 0, currency: 'RUB' };
   const price = product.price || defaultPrice;
@@ -54,7 +58,13 @@ export default function ProductInfo({ product, userRole = 'guest', selectedVaria
   const stockStatus = getStockStatus();
 
   // RRP видят только оптовики (1-3), тренеры и админы
-  const canSeeRrp = ['wholesale_level1', 'wholesale_level2', 'wholesale_level3', 'trainer', 'admin'].includes(userRole);
+  const canSeeRrp = [
+    'wholesale_level1',
+    'wholesale_level2',
+    'wholesale_level3',
+    'trainer',
+    'admin',
+  ].includes(userRole);
 
   // Рендеринг рейтинга звездами
   const renderRating = () => {
@@ -146,7 +156,10 @@ export default function ProductInfo({ product, userRole = 'guest', selectedVaria
           <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
             {parseFloat(selectedVariant.rrp || '0') > 0 && (
               <span className="text-neutral-500">
-                РРЦ: <span className="font-semibold text-neutral-800">{formatPrice(parseFloat(selectedVariant.rrp!), price.currency)}</span>
+                РРЦ:{' '}
+                <span className="font-semibold text-neutral-800">
+                  {formatPrice(parseFloat(selectedVariant.rrp!), price.currency)}
+                </span>
               </span>
             )}
           </div>
@@ -159,8 +172,6 @@ export default function ProductInfo({ product, userRole = 'guest', selectedVaria
           {stockStatus.label}
         </span>
       </div>
-
-
     </div>
   );
 }

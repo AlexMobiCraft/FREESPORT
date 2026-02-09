@@ -127,16 +127,10 @@ function OrderErrorView({ orderId }: { orderId: string }) {
           Не удалось загрузить информацию о заказе #{orderId}. Попробуйте обновить страницу.
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <Button
-            onClick={() => window.location.reload()}
-            variant="secondary"
-          >
+          <Button onClick={() => window.location.reload()} variant="secondary">
             Повторить попытку
           </Button>
-          <Button
-            onClick={() => router.push('/catalog')}
-            variant="primary"
-          >
+          <Button onClick={() => router.push('/catalog')} variant="primary">
             Перейти в каталог
           </Button>
         </div>

@@ -267,8 +267,6 @@ describe('ProductCard', () => {
 
       expect(screen.getByText(/РРЦ.*1 300/)).toBeInTheDocument();
     });
-
-
   });
 
   describe('Badge Logic', () => {

@@ -355,7 +355,14 @@ const CatalogContent: React.FC = () => {
   // Auth integration
   const user = useAuthStore(state => state.user);
   const userRole = user?.role || 'guest';
-  const isB2B = ['wholesale_level1', 'wholesale_level2', 'wholesale_level3', 'trainer', 'federation_rep', 'admin'].includes(userRole);
+  const isB2B = [
+    'wholesale_level1',
+    'wholesale_level2',
+    'wholesale_level3',
+    'trainer',
+    'federation_rep',
+    'admin',
+  ].includes(userRole);
 
   // Cart integration
   const { addItem } = useCartStore();
@@ -958,16 +965,18 @@ const CatalogContent: React.FC = () => {
               <div className="flex items-center gap-3">
                 <div className="inline-flex items-center rounded-full bg-gray-100 p-1">
                   <button
-                    className={`flex items-center gap-1 rounded-full px-3 py-2 text-sm font-medium ${viewMode === 'grid' ? 'bg-white text-gray-900 shadow' : 'text-gray-500'
-                      }`}
+                    className={`flex items-center gap-1 rounded-full px-3 py-2 text-sm font-medium ${
+                      viewMode === 'grid' ? 'bg-white text-gray-900 shadow' : 'text-gray-500'
+                    }`}
                     onClick={() => setViewMode('grid')}
                   >
                     <Grid2x2 className="h-4 w-4" />
                     <span className="hidden sm:inline">Сетка</span>
                   </button>
                   <button
-                    className={`flex items-center gap-1 rounded-full px-3 py-2 text-sm font-medium ${viewMode === 'list' ? 'bg-white text-gray-900 shadow' : 'text-gray-500'
-                      }`}
+                    className={`flex items-center gap-1 rounded-full px-3 py-2 text-sm font-medium ${
+                      viewMode === 'list' ? 'bg-white text-gray-900 shadow' : 'text-gray-500'
+                    }`}
                     onClick={() => setViewMode('list')}
                   >
                     <List className="h-4 w-4" />

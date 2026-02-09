@@ -87,7 +87,7 @@ describe('B2BRegisterForm', () => {
           role: 'wholesale_level1',
           is_verified: true, // Auto-verified for immediate redirect test
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } as any
+        } as any,
       });
 
       render(<B2BRegisterForm />);
@@ -99,16 +99,22 @@ describe('B2BRegisterForm', () => {
       await user.type(screen.getByLabelText(/название компании/i), 'ООО Тест');
       await user.type(screen.getByLabelText(/^инн$/i), '1234567890');
       await user.type(screen.getByLabelText(/^огрн$/i), '1234567890123');
-      await user.type(screen.getByLabelText(/юридический адрес/i), 'г. Москва, ул. Примерная, д. 1');
+      await user.type(
+        screen.getByLabelText(/юридический адрес/i),
+        'г. Москва, ул. Примерная, д. 1'
+      );
       await user.type(screen.getByLabelText(/^пароль$/i), 'SecurePass123');
       await user.type(screen.getByLabelText(/подтверждение пароля/i), 'SecurePass123');
 
       const submitButton = screen.getByRole('button', { name: /отправить заявку/i });
       await user.click(submitButton);
 
-      await waitFor(() => {
-        expect(mockPush).toHaveBeenCalledWith('/');
-      }, { timeout: 2000 });
+      await waitFor(
+        () => {
+          expect(mockPush).toHaveBeenCalledWith('/');
+        },
+        { timeout: 2000 }
+      );
     });
   });
 });

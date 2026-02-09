@@ -143,8 +143,11 @@ export default function ProductSummary({
   const variants = useMemo(() => product.variants || [], [product.variants]);
 
   // RRP видят только оптовики (1-3), тренеры и админы
-  const canSeeRrp = useMemo(() =>
-    ['wholesale_level1', 'wholesale_level2', 'wholesale_level3', 'trainer', 'admin'].includes(userRole),
+  const canSeeRrp = useMemo(
+    () =>
+      ['wholesale_level1', 'wholesale_level2', 'wholesale_level3', 'trainer', 'admin'].includes(
+        userRole
+      ),
     [userRole]
   );
 
@@ -404,7 +407,10 @@ export default function ProductSummary({
 
       {/* Выбор количества */}
       {canAddToCart && (variants.length === 0 || selectedVariant) && (
-        <div className="flex items-center justify-between py-3 border-t border-neutral-200" data-testid="quantity-selector-wrapper">
+        <div
+          className="flex items-center justify-between py-3 border-t border-neutral-200"
+          data-testid="quantity-selector-wrapper"
+        >
           <span className="text-base font-medium text-neutral-700">Количество:</span>
           <QuantitySelector
             value={quantity}
@@ -424,12 +430,12 @@ export default function ProductSummary({
           onClick={handleAddToCart}
           disabled={!canAddToCart || (variants.length > 0 && !selectedVariant) || isLoading}
           className={cn(
-            "flex-1 h-14 px-6 text-lg font-medium rounded-2xl transition-all duration-150",
-            "focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#0060FF]/60",
-            "flex items-center justify-center gap-2",
+            'flex-1 h-14 px-6 text-lg font-medium rounded-2xl transition-all duration-150',
+            'focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#0060FF]/60',
+            'flex items-center justify-center gap-2',
             canAddToCart && (variants.length === 0 || selectedVariant) && !isLoading
-              ? "bg-[#0060FF] text-white hover:bg-[#0047CC] active:bg-[#0037A6] shadow-[0_4px_12px_rgba(0,96,255,0.28)]"
-              : "bg-[#E3E8F2] text-[#8F9BB3] cursor-not-allowed"
+              ? 'bg-[#0060FF] text-white hover:bg-[#0047CC] active:bg-[#0037A6] shadow-[0_4px_12px_rgba(0,96,255,0.28)]'
+              : 'bg-[#E3E8F2] text-[#8F9BB3] cursor-not-allowed'
           )}
           data-testid="add-to-cart-button"
         >
@@ -463,17 +469,17 @@ export default function ProductSummary({
           type="button"
           onClick={handleToggleFavorite}
           className={cn(
-            "h-14 w-14 rounded-2xl border border-neutral-200 flex items-center justify-center transition-colors shrink-0",
-            "hover:bg-neutral-50 active:bg-neutral-100",
-            "focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#0060FF]/60"
+            'h-14 w-14 rounded-2xl border border-neutral-200 flex items-center justify-center transition-colors shrink-0',
+            'hover:bg-neutral-50 active:bg-neutral-100',
+            'focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#0060FF]/60'
           )}
-          title={isFavorite ? "Удалить из избранного" : "Добавить в избранное"}
-          aria-label={isFavorite ? "Удалить из избранного" : "Добавить в избранное"}
+          title={isFavorite ? 'Удалить из избранного' : 'Добавить в избранное'}
+          aria-label={isFavorite ? 'Удалить из избранного' : 'Добавить в избранное'}
         >
           <Heart
             className={cn(
-              "w-6 h-6 transition-colors duration-200",
-              isFavorite ? "fill-[#dc2626] text-[#dc2626]" : "text-neutral-400"
+              'w-6 h-6 transition-colors duration-200',
+              isFavorite ? 'fill-[#dc2626] text-[#dc2626]' : 'text-neutral-400'
             )}
           />
         </button>
