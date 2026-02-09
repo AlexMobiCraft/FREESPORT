@@ -6,6 +6,7 @@ Factory классы для создания тестовых данных
 
 import time
 import uuid
+from decimal import Decimal
 
 import factory
 from django.utils.text import slugify

@@ -11,10 +11,9 @@ from django.contrib.auth import get_user_model
 from django.core.validators import MinValueValidator
 from django.db import models
 from django.db.models import Q
+from decimal import Decimal
 
 if TYPE_CHECKING:
-    from decimal import Decimal
-
     from django.db.models import QuerySet
 
 User = get_user_model()
@@ -74,8 +73,6 @@ class Cart(models.Model):
     @property
     def total_amount(self) -> "Decimal":
         """Общая стоимость товаров в корзине на основе снимков цен"""
-        from decimal import Decimal
-
         total = Decimal("0")
         for item in self.items.all():
             total += item.total_price
