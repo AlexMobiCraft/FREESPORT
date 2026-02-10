@@ -182,7 +182,7 @@ describe('ProfileForm', () => {
       // ASSERT
       await waitFor(() => {
         // Check if console.error was called (implies catch block ran)
-        // expect(console.error).toHaveBeenCalled(); 
+        // expect(console.error).toHaveBeenCalled();
         // Actually, let's just check mockToast.error again, but with ANY args
         expect(mockToast.error).toHaveBeenCalled();
       });
@@ -392,6 +392,4 @@ describe('ProfileForm', () => {
       expect(submitButton).not.toBeDisabled();
     });
   });
-
-
 });
