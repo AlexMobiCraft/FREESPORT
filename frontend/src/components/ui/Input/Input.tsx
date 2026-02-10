@@ -38,7 +38,13 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
     const isPasswordType = type === 'password';
     const currentType = isPasswordType ? (isPasswordVisible ? 'text' : 'password') : type;
 
-    const inputId = id || `input-${label.toLowerCase().replace(/\s+/g, '-')}`;
+    const inputId =
+      id ||
+      `input-${label
+        .toLowerCase()
+        .replace(/[^a-z0-9а-яё\s]/g, '')
+        .trim()
+        .replace(/\s+/g, '-')}`;
 
     const togglePasswordVisibility = () => {
       setIsPasswordVisible(prev => !prev);

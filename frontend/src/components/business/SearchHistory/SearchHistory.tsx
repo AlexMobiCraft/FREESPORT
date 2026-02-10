@@ -121,9 +121,8 @@ export function SearchHistory({
               <Clock className="w-4 h-4 text-[#7A7A7A] flex-shrink-0" aria-hidden="true" />
               <span className="truncate">{query}</span>
             </div>
-            <div
-              role="button"
-              tabIndex={0}
+            <button
+              type="button"
               onClick={e => handleRemove(e, query)}
               onKeyDown={e => {
                 if (e.key === 'Enter' || e.key === ' ') {
@@ -135,7 +134,7 @@ export function SearchHistory({
               aria-label={`Удалить запрос: ${query}`}
             >
               <X className="w-4 h-4 text-text-muted hover:text-text-primary" />
-            </div>
+            </button>
           </button>
         ))}
       </div>
