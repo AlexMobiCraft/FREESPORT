@@ -52,6 +52,7 @@ so that **двусторонний обмен заказами с 1С работ
 
 - [x] Task 7: Review Follow-ups (AI) - Round 3
   - [x] [AI-Review][Medium] Рефакторинг тестовых хелперов: Переместить `_build_orders_xml` в `backend/tests/utils.py`, чтобы избежать импорта из соседних тест-файлов в `backend/tests/integration/test_order_exchange_import_e2e.py`
+
 - [x] Task 8: Review Follow-ups (AI) - Round 4
   - [x] [AI-Review][Medium] Завершить рефакторинг: Удалить дублирование `_build_multi_orders_xml` в `backend/tests/integration/test_orders_xml_mode_file.py` и использовать централизованный хелпер
   - [x] [AI-Review][Low] Исправить жестко заданную дату в `backend/tests/utils.py:175` - использовать динамическую дату вместо `2026-02-02`
@@ -64,6 +65,12 @@ so that **двусторонний обмен заказами с 1С работ
   - [x] [AI-Review][Low] Очистка: Удалить неиспользуемый импорт `STATUS_PRIORITY` из `backend/tests/integration/test_orders_xml_mode_file.py`
   - [x] [AI-Review][Low] Очистка: Добавить аннотации типов в хелперы `backend/tests/integration/test_order_exchange_import_e2e.py`
   - [x] [AI-Review][Low] Очистка: Унифицировать пароль 1С пользователя в тестах (использовать константу)
+
+- [x] Task 10: Review Follow-ups (AI) - Round 6
+  - [x] [AI-Review][Medium] Заменить захардкоженную дату `2026-02-02` на динамическую в `test_windows_1251_encoding` [backend/tests/integration/test_orders_xml_mode_file.py:284]
+  - [x] [AI-Review][Low] Оптимизировать очистку кэша в тесте лимитов — использовать более точечный подход вместо `cache.clear()` [backend/tests/integration/test_orders_xml_mode_file.py]
+  - [x] [AI-Review][Low] Рефакторинг `test_multi_orders_in_single_xml`: использовать данные фабрик вместо ручного создания словарей [backend/tests/integration/test_orders_xml_mode_file.py]
+
 
 ## Dev Notes
 
@@ -137,10 +144,11 @@ Cascade (OpenAI)
 - 🔄 Task 8: Созданы задачи для исправления оставшихся проблем код-ревью (3 пункта).
 - ✅ Task 8: `_build_multi_orders_xml` перемещена в `tests/utils.py` как `build_multi_orders_xml`. Жёсткая дата `2026-02-02` заменена на динамическую (`order_date` параметр). `EXCHANGE_URL` централизована в `tests/utils.py`. 29/29 тестов PASSED (2026-02-10). Story → review.
 - ✅ Task 9 (Round 5 review follow-ups): Рефакторинг `test_orders_xml_mode_file.py` — заменён `_authenticate` на `perform_1c_checkauth`, `User.objects.create_user` на `UserFactory`, хрупкий `__import__` на прямой импорт `OneCExchangeThrottle`, удалён неиспользуемый `STATUS_PRIORITY`. Добавлены аннотации типов в хелперы `test_order_exchange_import_e2e.py`. `ONEC_PASSWORD` централизован в `tests/utils.py`. 425/425 интеграционных тестов PASSED (2026-02-10). Story → review.
+- ✅ Task 10 (Round 6 review follow-ups): Заменена захардкоженная дата `2026-02-02` на динамическую `timezone.now()` в `test_windows_1251_encoding`. Оптимизирована очистка кэша: точечное удаление throttle-ключа `throttle_1c_exchange_{user.pk}` вместо `cache.clear()`. Рефакторинг `test_multiple_orders_in_single_xml`: `OrderFactory.create()` вместо `Order.objects.create()`, данные-driven подход с zip. 21/21 + 8/8 тестов PASSED, 425/425 интеграционных тестов PASSED (2026-02-10). Story → review.
 
 ### File List
 
 - `backend/tests/utils.py` (modified — добавлены `build_multi_orders_xml`, `EXCHANGE_URL`, `ONEC_PASSWORD`, параметр `order_date` в `build_orders_xml`)
 - `backend/tests/integration/test_order_exchange_import_e2e.py` (modified — импорт `ONEC_PASSWORD`/`EXCHANGE_URL` из `tests.utils`, аннотации типов в хелперах, импорт `Order`)
-- `backend/tests/integration/test_orders_xml_mode_file.py` (modified — `UserFactory`+`perform_1c_checkauth` вместо ручной auth, удалён `_authenticate`, прямой импорт `OneCExchangeThrottle`, удалён `STATUS_PRIORITY`)
+- `backend/tests/integration/test_orders_xml_mode_file.py` (modified — `UserFactory`+`perform_1c_checkauth` вместо ручной auth, удалён `_authenticate`, прямой импорт `OneCExchangeThrottle`, удалён `STATUS_PRIORITY`, динамическая дата в `test_windows_1251_encoding`, точечная очистка кэша throttle, `OrderFactory` в `test_multiple_orders_in_single_xml`)
 - `backend/tests/integration/test_onec_export_e2e.py` (modified — импорт `ONEC_PASSWORD` из `tests.utils`)

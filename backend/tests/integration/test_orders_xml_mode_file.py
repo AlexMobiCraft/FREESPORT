@@ -20,7 +20,7 @@ from rest_framework.test import APIClient
 from apps.integrations.onec_exchange.throttling import OneCExchangeThrottle
 from apps.integrations.onec_exchange.views import ORDERS_XML_MAX_SIZE, ICExchangeView
 from apps.orders.models import Order
-from tests.conftest import UserFactory, get_unique_suffix
+from tests.conftest import OrderFactory, UserFactory, get_unique_suffix
 from tests.utils import EXCHANGE_URL, ONEC_PASSWORD, build_orders_xml as _build_orders_xml  # noqa: E402
 from tests.utils import build_multi_orders_xml as _build_multi_orders_xml  # noqa: E402
 from tests.utils import perform_1c_checkauth
@@ -275,13 +275,14 @@ class TestOrdersXmlModeFile:
         )
 
         timestamp = timezone.now().strftime("%Y-%m-%dT%H:%M:%S")
+        order_date = timezone.now().strftime("%Y-%m-%d")
         xml_str = f"""<?xml version="1.0" encoding="windows-1251"?>
 <КоммерческаяИнформация ВерсияСхемы="3.1" ДатаФормирования="{timestamp}">
     <Контейнер>
         <Документ>
             <Ид></Ид>
             <Номер>{order_number}</Номер>
-            <Дата>2026-02-02</Дата>
+            <Дата>{order_date}</Дата>
             <ХозОперация>Заказ товара</ХозОперация>
             <ЗначенияРеквизитов>
                 <ЗначениеРеквизита>
@@ -450,23 +451,20 @@ class TestOrdersXmlModeFile:
 
     def test_multiple_orders_in_single_xml(self):
         """XML с несколькими <Документ> обрабатывает все заказы."""
-        nums = [f"FS-MULTI-{get_unique_suffix()}" for _ in range(3)]
-        for num in nums:
-            Order.objects.create(
-                order_number=num,
-                status="pending",
-                status_1c="",
+        statuses_1c = ["Подтвержден", "Отгружен", "Доставлен"]
+        expected_statuses = ["confirmed", "shipped", "delivered"]
+        orders = [
+            OrderFactory.create(
+                order_number=f"FS-MULTI-{get_unique_suffix()}",
                 sent_to_1c=False,
-                delivery_address="Test",
-                delivery_method="courier",
-                payment_method="card",
                 total_amount=Decimal("100.00"),
             )
+            for _ in range(3)
+        ]
 
         orders_data = [
-            {"order_number": nums[0], "status_1c": "Подтвержден"},
-            {"order_number": nums[1], "status_1c": "Отгружен"},
-            {"order_number": nums[2], "status_1c": "Доставлен"},
+            {"order_number": o.order_number, "status_1c": s}
+            for o, s in zip(orders, statuses_1c)
         ]
         xml_data = _build_multi_orders_xml(orders_data)
 
@@ -475,9 +473,8 @@ class TestOrdersXmlModeFile:
         assert response.status_code == 200
         assert response.content.decode("utf-8").startswith("success")
 
-        assert Order.objects.get(order_number=nums[0]).status == "confirmed"
-        assert Order.objects.get(order_number=nums[1]).status == "shipped"
-        assert Order.objects.get(order_number=nums[2]).status == "delivered"
+        for o, expected in zip(orders, expected_statuses):
+            assert Order.objects.get(order_number=o.order_number).status == expected
 
     # ===================================================================
     # 4.15: Partial success — some orders update, some fail
@@ -584,7 +581,8 @@ class TestOrdersXmlModeFile:
         """Превышение rate limit → HTTP 429 (AC12)."""
         from django.core.cache import cache as django_cache
 
-        django_cache.clear()
+        throttle_key = f"throttle_1c_exchange_{self.user.pk}"
+        django_cache.delete(throttle_key)
 
         xml_data = _build_orders_xml(status_1c="Подтвержден")
 
