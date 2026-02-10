@@ -21,14 +21,14 @@ describe('SupportPanel', () => {
       const { container } = render(<SupportPanel variant="delivery" value="Delivery" />);
 
       const panel = container.firstChild as HTMLElement;
-      expect(panel).toHaveClass('bg-neutral-100', 'border-[#0060FF]/12');
+      expect(panel).toHaveClass('bg-neutral-100', 'border-primary/12');
     });
 
     it('renders availability variant with correct styles', () => {
       const { container } = render(<SupportPanel variant="availability" value="In Stock" />);
 
       const panel = container.firstChild as HTMLElement;
-      expect(panel).toHaveClass('bg-[#F5F7FB]');
+      expect(panel).toHaveClass('bg-neutral-200');
     });
 
     it('delivery variant has default Truck icon', () => {
@@ -112,14 +112,14 @@ describe('SupportPanel', () => {
       const { container } = render(<SupportPanel variant="delivery" value="Value" />);
 
       const iconContainer = container.querySelector('.w-24.h-24');
-      expect(iconContainer).toHaveClass('bg-[#00B7FF]/12');
+      expect(iconContainer).toHaveClass('bg-primary/10');
     });
 
     it('icon container has proper styling for availability', () => {
       const { container } = render(<SupportPanel variant="availability" value="Value" />);
 
       const iconContainer = container.querySelector('.w-24.h-24');
-      expect(iconContainer).toHaveClass('bg-[#00AA5B]/12');
+      expect(iconContainer).toHaveClass('bg-accent-success-bg');
     });
   });
 

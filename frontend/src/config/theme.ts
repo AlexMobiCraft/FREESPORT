@@ -98,8 +98,8 @@ export function themeValue<T>(values: Record<ThemeName, T>): T {
  */
 export const THEME_TOKENS = {
   classic: {
-    primary: '#0060FF',
-    primaryHover: '#0047CC',
+    primary: '#FF6B00',
+    primaryHover: '#E66000',
     bgBody: '#FFFFFF',
     bgCard: '#FFFFFF',
     textPrimary: '#1F2A44',

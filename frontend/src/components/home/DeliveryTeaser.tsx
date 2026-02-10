@@ -62,8 +62,8 @@ export const DeliveryTeaser: React.FC = () => {
 
                 {/* Icon */}
                 <div className="mb-4">
-                  <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full">
-                    <IconComponent className="w-8 h-8 text-blue-600" />
+                  <div className="inline-flex items-center justify-center w-16 h-16 bg-primary-subtle rounded-full">
+                    <IconComponent className="w-8 h-8 text-primary" />
                   </div>
                 </div>
 

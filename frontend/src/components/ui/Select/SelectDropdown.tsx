@@ -155,13 +155,13 @@ export const SelectDropdown = React.forwardRef<HTMLDivElement, SelectDropdownPro
               'transition-colors duration-[180ms]',
 
               // Focus state - Design System v2.0
-              'focus:outline-none focus:border-[#0060FF] focus:border-[1.5px]',
+              'focus:outline-none focus:border-primary focus:border-[1.5px]',
 
               // Disabled state
               disabled && 'opacity-50 cursor-not-allowed bg-neutral-200',
 
               // Open state
-              isOpen && 'border-[#0060FF] border-[1.5px]',
+              isOpen && 'border-primary border-[1.5px]',
 
               !disabled && 'cursor-pointer'
             )}
@@ -224,7 +224,7 @@ export const SelectDropdown = React.forwardRef<HTMLDivElement, SelectDropdownPro
                       'hover:bg-[#F5F7FA]',
 
                       // Selected state - Design System v2.0
-                      isSelected && 'bg-[#E1F0FF] text-[#0060FF]',
+                      isSelected && 'bg-primary-subtle text-primary',
 
                       // Focused state (keyboard navigation)
                       isFocused && !isSelected && 'bg-[#F5F7FA]'

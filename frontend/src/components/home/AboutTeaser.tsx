@@ -66,11 +66,11 @@ export const AboutTeaser: React.FC = () => {
                 return (
                   <div
                     key={index}
-                    className="flex items-center gap-3 p-3 bg-neutral-50 rounded-lg hover:bg-blue-50 transition-colors duration-200"
+                    className="flex items-center gap-3 p-3 bg-neutral-50 rounded-lg hover:bg-primary-subtle transition-colors duration-200"
                   >
                     <div className="flex-shrink-0">
-                      <div className="inline-flex items-center justify-center w-10 h-10 bg-blue-100 rounded-full">
-                        <IconComponent className="w-5 h-5 text-blue-600" />
+                      <div className="inline-flex items-center justify-center w-10 h-10 bg-primary-subtle rounded-full">
+                        <IconComponent className="w-5 h-5 text-primary" />
                       </div>
                     </div>
                     <span className="text-base font-medium text-gray-800">{value.label}</span>

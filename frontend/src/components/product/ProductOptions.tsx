@@ -103,18 +103,18 @@ const OptionChip: React.FC<OptionChipProps> = ({
         'min-w-[60px]',
         'border',
         // Focus state
-        'focus:outline-none focus:ring-2 focus:ring-[#0060FF] focus:ring-offset-2',
+        'focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2',
 
         // Состояния
         selected
-          ? 'bg-[#0060FF] text-white border-[#0060FF]' // Selected: primary blue
+          ? 'bg-primary text-white border-primary' // Selected: primary
           : 'bg-neutral-100 border-neutral-400 text-neutral-700', // Default
 
         // Disabled state
         disabled && 'opacity-50 cursor-not-allowed',
 
         // Hover state (только для доступных)
-        !disabled && !selected && 'hover:border-[#0060FF] hover:bg-neutral-50',
+        !disabled && !selected && 'hover:border-primary hover:bg-neutral-50',
 
         // Active state
         !disabled && 'active:scale-95'

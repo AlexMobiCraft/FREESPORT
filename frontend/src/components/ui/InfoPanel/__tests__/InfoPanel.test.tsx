@@ -54,11 +54,11 @@ describe('InfoPanel', () => {
 
   // Variants
   describe('Variants', () => {
-    it('renders info variant by default with blue styling', () => {
+    it('renders info variant by default with primary styling', () => {
       const { container } = render(<InfoPanel>Message</InfoPanel>);
 
       const panel = container.firstChild as HTMLElement;
-      expect(panel).toHaveClass('bg-blue-50', 'border-blue-200');
+      expect(panel).toHaveClass('bg-primary-subtle', 'border-primary/20');
     });
 
     it('renders warning variant with amber styling', () => {

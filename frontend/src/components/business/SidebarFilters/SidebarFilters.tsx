@@ -225,8 +225,8 @@ export const SidebarFilters = React.forwardRef<HTMLDivElement, SidebarFiltersPro
                       'w-8 h-8 rounded-full',
                       'border-2 transition-all duration-[180ms]',
                       selectedFilters.colors.includes(color.name)
-                        ? 'border-[#0060FF] scale-110'
-                        : 'border-[#D0D7E6] hover:border-[#B9C3D6]'
+                        ? 'border-primary scale-110'
+                        : 'border-neutral-300 hover:border-neutral-400'
                     )}
                     style={{ backgroundColor: color.hex }}
                     title={color.name}

@@ -41,7 +41,7 @@ export default async function PasswordResetConfirmPage({ params }: PasswordReset
 
         {/* Back to Login Link */}
         <div className="text-center">
-          <Link href="/login" className="text-sm text-blue-600 hover:text-blue-700 underline">
+          <Link href="/login" className="text-sm text-primary hover:text-primary-hover underline">
             Вернуться на страницу входа
           </Link>
         </div>

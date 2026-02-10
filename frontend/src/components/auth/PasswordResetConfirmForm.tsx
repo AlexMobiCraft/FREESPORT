@@ -107,7 +107,7 @@ export const PasswordResetConfirmForm = ({ uid, token }: PasswordResetConfirmFor
     return (
       <div className="text-center p-6 space-y-4">
         <div
-          className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"
+          className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"
           aria-hidden="true"
         />
         <p className="text-gray-600">Проверка ссылки...</p>
@@ -126,7 +126,7 @@ export const PasswordResetConfirmForm = ({ uid, token }: PasswordResetConfirmFor
         <p className="text-gray-600 max-w-md mx-auto">{tokenError}</p>
         <Link
           href="/password-reset"
-          className="inline-block mt-4 text-blue-600 hover:text-blue-700 underline"
+          className="inline-block mt-4 text-primary hover:text-primary-hover underline"
         >
           Запросить новую ссылку
         </Link>

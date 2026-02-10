@@ -190,7 +190,7 @@ const PriceRangeSlider: React.FC<PriceRangeSliderProps> = ({ min, max, step, val
           className="absolute inset-y-0 flex items-center"
           style={{ left: `${minPercent}%`, right: `${100 - maxPercent}%` }}
         >
-          <div className="h-[4px] w-full rounded-full bg-[#1E6FFF]" />
+          <div className="h-[4px] w-full rounded-full bg-[#FF6B00]" />
         </div>
 
         <input
@@ -229,9 +229,9 @@ const PriceRangeSlider: React.FC<PriceRangeSliderProps> = ({ min, max, step, val
           height: 18px;
           width: 18px;
           border-radius: 50%;
-          background: #1e6fff;
-          border: 4px solid #dbe9ff;
-          box-shadow: 0 2px 6px rgba(30, 111, 255, 0.35);
+          background: #FF6B00;
+          border: 4px solid #FFE0B2;
+          box-shadow: 0 2px 6px rgba(255, 107, 0, 0.35);
           cursor: pointer;
           margin-top: -9px;
         }
@@ -240,9 +240,9 @@ const PriceRangeSlider: React.FC<PriceRangeSliderProps> = ({ min, max, step, val
           height: 18px;
           width: 18px;
           border-radius: 50%;
-          background: #1e6fff;
-          border: 4px solid #dbe9ff;
-          box-shadow: 0 2px 6px rgba(30, 111, 255, 0.35);
+          background: #FF6B00;
+          border: 4px solid #FFE0B2;
+          box-shadow: 0 2px 6px rgba(255, 107, 0, 0.35);
           cursor: pointer;
         }
 
@@ -300,7 +300,7 @@ const CategoryTree: React.FC<{
                 className={
                   'flex-1 rounded-lg px-2 py-1 text-left text-sm transition-colors ' +
                   (isActive
-                    ? 'bg-blue-50 text-blue-700 font-semibold'
+                    ? 'bg-primary-subtle text-primary font-semibold'
                     : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900')
                 }
               >
@@ -826,7 +826,7 @@ const CatalogContent: React.FC = () => {
               <React.Fragment key={`${segment.label}-${index}`}>
                 {index !== 0 && <span className="text-gray-400">/</span>}
                 {segment.href && !isLast ? (
-                  <Link href={segment.href} className="hover:text-blue-600 transition-colors">
+                  <Link href={segment.href} className="hover:text-primary transition-colors">
                     {segment.label}
                   </Link>
                 ) : (
@@ -965,18 +965,16 @@ const CatalogContent: React.FC = () => {
               <div className="flex items-center gap-3">
                 <div className="inline-flex items-center rounded-full bg-gray-100 p-1">
                   <button
-                    className={`flex items-center gap-1 rounded-full px-3 py-2 text-sm font-medium ${
-                      viewMode === 'grid' ? 'bg-white text-gray-900 shadow' : 'text-gray-500'
-                    }`}
+                    className={`flex items-center gap-1 rounded-full px-3 py-2 text-sm font-medium ${viewMode === 'grid' ? 'bg-white text-gray-900 shadow' : 'text-gray-500'
+                      }`}
                     onClick={() => setViewMode('grid')}
                   >
                     <Grid2x2 className="h-4 w-4" />
                     <span className="hidden sm:inline">Сетка</span>
                   </button>
                   <button
-                    className={`flex items-center gap-1 rounded-full px-3 py-2 text-sm font-medium ${
-                      viewMode === 'list' ? 'bg-white text-gray-900 shadow' : 'text-gray-500'
-                    }`}
+                    className={`flex items-center gap-1 rounded-full px-3 py-2 text-sm font-medium ${viewMode === 'list' ? 'bg-white text-gray-900 shadow' : 'text-gray-500'
+                      }`}
                     onClick={() => setViewMode('list')}
                   >
                     <List className="h-4 w-4" />

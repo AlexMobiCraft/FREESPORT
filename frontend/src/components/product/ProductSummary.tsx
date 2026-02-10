@@ -431,11 +431,11 @@ export default function ProductSummary({
           disabled={!canAddToCart || (variants.length > 0 && !selectedVariant) || isLoading}
           className={cn(
             'flex-1 h-14 px-6 text-lg font-medium rounded-2xl transition-all duration-150',
-            'focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#0060FF]/60',
+            'focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary/60',
             'flex items-center justify-center gap-2',
             canAddToCart && (variants.length === 0 || selectedVariant) && !isLoading
-              ? 'bg-[#0060FF] text-white hover:bg-[#0047CC] active:bg-[#0037A6] shadow-[0_4px_12px_rgba(0,96,255,0.28)]'
-              : 'bg-[#E3E8F2] text-[#8F9BB3] cursor-not-allowed'
+              ? 'bg-primary text-white hover:bg-primary-hover active:bg-primary-active shadow-md'
+              : 'bg-neutral-200 text-neutral-400 cursor-not-allowed'
           )}
           data-testid="add-to-cart-button"
         >
@@ -471,7 +471,7 @@ export default function ProductSummary({
           className={cn(
             'h-14 w-14 rounded-2xl border border-neutral-200 flex items-center justify-center transition-colors shrink-0',
             'hover:bg-neutral-50 active:bg-neutral-100',
-            'focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#0060FF]/60'
+            'focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary/60'
           )}
           title={isFavorite ? 'Удалить из избранного' : 'Добавить в избранное'}
           aria-label={isFavorite ? 'Удалить из избранного' : 'Добавить в избранное'}
@@ -479,7 +479,7 @@ export default function ProductSummary({
           <Heart
             className={cn(
               'w-6 h-6 transition-colors duration-200',
-              isFavorite ? 'fill-[#dc2626] text-[#dc2626]' : 'text-neutral-400'
+              isFavorite ? 'fill-accent-danger text-accent-danger' : 'text-neutral-400'
             )}
           />
         </button>

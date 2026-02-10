@@ -217,7 +217,7 @@ export const SearchField = React.forwardRef<HTMLInputElement, SearchFieldProps>(
               'border border-[#E3E8F2]', // Design System v2.0 border
               'transition-colors duration-[180ms]',
               'placeholder:text-[#7A7A7A]',
-              'focus:outline-none focus:border-[#0060FF] focus:border-[1.5px]', // Design System v2.0 focus
+              'focus:outline-none focus:border-primary focus:border-[1.5px]', // Design System v2.0 focus
 
               // Warning state
               showWarning && 'border-accent-warning focus:border-accent-warning',
@@ -247,7 +247,7 @@ export const SearchField = React.forwardRef<HTMLInputElement, SearchFieldProps>(
                 'text-[#7A7A7A]',
                 'hover:bg-[#F5F7FA]',
                 'transition-colors duration-[120ms]',
-                'focus:outline-none focus:ring-2 focus:ring-[#0060FF]'
+                'focus:outline-none focus:ring-2 focus:ring-primary'
               )}
               aria-label="Очистить поиск"
             >

@@ -1,12 +1,20 @@
 {
   "meta": {
     "name": "FREESPORT Design System",
-    "purpose": "Единое описание визуального языка и UX-паттернов приложения, чтобы AI-агент и команда разрабатывали функции последовательно.",
-    "version": "2.1.0",
-    "lastUpdated": "2025-11-25",
-    "author": "James (Dev Agent)",
-    "sourceFiles": ["docs/front-end-spec.md", "frontend/src/app/globals.css"],
+    "purpose": "Единое описание визуального языка и UX-паттернов приложения.",
+    "version": "2.2.0",
+    "lastUpdated": "2026-02-10",
+    "author": "Antigravity (Migration Agent)",
+    "sourceFiles": [
+      "docs/front-end-spec.md",
+      "frontend/src/app/globals.css"
+    ],
     "changeLog": [
+      {
+        "version": "2.2.0",
+        "date": "2026-02-10",
+        "changes": "Миграция основной цветовой схемы с Синей на Оранжевую (#FF6B00). Сохранение стиля 'Ozon-Friendly'."
+      },
       {
         "version": "2.1.0",
         "date": "2025-11-25",
@@ -15,41 +23,40 @@
     ]
   },
   "brand": {
-    "tone": "Технологичный, дружелюбный e-commerce в стиле OZON",
-    "colorPhilosophy": "Яркие синие акценты для CTA, голубые вторичные тона, семантические цвета для статусов",
+    "tone": "Технологичный, дружелюбный e-commerce (Стиль Ozon + Энергия Спорта)",
+    "colorPhilosophy": "Энергичный оранжевый (#FF6B00) для действий, нейтральный фон, глубокий синий для текста.",
     "voice": [
       "Чёткие формулировки",
       "Поддерживающий характер",
       "Концентрация на выгоде пользователя"
     ],
     "iconSet": "lucide-react",
-    "logoTreatment": "Текстовый логотип DESIGN в верхнем регистре с primary цветом"
+    "logoTreatment": "Текстовый логотип FREESPORT в верхнем регистре с primary цветом"
   },
   "designPrinciples": [
     "Абсолютный приоритет удобству и быстроте выбора товара",
-    "Оптика легкости: много белого пространства, мягкие тени, отсутствие визуального шума",
+    "Оптика легкости: много белого пространства, мягкие тени",
     "Чистая модульность: все блоки строятся на 8-пиксельной сетке",
-    "Единая визуальная иерархия: глубокие графитовые акценты, тёмный текст и мягкие серые подложки",
-    "Обязательная адаптивность: desktop-first, но без потери читаемости на tablet/mobile",
+    "Единая визуальная иерархия: оранжевые CTA, тёмный текст",
+    "Обязательная адаптивность: desktop-first",
     "Интерактивные состояния выражаются цветом и лёгкой анимацией",
-    "CTA с мягкими радиусами и воздушными подложками",
-    "Карточки передают организованность: крупные фото, разнесённые блоки данных, чёткие подписи"
+    "CTA с мягкими радиусами (12px) и воздушными подложками"
   ],
   "foundations": {
     "colors": {
       "primary": {
-        "default": "#0060FF",
-        "hover": "#0047CC",
-        "active": "#0037A6",
-        "subtle": "#E7F3FF",
-        "usage": "CTA, ключевые акценты, выделение активных элементов"
+        "default": "#FF6B00",
+        "hover": "#E65000",
+        "active": "#CC4400",
+        "subtle": "#FFF5EB",
+        "usage": "CTA, ключевые акценты, выделение активных элементов. Текст на кнопках: Белый или Темно-синий."
       },
       "secondary": {
         "default": "#00B7FF",
         "hover": "#0095D6",
         "active": "#0078B3",
         "subtle": "#E1F5FF",
-        "usage": "Вторичные акценты, подсветка сервисных блоков"
+        "usage": "Вторичные акценты, функциональные ссылки, информационные иконки"
       },
       "accent": {
         "success": "#00AA5B",
@@ -68,7 +75,7 @@
       },
       "neutral": {
         "100": "#FFFFFF",
-        "200": "#F5F7FB",
+        "200": "#F8F9FA",
         "300": "#E3E8F2",
         "400": "#B9C3D6",
         "500": "#8F9BB3",
@@ -79,8 +86,8 @@
         "usage": "Фоны, бордеры, текстовые оттенки"
       },
       "canvas": {
-        "default": "#F5F7FB",
-        "usage": "Основной фон страницы, светлый серо-голубой для создания воздушного пространства"
+        "default": "#F8F9FA",
+        "usage": "Основной фон страницы, нейтральный светло-серый (Cool Gray 50) для чистоты"
       },
       "text": {
         "primary": "#1F2A44",
@@ -93,7 +100,6 @@
     "typography": {
       "fontFamily": [
         "Inter",
-        "SF Pro Display",
         "-apple-system",
         "BlinkMacSystemFont",
         "Segoe UI",
@@ -106,10 +112,30 @@
           "weight": 700,
           "usage": "Главные hero заголовки"
         },
-        "display-m": { "size": 40, "lineHeight": 48, "weight": 700, "usage": "Заголовки страниц" },
-        "headline-l": { "size": 32, "lineHeight": 40, "weight": 700, "usage": "Карточки разделов" },
-        "headline-m": { "size": 28, "lineHeight": 36, "weight": 600, "usage": "Субзаголовки" },
-        "title-l": { "size": 24, "lineHeight": 32, "weight": 600, "usage": "Блоки контента" },
+        "display-m": {
+          "size": 40,
+          "lineHeight": 48,
+          "weight": 700,
+          "usage": "Заголовки страниц"
+        },
+        "headline-l": {
+          "size": 32,
+          "lineHeight": 40,
+          "weight": 700,
+          "usage": "Карточки разделов"
+        },
+        "headline-m": {
+          "size": 28,
+          "lineHeight": 36,
+          "weight": 600,
+          "usage": "Субзаголовки"
+        },
+        "title-l": {
+          "size": 24,
+          "lineHeight": 32,
+          "weight": 600,
+          "usage": "Блоки контента"
+        },
         "title-m": {
           "size": 20,
           "lineHeight": 28,
@@ -128,8 +154,18 @@
           "weight": 500,
           "usage": "Основной текст, подписи к полям"
         },
-        "body-s": { "size": 14, "lineHeight": 20, "weight": 500, "usage": "Вторичный текст" },
-        "caption": { "size": 12, "lineHeight": 16, "weight": 500, "usage": "Метки, бейджи" }
+        "body-s": {
+          "size": 14,
+          "lineHeight": 20,
+          "weight": 500,
+          "usage": "Вторичный текст"
+        },
+        "caption": {
+          "size": 12,
+          "lineHeight": 16,
+          "weight": 500,
+          "usage": "Метки, бейджи"
+        }
       },
       "colorUsage": {
         "primary": "#1F2A44",
@@ -139,7 +175,19 @@
       }
     },
     "spacing": {
-      "scale": [4, 8, 12, 16, 20, 24, 32, 40, 48, 56, 64],
+      "scale": [
+        4,
+        8,
+        12,
+        16,
+        20,
+        24,
+        32,
+        40,
+        48,
+        56,
+        64
+      ],
       "rules": [
         "Базовый шаг интерфейса 4px",
         "Вертикальный ритм в компонентах: кратен 8px",
@@ -165,16 +213,16 @@
       "lg": 20,
       "xl": 24,
       "full": 9999,
-      "usage": "Кнопки и входные поля используют sm, карточки — default/md, бейджи — full"
+      "usage": "Кнопки и входные поля используют sm/default (6-12px)"
     },
     "shadows": {
       "default": "0 8px 24px rgba(15, 23, 42, 0.08)",
       "hover": "0 10px 32px rgba(15, 23, 42, 0.12)",
-      "primary": "0 4px 12px rgba(0, 96, 255, 0.28)",
-      "secondary": "0 2px 8px rgba(0, 96, 255, 0.16)",
-      "pressed": "inset 0 2px 4px rgba(0, 71, 204, 0.24)",
+      "primary": "0 4px 14px rgba(255, 107, 0, 0.35)",
+      "secondary": "0 2px 8px rgba(0, 183, 255, 0.16)",
+      "pressed": "inset 0 2px 4px rgba(200, 60, 0, 0.2)",
       "modal": "0 24px 64px rgba(15, 23, 42, 0.24)",
-      "usage": "Использовать плавные тени для создания многоуровневой иерархии"
+      "usage": "Тень primary теперь оранжевая"
     },
     "motion": {
       "duration": {
@@ -184,8 +232,7 @@
       "easing": "cubic-bezier(0.4, 0, 0.2, 1)",
       "rules": [
         "Анимации не более 200ms",
-        "Использовать плавные fade/slide без резких скачков",
-        "При наведении добавлять лёгкий подъем (-2px) для кликабельных карточек"
+        "Использовать плавные fade/slide"
       ]
     },
     "grid": {
@@ -201,630 +248,66 @@
         "mobile": 640,
         "tablet": 1024,
         "desktop": 1440
-      },
-      "guidelines": [
-        "Контент центрировать, использовать max-w-[1280px]",
-        "Основной padding страницы 24px",
-        "Для мобильных переключать блоки в одну колонку, сохранять вертикальный ритм"
-      ]
+      }
     }
   },
   "layout": {
     "containers": {
       "surface": "#FFFFFF",
       "radius": 16,
-      "shadowDefault": "0 8px 24px rgba(15, 23, 42, 0.08)",
-      "shadowHover": "0 10px 32px rgba(15, 23, 42, 0.12)",
-      "sectionSpacing": 48,
-      "innerSpacing": 24
+      "shadowDefault": "0 8px 24px rgba(15, 23, 42, 0.08)"
     },
     "backgrounds": {
-      "canvas": "#F5F7FB",
+      "canvas": "#F8F9FA",
       "panel": "#FFFFFF",
-      "emphasis": "linear-gradient(135deg, rgba(0, 78, 255, 0.12), rgba(0, 149, 255, 0.08))"
+      "emphasis": "linear-gradient(135deg, rgba(255, 107, 0, 0.12), rgba(255, 160, 0, 0.08))"
     },
     "pageTemplates": {
       "productDetail": {
-        "columnStructure": "Левая колонка 2/3 под галерею, правая 1/3 под транзакционные блоки",
-        "leftColumn": {
-          "minWidth": 560,
-          "stacking": "Сверху галерея, ниже превью от покупателей",
-          "gap": 24
-        },
-        "rightColumn": {
-          "stickyOffset": 96,
-          "panelsGap": 20,
-          "floatingSummary": "Цена и CTA закрепляются при скролле после 600px"
-        },
-        "secondaryBand": {
-          "background": "#FFFFFF",
-          "padding": "32px 0",
-          "modules": ["характеристики", "доставка и оплата", "вопросы"]
-        }
-      },
-      "recommendations": {
-        "layout": "Горизонтальная галерея на 6 карточек c scroll-snap",
-        "cardSpacing": 16,
-        "sectionPadding": "32px 24px",
-        "titleStyle": "title-m",
-        "background": "transparent"
+        "columnStructure": "Левая колонка 2/3 под галерею, правая 1/3 под транзакционные блоки"
       }
-    }
-  },
-  "iconography": {
-    "style": "Rounded minimal с толщиной линий 1.5-2px и скруглением 4px",
-    "primarySize": 24,
-    "secondarySize": 20,
-    "defaultColor": "#4B5C7A",
-    "inverseColor": "#FFFFFF",
-    "filledUsage": "Ограниченно для promo или CTA",
-    "renderer": "Все иконки приводятся к таргетному размеру через общий renderer/cloneElement"
-  },
-  "interaction": {
-    "animation": {
-      "durationShort": 120,
-      "durationMedium": 180,
-      "timingFunction": "cubic-bezier(0.4, 0, 0.2, 1)"
-    },
-    "hover": {
-      "lift": "translateY(-2px)",
-      "shadow": "0 12px 32px rgba(31, 31, 31, 0.18)",
-      "colorShift": "primary.hover"
-    },
-    "focus": {
-      "outlineColor": "rgba(0, 96, 255, 0.6)",
-      "outlineWidth": 2,
-      "ring": "0 0 0 4px rgba(0, 96, 255, 0.12)",
-      "radius": 6
-    },
-    "pressed": {
-      "shadow": "0 6px 18px rgba(13, 13, 13, 0.24)",
-      "offset": "translateY(0)"
     }
   },
   "components": {
-    "Header": {
-      "description": "Sticky шапка с логотипом, промо сообщением, поиском и action-иконками",
-      "structure": [
-        "Левый блок: логотип + мини-акция",
-        "Центр: широкая поисковая строка с радиусом 24px",
-        "Правый блок: CTA входа, избранное, корзина, профиль"
-      ],
-      "dimensions": {
-        "heightDesktop": 60,
-        "heightMobile": 60,
-        "shadow": "0 6px 16px rgba(31, 42, 68, 0.05)"
-      },
-      "navigationTabs": {
-        "font": "body-m",
-        "activeIndicator": { "color": "#0060FF", "height": 3, "radius": 999 },
-        "spacing": 24
-      },
-      "cartBadge": {
-        "background": "#F9E1E1",
-        "textColor": "#A63232",
-        "radius": 999,
-        "fontSize": "10px",
-        "fontWeight": "bold",
-        "usage": "Значок количества товаров в корзине, использует палитру бейджа sale"
-      },
-      "states": {
-        "desktop": "Горизонтальный layout, фиксированная высота 60px",
-        "mobile": "Отображать меню-иконку, сокращать поиск"
-      }
-    },
-    "Breadcrumb": {
-      "description": "Линейная навигация с ChevronRight/›",
-      "tokens": ["text-body-s", "text-neutral-700"],
-      "spacing": 8,
-      "behavior": "Последний элемент не ссылка, выделен text-primary"
-    },
     "Button": {
       "variants": {
         "primary": {
-          "bg": "var(--color-primary)",
-          "bgHover": "var(--color-primary-hover)",
-          "bgActive": "var(--color-primary-active)",
+          "bg": "#FF6B00",
+          "bgHover": "#E65000",
           "text": "#FFFFFF",
-          "shadow": "var(--shadow-primary)"
+          "shadow": "0 4px 14px rgba(255, 107, 0, 0.35)"
         },
         "secondary": {
-          "bg": "var(--color-neutral-100)",
-          "border": "1px solid var(--color-primary)",
-          "text": "var(--color-primary)",
-          "hover": {
-            "bg": "var(--color-primary-subtle)",
-            "text": "var(--color-primary)"
-          }
-        },
-        "tertiary": {
-          "bg": "transparent",
-          "text": "var(--color-primary)",
-          "hover": {
-            "text": "var(--color-primary-hover)"
-          }
-        },
-        "subtle": {
-          "bg": "var(--color-primary-subtle)",
-          "text": "var(--color-primary)",
-          "shadow": "var(--shadow-secondary)"
+          "bg": "#FFFFFF",
+          "border": "1px solid #FF6B00",
+          "text": "#FF6B00"
         }
-      },
-      "sizes": {
-        "small": "h-10, text body-s",
-        "medium": "h-10, text body-m",
-        "large": "h-12, text body-l"
-      },
-      "interaction": [
-        "hover: смена оттенков + -2px translateY",
-        "focus: ring 2px primary",
-        "disabled: opacity-50"
-      ],
-      "dimensions": { "height": 40, "radius": 6, "paddingHorizontal": 24 }
-    },
-    "Input": {
-      "description": "Текстовое поле с поддержкой icon, helper, error/success",
-      "states": {
-        "default": "border-neutral-400",
-        "error": "border-accent-danger, фон danger с opacity 8",
-        "success": "border-accent-success"
-      },
-      "tokens": ["text-body-m", "rounded-sm", "bg-neutral-100"],
-      "dimensions": { "height": 40, "radius": 6, "border": "1px solid #C7C7C7" },
-      "usage": "Всегда предоставлять label и helper, иконку размещать слева"
-    },
-    "Select": {
-      "description": "Нативный select со стилизованной стрелкой",
-      "props": ["options", "placeholder", "label"],
-      "states": ["focus:border-primary 1.5px", "disabled (будущий) — снижать opacity"],
-      "pattern": "Высота 40px, внутренний отступ 16px, ChevronDown справа"
-    },
-    "SearchField": {
-      "description": "Компактное поле поиска с иконкой внутри",
-      "dimensions": { "height": 40, "radius": 6, "border": "1px solid #E0E0E0" },
-      "interaction": "При фокусе подсветка primary, placeholder короткий",
-      "usage": "В Header и других местах быстрого поиска"
-    },
-    "SearchFilters": {
-      "description": "Чипы и CTA фильтров, работающие вместе с полем поиска",
-      "chip": {
-        "radius": 16,
-        "gap": 8,
-        "states": {
-          "default": {
-            "background": "#FFFFFF",
-            "border": "1px solid #D0D7E6",
-            "textColor": "#4B5C7A"
-          },
-          "selected": { "background": "#0060FF", "textColor": "#FFFFFF" }
-        }
-      },
-      "ctaAllFilters": {
-        "background": "#E7F3FF",
-        "textColor": "#0060FF",
-        "radius": 20,
-        "padding": "8px 20px",
-        "font": "body-m",
-        "shadow": "0 4px 14px rgba(0, 96, 255, 0.12)"
       }
     },
-    "Checkbox": {
-      "description": "Square чекбокс с анимацией масштаба и иконкой Check",
-      "states": [
-        "unchecked: border neutral",
-        "checked: bg primary (#0060FF) + белая галочка (Check)",
-        "disabled: пониженная прозрачность"
-      ],
-      "pattern": "Label справа, gap 12px",
-      "dimensions": {
-        "boxSize": 20,
-        "radius": 6,
-        "borderDefault": "1.5px solid #B9C3D6",
-        "borderChecked": "1.5px solid #0060FF",
-        "backgroundChecked": "#0060FF",
-        "icon": {
-          "type": "lucide-check",
-          "size": 18,
-          "stroke": 3,
-          "color": "#FFFFFF"
-        },
-        "label": {
-          "typography": "body-m",
-          "spacing": 12
+    "Header": {
+      "description": "Sticky шапка с логотипом, промо сообщением, поиском",
+      "navigationTabs": {
+        "activeIndicator": {
+          "color": "#FF6B00"
         }
       },
-      "focus": {
-        "outline": "2px solid rgba(0, 96, 255, 0.6)",
-        "ring": "0 0 0 4px rgba(0, 96, 255, 0.12)"
+      "cartBadge": {
+        "background": "#FFF5EB",
+        "textColor": "#FF6B00"
       }
-    },
-    "Toggle": {
-      "description": "Switch с плавным движением бегунка",
-      "states": ["checked: bg #0060FF + translateX", "unchecked: bg #E3E8F2"],
-      "accessibility": "Встроенный label описывает действие, целевая высота 24px"
-    },
-    "Tabs": {
-      "description": "Горизонтальные табы с underline",
-      "behavior": "Активный таб подсвечивается primary текстом и линией 3px",
-      "props": ["tabs[{label,content}]", "defaultTab", "onChange"],
-      "spacing": "gap-24 между табами",
-      "tokens": {
-        "activeText": "#0060FF",
-        "inactiveText": "#4B5C7A",
-        "indicator": "#0060FF"
-      }
-    },
-    "Modal": {
-      "description": "Центрированное окно с backdrop blur",
-      "structure": ["header с title и кнопкой закрытия", "content area", "необязательный footer"],
-      "tokens": ["bg-neutral-100", "rounded-xl", "shadow-modal"],
-      "dimensions": {
-        "radius": 24,
-        "sizes": {
-          "sm": { "maxWidth": 384, "padding": 16 },
-          "md": { "maxWidth": 560, "padding": 24 },
-          "lg": { "maxWidth": 768, "padding": 32 },
-          "xl": { "maxWidth": 1024, "padding": 40 },
-          "full": { "maxWidth": "100vw", "padding": 48 }
-        }
-      },
-      "closeIcon": {
-        "container": { "size": 44, "radius": 12, "hoverBackground": "#E3E8F2" },
-        "iconSize": 40
-      },
-      "behavior": "Backdrop закрывает при клике, кнопка X использует hover bg #E3E8F2",
-      "usage": {
-        "sm": "Маленькие модальные окна (подтверждения, простые формы)",
-        "md": "Стандартные модальные окна (формы, детали товара)",
-        "lg": "Большие модальные окна (сложные формы, таблицы)",
-        "xl": "Очень большие окна (детальная информация, wizard)",
-        "full": "Полноэкранные модальные окна (галереи, большие таблицы)"
-      }
-    },
-    "Card": {
-      "description": "Базовый контейнер с shadow",
-      "props": ["hover (добавляет hover:shadow-hover и -translate-y"],
-      "spacing": "Padding 24px",
-      "usage": "Используется в статистике, рекомендациях"
-    },
-    "Tag": {
-      "description": "Компактный label с разными статусами",
-      "variants": ["default", "highlight", "success", "warning", "danger"],
-      "shape": "rounded-xl, text caption",
-      "usage": "Отображение статусов и фильтров"
-    },
-    "Chip": {
-      "description": "Фильтровый чип с иконкой и кнопкой удаления",
-      "states": ["selected: bg primary text inverse", "default: bg neutral border"],
-      "interaction": "Icon optional; onRemove добавляет кнопку"
     },
     "Badge": {
       "description": "Бейдж для карточек товаров",
-      "variants": [
-        "default",
-        "delivered",
-        "transit",
-        "cancelled",
-        "promo",
-        "sale",
-        "discount",
-        "premium",
-        "new",
-        "hit"
-      ],
-      "shape": "rounded-full",
-      "usage": "Статусы заказов, промо и лояльность",
       "tokens": {
-        "delivered": { "background": "#E0F5E8", "textColor": "#00AA5B", "icon": "check-circle" },
-        "transit": { "background": "#FFF1CC", "textColor": "#F5A623", "icon": "truck" },
-        "cancelled": { "background": "#FFE1E8", "textColor": "#E53935", "icon": "x" },
-        "promo": { "background": "#FFF0F5", "textColor": "#FF2E93" },
-        "sale": { "background": "#FFE1E8", "textColor": "#E53935" },
-        "discount": { "background": "#F0E7FF", "textColor": "#7C3AED" },
-        "premium": { "background": "#F6F0E4", "textColor": "#6D4C1F", "icon": "sparkles" },
-        "new": { "background": "#E7F3FF", "textColor": "#0060FF" },
-        "hit": { "background": "#E0F5E8", "textColor": "#00AA5B" }
-      }
-    },
-    "InfoPanel": {
-      "description": "Информационный баннер с иконкой",
-      "structure": "Grid из иконки и текста, border primary с opacity",
-      "usage": "Пояснения, подсказки",
-      "iconTreatment": {
-        "container": { "size": 80, "background": "rgba(0, 183, 255, 0.16)", "radius": 24 },
-        "icon": { "size": 48, "color": "#00B7FF", "alignment": "center_with_title_first_line" },
-        "renderer": "Все SVG проходят через общий renderer и используют currentColor"
-      },
-      "layout": { "type": "grid", "columns": "auto 1fr", "columnGap": 16, "rowGap": 12 }
-    },
-    "SupportPanel": {
-      "description": "Панели доставки/наличия",
-      "variants": ["delivery", "availability"],
-      "delivery": {
-        "background": "#FFFFFF",
-        "radius": 16,
-        "border": "1px solid rgba(0, 96, 255, 0.12)",
-        "padding": 20,
-        "iconToken": {
-          "size": 96,
-          "background": "rgba(0, 183, 255, 0.12)",
-          "color": "#0060FF",
-          "iconSize": 72
-        }
-      },
-      "availability": {
-        "background": "#F5F7FB",
-        "radius": 16,
-        "padding": 16,
-        "iconColor": "#00AA5B"
-      },
-      "content": "value (основной текст), meta/description вторичные",
-      "layoutNotes": [
-        "Иконка выравнивается по центру первой строки текста",
-        "SVG нормализуются до 72px тем же renderer, что и в InfoPanel"
-      ]
-    },
-    "RecommendationsRow": {
-      "description": "Горизонтальная лента товаров",
-      "behavior": "scroll snap, карточки 180px",
-      "content": "title, rating со Star, price, optional badge",
-      "interaction": "Карточки получают hover shadow",
-      "usage": "В App.jsx блок рекомендаций",
-      "tokens": {
-        "maxVisibleCards": 6,
-        "cardGap": 16,
-        "cardWidth": 180,
-        "rating": "caption",
-        "badge": {
-          "component": "Badge",
-          "supportedVariants": ["hit", "new", "promo", "sale"],
-          "placement": "под ценой"
-        }
-      }
-    },
-    "SidebarFilters": {
-      "description": "Панель фильтров шириной 280px",
-      "section": { "spacing": 24, "headerTypography": "title-s" },
-      "controls": {
-        "checkbox": {
-          "boxSize": 20,
-          "radius": 6,
-          "borderDefault": "1.5px solid #B9C3D6",
-          "borderChecked": "1.5px solid #0060FF",
-          "backgroundChecked": "#0060FF",
-          "icon": { "type": "lucide-check", "size": 18, "stroke": 3, "color": "#FFFFFF" },
-          "label": { "typography": "body-m", "spacing": 12 },
-          "states": {
-            "hover": { "border": "1.5px solid #0060FF", "background": "#F5F7FB" },
-            "disabled": { "opacity": 0.5 }
-          }
+        "new": {
+          "background": "#FFF5EB",
+          "textColor": "#FF6B00"
         },
-        "toggle": {
-          "track": { "width": 44, "height": 24, "radius": 999, "off": "#E3E8F2", "on": "#0060FF" },
-          "thumb": { "size": 20, "color": "#FFFFFF", "shadow": "0 2px 8px rgba(0, 0, 0, 0.16)" }
-        },
-        "linkMore": { "typography": "body-s", "color": "#0060FF", "icon": "chevron-down" }
-      }
-    },
-    "ProductGallery": {
-      "description": "Большое изображение товара с вертикальными превью",
-      "primaryImage": {
-        "width": 520,
-        "height": 520,
-        "radius": 16,
-        "shadow": "0 12px 32px rgba(15, 23, 42, 0.08)"
-      },
-      "thumbnails": {
-        "orientation": "vertical",
-        "size": 88,
-        "gap": 12,
-        "radius": 12,
-        "selectedBorder": "2px solid #0060FF"
-      },
-      "viewerControls": {
-        "iconSize": 28,
-        "buttonBackground": "rgba(0, 96, 255, 0.16)",
-        "buttonRadius": 40
-      }
-    },
-    "ProductSummary": {
-      "description": "Правый столбец карточки товара с ценой и CTA",
-      "priceBlock": {
-        "background": "#FFFFFF",
-        "radius": 20,
-        "shadow": "0 18px 40px rgba(0, 55, 166, 0.12)",
-        "padding": 24,
-        "typography": "headline-m",
-        "promoBadge": {
-          "background": "#FF2E93",
-          "color": "#FFFFFF",
-          "radius": 999,
-          "font": "caption"
+        "promo": {
+          "background": "#FF6B00",
+          "textColor": "#FFFFFF"
         }
-      },
-      "ctaPrimary": {
-        "background": "#0060FF",
-        "hover": "#0047CC",
-        "textColor": "#FFFFFF",
-        "radius": 16,
-        "height": 56,
-        "font": "body-l"
-      },
-      "ctaSecondary": {
-        "background": "#FFFFFF",
-        "border": "1px solid #0060FF",
-        "textColor": "#0060FF",
-        "radius": 16,
-        "height": 56,
-        "font": "body-l"
       }
-    },
-    "Lists": {
-      "categoryList": {
-        "columns": 6,
-        "columnGap": 32,
-        "itemTypography": "body-m",
-        "headingTypography": "title-m",
-        "bulletStyle": "none"
-      },
-      "detailList": {
-        "labelTypography": "body-s",
-        "valueTypography": "body-m",
-        "dividerColor": "#E3E8F2",
-        "dividerSpacing": 12
-      },
-      "recommendationsRow": {
-        "titleTypography": "body-m",
-        "priceTypography": "body-m",
-        "ratingTypography": "caption",
-        "badge": { "background": "#E5F0FF", "textColor": "#0047CC", "radius": 12 }
-      }
-    },
-    "DashboardStats": {
-      "description": "Карточки статистики 4х-колоночной сетки",
-      "layout": {
-        "columns": 4,
-        "gap": 24,
-        "cardRadius": 16,
-        "rowStructure": "caption full-width, затем иконка+значение"
-      },
-      "iconToken": {
-        "size": 96,
-        "radius": 32,
-        "backgroundOpacity": 0.1,
-        "iconSize": 72,
-        "renderer": "shared_icon_renderer"
-      },
-      "notes": ["Иконка и значение центрируются по вертикали", "SVG нормализуются до 72px"]
     }
-  },
-  "Toast": {
-    "description": "Уведомления с цветовой индикацией статуса через левую границу",
-    "variants": {
-      "success": {
-        "background": "#E0F5E8",
-        "border": "#00AA5B",
-        "icon": "CheckCircle",
-        "iconColor": "#00AA5B"
-      },
-      "error": {
-        "background": "#FFE1E8",
-        "border": "#E53935",
-        "icon": "XCircle",
-        "iconColor": "#E53935"
-      },
-      "warning": {
-        "background": "#FFF1CC",
-        "border": "#F5A623",
-        "icon": "AlertTriangle",
-        "iconColor": "#F5A623"
-      },
-      "info": {
-        "background": "#E7F3FF",
-        "border": "#0060FF",
-        "icon": "Info",
-        "iconColor": "#0060FF"
-      }
-    },
-    "layout": {
-      "structure": "flex gap-3",
-      "placement": {
-        "icon": "left (24px)",
-        "content": "center (title + message)",
-        "closeButton": "right"
-      },
-      "typography": {
-        "title": "body-m, font-weight 600",
-        "message": "body-s"
-      },
-      "closeButton": {
-        "icon": "X, size 16px",
-        "interaction": "hover: opacity-70"
-      }
-    },
-    "dimensions": {
-      "borderRadius": 12,
-      "shadow": "0 8px 24px rgba(15, 23, 42, 0.12)",
-      "padding": 16,
-      "minWidth": 320,
-      "maxWidth": 420,
-      "borderLeftWidth": 4,
-      "borderLeftStyle": "solid"
-    },
-    "behavior": {
-      "autoDismiss": {
-        "default": 5000,
-        "configurable": true
-      },
-      "position": "top-right (default), bottom-right, top-center, bottom-center",
-      "animation": {
-        "enter": "slide from right, fade in",
-        "exit": "slide to right, fade out",
-        "duration": 180
-      }
-    },
-    "accessibility": {
-      "role": "alert",
-      "liveRegion": "polite",
-      "keyboard": "ESC закрывает, Tab навигация"
-    },
-    "usage": "Краткие уведомления о статусах операций, ошибках и информационных сообщениях"
-  },
-  "patterns": {
-    "forms": [
-      "Всегда использовать label body-s и helper для Input/Select",
-      "Группировать связанные элементы в Card с отступами 24px",
-      "Ошибка отображается текстом caption красного цвета"
-    ],
-    "feedback": [
-      "Использовать accent.success/warning/danger для статусов",
-      "Badge или Tag для кратких статусов",
-      "Modal для критичных подтверждений"
-    ],
-    "navigation": [
-      "Header всегда фиксирован сверху",
-      "Breadcrumb перед основным заголовком",
-      "Tabs для переключения разделов в пределах страницы"
-    ]
-  },
-  "accessibility": {
-    "contrast": "Основной текст text-primary на светлом фоне даёт контраст > 4.5:1",
-    "focus": "Все интерактивные элементы имеют focus:ring 2px primary",
-    "keyboard": "Модальные окна должны ловить фокус внутри, ESC закрывает",
-    "motionReduction": "При prefers-reduced-motion отключать тени и анимации",
-    "aria": [
-      "aria-label для кнопок без текста (иконки Header)",
-      "aria-expanded для Toggle где применимо",
-      "role=tablist/tab для Tabs"
-    ]
-  },
-  "contentGuidelines": {
-    "copyStyle": "Дружелюбный, информативный, без визуального перегруза",
-    "headings": "Краткие, в активном залоге",
-    "buttons": "Глагол действия (\"Добавить в корзину\", \"Сохранить\")",
-    "microcopy": "Дружелюбный, но информативный тон",
-    "assistantPrompts": "Подсказки формулировать в стиле заботливого консультанта",
-    "numbers": "Использовать разделители тысяч пробелом, валюты с символом"
-  },
-  "responsive": {
-    "mobile": [
-      "Stack компонентов вертикально",
-      "Tabs превращаются в горизонтальный scroll",
-      "Карточки рекомендаций заполняют ширину экрана"
-    ],
-    "tablet": ["Два столбца карточек", "Header сохраняет поиск, но уменьшает отступы"],
-    "desktop": ["Полный 12-колоночный layout", "Максимальная ширина 1280px, автоцентрирование"]
-  },
-  "workflow": {
-    "contribution": [
-      "Перед добавлением нового компонента проверить наличие аналогов",
-      "Повторно использовать токены Tailwind из tailwind.config.js",
-      "Документировать новые паттерны в этом файле"
-    ],
-    "testing": [
-      "UI компоненты проверяются в App.jsx showcase",
-      "Состояния hover/focus/active проходит визуальный контроль",
-      "Добавлять unit тесты в backend/tests при необходимости для логики"
-    ]
   }
 }

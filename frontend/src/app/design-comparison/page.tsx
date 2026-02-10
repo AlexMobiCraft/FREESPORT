@@ -8,61 +8,9 @@
 import React, { useState } from 'react';
 import { Check, ShoppingCart, Heart, Star, Info, AlertTriangle, X } from 'lucide-react';
 
-// Текущая цветовая схема (графитовая)
+// Текущая цветовая схема (Синяя - Предыдущая)
 const currentScheme = {
-  name: 'Текущая (Графитовая)',
-  primary: {
-    default: '#1F1F1F',
-    hover: '#3A3A3A',
-    active: '#0D0D0D',
-    subtle: '#F2F2F2',
-  },
-  secondary: {
-    default: '#3D3D3D',
-    hover: '#2E2E2E',
-    active: '#1C1C1C',
-    subtle: '#EAEAEA',
-  },
-  accent: {
-    success: '#4D4D4D',
-    warning: '#6A6A6A',
-    danger: '#2B2B2B',
-    promo: '#8A8A8A',
-  },
-  text: {
-    primary: '#1B1B1B',
-    secondary: '#4D4D4D',
-    muted: '#7A7A7A',
-    inverse: '#FFFFFF',
-  },
-  neutral: {
-    100: '#FFFFFF',
-    200: '#F5F5F5',
-    300: '#E0E0E0',
-    400: '#C7C7C7',
-    500: '#A3A3A3',
-    600: '#7D7D7D',
-    700: '#5E5E5E',
-    800: '#3F3F3F',
-    900: '#1F1F1F',
-  },
-  badge: {
-    new: { bg: '#E1F0FF', text: '#0F5DA3' },
-    hit: { bg: '#E3F6EC', text: '#1F7A4A' },
-    sale: { bg: '#F9E1E1', text: '#A63232' },
-    promo: { bg: '#F4EBDC', text: '#8C4C00' },
-  },
-  toast: {
-    success: { bg: '#E0F5E0', border: '#1F7A1F' },
-    error: { bg: '#FFE1E1', border: '#C23B3B' },
-    warning: { bg: '#FFF1CC', border: '#B07600' },
-    info: { bg: '#E1F0FF', border: '#0F5DA3' },
-  },
-};
-
-// Новая цветовая схема (сине-голубая)
-const newScheme = {
-  name: 'Новая (Сине-голубая)',
+  name: 'Синяя (Предыдущая)',
   primary: {
     default: '#0060FF',
     hover: '#0047CC',
@@ -109,6 +57,58 @@ const newScheme = {
     error: { bg: '#FFE1E8', border: '#E53935' },
     warning: { bg: '#FFF5E1', border: '#F5A623' },
     info: { bg: '#E7F3FF', border: '#0060FF' },
+  },
+};
+
+// Новая цветовая схема (Оранжевая - Текущая)
+const newScheme = {
+  name: 'Новая (Оранжевая)',
+  primary: {
+    default: '#FF6B00',
+    hover: '#E65000',
+    active: '#CC4400',
+    subtle: '#FFF5EB',
+  },
+  secondary: {
+    default: '#00B7FF',
+    hover: '#0095D6',
+    active: '#0078B3',
+    subtle: '#E1F5FF',
+  },
+  accent: {
+    success: '#00AA5B',
+    warning: '#F5A623',
+    danger: '#E53935',
+    promo: '#FF2E93',
+  },
+  text: {
+    primary: '#1F2A44',
+    secondary: '#4B5C7A',
+    muted: '#7F8CA8',
+    inverse: '#FFFFFF',
+  },
+  neutral: {
+    100: '#FFFFFF',
+    200: '#F8F9FA',
+    300: '#E3E8F2',
+    400: '#B9C3D6',
+    500: '#8F9BB3',
+    600: '#6B7A99',
+    700: '#4B5C7A',
+    800: '#2D3A52',
+    900: '#1F2A44',
+  },
+  badge: {
+    new: { bg: '#FFF5EB', text: '#FF6B00' },
+    hit: { bg: '#E0F5E8', text: '#00AA5B' },
+    sale: { bg: '#FFE1E8', text: '#E53935' },
+    promo: { bg: '#FFF0F5', text: '#FF2E93' },
+  },
+  toast: {
+    success: { bg: '#E0F5E8', border: '#00AA5B' },
+    error: { bg: '#FFE1E8', border: '#E53935' },
+    warning: { bg: '#FFF5E1', border: '#F5A623' },
+    info: { bg: '#E1F5FF', border: '#00B7FF' },
   },
 };
 
@@ -475,7 +475,7 @@ export default function DesignComparisonPage() {
             Сравнение цветовых схем FREESPORT
           </h1>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Визуальное сравнение текущей графитовой схемы и новой сине-голубой палитры для принятия
+            Визуальное сравнение предыдущей синей схемы и новой оранжевой палитры для принятия
             решения о миграции
           </p>
         </div>
@@ -485,21 +485,19 @@ export default function DesignComparisonPage() {
           <div className="inline-flex rounded-full bg-white p-1 shadow-sm">
             <button
               onClick={() => setViewMode('side-by-side')}
-              className={`px-6 py-2 rounded-full text-sm font-medium transition-colors ${
-                viewMode === 'side-by-side'
-                  ? 'bg-blue-600 text-white'
+              className={`px-6 py-2 rounded-full text-sm font-medium transition-colors ${viewMode === 'side-by-side'
+                  ? 'bg-primary text-white'
                   : 'text-gray-600 hover:text-gray-900'
-              }`}
+                }`}
             >
               Рядом
             </button>
             <button
               onClick={() => setViewMode('toggle')}
-              className={`px-6 py-2 rounded-full text-sm font-medium transition-colors ${
-                viewMode === 'toggle'
-                  ? 'bg-blue-600 text-white'
+              className={`px-6 py-2 rounded-full text-sm font-medium transition-colors ${viewMode === 'toggle'
+                  ? 'bg-primary text-white'
                   : 'text-gray-600 hover:text-gray-900'
-              }`}
+                }`}
             >
               Переключение
             </button>
@@ -512,23 +510,21 @@ export default function DesignComparisonPage() {
             <div className="inline-flex rounded-full bg-white p-1 shadow-sm">
               <button
                 onClick={() => setActiveScheme('current')}
-                className={`px-6 py-2 rounded-full text-sm font-medium transition-colors ${
-                  activeScheme === 'current'
+                className={`px-6 py-2 rounded-full text-sm font-medium transition-colors ${activeScheme === 'current'
                     ? 'bg-gray-800 text-white'
                     : 'text-gray-600 hover:text-gray-900'
-                }`}
+                  }`}
               >
-                Текущая (Графитовая)
+                Текущая (Синяя)
               </button>
               <button
                 onClick={() => setActiveScheme('new')}
-                className={`px-6 py-2 rounded-full text-sm font-medium transition-colors ${
-                  activeScheme === 'new'
-                    ? 'bg-blue-600 text-white'
+                className={`px-6 py-2 rounded-full text-sm font-medium transition-colors ${activeScheme === 'new'
+                    ? 'bg-primary text-white'
                     : 'text-gray-600 hover:text-gray-900'
-                }`}
+                  }`}
               >
-                Новая (Сине-голубая)
+                Новая (Оранжевая)
               </button>
             </div>
           </div>

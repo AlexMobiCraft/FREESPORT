@@ -45,10 +45,10 @@ const variantConfig: Record<
   }
 > = {
   info: {
-    bgColor: 'bg-blue-50',
-    borderColor: 'border-blue-200',
-    iconBgColor: 'bg-blue-100',
-    iconColor: 'text-blue-600',
+    bgColor: 'bg-primary-subtle',
+    borderColor: 'border-primary/20',
+    iconBgColor: 'bg-primary/10',
+    iconColor: 'text-primary',
     Icon: Info,
   },
   warning: {

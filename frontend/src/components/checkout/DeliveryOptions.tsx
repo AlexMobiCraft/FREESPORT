@@ -104,7 +104,7 @@ export function DeliveryOptions({ form }: DeliveryOptionsProps) {
             className={`
               flex cursor-pointer items-start rounded-lg border-2 p-4
               transition-colors duration-200
-              hover:border-blue-300 hover:bg-blue-50
+              hover:border-primary/50 hover:bg-primary-subtle
               ${!method.is_available ? 'cursor-not-allowed opacity-50' : ''}
               ${errors.deliveryMethod ? 'border-red-300' : 'border-gray-200'}
             `}
@@ -114,7 +114,7 @@ export function DeliveryOptions({ form }: DeliveryOptionsProps) {
               type="radio"
               value={method.id}
               disabled={!method.is_available}
-              className="mt-1 h-4 w-4 border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500"
+              className="mt-1 h-4 w-4 border-gray-300 text-primary focus:ring-2 focus:ring-primary"
               aria-describedby={`${method.id}-description`}
             />
             <div className="ml-3 flex-1">
@@ -140,8 +140,8 @@ export function DeliveryOptions({ form }: DeliveryOptionsProps) {
       )}
 
       {/* Информационное сообщение */}
-      <div className="mt-4 rounded-md bg-blue-50 p-3">
-        <p className="text-xs text-blue-800">
+      <div className="mt-4 rounded-md bg-primary-subtle p-3">
+        <p className="text-xs text-text-primary">
           <strong>Обратите внимание:</strong> Стоимость доставки будет рассчитана и уточнена
           администратором после оформления заказа.
         </p>

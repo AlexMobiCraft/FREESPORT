@@ -185,7 +185,7 @@ export default function PartnersPage() {
 
       {/* CTA секция */}
       <section className="mb-12">
-        <div className="mx-auto max-w-2xl rounded-lg border border-gray-200 bg-gradient-to-br from-blue-50 to-indigo-50 p-8 text-center shadow-md">
+        <div className="mx-auto max-w-2xl rounded-lg border border-gray-200 bg-gradient-to-br from-primary-subtle to-orange-50 p-8 text-center shadow-md">
           <h2 className="mb-4 text-2xl font-semibold text-gray-900">
             Готовы начать сотрудничество?
           </h2>
@@ -202,7 +202,7 @@ export default function PartnersPage() {
               Уже есть аккаунт?{' '}
               <Link
                 href="/login"
-                className="font-medium text-blue-600 hover:text-blue-700 hover:underline"
+                className="font-medium text-primary hover:text-primary-hover hover:underline"
               >
                 Войти
               </Link>

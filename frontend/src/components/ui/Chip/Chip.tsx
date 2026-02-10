@@ -38,8 +38,8 @@ export const Chip = React.forwardRef<HTMLDivElement, ChipProps>(
 
           // Состояния - Design System v2.0
           selected
-            ? 'bg-[#0060FF] text-white' // Selected: #0060FF, white text
-            : 'bg-white border border-[#D0D7E6] text-[#4B5C7A]', // Default: white bg, #D0D7E6 border, #4B5C7A text
+            ? 'bg-primary text-white border-transparent' // Selected: Primary Orange
+            : 'bg-white border border-neutral-300 text-text-secondary hover:border-primary hover:text-primary', // Default: Neutral with Primary Hover
 
           className
         )}

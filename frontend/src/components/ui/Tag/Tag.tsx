@@ -19,7 +19,7 @@ export interface TagProps extends React.HTMLAttributes<HTMLSpanElement> {
 
 const variantConfig: Record<TagVariant, { bg: string; text: string }> = {
   default: { bg: 'bg-neutral-200', text: 'text-text-secondary' },
-  highlight: { bg: 'bg-[#E7F3FF]', text: 'text-[#0060FF]' },
+  highlight: { bg: 'bg-primary-subtle', text: 'text-primary' },
   success: { bg: 'bg-[#E0F5E0]', text: 'text-[#1F7A1F]' },
   warning: { bg: 'bg-[#FFF1CC]', text: 'text-[#B07600]' },
   danger: { bg: 'bg-[#FFE1E1]', text: 'text-[#C23B3B]' },

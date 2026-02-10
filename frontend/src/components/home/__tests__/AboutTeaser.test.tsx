@@ -89,7 +89,7 @@ describe('AboutTeaser', () => {
     const { container } = render(<AboutTeaser />);
 
     // Проверяем наличие hover классов
-    const valueItems = container.querySelectorAll('.hover\\:bg-blue-50');
+    const valueItems = container.querySelectorAll('.hover\\:bg-primary-subtle');
     expect(valueItems.length).toBe(4);
   });
 

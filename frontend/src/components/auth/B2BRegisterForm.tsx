@@ -115,13 +115,13 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
     return (
       <div className="w-full max-w-md mx-auto p-6 space-y-4">
         <div
-          className="p-6 rounded-md bg-blue-50 border border-blue-200"
+          className="p-6 rounded-md bg-primary-subtle border border-primary/20"
           role="status"
           aria-live="polite"
         >
           <div className="flex items-start space-x-3">
             <svg
-              className="w-6 h-6 text-blue-600 flex-shrink-0 mt-0.5"
+              className="w-6 h-6 text-primary flex-shrink-0 mt-0.5"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -135,11 +135,11 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
               />
             </svg>
             <div>
-              <h3 className="text-lg font-semibold text-blue-900 mb-2">Заявка на рассмотрении</h3>
-              <p className="text-body-m text-blue-800 mb-3">
+              <h3 className="text-lg font-semibold text-text-primary mb-2">Заявка на рассмотрении</h3>
+              <p className="text-body-m text-text-primary mb-3">
                 Ваша заявка на регистрацию в качестве бизнес-партнера успешно отправлена.
               </p>
-              <p className="text-body-s text-blue-700">
+              <p className="text-body-s text-text-secondary">
                 Мы проверим предоставленные данные и свяжемся с вами в течение 1-2 рабочих дней.
                 После одобрения заявки вы получите доступ к оптовым ценам.
               </p>
@@ -173,9 +173,9 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
       )}
 
       {/* AC 3: Информационная панель о B2B регистрации */}
-      <div className="p-4 rounded-md bg-blue-50 border border-blue-200 mb-6">
-        <p className="text-body-s text-blue-900 font-medium">📊 Регистрация для бизнес-партнеров</p>
-        <p className="text-body-xs text-blue-700 mt-1">
+      <div className="p-4 rounded-md bg-primary-subtle border border-primary/20 mb-6">
+        <p className="text-body-s text-text-primary font-medium">📊 Регистрация для бизнес-партнеров</p>
+        <p className="text-body-xs text-text-secondary mt-1">
           После проверки реквизитов вы получите доступ к оптовым ценам
         </p>
       </div>

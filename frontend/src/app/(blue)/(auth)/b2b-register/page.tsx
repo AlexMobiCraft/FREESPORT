@@ -95,7 +95,7 @@ export default function B2BRegisterPage() {
           <div className="bg-white p-4 rounded-lg shadow-sm">
             <div className="flex items-center space-x-2 mb-2">
               <svg
-                className="w-5 h-5 text-blue-600"
+                className="w-5 h-5 text-primary"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -115,7 +115,7 @@ export default function B2BRegisterPage() {
           <div className="bg-white p-4 rounded-lg shadow-sm">
             <div className="flex items-center space-x-2 mb-2">
               <svg
-                className="w-5 h-5 text-blue-600"
+                className="w-5 h-5 text-primary"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -135,7 +135,7 @@ export default function B2BRegisterPage() {
           <div className="bg-white p-4 rounded-lg shadow-sm">
             <div className="flex items-center space-x-2 mb-2">
               <svg
-                className="w-5 h-5 text-blue-600"
+                className="w-5 h-5 text-primary"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"

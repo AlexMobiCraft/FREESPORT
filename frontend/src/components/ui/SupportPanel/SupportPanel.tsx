@@ -34,15 +34,15 @@ const variantConfig: Record<
 > = {
   delivery: {
     bg: 'bg-neutral-100',
-    border: 'border border-[#0060FF]/12',
-    iconBg: 'bg-[#00B7FF]/12',
-    iconColor: 'text-[#0060FF]',
+    border: 'border border-primary/12',
+    iconBg: 'bg-primary/10',
+    iconColor: 'text-primary',
     defaultIcon: <Truck className="w-full h-full" aria-hidden="true" />,
   },
   availability: {
-    bg: 'bg-[#F5F7FB]',
-    iconBg: 'bg-[#00AA5B]/12',
-    iconColor: 'text-[#00AA5B]',
+    bg: 'bg-neutral-200',
+    iconBg: 'bg-accent-success-bg',
+    iconColor: 'text-accent-success',
     defaultIcon: <CheckCircle2 className="w-full h-full" aria-hidden="true" />,
   },
 };

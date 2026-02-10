@@ -52,10 +52,9 @@ export function OrderCommentSection({ form }: OrderCommentSectionProps) {
             placeholder:text-gray-400
             focus:outline-none focus:ring-2 focus:ring-offset-1
             disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-500
-            ${
-              errors.comment
-                ? 'border-red-300 focus:border-red-500 focus:ring-red-500'
-                : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'
+            ${errors.comment
+              ? 'border-red-300 focus:border-red-500 focus:ring-red-500'
+              : 'border-gray-300 focus:border-primary focus:ring-primary'
             }
           `}
           aria-invalid={!!errors.comment}
@@ -76,9 +75,8 @@ export function OrderCommentSection({ form }: OrderCommentSectionProps) {
             )}
           </div>
           <p
-            className={`text-xs ${
-              currentLength > maxLength * 0.9 ? 'text-orange-600' : 'text-gray-500'
-            }`}
+            className={`text-xs ${currentLength > maxLength * 0.9 ? 'text-orange-600' : 'text-gray-500'
+              }`}
             aria-live="polite"
           >
             {currentLength}/{maxLength}
