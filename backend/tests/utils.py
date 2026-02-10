@@ -45,7 +45,12 @@ def reset_unique_counter() -> None:
 
 import base64
 import xml.etree.ElementTree as ET
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
+
+from django.http import HttpResponse
+
+EXCHANGE_URL = "/api/integration/1c/exchange/"
+ONEC_PASSWORD = "secure_1c_test_pass"
 
 if TYPE_CHECKING:
     from rest_framework.test import APIClient
@@ -103,10 +108,13 @@ def perform_1c_checkauth(client: "APIClient", email: str, password: str) -> "API
         AssertionError: If checkauth fails
     """
     auth_header = "Basic " + base64.b64encode(f"{email}:{password}".encode()).decode("ascii")
-    response = client.get(
-        "/api/integration/1c/exchange/",
-        data={"mode": "checkauth"},
-        HTTP_AUTHORIZATION=auth_header,
+    response = cast(
+        HttpResponse,
+        client.get(
+            "/api/integration/1c/exchange/",
+            data={"mode": "checkauth"},
+            HTTP_AUTHORIZATION=auth_header,
+        ),
     )
     assert response.status_code == 200
     body = response.content.decode("utf-8")
@@ -133,6 +141,7 @@ def build_orders_xml(
     paid_date: str | None = None,
     shipped_date: str | None = None,
     timestamp: str | None = None,
+    order_date: str | None = None,
     encoding: str = "UTF-8",
     extra_requisites: str = "",
 ) -> bytes:
@@ -142,6 +151,8 @@ def build_orders_xml(
     """
     if timestamp is None:
         timestamp = _tz.now().strftime("%Y-%m-%dT%H:%M:%S")
+    if order_date is None:
+        order_date = _tz.now().strftime("%Y-%m-%d")
 
     requisites = f"""
         <ЗначениеРеквизита>
@@ -172,12 +183,56 @@ def build_orders_xml(
         <Документ>
             <Ид>{order_id}</Ид>
             <Номер>{order_number}</Номер>
-            <Дата>2026-02-02</Дата>
+            <Дата>{order_date}</Дата>
             <ХозОперация>Заказ товара</ХозОперация>
             <ЗначенияРеквизитов>
                 {requisites}
             </ЗначенияРеквизитов>
         </Документ>
+    </Контейнер>
+</КоммерческаяИнформация>
+"""
+    return xml_str.encode("utf-8")
+
+
+def build_multi_orders_xml(
+    orders: list[dict],
+    timestamp: str | None = None,
+    order_date: str | None = None,
+) -> bytes:
+    """Генерирует XML с несколькими документами.
+
+    Общий хелпер для интеграционных тестов с batch-обработкой заказов.
+    """
+    if timestamp is None:
+        timestamp = _tz.now().strftime("%Y-%m-%dT%H:%M:%S")
+    if order_date is None:
+        order_date = _tz.now().strftime("%Y-%m-%d")
+
+    docs = ""
+    for o in orders:
+        requisites = f"""
+            <ЗначениеРеквизита>
+                <Наименование>СтатусЗаказа</Наименование>
+                <Значение>{o.get('status_1c', 'Отгружен')}</Значение>
+            </ЗначениеРеквизита>
+        """
+        docs += f"""
+        <Документ>
+            <Ид>{o.get('order_id', '')}</Ид>
+            <Номер>{o['order_number']}</Номер>
+            <Дата>{order_date}</Дата>
+            <ХозОперация>Заказ товара</ХозОперация>
+            <ЗначенияРеквизитов>
+                {requisites}
+            </ЗначенияРеквизитов>
+        </Документ>
+        """
+
+    xml_str = f"""<?xml version="1.0" encoding="UTF-8"?>
+<КоммерческаяИнформация ВерсияСхемы="3.1" ДатаФормирования="{timestamp}">
+    <Контейнер>
+        {docs}
     </Контейнер>
 </КоммерческаяИнформация>
 """

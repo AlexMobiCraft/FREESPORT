@@ -52,6 +52,18 @@ so that **двусторонний обмен заказами с 1С работ
 
 - [x] Task 7: Review Follow-ups (AI) - Round 3
   - [x] [AI-Review][Medium] Рефакторинг тестовых хелперов: Переместить `_build_orders_xml` в `backend/tests/utils.py`, чтобы избежать импорта из соседних тест-файлов в `backend/tests/integration/test_order_exchange_import_e2e.py`
+- [x] Task 8: Review Follow-ups (AI) - Round 4
+  - [x] [AI-Review][Medium] Завершить рефакторинг: Удалить дублирование `_build_multi_orders_xml` в `backend/tests/integration/test_orders_xml_mode_file.py` и использовать централизованный хелпер
+  - [x] [AI-Review][Low] Исправить жестко заданную дату в `backend/tests/utils.py:175` - использовать динамическую дату вместо `2026-02-02`
+  - [x] [AI-Review][Low] Централизовать константу `EXCHANGE_URL` в `backend/tests/utils.py` для избежания дублирования в тестовых файлах
+
+- [x] Task 9: Review Follow-ups (AI) - Round 5
+  - [x] [AI-Review][Medium] Рефакторинг `backend/tests/integration/test_orders_xml_mode_file.py`: Заменить локальный `_authenticate` на `perform_1c_checkauth` из `tests.utils`
+  - [x] [AI-Review][Medium] Рефакторинг `backend/tests/integration/test_orders_xml_mode_file.py`: Использовать `UserFactory` вместо `User.objects.create_user` для унификации
+  - [x] [AI-Review][Medium] Рефакторинг `backend/tests/integration/test_orders_xml_mode_file.py`: Заменить хрупкий патчинг `__import__` в `test_rate_limiting_returns_429` на стандартный путь
+  - [x] [AI-Review][Low] Очистка: Удалить неиспользуемый импорт `STATUS_PRIORITY` из `backend/tests/integration/test_orders_xml_mode_file.py`
+  - [x] [AI-Review][Low] Очистка: Добавить аннотации типов в хелперы `backend/tests/integration/test_order_exchange_import_e2e.py`
+  - [x] [AI-Review][Low] Очистка: Унифицировать пароль 1С пользователя в тестах (использовать константу)
 
 ## Dev Notes
 
@@ -121,9 +133,14 @@ Cascade (OpenAI)
 - ✅ Интеграционные тесты (docker compose run ... -m integration) проходят.
 - ✅ Task 6 (Round 2 review follow-ups): Подтверждено — все 3 подзадачи уже реализованы в предыдущей сессии. 8/8 тестов PASSED (2026-02-10). Story → review.
 - ✅ Task 7: `_build_orders_xml` перемещена в `backend/tests/utils.py` как `build_orders_xml`. Оба тест-файла используют импорт из `tests.utils` с алиасом `_build_orders_xml`. 29/29 тестов PASSED (2026-02-10).
+- ✅ Linting: Flake8 и MyPy успешно прошли для 3 изменённых файлов (0 issues).
+- 🔄 Task 8: Созданы задачи для исправления оставшихся проблем код-ревью (3 пункта).
+- ✅ Task 8: `_build_multi_orders_xml` перемещена в `tests/utils.py` как `build_multi_orders_xml`. Жёсткая дата `2026-02-02` заменена на динамическую (`order_date` параметр). `EXCHANGE_URL` централизована в `tests/utils.py`. 29/29 тестов PASSED (2026-02-10). Story → review.
+- ✅ Task 9 (Round 5 review follow-ups): Рефакторинг `test_orders_xml_mode_file.py` — заменён `_authenticate` на `perform_1c_checkauth`, `User.objects.create_user` на `UserFactory`, хрупкий `__import__` на прямой импорт `OneCExchangeThrottle`, удалён неиспользуемый `STATUS_PRIORITY`. Добавлены аннотации типов в хелперы `test_order_exchange_import_e2e.py`. `ONEC_PASSWORD` централизован в `tests/utils.py`. 425/425 интеграционных тестов PASSED (2026-02-10). Story → review.
 
 ### File List
 
-- `backend/tests/utils.py` (modified — добавлена `build_orders_xml`)
-- `backend/tests/integration/test_order_exchange_import_e2e.py` (modified — импорт из `tests.utils`)
-- `backend/tests/integration/test_orders_xml_mode_file.py` (modified — определение заменено на импорт из `tests.utils`)
+- `backend/tests/utils.py` (modified — добавлены `build_multi_orders_xml`, `EXCHANGE_URL`, `ONEC_PASSWORD`, параметр `order_date` в `build_orders_xml`)
+- `backend/tests/integration/test_order_exchange_import_e2e.py` (modified — импорт `ONEC_PASSWORD`/`EXCHANGE_URL` из `tests.utils`, аннотации типов в хелперах, импорт `Order`)
+- `backend/tests/integration/test_orders_xml_mode_file.py` (modified — `UserFactory`+`perform_1c_checkauth` вместо ручной auth, удалён `_authenticate`, прямой импорт `OneCExchangeThrottle`, удалён `STATUS_PRIORITY`)
+- `backend/tests/integration/test_onec_export_e2e.py` (modified — импорт `ONEC_PASSWORD` из `tests.utils`)

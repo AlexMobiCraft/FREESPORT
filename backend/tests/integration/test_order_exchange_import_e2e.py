@@ -15,19 +15,17 @@ from django.utils import timezone
 from rest_framework.response import Response
 from rest_framework.test import APIClient
 
+from apps.orders.models import Order
 from tests.conftest import (
     OrderFactory,
     OrderItemFactory,
     ProductVariantFactory,
     UserFactory,
 )
-from tests.utils import build_orders_xml as _build_orders_xml
+from tests.utils import EXCHANGE_URL, ONEC_PASSWORD, build_orders_xml as _build_orders_xml
 from tests.utils import parse_commerceml_response, perform_1c_checkauth
 
 pytestmark = [pytest.mark.django_db, pytest.mark.integration]
-
-EXCHANGE_URL = "/api/integration/1c/exchange/"
-ONEC_PASSWORD = "secure_e2e_pass"
 
 
 @pytest.fixture
@@ -52,7 +50,7 @@ def auth_client(onec_user) -> APIClient:
     return perform_1c_checkauth(client, onec_user.email, ONEC_PASSWORD)
 
 
-def _post_orders_xml(auth_client: APIClient, xml_data: bytes):
+def _post_orders_xml(auth_client: APIClient, xml_data: bytes) -> Response:
     return cast(
         Response,
         auth_client.post(
@@ -68,7 +66,7 @@ def _get_exchange(auth_client: APIClient, mode: str) -> Response:
     return cast(Response, auth_client.get(EXCHANGE_URL, data={"mode": mode}))
 
 
-def _align_order_number_with_id(order):
+def _align_order_number_with_id(order: Order) -> Order:
     order.order_number = f"order-{order.pk}"
     order.save(update_fields=["order_number"])
     return order
@@ -78,7 +76,7 @@ def _create_order_with_item(
     *,
     status: str = "pending",
     sent_to_1c: bool = False,
-):
+) -> Order:
     variant = ProductVariantFactory.create()
     order = OrderFactory.create(
         status=status,

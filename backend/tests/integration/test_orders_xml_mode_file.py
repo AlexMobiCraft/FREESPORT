@@ -5,64 +5,25 @@ Story 5.2: View-обработчик mode=file для orders.xml.
 Тестирует полный цикл: HTTP POST → _handle_orders_xml → OrderStatusImportService → DB.
 """
 
-import base64
 from datetime import timedelta
 from decimal import Decimal
 from types import SimpleNamespace
+from typing import cast
 from unittest.mock import patch
 
 import pytest
-from django.contrib.auth import get_user_model
+from django.http import HttpResponse
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
 
+from apps.integrations.onec_exchange.throttling import OneCExchangeThrottle
 from apps.integrations.onec_exchange.views import ORDERS_XML_MAX_SIZE, ICExchangeView
-from apps.orders.constants import STATUS_PRIORITY
 from apps.orders.models import Order
-from tests.conftest import get_unique_suffix
-
-User = get_user_model()
-
-EXCHANGE_URL = "/api/integration/1c/exchange/"
-
-
-from tests.utils import build_orders_xml as _build_orders_xml  # noqa: E402
-
-
-def _build_multi_orders_xml(orders: list[dict], timestamp: str | None = None) -> bytes:
-    """Генерирует XML с несколькими документами."""
-    if timestamp is None:
-        timestamp = timezone.now().strftime("%Y-%m-%dT%H:%M:%S")
-
-    docs = ""
-    for o in orders:
-        requisites = f"""
-            <ЗначениеРеквизита>
-                <Наименование>СтатусЗаказа</Наименование>
-                <Значение>{o.get('status_1c', 'Отгружен')}</Значение>
-            </ЗначениеРеквизита>
-        """
-        docs += f"""
-        <Документ>
-            <Ид>{o.get('order_id', '')}</Ид>
-            <Номер>{o['order_number']}</Номер>
-            <Дата>2026-02-02</Дата>
-            <ХозОперация>Заказ товара</ХозОперация>
-            <ЗначенияРеквизитов>
-                {requisites}
-            </ЗначенияРеквизитов>
-        </Документ>
-        """
-
-    xml_str = f"""<?xml version="1.0" encoding="UTF-8"?>
-<КоммерческаяИнформация ВерсияСхемы="3.1" ДатаФормирования="{timestamp}">
-    <Контейнер>
-        {docs}
-    </Контейнер>
-</КоммерческаяИнформация>
-"""
-    return xml_str.encode("utf-8")
+from tests.conftest import UserFactory, get_unique_suffix
+from tests.utils import EXCHANGE_URL, ONEC_PASSWORD, build_orders_xml as _build_orders_xml  # noqa: E402
+from tests.utils import build_multi_orders_xml as _build_multi_orders_xml  # noqa: E402
+from tests.utils import perform_1c_checkauth
 
 
 @pytest.mark.django_db
@@ -72,36 +33,20 @@ class TestOrdersXmlModeFile:
 
     def setup_method(self):
         self.client = APIClient()
-        self.user = User.objects.create_user(
-            email="1c-test@example.com",
-            password="test_password_123",
-            first_name="1C",
-            last_name="Test",
-            is_staff=True,
-        )
-        self.auth_header = "Basic " + base64.b64encode(b"1c-test@example.com:test_password_123").decode("ascii")
+        self.user = UserFactory.create(is_staff=True, password=ONEC_PASSWORD)
+        perform_1c_checkauth(self.client, self.user.email, ONEC_PASSWORD)
 
-    def _authenticate(self):
-        """Perform checkauth + get session cookie."""
-        resp = self.client.get(
-            EXCHANGE_URL,
-            data={"mode": "checkauth"},
-            HTTP_AUTHORIZATION=self.auth_header,
-        )
-        assert resp.status_code == 200
-        content = resp.content.decode("utf-8").splitlines()
-        assert content[0] == "success"
-
-    def _post_orders_xml(self, xml_data: bytes, **kwargs):
+    def _post_orders_xml(self, xml_data: bytes, **kwargs) -> HttpResponse:
         """POST orders.xml via mode=file."""
-        self._authenticate()
-        return self.client.post(
-            f"{EXCHANGE_URL}?mode=file&filename=orders.xml",
-            data=xml_data,
-            content_type="application/xml",
-            CONTENT_LENGTH=str(len(xml_data)),
-            HTTP_AUTHORIZATION=self.auth_header,
-            **kwargs,
+        return cast(
+            HttpResponse,
+            self.client.post(
+                f"{EXCHANGE_URL}?mode=file&filename=orders.xml",
+                data=xml_data,
+                content_type="application/xml",
+                CONTENT_LENGTH=str(len(xml_data)),
+                **kwargs,
+            ),
         )
 
     # ===================================================================
@@ -224,11 +169,15 @@ class TestOrdersXmlModeFile:
     def test_unauthenticated_request_rejected(self):
         """POST без аутентификации → 401."""
         xml_data = _build_orders_xml()
+        unauthenticated_client = APIClient()
 
-        response = self.client.post(
-            f"{EXCHANGE_URL}?mode=file&filename=orders.xml",
-            data=xml_data,
-            content_type="application/xml",
+        response = cast(
+            HttpResponse,
+            unauthenticated_client.post(
+                f"{EXCHANGE_URL}?mode=file&filename=orders.xml",
+                data=xml_data,
+                content_type="application/xml",
+            ),
         )
 
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
@@ -363,13 +312,14 @@ class TestOrdersXmlModeFile:
         order_number = f"FS-TRUNC-{get_unique_suffix()}"
         xml_data = _build_orders_xml(order_number=order_number, status_1c="Отгружен")
 
-        self._authenticate()
-        response = self.client.post(
-            f"{EXCHANGE_URL}?mode=file&filename=orders.xml",
-            data=xml_data,
-            content_type="application/xml",
-            CONTENT_LENGTH=str(len(xml_data) + 1000),
-            HTTP_AUTHORIZATION=self.auth_header,
+        response = cast(
+            HttpResponse,
+            self.client.post(
+                f"{EXCHANGE_URL}?mode=file&filename=orders.xml",
+                data=xml_data,
+                content_type="application/xml",
+                CONTENT_LENGTH=str(len(xml_data) + 1000),
+            ),
         )
 
         assert response.status_code == 200
@@ -385,13 +335,14 @@ class TestOrdersXmlModeFile:
         """Content-Length > ORDERS_XML_MAX_SIZE → failure."""
         xml_data = _build_orders_xml()
 
-        self._authenticate()
-        response = self.client.post(
-            f"{EXCHANGE_URL}?mode=file&filename=orders.xml",
-            data=xml_data,
-            content_type="application/xml",
-            CONTENT_LENGTH=str(6 * 1024 * 1024),  # 6MB > 5MB limit
-            HTTP_AUTHORIZATION=self.auth_header,
+        response = cast(
+            HttpResponse,
+            self.client.post(
+                f"{EXCHANGE_URL}?mode=file&filename=orders.xml",
+                data=xml_data,
+                content_type="application/xml",
+                CONTENT_LENGTH=str(6 * 1024 * 1024),  # 6MB > 5MB limit
+            ),
         )
 
         assert response.status_code == 200
@@ -566,12 +517,13 @@ class TestOrdersXmlModeFile:
 
     def test_non_orders_xml_uses_normal_upload(self):
         """Файл с другим именем → обычный file upload, не inline обработка."""
-        self._authenticate()
-        response = self.client.post(
-            f"{EXCHANGE_URL}?mode=file&filename=import.xml",
-            data=b"<test/>",
-            content_type="application/xml",
-            HTTP_AUTHORIZATION=self.auth_header,
+        response = cast(
+            HttpResponse,
+            self.client.post(
+                f"{EXCHANGE_URL}?mode=file&filename=import.xml",
+                data=b"<test/>",
+                content_type="application/xml",
+            ),
         )
 
         # Normal file upload handler processes it (not _handle_orders_xml)
@@ -636,25 +588,18 @@ class TestOrdersXmlModeFile:
 
         xml_data = _build_orders_xml(status_1c="Подтвержден")
 
-        self._authenticate()
-
         # Mock throttle rate to 3/min to avoid 61 real requests
-        with patch.object(
-            __import__(
-                "apps.integrations.onec_exchange.throttling",
-                fromlist=["OneCExchangeThrottle"],
-            ).OneCExchangeThrottle,
-            "rate",
-            "3/min",
-        ):
-            responses = []
+        with patch.object(OneCExchangeThrottle, "rate", "3/min"):
+            responses: list[HttpResponse] = []
             for _ in range(5):
-                resp = self.client.post(
-                    f"{EXCHANGE_URL}?mode=file&filename=orders.xml",
-                    data=xml_data,
-                    content_type="application/xml",
-                    CONTENT_LENGTH=str(len(xml_data)),
-                    HTTP_AUTHORIZATION=self.auth_header,
+                resp = cast(
+                    HttpResponse,
+                    self.client.post(
+                        f"{EXCHANGE_URL}?mode=file&filename=orders.xml",
+                        data=xml_data,
+                        content_type="application/xml",
+                        CONTENT_LENGTH=str(len(xml_data)),
+                    ),
                 )
                 responses.append(resp)
 

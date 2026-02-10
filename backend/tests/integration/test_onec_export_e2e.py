@@ -23,15 +23,9 @@ from tests.conftest import (
     ProductVariantFactory,
     UserFactory,
 )
-from tests.utils import parse_commerceml_response, perform_1c_checkauth
+from tests.utils import ONEC_PASSWORD, parse_commerceml_response, perform_1c_checkauth
 
 pytestmark = pytest.mark.django_db
-
-# ---------------------------------------------------------------------------
-# Fixtures (Task 1.7, auth)
-# ---------------------------------------------------------------------------
-
-ONEC_PASSWORD = "secure_e2e_pass"
 
 
 @pytest.fixture
