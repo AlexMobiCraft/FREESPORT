@@ -8,7 +8,8 @@
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { ProductOptions, type ProductVariant } from '../ProductOptions';
+import { ProductOptions } from '../ProductOptions';
+import type { ProductVariant } from '@/types/api';
 
 /**
  * Mock данные для тестов
