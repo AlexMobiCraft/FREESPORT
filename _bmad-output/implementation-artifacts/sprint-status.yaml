@@ -91,5 +91,5 @@ development_status:
   5-0-spike-analysis-orders-xml: ready-for-dev
   5-1-order-status-import-service: done
   5-2-view-handler-mode-file-for-orders-xml: done
-  5-3-integration-tests-full-import-cycle: review
+  5-3-integration-tests-full-import-cycle: in-progress
   epic-5-retrospective: optional

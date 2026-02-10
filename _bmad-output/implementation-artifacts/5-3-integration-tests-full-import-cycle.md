@@ -50,6 +50,9 @@ so that **двусторонний обмен заказами с 1С работ
   - [x] [AI-Review][Medium] Усилить `test_full_cycle_export_then_import_updates_status`: проверять, что экспортированный XML действительно содержит целевой заказ
   - [x] [AI-Review][Low] Удалить избыточную инициализацию `order_number` в тестах, где она сразу перезаписывается через `_align_order_number_with_id`
 
+- [x] Task 7: Review Follow-ups (AI) - Round 3
+  - [x] [AI-Review][Medium] Рефакторинг тестовых хелперов: Переместить `_build_orders_xml` в `backend/tests/utils.py`, чтобы избежать импорта из соседних тест-файлов в `backend/tests/integration/test_order_exchange_import_e2e.py`
+
 ## Dev Notes
 
 ### Контекст интеграции и поведения API
@@ -117,7 +120,10 @@ Cascade (OpenAI)
 - ✅ Рефакторинг тестов: вынесено создание заказа в `_create_order_with_item`, добавлена проверка экспортированного XML, убрана лишняя инициализация `order_number`.
 - ✅ Интеграционные тесты (docker compose run ... -m integration) проходят.
 - ✅ Task 6 (Round 2 review follow-ups): Подтверждено — все 3 подзадачи уже реализованы в предыдущей сессии. 8/8 тестов PASSED (2026-02-10). Story → review.
+- ✅ Task 7: `_build_orders_xml` перемещена в `backend/tests/utils.py` как `build_orders_xml`. Оба тест-файла используют импорт из `tests.utils` с алиасом `_build_orders_xml`. 29/29 тестов PASSED (2026-02-10).
 
 ### File List
 
-- `backend/tests/integration/test_order_exchange_import_e2e.py` (new)
+- `backend/tests/utils.py` (modified — добавлена `build_orders_xml`)
+- `backend/tests/integration/test_order_exchange_import_e2e.py` (modified — импорт из `tests.utils`)
+- `backend/tests/integration/test_orders_xml_mode_file.py` (modified — определение заменено на импорт из `tests.utils`)

@@ -116,3 +116,69 @@ def perform_1c_checkauth(client: "APIClient", email: str, password: str) -> "API
     cookie_value = lines[2]
     client.cookies[cookie_name] = cookie_value
     return client
+
+
+# ---------------------------------------------------------------------------
+# Orders XML builder (used by test_orders_xml_mode_file.py,
+#                     test_order_exchange_import_e2e.py, etc.)
+# ---------------------------------------------------------------------------
+
+from django.utils import timezone as _tz
+
+
+def build_orders_xml(
+    order_id: str = "",
+    order_number: str = "FS-TEST-001",
+    status_1c: str = "Отгружен",
+    paid_date: str | None = None,
+    shipped_date: str | None = None,
+    timestamp: str | None = None,
+    encoding: str = "UTF-8",
+    extra_requisites: str = "",
+) -> bytes:
+    """Генерирует тестовый orders.xml в формате CommerceML 3.1.
+
+    Общий хелпер для интеграционных тестов обмена заказами с 1С.
+    """
+    if timestamp is None:
+        timestamp = _tz.now().strftime("%Y-%m-%dT%H:%M:%S")
+
+    requisites = f"""
+        <ЗначениеРеквизита>
+            <Наименование>СтатусЗаказа</Наименование>
+            <Значение>{status_1c}</Значение>
+        </ЗначениеРеквизита>
+    """
+    if paid_date:
+        requisites += f"""
+        <ЗначениеРеквизита>
+            <Наименование>ДатаОплаты</Наименование>
+            <Значение>{paid_date}</Значение>
+        </ЗначениеРеквизита>
+        """
+    if shipped_date:
+        requisites += f"""
+        <ЗначениеРеквизита>
+            <Наименование>ДатаОтгрузки</Наименование>
+            <Значение>{shipped_date}</Значение>
+        </ЗначениеРеквизита>
+        """
+    if extra_requisites:
+        requisites += extra_requisites
+
+    xml_str = f"""<?xml version="1.0" encoding="{encoding}"?>
+<КоммерческаяИнформация ВерсияСхемы="3.1" ДатаФормирования="{timestamp}">
+    <Контейнер>
+        <Документ>
+            <Ид>{order_id}</Ид>
+            <Номер>{order_number}</Номер>
+            <Дата>2026-02-02</Дата>
+            <ХозОперация>Заказ товара</ХозОперация>
+            <ЗначенияРеквизитов>
+                {requisites}
+            </ЗначенияРеквизитов>
+        </Документ>
+    </Контейнер>
+</КоммерческаяИнформация>
+"""
+    return xml_str.encode("utf-8")

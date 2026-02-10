@@ -27,59 +27,7 @@ User = get_user_model()
 EXCHANGE_URL = "/api/integration/1c/exchange/"
 
 
-def _build_orders_xml(
-    order_id: str = "",
-    order_number: str = "FS-TEST-001",
-    status_1c: str = "Отгружен",
-    paid_date: str | None = None,
-    shipped_date: str | None = None,
-    timestamp: str | None = None,
-    encoding: str = "UTF-8",
-    extra_requisites: str = "",
-) -> bytes:
-    """Генерирует тестовый orders.xml в формате CommerceML 3.1."""
-    if timestamp is None:
-        timestamp = timezone.now().strftime("%Y-%m-%dT%H:%M:%S")
-
-    requisites = f"""
-        <ЗначениеРеквизита>
-            <Наименование>СтатусЗаказа</Наименование>
-            <Значение>{status_1c}</Значение>
-        </ЗначениеРеквизита>
-    """
-    if paid_date:
-        requisites += f"""
-        <ЗначениеРеквизита>
-            <Наименование>ДатаОплаты</Наименование>
-            <Значение>{paid_date}</Значение>
-        </ЗначениеРеквизита>
-        """
-    if shipped_date:
-        requisites += f"""
-        <ЗначениеРеквизита>
-            <Наименование>ДатаОтгрузки</Наименование>
-            <Значение>{shipped_date}</Значение>
-        </ЗначениеРеквизита>
-        """
-    if extra_requisites:
-        requisites += extra_requisites
-
-    xml_str = f"""<?xml version="1.0" encoding="{encoding}"?>
-<КоммерческаяИнформация ВерсияСхемы="3.1" ДатаФормирования="{timestamp}">
-    <Контейнер>
-        <Документ>
-            <Ид>{order_id}</Ид>
-            <Номер>{order_number}</Номер>
-            <Дата>2026-02-02</Дата>
-            <ХозОперация>Заказ товара</ХозОперация>
-            <ЗначенияРеквизитов>
-                {requisites}
-            </ЗначенияРеквизитов>
-        </Документ>
-    </Контейнер>
-</КоммерческаяИнформация>
-"""
-    return xml_str.encode("utf-8")
+from tests.utils import build_orders_xml as _build_orders_xml  # noqa: E402
 
 
 def _build_multi_orders_xml(orders: list[dict], timestamp: str | None = None) -> bytes:

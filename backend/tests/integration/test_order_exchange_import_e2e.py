@@ -21,7 +21,7 @@ from tests.conftest import (
     ProductVariantFactory,
     UserFactory,
 )
-from tests.integration.test_orders_xml_mode_file import _build_orders_xml
+from tests.utils import build_orders_xml as _build_orders_xml
 from tests.utils import parse_commerceml_response, perform_1c_checkauth
 
 pytestmark = [pytest.mark.django_db, pytest.mark.integration]
