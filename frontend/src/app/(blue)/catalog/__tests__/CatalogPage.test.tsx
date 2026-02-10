@@ -73,6 +73,7 @@ const mockBrands = [
 vi.mock('@/services/productsService', () => ({
   default: {
     getAll: vi.fn(() => Promise.resolve(mockApiResponse)),
+    search: vi.fn(() => Promise.resolve({ results: mockProducts })),
     getProductBySlug: vi.fn(() =>
       Promise.resolve({
         ...mockProducts[0],
@@ -327,7 +328,7 @@ describe('CatalogPage - Search Integration (Story 18.4)', () => {
 
     // Проверяем, что API не был вызван с параметром search
     const calls = (productsService.default.getAll as Mock).mock.calls;
-    const callsWithSearch = calls.filter(call => call[0]?.search);
+    const callsWithSearch = calls.filter((call: any) => call[0]?.search);
     expect(callsWithSearch).toHaveLength(0);
   });
 });
