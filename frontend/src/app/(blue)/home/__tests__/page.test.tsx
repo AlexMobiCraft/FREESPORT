@@ -8,6 +8,7 @@
  * - Адаптивность на разных viewport размерах
  */
 
+import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import Home, { metadata, revalidate } from '../page';
@@ -49,6 +50,16 @@ vi.mock('next/link', () => ({
   default: ({ children, href }: { children: React.ReactNode; href: string }) => (
     <a href={href}>{children}</a>
   ),
+}));
+
+vi.mock('@/services/categoriesService', () => ({
+  default: {
+    getCategories: vi.fn().mockResolvedValue([
+      { id: 1, name: 'Обувь', slug: 'shoes', icon: '👟', products_count: 10 },
+      { id: 2, name: 'Одежда', slug: 'clothing', icon: '👕', products_count: 5 },
+    ]),
+    getCategoryBySlug: vi.fn(),
+  },
 }));
 
 describe('Главная страница (/)', () => {

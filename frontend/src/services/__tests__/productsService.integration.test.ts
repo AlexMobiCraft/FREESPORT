@@ -9,9 +9,23 @@ import { http, HttpResponse } from 'msw';
 import productsService from '../productsService';
 import { MOCK_PRODUCT_DETAIL } from '@/__mocks__/productDetail';
 
+// Mock authStore to prevent Authorization header issues
+vi.mock('@/stores/authStore', () => ({
+  useAuthStore: Object.assign(vi.fn(), {
+    getState: () => ({
+      accessToken: null,
+      refreshToken: null,
+    }),
+  }),
+}));
+
 const API_BASE_URL = 'http://localhost:8001/api/v1';
 
 describe('productsService Integration Tests', () => {
+  beforeAll(() => {
+    process.env.NEXT_PUBLIC_API_URL = API_BASE_URL;
+  });
+
   describe('getProductBySlug', () => {
     it('получает детальную информацию о товаре по slug', async () => {
       const product = await productsService.getProductBySlug('asics-gel-blast-ff');

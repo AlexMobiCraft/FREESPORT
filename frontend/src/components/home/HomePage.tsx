@@ -30,6 +30,7 @@ import {
   WhyFreesportSection,
   DeliveryTeaser,
   AboutTeaser,
+  CategoriesSection,
 } from '@/components/home';
 
 export const HomePage: React.FC = () => {
@@ -37,6 +38,9 @@ export const HomePage: React.FC = () => {
     <main className="min-h-screen bg-white">
       {/* 1. Hero Section - Баннеры */}
       <HeroSection />
+
+      {/* 2. Popular Categories - Популярные категории */}
+      <CategoriesSection />
 
       {/* 2. Hits Section - Хиты продаж */}
       <HitsSection />

@@ -144,6 +144,7 @@ export const MOCK_PRODUCT_DETAIL: ProductDetail = {
   },
   is_in_stock: true,
   can_be_ordered: true,
+  variants: [],
 };
 
 export const MOCK_OUT_OF_STOCK_PRODUCT: ProductDetail = {

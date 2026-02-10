@@ -1,5 +1,6 @@
 # Gemini Added Memories
 
+- Отвечай и веди документацию исключительно на русском языке
 - communication_language: Russian
 - document_output_language: Russian
 

@@ -237,7 +237,7 @@ describe('Product Detail Page - SSR getUserRole', () => {
 
   it('должен использовать переменную окружения NEXT_PUBLIC_API_URL', async () => {
     // Arrange
-    process.env.NEXT_PUBLIC_API_URL = 'https://api.freesport.ru';
+    process.env.NEXT_PUBLIC_API_URL = 'http://localhost:8001';
 
     const fetchSpy = vi.fn().mockResolvedValue({
       ok: true,
@@ -250,7 +250,7 @@ describe('Product Detail Page - SSR getUserRole', () => {
 
     // Assert
     expect(fetchSpy).toHaveBeenCalledWith(
-      'https://api.freesport.ru/api/v1/users/profile/',
+      'http://localhost:8001/api/v1/users/profile/',
       expect.anything()
     );
   });

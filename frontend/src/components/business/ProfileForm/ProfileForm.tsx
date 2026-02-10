@@ -100,7 +100,6 @@ const ProfileForm: React.FC = () => {
         // Обновляем user в authStore
         setUser(profileData);
       } catch (err) {
-        console.error('Failed to fetch profile:', err);
         error('Не удалось загрузить данные профиля');
       } finally {
         setIsFetching(false);
@@ -147,7 +146,6 @@ const ProfileForm: React.FC = () => {
 
       success('Профиль успешно обновлён');
     } catch (err) {
-      console.error('Failed to update profile:', err);
       error('Ошибка при сохранении профиля');
     } finally {
       setIsLoading(false);
@@ -297,10 +295,9 @@ const ProfileForm: React.FC = () => {
           className={`
             w-full sm:w-auto h-10 px-6 rounded-sm text-body-m font-medium
             transition-colors duration-150
-            ${
-              isLoading || !isDirty
-                ? 'bg-neutral-400 text-neutral-100 cursor-not-allowed'
-                : 'bg-primary text-white hover:bg-primary-hover active:bg-primary-active'
+            ${isLoading || !isDirty
+              ? 'bg-neutral-400 text-neutral-100 cursor-not-allowed'
+              : 'bg-primary text-white hover:bg-primary-hover active:bg-primary-active'
             }
           `}
         >
