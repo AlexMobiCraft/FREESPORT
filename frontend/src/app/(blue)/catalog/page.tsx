@@ -231,7 +231,9 @@ const PriceRangeSlider: React.FC<PriceRangeSliderProps> = ({ min, max, step, val
           border-radius: 50%;
           background: #FF6B00;
           border: 4px solid #FFE0B2;
-          box-shadow: 0 2px 6px rgba(255, 107, 0, 0.35);
+          background: #FF6600;
+          border: 4px solid #FFD6B3;
+          box-shadow: 0 2px 6px rgba(255, 102, 0, 0.35);
           cursor: pointer;
           margin-top: -9px;
         }
@@ -240,9 +242,9 @@ const PriceRangeSlider: React.FC<PriceRangeSliderProps> = ({ min, max, step, val
           height: 18px;
           width: 18px;
           border-radius: 50%;
-          background: #FF6B00;
-          border: 4px solid #FFE0B2;
-          box-shadow: 0 2px 6px rgba(255, 107, 0, 0.35);
+          background: #FF6600;
+          border: 4px solid #FFD6B3;
+          box-shadow: 0 2px 6px rgba(255, 102, 0, 0.35);
           cursor: pointer;
         }
 

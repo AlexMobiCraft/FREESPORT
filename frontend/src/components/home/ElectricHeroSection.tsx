@@ -7,7 +7,7 @@
  * Design System: Electric Orange v2.3.0
  * - Skew: -12deg для контейнеров, 12deg для текста (counter-skew)
  * - Typography: Roboto Condensed (headers), Inter (body)
- * - Colors: #FF6B00 (primary), #0F0F0F (bg-body)
+ * - Colors: #FF6600 (primary), #0F0F0F (bg-body)
  */
 
 'use client';
@@ -246,11 +246,10 @@ export const ElectricHeroSection = () => {
               <button
                 key={index}
                 onClick={() => setCurrentIndex(index)}
-                className={`h-2 transition-all duration-300 ${
-                  index === currentIndex
+                className={`h-2 transition-all duration-300 ${index === currentIndex
                     ? 'w-8 bg-[var(--color-primary)]'
                     : 'w-2 bg-[var(--color-text-secondary)]/50 hover:bg-[var(--color-text-secondary)]'
-                }`}
+                  }`}
                 style={{ transform: 'skewX(-12deg)' }}
                 aria-label={`Go to banner ${index + 1}`}
               />

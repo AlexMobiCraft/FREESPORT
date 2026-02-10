@@ -390,7 +390,7 @@ describe('ProductOptions', () => {
 
       const size42Button = screen.getByRole('radio', { name: /Размер: 42/i });
       // Проверяем наличие primary цвета в классах
-      expect(size42Button).toHaveClass('bg-[#0060FF]');
+      expect(size42Button).toHaveClass('bg-primary');
       expect(size42Button).toHaveClass('text-white');
     });
   });
@@ -567,9 +567,9 @@ describe('ProductOptions', () => {
       );
 
       const size42Button = screen.getByRole('radio', { name: /Размер: 42/i });
-      expect(size42Button).toHaveClass('bg-[#0060FF]');
+      expect(size42Button).toHaveClass('bg-primary');
       expect(size42Button).toHaveClass('text-white');
-      expect(size42Button).toHaveClass('border-[#0060FF]');
+      expect(size42Button).toHaveClass('border-primary');
     });
 
     it('применяет spacing между группами (space-y-6)', () => {

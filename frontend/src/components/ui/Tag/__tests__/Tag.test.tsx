@@ -34,12 +34,27 @@ describe('Tag', () => {
       {
         variant: 'highlight',
         text: 'Highlight',
-        bgClass: 'bg-[#E7F3FF]',
-        textClass: 'text-[#0060FF]',
+        bgClass: 'bg-primary-subtle',
+        textClass: 'text-primary',
       },
-      { variant: 'success', text: 'Success', bgClass: 'bg-[#E0F5E0]', textClass: 'text-[#1F7A1F]' },
-      { variant: 'warning', text: 'Warning', bgClass: 'bg-[#FFF1CC]', textClass: 'text-[#B07600]' },
-      { variant: 'danger', text: 'Danger', bgClass: 'bg-[#FFE1E1]', textClass: 'text-[#C23B3B]' },
+      {
+        variant: 'success',
+        text: 'Success',
+        bgClass: 'bg-accent-success-bg',
+        textClass: 'text-accent-success',
+      },
+      {
+        variant: 'warning',
+        text: 'Warning',
+        bgClass: 'bg-accent-warning-bg',
+        textClass: 'text-accent-warning',
+      },
+      {
+        variant: 'danger',
+        text: 'Danger',
+        bgClass: 'bg-accent-danger-bg',
+        textClass: 'text-accent-danger',
+      },
     ];
 
     variants.forEach(({ variant, text, bgClass, textClass }) => {
@@ -151,14 +166,14 @@ describe('Tag', () => {
       );
 
       const tag = screen.getByText('Highlight');
-      expect(tag).toHaveClass('bg-[#E7F3FF]', 'text-[#0060FF]', 'extra-class');
+      expect(tag).toHaveClass('bg-primary-subtle', 'text-primary', 'extra-class');
     });
 
     it('combines success variant with truncate', () => {
       render(<Tag variant="success">Success Tag</Tag>);
 
       const tag = screen.getByText('Success Tag');
-      expect(tag).toHaveClass('bg-[#E0F5E0]', 'text-[#1F7A1F]', 'truncate');
+      expect(tag).toHaveClass('bg-accent-success-bg', 'text-accent-success', 'truncate');
     });
   });
 });

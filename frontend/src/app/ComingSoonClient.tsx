@@ -56,10 +56,10 @@ export default function ComingSoon() {
             className="mb-8"
           >
             <h1 className="text-5xl md:text-7xl text-white mb-2 tracking-tight font-bold">
-              FREE<span className="text-orange-500">SPORT</span>
+              FREE<span className="text-[var(--color-primary)]">SPORT</span>
               .RU
             </h1>
-            <div className="w-32 h-1 bg-orange-500 mx-auto"></div>
+            <div className="w-32 h-1 bg-[var(--color-primary)] mx-auto"></div>
           </motion.div>
 
           {/* Main Card */}
@@ -80,21 +80,21 @@ export default function ComingSoon() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
               <div className="flex flex-col items-center p-4">
                 <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mb-3">
-                  <ShoppingCart className="w-6 h-6 text-orange-500" />
+                  <ShoppingCart className="w-6 h-6 text-[var(--color-primary)]" />
                 </div>
                 <h3 className="text-gray-900 mb-1 font-semibold">B2C Магазин</h3>
                 <p className="text-sm text-gray-500 text-center">Розничные продажи для всех</p>
               </div>
               <div className="flex flex-col items-center p-4">
                 <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mb-3">
-                  <Users className="w-6 h-6 text-orange-500" />
+                  <Users className="w-6 h-6 text-[var(--color-primary)]" />
                 </div>
                 <h3 className="text-gray-900 mb-1 font-semibold">B2B Решения</h3>
                 <p className="text-sm text-gray-500 text-center">Оптовые поставки для бизнеса</p>
               </div>
               <div className="flex flex-col items-center p-4">
                 <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mb-3">
-                  <TrendingUp className="w-6 h-6 text-orange-500" />
+                  <TrendingUp className="w-6 h-6 text-[var(--color-primary)]" />
                 </div>
                 <h3 className="text-gray-900 mb-1 font-semibold">Лучшие цены</h3>
                 <p className="text-sm text-gray-500 text-center">Конкурентные предложения</p>
@@ -105,7 +105,7 @@ export default function ComingSoon() {
             <div className="mb-8">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm text-gray-600 font-medium">РАЗРАБОТКА ИДЕТ ПО ПЛАНУ!</span>
-                <span className="text-sm text-orange-500 font-bold">{progress}%</span>
+                <span className="text-sm text-[var(--color-primary)] font-bold">{progress}%</span>
               </div>
               <div className="w-full h-3 bg-gray-200 rounded-full overflow-hidden">
                 <motion.div
@@ -116,7 +116,7 @@ export default function ComingSoon() {
                     duration: 1.5,
                     ease: 'easeOut',
                   }}
-                  className="h-full bg-gradient-to-r from-orange-500 to-orange-600 rounded-full"
+                  className="h-full bg-[var(--color-primary)] rounded-full"
                 ></motion.div>
               </div>
             </div>
@@ -132,14 +132,14 @@ export default function ComingSoon() {
                     value={email}
                     onChange={e => setEmail(e.target.value)}
                     placeholder="Ваш email"
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
                     required
                   />
                 </div>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                  className="px-6 py-3 bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
                 >
                   {isSubmitting ? (
                     <span>...</span>

@@ -328,7 +328,7 @@ describe('CatalogPage - Search Integration (Story 18.4)', () => {
 
     // Проверяем, что API не был вызван с параметром search
     const calls = (productsService.default.getAll as Mock).mock.calls;
-    const callsWithSearch = calls.filter((call: any) => call[0]?.search);
+    const callsWithSearch = calls.filter((call: Array<Record<string, unknown>>) => call[0]?.search);
     expect(callsWithSearch).toHaveLength(0);
   });
 });

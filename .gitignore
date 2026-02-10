@@ -17,14 +17,26 @@ celerybeat-schedule*
 .idea/
 *.swp
 *.swo
-#.gemini
-#.windsurf
-#.bmad-core
-#.bmad-infrastructure-devops
+.gemini
+.windsurf
+_bmad/
+_bmad-output
 .kilocodemodes
-#.roomodes
+.roomodes
 .web-bundles/
 *~
+.agent
+.agents
+.agentvibes
+.claude
+.devin
+.gemini-clipboard
+.kilocode
+AGENTS.md
+GEMINI.md
+CLAUDE.md
+project-context.md
+codebase.xml
 
 # Claude Code local settings (user-specific)
 .claude/settings.local.json
@@ -152,6 +164,10 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+.env.prod
+backend/.ssh/
+backend/celerybeat-schedule.dat
+
 
 # mypy
 .mypy_cache/

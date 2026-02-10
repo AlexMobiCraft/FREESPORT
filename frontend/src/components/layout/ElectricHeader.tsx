@@ -34,13 +34,7 @@ const ElectricHeader: React.FC = () => {
                 alt="FREESPORT"
                 width={150}
                 height={32}
-                // Filter to make it #FF6B00 (Electric Orange) - assuming original is black
-                // Generated filter for #FF6B00
                 className="h-full w-auto object-contain"
-                style={{
-                  filter:
-                    'brightness(0) saturate(100%) invert(60%) sepia(30%) saturate(6000%) hue-rotate(1deg) brightness(101%) contrast(105%)',
-                }}
                 priority
               />
             </div>

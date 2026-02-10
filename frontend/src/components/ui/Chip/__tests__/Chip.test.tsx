@@ -21,14 +21,14 @@ describe('Chip', () => {
       render(<Chip>Filter</Chip>);
 
       const chip = screen.getByText('Filter').parentElement;
-      expect(chip).toHaveClass('bg-white', 'border-[#D0D7E6]', 'text-[#4B5C7A]');
+      expect(chip).toHaveClass('bg-white', 'border-neutral-300', 'text-text-secondary');
     });
 
     it('applies selected styles when selected prop is true', () => {
       render(<Chip selected>Selected</Chip>);
 
       const chip = screen.getByText('Selected').parentElement;
-      expect(chip).toHaveClass('bg-[#0060FF]', 'text-white');
+      expect(chip).toHaveClass('bg-primary', 'text-white');
       expect(chip).not.toHaveClass('border');
     });
   });
@@ -243,7 +243,7 @@ describe('Chip', () => {
       expect(screen.getByLabelText('Удалить')).toBeInTheDocument();
 
       const chip = screen.getByText('Complete').parentElement;
-      expect(chip).toHaveClass('bg-[#0060FF]', 'text-white');
+      expect(chip).toHaveClass('bg-primary', 'text-white');
     });
   });
 });

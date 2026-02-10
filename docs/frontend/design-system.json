@@ -11,6 +11,11 @@
     ],
     "changeLog": [
       {
+        "version": "2.2.1",
+        "date": "2026-02-10",
+        "changes": "Обновление основного цвета на более яркий Vivid Orange (#FF6600). Скорректированы зависимости и тени."
+      },
+      {
         "version": "2.2.0",
         "date": "2026-02-10",
         "changes": "Миграция основной цветовой схемы с Синей на Оранжевую (#FF6B00). Сохранение стиля 'Ozon-Friendly'."
@@ -24,7 +29,7 @@
   },
   "brand": {
     "tone": "Технологичный, дружелюбный e-commerce (Стиль Ozon + Энергия Спорта)",
-    "colorPhilosophy": "Энергичный оранжевый (#FF6B00) для действий, нейтральный фон, глубокий синий для текста.",
+    "colorPhilosophy": "Энергичный оранжевый (#FF6600) для действий, нейтральный фон, глубокий синий для текста.",
     "voice": [
       "Чёткие формулировки",
       "Поддерживающий характер",
@@ -45,10 +50,10 @@
   "foundations": {
     "colors": {
       "primary": {
-        "default": "#FF6B00",
-        "hover": "#E65000",
-        "active": "#CC4400",
-        "subtle": "#FFF5EB",
+        "default": "#FF6600",
+        "hover": "#E65C00",
+        "active": "#CC5200",
+        "subtle": "#FFF4E6",
         "usage": "CTA, ключевые акценты, выделение активных элементов. Текст на кнопках: Белый или Темно-синий."
       },
       "secondary": {
@@ -218,9 +223,9 @@
     "shadows": {
       "default": "0 8px 24px rgba(15, 23, 42, 0.08)",
       "hover": "0 10px 32px rgba(15, 23, 42, 0.12)",
-      "primary": "0 4px 14px rgba(255, 107, 0, 0.35)",
+      "primary": "0 4px 14px rgba(255, 102, 0, 0.35)",
       "secondary": "0 2px 8px rgba(0, 183, 255, 0.16)",
-      "pressed": "inset 0 2px 4px rgba(200, 60, 0, 0.2)",
+      "pressed": "inset 0 2px 4px rgba(204, 82, 0, 0.24)",
       "modal": "0 24px 64px rgba(15, 23, 42, 0.24)",
       "usage": "Тень primary теперь оранжевая"
     },
@@ -272,15 +277,15 @@
     "Button": {
       "variants": {
         "primary": {
-          "bg": "#FF6B00",
-          "bgHover": "#E65000",
+          "bg": "#FF6600",
+          "bgHover": "#E65C00",
           "text": "#FFFFFF",
-          "shadow": "0 4px 14px rgba(255, 107, 0, 0.35)"
+          "shadow": "0 4px 14px rgba(255, 102, 0, 0.35)"
         },
         "secondary": {
           "bg": "#FFFFFF",
-          "border": "1px solid #FF6B00",
-          "text": "#FF6B00"
+          "border": "1px solid #FF6600",
+          "text": "#FF6600"
         }
       }
     },
@@ -292,19 +297,19 @@
         }
       },
       "cartBadge": {
-        "background": "#FFF5EB",
-        "textColor": "#FF6B00"
+        "background": "#FFF4E6",
+        "textColor": "#FF6600"
       }
     },
     "Badge": {
       "description": "Бейдж для карточек товаров",
       "tokens": {
         "new": {
-          "background": "#FFF5EB",
-          "textColor": "#FF6B00"
+          "background": "#FFF4E6",
+          "textColor": "#FF6600"
         },
         "promo": {
-          "background": "#FF6B00",
+          "background": "#FF6600",
           "textColor": "#FFFFFF"
         }
       }

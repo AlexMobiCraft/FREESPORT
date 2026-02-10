@@ -34,11 +34,11 @@
   --border-radius-none: 0px;
 
   /* === PRIMARY (Electric Orange) === */
-  --color-primary: #ff6b00;
-  --color-primary-hover: #ff8533;
-  --color-primary-active: #e55a00;
-  --color-primary-subtle: rgba(255, 107, 0, 0.1);
-  --color-primary-glow: rgba(255, 107, 0, 0.4);
+  --color-primary: #ff6600;
+  --color-primary-hover: #ff8033;
+  --color-primary-active: #e65c00;
+  --color-primary-subtle: rgba(255, 102, 0, 0.1);
+  --color-primary-glow: rgba(255, 102, 0, 0.4);
 
   /* === BACKGROUNDS === */
   --bg-body: #0f0f0f;
@@ -57,7 +57,7 @@
   /* === BORDERS === */
   --border-default: #333333;
   --border-subtle: #2a2a2a;
-  --border-active: #ff6b00;
+  --border-active: #ff6600;
   --border-hover: #444444;
 
   /* === NEUTRAL SCALE (Dark → Light) === */
@@ -81,10 +81,10 @@
 
   /* === SHADOWS (Glow-based) === */
   --shadow-none: none;
-  --shadow-hover: 0 0 20px rgba(255, 107, 0, 0.2);
-  --shadow-primary: 0 0 15px rgba(255, 107, 0, 0.4);
-  --shadow-glow: 0 0 30px rgba(255, 107, 0, 0.3);
-  --shadow-glow-intense: 0 0 40px rgba(255, 107, 0, 0.5);
+  --shadow-hover: 0 0 20px rgba(255, 102, 0, 0.2);
+  --shadow-primary: 0 0 15px rgba(255, 102, 0, 0.4);
+  --shadow-glow: 0 0 30px rgba(255, 102, 0, 0.3);
+  --shadow-glow-intense: 0 0 40px rgba(255, 102, 0, 0.5);
   --shadow-modal: 0 0 60px rgba(0, 0, 0, 0.8);
 
   /* === TYPOGRAPHY === */
@@ -148,8 +148,8 @@
   --easing-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
 
   /* === FOCUS === */
-  --focus-ring: 0 0 0 2px #ff6b00;
-  --focus-outline: 2px solid #ff6b00;
+  --focus-ring: 0 0 0 2px #ff6600;
+  --focus-outline: 2px solid #ff6600;
 }
 
 /* ============================================
@@ -170,7 +170,7 @@
   --easing-default: cubic-bezier(0.25, 0.46, 0.45, 0.94);
 
   /* Ensuring colors are available for vars references */
-  --color-primary: #ff6b00;
+  --color-primary: #ff6600;
   --bg-card: #1a1a1a;
   --bg-card-hover: #222222;
 
@@ -187,6 +187,7 @@
    TYPOGRAPHY UTILITIES
    ============================================ */
 @layer utilities {
+
   /* Display text with skew */
   .text-display-xl {
     font-family: var(--font-display);
@@ -283,6 +284,7 @@
    GEOMETRY UTILITIES (Skew)
    ============================================ */
 @layer utilities {
+
   /* Skewed containers */
   .skew-container {
     transform: skewX(var(--skew-angle));
@@ -316,6 +318,7 @@
    BUTTON COMPONENTS
    ============================================ */
 @layer components {
+
   /* Base button */
   .btn {
     display: inline-flex;
@@ -411,6 +414,7 @@
    FORM COMPONENTS (Rectangular - no skew)
    ============================================ */
 @layer components {
+
   /* Base input */
   .input {
     width: 100%;
@@ -540,6 +544,7 @@
    CARD COMPONENTS (Rectangular)
    ============================================ */
 @layer components {
+
   /* Generic Card */
   .card {
     background: var(--bg-card);
@@ -727,6 +732,7 @@
    SIDEBAR WIDGET
    ============================================ */
 @layer components {
+
   /* Sidebar Panel Container */
   .sidebar-panel {
     background: var(--bg-card);
@@ -801,12 +807,12 @@
     transform: skewX(var(--skew-angle));
   }
 
-  .checkbox-row input:checked + .custom-check {
+  .checkbox-row input:checked+.custom-check {
     background-color: var(--color-primary);
     border-color: var(--color-primary);
   }
 
-  .checkbox-row input:checked + .custom-check::after {
+  .checkbox-row input:checked+.custom-check::after {
     content: '✓';
     color: var(--color-text-inverse);
     font-weight: 900;
@@ -956,6 +962,7 @@
   }
 
   @keyframes glowPulse {
+
     0%,
     100% {
       box-shadow: 0 0 20px rgba(255, 107, 0, 0.3);
@@ -1027,6 +1034,7 @@
    ACCESSIBILITY - Reduced Motion
    ============================================ */
 @media (prefers-reduced-motion: reduce) {
+
   *,
   *::before,
   *::after {

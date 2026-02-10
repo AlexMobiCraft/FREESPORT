@@ -147,8 +147,8 @@ describe('SearchField', () => {
       render(<SearchField />);
 
       const input = screen.getByRole('combobox');
-      // SearchField использует focus:border-[#0060FF] вместо focus:ring
-      expect(input).toHaveClass('focus:border-[#0060FF]');
+      // SearchField использует focus:border-primary вместо focus:ring
+      expect(input).toHaveClass('focus:border-primary');
     });
 
     it('forwards ref correctly', () => {
