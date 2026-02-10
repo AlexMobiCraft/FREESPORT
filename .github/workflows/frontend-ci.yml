@@ -114,6 +114,10 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'push'
     
+    permissions:
+      contents: read
+      packages: write
+    
     steps:
     - name: Получение исходного кода
       uses: actions/checkout@v4
@@ -161,6 +165,9 @@ jobs:
     if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
     environment: staging
     
+    permissions:
+      actions: write
+
     steps:
     - name: Запуск deploy workflow
       uses: actions/github-script@v7
@@ -191,6 +198,9 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     environment: production
     
+    permissions:
+      actions: write
+
     steps:
     - name: Запуск deploy workflow
       uses: actions/github-script@v7

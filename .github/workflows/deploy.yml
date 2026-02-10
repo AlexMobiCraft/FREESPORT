@@ -131,6 +131,9 @@ jobs:
     needs: [setup, test]
     if: always() && needs.setup.outputs.should_deploy == 'true' && (needs.test.result == 'success' || needs.test.result == 'skipped')
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     outputs:
       backend_tag: ${{ steps.meta-backend.outputs.tags }}
       frontend_tag: ${{ steps.meta-frontend.outputs.tags }}
