@@ -117,6 +117,8 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write
+      attestations: write
     
     steps:
     - name: Получение исходного кода
@@ -167,6 +169,8 @@ jobs:
     
     permissions:
       actions: write
+      id-token: write
+      attestations: write
 
     steps:
     - name: Запуск deploy workflow
@@ -200,6 +204,8 @@ jobs:
     
     permissions:
       actions: write
+      id-token: write
+      attestations: write
 
     steps:
     - name: Запуск deploy workflow

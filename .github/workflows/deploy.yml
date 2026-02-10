@@ -134,6 +134,8 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write
+      attestations: write
     outputs:
       backend_tag: ${{ steps.meta-backend.outputs.tags }}
       frontend_tag: ${{ steps.meta-frontend.outputs.tags }}
