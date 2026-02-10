@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { http, HttpResponse } from 'msw';
@@ -79,7 +79,7 @@ const mockSetUser = vi.fn();
 
 vi.mock('@/stores/authStore', () => ({
   useAuthStore: Object.assign(
-    vi.fn((selector: (state: any) => unknown) => {
+    vi.fn((selector: (state: unknown) => unknown) => {
       const state = {
         user: mockState.user,
         setUser: mockSetUser,

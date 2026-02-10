@@ -99,7 +99,7 @@ const ProfileForm: React.FC = () => {
 
         // Обновляем user в authStore
         setUser(profileData);
-      } catch (err) {
+      } catch {
         error('Не удалось загрузить данные профиля');
       } finally {
         setIsFetching(false);
@@ -145,7 +145,7 @@ const ProfileForm: React.FC = () => {
       });
 
       success('Профиль успешно обновлён');
-    } catch (err) {
+    } catch {
       error('Ошибка при сохранении профиля');
     } finally {
       setIsLoading(false);
