@@ -36,6 +36,10 @@ jobs:
           # 5. Очистка документации от черновиков (опционально)
           rm -f docs/Отчет_для_заказчика.md
           rm -rf docs/archive/  # Мы сохранили старый README туда, в паблике он не нужен
+          rm -rf frontend/docs/
+
+          # 6. Удаление скриптов
+          rm -rf scripts/
           
           echo "Cleanup finished."
 
