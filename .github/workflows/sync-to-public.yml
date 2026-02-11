@@ -19,7 +19,7 @@ jobs:
           echo "Starting cleanup of internal and sensitive files..."
           
           # 1. Удаление инструментов ИИ и логов работы
-          rm -rf _bmad/ _bmad-output/ .claude/ .gemini-clipboard/ .agent/ .agents/ .agentvibes/ .windsurf/
+          rm -rf _bmad/ _bmad-output/ .claude/ .gemini/ .gemini-clipboard/ .agent/ .agents/ .agentvibes/ .windsurf/
           rm -rf .kilocodemodes/ .roomodes/ .web-bundles/ .kilocode/
           
           # 2. Удаление секретных файлов и локальных конфигов
