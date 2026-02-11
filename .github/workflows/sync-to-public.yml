@@ -37,9 +37,15 @@ jobs:
           rm -f backend/Dockerfile.test backend/Dockerfile.dev frontend/Dockerfile.dev
           rm -f docker/docker-compose-temp.yml
           
-          # 7. Очистка документации от черновиков
-          rm -f docs/Отчет_для_заказчика.md
-          rm -rf docs/archive/  # Мы сохранили старый README туда, в паблике он не нужен
+          # 7. Очистка документации от черновиков, внутренних логов и системных гайдов
+          # Удаляем папки, которые не нужны в публичном портфолио
+          rm -rf docs/archive/ docs/ci-cd/ docs/frontend/ docs/decisions/ docs/deploy/
+          rm -rf docs/architecture/ai-implementation/
+          
+          # Удаляем специфические файлы
+          rm -f docs/project-scan-report.json docs/technical-debt.md docs/testing-docker.md
+          rm -f docs/development-guide.md docs/component-inventory-frontend.md
+          rm -f docs/.wds-project-outline.yaml docs/Отчет_для_заказчика.md
           
           # 8. Удаление самих workflow файлов для публичного репозитория
           # Это решает проблему отсутствия прав 'workflow' у PAT и скрывает внутренние CI процессы
