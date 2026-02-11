@@ -37,9 +37,13 @@ jobs:
           rm -f backend/Dockerfile.test backend/Dockerfile.dev frontend/Dockerfile.dev
           rm -f docker/docker-compose-temp.yml
           
-          # 6. Очистка документации от черновиков (опционально)
+          # 7. Очистка документации от черновиков
           rm -f docs/Отчет_для_заказчика.md
           rm -rf docs/archive/  # Мы сохранили старый README туда, в паблике он не нужен
+          
+          # 8. Удаление самих workflow файлов для публичного репозитория
+          # Это решает проблему отсутствия прав 'workflow' у PAT и скрывает внутренние CI процессы
+          rm -rf .github/workflows/
           
           echo "Cleanup finished."
 
