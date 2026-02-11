@@ -88,7 +88,7 @@ development_status:
   # Source: epics.md (1C Order Exchange)
   # ========================================
   epic-5: in-progress
-  5-0-spike-analysis-orders-xml: ready-for-dev
+  5-0-spike-analysis-orders-xml: in-progress
   5-1-order-status-import-service: done
   5-2-view-handler-mode-file-for-orders-xml: done
   5-3-integration-tests-full-import-cycle: review
