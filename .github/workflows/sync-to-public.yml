@@ -33,7 +33,11 @@ jobs:
           # 4. Удаление временных файлов и логов
           rm -rf logs/ .pytest_cache/ .husky/ .pytype/
           
-          # 5. Очистка документации от черновиков (опционально)
+          # 5. Удаление тестовых и отладочных Docker-конфигураций (часто вызывают ложные срабатывания Secret Scanning)
+          rm -f backend/Dockerfile.test backend/Dockerfile.dev frontend/Dockerfile.dev
+          rm -f docker/docker-compose-temp.yml
+          
+          # 6. Очистка документации от черновиков (опционально)
           rm -f docs/Отчет_для_заказчика.md
           rm -rf docs/archive/  # Мы сохранили старый README туда, в паблике он не нужен
           
