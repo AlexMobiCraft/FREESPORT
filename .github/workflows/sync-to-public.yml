@@ -58,6 +58,10 @@ jobs:
           cp -ra . ../public_sync/
           cd ../public_sync
           
+          # УДАЛЯЕМ ПАПКУ .git приватного репозитория, чтобы не переносить историю коммитов!
+          # Это предотвратит срабатывание Secret Scanning на старые коммиты.
+          rm -rf .git
+          
           git init
           git config user.name "Freesport Sync Bot"
           git config user.email "bot@freesport.ru"
@@ -65,10 +69,10 @@ jobs:
           git add .
           git commit -m "chore: public release $(date +'%Y-%m-%d %H:%M')"
           
-          # Явно передаем токен в URL. Это самый надежный способ для меж-репозиторного пуша.
+          # Явно передаем токен в URL.
           git remote add public "https://x-access-token:${SYNC_TOKEN}@${PUBLIC_REPO_URL}"
           
-          # Отключаем использование учетных данных от actions/checkout для этого репозитория
+          # Отключаем использование учетных данных от actions/checkout
           git config --local http.https://github.com/.extraheader ""
           
           git push public main --force
