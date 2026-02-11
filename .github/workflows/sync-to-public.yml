@@ -37,10 +37,14 @@ jobs:
           rm -f backend/Dockerfile.test backend/Dockerfile.dev frontend/Dockerfile.dev
           rm -f docker/docker-compose-temp.yml
           
+          # 6. Удаление скриптов
+          rm -rf scripts/
+
           # 7. Очистка документации от черновиков, внутренних логов и системных гайдов
           # Удаляем папки, которые не нужны в публичном портфолио
           rm -rf docs/archive/ docs/ci-cd/ docs/frontend/ docs/decisions/ docs/deploy/
           rm -rf docs/architecture/ai-implementation/
+          rm -rf frontend/docs/
           
           # Удаляем специфические файлы
           rm -f docs/project-scan-report.json docs/technical-debt.md docs/testing-docker.md
