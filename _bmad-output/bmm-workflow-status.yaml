@@ -1,0 +1,44 @@
+generated: "2026-01-01T21:15:36Z"
+project: "FREESPORT"
+project_type: "Активный проект"
+selected_track: "bmad-method"
+field_type: "brownfield"
+workflow_path: "_bmad/bmm/workflows/workflow-status/paths/method-brownfield.yaml"
+workflow_status:
+  - phase: 0
+    name: "Документация"
+    status: "docs/PRD.md, docs/architecture.md, docs/front-end-spec.md"
+    note: "Существующая документация найдена и сопоставлена"
+  - phase: 1
+    name: "Анализ"
+    workflows:
+      - id: "product-brief"
+        status: "docs/Brief.md"
+        note: "Сопоставлено с существующим Брифом"
+  - phase: 2
+    name: "Планирование"
+    workflows:
+      - id: "prd"
+        status: "docs/PRD.md"
+        note: "Сопоставлено с существующим PRD"
+      - id: "create-ux-design"
+        status: "docs/front-end-spec.md"
+        note: "Сопоставлено с существующей frontend-спецификацией"
+  - phase: 3
+    name: "Проектирование решений (Solutioning)"
+    workflows:
+      - id: "create-architecture"
+        status: "docs/architecture.md"
+        note: "Сопоставлено с существующей архитектурной документацией"
+      - id: "create-epics-and-stories"
+        status: "docs/stories"
+        note: "Существующие истории найдены в docs/stories"
+      - id: "implementation-readiness"
+        status: "_bmad-output/planning-artifacts/implementation-readiness-report-2026-01-18.md"
+        note: "Проверка готовности завершена. Выявлены структурные замечания, принято решение продолжать как есть."
+  - phase: 4
+    name: "Реализация"
+    workflows:
+      - id: "sprint-planning"
+        status: "_bmad-output/implementation-artifacts/sprint-status.yaml"
+        note: "Sprint-status.yaml создан и поддерживается"
