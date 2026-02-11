@@ -62,7 +62,8 @@ jobs:
           # Это предотвратит срабатывание Secret Scanning на старые коммиты.
           rm -rf .git
           
-          git init
+          # Инициализируем абсолютно новый чистый репозиторий с веткой main
+          git init -b main
           git config user.name "Freesport Sync Bot"
           git config user.email "bot@freesport.ru"
           
