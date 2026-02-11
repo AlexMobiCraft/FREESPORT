@@ -41,10 +41,8 @@ jobs:
 
       - name: Push to Public Repository
         env:
-          # В настройках приватного репозитория (Settings -> Secrets -> Actions)
-          # создайте секрет PUBLIC_REPO_TOKEN с вашим Personal Access Token (PAT)
-          GITHUB_TOKEN: ${{ secrets.PUBLIC_REPO_TOKEN }}
-          # Замените на URL вашего публичного репозитория
+          # Используем кастомное имя переменной, чтобы избежать конфликта с системным GITHUB_TOKEN
+          SYNC_TOKEN: ${{ secrets.PUBLIC_REPO_TOKEN }}
           PUBLIC_REPO_URL: "github.com/AlexMobiCraft/FREESPORT-B2B.git"
         run: |
           # Создаем временную директорию для формирования чистого коммита
@@ -52,7 +50,6 @@ jobs:
           cp -ra . ../public_sync/
           cd ../public_sync
           
-          # Инициализируем новый репозиторий с чистого листа (без истории приватных коммитов)
           git init
           git config user.name "Freesport Sync Bot"
           git config user.email "bot@freesport.ru"
@@ -60,8 +57,12 @@ jobs:
           git add .
           git commit -m "chore: public release $(date +'%Y-%m-%d %H:%M')"
           
-          # Принудительная отправка в ветку main публичного репозитория
-          git remote add public https://x-access-token:${GITHUB_TOKEN}@${PUBLIC_REPO_URL}
+          # Явно передаем токен в URL. Это самый надежный способ для меж-репозиторного пуша.
+          git remote add public "https://x-access-token:${SYNC_TOKEN}@${PUBLIC_REPO_URL}"
+          
+          # Отключаем использование учетных данных от actions/checkout для этого репозитория
+          git config --local http.https://github.com/.extraheader ""
+          
           git push public main --force
           
           echo "Successfully synced to public repository!"
