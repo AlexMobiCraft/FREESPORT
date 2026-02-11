@@ -17,26 +17,26 @@ celerybeat-schedule*
 .idea/
 *.swp
 *.swo
-.gemini
-.windsurf
-_bmad/
-_bmad-output
-.kilocodemodes
-.roomodes
-.web-bundles/
+#.gemini
+#.windsurf
+#.bmad/
+#.bmad-output
+#.kilocodemodes
+#.roomodes
+#.web-bundles/
 *~
-.agent
-.agents
-.agentvibes
-.claude
-.devin
-.gemini-clipboard
-.kilocode
-AGENTS.md
-GEMINI.md
-CLAUDE.md
-project-context.md
-codebase.xml
+#.agent
+#.agents
+#.agentvibes
+#.claude
+#.devin
+#.gemini-clipboard
+#.kilocode
+#AGENTS.md
+#GEMINI.md
+#CLAUDE.md
+#project-context.md
+#codebase.xml
 
 # Claude Code local settings (user-specific)
 .claude/settings.local.json
@@ -157,14 +157,14 @@ celerybeat.pid
 *.sage.py
 
 # Environments
-.env
+#.env
 .venv
 env/
 venv/
 ENV/
 env.bak/
 venv.bak/
-.env.prod
+#.env.prod
 backend/.ssh/
 backend/celerybeat-schedule.dat
 
@@ -181,11 +181,11 @@ dmypy.json
 .pytype/
 
 # Архивы
-.\docs\arhiv
+#.\docs\arhiv
 
 # Мои рабочие документы
-.\docs\Отчет_для_заказчика.md
-Проверить-.txt
+#.\docs\Отчет_для_заказчика.md
+#Проверить-.txt
 
 # Обменные файлы
 .\data\import_1c
@@ -195,8 +195,5 @@ import_1c.tar.gz
 
 # GitHub Actions logs
 .github/logs_*/
-test_output.txt
-role_test_debug.txt
-detail_test_debug.txt
 data/import_1c.zip
 import_data_xml_only.zip
