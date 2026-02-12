@@ -126,7 +126,7 @@ describe('QuickLinksSection', () => {
         expect(screen.queryByText('Футбол')).not.toBeInTheDocument();
     });
 
-    it('renders scroll arrow buttons', async () => {
+    it('renders section with correct aria label', async () => {
         server.use(
             http.get('*/categories/', () => HttpResponse.json(mockCategories))
         );
@@ -137,12 +137,11 @@ describe('QuickLinksSection', () => {
             expect(screen.getByText('Футбол')).toBeInTheDocument();
         });
 
-        // Section должна существовать
         const section = screen.getByLabelText('Быстрые ссылки');
         expect(section).toBeInTheDocument();
     });
 
-    it('renders scroll container with correct role', async () => {
+    it('renders fixed and scrollable zones separately', async () => {
         server.use(
             http.get('*/categories/', () => HttpResponse.json([]))
         );
@@ -153,8 +152,13 @@ describe('QuickLinksSection', () => {
             expect(screen.getByText('Новинки')).toBeInTheDocument();
         });
 
-        const list = screen.getByRole('list');
-        expect(list).toBeInTheDocument();
+        // Фиксированная зона
+        const fixedList = screen.getByLabelText('Быстрые фильтры');
+        expect(fixedList).toBeInTheDocument();
+
+        // Прокручиваемая зона категорий
+        const categoriesList = screen.getByLabelText('Категории товаров');
+        expect(categoriesList).toBeInTheDocument();
     });
 
     it('renders both static and dynamic items as listitems', async () => {

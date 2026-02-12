@@ -13,6 +13,8 @@ export interface QuickLink {
     link: string;
     variant: 'new' | 'hit' | 'sale';
     icon: React.ReactNode;
+    /** Tailwind цвет фона кружка иконки */
+    color: string;
 }
 
 export interface CategoryLink {
@@ -25,20 +27,23 @@ export interface CategoryLink {
 export const STATIC_QUICK_LINKS: QuickLink[] = [
     {
         label: 'Новинки',
-        icon: <Sparkles className="w-4 h-4" />,
+        icon: <Sparkles className="w-5 h-5" />,
         link: '/catalog?sort=new',
         variant: 'new',
+        color: 'bg-blue-500',
     },
     {
         label: 'Хиты продаж',
-        icon: <Flame className="w-4 h-4" />,
+        icon: <Flame className="w-5 h-5" />,
         link: '/catalog?sort=popular',
         variant: 'hit',
+        color: 'bg-orange-500',
     },
     {
         label: 'Скидки',
-        icon: <Percent className="w-4 h-4" />,
+        icon: <Percent className="w-5 h-5" />,
         link: '/catalog?is_discounted=true',
         variant: 'sale',
+        color: 'bg-emerald-500',
     },
 ];
