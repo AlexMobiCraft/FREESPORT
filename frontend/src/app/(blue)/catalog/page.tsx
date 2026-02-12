@@ -335,6 +335,19 @@ const CatalogContent: React.FC = () => {
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
   const [activeCategoryId, setActiveCategoryId] = useState<number | null>(null);
   const [activeCategoryLabel, setActiveCategoryLabel] = useState(DEFAULT_CATEGORY_LABEL);
+
+  // Badge-фильтры из URL (is_new, is_hit, is_sale)
+  const activeBadge = useMemo(() => {
+    const isNew = searchParams.get('is_new');
+    const isHit = searchParams.get('is_hit');
+    const isSale = searchParams.get('is_sale');
+    return {
+      is_new: isNew === 'true' ? true : undefined,
+      is_hit: isHit === 'true' ? true : undefined,
+      is_sale: isSale === 'true' ? true : undefined,
+    };
+  }, [searchParams]);
+  const hasBadgeFilter = Boolean(activeBadge.is_new || activeBadge.is_hit || activeBadge.is_sale);
   const [isCategoriesLoading, setIsCategoriesLoading] = useState(true);
   const [categoriesError, setCategoriesError] = useState<string | null>(null);
 
@@ -450,7 +463,8 @@ const CatalogContent: React.FC = () => {
           initialCategory = findCategoryBySlug(mapped, categorySlug);
         }
 
-        if (!initialCategory) {
+        if (!initialCategory && !hasBadgeFilter) {
+          // Если нет badge-фильтра, выбираем категорию по умолчанию
           initialCategory =
             findCategoryByLabel(mapped, DEFAULT_CATEGORY_LABEL) ?? mapped[0] ?? null;
         }
@@ -566,6 +580,7 @@ const CatalogContent: React.FC = () => {
         ordering,
         min_price: priceRange.min,
         max_price: priceRange.max,
+        ...activeBadge,
       };
 
       if (activeCategoryId) {
@@ -604,15 +619,16 @@ const CatalogContent: React.FC = () => {
     selectedBrandIds,
     inStock,
     searchQuery,
+    activeBadge,
   ]);
 
   useEffect(() => {
     // Ждём пока категория будет установлена перед запросом товаров
-    // Это предотвращает дублирующий запрос без category_id
-    if (activeCategoryId !== null) {
+    // При badge-фильтре запрашиваем без ожидания категории
+    if (activeCategoryId !== null || hasBadgeFilter) {
       fetchProducts();
     }
-  }, [fetchProducts, activeCategoryId]);
+  }, [fetchProducts, activeCategoryId, hasBadgeFilter]);
 
   // Ref для поля поиска
   const searchInputRef = React.useRef<HTMLInputElement>(null);
