@@ -22,6 +22,10 @@ class Banner(models.Model):
     Поддерживает таргетинг по группам пользователей и планирование показов
     """
 
+    class BannerType(models.TextChoices):
+        HERO = "hero", "Геройский (Hero)"
+        MARKETING = "marketing", "Маркетинговый"
+
     # Поля контента
     title = cast(
         str,
@@ -58,6 +62,7 @@ class Banner(models.Model):
         models.CharField(
             "Текст кнопки",
             max_length=50,
+            blank=True,
             help_text="Текст call-to-action кнопки",
         ),
     )
@@ -109,6 +114,16 @@ class Banner(models.Model):
     )
 
     # Поля управления
+    type = cast(
+        str,
+        models.CharField(
+            "Тип баннера",
+            max_length=20,
+            choices=BannerType.choices,
+            default=BannerType.HERO,
+            help_text="Тип определяет место и способ отображения баннера",
+        ),
+    )
     is_active = cast(
         bool,
         models.BooleanField(

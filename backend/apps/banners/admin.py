@@ -21,6 +21,7 @@ class BannerAdmin(admin.ModelAdmin):
 
     list_display = (
         "title",
+        "type",
         "image_preview",
         "is_active",
         "priority",
@@ -29,6 +30,7 @@ class BannerAdmin(admin.ModelAdmin):
         "end_date",
     )
     list_filter = (
+        "type",
         "is_active",
         "show_to_guests",
         "show_to_authenticated",
@@ -44,6 +46,7 @@ class BannerAdmin(admin.ModelAdmin):
             "Контент",
             {
                 "fields": (
+                    "type",
                     "title",
                     "subtitle",
                     "image",

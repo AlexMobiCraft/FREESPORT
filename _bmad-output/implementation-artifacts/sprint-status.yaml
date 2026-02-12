@@ -93,3 +93,11 @@ development_status:
   5-2-view-handler-mode-file-for-orders-xml: done
   5-3-integration-tests-full-import-cycle: review
   epic-5-retrospective: optional
+
+  # ========================================
+  # Epic 32: Управление маркетинговыми баннерами
+  # Support for marketing banners with specific type, validation, and API filtering.
+  # FRs covered: FR1-FR13, NFR1-NFR9
+  # ========================================
+  epic-32: in-progress
+  32-1-database-and-admin-updates: ready-for-dev
