@@ -8,6 +8,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional, cast
 
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Q, QuerySet
 from django.utils import timezone
@@ -172,6 +173,17 @@ class Banner(models.Model):
     def __str__(self) -> str:
         """Строковое представление баннера"""
         return f"{self.title} (priority: {self.priority})"
+
+    def clean(self) -> None:
+        """
+        Валидация модели:
+        - Image обязательна для Marketing баннеров (AC2)
+        """
+        super().clean()
+        if self.type == self.BannerType.MARKETING and not self.image:
+            raise ValidationError(
+                {"image": "Изображение обязательно для маркетинговых баннеров."}
+            )
 
     @property
     def is_scheduled_active(self) -> bool:

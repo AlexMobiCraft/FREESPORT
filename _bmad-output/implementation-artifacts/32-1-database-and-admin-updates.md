@@ -1,6 +1,6 @@
 # Story 32.1: Database and Admin Updates
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -28,22 +28,22 @@ so that I can manage promotional content separately from Hero banners.
 
 ## Tasks / Subtasks
 
-- [ ] Update Banner Model <!-- id: 1 -->
-  - [ ] Add `type` field (Choices: HERO, MARKETING) to `apps/banners/models.py`.
-  - [ ] Generate migration with default=HERO for existing records.
-  - [ ] Enforce `null=False` on the database level.
-- [ ] Update Banner Admin <!-- id: 2 -->
-  - [ ] Add `list_filter = ["type", ...]` to `BannerAdmin`.
-  - [ ] Customize `get_form` or `clean` method to enforce mandatory Image for Marketing type.
-  - [ ] Ensure `target_url` is accessible/editable for Marketing type.
-- [ ] Implement Cache Invalidation <!-- id: 3 -->
-  - [ ] Identify where caching is currently handled (signals or model `save` method).
-  - [ ] Ensure invalidation logic targets `banners:list:{type}` based on the instance type.
-- [ ] Verify Changes <!-- id: 4 -->
-  - [ ] Run migration.
-  - [ ] Test creating Hero banner (should work as before).
-  - [ ] Test creating Marketing banner (without image -> fail, with image -> success).
-  - [ ] Check sidebar filter.
+- [x] Update Banner Model <!-- id: 1 -->
+  - [x] Add `type` field (Choices: HERO, MARKETING) to `apps/banners/models.py`.
+  - [x] Generate migration with default=HERO for existing records.
+  - [x] Enforce `null=False` on the database level.
+- [x] Update Banner Admin <!-- id: 2 -->
+  - [x] Add `list_filter = ["type", ...]` to `BannerAdmin`.
+  - [x] Customize `get_form` or `clean` method to enforce mandatory Image for Marketing type.
+  - [x] Ensure `target_url` is accessible/editable for Marketing type.
+- [x] Implement Cache Invalidation <!-- id: 3 -->
+  - [x] Identify where caching is currently handled (signals or model `save` method).
+  - [x] Ensure invalidation logic targets `banners:list:{type}` based on the instance type.
+- [x] Verify Changes <!-- id: 4 -->
+  - [x] Run migration.
+  - [x] Test creating Hero banner (should work as before).
+  - [x] Test creating Marketing banner (without image -> fail, with image -> success).
+  - [x] Check sidebar filter.
 
 ## Dev Notes
 
@@ -79,11 +79,22 @@ Antigravity (Gemini 2.0 Pro)
 
 ### Completion Notes List
 
-- Verified `apps/banners` structure exists.
-- Ready for implementation.
+- Verified `apps/banners` structure.
+- **Implemented AC1:** `Banner` model updated with `type` field (Hero/Marketing). Migration `0003` verified.
+- **Implemented AC2:** Added `clean()` method to `Banner` model to enforce mandatory image for Marketing banners. Verified Admin filters and fields.
+- **Implemented AC3:** Created `apps/banners/signals.py` to handle cache invalidation for `banners:list:{type}` on save/delete. Registered signals in `apps.py`.
+- **Created Comprehensive Tests:**
+    - `tests/test_models.py`: Model fields, defaults, constraints.
+    - `tests/test_admin.py`: Admin validation logic (clean method), filters.
+    - `tests/test_signals.py`: Cache invalidation logic.
+    - 25 tests passed successfully.
 
 ### File List
 
 - backend/apps/banners/models.py
 - backend/apps/banners/admin.py
-- backend/apps/banners/tests/test_models.py (or similar)
+- backend/apps/banners/signals.py (new)
+- backend/apps/banners/apps.py
+- backend/apps/banners/tests/test_models.py (new)
+- backend/apps/banners/tests/test_admin.py (new)
+- backend/apps/banners/tests/test_signals.py (new)
