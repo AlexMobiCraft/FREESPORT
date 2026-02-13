@@ -14,6 +14,7 @@ from typing import Any, Optional
 
 from django.core.cache import cache
 from django.db.models import QuerySet
+from django.utils import timezone
 
 from apps.users.models import User
 
@@ -22,6 +23,7 @@ from .models import Banner
 logger = logging.getLogger(__name__)
 
 BANNER_CACHE_TTL = 60 * 15  # 15 минут
+MIN_CACHE_TTL = 10  # Минимальный TTL — 10 секунд (защита от cache churn)
 CACHE_KEY_PATTERN = "banners:list:{type}:{role}"
 
 # Все возможные роли для полной инвалидации кеша — синхронизировано с User.ROLE_CHOICES
@@ -103,9 +105,60 @@ def get_active_banners_queryset(
     return queryset
 
 
-def cache_banner_response(cache_key: str, data: Any) -> None:
+def compute_cache_ttl(banner_type: Optional[str] = None) -> int:
+    """
+    Вычисляет TTL кеша с учётом ближайших временных границ баннеров.
+
+    Предотвращает показ stale data при наступлении start_date/end_date.
+    TTL = min(BANNER_CACHE_TTL, seconds_to_nearest_temporal_boundary).
+
+    Args:
+        banner_type: Тип баннера для фильтрации или None для всех.
+
+    Returns:
+        TTL в секундах (не менее MIN_CACHE_TTL).
+    """
+    now = timezone.now()
+    nearest_seconds = BANNER_CACHE_TTL
+
+    type_filter = {"type": banner_type} if banner_type else {}
+
+    # Ближайший end_date текущих активных баннеров (истечёт раньше TTL)
+    nearest_end = (
+        Banner.objects.filter(
+            is_active=True, end_date__isnull=False, end_date__gt=now, **type_filter
+        )
+        .order_by("end_date")
+        .values_list("end_date", flat=True)
+        .first()
+    )
+    if nearest_end:
+        delta = int((nearest_end - now).total_seconds())
+        if 0 < delta < nearest_seconds:
+            nearest_seconds = delta
+
+    # Ближайший start_date будущих баннеров (появится раньше TTL)
+    nearest_start = (
+        Banner.objects.filter(
+            is_active=True, start_date__isnull=False, start_date__gt=now, **type_filter
+        )
+        .order_by("start_date")
+        .values_list("start_date", flat=True)
+        .first()
+    )
+    if nearest_start:
+        delta = int((nearest_start - now).total_seconds())
+        if 0 < delta < nearest_seconds:
+            nearest_seconds = delta
+
+    return max(nearest_seconds, MIN_CACHE_TTL)
+
+
+def cache_banner_response(
+    cache_key: str, data: Any, ttl: Optional[int] = None
+) -> None:
     """Кеширует сериализованные данные баннеров."""
-    cache.set(cache_key, data, BANNER_CACHE_TTL)
+    cache.set(cache_key, data, ttl if ttl is not None else BANNER_CACHE_TTL)
 
 
 def invalidate_banner_cache(banner_type: str) -> None:

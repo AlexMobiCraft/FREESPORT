@@ -4,20 +4,26 @@
 Покрытие:
 - 7-1: Cache key включает роль пользователя (предотвращение утечки)
 - 7-2: Service layer functions (validate, build_cache_key, get_role_key, invalidate)
+- 9-1: Dynamic TTL — compute_cache_ttl учитывает start_date/end_date
 """
 
-from unittest.mock import MagicMock
+from datetime import timedelta
+from unittest.mock import MagicMock, patch
 
 import pytest
 from django.core.cache import cache
+from django.utils import timezone
 
+from apps.banners.factories import BannerFactory
 from apps.banners.models import Banner
 from apps.banners.services import (
     BANNER_CACHE_TTL,
     CACHE_KEY_PATTERN,
+    MIN_CACHE_TTL,
     _ALL_ROLE_KEYS,
     build_cache_key,
     cache_banner_response,
+    compute_cache_ttl,
     get_cached_banners,
     get_role_key,
     invalidate_banner_cache,
@@ -128,6 +134,19 @@ class TestCacheFunctions:
         cache_banner_response("banners:list:hero:guest", data)
         assert get_cached_banners("banners:list:hero:guest") == data
 
+    def test_cache_banner_response_with_custom_ttl(self):
+        """cache_banner_response принимает кастомный TTL."""
+        data = [{"id": 1}]
+        cache_banner_response("banners:list:hero:guest", data, ttl=60)
+        assert get_cached_banners("banners:list:hero:guest") == data
+
+    def test_cache_banner_response_none_ttl_uses_default(self):
+        """ttl=None использует BANNER_CACHE_TTL по умолчанию."""
+        data = [{"id": 1}]
+        with patch("apps.banners.services.cache") as mock_cache:
+            cache_banner_response("test_key", data, ttl=None)
+            mock_cache.set.assert_called_once_with("test_key", data, BANNER_CACHE_TTL)
+
 
 @pytest.mark.django_db
 class TestInvalidateBannerCache:
@@ -214,3 +233,111 @@ class TestCacheKeyPattern:
         key = build_cache_key(None, "retail")
         expected = CACHE_KEY_PATTERN.format(type="all", role="retail")
         assert key == expected
+
+
+@pytest.mark.django_db
+class TestComputeCacheTTL:
+    """9-1: Dynamic TTL учитывает ближайшие start_date/end_date баннеров."""
+
+    def test_no_banners_returns_default_ttl(self):
+        """Без баннеров возвращается BANNER_CACHE_TTL."""
+        assert compute_cache_ttl() == BANNER_CACHE_TTL
+
+    def test_no_temporal_boundaries_returns_default_ttl(self):
+        """Баннеры без start_date/end_date — TTL = BANNER_CACHE_TTL."""
+        BannerFactory(
+            start_date=None,
+            end_date=None,
+            show_to_guests=True,
+        )
+        assert compute_cache_ttl() == BANNER_CACHE_TTL
+
+    def test_end_date_sooner_than_default_ttl(self):
+        """Баннер с end_date через 5 мин — TTL = 300 секунд."""
+        now = timezone.now()
+        BannerFactory(
+            end_date=now + timedelta(minutes=5),
+            show_to_guests=True,
+        )
+        ttl = compute_cache_ttl()
+        # TTL должен быть ~300с (±2с на выполнение)
+        assert MIN_CACHE_TTL <= ttl <= 302
+
+    def test_start_date_sooner_than_default_ttl(self):
+        """Будущий баннер с start_date через 3 мин — TTL = ~180 секунд."""
+        now = timezone.now()
+        BannerFactory(
+            start_date=now + timedelta(minutes=3),
+            end_date=now + timedelta(days=7),
+            show_to_guests=True,
+        )
+        ttl = compute_cache_ttl()
+        assert MIN_CACHE_TTL <= ttl <= 182
+
+    def test_end_date_far_away_returns_default_ttl(self):
+        """Баннер с end_date через 1 час — TTL = BANNER_CACHE_TTL (15 мин)."""
+        now = timezone.now()
+        BannerFactory(
+            end_date=now + timedelta(hours=1),
+            show_to_guests=True,
+        )
+        assert compute_cache_ttl() == BANNER_CACHE_TTL
+
+    def test_minimum_ttl_floor(self):
+        """TTL не опускается ниже MIN_CACHE_TTL."""
+        now = timezone.now()
+        BannerFactory(
+            end_date=now + timedelta(seconds=2),
+            show_to_guests=True,
+        )
+        ttl = compute_cache_ttl()
+        assert ttl >= MIN_CACHE_TTL
+
+    def test_type_filter_hero(self):
+        """compute_cache_ttl(hero) учитывает только hero баннеры."""
+        now = timezone.now()
+        # Hero с close end_date
+        BannerFactory(
+            type=Banner.BannerType.HERO,
+            end_date=now + timedelta(minutes=2),
+            show_to_guests=True,
+        )
+        # Marketing с далёким end_date
+        BannerFactory(
+            type=Banner.BannerType.MARKETING,
+            end_date=now + timedelta(hours=2),
+            show_to_guests=True,
+        )
+        ttl_hero = compute_cache_ttl("hero")
+        ttl_marketing = compute_cache_ttl("marketing")
+        assert ttl_hero < BANNER_CACHE_TTL  # Hero: ~120с
+        assert ttl_marketing == BANNER_CACHE_TTL  # Marketing: 2 часа > 15 мин
+
+    def test_type_filter_none_considers_all(self):
+        """compute_cache_ttl(None) учитывает все типы."""
+        now = timezone.now()
+        BannerFactory(
+            type=Banner.BannerType.HERO,
+            end_date=now + timedelta(minutes=2),
+            show_to_guests=True,
+        )
+        ttl = compute_cache_ttl(None)
+        assert ttl < BANNER_CACHE_TTL
+
+    def test_nearest_boundary_wins(self):
+        """Из end_date и start_date выбирается ближайший."""
+        now = timezone.now()
+        # Активный с end_date через 10 мин
+        BannerFactory(
+            end_date=now + timedelta(minutes=10),
+            show_to_guests=True,
+        )
+        # Будущий с start_date через 3 мин
+        BannerFactory(
+            start_date=now + timedelta(minutes=3),
+            end_date=now + timedelta(days=7),
+            show_to_guests=True,
+        )
+        ttl = compute_cache_ttl()
+        # start_date через 3 мин ближе, чем end_date через 10 мин
+        assert ttl <= 182

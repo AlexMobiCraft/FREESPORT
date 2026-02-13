@@ -58,7 +58,7 @@ class ActiveBannersView(viewsets.ViewSet):
                         "type": "hero",
                         "title": "Новая коллекция 2025",
                         "subtitle": "Эксклюзивные новинки для профессионалов",
-                        "image_url": ("http://example.com/media/banners/2025/01/hero.webp"),
+                        "image_url": "/media/promos/2025/01/hero.webp",
                         "image_alt": "Баннер новой коллекции",
                         "cta_text": "Перейти в каталог",
                         "cta_link": "/catalog",
@@ -68,7 +68,7 @@ class ActiveBannersView(viewsets.ViewSet):
                         "type": "marketing",
                         "title": "Специальные цены для оптовиков",
                         "subtitle": "Скидки до 30% на весь ассортимент",
-                        "image_url": ("http://example.com/media/banners/2025/01/" "wholesale.webp"),
+                        "image_url": "/media/promos/2025/01/wholesale.webp",
                         "image_alt": "Баннер оптовых цен",
                         "cta_text": "Узнать больше",
                         "cta_link": "/wholesale",
@@ -100,6 +100,7 @@ class ActiveBannersView(viewsets.ViewSet):
         serializer = BannerSerializer(banners, many=True, context={"request": request})
         data = serializer.data
 
-        services.cache_banner_response(cache_key, data)
+        ttl = services.compute_cache_ttl(banner_type)
+        services.cache_banner_response(cache_key, data, ttl)
 
         return Response(data)

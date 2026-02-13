@@ -1,6 +1,6 @@
 # Story 32.1: Database and Admin Updates
 
-Status: in-progress
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -59,11 +59,11 @@ so that I can manage promotional content separately from Hero banners.
 - [x] Review Follow-ups (AI Final) <!-- id: 8 -->
   - [x] [AI-Review][Medium] Refactor `_ALL_ROLE_KEYS` in `apps.banners.services` to import directly from `apps.users.models.User.ROLE_CHOICES` to prevent drift. <!-- id: 8-1 -->
   - [x] [AI-Review][Low] Extract cache key pattern into a constant `CACHE_KEY_PATTERN` in `apps.banners.services`. <!-- id: 8-2 -->
-- [ ] Review Follow-ups (Code Review 4) <!-- id: 9 -->
-  - [ ] [AI-Review][Medium] Fix Cache Temporal Conflict: `BANNER_CACHE_TTL` allows stale data up to 15m (use shorter TTL or precise invalidation). <!-- id: 9-1 -->
-  - [ ] [AI-Review][Low] Add Temporal Unit Tests: Verify `start_date`/`end_date` logic in `Banner` model with mocked time. <!-- id: 9-2 -->
-  - [ ] [AI-Review][Low] Refactor Serializer: Remove fragile `read_only_fields = fields` definition in `BannerSerializer`. <!-- id: 9-3 -->
-  - [ ] [AI-Review][Low] Fix OpenAPI Examples: Remove hardcoded `http://example.com` URLs in `ActiveBannersView`. <!-- id: 9-4 -->
+- [x] Review Follow-ups (Code Review 4) <!-- id: 9 -->
+  - [x] [AI-Review][Medium] Fix Cache Temporal Conflict: `BANNER_CACHE_TTL` allows stale data up to 15m (use shorter TTL or precise invalidation). <!-- id: 9-1 -->
+  - [x] [AI-Review][Low] Add Temporal Unit Tests: Verify `start_date`/`end_date` logic in `Banner` model with mocked time. <!-- id: 9-2 -->
+  - [x] [AI-Review][Low] Refactor Serializer: Remove fragile `read_only_fields = fields` definition in `BannerSerializer`. <!-- id: 9-3 -->
+  - [x] [AI-Review][Low] Fix OpenAPI Examples: Remove hardcoded `http://example.com` URLs in `ActiveBannersView`. <!-- id: 9-4 -->
 
 
 ## Dev Notes
@@ -132,6 +132,12 @@ Antigravity (Gemini 2.0 Pro)
     - ✅ Resolved review finding [Medium]: `_ALL_ROLE_KEYS` теперь динамически формируется из `User.ROLE_CHOICES` + "guest" — предотвращает drift при добавлении новых ролей.
     - ✅ Resolved review finding [Low]: Добавлена константа `CACHE_KEY_PATTERN = "banners:list:{type}:{role}"` — `build_cache_key()` использует `.format()` вместо f-string.
     - 82 теста баннеров пройдены (было 73, добавлено 9 новых: 4 для синхронизации ролей, 5 для CACHE_KEY_PATTERN).
+- **Addressed code review findings — 4 items resolved (Date: 2026-02-13):**
+    - ✅ Resolved review finding [Medium]: Fix Cache Temporal Conflict — добавлена `compute_cache_ttl()` в `services.py`, вычисляет TTL на основе ближайших `start_date`/`end_date`. Добавлена константа `MIN_CACHE_TTL = 10`. View передаёт dynamic TTL в `cache_banner_response()`. 10 новых тестов.
+    - ✅ Resolved review finding [Low]: Add Temporal Unit Tests — 14 тестов с `unittest.mock.patch` для `timezone.now()`: `is_scheduled_active` (8 тестов) и `get_for_user` temporal filtering (6 тестов). Покрыты граничные случаи.
+    - ✅ Resolved review finding [Low]: Refactor Serializer — `read_only_fields` теперь явный tuple, идентичный `fields`. Не ссылка на тот же объект. 2 новых теста.
+    - ✅ Resolved review finding [Low]: Fix OpenAPI Examples — `http://example.com` URLs заменены на relative `/media/promos/...` paths.
+    - 109 тестов баннеров пройдены (было 82, добавлено 27 новых).
 
 ### File List
 

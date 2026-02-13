@@ -39,6 +39,16 @@ class TestBannerSerializerTypeField:
         serializer = BannerSerializer()
         assert "type" in serializer.Meta.read_only_fields
 
+    def test_all_fields_are_read_only(self):
+        """Все поля сериализатора помечены read-only (fields == read_only_fields)."""
+        serializer = BannerSerializer()
+        assert set(serializer.Meta.fields) == set(serializer.Meta.read_only_fields)
+
+    def test_read_only_fields_is_tuple(self):
+        """read_only_fields — tuple (не list), отдельная декларация."""
+        serializer = BannerSerializer()
+        assert isinstance(serializer.Meta.read_only_fields, tuple)
+
     def test_type_field_ignored_on_input(self):
         """type поле игнорируется при подаче данных через serializer (read-only)."""
         banner = BannerFactory(type=Banner.BannerType.HERO)
