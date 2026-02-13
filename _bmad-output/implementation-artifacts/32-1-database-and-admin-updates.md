@@ -1,6 +1,6 @@
 # Story 32.1: Database and Admin Updates
 
-Status: done
+Status: in-progress
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -44,6 +44,22 @@ so that I can manage promotional content separately from Hero banners.
   - [x] Test creating Hero banner (should work as before).
   - [x] Test creating Marketing banner (without image -> fail, with image -> success).
   - [x] Check sidebar filter.
+- [x] Review Follow-ups (AI 2) <!-- id: 5 -->
+  - [x] [AI-Review][High] Add `type` field to `BannerSerializer` in `apps/banners/serializers.py` <!-- id: 5-1 -->
+  - [x] [AI-Review][High] Implement caching and filtering by type in `ActiveBannersView` (`apps/banners/views.py`) <!-- id: 5-2 -->
+  - [x] [AI-Review][Medium] Update `ActiveBannersView` to support `?type=hero|marketing` query param <!-- id: 5-3 -->
+  - [x] [AI-Review][Low] Override `save()` method in `Banner` model to call `full_clean()` <!-- id: 5-4 -->
+- [x] Review Follow-ups (AI 3) <!-- id: 6 -->
+  - [x] [AI-Review][Medium] Track new test files in git (`backend/apps/banners/tests/test_serializers.py`, `backend/apps/banners/tests/test_views.py`) <!-- id: 6-1 -->
+  - [x] [AI-Review][Medium] Validate `type` query param in `ActiveBannersView` to prevent cache flooding <!-- id: 6-2 -->
+  - [x] [AI-Review][Low] Add test case for `type` field read-only behavior in serializer input <!-- id: 6-3 -->
+- [x] Review Follow-ups (Critical Fixes) <!-- id: 7 -->
+  - [x] [AI-Review][Critical] Fix Cache Key Collision: Include user role/group hash in `ActiveBannersView` cache key (e.g., `banners:list:{type}:{role_hash}`) to prevent guests seeing wholesale banners. <!-- id: 7-1 -->
+  - [x] [AI-Review][Medium] Refactor API Logic: Move complex banner filtering/caching logic to a service layer or manager to separate concerns from the view (preparation for Story 32.2). <!-- id: 7-2 -->
+- [x] Review Follow-ups (AI Final) <!-- id: 8 -->
+  - [x] [AI-Review][Medium] Refactor `_ALL_ROLE_KEYS` in `apps.banners.services` to import directly from `apps.users.models.User.ROLE_CHOICES` to prevent drift. <!-- id: 8-1 -->
+  - [x] [AI-Review][Low] Extract cache key pattern into a constant `CACHE_KEY_PATTERN` in `apps.banners.services`. <!-- id: 8-2 -->
+
 
 ## Dev Notes
 
@@ -92,6 +108,25 @@ Antigravity (Gemini 2.0 Pro)
     - Updated `Banner` model: `image` and `cta_text` are now optional (`blank=True`), enforcing `image` requirement for Marketing banners only via validation logic.
     - Updated `BannerAdmin`: Replaced `is_active` with `get_is_active_display` to show real availability status (including schedule).
     - Expanded tests to cover optional fields and new validation logic.
+- **Addressed code review findings — 4 items resolved (Date: 2026-02-13):**
+    - ✅ Resolved review finding [High]: Added `type` field to `BannerSerializer` — API теперь возвращает тип баннера.
+    - ✅ Resolved review finding [High]: Реализовано кеширование в `ActiveBannersView` с ключами `banners:list:{type}` и `banners:list:all`, TTL 15 мин. Signal-инвалидация расширена для `banners:list:all`.
+    - ✅ Resolved review finding [Medium]: Добавлен query param `?type=hero|marketing` в `ActiveBannersView` с OpenAPI документацией.
+    - ✅ Resolved review finding [Low]: Добавлен `save()` метод в `Banner` с вызовом `full_clean()` — валидация срабатывает при любом save().
+    - 43 теста пройдены (было 25, добавлено 18 новых).
+- **Addressed code review findings — 3 items resolved (Date: 2026-02-13):**
+    - ✅ Resolved review finding [Medium]: `test_serializers.py` и `test_views.py` добавлены в git staging (`git add`).
+    - ✅ Resolved review finding [Medium]: Валидация `type` query param в `ActiveBannersView` — невалидные значения игнорируются, предотвращая cache flooding. Добавлены 2 теста.
+    - ✅ Resolved review finding [Low]: Добавлен функциональный тест `test_type_field_ignored_on_input` — подтверждает, что `type` игнорируется при input через serializer.
+    - 45 тестов пройдены (было 43, добавлено 2 новых).
+- **Addressed code review findings — 2 items resolved (Date: 2026-02-13):**
+    - ✅ Resolved review finding [Critical]: Fix Cache Key Collision — ключ кеша теперь включает роль пользователя (`banners:list:{type}:{role}`). Гости не могут видеть оптовые баннеры через shared cache. Инвалидация очищает ключи по всем ролям.
+    - ✅ Resolved review finding [Medium]: Refactor API Logic — создан `services.py` с функциями `get_role_key()`, `validate_banner_type()`, `build_cache_key()`, `get_active_banners_queryset()`, `cache_banner_response()`, `invalidate_banner_cache()`. View стал тонким, signals делегируют в service. Подготовка для Story 32.2.
+    - 73 теста пройдены (было 45, добавлено 28 новых). Полный regression suite: 1737 passed, 1 failed (не связан — flaky perf тест `pages`), 3 skipped.
+- **Addressed code review findings — 2 items resolved (Date: 2026-02-13):**
+    - ✅ Resolved review finding [Medium]: `_ALL_ROLE_KEYS` теперь динамически формируется из `User.ROLE_CHOICES` + "guest" — предотвращает drift при добавлении новых ролей.
+    - ✅ Resolved review finding [Low]: Добавлена константа `CACHE_KEY_PATTERN = "banners:list:{type}:{role}"` — `build_cache_key()` использует `.format()` вместо f-string.
+    - 82 теста баннеров пройдены (было 73, добавлено 9 новых: 4 для синхронизации ролей, 5 для CACHE_KEY_PATTERN).
 
 ### File List
 
@@ -99,6 +134,8 @@ Antigravity (Gemini 2.0 Pro)
 - backend/apps/banners/admin.py
 - backend/apps/banners/signals.py (new)
 - backend/apps/banners/apps.py
+- backend/apps/banners/serializers.py
+- backend/apps/banners/views.py
 - backend/apps/banners/migrations/0002_alter_banner_image.py
 - backend/apps/banners/migrations/0003_banner_type.py
 - backend/apps/banners/migrations/0004_alter_banner_cta_text.py
@@ -106,3 +143,7 @@ Antigravity (Gemini 2.0 Pro)
 - backend/apps/banners/tests/test_models.py (new)
 - backend/apps/banners/tests/test_admin.py (new)
 - backend/apps/banners/tests/test_signals.py (new)
+- backend/apps/banners/tests/test_serializers.py (new)
+- backend/apps/banners/tests/test_views.py (new)
+- backend/apps/banners/services.py (new)
+- backend/apps/banners/tests/test_services.py (new)

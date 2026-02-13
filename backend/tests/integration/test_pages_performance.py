@@ -5,7 +5,6 @@ Fix PERF-001: Тесты производительности кэширован
 
 import concurrent.futures
 import time
-from threading import Thread
 
 import pytest
 from django.core.cache import cache
@@ -76,14 +75,19 @@ class PagesCachePerformanceTest(TransactionTestCase):
 
     def test_concurrent_cache_access_performance(self):
         """Тест производительности кэша при конкурентном доступе"""
+        from django.db import connection
+
         url = reverse("pages:pages-list")
         results = []
         errors = []
 
         def make_request():
+            """Выполняет запрос в отдельном потоке с собственным клиентом"""
+            # Создаём новый клиент для каждого потока (APIClient не потокобезопасен)
+            client = APIClient()
             try:
                 start = time.time()
-                response = self.client.get(url)
+                response = client.get(url)
                 end = time.time()
                 results.append(
                     {
@@ -98,17 +102,14 @@ class PagesCachePerformanceTest(TransactionTestCase):
                 )
             except Exception as e:
                 errors.append(str(e))
+            finally:
+                # Закрываем соединение с БД в этом потоке
+                connection.close()
 
-        # Запускаем 20 конкурентных запросов
-        threads = []
-        for _ in range(20):
-            thread = Thread(target=make_request)
-            threads.append(thread)
-            thread.start()
-
-        # Ждем завершения всех потоков
-        for thread in threads:
-            thread.join()
+        # Используем ThreadPoolExecutor для лучшего управления потоками
+        with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
+            futures = [executor.submit(make_request) for _ in range(20)]
+            concurrent.futures.wait(futures)
 
         # Проверяем результаты
         self.assertEqual(len(errors), 0, f"Errors occurred: {errors}")
@@ -166,6 +167,8 @@ class PagesCachePerformanceTest(TransactionTestCase):
 
     def test_cache_invalidation_accuracy_under_load(self):
         """Тест точности инвалидации кэша при высокой нагрузке"""
+        from django.db import connection
+
         list_url = reverse("pages:pages-list")
 
         # Прогреваем кэш
@@ -174,30 +177,33 @@ class PagesCachePerformanceTest(TransactionTestCase):
 
         # Функция для создания новых страниц в отдельном потоке
         def create_pages():
-            for i in range(5):
-                Page.objects.create(
-                    title=f"Load Test Page {i}",
-                    slug=f"load-page-{i}",
-                    content=f"<p>Load test content {i}</p>",
-                    is_published=True,
-                )
-                time.sleep(0.1)  # Небольшая задержка между созданиями
+            try:
+                for i in range(5):
+                    Page.objects.create(
+                        title=f"Load Test Page {i}",
+                        slug=f"load-page-{i}",
+                        content=f"<p>Load test content {i}</p>",
+                        is_published=True,
+                    )
+                    time.sleep(0.1)  # Небольшая задержка между созданиями
+            finally:
+                connection.close()
 
         # Функция для выполнения запросов
         def make_requests():
-            for _ in range(10):
-                self.client.get(list_url)
-                time.sleep(0.1)
+            client = APIClient()  # Создаём отдельный клиент для потока
+            try:
+                for _ in range(10):
+                    client.get(list_url)
+                    time.sleep(0.1)
+            finally:
+                connection.close()
 
-        # Запускаем создание страниц и запросы параллельно
-        create_thread = Thread(target=create_pages)
-        request_thread = Thread(target=make_requests)
-
-        create_thread.start()
-        request_thread.start()
-
-        create_thread.join()
-        request_thread.join()
+        # Используем ThreadPoolExecutor для управления потоками
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+            create_future = executor.submit(create_pages)
+            request_future = executor.submit(make_requests)
+            concurrent.futures.wait([create_future, request_future])
 
         # Проверяем финальное состояние
         final_response = self.client.get(list_url)

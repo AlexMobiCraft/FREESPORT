@@ -1,0 +1,209 @@
+"""
+Тесты ActiveBannersView — Story 32.1 Review Follow-ups
+
+Покрытие:
+- 5-2: Caching and filtering by type in ActiveBannersView
+- 5-3: Query param ?type=hero|marketing
+- 7-1: Cache key collision fix — роли изолированы в кеше
+"""
+
+import pytest
+from django.contrib.auth import get_user_model
+from django.core.cache import cache
+from rest_framework.test import APIClient
+from rest_framework_simplejwt.tokens import RefreshToken
+
+from apps.banners.factories import BannerFactory
+from apps.banners.models import Banner
+
+User = get_user_model()
+
+
+@pytest.mark.django_db
+class TestActiveBannersViewTypeFilter:
+    """5-3: ?type=hero|marketing query param filtering."""
+
+    def setup_method(self):
+        self.client = APIClient()
+        cache.clear()
+
+    def test_list_without_type_returns_all(self):
+        """Без ?type возвращаются все активные баннеры."""
+        BannerFactory(type=Banner.BannerType.HERO, show_to_guests=True)
+        BannerFactory(type=Banner.BannerType.MARKETING, show_to_guests=True)
+        response = self.client.get("/api/v1/banners/")
+        assert response.status_code == 200
+        assert len(response.data) == 2
+
+    def test_filter_by_type_hero(self):
+        """?type=hero возвращает только Hero баннеры."""
+        BannerFactory(type=Banner.BannerType.HERO, show_to_guests=True)
+        BannerFactory(type=Banner.BannerType.MARKETING, show_to_guests=True)
+        response = self.client.get("/api/v1/banners/", {"type": "hero"})
+        assert response.status_code == 200
+        assert len(response.data) == 1
+        assert response.data[0]["type"] == "hero"
+
+    def test_filter_by_type_marketing(self):
+        """?type=marketing возвращает только Marketing баннеры."""
+        BannerFactory(type=Banner.BannerType.HERO, show_to_guests=True)
+        BannerFactory(type=Banner.BannerType.MARKETING, show_to_guests=True)
+        response = self.client.get("/api/v1/banners/", {"type": "marketing"})
+        assert response.status_code == 200
+        assert len(response.data) == 1
+        assert response.data[0]["type"] == "marketing"
+
+    def test_filter_by_invalid_type_ignored(self):
+        """?type=invalid — невалидный type игнорируется, возвращаются все баннеры."""
+        BannerFactory(type=Banner.BannerType.HERO, show_to_guests=True)
+        response = self.client.get("/api/v1/banners/", {"type": "invalid"})
+        assert response.status_code == 200
+        assert len(response.data) == 1  # invalid type ignored, returns all
+
+    def test_invalid_type_does_not_create_cache_key(self):
+        """?type=invalid НЕ создаёт отдельный ключ кеша (cache flooding prevention)."""
+        BannerFactory(type=Banner.BannerType.HERO, show_to_guests=True)
+        self.client.get("/api/v1/banners/", {"type": "random_attack_value"})
+        assert cache.get("banners:list:random_attack_value:guest") is None
+        assert cache.get("banners:list:all:guest") is not None
+
+
+@pytest.mark.django_db
+class TestActiveBannersViewCaching:
+    """5-2: Caching by type in ActiveBannersView."""
+
+    def setup_method(self):
+        self.client = APIClient()
+        cache.clear()
+
+    def test_response_is_cached_for_type(self):
+        """Ответ кешируется под ключом banners:list:{type}:{role}."""
+        BannerFactory(type=Banner.BannerType.HERO, show_to_guests=True)
+        self.client.get("/api/v1/banners/", {"type": "hero"})
+        cached = cache.get("banners:list:hero:guest")
+        assert cached is not None
+
+    def test_response_cached_for_all_when_no_type(self):
+        """Без ?type ответ кешируется под ключом banners:list:all:{role}."""
+        BannerFactory(type=Banner.BannerType.HERO, show_to_guests=True)
+        self.client.get("/api/v1/banners/")
+        cached = cache.get("banners:list:all:guest")
+        assert cached is not None
+
+    def test_cached_response_returned_on_second_call(self):
+        """Второй вызов возвращает кешированные данные."""
+        BannerFactory(type=Banner.BannerType.HERO, show_to_guests=True)
+        response1 = self.client.get("/api/v1/banners/", {"type": "hero"})
+        response2 = self.client.get("/api/v1/banners/", {"type": "hero"})
+        assert response1.data == response2.data
+
+    def test_different_types_cached_separately(self):
+        """hero и marketing кешируются под разными ключами."""
+        BannerFactory(type=Banner.BannerType.HERO, show_to_guests=True)
+        BannerFactory(type=Banner.BannerType.MARKETING, show_to_guests=True)
+        self.client.get("/api/v1/banners/", {"type": "hero"})
+        self.client.get("/api/v1/banners/", {"type": "marketing"})
+        assert cache.get("banners:list:hero:guest") is not None
+        assert cache.get("banners:list:marketing:guest") is not None
+
+    def test_signal_invalidates_cache_after_save(self):
+        """Сохранение нового баннера инвалидирует кеш (через signal)."""
+        BannerFactory(type=Banner.BannerType.HERO, show_to_guests=True)
+        self.client.get("/api/v1/banners/", {"type": "hero"})
+        assert cache.get("banners:list:hero:guest") is not None
+        # Создаём новый баннер — signal должен очистить кеш
+        BannerFactory(type=Banner.BannerType.HERO, show_to_guests=True)
+        assert cache.get("banners:list:hero:guest") is None
+
+
+@pytest.mark.django_db
+class TestActiveBannersViewRoleIsolation:
+    """7-1: Разные роли получают разные кеши — гость не видит оптовые баннеры."""
+
+    def setup_method(self):
+        cache.clear()
+
+    def _make_authenticated_client(self, user):
+        """Создаёт APIClient с JWT для данного пользователя."""
+        client = APIClient()
+        refresh = RefreshToken.for_user(user)
+        client.credentials(HTTP_AUTHORIZATION=f"Bearer {str(refresh.access_token)}")
+        return client
+
+    def test_guest_does_not_see_wholesale_banners(self):
+        """Гость не видит баннеры для оптовиков."""
+        BannerFactory(
+            type=Banner.BannerType.HERO,
+            show_to_guests=False,
+            show_to_wholesale=True,
+        )
+        guest_client = APIClient()
+        response = guest_client.get("/api/v1/banners/")
+        assert response.status_code == 200
+        assert len(response.data) == 0
+
+    def test_wholesale_user_sees_wholesale_banners(self):
+        """Оптовик видит баннеры для оптовиков."""
+        BannerFactory(
+            type=Banner.BannerType.HERO,
+            show_to_guests=False,
+            show_to_wholesale=True,
+        )
+        wholesale_user = User.objects.create_user(
+            email="wholesale@test.local", password="testpass123", role="wholesale_level1"
+        )
+        client = self._make_authenticated_client(wholesale_user)
+        response = client.get("/api/v1/banners/")
+        assert response.status_code == 200
+        assert len(response.data) == 1
+
+    def test_guest_cache_does_not_leak_to_wholesale(self):
+        """Кеш гостя не утекает к оптовику (и наоборот)."""
+        # Баннер только для гостей
+        BannerFactory(
+            type=Banner.BannerType.HERO,
+            show_to_guests=True,
+            show_to_wholesale=False,
+        )
+        # Баннер только для оптовиков
+        BannerFactory(
+            type=Banner.BannerType.MARKETING,
+            show_to_guests=False,
+            show_to_wholesale=True,
+        )
+
+        guest_client = APIClient()
+        wholesale_user = User.objects.create_user(
+            email="wholesale_leak@test.local", password="testpass123", role="wholesale_level1"
+        )
+        wholesale_client = self._make_authenticated_client(wholesale_user)
+
+        # Гость запрашивает баннеры — кешируется под guest
+        guest_response = guest_client.get("/api/v1/banners/")
+        assert len(guest_response.data) == 1
+        assert guest_response.data[0]["type"] == "hero"
+
+        # Оптовик запрашивает баннеры — свой кеш, не из guest
+        wholesale_response = wholesale_client.get("/api/v1/banners/")
+        assert len(wholesale_response.data) == 1
+        assert wholesale_response.data[0]["type"] == "marketing"
+
+    def test_different_roles_cached_independently(self):
+        """Каждая роль получает свой ключ кеша."""
+        BannerFactory(
+            type=Banner.BannerType.HERO,
+            show_to_guests=True,
+            show_to_authenticated=True,
+        )
+
+        guest_client = APIClient()
+        retail_user = User.objects.create_user(
+            email="retail_cache@test.local", password="testpass123", role="retail"
+        )
+        retail_client = self._make_authenticated_client(retail_user)
+
+        guest_client.get("/api/v1/banners/")
+        retail_client.get("/api/v1/banners/")
+
+        assert cache.get("banners:list:all:guest") is not None
+        assert cache.get("banners:list:all:retail") is not None

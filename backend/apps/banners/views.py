@@ -4,18 +4,13 @@ API views для баннеров
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
-from drf_spectacular.utils import OpenApiExample, extend_schema
+from drf_spectacular.utils import OpenApiExample, OpenApiParameter, extend_schema
 from rest_framework import permissions, viewsets
 from rest_framework.request import Request
 from rest_framework.response import Response
 
-from .models import Banner
+from . import services
 from .serializers import BannerSerializer
-
-if TYPE_CHECKING:
-    from django.db.models import QuerySet
 
 
 class ActiveBannersView(viewsets.ViewSet):
@@ -35,9 +30,19 @@ class ActiveBannersView(viewsets.ViewSet):
             "Фильтрация:\n"
             "- Только активные баннеры (is_active=True)\n"
             "- В пределах дат показа (start_date/end_date)\n"
-            "- По роли пользователя из JWT токена или гость\n\n"
+            "- По роли пользователя из JWT токена или гость\n"
+            "- По типу баннера через ?type=hero|marketing\n\n"
             "Сортировка: по приоритету (DESC)"
         ),
+        parameters=[
+            OpenApiParameter(
+                name="type",
+                description="Фильтр по типу баннера: hero или marketing",
+                required=False,
+                type=str,
+                enum=["hero", "marketing"],
+            ),
+        ],
         tags=["Banners"],
         responses={
             200: BannerSerializer(many=True),
@@ -50,6 +55,7 @@ class ActiveBannersView(viewsets.ViewSet):
                 value=[
                     {
                         "id": 1,
+                        "type": "hero",
                         "title": "Новая коллекция 2025",
                         "subtitle": "Эксклюзивные новинки для профессионалов",
                         "image_url": ("http://example.com/media/banners/2025/01/hero.webp"),
@@ -59,6 +65,7 @@ class ActiveBannersView(viewsets.ViewSet):
                     },
                     {
                         "id": 2,
+                        "type": "marketing",
                         "title": "Специальные цены для оптовиков",
                         "subtitle": "Скидки до 30% на весь ассортимент",
                         "image_url": ("http://example.com/media/banners/2025/01/" "wholesale.webp"),
@@ -81,7 +88,18 @@ class ActiveBannersView(viewsets.ViewSet):
         Returns:
             Response с сериализованными баннерами
         """
-        user = request.user if request.user.is_authenticated else None
-        banners: QuerySet[Banner] = Banner.get_for_user(user)
+        banner_type = services.validate_banner_type(request.query_params.get("type"))
+        role_key = services.get_role_key(request.user)
+        cache_key = services.build_cache_key(banner_type, role_key)
+
+        cached_data = services.get_cached_banners(cache_key)
+        if cached_data is not None:
+            return Response(cached_data)
+
+        banners = services.get_active_banners_queryset(request.user, banner_type)
         serializer = BannerSerializer(banners, many=True, context={"request": request})
-        return Response(serializer.data)
+        data = serializer.data
+
+        services.cache_banner_response(cache_key, data)
+
+        return Response(data)

@@ -27,6 +27,7 @@ class BannerSerializer(serializers.ModelSerializer):
         model = Banner
         fields = [
             "id",
+            "type",
             "title",
             "subtitle",
             "image_url",

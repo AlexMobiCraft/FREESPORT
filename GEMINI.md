@@ -222,19 +222,19 @@ The project follows the classic testing pyramid model, prioritizing fast feedbac
 
 **Backend Test Commands**
 
-> [!TIP]
-> **Recommended:** Run tests via Docker to ensure environment consistency.
+- **CRITICAL**: Все тесты бекенда и команды управления (миграции и т.д.) ДОЛЖНЫ запускаться ТОЛЬКО через Docker для обеспечения согласованности окружения.
+- **Command**: `docker compose --env-file .env -f docker/docker-compose.yml exec backend pytest [args]`
 
 ```bash
 # Run all tests (standard command ignores legacy)
-docker compose exec backend pytest --ignore=tests/legacy
+docker compose --env-file .env -f docker/docker-compose.yml exec backend pytest --ignore=tests/legacy
 
 # Run unit or integration tests only
-docker compose exec backend pytest -m unit
-docker compose exec backend pytest -m integration
+docker compose --env-file .env -f docker/docker-compose.yml exec backend pytest -m unit
+docker compose --env-file .env -f docker/docker-compose.yml exec backend pytest -m integration
 
 # Generate coverage report
-docker compose exec backend pytest --cov=apps
+docker compose --env-file .env -f docker/docker-compose.yml exec backend pytest --cov=apps
 ```
 
 **Frontend Test Commands**

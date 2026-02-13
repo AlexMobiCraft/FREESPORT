@@ -186,6 +186,11 @@ class Banner(models.Model):
                 {"image": "Изображение обязательно для маркетинговых баннеров."}
             )
 
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        """Вызывает full_clean() перед сохранением для обеспечения валидации."""
+        self.full_clean()
+        super().save(*args, **kwargs)
+
     @property
     def is_scheduled_active(self) -> bool:
         """

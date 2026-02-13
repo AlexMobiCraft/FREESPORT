@@ -84,3 +84,45 @@ class TestBannerTypeField:
         banner = BannerFactory()
         banner.refresh_from_db()
         assert banner.type == Banner.BannerType.HERO
+
+
+@pytest.mark.django_db
+class TestBannerSaveCallsFullClean:
+    """5-4: save() вызывает full_clean() для валидации на уровне модели."""
+
+    def test_save_marketing_without_image_raises_error(self):
+        """save() Marketing баннера без image должен вызвать ValidationError."""
+        banner = Banner(
+            title="Test Marketing",
+            subtitle="Test",
+            cta_link="/test",
+            type=Banner.BannerType.MARKETING,
+        )
+        with pytest.raises(ValidationError) as exc_info:
+            banner.save()
+        assert "image" in exc_info.value.message_dict
+
+    def test_save_hero_without_image_succeeds(self):
+        """save() Hero баннера без image проходит (image optional для Hero)."""
+        banner = Banner(
+            title="Test Hero",
+            subtitle="Test",
+            cta_link="/test",
+            type=Banner.BannerType.HERO,
+        )
+        banner.save()
+        assert banner.pk is not None
+
+    def test_save_marketing_with_image_succeeds(self):
+        """save() Marketing баннера с image проходит."""
+        from apps.banners.factories import generate_test_image
+
+        banner = Banner(
+            title="Test Marketing OK",
+            subtitle="Test",
+            cta_link="/test",
+            type=Banner.BannerType.MARKETING,
+            image=generate_test_image(),
+        )
+        banner.save()
+        assert banner.pk is not None

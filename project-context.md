@@ -35,7 +35,7 @@ FREESPORT is a full-stack, API-first e-commerce platform designed for both B2B a
 - **Architecture**: `_bmad-output/planning-artifacts/architecture.md`
 - **PRD**: `_bmad-output/planning-artifacts/refined-prd.md`
 - **Readiness Report**: `_bmad-output/planning-artifacts/implementation-readiness-report-2026-01-18.md`
-- **Testing**: Pytest (Backend), Vitest & Playwright (Frontend).
+- **Testing**: Pytest (Backend) - **CRITICAL: Always use Docker**, Vitest & Playwright (Frontend).
 - **Technical Documentation**: Exhaustive scan of codebase completed on 2026-01-18. Master index: `docs/index.md`.
 
 ## Implementation Status
