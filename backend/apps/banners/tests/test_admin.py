@@ -56,19 +56,16 @@ class TestBannerAdminFormValidation:
         # full_clean не должен бросить исключение
         banner.full_clean()
 
-    def test_hero_banner_without_image_not_marketing_error(self):
-        """Hero баннер без image НЕ получает ошибку о маркетинговых баннерах."""
+    def test_hero_banner_without_image_is_valid(self):
+        """Hero баннер без image теперь валиден (image blank=True)."""
         banner = Banner(
             title="Test Hero",
             subtitle="Test",
             cta_link="/test",
             type=Banner.BannerType.HERO,
         )
-        with pytest.raises(ValidationError) as exc_info:
-            banner.full_clean()
-        # Ошибка image есть (поле обязательно), но не наша кастомная
-        error_messages = str(exc_info.value)
-        assert "маркетинговых" not in error_messages
+        # full_clean не должен бросать ошибку, т.к. image теперь blank=True
+        banner.full_clean()
 
 
 @pytest.mark.django_db

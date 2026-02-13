@@ -58,6 +58,16 @@ class TestBannerTypeField:
         field = Banner._meta.get_field("type")
         assert field.blank is False
 
+    def test_image_field_optional(self):
+        """image поле имеет blank=True (AC: optional for Hero)."""
+        field = Banner._meta.get_field("image")
+        assert field.blank is True
+
+    def test_cta_text_field_optional(self):
+        """cta_text поле имеет blank=True."""
+        field = Banner._meta.get_field("cta_text")
+        assert field.blank is True
+
     def test_type_field_max_length(self):
         """type поле max_length=20."""
         field = Banner._meta.get_field("type")

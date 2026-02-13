@@ -46,6 +46,7 @@ class Banner(models.Model):
         models.ImageField(
             "Изображение",
             upload_to="promos/%Y/%m/",
+            blank=True,
             help_text="Рекомендуемый размер: 1920×600px",
         ),
     )

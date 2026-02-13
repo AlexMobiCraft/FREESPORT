@@ -23,7 +23,7 @@ class BannerAdmin(admin.ModelAdmin):
         "title",
         "type",
         "image_preview",
-        "is_active",
+        "get_is_active_display",
         "priority",
         "target_groups_display",
         "start_date",
@@ -111,3 +111,8 @@ class BannerAdmin(admin.ModelAdmin):
             groups.append("Федерации")
 
         return ", ".join(groups) if groups else "Не настроено"
+
+    @admin.display(description="Статус (с учетом дат)", boolean=True)
+    def get_is_active_display(self, obj: Banner) -> bool:
+        """Отображает реальный статус активности с учетом расписания"""
+        return obj.is_scheduled_active

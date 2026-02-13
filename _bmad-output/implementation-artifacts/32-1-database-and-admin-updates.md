@@ -1,6 +1,6 @@
 # Story 32.1: Database and Admin Updates
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -88,6 +88,10 @@ Antigravity (Gemini 2.0 Pro)
     - `tests/test_admin.py`: Admin validation logic (clean method), filters.
     - `tests/test_signals.py`: Cache invalidation logic.
     - 25 tests passed successfully.
+- **Senior Developer Review (AI) Follow-ups:**
+    - Updated `Banner` model: `image` and `cta_text` are now optional (`blank=True`), enforcing `image` requirement for Marketing banners only via validation logic.
+    - Updated `BannerAdmin`: Replaced `is_active` with `get_is_active_display` to show real availability status (including schedule).
+    - Expanded tests to cover optional fields and new validation logic.
 
 ### File List
 
@@ -95,6 +99,10 @@ Antigravity (Gemini 2.0 Pro)
 - backend/apps/banners/admin.py
 - backend/apps/banners/signals.py (new)
 - backend/apps/banners/apps.py
+- backend/apps/banners/migrations/0002_alter_banner_image.py
+- backend/apps/banners/migrations/0003_banner_type.py
+- backend/apps/banners/migrations/0004_alter_banner_cta_text.py
+- backend/apps/banners/migrations/0005_alter_banner_image.py
 - backend/apps/banners/tests/test_models.py (new)
 - backend/apps/banners/tests/test_admin.py (new)
 - backend/apps/banners/tests/test_signals.py (new)
