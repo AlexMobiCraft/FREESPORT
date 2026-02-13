@@ -1,6 +1,6 @@
 # Story 32.3: Frontend Carousel Logic (Hook)
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -32,25 +32,27 @@ so that I can easily implement the marketing banner slider and potentially refac
     - **Given** the hook usage,
     - **Then** it exposes reactive state for `selectedIndex` and `scrollSnaps` (for dot navigation).
     - **And** it exposes `canScrollPrev` / `canScrollNext` booleans.
+    - **And** it provides `onDotButtonClick` for direct navigation to a slide.
 
 5.  **Type Safety**:
     - **Then** the hook is fully typed with TypeScript.
 
 ## Tasks / Subtasks
 
-- [ ] **Setup & Dependencies**
-    - [ ] Install `embla-carousel-react` (Latest Stable: ^8.x).
-    - [ ] Install `embla-carousel-autoplay`.
+- [x] **Setup & Dependencies**
+    - [x] Install `embla-carousel-react` (Latest Stable: ^8.x).
+    - [x] Install `embla-carousel-autoplay`.
 
-- [ ] **Implementation: useBannerCarousel**
-    - [ ] Create `frontend/src/hooks/useBannerCarousel.ts`.
-    - [ ] Implement Embla initialization with options (loop: true, align: 'center'/'start').
-    - [ ] Integrate Autoplay plugin with stop-on-interaction logic.
-    - [ ] Expose API: `ref`, `scrollNext`, `scrollPrev`, `selectedIndex`, `scrollSnaps`, `onDotButtonClick`.
+- [x] **Implementation: useBannerCarousel**
+    - [x] Create `frontend/src/hooks/useBannerCarousel.ts`.
+    - [x] Implement Embla initialization with options (loop: true, align: 'center'/'start').
+    - [x] Integrate Autoplay plugin with stop-on-interaction logic.
+    - [x] Expose API: `ref`, `scrollNext`, `scrollPrev`, `selectedIndex`, `scrollSnaps`, `onDotButtonClick`.
+    - [x] Add event listeners to Embla instance to sync `selectedIndex` state on 'select' and 'init' events.
 
-- [ ] **Testing**
-    - [ ] Create unit tests `frontend/src/hooks/__tests__/useBannerCarousel.test.ts` (using `renderHook` from `@testing-library/react`).
-    - [ ] Verify initial state and basic API presence.
+- [x] **Testing**
+    - [x] Create unit tests `frontend/src/hooks/__tests__/useBannerCarousel.test.ts` (using `renderHook` from `@testing-library/react`).
+    - [x] Verify initial state and basic API presence.
 
 ## Dev Notes
 
@@ -78,7 +80,19 @@ so that I can easily implement the marketing banner slider and potentially refac
 ## Dev Agent Record
 
 ### Agent Model Used
-Antigravity (Google DeepMind)
+Claude Opus 4.5 (Anthropic)
+
+### Implementation Notes (2026-02-13)
+- Installed `embla-carousel-react@8.6.0` and `embla-carousel-autoplay@8.6.0`
+- Created `useBannerCarousel` hook with full TypeScript typing
+- Implemented RED-GREEN-REFACTOR cycle:
+  - RED: Created 18 unit tests covering initial state, API methods, options, event listeners, type safety
+  - GREEN: Implemented hook with all required functionality
+  - REFACTOR: Formatted code with Prettier, verified ESLint compliance
+- Hook exposes: `emblaRef`, `selectedIndex`, `scrollSnaps`, `canScrollPrev`, `canScrollNext`, `scrollNext`, `scrollPrev`, `onDotButtonClick`
+- Autoplay plugin integrated with `stopOnInteraction` and `stopOnMouseEnter` options
+- Event listeners registered for 'init', 'select', and 'reInit' events
+- All 18 new tests pass; full hooks test suite (40 tests) passes
 
 ### Completion Notes List
 - Validated that `embla-carousel-react` is the best fit.
@@ -86,6 +100,8 @@ Antigravity (Google DeepMind)
 - Added specific requirement for Autoplay plugin.
 
 ### File List
-- frontend/package.json
-- frontend/src/hooks/useBannerCarousel.ts
-- frontend/src/hooks/__tests__/useBannerCarousel.test.ts
+- frontend/package.json (modified - added embla-carousel dependencies)
+- frontend/package-lock.json (modified - dependency lock)
+- frontend/src/hooks/useBannerCarousel.ts (created)
+- frontend/src/hooks/__tests__/useBannerCarousel.test.ts (created)
+- frontend/src/hooks/index.ts (modified - added exports)
