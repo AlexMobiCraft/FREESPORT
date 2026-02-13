@@ -59,6 +59,11 @@ so that I can manage promotional content separately from Hero banners.
 - [x] Review Follow-ups (AI Final) <!-- id: 8 -->
   - [x] [AI-Review][Medium] Refactor `_ALL_ROLE_KEYS` in `apps.banners.services` to import directly from `apps.users.models.User.ROLE_CHOICES` to prevent drift. <!-- id: 8-1 -->
   - [x] [AI-Review][Low] Extract cache key pattern into a constant `CACHE_KEY_PATTERN` in `apps.banners.services`. <!-- id: 8-2 -->
+- [ ] Review Follow-ups (Code Review 4) <!-- id: 9 -->
+  - [ ] [AI-Review][Medium] Fix Cache Temporal Conflict: `BANNER_CACHE_TTL` allows stale data up to 15m (use shorter TTL or precise invalidation). <!-- id: 9-1 -->
+  - [ ] [AI-Review][Low] Add Temporal Unit Tests: Verify `start_date`/`end_date` logic in `Banner` model with mocked time. <!-- id: 9-2 -->
+  - [ ] [AI-Review][Low] Refactor Serializer: Remove fragile `read_only_fields = fields` definition in `BannerSerializer`. <!-- id: 9-3 -->
+  - [ ] [AI-Review][Low] Fix OpenAPI Examples: Remove hardcoded `http://example.com` URLs in `ActiveBannersView`. <!-- id: 9-4 -->
 
 
 ## Dev Notes
