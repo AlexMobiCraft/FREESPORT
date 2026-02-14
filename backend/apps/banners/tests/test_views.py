@@ -27,13 +27,14 @@ class TestActiveBannersViewTypeFilter:
         self.client = APIClient()
         cache.clear()
 
-    def test_list_without_type_returns_all(self):
-        """Без ?type возвращаются все активные баннеры."""
+    def test_list_without_type_returns_hero_only(self):
+        """Без ?type возвращаются только hero баннеры (AC1, FR6)."""
         BannerFactory(type=Banner.BannerType.HERO, show_to_guests=True)
         BannerFactory(type=Banner.BannerType.MARKETING, show_to_guests=True)
         response = self.client.get("/api/v1/banners/")
         assert response.status_code == 200
-        assert len(response.data) == 2
+        assert len(response.data) == 1
+        assert response.data[0]["type"] == "hero"
 
     def test_filter_by_type_hero(self):
         """?type=hero возвращает только Hero баннеры."""
@@ -53,19 +54,21 @@ class TestActiveBannersViewTypeFilter:
         assert len(response.data) == 1
         assert response.data[0]["type"] == "marketing"
 
-    def test_filter_by_invalid_type_ignored(self):
-        """?type=invalid — невалидный type игнорируется, возвращаются все баннеры."""
+    def test_filter_by_invalid_type_defaults_to_hero(self):
+        """?type=invalid — невалидный type → default hero (AC1)."""
         BannerFactory(type=Banner.BannerType.HERO, show_to_guests=True)
+        BannerFactory(type=Banner.BannerType.MARKETING, show_to_guests=True)
         response = self.client.get("/api/v1/banners/", {"type": "invalid"})
         assert response.status_code == 200
-        assert len(response.data) == 1  # invalid type ignored, returns all
+        assert len(response.data) == 1
+        assert response.data[0]["type"] == "hero"
 
     def test_invalid_type_does_not_create_cache_key(self):
         """?type=invalid НЕ создаёт отдельный ключ кеша (cache flooding prevention)."""
         BannerFactory(type=Banner.BannerType.HERO, show_to_guests=True)
         self.client.get("/api/v1/banners/", {"type": "random_attack_value"})
         assert cache.get("banners:list:random_attack_value:guest") is None
-        assert cache.get("banners:list:all:guest") is not None
+        assert cache.get("banners:list:hero:guest") is not None
 
 
 @pytest.mark.django_db
@@ -83,11 +86,11 @@ class TestActiveBannersViewCaching:
         cached = cache.get("banners:list:hero:guest")
         assert cached is not None
 
-    def test_response_cached_for_all_when_no_type(self):
-        """Без ?type ответ кешируется под ключом banners:list:all:{role}."""
+    def test_response_cached_for_hero_when_no_type(self):
+        """Без ?type ответ кешируется под ключом banners:list:hero:{role} (AC1)."""
         BannerFactory(type=Banner.BannerType.HERO, show_to_guests=True)
         self.client.get("/api/v1/banners/")
-        cached = cache.get("banners:list:all:guest")
+        cached = cache.get("banners:list:hero:guest")
         assert cached is not None
 
     def test_cached_response_returned_on_second_call(self):
@@ -159,17 +162,19 @@ class TestActiveBannersViewRoleIsolation:
 
     def test_guest_cache_does_not_leak_to_wholesale(self):
         """Кеш гостя не утекает к оптовику (и наоборот)."""
-        # Баннер только для гостей
-        BannerFactory(
+        # Hero баннер только для гостей
+        guest_banner = BannerFactory(
             type=Banner.BannerType.HERO,
             show_to_guests=True,
             show_to_wholesale=False,
+            priority=10,
         )
-        # Баннер только для оптовиков
-        BannerFactory(
-            type=Banner.BannerType.MARKETING,
+        # Hero баннер только для оптовиков
+        wholesale_banner = BannerFactory(
+            type=Banner.BannerType.HERO,
             show_to_guests=False,
             show_to_wholesale=True,
+            priority=5,
         )
 
         guest_client = APIClient()
@@ -181,12 +186,12 @@ class TestActiveBannersViewRoleIsolation:
         # Гость запрашивает баннеры — кешируется под guest
         guest_response = guest_client.get("/api/v1/banners/")
         assert len(guest_response.data) == 1
-        assert guest_response.data[0]["type"] == "hero"
+        assert guest_response.data[0]["id"] == guest_banner.id
 
         # Оптовик запрашивает баннеры — свой кеш, не из guest
         wholesale_response = wholesale_client.get("/api/v1/banners/")
         assert len(wholesale_response.data) == 1
-        assert wholesale_response.data[0]["type"] == "marketing"
+        assert wholesale_response.data[0]["id"] == wholesale_banner.id
 
     def test_different_roles_cached_independently(self):
         """Каждая роль получает свой ключ кеша."""
@@ -205,5 +210,50 @@ class TestActiveBannersViewRoleIsolation:
         guest_client.get("/api/v1/banners/")
         retail_client.get("/api/v1/banners/")
 
-        assert cache.get("banners:list:all:guest") is not None
-        assert cache.get("banners:list:all:retail") is not None
+        assert cache.get("banners:list:hero:guest") is not None
+        assert cache.get("banners:list:hero:retail") is not None
+
+
+@pytest.mark.django_db
+class TestActiveBannersViewMarketingLimit:
+    """AC2: ?type=marketing лимит 5 баннеров (FR12)."""
+
+    def setup_method(self):
+        self.client = APIClient()
+        cache.clear()
+
+    def test_marketing_returns_max_5_banners(self):
+        """Создаём 6 marketing баннеров — API возвращает не более 5 (FR12)."""
+        for i in range(6):
+            BannerFactory(
+                type=Banner.BannerType.MARKETING,
+                show_to_guests=True,
+                priority=i,
+            )
+        response = self.client.get("/api/v1/banners/", {"type": "marketing"})
+        assert response.status_code == 200
+        assert len(response.data) == 5
+
+    def test_hero_not_limited(self):
+        """Hero баннеры НЕ ограничены лимитом 5."""
+        for i in range(7):
+            BannerFactory(
+                type=Banner.BannerType.HERO,
+                show_to_guests=True,
+                priority=i,
+            )
+        response = self.client.get("/api/v1/banners/", {"type": "hero"})
+        assert response.status_code == 200
+        assert len(response.data) == 7
+
+    def test_marketing_fewer_than_limit_returns_all(self):
+        """Если marketing баннеров меньше 5, возвращаются все."""
+        for i in range(3):
+            BannerFactory(
+                type=Banner.BannerType.MARKETING,
+                show_to_guests=True,
+                priority=i,
+            )
+        response = self.client.get("/api/v1/banners/", {"type": "marketing"})
+        assert response.status_code == 200
+        assert len(response.data) == 3

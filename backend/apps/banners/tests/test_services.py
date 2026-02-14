@@ -80,7 +80,7 @@ class TestGetRoleKey:
 
 
 class TestValidateBannerType:
-    """7-2: validate_banner_type корректно фильтрует типы."""
+    """7-2: validate_banner_type корректно фильтрует типы. Default='hero' (AC1)."""
 
     def test_valid_hero(self):
         assert validate_banner_type("hero") == "hero"
@@ -88,14 +88,14 @@ class TestValidateBannerType:
     def test_valid_marketing(self):
         assert validate_banner_type("marketing") == "marketing"
 
-    def test_invalid_type_returns_none(self):
-        assert validate_banner_type("invalid") is None
+    def test_invalid_type_returns_hero(self):
+        assert validate_banner_type("invalid") == "hero"
 
-    def test_none_returns_none(self):
-        assert validate_banner_type(None) is None
+    def test_none_returns_hero(self):
+        assert validate_banner_type(None) == "hero"
 
-    def test_empty_string_returns_none(self):
-        assert validate_banner_type("") is None
+    def test_empty_string_returns_hero(self):
+        assert validate_banner_type("") == "hero"
 
 
 class TestBuildCacheKey:
@@ -107,11 +107,11 @@ class TestBuildCacheKey:
     def test_marketing_wholesale(self):
         assert build_cache_key("marketing", "wholesale_level1") == "banners:list:marketing:wholesale_level1"
 
-    def test_all_types_guest(self):
-        assert build_cache_key(None, "guest") == "banners:list:all:guest"
+    def test_hero_retail(self):
+        assert build_cache_key("hero", "retail") == "banners:list:hero:retail"
 
-    def test_all_types_retail(self):
-        assert build_cache_key(None, "retail") == "banners:list:all:retail"
+    def test_marketing_guest(self):
+        assert build_cache_key("marketing", "guest") == "banners:list:marketing:guest"
 
     def test_different_roles_produce_different_keys(self):
         """Разные роли дают разные ключи — критично для изоляции."""
@@ -165,15 +165,15 @@ class TestInvalidateBannerCache:
         for role in _ALL_ROLE_KEYS:
             assert cache.get(f"banners:list:hero:{role}") is None
 
-    def test_invalidate_clears_all_keys_for_all_roles(self):
-        """Инвалидация hero также очищает banners:list:all:{role}."""
+    def test_invalidate_marketing_also_clears_hero_keys(self):
+        """Инвалидация marketing также очищает hero-кеш (AC4)."""
         for role in _ALL_ROLE_KEYS:
-            cache.set(f"banners:list:all:{role}", "data")
+            cache.set(f"banners:list:hero:{role}", "data")
 
-        invalidate_banner_cache("hero")
+        invalidate_banner_cache("marketing")
 
         for role in _ALL_ROLE_KEYS:
-            assert cache.get(f"banners:list:all:{role}") is None
+            assert cache.get(f"banners:list:hero:{role}") is None
 
     def test_invalidate_hero_does_not_clear_marketing(self):
         """Инвалидация hero НЕ затрагивает marketing ключи."""
@@ -228,10 +228,10 @@ class TestCacheKeyPattern:
         expected = CACHE_KEY_PATTERN.format(type="hero", role="guest")
         assert key == expected
 
-    def test_build_cache_key_none_type_uses_all(self):
-        """При type=None подставляется 'all'."""
-        key = build_cache_key(None, "retail")
-        expected = CACHE_KEY_PATTERN.format(type="all", role="retail")
+    def test_build_cache_key_marketing_type(self):
+        """build_cache_key формирует ключ для marketing."""
+        key = build_cache_key("marketing", "retail")
+        expected = CACHE_KEY_PATTERN.format(type="marketing", role="retail")
         assert key == expected
 
 
@@ -313,15 +313,15 @@ class TestComputeCacheTTL:
         assert ttl_hero < BANNER_CACHE_TTL  # Hero: ~120с
         assert ttl_marketing == BANNER_CACHE_TTL  # Marketing: 2 часа > 15 мин
 
-    def test_type_filter_none_considers_all(self):
-        """compute_cache_ttl(None) учитывает все типы."""
+    def test_default_type_is_hero(self):
+        """compute_cache_ttl() без аргумента использует hero."""
         now = timezone.now()
         BannerFactory(
             type=Banner.BannerType.HERO,
             end_date=now + timedelta(minutes=2),
             show_to_guests=True,
         )
-        ttl = compute_cache_ttl(None)
+        ttl = compute_cache_ttl()
         assert ttl < BANNER_CACHE_TTL
 
     def test_nearest_boundary_wins(self):
