@@ -838,7 +838,7 @@ describe('useBannerCarousel', () => {
       // Re-render with same values
       rerender({ autoplay: true, delay: 5000 });
 
-      // Autoplay should NOT be called again (stable instance via useMemo)
+      // Autoplay should NOT be called again (stable instance via useRef)
       expect(mockAutoplay.mock.calls.length).toBe(initialAutoplayCallCount);
     });
 
@@ -1000,6 +1000,84 @@ describe('useBannerCarousel', () => {
       expect(mockAutoplay).toHaveBeenCalledWith(
         expect.objectContaining({ delay: 4000 })
       );
+    });
+  });
+
+  describe('Cleanup: Explicit off() Verification', () => {
+    it('should call emblaApi.off for reInit/onInit, select/onSelect, reInit/onSelect on unmount', async () => {
+      const { unmount } = renderHook(() => useBannerCarousel());
+
+      await waitFor(() => {
+        expect(mockEmblaApi.on).toHaveBeenCalled();
+      });
+
+      unmount();
+
+      // Verify exact off() calls matching the 3 subscriptions
+      const offCalls = mockEmblaApi.off.mock.calls.map(c => c[0]);
+      expect(offCalls.filter(e => e === 'reInit').length).toBe(2);
+      expect(offCalls.filter(e => e === 'select').length).toBe(1);
+      expect(offCalls.length).toBe(3);
+    });
+  });
+
+  describe('AC3 Behavioral: Autoplay Plugin Flow', () => {
+    it('should pass the autoplay plugin instance to useEmblaCarousel in plugins array', () => {
+      mockAutoplay.mockClear();
+      const mockPlugin = { name: 'autoplay', init: vi.fn(), destroy: vi.fn() };
+      mockAutoplay.mockReturnValueOnce(mockPlugin);
+
+      renderHook(() => useBannerCarousel({ autoplay: true }));
+
+      const lastCall = mockUseEmblaCarousel.mock.calls[mockUseEmblaCarousel.mock.calls.length - 1];
+      expect(lastCall[1]).toContain(mockPlugin);
+    });
+
+    it('should pass empty plugins array when autoplay is disabled', () => {
+      mockAutoplay.mockClear();
+
+      renderHook(() => useBannerCarousel({ autoplay: false }));
+
+      const lastCall = mockUseEmblaCarousel.mock.calls[mockUseEmblaCarousel.mock.calls.length - 1];
+      expect(lastCall[1]).toEqual([]);
+    });
+
+    it('should transition plugins from active to empty when autoplay is disabled', () => {
+      mockAutoplay.mockClear();
+
+      const { rerender } = renderHook(
+        ({ autoplay }) => useBannerCarousel({ autoplay }),
+        { initialProps: { autoplay: true } }
+      );
+
+      // Verify plugin is active
+      let lastCall = mockUseEmblaCarousel.mock.calls[mockUseEmblaCarousel.mock.calls.length - 1];
+      expect(lastCall[1].length).toBe(1);
+
+      // Disable autoplay
+      rerender({ autoplay: false });
+
+      lastCall = mockUseEmblaCarousel.mock.calls[mockUseEmblaCarousel.mock.calls.length - 1];
+      expect(lastCall[1]).toEqual([]);
+    });
+
+    it('should transition plugins from empty to active when autoplay is enabled', () => {
+      mockAutoplay.mockClear();
+
+      const { rerender } = renderHook(
+        ({ autoplay }) => useBannerCarousel({ autoplay }),
+        { initialProps: { autoplay: false } }
+      );
+
+      // Verify plugins empty
+      let lastCall = mockUseEmblaCarousel.mock.calls[mockUseEmblaCarousel.mock.calls.length - 1];
+      expect(lastCall[1]).toEqual([]);
+
+      // Enable autoplay
+      rerender({ autoplay: true });
+
+      lastCall = mockUseEmblaCarousel.mock.calls[mockUseEmblaCarousel.mock.calls.length - 1];
+      expect(lastCall[1].length).toBe(1);
     });
   });
 

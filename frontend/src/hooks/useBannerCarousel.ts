@@ -5,7 +5,7 @@
  * @see _bmad-output/implementation-artifacts/32-3-frontend-carousel-logic.md
  */
 
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import useEmblaCarousel from 'embla-carousel-react';
 import Autoplay from 'embla-carousel-autoplay';
 import type { EmblaOptionsType, EmblaCarouselType, EmblaPluginType } from 'embla-carousel';
@@ -26,10 +26,10 @@ export interface UseBannerCarouselOptions {
   align?: EmblaOptionsType['align'];
   /**
    * Скорость анимации прокрутки (Embla `speed` option).
-   * Положительное число, определяет скорость scroll momentum.
-   * Embla default: 10. Диапазон: 1-25+ (практический).
+   * Положительное конечное число > 0. Определяет скорость scroll momentum.
+   * Если не задано, используется Embla default (10).
    * Выше = быстрее переход между слайдами.
-   * Невалидные значения (NaN, Infinity, <=0) игнорируются.
+   * Невалидные значения (NaN, Infinity, <=0) игнорируются — используется Embla default.
    */
   speed?: number;
   /** Включить автопрокрутку (default: false) */
@@ -180,18 +180,25 @@ export function useBannerCarousel(options: UseBannerCarouselOptions = {}): UseBa
     [autoplayDelay, stopOnInteraction, stopOnMouseEnter]
   );
 
-  // Create stable autoplay plugin instance - only recreated when options change
-  // This prevents unnecessary Embla reInit and autoplay timer resets
-  const autoplayPlugin = useMemo(
-    () => (autoplay ? Autoplay(autoplayOptions) : null),
-    [autoplay, autoplayOptions]
-  );
+  // Stable Autoplay plugin instance via useRef
+  // useRef guarantees the instance is never dropped between renders
+  // (unlike useMemo, which React may theoretically invalidate)
+  const autoplayPluginRef = useRef<EmblaPluginType | null>(null);
+  const prevAutoplayRef = useRef<boolean | null>(null);
+  const prevOptionsRef = useRef<typeof autoplayOptions | null>(null);
 
-  // Memoize plugins array with stable autoplay reference
+  if (prevAutoplayRef.current !== autoplay || prevOptionsRef.current !== autoplayOptions) {
+    autoplayPluginRef.current = autoplay ? Autoplay(autoplayOptions) : null;
+    prevAutoplayRef.current = autoplay;
+    prevOptionsRef.current = autoplayOptions;
+  }
+
+  // Memoize plugins array with proxy deps matching plugin recreation triggers
   // Uses EMPTY_PLUGINS constant for referential stability when autoplay is disabled
   const plugins = useMemo<EmblaPluginType[]>(
-    () => (autoplayPlugin ? [autoplayPlugin] : EMPTY_PLUGINS),
-    [autoplayPlugin]
+    () => (autoplayPluginRef.current ? [autoplayPluginRef.current] : EMPTY_PLUGINS),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [autoplay, autoplayOptions]
   );
 
   // Initialize Embla Carousel
