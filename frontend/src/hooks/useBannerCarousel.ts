@@ -232,10 +232,11 @@ export function useBannerCarousel(options: UseBannerCarouselOptions = {}): UseBa
   }, [emblaApi]);
 
   /**
-   * Прокрутка к слайду по индексу (для точек навигации)
-   * Игнорирует невалидные индексы (NaN, Infinity, отрицательные, >= snapCount)
+   * Shared runtime-guard for index-based scrolling.
+   * Validates index (NaN, Infinity, negative, >= snapCount) and delegates to emblaApi.scrollTo.
+   * Used by both onDotButtonClick and scrollTo to prevent behavior divergence.
    */
-  const onDotButtonClick = useCallback(
+  const safeScrollTo = useCallback(
     (index: number) => {
       if (!emblaApi || !Number.isFinite(index) || index < 0) return;
       const floored = Math.floor(index);
@@ -245,19 +246,11 @@ export function useBannerCarousel(options: UseBannerCarouselOptions = {}): UseBa
     [emblaApi]
   );
 
-  /**
-   * Прокрутка к слайду по индексу (прямой API)
-   * Игнорирует невалидные индексы (NaN, Infinity, отрицательные, >= snapCount)
-   */
-  const scrollTo = useCallback(
-    (index: number) => {
-      if (!emblaApi || !Number.isFinite(index) || index < 0) return;
-      const floored = Math.floor(index);
-      if (floored >= emblaApi.scrollSnapList().length) return;
-      emblaApi.scrollTo(floored);
-    },
-    [emblaApi]
-  );
+  /** Прокрутка к слайду по индексу (для точек навигации) */
+  const onDotButtonClick = safeScrollTo;
+
+  /** Прокрутка к слайду по индексу (прямой API) */
+  const scrollTo = safeScrollTo;
 
   // Subscribe to Embla events
   // Direct call to onReInit handles initial mount state.

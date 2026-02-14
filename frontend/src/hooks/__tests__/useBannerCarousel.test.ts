@@ -636,7 +636,7 @@ describe('useBannerCarousel', () => {
     });
   });
 
-  describe('Touch/Interaction Behavior (AC2/AC3)', () => {
+  describe('Touch/Swipe Behavior (AC2)', () => {
     it('should explicitly set dragFree: false for 1:1 finger tracking (AC2)', () => {
       renderHook(() => useBannerCarousel({}));
 
@@ -647,69 +647,11 @@ describe('useBannerCarousel', () => {
       expect(emblaOptions.dragFree).toBe(false);
     });
 
-    it('should configure Autoplay to pause on mouse enter (hover pause for AC3)', () => {
-      mockAutoplay.mockClear();
-      renderHook(() =>
-        useBannerCarousel({
-          autoplay: true,
-          stopOnMouseEnter: true,
-        })
-      );
-
-      expect(mockAutoplay).toHaveBeenCalledWith(
-        expect.objectContaining({
-          stopOnMouseEnter: true,
-        })
-      );
-    });
-
-    it('should configure Autoplay to pause on interaction (touch pause for AC3)', () => {
-      mockAutoplay.mockClear();
-      renderHook(() =>
-        useBannerCarousel({
-          autoplay: true,
-          stopOnInteraction: true,
-        })
-      );
-
-      expect(mockAutoplay).toHaveBeenCalledWith(
-        expect.objectContaining({
-          stopOnInteraction: true,
-        })
-      );
-    });
-
-    it('should allow disabling hover pause behavior', () => {
-      mockAutoplay.mockClear();
-      renderHook(() =>
-        useBannerCarousel({
-          autoplay: true,
-          stopOnMouseEnter: false,
-        })
-      );
-
-      expect(mockAutoplay).toHaveBeenCalledWith(
-        expect.objectContaining({
-          stopOnMouseEnter: false,
-        })
-      );
-    });
-
-    it('should allow disabling interaction pause behavior', () => {
-      mockAutoplay.mockClear();
-      renderHook(() =>
-        useBannerCarousel({
-          autoplay: true,
-          stopOnInteraction: false,
-        })
-      );
-
-      expect(mockAutoplay).toHaveBeenCalledWith(
-        expect.objectContaining({
-          stopOnInteraction: false,
-        })
-      );
-    });
+    /**
+     * Pause-on-hover and pause-on-interaction tests consolidated into
+     * "AC3 Behavioral Contract: Auto Cycle and Pause" section
+     * to maintain a single source of truth for AC3 contract verification.
+     */
   });
 
   describe('Behavioral Contract Tests (Mock-based)', () => {
@@ -724,7 +666,9 @@ describe('useBannerCarousel', () => {
      * JSDOM limitations: no layout engine, getBoundingClientRect returns zeros,
      * no IntersectionObserver, no real touch/pointer events.
      *
-     * TODO: Add E2E tests in future story for complete touch/swipe verification.
+     * TODO [DEFERRED → Epic 32 E2E story]: Add Playwright E2E tests for touch/swipe
+     * verification (AC2) and autoplay pause on hover/touch (AC3).
+     * Scope: requires real browser engine; out of scope for hook unit tests.
      */
 
     it('should coordinate multiple API calls correctly', () => {
