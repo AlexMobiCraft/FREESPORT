@@ -140,6 +140,152 @@ describe('useBannerCarousel', () => {
       expect(mockEmblaApi.scrollTo).toHaveBeenCalledWith(2);
     });
 
+    it('should ignore NaN index in onDotButtonClick', () => {
+      const { result } = renderHook(() => useBannerCarousel());
+
+      act(() => {
+        result.current.onDotButtonClick(NaN);
+      });
+
+      expect(mockEmblaApi.scrollTo).not.toHaveBeenCalled();
+    });
+
+    it('should ignore negative index in onDotButtonClick', () => {
+      const { result } = renderHook(() => useBannerCarousel());
+
+      act(() => {
+        result.current.onDotButtonClick(-1);
+      });
+
+      expect(mockEmblaApi.scrollTo).not.toHaveBeenCalled();
+    });
+
+    it('should ignore Infinity index in scrollTo', () => {
+      const { result } = renderHook(() => useBannerCarousel());
+
+      act(() => {
+        result.current.scrollTo(Infinity);
+      });
+
+      expect(mockEmblaApi.scrollTo).not.toHaveBeenCalled();
+    });
+
+    it('should ignore -Infinity index in scrollTo', () => {
+      const { result } = renderHook(() => useBannerCarousel());
+
+      act(() => {
+        result.current.scrollTo(-Infinity);
+      });
+
+      expect(mockEmblaApi.scrollTo).not.toHaveBeenCalled();
+    });
+
+    it('should floor non-integer index in scrollTo', () => {
+      const { result } = renderHook(() => useBannerCarousel());
+
+      act(() => {
+        result.current.scrollTo(1.7);
+      });
+
+      expect(mockEmblaApi.scrollTo).toHaveBeenCalledWith(1);
+    });
+
+    it('should floor non-integer index in onDotButtonClick', () => {
+      const { result } = renderHook(() => useBannerCarousel());
+
+      act(() => {
+        result.current.onDotButtonClick(2.9);
+      });
+
+      expect(mockEmblaApi.scrollTo).toHaveBeenCalledWith(2);
+    });
+
+    it('should ignore out-of-range index in onDotButtonClick (index >= snapCount)', () => {
+      // scrollSnapList returns [0, 1, 2] → valid indices are 0, 1, 2
+      mockEmblaApi.scrollSnapList.mockReturnValue([0, 1, 2]);
+      const { result } = renderHook(() => useBannerCarousel());
+
+      act(() => {
+        result.current.onDotButtonClick(3);
+      });
+
+      expect(mockEmblaApi.scrollTo).not.toHaveBeenCalled();
+    });
+
+    it('should ignore out-of-range index in scrollTo (index >= snapCount)', () => {
+      mockEmblaApi.scrollSnapList.mockReturnValue([0, 1, 2]);
+      const { result } = renderHook(() => useBannerCarousel());
+
+      act(() => {
+        result.current.scrollTo(3);
+      });
+
+      expect(mockEmblaApi.scrollTo).not.toHaveBeenCalled();
+    });
+
+    it('should ignore large out-of-range index in scrollTo', () => {
+      mockEmblaApi.scrollSnapList.mockReturnValue([0, 1, 2]);
+      const { result } = renderHook(() => useBannerCarousel());
+
+      act(() => {
+        result.current.scrollTo(100);
+      });
+
+      expect(mockEmblaApi.scrollTo).not.toHaveBeenCalled();
+    });
+
+    it('should accept max valid index in onDotButtonClick (snapCount - 1)', () => {
+      mockEmblaApi.scrollSnapList.mockReturnValue([0, 1, 2]);
+      const { result } = renderHook(() => useBannerCarousel());
+
+      act(() => {
+        result.current.onDotButtonClick(2);
+      });
+
+      expect(mockEmblaApi.scrollTo).toHaveBeenCalledWith(2);
+    });
+
+    it('should accept max valid index in scrollTo (snapCount - 1)', () => {
+      mockEmblaApi.scrollSnapList.mockReturnValue([0, 1, 2]);
+      const { result } = renderHook(() => useBannerCarousel());
+
+      act(() => {
+        result.current.scrollTo(2);
+      });
+
+      expect(mockEmblaApi.scrollTo).toHaveBeenCalledWith(2);
+    });
+
+    it('should ignore out-of-range floored index (2.9 floors to 2 which is valid, 3.1 floors to 3 which is out-of-range)', () => {
+      mockEmblaApi.scrollSnapList.mockReturnValue([0, 1, 2]);
+      const { result } = renderHook(() => useBannerCarousel());
+
+      // 2.9 → floor(2.9) = 2, valid
+      act(() => {
+        result.current.scrollTo(2.9);
+      });
+      expect(mockEmblaApi.scrollTo).toHaveBeenCalledWith(2);
+
+      mockEmblaApi.scrollTo.mockClear();
+
+      // 3.1 → floor(3.1) = 3, out-of-range
+      act(() => {
+        result.current.scrollTo(3.1);
+      });
+      expect(mockEmblaApi.scrollTo).not.toHaveBeenCalled();
+    });
+
+    it('should handle empty scrollSnapList gracefully (no valid index)', () => {
+      mockEmblaApi.scrollSnapList.mockReturnValue([]);
+      const { result } = renderHook(() => useBannerCarousel());
+
+      act(() => {
+        result.current.scrollTo(0);
+      });
+
+      expect(mockEmblaApi.scrollTo).not.toHaveBeenCalled();
+    });
+
     it('should expose scrollTo method', () => {
       const { result } = renderHook(() => useBannerCarousel());
 
@@ -300,7 +446,7 @@ describe('useBannerCarousel', () => {
   });
 
   describe('Event Listeners', () => {
-    it('should register select and reInit event listeners (init handled via direct call)', async () => {
+    it('should register select and reInit event listeners', async () => {
       renderHook(() => useBannerCarousel());
 
       await waitFor(() => {
@@ -309,21 +455,19 @@ describe('useBannerCarousel', () => {
 
         expect(eventNames).toContain('select');
         expect(eventNames).toContain('reInit');
-        // Note: 'init' subscription removed to avoid duplication with direct calls
       });
     });
 
-    it('should register multiple reInit handlers for onInit and onSelect', async () => {
+    it('should register exactly 2 event handlers (select + reInit)', async () => {
       renderHook(() => useBannerCarousel());
 
       await waitFor(() => {
-        const reInitCalls = mockEmblaApi.on.mock.calls.filter(call => call[0] === 'reInit');
-        // Should have 2 reInit handlers: onInit and onSelect
-        expect(reInitCalls.length).toBe(2);
+        // onSelect for 'select', onReInit for 'reInit' (merged onInit+onSelect)
+        expect(mockEmblaApi.on.mock.calls.length).toBe(2);
       });
     });
 
-    it('should sync nav-state via direct calls on mount (no init subscription needed)', async () => {
+    it('should sync full nav-state via direct onReInit call on mount', async () => {
       // Setup: mock returns specific values
       mockEmblaApi.selectedScrollSnap.mockReturnValue(2);
       mockEmblaApi.canScrollPrev.mockReturnValue(true);
@@ -332,7 +476,7 @@ describe('useBannerCarousel', () => {
 
       const { result } = renderHook(() => useBannerCarousel());
 
-      // Nav state should be synced from direct onInit/onSelect calls
+      // Nav state should be synced from direct onReInit call
       await waitFor(() => {
         expect(result.current.selectedIndex).toBe(2);
         expect(result.current.canScrollPrev).toBe(true);
@@ -385,25 +529,29 @@ describe('useBannerCarousel', () => {
       expect(result.current.canScrollNext).toBe(false);
     });
 
-    it('should update scrollSnaps when reInit event fires', async () => {
+    it('should update scrollSnaps and nav-state when reInit event fires (merged handler)', async () => {
       const { result } = renderHook(() => useBannerCarousel());
 
       await waitFor(() => {
         expect(mockEmblaApi.on).toHaveBeenCalled();
       });
 
-      // Find reInit handler that updates snaps (onInit is called on reInit)
-      const reInitCalls = mockEmblaApi.on.mock.calls.filter(call => call[0] === 'reInit');
-      expect(reInitCalls.length).toBeGreaterThan(0);
+      // Find the single reInit handler (onReInit = merged onInit + onSelect)
+      const reInitCall = mockEmblaApi.on.mock.calls.find(call => call[0] === 'reInit');
+      expect(reInitCall).toBeDefined();
 
-      // Simulate reInit with new snaps
+      // Simulate reInit with new snaps and nav state
       mockEmblaApi.scrollSnapList.mockReturnValue([0, 1]);
+      mockEmblaApi.selectedScrollSnap.mockReturnValue(1);
+      mockEmblaApi.canScrollPrev.mockReturnValue(true);
 
       act(() => {
-        reInitCalls[0][1](mockEmblaApi);
+        reInitCall![1](mockEmblaApi);
       });
 
       expect(result.current.scrollSnaps).toEqual([0, 1]);
+      expect(result.current.selectedIndex).toBe(1);
+      expect(result.current.canScrollPrev).toBe(true);
     });
   });
 
@@ -665,9 +813,9 @@ describe('useBannerCarousel', () => {
         expect(mockEmblaApi.on).toHaveBeenCalled();
       });
 
-      // 3 listeners: reInit (onInit), select (onSelect), reInit (onSelect)
+      // 2 listeners: select (onSelect), reInit (onReInit)
       const onCallCount = mockEmblaApi.on.mock.calls.length;
-      expect(onCallCount).toBe(3);
+      expect(onCallCount).toBe(2);
 
       unmount();
 
@@ -698,7 +846,7 @@ describe('useBannerCarousel', () => {
       });
     });
 
-    it('should unregister reInit handler for onInit on unmount', async () => {
+    it('should unregister single reInit handler (onReInit) on unmount', async () => {
       const { unmount } = renderHook(() => useBannerCarousel());
 
       await waitFor(() => {
@@ -706,12 +854,14 @@ describe('useBannerCarousel', () => {
       });
 
       const reInitOnCalls = mockEmblaApi.on.mock.calls.filter(c => c[0] === 'reInit');
-      expect(reInitOnCalls.length).toBeGreaterThan(0);
+      expect(reInitOnCalls.length).toBe(1);
 
       unmount();
 
       const reInitOffCalls = mockEmblaApi.off.mock.calls.filter(c => c[0] === 'reInit');
-      expect(reInitOffCalls.length).toBe(reInitOnCalls.length);
+      expect(reInitOffCalls.length).toBe(1);
+      // Handler reference should match
+      expect(reInitOffCalls[0][1]).toBe(reInitOnCalls[0][1]);
     });
 
     it('should unregister select handler on unmount', async () => {
@@ -838,7 +988,7 @@ describe('useBannerCarousel', () => {
       // Re-render with same values
       rerender({ autoplay: true, delay: 5000 });
 
-      // Autoplay should NOT be called again (stable instance via useRef)
+      // Autoplay should NOT be called again (stable instance via useMemo)
       expect(mockAutoplay.mock.calls.length).toBe(initialAutoplayCallCount);
     });
 
@@ -1004,7 +1154,7 @@ describe('useBannerCarousel', () => {
   });
 
   describe('Cleanup: Explicit off() Verification', () => {
-    it('should call emblaApi.off for reInit/onInit, select/onSelect, reInit/onSelect on unmount', async () => {
+    it('should call emblaApi.off for select/onSelect and reInit/onReInit on unmount', async () => {
       const { unmount } = renderHook(() => useBannerCarousel());
 
       await waitFor(() => {
@@ -1013,11 +1163,11 @@ describe('useBannerCarousel', () => {
 
       unmount();
 
-      // Verify exact off() calls matching the 3 subscriptions
+      // Verify exact off() calls matching the 2 subscriptions
       const offCalls = mockEmblaApi.off.mock.calls.map(c => c[0]);
-      expect(offCalls.filter(e => e === 'reInit').length).toBe(2);
+      expect(offCalls.filter(e => e === 'reInit').length).toBe(1);
       expect(offCalls.filter(e => e === 'select').length).toBe(1);
-      expect(offCalls.length).toBe(3);
+      expect(offCalls.length).toBe(2);
     });
   });
 

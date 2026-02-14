@@ -5,7 +5,7 @@
  * @see _bmad-output/implementation-artifacts/32-3-frontend-carousel-logic.md
  */
 
-import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import useEmblaCarousel from 'embla-carousel-react';
 import Autoplay from 'embla-carousel-autoplay';
 import type { EmblaOptionsType, EmblaCarouselType, EmblaPluginType } from 'embla-carousel';
@@ -180,25 +180,17 @@ export function useBannerCarousel(options: UseBannerCarouselOptions = {}): UseBa
     [autoplayDelay, stopOnInteraction, stopOnMouseEnter]
   );
 
-  // Stable Autoplay plugin instance via useRef
-  // useRef guarantees the instance is never dropped between renders
-  // (unlike useMemo, which React may theoretically invalidate)
-  const autoplayPluginRef = useRef<EmblaPluginType | null>(null);
-  const prevAutoplayRef = useRef<boolean | null>(null);
-  const prevOptionsRef = useRef<typeof autoplayOptions | null>(null);
-
-  if (prevAutoplayRef.current !== autoplay || prevOptionsRef.current !== autoplayOptions) {
-    autoplayPluginRef.current = autoplay ? Autoplay(autoplayOptions) : null;
-    prevAutoplayRef.current = autoplay;
-    prevOptionsRef.current = autoplayOptions;
-  }
-
-  // Memoize plugins array with proxy deps matching plugin recreation triggers
-  // Uses EMPTY_PLUGINS constant for referential stability when autoplay is disabled
-  const plugins = useMemo<EmblaPluginType[]>(
-    () => (autoplayPluginRef.current ? [autoplayPluginRef.current] : EMPTY_PLUGINS),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  // Autoplay plugin instance via useMemo (safe: Autoplay() is a pure factory)
+  const autoplayPlugin = useMemo<EmblaPluginType | null>(
+    () => (autoplay ? Autoplay(autoplayOptions) : null),
     [autoplay, autoplayOptions]
+  );
+
+  // Memoize plugins array for referential stability
+  // Uses EMPTY_PLUGINS constant when autoplay is disabled
+  const plugins = useMemo<EmblaPluginType[]>(
+    () => (autoplayPlugin ? [autoplayPlugin] : EMPTY_PLUGINS),
+    [autoplayPlugin]
   );
 
   // Initialize Embla Carousel
@@ -214,10 +206,15 @@ export function useBannerCarousel(options: UseBannerCarouselOptions = {}): UseBa
   }, []);
 
   /**
-   * Инициализация scroll snaps
+   * Полная ресинхронизация состояния при reInit (scrollSnaps + nav-state)
+   * Объединяет логику onInit + onSelect в один обработчик для reInit,
+   * исключая дублирующие state-updates
    */
-  const onInit = useCallback((embla: EmblaCarouselType) => {
+  const onReInit = useCallback((embla: EmblaCarouselType) => {
     setScrollSnaps(embla.scrollSnapList());
+    setSelectedIndex(embla.selectedScrollSnap());
+    setCanScrollPrev(embla.canScrollPrev());
+    setCanScrollNext(embla.canScrollNext());
   }, []);
 
   /**
@@ -236,46 +233,51 @@ export function useBannerCarousel(options: UseBannerCarouselOptions = {}): UseBa
 
   /**
    * Прокрутка к слайду по индексу (для точек навигации)
+   * Игнорирует невалидные индексы (NaN, Infinity, отрицательные, >= snapCount)
    */
   const onDotButtonClick = useCallback(
     (index: number) => {
-      if (emblaApi) emblaApi.scrollTo(index);
+      if (!emblaApi || !Number.isFinite(index) || index < 0) return;
+      const floored = Math.floor(index);
+      if (floored >= emblaApi.scrollSnapList().length) return;
+      emblaApi.scrollTo(floored);
     },
     [emblaApi]
   );
 
   /**
    * Прокрутка к слайду по индексу (прямой API)
+   * Игнорирует невалидные индексы (NaN, Infinity, отрицательные, >= snapCount)
    */
   const scrollTo = useCallback(
     (index: number) => {
-      if (emblaApi) emblaApi.scrollTo(index);
+      if (!emblaApi || !Number.isFinite(index) || index < 0) return;
+      const floored = Math.floor(index);
+      if (floored >= emblaApi.scrollSnapList().length) return;
+      emblaApi.scrollTo(floored);
     },
     [emblaApi]
   );
 
   // Subscribe to Embla events
-  // Note: Direct calls handle initial mount; 'init' subscription removed to avoid duplication.
-  // 'reInit' handles subsequent reinitializations when options/plugins change.
+  // Direct call to onReInit handles initial mount state.
+  // 'select' handles slide changes; 'reInit' handles full resync when options/plugins change.
   useEffect(() => {
     if (!emblaApi) return;
 
     // Initial state setup (emblaApi exists = already initialized)
-    onInit(emblaApi);
-    onSelect(emblaApi);
+    onReInit(emblaApi);
 
-    // Register event listeners for state sync during carousel lifecycle
-    emblaApi.on('reInit', onInit);
+    // Register event listeners
     emblaApi.on('select', onSelect);
-    emblaApi.on('reInit', onSelect);
+    emblaApi.on('reInit', onReInit);
 
     // Cleanup
     return () => {
-      emblaApi.off('reInit', onInit);
       emblaApi.off('select', onSelect);
-      emblaApi.off('reInit', onSelect);
+      emblaApi.off('reInit', onReInit);
     };
-  }, [emblaApi, onInit, onSelect]);
+  }, [emblaApi, onSelect, onReInit]);
 
   return {
     emblaRef,
