@@ -1,6 +1,6 @@
 # Story 32.3: Frontend Carousel Logic (Hook)
 
-Status: review
+Status: in-progress
 
 ## Story
 
@@ -62,6 +62,13 @@ so that I can easily implement the marketing banner slider and potentially refac
 - [x] [AI-Review][MEDIUM] Усилить тесты конфигурации: проверять фактическую передачу options в Embla/Autoplay [frontend/src/hooks/__tests__/useBannerCarousel.test.ts:136-176]
 - [x] [AI-Review][MEDIUM] Добавить тесты реактивного обновления состояния на `select/reInit` [frontend/src/hooks/__tests__/useBannerCarousel.test.ts:179-202]
 - [x] [AI-Review][LOW] Сделать `stopOnMouseEnter` настраиваемым вместо жесткого `true` [frontend/src/hooks/useBannerCarousel.ts:109-113]
+
+### Review Follow-ups (AI) - 2026-02-14
+- [ ] [AI-Review][HIGH] Стабилизировать экземпляр Autoplay plugin (useRef/useMemo), чтобы он не пересоздавался на каждом ререндере и не сбрасывал автопрокрутку [frontend/src/hooks/useBannerCarousel.ts:121-133]
+- [ ] [AI-Review][HIGH] Синхронизировать Dev Agent Record → File List с фактическим git-состоянием (исключить ложное утверждение о проверке при пустом diff/status) [_bmad-output/implementation-artifacts/32-3-frontend-carousel-logic.md:107-128]
+- [ ] [AI-Review][MEDIUM] Уточнить и валидировать контракт `speed` (диапазон/единицы/дефолт), убрать противоречивую документацию [frontend/src/hooks/useBannerCarousel.ts:21-23]
+- [ ] [AI-Review][MEDIUM] Добавить unit-тест cleanup на unmount: проверка вызовов `emblaApi.off(...)` для всех подписок [frontend/src/hooks/useBannerCarousel.ts:199-205]
+- [ ] [AI-Review][MEDIUM] Добавить поведенческие тесты для AC3: auto cycle и pause on interaction (hover/touch) вместо проверки только параметров плагина [frontend/src/hooks/__tests__/useBannerCarousel.test.ts:243-299]
 
 ## Dev Notes
 
@@ -142,7 +149,14 @@ Changes Requested
 - Добавлены action items в раздел `Review Follow-ups (AI)`.
 - Статус Story переведен в `in-progress` до устранения HIGH/MEDIUM.
 
+### Follow-up Review (2026-02-14)
+- Найдено: 2 HIGH, 3 MEDIUM, 0 LOW.
+- Зафиксировано 1 расхождение между story claims и текущим git-состоянием.
+- По выбору пользователя добавлены action items (без авто-фиксов).
+- Статус Story переведен в `in-progress`.
+
 ## Change Log
 
+- 2026-02-14: Выполнен code review (AI): найдено 2 HIGH и 3 MEDIUM, добавлено 5 action items, статус Story обновлен на `in-progress`.
 - 2026-02-13: Устранены все 7 review findings (3 HIGH, 3 MEDIUM, 1 LOW). Добавлено 16 тестов. Статус → review.
 - 2026-02-13: Добавлены результаты code review (AI), action items и обновлен статус Story на `in-progress`.
