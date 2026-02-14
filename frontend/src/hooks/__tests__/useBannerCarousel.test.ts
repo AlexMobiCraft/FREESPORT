@@ -215,11 +215,11 @@ describe('useBannerCarousel', () => {
   });
 
   describe('Options Passed to Embla', () => {
-    it('should pass loop and align options to useEmblaCarousel', () => {
+    it('should pass loop, align, and dragFree options to useEmblaCarousel', () => {
       renderHook(() => useBannerCarousel({ loop: false, align: 'center' }));
 
       expect(mockUseEmblaCarousel).toHaveBeenCalledWith(
-        expect.objectContaining({ loop: false, align: 'center' }),
+        expect.objectContaining({ loop: false, align: 'center', dragFree: false }),
         expect.any(Array)
       );
     });
@@ -300,7 +300,7 @@ describe('useBannerCarousel', () => {
   });
 
   describe('Event Listeners', () => {
-    it('should register init and select event listeners', async () => {
+    it('should register select and reInit event listeners (init handled via direct call)', async () => {
       renderHook(() => useBannerCarousel());
 
       await waitFor(() => {
@@ -308,18 +308,36 @@ describe('useBannerCarousel', () => {
         const eventNames = onCalls.map(call => call[0]);
 
         expect(eventNames).toContain('select');
-        expect(eventNames).toContain('init');
+        expect(eventNames).toContain('reInit');
+        // Note: 'init' subscription removed to avoid duplication with direct calls
       });
     });
 
-    it('should register reInit event listener', async () => {
+    it('should register multiple reInit handlers for onInit and onSelect', async () => {
       renderHook(() => useBannerCarousel());
 
       await waitFor(() => {
-        const onCalls = mockEmblaApi.on.mock.calls;
-        const eventNames = onCalls.map(call => call[0]);
+        const reInitCalls = mockEmblaApi.on.mock.calls.filter(call => call[0] === 'reInit');
+        // Should have 2 reInit handlers: onInit and onSelect
+        expect(reInitCalls.length).toBe(2);
+      });
+    });
 
-        expect(eventNames).toContain('reInit');
+    it('should sync nav-state via direct calls on mount (no init subscription needed)', async () => {
+      // Setup: mock returns specific values
+      mockEmblaApi.selectedScrollSnap.mockReturnValue(2);
+      mockEmblaApi.canScrollPrev.mockReturnValue(true);
+      mockEmblaApi.canScrollNext.mockReturnValue(false);
+      mockEmblaApi.scrollSnapList.mockReturnValue([0, 1, 2, 3, 4]);
+
+      const { result } = renderHook(() => useBannerCarousel());
+
+      // Nav state should be synced from direct onInit/onSelect calls
+      await waitFor(() => {
+        expect(result.current.selectedIndex).toBe(2);
+        expect(result.current.canScrollPrev).toBe(true);
+        expect(result.current.canScrollNext).toBe(false);
+        expect(result.current.scrollSnaps).toEqual([0, 1, 2, 3, 4]);
       });
     });
   });
@@ -367,25 +385,6 @@ describe('useBannerCarousel', () => {
       expect(result.current.canScrollNext).toBe(false);
     });
 
-    it('should update scrollSnaps when init event fires', async () => {
-      const { result } = renderHook(() => useBannerCarousel());
-
-      await waitFor(() => {
-        expect(mockEmblaApi.on).toHaveBeenCalled();
-      });
-
-      const initCall = mockEmblaApi.on.mock.calls.find(call => call[0] === 'init');
-
-      // Simulate init with different snaps
-      mockEmblaApi.scrollSnapList.mockReturnValue([0, 1, 2, 3, 4]);
-
-      act(() => {
-        initCall![1](mockEmblaApi);
-      });
-
-      expect(result.current.scrollSnaps).toEqual([0, 1, 2, 3, 4]);
-    });
-
     it('should update scrollSnaps when reInit event fires', async () => {
       const { result } = renderHook(() => useBannerCarousel());
 
@@ -408,33 +407,452 @@ describe('useBannerCarousel', () => {
     });
   });
 
-  describe('Type Safety', () => {
-    it('should return correctly typed UseBannerCarouselReturn object', () => {
+  describe('Options Stability (Memoization)', () => {
+    it('should maintain referential stability of emblaOptions between renders with same values', () => {
+      const options: UseBannerCarouselOptions = {
+        loop: true,
+        align: 'center',
+        autoplay: true,
+        autoplayDelay: 5000,
+      };
+
+      const { rerender } = renderHook(({ opts }) => useBannerCarousel(opts), {
+        initialProps: { opts: options },
+      });
+
+      const initialCallCount = mockUseEmblaCarousel.mock.calls.length;
+
+      // Rerender with same option values (but new object reference)
+      rerender({ opts: { ...options } });
+
+      // useEmblaCarousel should be called again, but with memoized options
+      const calls = mockUseEmblaCarousel.mock.calls;
+      const firstOptions = calls[initialCallCount - 1][0];
+      const secondOptions = calls[calls.length - 1][0];
+
+      // Options should be REFERENTIALLY equal due to useMemo (toBe checks identity)
+      expect(firstOptions).toBe(secondOptions);
+    });
+
+    it('should maintain referential stability of plugins array between renders with same autoplay config', () => {
+      const { rerender } = renderHook(({ autoplay }) => useBannerCarousel({ autoplay }), {
+        initialProps: { autoplay: true },
+      });
+
+      const callsBefore = mockUseEmblaCarousel.mock.calls.length;
+
+      // Rerender with same autoplay value
+      rerender({ autoplay: true });
+
+      const callsAfter = mockUseEmblaCarousel.mock.calls.length;
+
+      // Plugins array should be REFERENTIALLY stable (toBe checks identity)
+      const pluginsBefore = mockUseEmblaCarousel.mock.calls[callsBefore - 1][1];
+      const pluginsAfter = mockUseEmblaCarousel.mock.calls[callsAfter - 1][1];
+
+      expect(pluginsBefore).toBe(pluginsAfter);
+    });
+
+    it('should reinitialize when autoplay changes from false to true', () => {
+      mockAutoplay.mockClear();
+
+      const { rerender } = renderHook(({ autoplay }) => useBannerCarousel({ autoplay }), {
+        initialProps: { autoplay: false },
+      });
+
+      expect(mockAutoplay).not.toHaveBeenCalled();
+
+      rerender({ autoplay: true });
+
+      expect(mockAutoplay).toHaveBeenCalled();
+    });
+
+    it('should maintain referential stability of empty plugins array when autoplay=false', () => {
+      const { rerender } = renderHook(({ delay }) => useBannerCarousel({ autoplay: false, autoplayDelay: delay }), {
+        initialProps: { delay: 4000 },
+      });
+
+      const callsBefore = mockUseEmblaCarousel.mock.calls.length;
+
+      // Rerender with different delay (should not affect empty plugins)
+      rerender({ delay: 5000 });
+
+      const callsAfter = mockUseEmblaCarousel.mock.calls.length;
+
+      // Empty plugins array should be REFERENTIALLY stable (same constant)
+      const pluginsBefore = mockUseEmblaCarousel.mock.calls[callsBefore - 1][1];
+      const pluginsAfter = mockUseEmblaCarousel.mock.calls[callsAfter - 1][1];
+
+      expect(pluginsBefore).toBe(pluginsAfter);
+      expect(pluginsBefore).toHaveLength(0);
+    });
+  });
+
+  describe('Touch/Interaction Behavior (AC2/AC3)', () => {
+    it('should explicitly set dragFree: false for 1:1 finger tracking (AC2)', () => {
+      renderHook(() => useBannerCarousel({}));
+
+      const lastCall = mockUseEmblaCarousel.mock.calls[mockUseEmblaCarousel.mock.calls.length - 1];
+      const emblaOptions = lastCall[0];
+
+      // dragFree should be explicitly false (not relying on Embla default)
+      expect(emblaOptions.dragFree).toBe(false);
+    });
+
+    it('should configure Autoplay to pause on mouse enter (hover pause for AC3)', () => {
+      mockAutoplay.mockClear();
+      renderHook(() =>
+        useBannerCarousel({
+          autoplay: true,
+          stopOnMouseEnter: true,
+        })
+      );
+
+      expect(mockAutoplay).toHaveBeenCalledWith(
+        expect.objectContaining({
+          stopOnMouseEnter: true,
+        })
+      );
+    });
+
+    it('should configure Autoplay to pause on interaction (touch pause for AC3)', () => {
+      mockAutoplay.mockClear();
+      renderHook(() =>
+        useBannerCarousel({
+          autoplay: true,
+          stopOnInteraction: true,
+        })
+      );
+
+      expect(mockAutoplay).toHaveBeenCalledWith(
+        expect.objectContaining({
+          stopOnInteraction: true,
+        })
+      );
+    });
+
+    it('should allow disabling hover pause behavior', () => {
+      mockAutoplay.mockClear();
+      renderHook(() =>
+        useBannerCarousel({
+          autoplay: true,
+          stopOnMouseEnter: false,
+        })
+      );
+
+      expect(mockAutoplay).toHaveBeenCalledWith(
+        expect.objectContaining({
+          stopOnMouseEnter: false,
+        })
+      );
+    });
+
+    it('should allow disabling interaction pause behavior', () => {
+      mockAutoplay.mockClear();
+      renderHook(() =>
+        useBannerCarousel({
+          autoplay: true,
+          stopOnInteraction: false,
+        })
+      );
+
+      expect(mockAutoplay).toHaveBeenCalledWith(
+        expect.objectContaining({
+          stopOnInteraction: false,
+        })
+      );
+    });
+  });
+
+  describe('Behavioral Contract Tests (Mock-based)', () => {
+    /**
+     * These tests verify the behavioral contract of the hook using mocked Embla/Autoplay.
+     * They validate API coordination, state synchronization, and configuration passing.
+     *
+     * NOTE: These are NOT browser-level integration tests. True integration tests
+     * (swipe gestures, touch events, visual scroll) require E2E tools like Playwright
+     * or Cypress with a real browser engine.
+     *
+     * JSDOM limitations: no layout engine, getBoundingClientRect returns zeros,
+     * no IntersectionObserver, no real touch/pointer events.
+     *
+     * TODO: Add E2E tests in future story for complete touch/swipe verification.
+     */
+
+    it('should coordinate multiple API calls correctly', () => {
+      const { result } = renderHook(() => useBannerCarousel({ loop: true }));
+
+      // Multiple sequential API calls should work without errors
+      act(() => {
+        result.current.scrollNext();
+        result.current.scrollPrev();
+        result.current.scrollTo(1);
+        result.current.onDotButtonClick(2);
+      });
+
+      // All methods should have been invoked on the API
+      expect(mockEmblaApi.scrollNext).toHaveBeenCalledTimes(1);
+      expect(mockEmblaApi.scrollPrev).toHaveBeenCalledTimes(1);
+      expect(mockEmblaApi.scrollTo).toHaveBeenCalledTimes(2); // scrollTo + onDotButtonClick
+    });
+
+    it('should handle rapid state changes without losing sync', async () => {
       const { result } = renderHook(() => useBannerCarousel());
 
-      // Type assertions - these will fail at compile time if types are wrong
-      const _emblaRef: typeof result.current.emblaRef = result.current.emblaRef;
-      const _selectedIndex: number = result.current.selectedIndex;
-      const _scrollSnaps: number[] = result.current.scrollSnaps;
-      const _canScrollPrev: boolean = result.current.canScrollPrev;
-      const _canScrollNext: boolean = result.current.canScrollNext;
-      const _scrollNext: () => void = result.current.scrollNext;
-      const _scrollPrev: () => void = result.current.scrollPrev;
-      const _onDotButtonClick: (index: number) => void = result.current.onDotButtonClick;
-      const _scrollTo: (index: number) => void = result.current.scrollTo;
+      await waitFor(() => {
+        expect(mockEmblaApi.on).toHaveBeenCalled();
+      });
 
-      // Suppress unused variable warnings
-      void _emblaRef;
-      void _selectedIndex;
-      void _scrollSnaps;
-      void _canScrollPrev;
-      void _canScrollNext;
-      void _scrollNext;
-      void _scrollPrev;
-      void _onDotButtonClick;
-      void _scrollTo;
+      const selectHandler = mockEmblaApi.on.mock.calls.find(c => c[0] === 'select')![1];
 
-      expect(true).toBe(true);
+      // Simulate rapid state changes
+      act(() => {
+        mockEmblaApi.selectedScrollSnap.mockReturnValue(1);
+        selectHandler(mockEmblaApi);
+        mockEmblaApi.selectedScrollSnap.mockReturnValue(2);
+        selectHandler(mockEmblaApi);
+        mockEmblaApi.selectedScrollSnap.mockReturnValue(0);
+        selectHandler(mockEmblaApi);
+      });
+
+      // Final state should match last update
+      expect(result.current.selectedIndex).toBe(0);
+    });
+
+    it('should pass complete autoplay configuration to plugin', () => {
+      mockAutoplay.mockClear();
+
+      renderHook(() =>
+        useBannerCarousel({
+          autoplay: true,
+          autoplayDelay: 3000,
+          stopOnInteraction: false,
+          stopOnMouseEnter: true,
+        })
+      );
+
+      // Verify all autoplay options are passed together
+      expect(mockAutoplay).toHaveBeenCalledWith({
+        delay: 3000,
+        stopOnInteraction: false,
+        stopOnMouseEnter: true,
+      });
+    });
+
+    it('should pass complete Embla options to useEmblaCarousel', () => {
+      renderHook(() =>
+        useBannerCarousel({
+          loop: false,
+          align: 'center',
+          speed: 15,
+        })
+      );
+
+      const lastCall = mockUseEmblaCarousel.mock.calls[mockUseEmblaCarousel.mock.calls.length - 1];
+
+      expect(lastCall[0]).toEqual({
+        loop: false,
+        align: 'center',
+        dragFree: false,
+        speed: 15,
+      });
+    });
+
+    it('should cleanup event listeners on unmount', async () => {
+      const { unmount } = renderHook(() => useBannerCarousel());
+
+      await waitFor(() => {
+        expect(mockEmblaApi.on).toHaveBeenCalled();
+      });
+
+      // 3 listeners: reInit (onInit), select (onSelect), reInit (onSelect)
+      const onCallCount = mockEmblaApi.on.mock.calls.length;
+      expect(onCallCount).toBe(3);
+
+      unmount();
+
+      // All registered listeners should be unregistered
+      expect(mockEmblaApi.off.mock.calls.length).toBe(onCallCount);
+    });
+  });
+
+  describe('Autoplay Activation Logic (AC3)', () => {
+    it('should enable autoplay when autoplayDelay is provided without explicit autoplay=true', () => {
+      mockAutoplay.mockClear();
+      renderHook(() => useBannerCarousel({ autoplayDelay: 5000 }));
+
+      // AC3: "defined interval" should activate autoplay
+      expect(mockAutoplay).toHaveBeenCalledWith(
+        expect.objectContaining({ delay: 5000 })
+      );
+    });
+
+    it('should NOT enable autoplay when neither autoplay nor autoplayDelay is provided', () => {
+      mockAutoplay.mockClear();
+      renderHook(() => useBannerCarousel({}));
+
+      expect(mockAutoplay).not.toHaveBeenCalled();
+    });
+
+    it('should respect explicit autoplay=false even with autoplayDelay provided', () => {
+      mockAutoplay.mockClear();
+      renderHook(() => useBannerCarousel({ autoplay: false, autoplayDelay: 5000 }));
+
+      // Explicit false should take precedence
+      expect(mockAutoplay).not.toHaveBeenCalled();
+    });
+
+    it('should respect explicit autoScroll=false even with autoplayDelay provided', () => {
+      mockAutoplay.mockClear();
+      renderHook(() => useBannerCarousel({ autoScroll: false, autoplayDelay: 5000 }));
+
+      // Explicit false should take precedence
+      expect(mockAutoplay).not.toHaveBeenCalled();
+    });
+
+    it('should prioritize autoScroll over autoplay when both provided', () => {
+      mockAutoplay.mockClear();
+      renderHook(() => useBannerCarousel({ autoScroll: true, autoplay: false }));
+
+      // autoScroll takes precedence
+      expect(mockAutoplay).toHaveBeenCalled();
+    });
+
+    it('should prioritize autoScroll=false over autoplay=true when both provided', () => {
+      mockAutoplay.mockClear();
+      renderHook(() => useBannerCarousel({ autoScroll: false, autoplay: true }));
+
+      // autoScroll takes precedence
+      expect(mockAutoplay).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Runtime Validation', () => {
+    it('should ignore invalid speed (NaN) and use default', () => {
+      renderHook(() => useBannerCarousel({ speed: NaN }));
+
+      const lastCall = mockUseEmblaCarousel.mock.calls[mockUseEmblaCarousel.mock.calls.length - 1];
+      // NaN should be filtered out
+      expect(lastCall[0]).not.toHaveProperty('speed');
+    });
+
+    it('should ignore invalid speed (<=0) and use default', () => {
+      renderHook(() => useBannerCarousel({ speed: 0 }));
+
+      const lastCall = mockUseEmblaCarousel.mock.calls[mockUseEmblaCarousel.mock.calls.length - 1];
+      expect(lastCall[0]).not.toHaveProperty('speed');
+    });
+
+    it('should ignore negative speed and use default', () => {
+      renderHook(() => useBannerCarousel({ speed: -5 }));
+
+      const lastCall = mockUseEmblaCarousel.mock.calls[mockUseEmblaCarousel.mock.calls.length - 1];
+      expect(lastCall[0]).not.toHaveProperty('speed');
+    });
+
+    it('should ignore invalid autoplayDelay (NaN) and use default', () => {
+      mockAutoplay.mockClear();
+      renderHook(() => useBannerCarousel({ autoplay: true, autoplayDelay: NaN }));
+
+      expect(mockAutoplay).toHaveBeenCalledWith(
+        expect.objectContaining({ delay: 4000 }) // default
+      );
+    });
+
+    it('should ignore invalid autoplayDelay (<=0) and use default', () => {
+      mockAutoplay.mockClear();
+      renderHook(() => useBannerCarousel({ autoplay: true, autoplayDelay: 0 }));
+
+      expect(mockAutoplay).toHaveBeenCalledWith(
+        expect.objectContaining({ delay: 4000 }) // default
+      );
+    });
+
+    it('should ignore negative autoplayDelay and use default', () => {
+      mockAutoplay.mockClear();
+      renderHook(() => useBannerCarousel({ autoplay: true, autoplayDelay: -1000 }));
+
+      expect(mockAutoplay).toHaveBeenCalledWith(
+        expect.objectContaining({ delay: 4000 }) // default
+      );
+    });
+
+    it('should accept valid positive speed', () => {
+      renderHook(() => useBannerCarousel({ speed: 15 }));
+
+      const lastCall = mockUseEmblaCarousel.mock.calls[mockUseEmblaCarousel.mock.calls.length - 1];
+      expect(lastCall[0]).toHaveProperty('speed', 15);
+    });
+
+    it('should accept valid positive autoplayDelay', () => {
+      mockAutoplay.mockClear();
+      renderHook(() => useBannerCarousel({ autoplay: true, autoplayDelay: 3000 }));
+
+      expect(mockAutoplay).toHaveBeenCalledWith(
+        expect.objectContaining({ delay: 3000 })
+      );
+    });
+
+    it('should ignore Infinity speed and exclude from options', () => {
+      renderHook(() => useBannerCarousel({ speed: Infinity }));
+
+      const lastCall = mockUseEmblaCarousel.mock.calls[mockUseEmblaCarousel.mock.calls.length - 1];
+      expect(lastCall[0]).not.toHaveProperty('speed');
+    });
+
+    it('should ignore -Infinity speed and exclude from options', () => {
+      renderHook(() => useBannerCarousel({ speed: -Infinity }));
+
+      const lastCall = mockUseEmblaCarousel.mock.calls[mockUseEmblaCarousel.mock.calls.length - 1];
+      expect(lastCall[0]).not.toHaveProperty('speed');
+    });
+
+    it('should ignore Infinity autoplayDelay and use default', () => {
+      mockAutoplay.mockClear();
+      renderHook(() => useBannerCarousel({ autoplay: true, autoplayDelay: Infinity }));
+
+      expect(mockAutoplay).toHaveBeenCalledWith(
+        expect.objectContaining({ delay: 4000 })
+      );
+    });
+  });
+
+  describe('Type Safety', () => {
+    it('should return correctly typed UseBannerCarouselReturn object with all required properties', () => {
+      const { result } = renderHook(() => useBannerCarousel());
+
+      // Verify all properties exist and have correct runtime types
+      expect(result.current.emblaRef).toBeDefined();
+      expect(typeof result.current.emblaRef).toBe('function');
+
+      expect(typeof result.current.selectedIndex).toBe('number');
+      expect(result.current.selectedIndex).toBeGreaterThanOrEqual(0);
+
+      expect(Array.isArray(result.current.scrollSnaps)).toBe(true);
+
+      expect(typeof result.current.canScrollPrev).toBe('boolean');
+      expect(typeof result.current.canScrollNext).toBe('boolean');
+
+      expect(typeof result.current.scrollNext).toBe('function');
+      expect(typeof result.current.scrollPrev).toBe('function');
+      expect(typeof result.current.onDotButtonClick).toBe('function');
+      expect(typeof result.current.scrollTo).toBe('function');
+    });
+
+    it('should have all 9 properties in the return object', () => {
+      const { result } = renderHook(() => useBannerCarousel());
+
+      const keys = Object.keys(result.current);
+      expect(keys).toContain('emblaRef');
+      expect(keys).toContain('selectedIndex');
+      expect(keys).toContain('scrollSnaps');
+      expect(keys).toContain('canScrollPrev');
+      expect(keys).toContain('canScrollNext');
+      expect(keys).toContain('scrollNext');
+      expect(keys).toContain('scrollPrev');
+      expect(keys).toContain('onDotButtonClick');
+      expect(keys).toContain('scrollTo');
+      expect(keys).toHaveLength(9);
     });
   });
 });

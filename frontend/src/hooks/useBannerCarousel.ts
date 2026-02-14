@@ -5,10 +5,16 @@
  * @see _bmad-output/implementation-artifacts/32-3-frontend-carousel-logic.md
  */
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import useEmblaCarousel from 'embla-carousel-react';
 import Autoplay from 'embla-carousel-autoplay';
-import type { EmblaOptionsType, EmblaCarouselType } from 'embla-carousel';
+import type { EmblaOptionsType, EmblaCarouselType, EmblaPluginType } from 'embla-carousel';
+
+/**
+ * Empty plugins array constant for referential stability when autoplay is disabled
+ * Prevents unnecessary Embla re-initialization on re-renders
+ */
+const EMPTY_PLUGINS: EmblaPluginType[] = [];
 
 /**
  * Опции для useBannerCarousel хука
@@ -18,7 +24,7 @@ export interface UseBannerCarouselOptions {
   loop?: boolean;
   /** Выравнивание слайдов: 'start' | 'center' | 'end' (default: 'start') */
   align?: EmblaOptionsType['align'];
-  /** Скорость анимации прокрутки (0-1, default: 10 - Embla default) */
+  /** Скорость анимации прокрутки (положительное число, default: 10 - Embla default). Выше = быстрее */
   speed?: number;
   /** Включить автопрокрутку (default: false) */
   autoplay?: boolean;
@@ -90,20 +96,55 @@ export interface UseBannerCarouselReturn {
  * );
  * ```
  */
+/**
+ * Validates a numeric option - returns undefined if invalid (NaN, Infinity, <=0)
+ */
+function validatePositiveNumber(value: number | undefined): number | undefined {
+  if (value === undefined) return undefined;
+  if (!Number.isFinite(value) || value <= 0) return undefined;
+  return value;
+}
+
+/**
+ * Default autoplay delay in milliseconds
+ */
+const DEFAULT_AUTOPLAY_DELAY = 4000;
+
 export function useBannerCarousel(options: UseBannerCarouselOptions = {}): UseBannerCarouselReturn {
   const {
     loop = true,
     align = 'start',
-    speed,
-    autoplay: autoplayOption = false,
+    speed: rawSpeed,
+    autoplay: autoplayOption,
     autoScroll,
-    autoplayDelay = 4000,
+    autoplayDelay: rawAutoplayDelay,
     stopOnInteraction = true,
     stopOnMouseEnter = true,
   } = options;
 
-  // autoScroll is an alias for autoplay (AC3 compatibility)
-  const autoplay = autoScroll ?? autoplayOption;
+  // Runtime validation for numeric options
+  const speed = validatePositiveNumber(rawSpeed);
+  const autoplayDelay = validatePositiveNumber(rawAutoplayDelay) ?? DEFAULT_AUTOPLAY_DELAY;
+
+  /**
+   * Autoplay activation logic (AC3):
+   * - autoScroll takes priority over autoplay (explicit alias)
+   * - If neither autoScroll nor autoplay is explicitly set, but autoplayDelay is provided,
+   *   autoplay is enabled automatically ("defined interval" activates autoplay)
+   * - Explicit false (autoScroll=false or autoplay=false) disables autoplay
+   */
+  const autoplay = (() => {
+    // autoScroll has priority when explicitly set
+    if (autoScroll !== undefined) return autoScroll;
+    // autoplay explicit value
+    if (autoplayOption !== undefined) return autoplayOption;
+    // AC3: "defined interval" should activate autoplay
+    if (rawAutoplayDelay !== undefined && validatePositiveNumber(rawAutoplayDelay) !== undefined) {
+      return true;
+    }
+    // Default: disabled
+    return false;
+  })();
 
   // State for navigation
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -111,23 +152,33 @@ export function useBannerCarousel(options: UseBannerCarouselOptions = {}): UseBa
   const [canScrollPrev, setCanScrollPrev] = useState(false);
   const [canScrollNext, setCanScrollNext] = useState(false);
 
-  // Embla options
-  const emblaOptions: EmblaOptionsType = {
-    loop,
-    align,
-    ...(speed !== undefined && { speed }),
-  };
+  // Memoize Embla options to prevent unnecessary reinitialization
+  // dragFree: false ensures 1:1 finger tracking for swipe gestures (AC2)
+  const emblaOptions = useMemo<EmblaOptionsType>(
+    () => ({
+      loop,
+      align,
+      dragFree: false,
+      ...(speed !== undefined && { speed }),
+    }),
+    [loop, align, speed]
+  );
 
-  // Autoplay plugin configuration
-  const plugins = autoplay
-    ? [
-        Autoplay({
-          delay: autoplayDelay,
-          stopOnInteraction,
-          stopOnMouseEnter,
-        }),
-      ]
-    : [];
+  // Memoize Autoplay plugin configuration to prevent unnecessary reinitialization
+  // Uses EMPTY_PLUGINS constant for referential stability when autoplay is disabled
+  const plugins = useMemo(
+    () =>
+      autoplay
+        ? [
+            Autoplay({
+              delay: autoplayDelay,
+              stopOnInteraction,
+              stopOnMouseEnter,
+            }),
+          ]
+        : EMPTY_PLUGINS,
+    [autoplay, autoplayDelay, stopOnInteraction, stopOnMouseEnter]
+  );
 
   // Initialize Embla Carousel
   const [emblaRef, emblaApi] = useEmblaCarousel(emblaOptions, plugins);
@@ -183,22 +234,22 @@ export function useBannerCarousel(options: UseBannerCarouselOptions = {}): UseBa
   );
 
   // Subscribe to Embla events
+  // Note: Direct calls handle initial mount; 'init' subscription removed to avoid duplication.
+  // 'reInit' handles subsequent reinitializations when options/plugins change.
   useEffect(() => {
     if (!emblaApi) return;
 
-    // Initial state setup
+    // Initial state setup (emblaApi exists = already initialized)
     onInit(emblaApi);
     onSelect(emblaApi);
 
-    // Register event listeners
-    emblaApi.on('init', onInit);
+    // Register event listeners for state sync during carousel lifecycle
     emblaApi.on('reInit', onInit);
     emblaApi.on('select', onSelect);
     emblaApi.on('reInit', onSelect);
 
     // Cleanup
     return () => {
-      emblaApi.off('init', onInit);
       emblaApi.off('reInit', onInit);
       emblaApi.off('select', onSelect);
       emblaApi.off('reInit', onSelect);
