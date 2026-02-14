@@ -24,7 +24,13 @@ export interface UseBannerCarouselOptions {
   loop?: boolean;
   /** Выравнивание слайдов: 'start' | 'center' | 'end' (default: 'start') */
   align?: EmblaOptionsType['align'];
-  /** Скорость анимации прокрутки (положительное число, default: 10 - Embla default). Выше = быстрее */
+  /**
+   * Скорость анимации прокрутки (Embla `speed` option).
+   * Положительное число, определяет скорость scroll momentum.
+   * Embla default: 10. Диапазон: 1-25+ (практический).
+   * Выше = быстрее переход между слайдами.
+   * Невалидные значения (NaN, Infinity, <=0) игнорируются.
+   */
   speed?: number;
   /** Включить автопрокрутку (default: false) */
   autoplay?: boolean;
@@ -164,20 +170,28 @@ export function useBannerCarousel(options: UseBannerCarouselOptions = {}): UseBa
     [loop, align, speed]
   );
 
-  // Memoize Autoplay plugin configuration to prevent unnecessary reinitialization
+  // Memoize autoplay options separately for stable reference
+  const autoplayOptions = useMemo(
+    () => ({
+      delay: autoplayDelay,
+      stopOnInteraction,
+      stopOnMouseEnter,
+    }),
+    [autoplayDelay, stopOnInteraction, stopOnMouseEnter]
+  );
+
+  // Create stable autoplay plugin instance - only recreated when options change
+  // This prevents unnecessary Embla reInit and autoplay timer resets
+  const autoplayPlugin = useMemo(
+    () => (autoplay ? Autoplay(autoplayOptions) : null),
+    [autoplay, autoplayOptions]
+  );
+
+  // Memoize plugins array with stable autoplay reference
   // Uses EMPTY_PLUGINS constant for referential stability when autoplay is disabled
-  const plugins = useMemo(
-    () =>
-      autoplay
-        ? [
-            Autoplay({
-              delay: autoplayDelay,
-              stopOnInteraction,
-              stopOnMouseEnter,
-            }),
-          ]
-        : EMPTY_PLUGINS,
-    [autoplay, autoplayDelay, stopOnInteraction, stopOnMouseEnter]
+  const plugins = useMemo<EmblaPluginType[]>(
+    () => (autoplayPlugin ? [autoplayPlugin] : EMPTY_PLUGINS),
+    [autoplayPlugin]
   );
 
   // Initialize Embla Carousel

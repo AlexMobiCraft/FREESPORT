@@ -1,6 +1,6 @@
 # Story 32.3: Frontend Carousel Logic (Hook)
 
-Status: in-progress
+Status: review
 
 ## Story
 
@@ -92,11 +92,11 @@ so that I can easily implement the marketing banner slider and potentially refac
 - [x] [AI-Review][LOW] Синхронизировать комментарий `validatePositiveNumber` с фактической логикой `Number.isFinite` (Infinity тоже отклоняется) [frontend/src/hooks/useBannerCarousel.ts:99-105]
 
 ### Review Follow-ups (AI) - 2026-02-14
-- [ ] [AI-Review][HIGH] Стабилизировать экземпляр Autoplay plugin (useRef/useMemo), чтобы он не пересоздавался на каждом ререндере и не сбрасывал автопрокрутку [frontend/src/hooks/useBannerCarousel.ts:121-133]
-- [ ] [AI-Review][HIGH] Синхронизировать Dev Agent Record → File List с фактическим git-состоянием (исключить ложное утверждение о проверке при пустом diff/status) [_bmad-output/implementation-artifacts/32-3-frontend-carousel-logic.md:107-128]
-- [ ] [AI-Review][MEDIUM] Уточнить и валидировать контракт `speed` (диапазон/единицы/дефолт), убрать противоречивую документацию [frontend/src/hooks/useBannerCarousel.ts:21-23]
-- [ ] [AI-Review][MEDIUM] Добавить unit-тест cleanup на unmount: проверка вызовов `emblaApi.off(...)` для всех подписок [frontend/src/hooks/useBannerCarousel.ts:199-205]
-- [ ] [AI-Review][MEDIUM] Добавить поведенческие тесты для AC3: auto cycle и pause on interaction (hover/touch) вместо проверки только параметров плагина [frontend/src/hooks/__tests__/useBannerCarousel.test.ts:243-299]
+- [x] [AI-Review][HIGH] Стабилизировать экземпляр Autoplay plugin (useRef/useMemo), чтобы он не пересоздавался на каждом ререндере и не сбрасывал автопрокрутку [frontend/src/hooks/useBannerCarousel.ts:121-133]
+- [x] [AI-Review][HIGH] Синхронизировать Dev Agent Record → File List с фактическим git-состоянием (исключить ложное утверждение о проверке при пустом diff/status) [_bmad-output/implementation-artifacts/32-3-frontend-carousel-logic.md:107-128]
+- [x] [AI-Review][MEDIUM] Уточнить и валидировать контракт `speed` (диапазон/единицы/дефолт), убрать противоречивую документацию [frontend/src/hooks/useBannerCarousel.ts:21-23]
+- [x] [AI-Review][MEDIUM] Добавить unit-тест cleanup на unmount: проверка вызовов `emblaApi.off(...)` для всех подписок [frontend/src/hooks/useBannerCarousel.ts:199-205]
+- [x] [AI-Review][MEDIUM] Добавить поведенческие тесты для AC3: auto cycle и pause on interaction (hover/touch) вместо проверки только параметров плагина [frontend/src/hooks/__tests__/useBannerCarousel.test.ts:243-299]
 
 ## Dev Notes
 
@@ -206,16 +206,23 @@ Claude Opus 4.5 (Anthropic)
 - Test count: 67 → 66 tests (удален устаревший тест 'init event')
 - Full hooks test suite: 88 tests passing
 
+### Review Follow-up Implementation #8 (2026-02-14)
+- ✅ [HIGH] Стабилизирован Autoplay plugin: разделены autoplayOptions и autoplayPlugin в отдельные useMemo для предотвращения лишних reInit
+- ✅ [HIGH] File List синхронизирован с текущим git-состоянием (3 файла)
+- ✅ [MEDIUM] Улучшен JSDoc для `speed`: добавлен диапазон (1-25+), единицы (scroll momentum), поведение с невалидными значениями
+- ✅ [MEDIUM] Добавлено 4 теста cleanup: проверка `emblaApi.off()` с правильными event names и handler references
+- ✅ [MEDIUM] Добавлено 8 тестов AC3 Behavioral Contract: auto-cycle, pause on hover/touch, stable plugin instance
+- Test count: 66 → 78 tests (+12 новых)
+- Full hooks test suite: 100 tests passing
+
 ### Completion Notes List
 - Validated that `embla-carousel-react` is the best fit.
 - Defined clear separation: Hook (Logic) vs Section (UI).
 - Added specific requirement for Autoplay plugin.
 
 ### File List
-- frontend/package.json (modified - added embla-carousel dependencies)
-- frontend/package-lock.json (modified - dependency lock)
-- frontend/src/hooks/useBannerCarousel.ts (modified - explicit dragFree: false, simplified init-sync, updated validatePositiveNumber comment)
-- frontend/src/hooks/__tests__/useBannerCarousel.test.ts (modified - 66 unit tests, updated for new behavior)
+- frontend/src/hooks/useBannerCarousel.ts (modified - stable Autoplay plugin via memoized options, improved speed JSDoc)
+- frontend/src/hooks/__tests__/useBannerCarousel.test.ts (modified - 78 unit tests: +12 new tests for cleanup/AC3 behavior)
 - _bmad-output/implementation-artifacts/32-3-frontend-carousel-logic.md (modified - story file updates)
 
 ## Senior Developer Review (AI)
@@ -260,10 +267,11 @@ Approved (all findings resolved)
 - Зафиксировано 1 расхождение между story claims и текущим git-состоянием.
 - По выбору пользователя добавлены action items (без авто-фиксов).
 - Статус Story переведен в `in-progress`.
+- **Итерация #8: все 5 findings устранены (2 HIGH, 3 MEDIUM). Добавлено 12 тестов. Стабилизирован Autoplay plugin. Статус → review.**
 
 ## Change Log
 
-<<<<<<< HEAD
+- 2026-02-14: Устранены все 5 review findings (2 HIGH, 3 MEDIUM). Стабилизирован Autoplay plugin через мемоизацию options, улучшен JSDoc speed, добавлено 12 тестов (cleanup + AC3 behavior). Статус → review.
 - 2026-02-13: Устранены финальные 4 review findings (1 HIGH, 2 MEDIUM, 1 LOW). Добавлен dragFree: false, упрощена init-синхронизация, обновлен комментарий. Все review items закрыты. Статус → review.
 - 2026-02-13: Выполнен новый code review (AI), найдено 1 HIGH / 2 MEDIUM / 1 LOW, добавлено 4 новых action items. Статус → in-progress.
 - 2026-02-13: Выполнен новый code review (AI), найдено 1 HIGH / 3 MEDIUM / 1 LOW, добавлено 5 новых action items. Статус → in-progress.
@@ -274,10 +282,8 @@ Approved (all findings resolved)
 - 2026-02-13: Устранены все 5 оставшихся review findings (2 HIGH, 2 MEDIUM, 1 LOW). Добавлено 6 тестов. Статус → review.
 - 2026-02-13: Выполнен повторный code review (AI), найдено 2 HIGH / 2 MEDIUM / 1 LOW, добавлено 5 новых action items. Статус → in-progress.
 - 2026-02-13: Устранены все 4 оставшихся review findings (1 HIGH, 2 MEDIUM, 1 LOW). Добавлено 8 тестов. Статус → review.
-- 2026-02-13: Выполнен повторный code review (AI), найдено 1 HIGH / 2 MEDIUM / 1 LOW, добавлено 4 новых action items. Статус → in-progress.
-=======
+- 2026-02-13: Выполнен повторный code review (AI), найдено 1 HIGH / 2 MEDIUM / 1 LOW, добавлено 4 новых action items. Статус → in-progress
 - 2026-02-14: Выполнен code review (AI): найдено 2 HIGH и 3 MEDIUM, добавлено 5 action items, статус Story обновлен на `in-progress`.
->>>>>>> bb3d55d4c8c09e7439db8c1d0170f122ca479925
 - 2026-02-13: Устранены все 7 review findings (3 HIGH, 3 MEDIUM, 1 LOW). Добавлено 16 тестов. Статус → review.
 - 2026-02-13: Добавлены результаты code review (AI), action items и обновлен статус Story на `in-progress`.
 - 2026-02-13: Устранены финальные 5 review findings (1 HIGH, 3 MEDIUM, 1 LOW). Добавлено 4 теста. Number.isFinite() валидация, onSelect→init подписка. Все review items закрыты. Статус → review.

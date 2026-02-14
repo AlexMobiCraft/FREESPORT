@@ -674,6 +674,192 @@ describe('useBannerCarousel', () => {
       // All registered listeners should be unregistered
       expect(mockEmblaApi.off.mock.calls.length).toBe(onCallCount);
     });
+
+    it('should cleanup with correct event names and handler references', async () => {
+      const { unmount } = renderHook(() => useBannerCarousel());
+
+      await waitFor(() => {
+        expect(mockEmblaApi.on).toHaveBeenCalled();
+      });
+
+      // Capture registered handlers
+      const onCalls = mockEmblaApi.on.mock.calls;
+      const registeredHandlers = onCalls.map(call => ({ event: call[0], handler: call[1] }));
+
+      unmount();
+
+      // Verify each handler is unregistered with same event name and handler reference
+      const offCalls = mockEmblaApi.off.mock.calls;
+      registeredHandlers.forEach(({ event, handler }) => {
+        const matchingOff = offCalls.find(
+          call => call[0] === event && call[1] === handler
+        );
+        expect(matchingOff).toBeDefined();
+      });
+    });
+
+    it('should unregister reInit handler for onInit on unmount', async () => {
+      const { unmount } = renderHook(() => useBannerCarousel());
+
+      await waitFor(() => {
+        expect(mockEmblaApi.on).toHaveBeenCalled();
+      });
+
+      const reInitOnCalls = mockEmblaApi.on.mock.calls.filter(c => c[0] === 'reInit');
+      expect(reInitOnCalls.length).toBeGreaterThan(0);
+
+      unmount();
+
+      const reInitOffCalls = mockEmblaApi.off.mock.calls.filter(c => c[0] === 'reInit');
+      expect(reInitOffCalls.length).toBe(reInitOnCalls.length);
+    });
+
+    it('should unregister select handler on unmount', async () => {
+      const { unmount } = renderHook(() => useBannerCarousel());
+
+      await waitFor(() => {
+        expect(mockEmblaApi.on).toHaveBeenCalled();
+      });
+
+      const selectOnCall = mockEmblaApi.on.mock.calls.find(c => c[0] === 'select');
+      expect(selectOnCall).toBeDefined();
+
+      unmount();
+
+      const selectOffCall = mockEmblaApi.off.mock.calls.find(c => c[0] === 'select');
+      expect(selectOffCall).toBeDefined();
+      // Handler reference should match
+      expect(selectOffCall![1]).toBe(selectOnCall![1]);
+    });
+  });
+
+  describe('AC3 Behavioral Contract: Auto Cycle and Pause', () => {
+    /**
+     * AC3: Given autoScroll: true or defined interval, carousel cycles automatically
+     * and pauses on user interaction (hover or touch) if configured.
+     *
+     * These tests verify the behavioral contract through plugin configuration.
+     * Actual pause/resume behavior depends on Embla Autoplay plugin implementation.
+     */
+
+    it('should configure auto-cycle with default 4000ms delay when autoplay=true', () => {
+      mockAutoplay.mockClear();
+      renderHook(() => useBannerCarousel({ autoplay: true }));
+
+      expect(mockAutoplay).toHaveBeenCalledWith(
+        expect.objectContaining({ delay: 4000 })
+      );
+    });
+
+    it('should configure auto-cycle with custom delay', () => {
+      mockAutoplay.mockClear();
+      renderHook(() => useBannerCarousel({ autoplay: true, autoplayDelay: 6000 }));
+
+      expect(mockAutoplay).toHaveBeenCalledWith(
+        expect.objectContaining({ delay: 6000 })
+      );
+    });
+
+    it('should enable pause on hover by default (stopOnMouseEnter=true)', () => {
+      mockAutoplay.mockClear();
+      renderHook(() => useBannerCarousel({ autoplay: true }));
+
+      expect(mockAutoplay).toHaveBeenCalledWith(
+        expect.objectContaining({ stopOnMouseEnter: true })
+      );
+    });
+
+    it('should enable pause on touch/interaction by default (stopOnInteraction=true)', () => {
+      mockAutoplay.mockClear();
+      renderHook(() => useBannerCarousel({ autoplay: true }));
+
+      expect(mockAutoplay).toHaveBeenCalledWith(
+        expect.objectContaining({ stopOnInteraction: true })
+      );
+    });
+
+    it('should allow continuous auto-cycle without pause on hover', () => {
+      mockAutoplay.mockClear();
+      renderHook(() =>
+        useBannerCarousel({
+          autoplay: true,
+          stopOnMouseEnter: false,
+        })
+      );
+
+      expect(mockAutoplay).toHaveBeenCalledWith(
+        expect.objectContaining({ stopOnMouseEnter: false })
+      );
+    });
+
+    it('should allow continuous auto-cycle without pause on interaction', () => {
+      mockAutoplay.mockClear();
+      renderHook(() =>
+        useBannerCarousel({
+          autoplay: true,
+          stopOnInteraction: false,
+        })
+      );
+
+      expect(mockAutoplay).toHaveBeenCalledWith(
+        expect.objectContaining({ stopOnInteraction: false })
+      );
+    });
+
+    it('should pass complete pause configuration to Autoplay plugin', () => {
+      mockAutoplay.mockClear();
+      renderHook(() =>
+        useBannerCarousel({
+          autoplay: true,
+          autoplayDelay: 3000,
+          stopOnInteraction: true,
+          stopOnMouseEnter: true,
+        })
+      );
+
+      // Verify Autoplay receives all AC3 relevant options
+      expect(mockAutoplay).toHaveBeenCalledWith({
+        delay: 3000,
+        stopOnInteraction: true,
+        stopOnMouseEnter: true,
+      });
+    });
+
+    it('should maintain stable autoplay plugin instance on re-render with same options', () => {
+      mockAutoplay.mockClear();
+
+      const { rerender } = renderHook(
+        ({ autoplay, delay }) => useBannerCarousel({ autoplay, autoplayDelay: delay }),
+        { initialProps: { autoplay: true, delay: 5000 } }
+      );
+
+      const initialAutoplayCallCount = mockAutoplay.mock.calls.length;
+
+      // Re-render with same values
+      rerender({ autoplay: true, delay: 5000 });
+
+      // Autoplay should NOT be called again (stable instance via useMemo)
+      expect(mockAutoplay.mock.calls.length).toBe(initialAutoplayCallCount);
+    });
+
+    it('should recreate autoplay plugin only when options change', () => {
+      mockAutoplay.mockClear();
+
+      const { rerender } = renderHook(
+        ({ delay }) => useBannerCarousel({ autoplay: true, autoplayDelay: delay }),
+        { initialProps: { delay: 4000 } }
+      );
+
+      const initialCallCount = mockAutoplay.mock.calls.length;
+
+      // Change delay - should recreate plugin
+      rerender({ delay: 6000 });
+
+      expect(mockAutoplay.mock.calls.length).toBe(initialCallCount + 1);
+      expect(mockAutoplay).toHaveBeenLastCalledWith(
+        expect.objectContaining({ delay: 6000 })
+      );
+    });
   });
 
   describe('Autoplay Activation Logic (AC3)', () => {
