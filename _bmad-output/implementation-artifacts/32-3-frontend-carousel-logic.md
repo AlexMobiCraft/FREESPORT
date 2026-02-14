@@ -1,6 +1,6 @@
 # Story 32.3: Frontend Carousel Logic (Hook)
 
-Status: review
+Status: in-progress
 
 ## Story
 
@@ -90,6 +90,13 @@ so that I can easily implement the marketing banner slider and potentially refac
 - [x] [AI-Review][MEDIUM] Зафиксировать swipe-контракт явно: задавать `dragFree: false` в `emblaOptions` и проверить это в тесте, вместо неявной зависимости от default [frontend/src/hooks/useBannerCarousel.ts:157-161]
 - [x] [AI-Review][MEDIUM] Упростить init-синхронизацию: убрать дублирующую подписку/вызов `onSelect` на `init`, оставив один источник обновления состояния [frontend/src/hooks/useBannerCarousel.ts:238-247]
 - [x] [AI-Review][LOW] Синхронизировать комментарий `validatePositiveNumber` с фактической логикой `Number.isFinite` (Infinity тоже отклоняется) [frontend/src/hooks/useBannerCarousel.ts:99-105]
+
+### Review Follow-ups (AI) - 2026-02-14
+- [ ] [AI-Review][HIGH] Стабилизировать экземпляр Autoplay plugin (useRef/useMemo), чтобы он не пересоздавался на каждом ререндере и не сбрасывал автопрокрутку [frontend/src/hooks/useBannerCarousel.ts:121-133]
+- [ ] [AI-Review][HIGH] Синхронизировать Dev Agent Record → File List с фактическим git-состоянием (исключить ложное утверждение о проверке при пустом diff/status) [_bmad-output/implementation-artifacts/32-3-frontend-carousel-logic.md:107-128]
+- [ ] [AI-Review][MEDIUM] Уточнить и валидировать контракт `speed` (диапазон/единицы/дефолт), убрать противоречивую документацию [frontend/src/hooks/useBannerCarousel.ts:21-23]
+- [ ] [AI-Review][MEDIUM] Добавить unit-тест cleanup на unmount: проверка вызовов `emblaApi.off(...)` для всех подписок [frontend/src/hooks/useBannerCarousel.ts:199-205]
+- [ ] [AI-Review][MEDIUM] Добавить поведенческие тесты для AC3: auto cycle и pause on interaction (hover/touch) вместо проверки только параметров плагина [frontend/src/hooks/__tests__/useBannerCarousel.test.ts:243-299]
 
 ## Dev Notes
 
@@ -248,8 +255,15 @@ Approved (all findings resolved)
 - Статус Story переведен в `in-progress` до устранения HIGH/MEDIUM.
 - **Итерация #7: все 4 findings устранены (1 HIGH, 2 MEDIUM, 1 LOW). Все review items закрыты. Статус → review.**
 
+### Follow-up Review (2026-02-14)
+- Найдено: 2 HIGH, 3 MEDIUM, 0 LOW.
+- Зафиксировано 1 расхождение между story claims и текущим git-состоянием.
+- По выбору пользователя добавлены action items (без авто-фиксов).
+- Статус Story переведен в `in-progress`.
+
 ## Change Log
 
+<<<<<<< HEAD
 - 2026-02-13: Устранены финальные 4 review findings (1 HIGH, 2 MEDIUM, 1 LOW). Добавлен dragFree: false, упрощена init-синхронизация, обновлен комментарий. Все review items закрыты. Статус → review.
 - 2026-02-13: Выполнен новый code review (AI), найдено 1 HIGH / 2 MEDIUM / 1 LOW, добавлено 4 новых action items. Статус → in-progress.
 - 2026-02-13: Выполнен новый code review (AI), найдено 1 HIGH / 3 MEDIUM / 1 LOW, добавлено 5 новых action items. Статус → in-progress.
@@ -261,6 +275,9 @@ Approved (all findings resolved)
 - 2026-02-13: Выполнен повторный code review (AI), найдено 2 HIGH / 2 MEDIUM / 1 LOW, добавлено 5 новых action items. Статус → in-progress.
 - 2026-02-13: Устранены все 4 оставшихся review findings (1 HIGH, 2 MEDIUM, 1 LOW). Добавлено 8 тестов. Статус → review.
 - 2026-02-13: Выполнен повторный code review (AI), найдено 1 HIGH / 2 MEDIUM / 1 LOW, добавлено 4 новых action items. Статус → in-progress.
+=======
+- 2026-02-14: Выполнен code review (AI): найдено 2 HIGH и 3 MEDIUM, добавлено 5 action items, статус Story обновлен на `in-progress`.
+>>>>>>> bb3d55d4c8c09e7439db8c1d0170f122ca479925
 - 2026-02-13: Устранены все 7 review findings (3 HIGH, 3 MEDIUM, 1 LOW). Добавлено 16 тестов. Статус → review.
 - 2026-02-13: Добавлены результаты code review (AI), action items и обновлен статус Story на `in-progress`.
 - 2026-02-13: Устранены финальные 5 review findings (1 HIGH, 3 MEDIUM, 1 LOW). Добавлено 4 теста. Number.isFinite() валидация, onSelect→init подписка. Все review items закрыты. Статус → review.
