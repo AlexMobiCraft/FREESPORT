@@ -234,6 +234,23 @@ class TestActiveBannersViewMarketingLimit:
         assert response.status_code == 200
         assert len(response.data) == 5
 
+    def test_marketing_limit_configurable_via_settings(self):
+        """MARKETING_BANNER_LIMIT из settings управляет лимитом (override_settings)."""
+        from django.test import override_settings
+
+        for i in range(6):
+            BannerFactory(
+                type=Banner.BannerType.MARKETING,
+                show_to_guests=True,
+                priority=i,
+            )
+
+        with override_settings(MARKETING_BANNER_LIMIT=3):
+            cache.clear()
+            response = self.client.get("/api/v1/banners/", {"type": "marketing"})
+            assert response.status_code == 200
+            assert len(response.data) == 3
+
     def test_hero_not_limited(self):
         """Hero баннеры НЕ ограничены лимитом 5."""
         for i in range(7):

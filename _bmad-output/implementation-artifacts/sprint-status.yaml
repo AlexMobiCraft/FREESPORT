@@ -102,5 +102,5 @@ development_status:
   epic-32: in-progress
   32-1-database-and-admin-updates: done
   32-2-api-implementation-marketing-banners: done
-  32-3-frontend-carousel-logic: done
-  32-4-marketing-banners-ui: in-progress
+  32-3-frontend-carousel-logic: in-progress
+  32-4-marketing-banners-ui: review

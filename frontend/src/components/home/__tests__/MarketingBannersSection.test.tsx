@@ -424,6 +424,33 @@ describe('MarketingBannersSection', () => {
       expect(screen.queryByRole('link')).not.toBeInTheDocument();
     });
 
+    it('не должен рендерить ссылку для cta_link с backslash', async () => {
+      const backslashBanner: Banner[] = [{
+        ...mockMarketingBanners[0],
+        cta_link: '/catalog\\..\\admin',
+      }];
+      vi.mocked(bannersService.getActive).mockResolvedValue(backslashBanner);
+      vi.mocked(useBannerCarousel).mockReturnValue({
+        emblaRef: vi.fn(),
+        selectedIndex: 0,
+        scrollSnaps: [0],
+        canScrollPrev: false,
+        canScrollNext: false,
+        scrollNext: vi.fn(),
+        scrollPrev: vi.fn(),
+        onDotButtonClick: mockOnDotButtonClick,
+        scrollTo: vi.fn(),
+      });
+
+      render(<MarketingBannersSection />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('marketing-banners-section')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    });
+
     it('должен использовать trimmed href для ссылки с пробелами', async () => {
       const spacedBanner: Banner[] = [{
         ...mockMarketingBanners[0],

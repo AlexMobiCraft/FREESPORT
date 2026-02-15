@@ -55,6 +55,7 @@ const isSafeLink = (link: string): boolean => {
   const lower = trimmed.toLowerCase();
   if (lower.startsWith('javascript:') || lower.startsWith('data:') || lower.startsWith('vbscript:')) return false;
   if (trimmed.startsWith('//')) return false; // block protocol-relative URLs (open redirect)
+  if (trimmed.includes('\\')) return false; // block backslashes (path traversal / browser normalization)
   if (trimmed.startsWith('/')) return true;
   return false;
 };
@@ -100,27 +101,27 @@ const MarketingBannersCarousel: React.FC = () => {
   });
 
   useEffect(() => {
-    let cancelled = false;
+    const controller = new AbortController();
 
     const loadBanners = async () => {
       try {
         setIsLoading(true);
         const data = await bannersService.getActive('marketing');
-        if (cancelled) return;
+        if (controller.signal.aborted) return;
         const validBanners = data.filter(b => b.image_url && b.image_url.trim() !== '');
         setBanners(validBanners);
         setError(null);
       } catch (err) {
-        if (cancelled) return;
+        if (controller.signal.aborted) return;
         setError(err instanceof Error ? err : new Error('Unknown error'));
       } finally {
-        if (!cancelled) setIsLoading(false);
+        if (!controller.signal.aborted) setIsLoading(false);
       }
     };
 
     loadBanners();
 
-    return () => { cancelled = true; };
+    return () => { controller.abort(); };
   }, []);
 
   const handleImageError = useCallback((bannerId: number) => {
