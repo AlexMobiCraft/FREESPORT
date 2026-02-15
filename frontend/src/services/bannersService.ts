@@ -10,11 +10,12 @@ class BannersService {
    * Получить активные баннеры для текущего пользователя
    * API автоматически фильтрует по роли из JWT токена
    * @param type - Тип баннера: 'hero' (default) или 'marketing'
+   * @param signal - AbortSignal для отмены HTTP-запроса при unmount
    * @returns Массив активных баннеров
    */
-  async getActive(type?: BannerType): Promise<Banner[]> {
+  async getActive(type?: BannerType, signal?: AbortSignal): Promise<Banner[]> {
     const params = type ? { type } : {};
-    const response = await apiClient.get<Banner[]>('/banners/', { params });
+    const response = await apiClient.get<Banner[]>('/banners/', { params, signal });
     return response.data;
   }
 }

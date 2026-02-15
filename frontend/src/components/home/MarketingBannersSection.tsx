@@ -106,7 +106,7 @@ const MarketingBannersCarousel: React.FC = () => {
     const loadBanners = async () => {
       try {
         setIsLoading(true);
-        const data = await bannersService.getActive('marketing');
+        const data = await bannersService.getActive('marketing', controller.signal);
         if (controller.signal.aborted) return;
         const validBanners = data.filter(b => b.image_url && b.image_url.trim() !== '');
         setBanners(validBanners);

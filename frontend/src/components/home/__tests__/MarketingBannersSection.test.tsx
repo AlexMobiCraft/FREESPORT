@@ -236,7 +236,7 @@ describe('MarketingBannersSection', () => {
       render(<MarketingBannersSection />);
 
       await waitFor(() => {
-        expect(bannersService.getActive).toHaveBeenCalledWith('marketing');
+        expect(bannersService.getActive).toHaveBeenCalledWith('marketing', expect.any(AbortSignal));
       });
     });
 

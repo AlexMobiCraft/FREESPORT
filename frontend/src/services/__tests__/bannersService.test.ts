@@ -124,5 +124,18 @@ describe('bannersService', () => {
       expect(result[0]).toHaveProperty('cta_text');
       expect(result[0]).toHaveProperty('cta_link');
     });
+
+    test('passes AbortSignal to HTTP request for cancellation support', async () => {
+      const controller = new AbortController();
+      controller.abort();
+
+      server.use(
+        http.get(`${API_BASE_URL}/banners/`, () => {
+          return HttpResponse.json([]);
+        })
+      );
+
+      await expect(bannersService.getActive('marketing', controller.signal)).rejects.toThrow();
+    });
   });
 });

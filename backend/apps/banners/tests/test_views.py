@@ -118,6 +118,25 @@ class TestActiveBannersViewCaching:
         BannerFactory(type=Banner.BannerType.HERO, show_to_guests=True)
         assert cache.get("banners:list:hero:guest") is None
 
+    def test_signal_invalidates_both_caches_on_type_change(self):
+        """CR-8: Смена type у баннера инвалидирует кеш обоих типов (старый + новый)."""
+        banner = BannerFactory(type=Banner.BannerType.HERO, show_to_guests=True)
+        BannerFactory(type=Banner.BannerType.MARKETING, show_to_guests=True)
+
+        # Заполняем кеш для обоих типов
+        self.client.get("/api/v1/banners/", {"type": "hero"})
+        self.client.get("/api/v1/banners/", {"type": "marketing"})
+        assert cache.get("banners:list:hero:guest") is not None
+        assert cache.get("banners:list:marketing:guest") is not None
+
+        # Меняем type существующего баннера hero→marketing
+        banner.type = Banner.BannerType.MARKETING
+        banner.save()
+
+        # Оба кеша должны быть инвалидированы
+        assert cache.get("banners:list:hero:guest") is None
+        assert cache.get("banners:list:marketing:guest") is None
+
 
 @pytest.mark.django_db
 class TestActiveBannersViewRoleIsolation:
