@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional, cast
+from urllib.parse import urlsplit
 
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -15,6 +16,31 @@ from django.utils import timezone
 
 if TYPE_CHECKING:
     from apps.users.models import User
+
+
+UNSAFE_CTA_SCHEMES = ("javascript:", "data:", "vbscript:")
+
+
+def is_safe_internal_cta_link(link: str) -> bool:
+    """Проверяет, что cta_link является безопасным внутренним относительным путём."""
+    trimmed = link.strip()
+    if not trimmed:
+        return False
+
+    lowered = trimmed.lower()
+    if lowered.startswith(UNSAFE_CTA_SCHEMES):
+        return False
+
+    # Блокируем protocol-relative URL: //evil.com
+    if trimmed.startswith("//"):
+        return False
+
+    # Разрешаем только внутренние ссылки вида /catalog и /catalog?x=1
+    if not trimmed.startswith("/"):
+        return False
+
+    parsed = urlsplit(trimmed)
+    return parsed.scheme == "" and parsed.netloc == ""
 
 
 class Banner(models.Model):
@@ -179,8 +205,24 @@ class Banner(models.Model):
         """
         Валидация модели:
         - Image обязательна для Marketing баннеров (AC2)
+        - CTA ссылка должна быть безопасным внутренним относительным путём
         """
         super().clean()
+
+        cleaned_cta_link = self.cta_link.strip() if isinstance(self.cta_link, str) else ""
+        if not cleaned_cta_link:
+            raise ValidationError({"cta_link": "Ссылка кнопки обязательна и не может быть пустой."})
+        if not is_safe_internal_cta_link(cleaned_cta_link):
+            raise ValidationError(
+                {
+                    "cta_link": (
+                        "Ссылка кнопки должна быть внутренним относительным путём "
+                        "(например, /catalog) без небезопасных протоколов."
+                    )
+                }
+            )
+        self.cta_link = cleaned_cta_link
+
         if self.type == self.BannerType.MARKETING and not self.image:
             raise ValidationError(
                 {"image": "Изображение обязательно для маркетинговых баннеров."}

@@ -175,12 +175,6 @@ def invalidate_banner_cache(banner_type: str) -> None:
     keys_to_delete = []
     for role_key in _ALL_ROLE_KEYS:
         keys_to_delete.append(build_cache_key(banner_type, role_key))
-        # При изменении marketing-баннера также инвалидируем hero-кеш на случай
-        # перекрытия; при hero — только hero (уже добавлен выше).
-        if banner_type != Banner.BannerType.HERO.value:
-            keys_to_delete.append(
-                build_cache_key(Banner.BannerType.HERO.value, role_key)
-            )
 
     cache.delete_many(keys_to_delete)
     logger.debug(

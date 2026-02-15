@@ -118,6 +118,46 @@ class TestBannerSaveCallsFullClean:
         banner.save()
         assert banner.pk is not None
 
+    @pytest.mark.parametrize(
+        "unsafe_cta_link",
+        [
+            "javascript:alert(1)",
+            "data:text/html,<script>alert(1)</script>",
+            "vbscript:MsgBox(1)",
+            "https://evil.com/phishing",
+            "//evil.com/phishing",
+            "catalog/no-leading-slash",
+            "   ",
+        ],
+    )
+    def test_save_with_unsafe_cta_link_raises_error(self, unsafe_cta_link):
+        """save() должен блокировать небезопасные и внешние cta_link."""
+        banner = Banner(
+            title="Unsafe CTA",
+            subtitle="Test",
+            cta_link=unsafe_cta_link,
+            type=Banner.BannerType.HERO,
+        )
+
+        with pytest.raises(ValidationError) as exc_info:
+            banner.save()
+
+        assert "cta_link" in exc_info.value.message_dict
+
+    def test_save_trims_safe_internal_cta_link(self):
+        """safe cta_link с пробелами нормализуется через trim перед сохранением."""
+        banner = Banner(
+            title="Trim CTA",
+            subtitle="Test",
+            cta_link="   /catalog?sale=summer   ",
+            type=Banner.BannerType.HERO,
+        )
+
+        banner.save()
+        banner.refresh_from_db()
+
+        assert banner.cta_link == "/catalog?sale=summer"
+
     def test_save_marketing_with_image_succeeds(self):
         """save() Marketing баннера с image проходит."""
         from apps.banners.factories import generate_test_image

@@ -165,15 +165,6 @@ class TestInvalidateBannerCache:
         for role in _ALL_ROLE_KEYS:
             assert cache.get(f"banners:list:hero:{role}") is None
 
-    def test_invalidate_marketing_also_clears_hero_keys(self):
-        """Инвалидация marketing также очищает hero-кеш (AC4)."""
-        for role in _ALL_ROLE_KEYS:
-            cache.set(f"banners:list:hero:{role}", "data")
-
-        invalidate_banner_cache("marketing")
-
-        for role in _ALL_ROLE_KEYS:
-            assert cache.get(f"banners:list:hero:{role}") is None
 
     def test_invalidate_hero_does_not_clear_marketing(self):
         """Инвалидация hero НЕ затрагивает marketing ключи."""

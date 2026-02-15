@@ -541,6 +541,55 @@ describe('MarketingBannersSection', () => {
   });
 
   // -------------------------------------------------------------------------
+  // Performance: autoplay/loop disabled for single banner
+  // -------------------------------------------------------------------------
+  describe('Performance: autoplay/loop при одном баннере', () => {
+    it('должен вызывать useBannerCarousel с loop=false, autoplay=false при 1 баннере', async () => {
+      vi.mocked(bannersService.getActive).mockResolvedValue(singleBanner);
+      vi.mocked(useBannerCarousel).mockReturnValue({
+        emblaRef: vi.fn(),
+        selectedIndex: 0,
+        scrollSnaps: [0],
+        canScrollPrev: false,
+        canScrollNext: false,
+        scrollNext: vi.fn(),
+        scrollPrev: vi.fn(),
+        onDotButtonClick: mockOnDotButtonClick,
+        scrollTo: vi.fn(),
+      });
+
+      render(<MarketingBannersSection />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('marketing-banners-section')).toBeInTheDocument();
+      });
+
+      // After banners load with 1 banner, hook should be called with loop=false, autoplay=false
+      const lastCall = vi.mocked(useBannerCarousel).mock.calls.at(-1);
+      expect(lastCall?.[0]).toMatchObject({
+        loop: false,
+        autoplay: false,
+      });
+    });
+
+    it('должен вызывать useBannerCarousel с loop=true, autoplay=true при 2+ баннерах', async () => {
+      vi.mocked(bannersService.getActive).mockResolvedValue(mockMarketingBanners);
+
+      render(<MarketingBannersSection />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('marketing-banners-section')).toBeInTheDocument();
+      });
+
+      const lastCall = vi.mocked(useBannerCarousel).mock.calls.at(-1);
+      expect(lastCall?.[0]).toMatchObject({
+        loop: true,
+        autoplay: true,
+      });
+    });
+  });
+
+  // -------------------------------------------------------------------------
   // AC4: Обработка ошибки загрузки изображения
   // -------------------------------------------------------------------------
   describe('AC4: Обработка ошибки загрузки изображения', () => {

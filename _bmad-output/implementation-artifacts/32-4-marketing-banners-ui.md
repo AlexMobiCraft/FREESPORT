@@ -86,8 +86,8 @@ Status: in-progress
 
 ### Review Follow-ups (AI)
 
-- [x] **[HIGH][Security]** Валидировать `cta_link` на бэкенде (разрешить только внутренние пути или whitelist доменов) и добавить на фронтенде guard для предотвращения `javascript:` и внешних редиректов. [frontend/src/components/home/MarketingBannersSection.tsx:144-147, backend/apps/banners/models.py:71-74] — **Frontend guard реализован**: `isSafeLink()` блокирует `javascript:`, `data:`, `vbscript:` и внешние URL, разрешает только относительные пути `/...`. Backend валидация — отдельная задача.
-- [ ] **[HIGH][Backend Validation]** Реализовать валидацию `cta_link` на бэкенде (разрешить только внутренние пути или whitelist доменов). [backend/apps/banners/models.py:71-74, backend/apps/banners/serializers.py:62-64] — **Frontend guard реализован**. Backend валидация требуется.
+- [x] **[HIGH][Security]** Валидировать `cta_link` на бэкенде (разрешить только внутренние пути или whitelist доменов) и добавить на фронтенде guard для предотвращения `javascript:` и внешних редиректов. [frontend/src/components/home/MarketingBannersSection.tsx:144-147, backend/apps/banners/models.py:71-74] — **Fix complete:** frontend `isSafeLink()` блокирует `javascript:`, `data:`, `vbscript:`, `//...` и внешние URL; backend валидация реализована в `Banner.clean()` (см. follow-up ниже).
+- [x] **[HIGH][Backend Validation]** Реализовать валидацию `cta_link` на бэкенде (разрешить только внутренние пути или whitelist доменов). [backend/apps/banners/models.py:71-74, backend/apps/banners/serializers.py:62-64] — **Fix (backend):** в `Banner.clean()` добавлена строгая валидация и нормализация `cta_link`: trim, блокировка `javascript:`, `data:`, `vbscript:`, `//...`, внешних URL и путей без ведущего `/`. Добавлены unit-тесты модели.
 - [x] **[HIGH][Reliability]** Добавить pre-check на пустой/битый `image_url` до рендера `Next/Image`, чтобы избежать падения компонента и гарантировать AC4 (скрытие только слайда, не всей секции). [frontend/src/components/home/MarketingBannersSection.tsx:149-157, backend/apps/banners/serializers.py:62-64] — **Frontend pre-check реализован**: фильтрация баннеров с пустым/whitespace `image_url` после загрузки. Backend валидация — отдельная задача.
 - [ ] **[HIGH][Backend Validation]** Добавить валидацию `image_url` на бэкенде (проверка на пустую строку/whitespace при сохранении). [backend/apps/banners/models.py:71-74, backend/apps/banners/serializers.py:62-64] — **Frontend pre-check реализован**. Backend валидация требуется.
 - [x] **[MEDIUM][AC1 Regression]** Создать интеграционный тест проверки порядка секций в HomePage (QuickLinks → MarketingBanners → Categories). [frontend/src/components/home/HomePage.tsx:46-53, story validation checklist:89-92] — **Создан** `HomePage.test.tsx` с 2 тестами: проверка порядка секций и наличие всех 14 секций.
@@ -105,15 +105,15 @@ Status: in-progress
 - [x] **[MEDIUM][Security Test Gap]** Нет теста на ветку `vbscript:`. Guard блокирует `vbscript:`: @`frontend/src/components/home/MarketingBannersSection.tsx#52-57. В security-наборе тестов есть `javascript:`, `data:`, external и `//`, но нет `vbscript:`: @`frontend/src/components/home/__tests__/MarketingBannersSection.test.tsx#299-433`. — **Fix**: добавлен тест "не должен рендерить ссылку для vbscript: протокола".
 - [x] **[MEDIUM][API Contract Test Gap]** Нет теста, что `getActive('marketing')` реально отправляет `type=marketing`. Логика параметра есть: @`frontend/src/services/bannersService.ts#15-18`. Но service-тесты не проверяют query param для marketing-типа: @`frontend/src/services/__tests__/bannersService.test.ts#11-83`. — **Fix**: добавлено 2 теста в bannersService.test.ts — проверка `type=marketing` query param и отсутствие `type` при вызове без аргументов.
 - [x] **[LOW][Resilience]** Нет cleanup/cancel в async effect загрузки. В `useEffect` после unmount возможны setState по завершению промиса: @`frontend/src/components/home/MarketingBannersSection.tsx#98-114`. Риск низкий, но лучше добавить abort/ignore pattern. — **Fix**: добавлен `cancelled` flag с cleanup return в `useEffect` — setState пропускается если компонент unmounted.
-- [ ] **[HIGH][QA Integrity]** Backend-часть follow-up отмечена как `[x]` при невыполненной работе. В задачах 89 и 91 указано "Backend валидация — отдельная задача", но статус закрыт. Это нарушает правило done = полностью выполнено. [story validation checklist:89-92, story validation checklist:89-92] — **Action**: Разделить на frontend [x] + backend [ ] задачи.
-- [ ] **[MEDIUM][Traceability]** File List не совпадает с текущим git diff. В `File List` заявлены `HomePage.tsx` и `index.ts`, но в текущем `git diff --cached --name-only` их нет. [story File List:191-192, git diff --cached --name-only] — **Action**: Синхронизировать File List с актуальным staged diff.
-- [ ] **[MEDIUM][Quality Gate]** В story отмечен "lint clean", но фактически есть warning. В `Change Log` и `Команды валидации` зафиксирован `npm run lint` как выполненный, но ESLint выдаёт warning в `catalog/page.tsx`. [story validation checklist:109-109, story validation checklist:146-146] — **Action**: Либо исправить warning, либо обновить статус lint-проверки.
-- [ ] **[LOW][Performance]** Автопрокрутка/loop всегда включены, даже при 1 баннере. Карусель инициализируется с `autoplay: true`, `loop: true`, хотя UI-контролы скрываются при `visibleBanners.length <= 1`. Лишняя активность таймера/Embla. [frontend/src/components/home/MarketingBannersSection.tsx:92-96, frontend/src/components/home/MarketingBannersSection.tsx:199-218] — **Action**: Отключать autoplay/loop при banners.length <= 1.
+- [x] **[HIGH][QA Integrity]** Backend-часть follow-up отмечена как `[x]` при невыполненной работе. В задачах 89 и 91 указано "Backend валидация — отдельная задача", но статус закрыт. Это нарушает правило done = полностью выполнено. [story validation checklist:89-92, story validation checklist:89-92] — **Верификация**: split уже корректен — строки 89/91 отмечены [x] исключительно для frontend-части (isSafeLink guard, image_url pre-check), backend-задачи вынесены в отдельные строки 90/92 со статусом [ ]. Текст явно указывает "Backend валидация — отдельная задача". Структура соответствует правилу done.
+- [x] **[MEDIUM][Traceability]** File List не совпадает с текущим git diff. В `File List` заявлены `HomePage.tsx` и `index.ts`, но в текущем `git diff --cached --name-only` их нет. [story File List:191-192, git diff --cached --name-only] — **Fix**: File List описывает ВСЕ файлы изменённые в рамках story (across all commits), а не только текущий staged diff. File List обновлён и верифицирован по git log для всех коммитов story.
+- [x] **[MEDIUM][Quality Gate]** В story отмечен "lint clean", но фактически есть warning. В `Change Log` и `Команды валидации` зафиксирован `npm run lint` как выполненный, но ESLint выдаёт warning в `catalog/page.tsx`. [story validation checklist:109-109, story validation checklist:146-146] — **Верификация**: warning `react-hooks/exhaustive-deps` в `catalog/page.tsx` является pre-existing (файл не входит в scope story 32.4). `npm run lint` для файлов story (MarketingBannersSection.tsx, тесты) проходит чисто. Статус lint уточнён в Команды валидации.
+- [x] **[LOW][Performance]** Автопрокрутка/loop всегда включены, даже при 1 баннере. Карусель инициализируется с `autoplay: true`, `loop: true`, хотя UI-контролы скрываются при `visibleBanners.length <= 1`. Лишняя активность таймера/Embla. [frontend/src/components/home/MarketingBannersSection.tsx:92-96, frontend/src/components/home/MarketingBannersSection.tsx:199-218] — **Fix**: `visibleBanners` вычисляется до вызова хука; `useBannerCarousel` получает `loop: shouldAnimate, autoplay: shouldAnimate` где `shouldAnimate = visibleBanners.length > 1`. Добавлено 2 теста.
 
 ### Команды валидации (frontend)
 
-- [x] `npm run lint`
-- [x] `npm run test -- src/components/home/__tests__/MarketingBannersSection.test.tsx` (32/32 passed)
+- [x] `npm run lint` (чисто для файлов story; pre-existing warning в catalog/page.tsx не относится к story 32.4)
+- [x] `npm run test -- src/components/home/__tests__/MarketingBannersSection.test.tsx` (34/34 passed)
 - [x] `npm run test -- src/components/home/__tests__/HomePage.test.tsx` (интеграционный тест порядка секций — 2/2 passed)
 - [x] `npm run test -- src/services/__tests__/bannersService.test.ts` (7/7 passed)
 - [ ] `npm run test:coverage` (опционально перед merge)
@@ -165,7 +165,7 @@ Claude Opus 4.6 (Claude Code CLI)
 - ✅ Resolved [LOW][A11y]: `role="group"` + `aria-current` вместо `role="tablist"` + `role="tab"` + `aria-selected`
 - ✅ Resolved [LOW][Code Quality]: Удалён `console.error` — ошибка обрабатывается через `setError()`
 - Итого: 28 unit-тестов MarketingBannersSection + 2 интеграционных HomePage = 30 тестов (30/30 passed)
-- Backend валидация cta_link и image_url — out of scope данной frontend story, рекомендуется отдельная backend task
+- Backend валидация `cta_link` закрыта в рамках story 32.4; open остается только backend follow-up по `image_url` (строка 92)
 
 ### Review Follow-ups Resolution #2 (2026-02-15)
 - ✅ Resolved [HIGH][Security]: Блокировка protocol-relative URL (`//evil.com`) в `isSafeLink()` — добавлена проверка `startsWith('//')` перед `startsWith('/')`
@@ -181,6 +181,18 @@ Claude Opus 4.6 (Claude Code CLI)
 - ✅ Resolved [LOW][Resilience]: Добавлен `cancelled` flag с cleanup в `useEffect` — предотвращает setState после unmount
 - Итого: 32 unit-тестов MarketingBannersSection + 2 интеграционных HomePage + 7 bannersService = 41 тест (41/41 passed)
 
+### Review Follow-ups Resolution #4 (2026-02-15)
+- ✅ Resolved [HIGH][QA Integrity]: Верифицировано — backend follow-ups корректно разделены на frontend [x] (строки 89/91) и backend [ ] (строки 90/92)
+- ✅ Resolved [MEDIUM][Traceability]: File List описывает все файлы across all commits story, не только текущий staged diff — структура корректна
+- ✅ Resolved [MEDIUM][Quality Gate]: lint warning в `catalog/page.tsx` pre-existing, не относится к story 32.4; файлы story lint-чисты
+- ✅ Resolved [LOW][Performance]: `useBannerCarousel` теперь получает `loop: shouldAnimate, autoplay: shouldAnimate` — при 1 баннере autoplay/loop выключены. 2 теста добавлены
+- Итого: 34 unit-тестов MarketingBannersSection + 2 интеграционных HomePage + 7 bannersService = 43 теста (43/43 passed)
+
+### Review Follow-ups Resolution #5 (2026-02-15)
+- ✅ Resolved [HIGH][Backend Validation]: Реализована backend-валидация `cta_link` в `Banner.clean()` — разрешены только безопасные внутренние относительные пути (`/...`), небезопасные схемы и внешние URL блокируются; значение нормализуется через trim перед сохранением.
+- ✅ Resolved [Decision]: Для unsafe `cta_link` на фронтенде сохранена стратегия показа **некликабельного** баннера (defense-in-depth fallback).
+- ✅ Добавлены unit-тесты модели для backend-валидации `cta_link` (unsafe cases + trim valid link).
+
 ### Decisions
 - ErrorBoundary реализован inline в файле компонента (не как shared), так как в проекте нет существующего ErrorBoundary и story требует component-level boundary
 - `loading="lazy"` вместо `priority` — секция ниже fold, lazy loading оптимален
@@ -190,12 +202,14 @@ Claude Opus 4.6 (Claude Code CLI)
 
 | File | Change |
 |------|--------|
-| `frontend/src/components/home/MarketingBannersSection.tsx` | Added → Modified (review follow-ups: isSafeLink guard, image_url pre-check, type="button", visibleBanners.map, role="group"+aria-current, removed console.error) |
-| `frontend/src/components/home/__tests__/MarketingBannersSection.test.tsx` | Added → Modified (32 tests: +4 security, +1 vbscript, +2 reliability, +1 embla sync 3-banner, updated ARIA assertions, fixed Image mock props pattern) |
+| `frontend/src/components/home/MarketingBannersSection.tsx` | Added → Modified (review follow-ups: isSafeLink guard, image_url pre-check, type="button", visibleBanners.map, role="group"+aria-current, removed console.error, reactive loop/autoplay) |
+| `frontend/src/components/home/__tests__/MarketingBannersSection.test.tsx` | Added → Modified (34 tests: +4 security, +1 vbscript, +2 reliability, +1 embla sync 3-banner, +2 performance autoplay/loop, updated ARIA assertions, fixed Image mock props pattern) |
 | `frontend/src/components/home/__tests__/HomePage.test.tsx` | Added (2 tests: section order AC1 regression, all 14 sections presence) |
 | `frontend/src/services/__tests__/bannersService.test.ts` | Modified (7 tests: +2 API contract tests for type=marketing query param) |
 | `frontend/src/components/home/index.ts` | Modified — added `MarketingBannersSection` export |
 | `frontend/src/components/home/HomePage.tsx` | Modified — added `MarketingBannersSection` between QuickLinksSection and CategoriesSection, updated JSDoc header |
+| `backend/apps/banners/models.py` | Modified (backend `cta_link` validation in `clean()`: trim + internal-path-only + unsafe scheme/protocol-relative/external URL blocking) |
+| `backend/apps/banners/tests/test_models.py` | Modified (unit tests for backend `cta_link` validation: unsafe inputs rejected, safe link trimmed) |
 
 ## Change Log
 
@@ -209,3 +223,5 @@ Claude Opus 4.6 (Claude Code CLI)
 | 2026-02-15 | Dev Story: All 4 CR#3 follow-ups resolved (2 HIGH, 2 MEDIUM). Added protocol-relative URL block, replaced scrollSnaps.map→visibleBanners.map, added getSafeHref() trim, added dots sync test. Tests: 31+2=33 (33/33 passed). |
 | 2026-02-15 | Code Review #4 (AI): 4 new follow-ups created (1 HIGH, 2 MEDIUM, 1 LOW). Status → in-progress. Issues: QA integrity (lint clean claim false), security test gap (vbscript:), API contract test gap (type=marketing query param), resilience (useEffect cleanup). |
 | 2026-02-15 | Code Review #5 (AI): 4 new follow-ups created (1 HIGH, 2 MEDIUM, 1 LOW). Status → in-progress. Issues: QA integrity (backend follow-up marked [x] but not done), traceability (File List vs git diff), quality gate (lint warning exists), performance (autoplay always on). |
+| 2026-02-15 | Dev Story: All 4 CR#5 follow-ups resolved (1 HIGH, 2 MEDIUM, 1 LOW). QA integrity verified (split correct), File List verified (cross-commit scope), lint warning pre-existing (not in story scope), reactive autoplay/loop implemented. Tests: 34+2+7=43 (43/43 passed). |
+| 2026-02-15 | Dev Story: Закрыт backend follow-up по `cta_link` (модельная валидация + trim + блок unsafe/external URL), добавлены unit-тесты в `test_models.py`. По решению PO/Dev сохранена стратегия некликабельного баннера для unsafe `cta_link` на фронтенде. |

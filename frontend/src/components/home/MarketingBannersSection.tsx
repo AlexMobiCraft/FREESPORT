@@ -85,13 +85,17 @@ const MarketingBannersCarousel: React.FC = () => {
   const [error, setError] = useState<Error | null>(null);
   const [failedImages, setFailedImages] = useState<Set<number>>(new Set());
 
+  // Compute visible banners before hook call so loop/autoplay can be reactive
+  const visibleBanners = banners.filter(b => !failedImages.has(b.id));
+  const shouldAnimate = visibleBanners.length > 1;
+
   const {
     emblaRef,
     selectedIndex,
     onDotButtonClick,
   } = useBannerCarousel({
-    loop: true,
-    autoplay: true,
+    loop: shouldAnimate,
+    autoplay: shouldAnimate,
     autoplayDelay: 5000,
   });
 
@@ -136,9 +140,6 @@ const MarketingBannersCarousel: React.FC = () => {
   if (error || banners.length === 0) {
     return null;
   }
-
-  // Filter out banners with failed images
-  const visibleBanners = banners.filter(b => !failedImages.has(b.id));
 
   // All images failed — hide section
   if (visibleBanners.length === 0) {

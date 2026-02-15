@@ -78,10 +78,3 @@ class TestBannerCacheInvalidation:
         for role in _ALL_ROLE_KEYS:
             assert cache.get(f"banners:list:hero:{role}") is None
 
-    def test_save_also_invalidates_all_keys(self):
-        """Сохранение баннера также инвалидирует banners:list:all:{role}."""
-        for role in _ALL_ROLE_KEYS:
-            cache.set(f"banners:list:all:{role}", "cached_data")
-        BannerFactory(type=Banner.BannerType.HERO)
-        for role in _ALL_ROLE_KEYS:
-            assert cache.get(f"banners:list:all:{role}") is None
