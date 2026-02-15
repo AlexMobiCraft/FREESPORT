@@ -46,6 +46,19 @@ class MarketingBannerErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
 }
 
 // ---------------------------------------------------------------------------
+// Link safety guard (AC6 security)
+// ---------------------------------------------------------------------------
+
+const isSafeLink = (link: string): boolean => {
+  if (!link) return false;
+  const trimmed = link.trim();
+  const lower = trimmed.toLowerCase();
+  if (lower.startsWith('javascript:') || lower.startsWith('data:') || lower.startsWith('vbscript:')) return false;
+  if (trimmed.startsWith('/')) return true;
+  return false;
+};
+
+// ---------------------------------------------------------------------------
 // Skeleton Loader
 // ---------------------------------------------------------------------------
 
@@ -85,10 +98,10 @@ const MarketingBannersCarousel: React.FC = () => {
       try {
         setIsLoading(true);
         const data = await bannersService.getActive('marketing');
-        setBanners(data);
+        const validBanners = data.filter(b => b.image_url && b.image_url.trim() !== '');
+        setBanners(validBanners);
         setError(null);
       } catch (err) {
-        console.error('Failed to load marketing banners:', err);
         setError(err instanceof Error ? err : new Error('Unknown error'));
       } finally {
         setIsLoading(false);
@@ -132,33 +145,45 @@ const MarketingBannersCarousel: React.FC = () => {
     >
       <div ref={emblaRef} className="overflow-hidden rounded-2xl">
         <div className="flex">
-          {banners.map(banner => {
-            const isFailed = failedImages.has(banner.id);
-            if (isFailed) return null;
-
-            return (
+          {visibleBanners.map(banner => (
               <div
                 className="flex-[0_0_100%] min-w-0 relative"
                 key={banner.id}
               >
-                <Link
-                  href={banner.cta_link}
-                  className="block relative w-full aspect-[21/9] md:aspect-[3/1]"
-                  aria-label={banner.title}
-                >
-                  <Image
-                    src={banner.image_url}
-                    alt={banner.image_alt}
-                    fill
-                    sizes="(max-width: 768px) 100vw, 1280px"
-                    className="object-cover"
-                    loading="lazy"
-                    onError={() => handleImageError(banner.id)}
-                  />
-                </Link>
+                {isSafeLink(banner.cta_link) ? (
+                  <Link
+                    href={banner.cta_link}
+                    className="block relative w-full aspect-[21/9] md:aspect-[3/1]"
+                    aria-label={banner.title}
+                  >
+                    <Image
+                      src={banner.image_url}
+                      alt={banner.image_alt}
+                      fill
+                      sizes="(max-width: 768px) 100vw, 1280px"
+                      className="object-cover"
+                      loading="lazy"
+                      onError={() => handleImageError(banner.id)}
+                    />
+                  </Link>
+                ) : (
+                  <div
+                    className="block relative w-full aspect-[21/9] md:aspect-[3/1]"
+                    aria-label={banner.title}
+                  >
+                    <Image
+                      src={banner.image_url}
+                      alt={banner.image_alt}
+                      fill
+                      sizes="(max-width: 768px) 100vw, 1280px"
+                      className="object-cover"
+                      loading="lazy"
+                      onError={() => handleImageError(banner.id)}
+                    />
+                  </div>
+                )}
               </div>
-            );
-          })}
+          ))}
         </div>
       </div>
 
@@ -166,18 +191,18 @@ const MarketingBannersCarousel: React.FC = () => {
       {visibleBanners.length > 1 && (
         <div
           className="flex gap-2 justify-center mt-3"
-          role="tablist"
+          role="group"
           aria-label="Навигация по баннерам"
         >
           {scrollSnaps.map((_, index) => (
             <button
+              type="button"
               key={index}
               onClick={() => onDotButtonClick(index)}
               className={`w-2 h-2 rounded-full transition-all ${
                 index === selectedIndex ? 'bg-cyan-600 w-8' : 'bg-gray-300'
               }`}
-              role="tab"
-              aria-selected={index === selectedIndex}
+              aria-current={index === selectedIndex ? 'true' : undefined}
               aria-label={`Баннер ${index + 1}`}
             />
           ))}

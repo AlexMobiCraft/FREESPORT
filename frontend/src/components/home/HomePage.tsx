@@ -4,6 +4,7 @@
  * Порядок секций:
  * 1. HeroSection (баннеры)
  * 1.5. QuickLinksSection (быстрые ссылки)
+ * 1.6. MarketingBannersSection (маркетинговые баннеры)
  * 2. CategoriesSection (популярные категории)
  * 3. HitsSection (хиты продаж)
  * 4. NewArrivalsSection (новинки)

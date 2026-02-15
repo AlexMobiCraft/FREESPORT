@@ -8,6 +8,8 @@
  * - AC4: обработка ошибки загрузки изображения
  * - AC5: ErrorBoundary перехватывает ошибку рендера
  * - AC6: навигация по cta_link
+ * - Security: cta_link validation guard
+ * - Reliability: image_url pre-check
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
@@ -45,10 +47,10 @@ vi.mock('next/image', () => ({
     src,
     alt,
     onError,
-    fill,
+    fill: _fill,
     sizes,
     loading,
-    ...props
+    className,
   }: {
     src: string;
     alt: string;
@@ -56,7 +58,7 @@ vi.mock('next/image', () => ({
     fill?: boolean;
     sizes?: string;
     loading?: string;
-    [key: string]: unknown;
+    className?: string;
   }) => (
     // eslint-disable-next-line @next/next/no-img-element
     <img
@@ -65,7 +67,7 @@ vi.mock('next/image', () => ({
       onError={onError}
       data-sizes={sizes}
       data-loading={loading}
-      {...props}
+      className={className}
     />
   ),
 }));
@@ -113,6 +115,20 @@ const mockMarketingBanners: Banner[] = [
     image_alt: 'Коллекция кроссовок',
     cta_text: 'Смотреть коллекцию',
     cta_link: '/catalog/sneakers',
+  },
+];
+
+const threeBanners: Banner[] = [
+  ...mockMarketingBanners,
+  {
+    id: 12,
+    type: 'marketing',
+    title: 'Зимний сезон',
+    subtitle: 'Куртки и термобелье',
+    image_url: '/media/banners/winter.jpg',
+    image_alt: 'Зимний сезон баннер',
+    cta_text: 'Смотреть',
+    cta_link: '/catalog/winter',
   },
 ];
 
@@ -278,6 +294,141 @@ describe('MarketingBannersSection', () => {
   });
 
   // -------------------------------------------------------------------------
+  // Security: cta_link validation guard
+  // -------------------------------------------------------------------------
+  describe('Security: cta_link guard', () => {
+    it('не должен рендерить ссылку для javascript: протокола', async () => {
+      const maliciousBanner: Banner[] = [{
+        ...mockMarketingBanners[0],
+        cta_link: 'javascript:alert(1)',
+      }];
+      vi.mocked(bannersService.getActive).mockResolvedValue(maliciousBanner);
+      vi.mocked(useBannerCarousel).mockReturnValue({
+        emblaRef: vi.fn(),
+        selectedIndex: 0,
+        scrollSnaps: [0],
+        canScrollPrev: false,
+        canScrollNext: false,
+        scrollNext: vi.fn(),
+        scrollPrev: vi.fn(),
+        onDotButtonClick: mockOnDotButtonClick,
+        scrollTo: vi.fn(),
+      });
+
+      render(<MarketingBannersSection />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('marketing-banners-section')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    });
+
+    it('не должен рендерить ссылку для data: протокола', async () => {
+      const maliciousBanner: Banner[] = [{
+        ...mockMarketingBanners[0],
+        cta_link: 'data:text/html,<script>alert(1)</script>',
+      }];
+      vi.mocked(bannersService.getActive).mockResolvedValue(maliciousBanner);
+      vi.mocked(useBannerCarousel).mockReturnValue({
+        emblaRef: vi.fn(),
+        selectedIndex: 0,
+        scrollSnaps: [0],
+        canScrollPrev: false,
+        canScrollNext: false,
+        scrollNext: vi.fn(),
+        scrollPrev: vi.fn(),
+        onDotButtonClick: mockOnDotButtonClick,
+        scrollTo: vi.fn(),
+      });
+
+      render(<MarketingBannersSection />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('marketing-banners-section')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    });
+
+    it('не должен рендерить ссылку для внешних URL', async () => {
+      const externalBanner: Banner[] = [{
+        ...mockMarketingBanners[0],
+        cta_link: 'https://evil.com/phishing',
+      }];
+      vi.mocked(bannersService.getActive).mockResolvedValue(externalBanner);
+      vi.mocked(useBannerCarousel).mockReturnValue({
+        emblaRef: vi.fn(),
+        selectedIndex: 0,
+        scrollSnaps: [0],
+        canScrollPrev: false,
+        canScrollNext: false,
+        scrollNext: vi.fn(),
+        scrollPrev: vi.fn(),
+        onDotButtonClick: mockOnDotButtonClick,
+        scrollTo: vi.fn(),
+      });
+
+      render(<MarketingBannersSection />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('marketing-banners-section')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    });
+
+    it('должен рендерить ссылку для безопасных относительных путей', async () => {
+      vi.mocked(bannersService.getActive).mockResolvedValue(singleBanner);
+
+      render(<MarketingBannersSection />);
+
+      await waitFor(() => {
+        const link = screen.getByRole('link', { name: 'Летняя распродажа' });
+        expect(link).toHaveAttribute('href', '/catalog?sale=summer');
+      });
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Reliability: image_url pre-check
+  // -------------------------------------------------------------------------
+  describe('Reliability: image_url pre-check', () => {
+    it('должен фильтровать баннеры с пустым image_url', async () => {
+      const bannersWithEmpty: Banner[] = [
+        mockMarketingBanners[0],
+        { ...mockMarketingBanners[1], image_url: '' },
+      ];
+      vi.mocked(bannersService.getActive).mockResolvedValue(bannersWithEmpty);
+
+      render(<MarketingBannersSection />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('marketing-banners-section')).toBeInTheDocument();
+      });
+
+      expect(screen.getByAltText('Летняя распродажа баннер')).toBeInTheDocument();
+      expect(screen.queryByAltText('Коллекция кроссовок')).not.toBeInTheDocument();
+    });
+
+    it('должен рендерить null если все баннеры имеют пустой image_url', async () => {
+      const allEmpty: Banner[] = [
+        { ...mockMarketingBanners[0], image_url: '' },
+        { ...mockMarketingBanners[1], image_url: '   ' },
+      ];
+      vi.mocked(bannersService.getActive).mockResolvedValue(allEmpty);
+
+      const { container } = render(<MarketingBannersSection />);
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('marketing-banners-skeleton')).not.toBeInTheDocument();
+      });
+
+      expect(container.innerHTML).toBe('');
+    });
+  });
+
+  // -------------------------------------------------------------------------
   // Dots / carousel controls
   // -------------------------------------------------------------------------
   describe('Навигация карусели', () => {
@@ -287,7 +438,7 @@ describe('MarketingBannersSection', () => {
       render(<MarketingBannersSection />);
 
       await waitFor(() => {
-        const dots = screen.getAllByRole('tab');
+        const dots = screen.getAllByRole('button', { name: /Баннер \d+/ });
         expect(dots).toHaveLength(2);
       });
     });
@@ -312,7 +463,7 @@ describe('MarketingBannersSection', () => {
         expect(screen.getByTestId('marketing-banners-section')).toBeInTheDocument();
       });
 
-      expect(screen.queryByRole('tab')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Баннер \d+/ })).not.toBeInTheDocument();
     });
 
     it('должен вызывать onDotButtonClick при клике по точке', async () => {
@@ -321,7 +472,7 @@ describe('MarketingBannersSection', () => {
       render(<MarketingBannersSection />);
 
       await waitFor(() => {
-        const dots = screen.getAllByRole('tab');
+        const dots = screen.getAllByRole('button', { name: /Баннер \d+/ });
         fireEvent.click(dots[1]);
         expect(mockOnDotButtonClick).toHaveBeenCalledWith(1);
       });
@@ -385,6 +536,41 @@ describe('MarketingBannersSection', () => {
       await waitFor(() => {
         expect(container.innerHTML).toBe('');
       });
+    });
+
+    it('должен корректно работать с 3+ баннерами при ошибке одного изображения', async () => {
+      vi.mocked(bannersService.getActive).mockResolvedValue(threeBanners);
+      vi.mocked(useBannerCarousel).mockReturnValue({
+        emblaRef: vi.fn(),
+        selectedIndex: 0,
+        scrollSnaps: [0, 1, 2],
+        canScrollPrev: false,
+        canScrollNext: true,
+        scrollNext: vi.fn(),
+        scrollPrev: vi.fn(),
+        onDotButtonClick: mockOnDotButtonClick,
+        scrollTo: vi.fn(),
+      });
+
+      render(<MarketingBannersSection />);
+
+      await waitFor(() => {
+        expect(screen.getByAltText('Летняя распродажа баннер')).toBeInTheDocument();
+        expect(screen.getByAltText('Коллекция кроссовок')).toBeInTheDocument();
+        expect(screen.getByAltText('Зимний сезон баннер')).toBeInTheDocument();
+      });
+
+      // Fail first banner image
+      const img = screen.getByAltText('Летняя распродажа баннер');
+      fireEvent.error(img);
+
+      await waitFor(() => {
+        expect(screen.queryByAltText('Летняя распродажа баннер')).not.toBeInTheDocument();
+      });
+
+      // Other 2 banners remain visible
+      expect(screen.getByAltText('Коллекция кроссовок')).toBeInTheDocument();
+      expect(screen.getByAltText('Зимний сезон баннер')).toBeInTheDocument();
     });
   });
 
@@ -452,17 +638,27 @@ describe('MarketingBannersSection', () => {
       });
     });
 
-    it('dots должны иметь aria-label и role=tab', async () => {
+    it('dots должны иметь aria-label и aria-current', async () => {
       vi.mocked(bannersService.getActive).mockResolvedValue(mockMarketingBanners);
 
       render(<MarketingBannersSection />);
 
       await waitFor(() => {
-        const dots = screen.getAllByRole('tab');
+        const dots = screen.getAllByRole('button', { name: /Баннер \d+/ });
         expect(dots[0]).toHaveAttribute('aria-label', 'Баннер 1');
         expect(dots[1]).toHaveAttribute('aria-label', 'Баннер 2');
-        expect(dots[0]).toHaveAttribute('aria-selected', 'true');
-        expect(dots[1]).toHaveAttribute('aria-selected', 'false');
+        expect(dots[0]).toHaveAttribute('aria-current', 'true');
+        expect(dots[1]).not.toHaveAttribute('aria-current');
+      });
+    });
+
+    it('dots контейнер должен иметь role=group', async () => {
+      vi.mocked(bannersService.getActive).mockResolvedValue(mockMarketingBanners);
+
+      render(<MarketingBannersSection />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('group', { name: 'Навигация по баннерам' })).toBeInTheDocument();
       });
     });
   });
