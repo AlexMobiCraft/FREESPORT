@@ -1,6 +1,6 @@
 # Story 32.3: Frontend Carousel Logic (Hook)
 
-Status: review
+Status: in-progress
 
 ## Story
 
@@ -54,6 +54,15 @@ so that I can easily implement the marketing banner slider and potentially refac
     - [x] Create unit tests `frontend/src/hooks/__tests__/useBannerCarousel.test.ts` (using `renderHook` from `@testing-library/react`).
     - [x] Verify initial state and basic API presence.
 
+### Review Follow-ups (AI)
+- [ ] [AI-Review][HIGH] Story File List не подтверждается git-состоянием: перечислены измененные файлы при пустом `git diff`/`git status` [story-file-list:102-108]
+- [ ] [AI-Review][HIGH] Добавить публичный API `scrollTo` в хук и типы возврата (AC1) [frontend/src/hooks/useBannerCarousel.ts:47-49]
+- [ ] [AI-Review][HIGH] Добавить опцию `speed` в контракт и реализацию хука (AC1) [frontend/src/hooks/useBannerCarousel.ts:16-27]
+- [ ] [AI-Review][MEDIUM] Устранить несоответствие `autoScroll` (AC) vs `autoplay` (реализация): alias или обновление контракта [frontend/src/hooks/useBannerCarousel.ts:21-24]
+- [ ] [AI-Review][MEDIUM] Усилить тесты конфигурации: проверять фактическую передачу options в Embla/Autoplay [frontend/src/hooks/__tests__/useBannerCarousel.test.ts:136-176]
+- [ ] [AI-Review][MEDIUM] Добавить тесты реактивного обновления состояния на `select/reInit` [frontend/src/hooks/__tests__/useBannerCarousel.test.ts:179-202]
+- [ ] [AI-Review][LOW] Сделать `stopOnMouseEnter` настраиваемым вместо жесткого `true` [frontend/src/hooks/useBannerCarousel.ts:109-113]
+
 ## Dev Notes
 
 ### Architecture & Standards
@@ -105,3 +114,23 @@ Claude Opus 4.5 (Anthropic)
 - frontend/src/hooks/useBannerCarousel.ts (created)
 - frontend/src/hooks/__tests__/useBannerCarousel.test.ts (created)
 - frontend/src/hooks/index.ts (modified - added exports)
+
+## Senior Developer Review (AI)
+
+### Reviewer
+Amelia (Developer Agent acting as Adversarial Reviewer)
+
+### Date
+2026-02-13
+
+### Outcome
+Changes Requested
+
+### Summary
+- Найдено: 3 HIGH, 3 MEDIUM, 1 LOW.
+- Добавлены action items в раздел `Review Follow-ups (AI)`.
+- Статус Story переведен в `in-progress` до устранения HIGH/MEDIUM.
+
+## Change Log
+
+- 2026-02-13: Добавлены результаты code review (AI), action items и обновлен статус Story на `in-progress`.
