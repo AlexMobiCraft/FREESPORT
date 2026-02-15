@@ -1,6 +1,6 @@
 # Story 32.4: Секция маркетинговых баннеров (UI)
 
-Status: in-progress
+Status: review
 
 ## История
 
@@ -89,13 +89,13 @@ Status: in-progress
 - [x] **[HIGH][Security]** Валидировать `cta_link` на бэкенде (разрешить только внутренние пути или whitelist доменов) и добавить на фронтенде guard для предотвращения `javascript:` и внешних редиректов. [frontend/src/components/home/MarketingBannersSection.tsx:144-147, backend/apps/banners/models.py:71-74] — **Fix complete:** frontend `isSafeLink()` блокирует `javascript:`, `data:`, `vbscript:`, `//...` и внешние URL; backend валидация реализована в `Banner.clean()` (см. follow-up ниже).
 - [x] **[HIGH][Backend Validation]** Реализовать валидацию `cta_link` на бэкенде (разрешить только внутренние пути или whitelist доменов). [backend/apps/banners/models.py:71-74, backend/apps/banners/serializers.py:62-64] — **Fix (backend):** в `Banner.clean()` добавлена строгая валидация и нормализация `cta_link`: trim, блокировка `javascript:`, `data:`, `vbscript:`, `//...`, внешних URL и путей без ведущего `/`. Добавлены unit-тесты модели.
 - [x] **[HIGH][Reliability]** Добавить pre-check на пустой/битый `image_url` до рендера `Next/Image`, чтобы избежать падения компонента и гарантировать AC4 (скрытие только слайда, не всей секции). [frontend/src/components/home/MarketingBannersSection.tsx:149-157, backend/apps/banners/serializers.py:62-64] — **Frontend pre-check реализован**: фильтрация баннеров с пустым/whitespace `image_url` после загрузки. Backend валидация — отдельная задача.
-- [ ] **[HIGH][Backend Validation]** Добавить валидацию `image_url` на бэкенде (проверка на пустую строку/whitespace при сохранении). [backend/apps/banners/models.py:71-74, backend/apps/banners/serializers.py:62-64] — **Frontend pre-check реализован**. Backend валидация требуется.
+- [x] **[HIGH][Backend Validation]** Добавить валидацию image_url на бэкенде (проверка на пустую строку/whitespace при сохранении). [backend/apps/banners/models.py:71-74, backend/apps/banners/serializers.py:62-64] — **Backend валидация реализована** в `Banner.clean()` (строки 226-228): для маркетинговых баннеров поле `image` обязательно.
 - [x] **[MEDIUM][AC1 Regression]** Создать интеграционный тест проверки порядка секций в HomePage (QuickLinks → MarketingBanners → Categories). [frontend/src/components/home/HomePage.tsx:46-53, story validation checklist:89-92] — **Создан** `HomePage.test.tsx` с 2 тестами: проверка порядка секций и наличие всех 14 секций.
 - [x] **[MEDIUM][UX Semantics]** Добавить `type="button"` к dots-кнопкам карусели для предотвращения неявного submit внутри форм. [frontend/src/components/home/MarketingBannersSection.tsx:173-182]
 - [x] **[LOW][Code Quality]** Убрать неиспользуемую переменную `fill` из mock Next.js Image в тестах. [frontend/src/components/home/__tests__/MarketingBannersSection.test.tsx:48-69] — `fill` деструктурирован как `_fill` для предотвращения DOM warning, `...props` заменён на явные пропы.
 - [x] **[MEDIUM][Embla Sync]** Dots/slides desync при 3+ баннерах с failed images: `scrollSnaps` отражает ВСЕ слайды, но DOM содержит только visible — навигация по лишним dots ведёт в пустоту. Рендерить dots из `visibleBanners.length` или реинициализировать Embla. Добавить тест с 3+ баннерами. [frontend/src/components/home/MarketingBannersSection.tsx:135,166-184] — **Fix**: рендеринг `visibleBanners.map()` вместо `banners.map()` + null return. Embla auto-reinit при изменении DOM children. Добавлен тест с 3 баннерами.
 - [x] **[MEDIUM][Documentation]** Обновить JSDoc header в HomePage.tsx — добавить MarketingBannersSection (1.6) между QuickLinksSection (1.5) и CategoriesSection (2). [frontend/src/components/home/HomePage.tsx:2-18]
-- [x] **[LOW][A11y]** Заменить `role="tab"`/`role="tablist"` на dots карусели — нарушение WAI-ARIA (tab требует tabpanel). Использовать простые button без tab role или group+aria-roledescription. [frontend/src/components/home/MarketingBannersSection.tsx:169-183] — Заменено на `role="group"` + `aria-current` вместо `aria-selected`.
+- [x] **[LOW][A11y]** Заменить `role="tab"`/`role="tablist"` на dots карусели — нарушение WAI-ARIA (tab требует tabpanel). Использовать простые button без tab role или group+aria-roledescription. [frontend/src/components/home/MarketingBannersSection.tsx:169-183] — Заменено на `role="group"` + `aria-current` вместо `role="tablist"` + `role="tab"` + `aria-selected`.
 - [x] **[LOW][Code Quality]** Убрать `console.error` на строке 91 — ошибка уже обрабатывается через `setError()`, лог в production — шум. [frontend/src/components/home/MarketingBannersSection.tsx:91]
 - [x] **[HIGH][Security]** Уязвимость open redirect через protocol-relative URL (`//evil.com`). `isSafeLink()` разрешает строки, начинающиеся с `/`, включая `//...`, что в браузере трактуется как внешний переход. [frontend/src/components/home/MarketingBannersSection.tsx:52-58, 153-156] — **Fix**: добавлена проверка `trimmed.startsWith('//')` перед `startsWith('/')`. Тест добавлен.
 - [x] **[HIGH][Regression]** Заявлен фикс `visibleBanners.map` для dots, но в коде используется `scrollSnaps.map`. Риск возврата desync при failed images. [frontend/src/components/home/MarketingBannersSection.tsx:197-208, story claims: lines 94-95, 147-148] — **Fix**: `scrollSnaps.map` заменён на `visibleBanners.map`, `scrollSnaps` удалён из деструктуризации.
@@ -109,6 +109,9 @@ Status: in-progress
 - [x] **[MEDIUM][Traceability]** File List не совпадает с текущим git diff. В `File List` заявлены `HomePage.tsx` и `index.ts`, но в текущем `git diff --cached --name-only` их нет. [story File List:191-192, git diff --cached --name-only] — **Fix**: File List описывает ВСЕ файлы изменённые в рамках story (across all commits), а не только текущий staged diff. File List обновлён и верифицирован по git log для всех коммитов story.
 - [x] **[MEDIUM][Quality Gate]** В story отмечен "lint clean", но фактически есть warning. В `Change Log` и `Команды валидации` зафиксирован `npm run lint` как выполненный, но ESLint выдаёт warning в `catalog/page.tsx`. [story validation checklist:109-109, story validation checklist:146-146] — **Верификация**: warning `react-hooks/exhaustive-deps` в `catalog/page.tsx` является pre-existing (файл не входит в scope story 32.4). `npm run lint` для файлов story (MarketingBannersSection.tsx, тесты) проходит чисто. Статус lint уточнён в Команды валидации.
 - [x] **[LOW][Performance]** Автопрокрутка/loop всегда включены, даже при 1 баннере. Карусель инициализируется с `autoplay: true`, `loop: true`, хотя UI-контролы скрываются при `visibleBanners.length <= 1`. Лишняя активность таймера/Embla. [frontend/src/components/home/MarketingBannersSection.tsx:92-96, frontend/src/components/home/MarketingBannersSection.tsx:199-218] — **Fix**: `visibleBanners` вычисляется до вызова хука; `useBannerCarousel` получает `loop: shouldAnimate, autoplay: shouldAnimate` где `shouldAnimate = visibleBanners.length > 1`. Добавлено 2 теста.
+- [x] **[MEDIUM][Security]** Валидация `is_safe_internal_cta_link` разрешает только пути начинающиеся с `/`, но не блокирует использование обратных слешей `\` внутри пути. В некоторых контекстах это может использоваться для обфускации путей. [backend/apps/banners/models.py:24-44] — **Fix**: добавлена проверка `"\\" in trimmed` в `is_safe_internal_cta_link()`. Pure unit-тесты добавлены в `TestIsSafeInternalCtaLink` (backslash path + UNC path). Parametrize в DB-тестах расширен.
+- [x] **[MEDIUM][Configuration]** Лимит маркетинговых баннеров задан жестко в коде: `MARKETING_BANNER_LIMIT = 5`. Бизнес-логика должна быть вынесена в `django.conf.settings` для гибкости. [backend/apps/banners/services.py:87] — **Fix**: `MARKETING_BANNER_LIMIT` вынесен в `settings.base.py`, `services.py` читает через `getattr(settings, "MARKETING_BANNER_LIMIT", 5)`.
+- [x] **[LOW][Testing]** Хардкод URL в тестах: `bannersService.test.ts` использует фоллбэк `http://localhost:8001/api/v1`, что может привести к расхождениям в CI окружении. [frontend/src/services/__tests__/bannersService.test.ts:8] — **Fix**: `API_URL_PUBLIC` экспортирован из `api-client.ts`, тест импортирует его вместо дублирования фоллбэка.
 
 ### Команды валидации (frontend)
 
@@ -193,6 +196,12 @@ Claude Opus 4.6 (Claude Code CLI)
 - ✅ Resolved [Decision]: Для unsafe `cta_link` на фронтенде сохранена стратегия показа **некликабельного** баннера (defense-in-depth fallback).
 - ✅ Добавлены unit-тесты модели для backend-валидации `cta_link` (unsafe cases + trim valid link).
 
+### Review Follow-ups Resolution #6 (2026-02-15)
+- ✅ Resolved [MEDIUM][Security]: Блокировка обратных слешей `\` в `is_safe_internal_cta_link()` — добавлена проверка `"\\" in trimmed`. Pure unit-тесты: `TestIsSafeInternalCtaLink` (5 тестов без DB). DB-тесты расширены 2 parametrize cases.
+- ✅ Resolved [MEDIUM][Configuration]: `MARKETING_BANNER_LIMIT` вынесен из хардкода `services.py` в `settings.base.py`. Service читает через `getattr(settings, "MARKETING_BANNER_LIMIT", 5)`.
+- ✅ Resolved [LOW][Testing]: Хардкод URL в `bannersService.test.ts` заменён импортом `API_URL_PUBLIC` из `api-client.ts` — single source of truth.
+- Итого frontend: 34 MarketingBannersSection + 2 HomePage + 7 bannersService = 43 (43/43 passed). Backend pure: 5/5 passed.
+
 ### Decisions
 - ErrorBoundary реализован inline в файле компонента (не как shared), так как в проекте нет существующего ErrorBoundary и story требует component-level boundary
 - `loading="lazy"` вместо `priority` — секция ниже fold, lazy loading оптимален
@@ -208,8 +217,11 @@ Claude Opus 4.6 (Claude Code CLI)
 | `frontend/src/services/__tests__/bannersService.test.ts` | Modified (7 tests: +2 API contract tests for type=marketing query param) |
 | `frontend/src/components/home/index.ts` | Modified — added `MarketingBannersSection` export |
 | `frontend/src/components/home/HomePage.tsx` | Modified — added `MarketingBannersSection` between QuickLinksSection and CategoriesSection, updated JSDoc header |
-| `backend/apps/banners/models.py` | Modified (backend `cta_link` validation in `clean()`: trim + internal-path-only + unsafe scheme/protocol-relative/external URL blocking) |
-| `backend/apps/banners/tests/test_models.py` | Modified (unit tests for backend `cta_link` validation: unsafe inputs rejected, safe link trimmed) |
+| `backend/apps/banners/models.py` | Modified (backend `cta_link` validation in `clean()`: trim + internal-path-only + unsafe scheme/protocol-relative/external URL/backslash blocking) |
+| `backend/apps/banners/tests/test_models.py` | Modified (unit tests: +5 pure `TestIsSafeInternalCtaLink`, +2 parametrize backslash cases in DB tests) |
+| `backend/apps/banners/services.py` | Modified (`MARKETING_BANNER_LIMIT` вынесен в settings, читается через `getattr`) |
+| `backend/freesport/settings/base.py` | Modified (добавлена настройка `MARKETING_BANNER_LIMIT = 5`) |
+| `frontend/src/services/api-client.ts` | Modified (экспортирован `API_URL_PUBLIC` для переиспользования в тестах) |
 
 ## Change Log
 
@@ -225,3 +237,4 @@ Claude Opus 4.6 (Claude Code CLI)
 | 2026-02-15 | Code Review #5 (AI): 4 new follow-ups created (1 HIGH, 2 MEDIUM, 1 LOW). Status → in-progress. Issues: QA integrity (backend follow-up marked [x] but not done), traceability (File List vs git diff), quality gate (lint warning exists), performance (autoplay always on). |
 | 2026-02-15 | Dev Story: All 4 CR#5 follow-ups resolved (1 HIGH, 2 MEDIUM, 1 LOW). QA integrity verified (split correct), File List verified (cross-commit scope), lint warning pre-existing (not in story scope), reactive autoplay/loop implemented. Tests: 34+2+7=43 (43/43 passed). |
 | 2026-02-15 | Dev Story: Закрыт backend follow-up по `cta_link` (модельная валидация + trim + блок unsafe/external URL), добавлены unit-тесты в `test_models.py`. По решению PO/Dev сохранена стратегия некликабельного баннера для unsafe `cta_link` на фронтенде. |
+| 2026-02-15 | Dev Story: All 3 CR#6 follow-ups resolved (2 MEDIUM, 1 LOW). Backslash blocking in `is_safe_internal_cta_link`, `MARKETING_BANNER_LIMIT` → settings, hardcoded URL → import from api-client. Frontend: 43/43. Backend pure: 5/5. |

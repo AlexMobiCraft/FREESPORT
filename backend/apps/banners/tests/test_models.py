@@ -20,6 +20,40 @@ from apps.banners.factories import BannerFactory
 from apps.banners.models import Banner
 
 
+class TestIsSafeInternalCtaLink:
+    """Pure unit tests for is_safe_internal_cta_link — no DB required."""
+
+    def test_blocks_backslash_in_path(self):
+        """Обратный слеш в пути должен быть заблокирован."""
+        from apps.banners.models import is_safe_internal_cta_link
+
+        assert is_safe_internal_cta_link("/catalog\\..\\admin") is False
+
+    def test_blocks_unc_path(self):
+        """UNC-путь (\\\\server\\share) должен быть заблокирован."""
+        from apps.banners.models import is_safe_internal_cta_link
+
+        assert is_safe_internal_cta_link("\\\\server\\share") is False
+
+    def test_allows_normal_internal_path(self):
+        """Обычный внутренний путь должен быть разрешён."""
+        from apps.banners.models import is_safe_internal_cta_link
+
+        assert is_safe_internal_cta_link("/catalog?sale=summer") is True
+
+    def test_blocks_protocol_relative(self):
+        """Protocol-relative URL должен быть заблокирован."""
+        from apps.banners.models import is_safe_internal_cta_link
+
+        assert is_safe_internal_cta_link("//evil.com") is False
+
+    def test_blocks_javascript_scheme(self):
+        """javascript: протокол должен быть заблокирован."""
+        from apps.banners.models import is_safe_internal_cta_link
+
+        assert is_safe_internal_cta_link("javascript:alert(1)") is False
+
+
 @pytest.mark.django_db
 class TestBannerTypeField:
     """AC1: Banner model has a 'type' field with choices HERO and MARKETING."""
@@ -128,6 +162,8 @@ class TestBannerSaveCallsFullClean:
             "//evil.com/phishing",
             "catalog/no-leading-slash",
             "   ",
+            "/catalog\\..\\admin",
+            "\\\\server\\share",
         ],
     )
     def test_save_with_unsafe_cta_link_raises_error(self, unsafe_cta_link):

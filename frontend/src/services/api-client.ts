@@ -21,7 +21,7 @@ import { useAuthStore } from '@/stores/authStore';
 // INTERNAL_API_URL - серверная переменная (без NEXT_PUBLIC_ префикса), доступна в runtime
 // NEXT_PUBLIC_API_URL - клиентская переменная, встраивается при сборке
 const isServer = typeof window === 'undefined';
-const API_URL_PUBLIC = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api/v1';
+export const API_URL_PUBLIC = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api/v1';
 const API_URL_INTERNAL = process.env.INTERNAL_API_URL
   ? `${process.env.INTERNAL_API_URL}/api/v1`
   : process.env.NEXT_PUBLIC_API_URL_INTERNAL || 'http://backend:8000/api/v1';

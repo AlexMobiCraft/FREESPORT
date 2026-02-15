@@ -2,10 +2,11 @@
  * Banners Service Tests
  */
 import bannersService from '../bannersService';
+import { API_URL_PUBLIC } from '../api-client';
 import { server } from '../../__mocks__/api/server';
 import { http, HttpResponse } from 'msw';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api/v1';
+const API_BASE_URL = API_URL_PUBLIC;
 
 describe('bannersService', () => {
   describe('getActive', () => {

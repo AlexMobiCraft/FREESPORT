@@ -12,6 +12,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Optional
 
+from django.conf import settings
 from django.core.cache import cache
 from django.db.models import QuerySet
 from django.utils import timezone
@@ -84,9 +85,6 @@ def get_cached_banners(cache_key: str) -> Any:
     return cache.get(cache_key)
 
 
-MARKETING_BANNER_LIMIT = 5  # FR12: Максимальное количество маркетинговых баннеров
-
-
 def get_active_banners_queryset(
     user: Any, banner_type: str = "hero"
 ) -> QuerySet[Banner]:
@@ -103,7 +101,8 @@ def get_active_banners_queryset(
     effective_user = user if user and getattr(user, "is_authenticated", False) else None
     queryset = Banner.get_for_user(effective_user).filter(type=banner_type)
     if banner_type == Banner.BannerType.MARKETING.value:
-        queryset = queryset[:MARKETING_BANNER_LIMIT]
+        limit = getattr(settings, "MARKETING_BANNER_LIMIT", 5)
+        queryset = queryset[:limit]
     return queryset
 
 

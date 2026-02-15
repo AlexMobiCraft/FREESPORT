@@ -35,6 +35,10 @@ def is_safe_internal_cta_link(link: str) -> bool:
     if trimmed.startswith("//"):
         return False
 
+    # Блокируем обратные слеши — могут использоваться для обфускации путей
+    if "\\" in trimmed:
+        return False
+
     # Разрешаем только внутренние ссылки вида /catalog и /catalog?x=1
     if not trimmed.startswith("/"):
         return False
