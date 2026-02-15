@@ -378,6 +378,48 @@ describe('MarketingBannersSection', () => {
       expect(screen.queryByRole('link')).not.toBeInTheDocument();
     });
 
+    it('не должен рендерить ссылку для protocol-relative URL (//evil.com)', async () => {
+      const prBanner: Banner[] = [{
+        ...mockMarketingBanners[0],
+        cta_link: '//evil.com/phishing',
+      }];
+      vi.mocked(bannersService.getActive).mockResolvedValue(prBanner);
+      vi.mocked(useBannerCarousel).mockReturnValue({
+        emblaRef: vi.fn(),
+        selectedIndex: 0,
+        scrollSnaps: [0],
+        canScrollPrev: false,
+        canScrollNext: false,
+        scrollNext: vi.fn(),
+        scrollPrev: vi.fn(),
+        onDotButtonClick: mockOnDotButtonClick,
+        scrollTo: vi.fn(),
+      });
+
+      render(<MarketingBannersSection />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('marketing-banners-section')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    });
+
+    it('должен использовать trimmed href для ссылки с пробелами', async () => {
+      const spacedBanner: Banner[] = [{
+        ...mockMarketingBanners[0],
+        cta_link: '  /catalog?sale=summer  ',
+      }];
+      vi.mocked(bannersService.getActive).mockResolvedValue(spacedBanner);
+
+      render(<MarketingBannersSection />);
+
+      await waitFor(() => {
+        const link = screen.getByRole('link', { name: 'Летняя распродажа' });
+        expect(link).toHaveAttribute('href', '/catalog?sale=summer');
+      });
+    });
+
     it('должен рендерить ссылку для безопасных относительных путей', async () => {
       vi.mocked(bannersService.getActive).mockResolvedValue(singleBanner);
 
@@ -571,6 +613,39 @@ describe('MarketingBannersSection', () => {
       // Other 2 banners remain visible
       expect(screen.getByAltText('Коллекция кроссовок')).toBeInTheDocument();
       expect(screen.getByAltText('Зимний сезон баннер')).toBeInTheDocument();
+    });
+
+    it('dots должны синхронизироваться с visible banners после image error', async () => {
+      vi.mocked(bannersService.getActive).mockResolvedValue(threeBanners);
+      vi.mocked(useBannerCarousel).mockReturnValue({
+        emblaRef: vi.fn(),
+        selectedIndex: 0,
+        scrollSnaps: [0, 1, 2],
+        canScrollPrev: false,
+        canScrollNext: true,
+        scrollNext: vi.fn(),
+        scrollPrev: vi.fn(),
+        onDotButtonClick: mockOnDotButtonClick,
+        scrollTo: vi.fn(),
+      });
+
+      render(<MarketingBannersSection />);
+
+      // Initially 3 dots
+      await waitFor(() => {
+        const dots = screen.getAllByRole('button', { name: /Баннер \d+/ });
+        expect(dots).toHaveLength(3);
+      });
+
+      // Fail first banner image
+      const img = screen.getByAltText('Летняя распродажа баннер');
+      fireEvent.error(img);
+
+      // After image error, dots should be 2 (matching visible banners)
+      await waitFor(() => {
+        const dots = screen.getAllByRole('button', { name: /Баннер \d+/ });
+        expect(dots).toHaveLength(2);
+      });
     });
   });
 

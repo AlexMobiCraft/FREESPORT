@@ -54,9 +54,12 @@ const isSafeLink = (link: string): boolean => {
   const trimmed = link.trim();
   const lower = trimmed.toLowerCase();
   if (lower.startsWith('javascript:') || lower.startsWith('data:') || lower.startsWith('vbscript:')) return false;
+  if (trimmed.startsWith('//')) return false; // block protocol-relative URLs (open redirect)
   if (trimmed.startsWith('/')) return true;
   return false;
 };
+
+const getSafeHref = (link: string): string => link.trim();
 
 // ---------------------------------------------------------------------------
 // Skeleton Loader
@@ -85,7 +88,6 @@ const MarketingBannersCarousel: React.FC = () => {
   const {
     emblaRef,
     selectedIndex,
-    scrollSnaps,
     onDotButtonClick,
   } = useBannerCarousel({
     loop: true,
@@ -152,7 +154,7 @@ const MarketingBannersCarousel: React.FC = () => {
               >
                 {isSafeLink(banner.cta_link) ? (
                   <Link
-                    href={banner.cta_link}
+                    href={getSafeHref(banner.cta_link)}
                     className="block relative w-full aspect-[21/9] md:aspect-[3/1]"
                     aria-label={banner.title}
                   >
@@ -194,7 +196,7 @@ const MarketingBannersCarousel: React.FC = () => {
           role="group"
           aria-label="Навигация по баннерам"
         >
-          {scrollSnaps.map((_, index) => (
+          {visibleBanners.map((_, index) => (
             <button
               type="button"
               key={index}

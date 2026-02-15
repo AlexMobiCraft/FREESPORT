@@ -1,6 +1,6 @@
 # Story 32.4: Секция маркетинговых баннеров (UI)
 
-Status: in-progress
+Status: review
 
 ## История
 
@@ -95,10 +95,10 @@ Status: in-progress
 - [x] **[MEDIUM][Documentation]** Обновить JSDoc header в HomePage.tsx — добавить MarketingBannersSection (1.6) между QuickLinksSection (1.5) и CategoriesSection (2). [frontend/src/components/home/HomePage.tsx:2-18]
 - [x] **[LOW][A11y]** Заменить `role="tab"`/`role="tablist"` на dots карусели — нарушение WAI-ARIA (tab требует tabpanel). Использовать простые button без tab role или group+aria-roledescription. [frontend/src/components/home/MarketingBannersSection.tsx:169-183] — Заменено на `role="group"` + `aria-current` вместо `aria-selected`.
 - [x] **[LOW][Code Quality]** Убрать `console.error` на строке 91 — ошибка уже обрабатывается через `setError()`, лог в production — шум. [frontend/src/components/home/MarketingBannersSection.tsx:91]
-- [ ] **[HIGH][Security]** Уязвимость open redirect через protocol-relative URL (`//evil.com`). `isSafeLink()` разрешает строки, начинающиеся с `/`, включая `//...`, что в браузере трактуется как внешний переход. [frontend/src/components/home/MarketingBannersSection.tsx:52-58, 153-156]
-- [ ] **[HIGH][Regression]** Заявлен фикс `visibleBanners.map` для dots, но в коде используется `scrollSnaps.map`. Риск возврата desync при failed images. [frontend/src/components/home/MarketingBannersSection.tsx:197-208, story claims: lines 94-95, 147-148]
-- [ ] **[MEDIUM][Reliability]** Валидация guard использует `trimmed`, но `Link href` получает raw `cta_link`. Пробелы в начале могут нарушить навигацию. [frontend/src/components/home/MarketingBannersSection.tsx:54-58, 155-156]
-- [ ] **[MEDIUM][Test Gap]** Нет регрессионного теста на sync dots после image error: проверка count dots и их поведения при failed image. [frontend/src/components/home/__tests__/MarketingBannersSection.test.tsx:541-574]
+- [x] **[HIGH][Security]** Уязвимость open redirect через protocol-relative URL (`//evil.com`). `isSafeLink()` разрешает строки, начинающиеся с `/`, включая `//...`, что в браузере трактуется как внешний переход. [frontend/src/components/home/MarketingBannersSection.tsx:52-58, 153-156] — **Fix**: добавлена проверка `trimmed.startsWith('//')` перед `startsWith('/')`. Тест добавлен.
+- [x] **[HIGH][Regression]** Заявлен фикс `visibleBanners.map` для dots, но в коде используется `scrollSnaps.map`. Риск возврата desync при failed images. [frontend/src/components/home/MarketingBannersSection.tsx:197-208, story claims: lines 94-95, 147-148] — **Fix**: `scrollSnaps.map` заменён на `visibleBanners.map`, `scrollSnaps` удалён из деструктуризации.
+- [x] **[MEDIUM][Reliability]** Валидация guard использует `trimmed`, но `Link href` получает raw `cta_link`. Пробелы в начале могут нарушить навигацию. [frontend/src/components/home/MarketingBannersSection.tsx:54-58, 155-156] — **Fix**: `getSafeHref()` применяет `trim()` к href. Тест добавлен.
+- [x] **[MEDIUM][Test Gap]** Нет регрессионного теста на sync dots после image error: проверка count dots и их поведения при failed image. [frontend/src/components/home/__tests__/MarketingBannersSection.test.tsx:541-574] — **Fix**: добавлен тест "dots должны синхронизироваться с visible banners после image error" (3 dots → 2 после error).
 
 ### Команды валидации (frontend)
 
@@ -156,6 +156,13 @@ Claude Opus 4.6 (Claude Code CLI)
 - Итого: 28 unit-тестов MarketingBannersSection + 2 интеграционных HomePage = 30 тестов (30/30 passed)
 - Backend валидация cta_link и image_url — out of scope данной frontend story, рекомендуется отдельная backend task
 
+### Review Follow-ups Resolution #2 (2026-02-15)
+- ✅ Resolved [HIGH][Security]: Блокировка protocol-relative URL (`//evil.com`) в `isSafeLink()` — добавлена проверка `startsWith('//')` перед `startsWith('/')`
+- ✅ Resolved [HIGH][Regression]: Dots рендерятся через `visibleBanners.map()` вместо `scrollSnaps.map()`, `scrollSnaps` удалён из деструктуризации хука
+- ✅ Resolved [MEDIUM][Reliability]: `getSafeHref()` применяет `trim()` к `cta_link` перед передачей в `Link href`
+- ✅ Resolved [MEDIUM][Test Gap]: Добавлен тест синхронизации dots после image error (3 dots → 2 после ошибки)
+- Итого: 31 unit-тестов MarketingBannersSection + 2 интеграционных HomePage = 33 теста (33/33 passed)
+
 ### Decisions
 - ErrorBoundary реализован inline в файле компонента (не как shared), так как в проекте нет существующего ErrorBoundary и story требует component-level boundary
 - `loading="lazy"` вместо `priority` — секция ниже fold, lazy loading оптимален
@@ -180,3 +187,4 @@ Claude Opus 4.6 (Claude Code CLI)
 | 2026-02-15 | Code Review #2 (AI): 4 new follow-ups added (2 MEDIUM, 2 LOW). Previous 5 still open. New: Embla dots/slides desync (3+ banners), HomePage JSDoc header missing section, ARIA tab/tabpanel violation, console.error noise. Total open: 9 items. Status remains in-progress. |
 | 2026-02-15 | Dev Story: All 9 review follow-ups resolved (2 HIGH, 4 MEDIUM, 3 LOW). Added isSafeLink guard, image_url pre-check, type="button", visibleBanners.map fix, role="group"+aria-current, JSDoc update, Image mock cleanup, console.error removal. Tests: 28+2=30 (30/30 passed). HomePage.test.tsx created. |
 | 2026-02-15 | Code Review #3 (AI): 4 new follow-ups created (2 HIGH, 2 MEDIUM). Status → in-progress. Issues: Open redirect via protocol-relative URL, regression (scrollSnaps.map vs visibleBanners.map), reliability (trimmed vs raw cta_link), test gap (dots sync after image error). |
+| 2026-02-15 | Dev Story: All 4 CR#3 follow-ups resolved (2 HIGH, 2 MEDIUM). Added protocol-relative URL block, replaced scrollSnaps.map→visibleBanners.map, added getSafeHref() trim, added dots sync test. Tests: 31+2=33 (33/33 passed). |
