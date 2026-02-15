@@ -69,6 +69,49 @@ describe('bannersService', () => {
       await expect(bannersService.getActive()).rejects.toThrow();
     });
 
+    test('sends type=marketing query param when called with marketing', async () => {
+      let capturedUrl = '';
+      server.use(
+        http.get(`${API_BASE_URL}/banners/`, ({ request }) => {
+          capturedUrl = request.url;
+          return HttpResponse.json([
+            {
+              id: 1,
+              type: 'marketing',
+              title: 'Marketing Banner',
+              subtitle: 'Sub',
+              image_url: '/media/banners/m.jpg',
+              image_alt: 'Marketing',
+              cta_text: 'Click',
+              cta_link: '/promo',
+            },
+          ]);
+        })
+      );
+
+      const result = await bannersService.getActive('marketing');
+
+      expect(result).toHaveLength(1);
+      expect(result[0].type).toBe('marketing');
+      const url = new URL(capturedUrl);
+      expect(url.searchParams.get('type')).toBe('marketing');
+    });
+
+    test('does not send type param when called without arguments', async () => {
+      let capturedUrl = '';
+      server.use(
+        http.get(`${API_BASE_URL}/banners/`, ({ request }) => {
+          capturedUrl = request.url;
+          return HttpResponse.json([]);
+        })
+      );
+
+      await bannersService.getActive();
+
+      const url = new URL(capturedUrl);
+      expect(url.searchParams.has('type')).toBe(false);
+    });
+
     test('validates banner structure', async () => {
       const result = await bannersService.getActive();
 

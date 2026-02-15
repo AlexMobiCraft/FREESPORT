@@ -43,15 +43,7 @@ vi.mock('next/link', () => ({
 
 // Mock Next.js Image — render img with onError support
 vi.mock('next/image', () => ({
-  default: ({
-    src,
-    alt,
-    onError,
-    fill: _fill,
-    sizes,
-    loading,
-    className,
-  }: {
+  default: (props: {
     src: string;
     alt: string;
     onError?: () => void;
@@ -62,12 +54,12 @@ vi.mock('next/image', () => ({
   }) => (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={src}
-      alt={alt}
-      onError={onError}
-      data-sizes={sizes}
-      data-loading={loading}
-      className={className}
+      src={props.src}
+      alt={props.alt}
+      onError={props.onError}
+      data-sizes={props.sizes}
+      data-loading={props.loading}
+      className={props.className}
     />
   ),
 }));
@@ -357,6 +349,33 @@ describe('MarketingBannersSection', () => {
         cta_link: 'https://evil.com/phishing',
       }];
       vi.mocked(bannersService.getActive).mockResolvedValue(externalBanner);
+      vi.mocked(useBannerCarousel).mockReturnValue({
+        emblaRef: vi.fn(),
+        selectedIndex: 0,
+        scrollSnaps: [0],
+        canScrollPrev: false,
+        canScrollNext: false,
+        scrollNext: vi.fn(),
+        scrollPrev: vi.fn(),
+        onDotButtonClick: mockOnDotButtonClick,
+        scrollTo: vi.fn(),
+      });
+
+      render(<MarketingBannersSection />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('marketing-banners-section')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    });
+
+    it('не должен рендерить ссылку для vbscript: протокола', async () => {
+      const vbsBanner: Banner[] = [{
+        ...mockMarketingBanners[0],
+        cta_link: 'vbscript:MsgBox("xss")',
+      }];
+      vi.mocked(bannersService.getActive).mockResolvedValue(vbsBanner);
       vi.mocked(useBannerCarousel).mockReturnValue({
         emblaRef: vi.fn(),
         selectedIndex: 0,

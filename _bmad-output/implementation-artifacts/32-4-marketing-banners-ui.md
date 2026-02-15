@@ -1,6 +1,6 @@
 # Story 32.4: Секция маркетинговых баннеров (UI)
 
-Status: review
+Status: in-progress
 
 ## История
 
@@ -87,7 +87,9 @@ Status: review
 ### Review Follow-ups (AI)
 
 - [x] **[HIGH][Security]** Валидировать `cta_link` на бэкенде (разрешить только внутренние пути или whitelist доменов) и добавить на фронтенде guard для предотвращения `javascript:` и внешних редиректов. [frontend/src/components/home/MarketingBannersSection.tsx:144-147, backend/apps/banners/models.py:71-74] — **Frontend guard реализован**: `isSafeLink()` блокирует `javascript:`, `data:`, `vbscript:` и внешние URL, разрешает только относительные пути `/...`. Backend валидация — отдельная задача.
+- [ ] **[HIGH][Backend Validation]** Реализовать валидацию `cta_link` на бэкенде (разрешить только внутренние пути или whitelist доменов). [backend/apps/banners/models.py:71-74, backend/apps/banners/serializers.py:62-64] — **Frontend guard реализован**. Backend валидация требуется.
 - [x] **[HIGH][Reliability]** Добавить pre-check на пустой/битый `image_url` до рендера `Next/Image`, чтобы избежать падения компонента и гарантировать AC4 (скрытие только слайда, не всей секции). [frontend/src/components/home/MarketingBannersSection.tsx:149-157, backend/apps/banners/serializers.py:62-64] — **Frontend pre-check реализован**: фильтрация баннеров с пустым/whitespace `image_url` после загрузки. Backend валидация — отдельная задача.
+- [ ] **[HIGH][Backend Validation]** Добавить валидацию `image_url` на бэкенде (проверка на пустую строку/whitespace при сохранении). [backend/apps/banners/models.py:71-74, backend/apps/banners/serializers.py:62-64] — **Frontend pre-check реализован**. Backend валидация требуется.
 - [x] **[MEDIUM][AC1 Regression]** Создать интеграционный тест проверки порядка секций в HomePage (QuickLinks → MarketingBanners → Categories). [frontend/src/components/home/HomePage.tsx:46-53, story validation checklist:89-92] — **Создан** `HomePage.test.tsx` с 2 тестами: проверка порядка секций и наличие всех 14 секций.
 - [x] **[MEDIUM][UX Semantics]** Добавить `type="button"` к dots-кнопкам карусели для предотвращения неявного submit внутри форм. [frontend/src/components/home/MarketingBannersSection.tsx:173-182]
 - [x] **[LOW][Code Quality]** Убрать неиспользуемую переменную `fill` из mock Next.js Image в тестах. [frontend/src/components/home/__tests__/MarketingBannersSection.test.tsx:48-69] — `fill` деструктурирован как `_fill` для предотвращения DOM warning, `...props` заменён на явные пропы.
@@ -99,12 +101,21 @@ Status: review
 - [x] **[HIGH][Regression]** Заявлен фикс `visibleBanners.map` для dots, но в коде используется `scrollSnaps.map`. Риск возврата desync при failed images. [frontend/src/components/home/MarketingBannersSection.tsx:197-208, story claims: lines 94-95, 147-148] — **Fix**: `scrollSnaps.map` заменён на `visibleBanners.map`, `scrollSnaps` удалён из деструктуризации.
 - [x] **[MEDIUM][Reliability]** Валидация guard использует `trimmed`, но `Link href` получает raw `cta_link`. Пробелы в начале могут нарушить навигацию. [frontend/src/components/home/MarketingBannersSection.tsx:54-58, 155-156] — **Fix**: `getSafeHref()` применяет `trim()` к href. Тест добавлен.
 - [x] **[MEDIUM][Test Gap]** Нет регрессионного теста на sync dots после image error: проверка count dots и их поведения при failed image. [frontend/src/components/home/__tests__/MarketingBannersSection.test.tsx:541-574] — **Fix**: добавлен тест "dots должны синхронизироваться с visible banners после image error" (3 dots → 2 после error).
+- [x] **[HIGH][QA Integrity]** Заявка "lint clean / issue resolved" не подтверждается. В story отмечено, что lint выполнен и follow-up по `_fill` закрыт: @`_bmad-output/implementation-artifacts/32-4-marketing-banners-ui.md#105-107`, @`_bmad-output/implementation-artifacts/32-4-marketing-banners-ui.md#153-153`. Но в тесте переменная всё ещё не используется: @`frontend/src/components/home/__tests__/MarketingBannersSection.test.tsx#46-54`. Это ломает достоверность "resolved" для follow-up и quality-gate. — **Fix**: Image mock переписан: вместо деструктуризации `fill: _fill` используется `props` объект — `fill` не деструктурируется и не используется. ESLint чист.
+- [x] **[MEDIUM][Security Test Gap]** Нет теста на ветку `vbscript:`. Guard блокирует `vbscript:`: @`frontend/src/components/home/MarketingBannersSection.tsx#52-57. В security-наборе тестов есть `javascript:`, `data:`, external и `//`, но нет `vbscript:`: @`frontend/src/components/home/__tests__/MarketingBannersSection.test.tsx#299-433`. — **Fix**: добавлен тест "не должен рендерить ссылку для vbscript: протокола".
+- [x] **[MEDIUM][API Contract Test Gap]** Нет теста, что `getActive('marketing')` реально отправляет `type=marketing`. Логика параметра есть: @`frontend/src/services/bannersService.ts#15-18`. Но service-тесты не проверяют query param для marketing-типа: @`frontend/src/services/__tests__/bannersService.test.ts#11-83`. — **Fix**: добавлено 2 теста в bannersService.test.ts — проверка `type=marketing` query param и отсутствие `type` при вызове без аргументов.
+- [x] **[LOW][Resilience]** Нет cleanup/cancel в async effect загрузки. В `useEffect` после unmount возможны setState по завершению промиса: @`frontend/src/components/home/MarketingBannersSection.tsx#98-114`. Риск низкий, но лучше добавить abort/ignore pattern. — **Fix**: добавлен `cancelled` flag с cleanup return в `useEffect` — setState пропускается если компонент unmounted.
+- [ ] **[HIGH][QA Integrity]** Backend-часть follow-up отмечена как `[x]` при невыполненной работе. В задачах 89 и 91 указано "Backend валидация — отдельная задача", но статус закрыт. Это нарушает правило done = полностью выполнено. [story validation checklist:89-92, story validation checklist:89-92] — **Action**: Разделить на frontend [x] + backend [ ] задачи.
+- [ ] **[MEDIUM][Traceability]** File List не совпадает с текущим git diff. В `File List` заявлены `HomePage.tsx` и `index.ts`, но в текущем `git diff --cached --name-only` их нет. [story File List:191-192, git diff --cached --name-only] — **Action**: Синхронизировать File List с актуальным staged diff.
+- [ ] **[MEDIUM][Quality Gate]** В story отмечен "lint clean", но фактически есть warning. В `Change Log` и `Команды валидации` зафиксирован `npm run lint` как выполненный, но ESLint выдаёт warning в `catalog/page.tsx`. [story validation checklist:109-109, story validation checklist:146-146] — **Action**: Либо исправить warning, либо обновить статус lint-проверки.
+- [ ] **[LOW][Performance]** Автопрокрутка/loop всегда включены, даже при 1 баннере. Карусель инициализируется с `autoplay: true`, `loop: true`, хотя UI-контролы скрываются при `visibleBanners.length <= 1`. Лишняя активность таймера/Embla. [frontend/src/components/home/MarketingBannersSection.tsx:92-96, frontend/src/components/home/MarketingBannersSection.tsx:199-218] — **Action**: Отключать autoplay/loop при banners.length <= 1.
 
 ### Команды валидации (frontend)
 
 - [x] `npm run lint`
-- [x] `npm run test -- src/components/home/__tests__/MarketingBannersSection.test.tsx`
+- [x] `npm run test -- src/components/home/__tests__/MarketingBannersSection.test.tsx` (32/32 passed)
 - [x] `npm run test -- src/components/home/__tests__/HomePage.test.tsx` (интеграционный тест порядка секций — 2/2 passed)
+- [x] `npm run test -- src/services/__tests__/bannersService.test.ts` (7/7 passed)
 - [ ] `npm run test:coverage` (опционально перед merge)
 
 ## Заметки разработчика
@@ -163,6 +174,13 @@ Claude Opus 4.6 (Claude Code CLI)
 - ✅ Resolved [MEDIUM][Test Gap]: Добавлен тест синхронизации dots после image error (3 dots → 2 после ошибки)
 - Итого: 31 unit-тестов MarketingBannersSection + 2 интеграционных HomePage = 33 теста (33/33 passed)
 
+### Review Follow-ups Resolution #3 (2026-02-15)
+- ✅ Resolved [HIGH][QA Integrity]: Image mock переписан с `props` объектом — `fill` больше не деструктурируется, ESLint чист
+- ✅ Resolved [MEDIUM][Security Test Gap]: Добавлен тест на `vbscript:` протокол в security suite
+- ✅ Resolved [MEDIUM][API Contract Test Gap]: Добавлено 2 теста в bannersService.test.ts — проверка `type=marketing` query param и отсутствие `type` без аргументов
+- ✅ Resolved [LOW][Resilience]: Добавлен `cancelled` flag с cleanup в `useEffect` — предотвращает setState после unmount
+- Итого: 32 unit-тестов MarketingBannersSection + 2 интеграционных HomePage + 7 bannersService = 41 тест (41/41 passed)
+
 ### Decisions
 - ErrorBoundary реализован inline в файле компонента (не как shared), так как в проекте нет существующего ErrorBoundary и story требует component-level boundary
 - `loading="lazy"` вместо `priority` — секция ниже fold, lazy loading оптимален
@@ -173,8 +191,9 @@ Claude Opus 4.6 (Claude Code CLI)
 | File | Change |
 |------|--------|
 | `frontend/src/components/home/MarketingBannersSection.tsx` | Added → Modified (review follow-ups: isSafeLink guard, image_url pre-check, type="button", visibleBanners.map, role="group"+aria-current, removed console.error) |
-| `frontend/src/components/home/__tests__/MarketingBannersSection.test.tsx` | Added → Modified (28 tests: +4 security, +2 reliability, +1 embla sync 3-banner, updated ARIA assertions, fixed Image mock) |
+| `frontend/src/components/home/__tests__/MarketingBannersSection.test.tsx` | Added → Modified (32 tests: +4 security, +1 vbscript, +2 reliability, +1 embla sync 3-banner, updated ARIA assertions, fixed Image mock props pattern) |
 | `frontend/src/components/home/__tests__/HomePage.test.tsx` | Added (2 tests: section order AC1 regression, all 14 sections presence) |
+| `frontend/src/services/__tests__/bannersService.test.ts` | Modified (7 tests: +2 API contract tests for type=marketing query param) |
 | `frontend/src/components/home/index.ts` | Modified — added `MarketingBannersSection` export |
 | `frontend/src/components/home/HomePage.tsx` | Modified — added `MarketingBannersSection` between QuickLinksSection and CategoriesSection, updated JSDoc header |
 
@@ -188,3 +207,5 @@ Claude Opus 4.6 (Claude Code CLI)
 | 2026-02-15 | Dev Story: All 9 review follow-ups resolved (2 HIGH, 4 MEDIUM, 3 LOW). Added isSafeLink guard, image_url pre-check, type="button", visibleBanners.map fix, role="group"+aria-current, JSDoc update, Image mock cleanup, console.error removal. Tests: 28+2=30 (30/30 passed). HomePage.test.tsx created. |
 | 2026-02-15 | Code Review #3 (AI): 4 new follow-ups created (2 HIGH, 2 MEDIUM). Status → in-progress. Issues: Open redirect via protocol-relative URL, regression (scrollSnaps.map vs visibleBanners.map), reliability (trimmed vs raw cta_link), test gap (dots sync after image error). |
 | 2026-02-15 | Dev Story: All 4 CR#3 follow-ups resolved (2 HIGH, 2 MEDIUM). Added protocol-relative URL block, replaced scrollSnaps.map→visibleBanners.map, added getSafeHref() trim, added dots sync test. Tests: 31+2=33 (33/33 passed). |
+| 2026-02-15 | Code Review #4 (AI): 4 new follow-ups created (1 HIGH, 2 MEDIUM, 1 LOW). Status → in-progress. Issues: QA integrity (lint clean claim false), security test gap (vbscript:), API contract test gap (type=marketing query param), resilience (useEffect cleanup). |
+| 2026-02-15 | Code Review #5 (AI): 4 new follow-ups created (1 HIGH, 2 MEDIUM, 1 LOW). Status → in-progress. Issues: QA integrity (backend follow-up marked [x] but not done), traceability (File List vs git diff), quality gate (lint warning exists), performance (autoplay always on). |

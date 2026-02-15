@@ -96,21 +96,27 @@ const MarketingBannersCarousel: React.FC = () => {
   });
 
   useEffect(() => {
+    let cancelled = false;
+
     const loadBanners = async () => {
       try {
         setIsLoading(true);
         const data = await bannersService.getActive('marketing');
+        if (cancelled) return;
         const validBanners = data.filter(b => b.image_url && b.image_url.trim() !== '');
         setBanners(validBanners);
         setError(null);
       } catch (err) {
+        if (cancelled) return;
         setError(err instanceof Error ? err : new Error('Unknown error'));
       } finally {
-        setIsLoading(false);
+        if (!cancelled) setIsLoading(false);
       }
     };
 
     loadBanners();
+
+    return () => { cancelled = true; };
   }, []);
 
   const handleImageError = useCallback((bannerId: number) => {
