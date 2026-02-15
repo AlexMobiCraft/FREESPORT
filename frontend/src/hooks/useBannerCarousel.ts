@@ -246,12 +246,6 @@ export function useBannerCarousel(options: UseBannerCarouselOptions = {}): UseBa
     [emblaApi]
   );
 
-  /** Прокрутка к слайду по индексу (для точек навигации) */
-  const onDotButtonClick = safeScrollTo;
-
-  /** Прокрутка к слайду по индексу (прямой API) */
-  const scrollTo = safeScrollTo;
-
   // Subscribe to Embla events
   // Direct call to onReInit handles initial mount state.
   // 'select' handles slide changes; 'reInit' handles full resync when options/plugins change.
@@ -280,7 +274,7 @@ export function useBannerCarousel(options: UseBannerCarouselOptions = {}): UseBa
     canScrollNext,
     scrollNext,
     scrollPrev,
-    onDotButtonClick,
-    scrollTo,
+    onDotButtonClick: safeScrollTo,
+    scrollTo: safeScrollTo,
   };
 }

@@ -87,11 +87,11 @@ development_status:
   # NFRs covered: NFR1, NFR2, NFR3
   # Source: epics.md (1C Order Exchange)
   # ========================================
-  epic-5: in-progress
-  5-0-spike-analysis-orders-xml: in-progress
+  epic-5: done
+  5-0-spike-analysis-orders-xml: included
   5-1-order-status-import-service: done
   5-2-view-handler-mode-file-for-orders-xml: done
-  5-3-integration-tests-full-import-cycle: review
+  5-3-integration-tests-full-import-cycle: done
   epic-5-retrospective: optional
 
   # ========================================

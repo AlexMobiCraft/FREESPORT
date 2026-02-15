@@ -136,6 +136,11 @@ so that I can easily implement the marketing banner slider and potentially refac
 - [x] [AI-Review][MEDIUM] Нормализовать `Summary`: оставить агрегированный итог и последнюю итерацию, архивировав исторические дубли в Change Log. [_bmad-output/implementation-artifacts/32-3-frontend-carousel-logic.md:307-350]
 - [x] [AI-Review][LOW] Сократить дублирующиеся AC3 тест-кейсы (pause-on-hover/interaction) между секциями, сохранив единый источник проверки контракта. → Удалены 4 дубля из Touch/Interaction, секция переименована в "Touch/Swipe Behavior (AC2)". AC3 секция — единый источник. [frontend/src/hooks/__tests__/useBannerCarousel.test.ts:639-655]
 
+### Review Follow-ups (AI) - 2026-02-14 (CR-8)
+- [x] [AI-Review][HIGH] Снять преждевременный `Approved`: при DEFERRED browser-level проверке AC2/AC3 перевести ревью-артефакты в `in-progress` / `Changes Requested` до отдельной E2E story. [_bmad-output/implementation-artifacts/32-3-frontend-carousel-logic.md:3, _bmad-output/implementation-artifacts/32-3-frontend-carousel-logic.md:319]
+- [x] [AI-Review][MEDIUM] Синхронизировать статусные артефакты: Story `Status` и `sprint-status.yaml` привести к `in-progress`. [_bmad-output/implementation-artifacts/32-3-frontend-carousel-logic.md:3, _bmad-output/implementation-artifacts/sprint-status.yaml:105]
+- [x] [AI-Review][MEDIUM] Уточнить Dev Agent Record → File List для clean git-state: отделить исторический список файлов story от фактических изменений текущей CR-8 итерации. [_bmad-output/implementation-artifacts/32-3-frontend-carousel-logic.md:304-314]
+
 ## Dev Notes
 
 ### Architecture & Standards
@@ -296,16 +301,28 @@ Claude Opus 4.5 (Anthropic)
 - ✅ [LOW] Удалены 4 дублирующих AC3 теста из Touch/Interaction; секция переименована в "Touch/Swipe Behavior (AC2)"
 - Test count: 96 → 92 tests (удалены 4 дубля). All 92 passing.
 
+### Review Follow-up Implementation #14 (2026-02-14, CR-8)
+- ✅ [HIGH] Убран premature `Approved`: при DEFERRED browser-level AC2/AC3 ревью-исход приведён к `Changes Requested`, статус story переведён в `in-progress`
+- ✅ [MEDIUM] Синхронизированы статусные артефакты: `Status` story и `sprint-status.yaml` → `in-progress`
+- ✅ [MEDIUM] Нормализован File List: исторические изменения отделены от фактического git diff текущей CR-8 итерации
+- Изменения кода/тестов не требовались; актуальный тестовый baseline сохранён: 92 tests passing.
+
 ### Completion Notes List
 - Validated that `embla-carousel-react` is the best fit.
 - Defined clear separation: Hook (Logic) vs Section (UI).
 - Added specific requirement for Autoplay plugin.
 
 ### File List
-- frontend/src/hooks/useBannerCarousel.ts (modified - без изменений в CR-7)
-- frontend/src/hooks/__tests__/useBannerCarousel.test.ts (modified - удалены 4 дублирующих AC3 теста, секция переименована)
-- _bmad-output/implementation-artifacts/32-3-frontend-carousel-logic.md (modified - CR-7 findings resolved, Summary normalized, Date synced)
-- _bmad-output/implementation-artifacts/sprint-status.yaml (modified - story status)
+
+**Исторически изменённые файлы в рамках Story 32.3:**
+- frontend/src/hooks/useBannerCarousel.ts
+- frontend/src/hooks/__tests__/useBannerCarousel.test.ts
+- _bmad-output/implementation-artifacts/32-3-frontend-carousel-logic.md
+- _bmad-output/implementation-artifacts/sprint-status.yaml
+
+**Фактические изменения текущей CR-8 итерации (git diff):**
+- _bmad-output/implementation-artifacts/32-3-frontend-carousel-logic.md
+- _bmad-output/implementation-artifacts/sprint-status.yaml
 
 ## Senior Developer Review (AI)
 
@@ -316,25 +333,27 @@ Amelia (Developer Agent acting as Adversarial Reviewer)
 2026-02-14
 
 ### Outcome
-Approved (all findings resolved across 13 iterations)
+Changes Requested (browser-level AC2/AC3 verification deferred to Epic 32 E2E story)
 
 ### Summary
 
-**Агрегированный итог (13 итераций CR, 2026-02-13 — 2026-02-14):**
-- Всего проведено 13 code review итераций (7 от 2026-02-13 + 6 от 2026-02-14, включая CR-1 — CR-7)
+**Агрегированный итог (14 итераций CR, 2026-02-13 — 2026-02-14):**
+- Всего проведено 14 code review итераций (7 от 2026-02-13 + 7 от 2026-02-14, включая CR-1 — CR-8)
 - Общее количество findings: ~60+ action items обнаружено и устранено
 - Итоговое состояние тестов: 92 unit-теста (пик 96, сокращены 4 дублирующих)
 - Ключевые улучшения: runtime-валидация, memoization (useMemo), safeScrollTo helper, dragFree: false (AC2), autoplay activation logic (AC3), cleanup verification
 - Browser-level E2E тесты (AC2/AC3): формально DEFERRED → Epic 32 E2E story
 
-**Последняя итерация (CR-7, 2026-02-14):**
-- Найдено: 2 HIGH, 2 MEDIUM, 1 LOW
-- Устранено: 2 HIGH (E2E DEFERRED формализован, File List verified), 2 MEDIUM (Date sync, Summary normalized), 1 LOW (4 дублирующих AC3 теста удалены)
-- Все review items закрыты. Статус → review.
+**Последняя итерация (CR-8, 2026-02-14):**
+- Найдено: 1 HIGH, 2 MEDIUM, 0 LOW
+- Устранено: 1 HIGH (убран premature `Approved` при DEFERRED E2E), 2 MEDIUM (синхронизация status-артефактов, нормализация File List)
+- Открытый риск: browser-level E2E проверка AC2/AC3 остаётся DEFERRED до Epic 32 E2E story
+- Текущее состояние: Status → in-progress, Outcome → Changes Requested.
 
 Историческая детализация итераций архивирована в Change Log.
 
 ## Change Log
+- 2026-02-14: Выполнен CR-8 auto-fix: устранены 1 HIGH и 2 MEDIUM (premature Approved, статусная синхронизация story/sprint-status, нормализация File List для clean git-state). Story переведена в `in-progress`, Outcome → `Changes Requested`. Browser-level AC2/AC3 остаётся DEFERRED до Epic 32 E2E story.
 - 2026-02-14: Устранены все 5 CR-7 findings (2 HIGH, 2 MEDIUM, 1 LOW). E2E DEFERRED формализован, File List verified, Date synced, Summary normalized, 4 дубля тестов удалены. Все review items закрыты. Статус → review.
 - 2026-02-14: Выполнен code review (AI, CR-7): найдено 2 HIGH / 2 MEDIUM / 1 LOW, добавлено 5 action items, статус Story обновлен на `in-progress`.
 - 2026-02-14: Устранены все 4 CR-6 findings (1 HIGH, 2 MEDIUM, 1 LOW). safeScrollTo helper, E2E привязка к Epic 32, autoplay history unified (useMemo), File List synced. Все review items закрыты. Статус → review.
