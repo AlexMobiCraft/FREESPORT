@@ -1,6 +1,6 @@
 # Story 32.4: Секция маркетинговых баннеров (UI)
 
-Status: ready-for-dev
+Status: review
 
 ## История
 
@@ -43,51 +43,51 @@ Status: ready-for-dev
 
 ## Задачи / Подзадачи
 
-- [ ] **Настройка и каркас**
-    - [ ] Создать компонент `MarketingBannersSection` в `frontend/src/components/home/`.
-    - [ ] Экспортировать компонент из `frontend/src/components/home/index.ts`.
-    - [ ] Интегрировать компонент в `HomePage.tsx` сразу после `QuickLinksSection` и до `CategoriesSection`.
+- [x] **Настройка и каркас**
+    - [x] Создать компонент `MarketingBannersSection` в `frontend/src/components/home/`.
+    - [x] Экспортировать компонент из `frontend/src/components/home/index.ts`.
+    - [x] Интегрировать компонент в `HomePage.tsx` сразу после `QuickLinksSection` и до `CategoriesSection`.
 
-- [ ] **Реализация**
-    - [ ] Получение баннеров через `bannersService.getActive('marketing')`.
-    - [ ] Интеграция хука `useBannerCarousel` для логики слайдера.
-    - [ ] Реализация рендеринга слайдов с использованием `Next/Image` (`sizes`, `loading`, `priority` по правилам секции).
-    - [ ] Реализация условного рендеринга (скрыть, если пусто).
-    - [ ] Добавить component-level `ErrorBoundary` для секции с fallback `null` (секция скрывается, HomePage продолжает работать).
-    - [ ] Навигация по клику реализуется через поле `cta_link` из API.
+- [x] **Реализация**
+    - [x] Получение баннеров через `bannersService.getActive('marketing')`.
+    - [x] Интеграция хука `useBannerCarousel` для логики слайдера.
+    - [x] Реализация рендеринга слайдов с использованием `Next/Image` (`sizes`, `loading`, `priority` по правилам секции).
+    - [x] Реализация условного рендеринга (скрыть, если пусто).
+    - [x] Добавить component-level `ErrorBoundary` для секции с fallback `null` (секция скрывается, HomePage продолжает работать).
+    - [x] Навигация по клику реализуется через поле `cta_link` из API.
 
-- [ ] **UX и Стилизация**
-    - [ ] Реализовать состояние Skeleton-лоадера, соответствующее соотношению сторон.
-    - [ ] Обработка ошибок загрузки изображений (фоллбек или скрытие).
-    - [ ] Применить адаптивные стили (мобильные/десктоп).
+- [x] **UX и Стилизация**
+    - [x] Реализовать состояние Skeleton-лоадера, соответствующее соотношению сторон.
+    - [x] Обработка ошибок загрузки изображений (фоллбек или скрытие).
+    - [x] Применить адаптивные стили (мобильные/десктоп).
 
-- [ ] **Тестирование**
-    - [ ] Создать юнит-тесты `MarketingBannersSection.test.tsx`.
-    - [ ] Настроить тестовые данные для marketing-баннеров: локально мокать `bannersService.getActive('marketing')` в тестах секции **или** переопределить MSW handler `/banners/` с учетом query `type=marketing`.
-    - [ ] Проверить состояние загрузки (скелетон).
-    - [ ] Проверить пустое состояние (null рендер).
-    - [ ] Проверить обработку ошибок API.
-    - [ ] Проверить обработку ошибки загрузки изображения (слайд скрывается или показывается placeholder согласно выбранной стратегии).
-    - [ ] Проверить, что `ErrorBoundary` перехватывает ошибку рендера и секция скрывается без падения страницы.
-    - [ ] Проверить навигацию по клику на баннер через `cta_link`.
+- [x] **Тестирование**
+    - [x] Создать юнит-тесты `MarketingBannersSection.test.tsx`.
+    - [x] Настроить тестовые данные для marketing-баннеров: локально мокать `bannersService.getActive('marketing')` в тестах секции **или** переопределить MSW handler `/banners/` с учетом query `type=marketing`.
+    - [x] Проверить состояние загрузки (скелетон).
+    - [x] Проверить пустое состояние (null рендер).
+    - [x] Проверить обработку ошибок API.
+    - [x] Проверить обработку ошибки загрузки изображения (слайд скрывается или показывается placeholder согласно выбранной стратегии).
+    - [x] Проверить, что `ErrorBoundary` перехватывает ошибку рендера и секция скрывается без падения страницы.
+    - [x] Проверить навигацию по клику на баннер через `cta_link`.
 
 ### Финальный QA Checklist (Ready for Review)
 
-- [ ] **AC1 / FR8:** В `HomePage` секция рендерится сразу после `QuickLinksSection` и до `CategoriesSection`.
-- [ ] **AC2 / FR10:** При ответе API `[]` секция не рендерится (`null`).
-- [ ] **AC3 / NFR5:** Во время загрузки рендерится skeleton/контейнер с фиксированным aspect ratio (без layout shift в рамках компонента).
-- [ ] **AC3 / NFR4:** Слайды используют `Next/Image` с корректными `sizes`; форматы WebP/AVIF не деградируют UX при текущем `images.unoptimized`.
-- [ ] **AC4 / NFR8:** Ошибка загрузки изображения (onError) обрабатывается: слайд скрыт или заменен placeholder согласно принятой стратегии.
-- [ ] **AC5 / NFR6:** Component-level Error Boundary перехватывает render error; HomePage продолжает рендер остальных секций.
-- [ ] **AC6:** Клик по баннеру ведет на `cta_link` из API-контракта.
-- [ ] Проверены accessibility-атрибуты: `alt` у изображения, доступный label секции/элементов управления.
-- [ ] Проверено, что при API error компонент деградирует безопасно (без crash всей страницы).
-- [ ] Проверено, что при `banners.length > 1` работает навигация карусели (dots/controls), при `<=1` лишние контролы скрыты.
+- [x] **AC1 / FR8:** В `HomePage` секция рендерится сразу после `QuickLinksSection` и до `CategoriesSection`.
+- [x] **AC2 / FR10:** При ответе API `[]` секция не рендерится (`null`).
+- [x] **AC3 / NFR5:** Во время загрузки рендерится skeleton/контейнер с фиксированным aspect ratio (без layout shift в рамках компонента).
+- [x] **AC3 / NFR4:** Слайды используют `Next/Image` с корректными `sizes`; форматы WebP/AVIF не деградируют UX при текущем `images.unoptimized`.
+- [x] **AC4 / NFR8:** Ошибка загрузки изображения (onError) обрабатывается: слайд скрыт или заменен placeholder согласно принятой стратегии.
+- [x] **AC5 / NFR6:** Component-level Error Boundary перехватывает render error; HomePage продолжает рендер остальных секций.
+- [x] **AC6:** Клик по баннеру ведет на `cta_link` из API-контракта.
+- [x] Проверены accessibility-атрибуты: `alt` у изображения, доступный label секции/элементов управления.
+- [x] Проверено, что при API error компонент деградирует безопасно (без crash всей страницы).
+- [x] Проверено, что при `banners.length > 1` работает навигация карусели (dots/controls), при `<=1` лишние контролы скрыты.
 
 ### Команды валидации (frontend)
 
-- [ ] `npm run lint`
-- [ ] `npm run test -- src/components/home/__tests__/MarketingBannersSection.test.tsx`
+- [x] `npm run lint`
+- [x] `npm run test -- src/components/home/__tests__/MarketingBannersSection.test.tsx`
 - [ ] `npm run test -- src/components/home/__tests__/HomePage.test.tsx` (если добавлен интеграционный тест порядка секций)
 - [ ] `npm run test:coverage` (опционально перед merge)
 
@@ -109,4 +109,40 @@ Status: ready-for-dev
 ## Запись агента разработки
 
 ### Используемая модель агента
-Cascade (Windsurf)
+Claude Opus 4.6 (Claude Code CLI)
+
+### Implementation Plan
+- Создан `MarketingBannersSection` компонент с inline `MarketingBannerErrorBoundary` (class component, fallback: null)
+- Внутренний `MarketingBannersCarousel` использует `bannersService.getActive('marketing')` + `useBannerCarousel` hook из Story 32.3
+- Skeleton loader с `aspect-[21/9] md:aspect-[3/1]` для предотвращения CLS
+- `Next/Image` с `sizes="(max-width: 768px) 100vw, 1280px"` и `loading="lazy"` (below the fold)
+- Image error handling: `failedImages` Set + `onError` callback → слайд скрывается; если все изображения failed → секция null
+- Dots navigation с `role="tab"` / `aria-selected` только при `visibleBanners.length > 1`
+- Стратегия тестирования: direct mock `bannersService.getActive` через `vi.mock` (по аналогии с HeroSection)
+
+### Completion Notes
+- ✅ Все 20 unit-тестов проходят (AC1–AC6, accessibility, ErrorBoundary, image error, dots navigation)
+- ✅ ESLint чист для `MarketingBannersSection.tsx`
+- ✅ HeroSection.test.tsx (13 тестов) — без регрессий
+- ✅ Все home component тесты (186/191 passed) — 5 падений в QuickLinksSection.test.tsx являются pre-existing (отсутствует MSW handler для `/categories-tree/`)
+- Решение по image error: выбрана стратегия скрытия слайда (не placeholder), так как маркетинговый баннер без изображения не имеет смысла
+
+### Decisions
+- ErrorBoundary реализован inline в файле компонента (не как shared), так как в проекте нет существующего ErrorBoundary и story требует component-level boundary
+- `loading="lazy"` вместо `priority` — секция ниже fold, lazy loading оптимален
+- Не добавлен `unoptimized` prop на `Next/Image` — `next.config.ts` уже устанавливает `images.unoptimized: true` глобально
+
+## File List
+
+| File | Change |
+|------|--------|
+| `frontend/src/components/home/MarketingBannersSection.tsx` | Added |
+| `frontend/src/components/home/__tests__/MarketingBannersSection.test.tsx` | Added |
+| `frontend/src/components/home/index.ts` | Modified — added `MarketingBannersSection` export |
+| `frontend/src/components/home/HomePage.tsx` | Modified — added `MarketingBannersSection` between QuickLinksSection and CategoriesSection |
+
+## Change Log
+
+| Date | Change |
+|------|--------|
+| 2026-02-15 | Story 32.4 implementation complete: MarketingBannersSection component with ErrorBoundary, skeleton, image error handling, carousel integration, 20 unit tests (Claude Opus 4.6) |
