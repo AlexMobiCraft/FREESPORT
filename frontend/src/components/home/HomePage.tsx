@@ -23,6 +23,7 @@ import React from 'react';
 import {
   HeroSection,
   QuickLinksSection,
+  MarketingBannersSection,
   HitsSection,
   NewArrivalsSection,
   PromoSection,
@@ -44,6 +45,9 @@ export const HomePage: React.FC = () => {
 
       {/* 1.5 Quick Links - Быстрые ссылки */}
       <QuickLinksSection />
+
+      {/* 1.6 Marketing Banners - Маркетинговые баннеры */}
+      <MarketingBannersSection />
 
       {/* 2. Popular Categories - Популярные категории */}
       <CategoriesSection />
