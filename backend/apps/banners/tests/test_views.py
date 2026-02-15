@@ -137,6 +137,47 @@ class TestActiveBannersViewCaching:
         assert cache.get("banners:list:hero:guest") is None
         assert cache.get("banners:list:marketing:guest") is None
 
+    def test_signal_invalidates_role_specific_caches_on_type_change(self):
+        """CR-9: Смена type инвалидирует кеш всех ролей, не только guest."""
+        banner = BannerFactory(
+            type=Banner.BannerType.HERO,
+            show_to_guests=True,
+            show_to_authenticated=True,
+        )
+        BannerFactory(
+            type=Banner.BannerType.MARKETING,
+            show_to_guests=True,
+            show_to_authenticated=True,
+        )
+
+        # Заполняем кеш guest + retail для обоих типов
+        self.client.get("/api/v1/banners/", {"type": "hero"})
+        self.client.get("/api/v1/banners/", {"type": "marketing"})
+
+        retail_user = User.objects.create_user(
+            email="retail_cache_inv@test.local", password="testpass123", role="retail"
+        )
+        retail_client = APIClient()
+        refresh = RefreshToken.for_user(retail_user)
+        retail_client.credentials(HTTP_AUTHORIZATION=f"Bearer {str(refresh.access_token)}")
+        retail_client.get("/api/v1/banners/", {"type": "hero"})
+        retail_client.get("/api/v1/banners/", {"type": "marketing"})
+
+        assert cache.get("banners:list:hero:guest") is not None
+        assert cache.get("banners:list:hero:retail") is not None
+        assert cache.get("banners:list:marketing:guest") is not None
+        assert cache.get("banners:list:marketing:retail") is not None
+
+        # Меняем type hero→marketing
+        banner.type = Banner.BannerType.MARKETING
+        banner.save()
+
+        # Все кеши обоих типов по всем ролям должны быть инвалидированы
+        assert cache.get("banners:list:hero:guest") is None
+        assert cache.get("banners:list:hero:retail") is None
+        assert cache.get("banners:list:marketing:guest") is None
+        assert cache.get("banners:list:marketing:retail") is None
+
 
 @pytest.mark.django_db
 class TestActiveBannersViewRoleIsolation:

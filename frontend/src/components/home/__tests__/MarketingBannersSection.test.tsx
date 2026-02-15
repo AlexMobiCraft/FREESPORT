@@ -808,6 +808,33 @@ describe('MarketingBannersSection', () => {
       });
     });
 
+    it('должен использовать title как fallback для пустого image_alt', async () => {
+      const bannerNoAlt: Banner[] = [{
+        ...mockMarketingBanners[0],
+        image_alt: '',
+      }];
+      vi.mocked(bannersService.getActive).mockResolvedValue(bannerNoAlt);
+      vi.mocked(useBannerCarousel).mockReturnValue({
+        emblaRef: vi.fn(),
+        selectedIndex: 0,
+        scrollSnaps: [0],
+        canScrollPrev: false,
+        canScrollNext: false,
+        scrollNext: vi.fn(),
+        scrollPrev: vi.fn(),
+        onDotButtonClick: mockOnDotButtonClick,
+        scrollTo: vi.fn(),
+      });
+
+      render(<MarketingBannersSection />);
+
+      await waitFor(() => {
+        // Fallback: image_alt пустой → используется banner.title
+        const img = screen.getByAltText('Летняя распродажа');
+        expect(img).toBeInTheDocument();
+      });
+    });
+
     it('dots должны иметь aria-label и aria-current', async () => {
       vi.mocked(bannersService.getActive).mockResolvedValue(mockMarketingBanners);
 

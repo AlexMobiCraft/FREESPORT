@@ -168,7 +168,7 @@ const MarketingBannersCarousel: React.FC = () => {
                   >
                     <Image
                       src={banner.image_url}
-                      alt={banner.image_alt}
+                      alt={banner.image_alt || banner.title}
                       fill
                       sizes="(max-width: 768px) 100vw, 1280px"
                       className="object-cover"
@@ -183,7 +183,7 @@ const MarketingBannersCarousel: React.FC = () => {
                   >
                     <Image
                       src={banner.image_url}
-                      alt={banner.image_alt}
+                      alt={banner.image_alt || banner.title}
                       fill
                       sizes="(max-width: 768px) 100vw, 1280px"
                       className="object-cover"
