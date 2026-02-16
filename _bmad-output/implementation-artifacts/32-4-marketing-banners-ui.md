@@ -1,6 +1,6 @@
 # Story 32.4: Секция маркетинговых баннеров (UI)
 
-Status: review
+Status: done
 
 ## История
 
@@ -263,6 +263,13 @@ Claude Opus 4.6 (Claude Code CLI)
 - ✅ **Resolved [MEDIUM][Status Sync]**: Story/sprint статусы синхронизированы.
 - Backend unit: 33/33 passed. Frontend: 46/46 passed.
 
+### Review Follow-ups (AI #14)
+
+- ✅ **Resolved [MEDIUM][Traceability]**: Файл `backend/apps/banners/views.py` добавлен в File List (табл. 271-290).
+- ✅ **Resolved [LOW][Performance]**: Введен `HERO_BANNER_LIMIT = 10` в `settings/base.py` и применен в `services.py`. Тесты обновлены: `test_hero_limited_to_10_by_default`.
+- ✅ **Resolved [LOW][Code Style]**: Локальные импорты в `test_models.py` и `test_services.py` вынесены на верхний уровень.
+- Backend unit: 33/33 passed. Frontend: 46/46 passed.
+
 ### Decisions
 - ErrorBoundary реализован inline в файле компонента (не как shared), так как в проекте нет существующего ErrorBoundary и story требует component-level boundary
 - `loading="lazy"` вместо `priority` — секция ниже fold, lazy loading оптимален
@@ -285,6 +292,7 @@ Claude Opus 4.6 (Claude Code CLI)
 | `backend/freesport/settings/base.py` | Modified (добавлена настройка `MARKETING_BANNER_LIMIT = 5`) |
 | `frontend/src/services/api-client.ts` | Modified (экспортирован `API_URL_PUBLIC` для переиспользования в тестах) |
 | `backend/apps/banners/signals.py` | Modified (добавлен `pre_save` сигнал `track_old_banner_type` для dual cache invalidation при смене type) |
+| `backend/apps/banners/views.py` | Modified — передача `role_key` в `build_cache_key` и `compute_cache_ttl` |
 | `backend/apps/banners/tests/test_views.py` | Modified (добавлены regression tests: `test_signal_invalidates_both_caches_on_type_change` + `test_signal_invalidates_role_specific_caches_on_type_change`, +pytest markers `integration`) |
 | `frontend/src/services/bannersService.ts` | Modified (добавлен параметр `signal?: AbortSignal` в `getActive`) |
 

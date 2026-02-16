@@ -315,9 +315,9 @@ class TestActiveBannersViewMarketingLimit:
             assert response.status_code == 200
             assert len(response.data) == 3
 
-    def test_hero_not_limited(self):
-        """Hero баннеры НЕ ограничены лимитом 5."""
-        for i in range(7):
+    def test_hero_limited_to_10_by_default(self):
+        """Hero баннеры ограничены лимитом 10 по умолчанию (Performance safety)."""
+        for i in range(12):
             BannerFactory(
                 type=Banner.BannerType.HERO,
                 show_to_guests=True,
@@ -325,7 +325,24 @@ class TestActiveBannersViewMarketingLimit:
             )
         response = self.client.get("/api/v1/banners/", {"type": "hero"})
         assert response.status_code == 200
-        assert len(response.data) == 7
+        assert len(response.data) == 10
+
+    def test_hero_limit_configurable_via_settings(self):
+        """HERO_BANNER_LIMIT из settings управляет лимитом hero баннеров."""
+        from django.test import override_settings
+
+        for i in range(12):
+            BannerFactory(
+                type=Banner.BannerType.HERO,
+                show_to_guests=True,
+                priority=i,
+            )
+
+        with override_settings(HERO_BANNER_LIMIT=4):
+            cache.clear()
+            response = self.client.get("/api/v1/banners/", {"type": "hero"})
+            assert response.status_code == 200
+            assert len(response.data) == 4
 
     def test_marketing_fewer_than_limit_returns_all(self):
         """Если marketing баннеров меньше 5, возвращаются все."""
