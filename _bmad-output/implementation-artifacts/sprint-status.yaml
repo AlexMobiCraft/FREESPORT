@@ -114,7 +114,7 @@ development_status:
   # ========================================
   epic-33: in-progress
   33-1-brand-model-admin-updates: done
-  33-2-api-featured-brands-endpoint: in-progress
+  33-2-api-featured-brands-endpoint: review
   33-3-brandsblock-component-logic-ui: backlog
   33-4-integration-into-homepage: backlog
   epic-33-retrospective: optional

@@ -288,13 +288,13 @@ class BrandViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=False, methods=["get"], url_path="featured", pagination_class=None)
     def featured(self, request, *args, **kwargs):
         """Список избранных брендов с кэшированием на 1 час (flat JSON list)."""
-        from apps.products.signals import FEATURED_BRANDS_CACHE_KEY as cache_key
-        cached = cache.get(cache_key)
+        from apps.products.constants import FEATURED_BRANDS_CACHE_KEY, FEATURED_BRANDS_CACHE_TIMEOUT
+        cached = cache.get(FEATURED_BRANDS_CACHE_KEY)
         if cached is not None:
             return Response(cached)
         queryset = Brand.objects.active().filter(is_featured=True).order_by("name")
         serializer = self.get_serializer(queryset, many=True)
-        cache.set(cache_key, serializer.data, 60 * 60)
+        cache.set(FEATURED_BRANDS_CACHE_KEY, serializer.data, FEATURED_BRANDS_CACHE_TIMEOUT)
         return Response(serializer.data)
 
 

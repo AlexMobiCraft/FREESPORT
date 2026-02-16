@@ -310,9 +310,12 @@ class BrandSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         """Вызов модельной валидации Brand.clean() для проверки бизнес-правил."""
-        instance = self.instance or Brand()
-        for attr, value in attrs.items():
-            setattr(instance, attr, value)
+        if self.instance:
+            instance = self.instance
+            for attr, value in attrs.items():
+                setattr(instance, attr, value)
+        else:
+            instance = Brand(**attrs)
         try:
             instance.clean()
         except ValidationError as e:
