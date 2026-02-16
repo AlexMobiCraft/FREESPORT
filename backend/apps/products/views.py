@@ -29,6 +29,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 
+from .constants import FEATURED_BRANDS_CACHE_KEY, FEATURED_BRANDS_CACHE_TIMEOUT, FEATURED_BRANDS_MAX_ITEMS
 from .filters import ProductFilter
 from .models import Attribute, AttributeValue, Brand, Category, Product, ProductVariant
 from .serializers import (
@@ -251,11 +252,12 @@ class BrandViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         """Активные бренды с опциональной фильтрацией по is_featured"""
-        qs = Brand.objects.active()
-        is_featured = self.request.query_params.get("is_featured")
-        if is_featured is not None:
-            qs = qs.filter(is_featured=is_featured.lower() in ("true", "1"))
-        return qs.order_by("name")
+        qs = Brand.objects.active().order_by("name")
+        if self.action != "featured":
+            is_featured = self.request.query_params.get("is_featured")
+            if is_featured is not None:
+                qs = qs.filter(is_featured=is_featured.lower() in ("true", "1"))
+        return qs
 
     @extend_schema(
         summary="Список брендов",
@@ -288,14 +290,17 @@ class BrandViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=False, methods=["get"], url_path="featured", pagination_class=None)
     def featured(self, request, *args, **kwargs):
         """Список избранных брендов с кэшированием на 1 час (flat JSON list)."""
-        from apps.products.constants import FEATURED_BRANDS_CACHE_KEY, FEATURED_BRANDS_CACHE_TIMEOUT
         cached = cache.get(FEATURED_BRANDS_CACHE_KEY)
         if cached is not None:
             return Response(cached)
-        queryset = Brand.objects.active().filter(is_featured=True).order_by("name")
-        serializer = self.get_serializer(queryset, many=True)
-        cache.set(FEATURED_BRANDS_CACHE_KEY, serializer.data, FEATURED_BRANDS_CACHE_TIMEOUT)
-        return Response(serializer.data)
+
+        queryset = self.get_queryset().filter(is_featured=True)[:FEATURED_BRANDS_MAX_ITEMS]
+
+        # Не передаем request в контекст, чтобы в кэш не попадал host из заголовка.
+        serializer = self.get_serializer(queryset, many=True, context={})
+        payload = serializer.data
+        cache.set(FEATURED_BRANDS_CACHE_KEY, payload, FEATURED_BRANDS_CACHE_TIMEOUT)
+        return Response(payload)
 
 
 class AttributeFilterViewSet(viewsets.ReadOnlyModelViewSet):

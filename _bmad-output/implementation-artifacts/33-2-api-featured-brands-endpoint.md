@@ -52,6 +52,10 @@ So that I can display them on the homepage in a high-performance carousel.
 
 ## Review Follow-ups (AI)
 
+- [x] [AI-Review][MEDIUM] Fix cache poisoning vulnerability: `BrandSerializer` uses `request.build_absolute_uri()` which burns the request Host header into the cached response (e.g. internal IP vs public domain). Switch to relative URLs for cache or use canonical host. [apps/products/serializers.py]
+- [x] [AI-Review][MEDIUM] Prevent unbounded result set: `featured` action has `pagination_class=None` and no limit. Add safety slice (e.g. `[:50]`) to prevent performance degradation if many brands are featured. [apps/products/views.py]
+- [x] [AI-Review][LOW] Namespacing cache key: `FEATURED_BRANDS_CACHE_KEY` is too generic ("featured_brands"). Rename to `products:brands:featured:v1` to avoid collisions and allow versioning. [apps/products/constants.py]
+- [x] [AI-Review][LOW] Reduce logic duplication: `featured` action re-implements `Brand.objects.active()` filtering manually. Use `get_queryset` or model manager method to ensure consistency. [apps/products/views.py]
 - [x] [AI-Review][HIGH] Fix race condition in cache invalidation: `post_save` signal clears cache before transaction commit, allowing stale reads. Use `transaction.on_commit`. [apps/products/signals.py]
 - [x] [AI-Review][MEDIUM] Handle bulk updates: `QuerySet.update()` bypasses signals, leaving cache stale. Document limitation or implement overrides. [apps/products/models.py]
 - [x] [AI-Review][MEDIUM] Refactor constants: `FEATURED_BRANDS_CACHE_KEY` defined in `signals.py` causes circular/inverted dependency. Move to `apps/products/constants.py`. [apps/products/signals.py]
@@ -129,19 +133,25 @@ Claude Opus 4.6
 - ✅ Resolved review finding [MEDIUM]: Created `apps/products/constants.py` with `FEATURED_BRANDS_CACHE_KEY` and `FEATURED_BRANDS_CACHE_TIMEOUT`. Updated imports in `signals.py`, `views.py`, and tests.
 - ✅ Resolved review finding [LOW]: `BrandSerializer.validate` now uses `Brand(**attrs)` for new instances instead of iterating `setattr` on empty `Brand()`.
 - ✅ Updated tests: 17 tests (9 endpoint + 6 caching + 2 constants) — all pass. Caching tests use `transaction=True` for proper `on_commit` execution. Products app: 287 passed, 2 pre-existing failures (Windows path separator, Celery task ID).
+- ✅ Resolved review finding [MEDIUM]: Защита от cache poisoning в featured endpoint — при сериализации кэшируемого payload не передается `request` в context, поэтому `image` хранится как относительный URL без зависимости от Host заголовка.
+- ✅ Resolved review finding [MEDIUM]: Добавлен safety limit для featured брендов — `FEATURED_BRANDS_MAX_ITEMS = 50` и срез `[:FEATURED_BRANDS_MAX_ITEMS]` в `BrandViewSet.featured`.
+- ✅ Resolved review finding [LOW]: Выполнен неймспейсинг cache key: `FEATURED_BRANDS_CACHE_KEY = "products:brands:featured:v1"`.
+- ✅ Resolved review finding [LOW]: Устранено дублирование фильтрации в featured action — используется `self.get_queryset().filter(is_featured=True)` вместо повторной ручной сборки queryset.
+- ✅ Updated tests: `apps/products/tests/test_brand_api.py` — 19 passed. Полный набор `apps/products/tests` — 292 passed.
 
 ### Change Log
 
 - 2026-02-16: Addressed 4 code review findings (1 HIGH, 2 MEDIUM, 1 LOW). Refactored caching from `cache_page` to manual cache with signal-based invalidation. Changed response to flat JSON list. Standardized image URL to absolute. Removed redundant ordering.
 - 2026-02-16: Addressed remaining 3 review findings (2 MEDIUM, 1 LOW). Restored explicit `.order_by("name")` in featured queryset. Confirmed `signals.py` tracked in git. Documented URL path as intentional REST convention.
 - 2026-02-16: Addressed final 4 review findings (1 HIGH, 2 MEDIUM, 1 LOW). Fixed race condition with `transaction.on_commit`. Extracted constants to `constants.py`. Documented bulk update limitation. Made `BrandSerializer.validate` robust.
+- 2026-02-16: Closed remaining 4 review follow-ups (2 MEDIUM, 2 LOW): cache-safe featured payload (host-independent), bounded featured result set (max 50), namespaced cache key, and queryset duplication reduction. Updated endpoint and regression tests accordingly.
 
 ### File List
 
-- `backend/apps/products/views.py` — Modified: replaced `cache_page` with manual `cache.set/get`, added `pagination_class=None` to featured action, restored explicit `.order_by("name")`, updated import to use `constants.py`
+- `backend/apps/products/views.py` — Modified: replaced `cache_page` with manual `cache.set/get`, added `pagination_class=None` to featured action, restored explicit `.order_by("name")`, reused `get_queryset()` in featured action, added `FEATURED_BRANDS_MAX_ITEMS` slice, cached payload serialized with `context={}` for host-safe image URLs
 - `backend/apps/products/serializers.py` — Modified: added `get_image()` method to `BrandSerializer` for absolute URL via `build_absolute_uri`, refactored `validate` to use `Brand(**attrs)`
 - `backend/apps/products/signals.py` — Modified: added `transaction.on_commit` wrapper, updated import to use `constants.py`, documented bulk update limitation
-- `backend/apps/products/constants.py` — New: `FEATURED_BRANDS_CACHE_KEY` and `FEATURED_BRANDS_CACHE_TIMEOUT` constants
+- `backend/apps/products/constants.py` — New/Modified: `FEATURED_BRANDS_CACHE_KEY` (namespaced), `FEATURED_BRANDS_CACHE_TIMEOUT`, `FEATURED_BRANDS_MAX_ITEMS`
 - `backend/apps/products/apps.py` — Modified: added `ready()` to register signals
-- `backend/apps/products/tests/test_brand_api.py` — Modified: 17 tests with `transaction=True` for caching, bulk update limitation test, constants tests
+- `backend/apps/products/tests/test_brand_api.py` — Modified: 19 tests with `transaction=True` for caching, host-independence cache safety checks, featured limit regression test, bulk update limitation test, constants tests
 - `backend/apps/cart/models.py` — Modified: fixed Django 6.0 compat (`check=` → `condition=` in CheckConstraint)

@@ -7,12 +7,13 @@ Tests cover:
 - AC-1: List ordered by name
 - AC-2: Response is cached for 1 hour with invalidation on Brand changes
 - AC-3: Response returns flat JSON list (no pagination wrapper)
-- AC-3: image field provides absolute URL via build_absolute_uri
+- AC-3: image field uses cache-safe URL format (relative path without host dependency)
 - Anonymous user access (no auth required)
 """
 
 import struct
 import zlib
+from typing import Any, cast
 
 import pytest
 from django.core.cache import cache
@@ -20,8 +21,12 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test.utils import override_settings
 from rest_framework.test import APIClient
 
+from apps.products.constants import (
+    FEATURED_BRANDS_CACHE_KEY,
+    FEATURED_BRANDS_CACHE_TIMEOUT,
+    FEATURED_BRANDS_MAX_ITEMS,
+)
 from apps.products.models import Brand
-from apps.products.constants import FEATURED_BRANDS_CACHE_KEY, FEATURED_BRANDS_CACHE_TIMEOUT
 
 
 def _make_png():
@@ -53,7 +58,7 @@ class TestFeaturedBrandsEndpoint:
     @pytest.fixture(autouse=True)
     def setup_brands(self):
         cache.clear()
-        self.client = APIClient()
+        self.client = cast(Any, APIClient())
         self.featured1 = Brand(name="Adidas", is_featured=True, image=_make_image("a.png"), website="https://adidas.com")
         self.featured1.save()
         self.featured2 = Brand(name="Nike", is_featured=True, image=_make_image("n.png"), website="https://nike.com")
@@ -100,12 +105,29 @@ class TestFeaturedBrandsEndpoint:
         required_fields = {"id", "name", "slug", "image", "website"}
         assert required_fields.issubset(set(brand_data.keys()))
 
-    def test_image_field_is_absolute_url(self):
-        """AC-3: image field provides an absolute URL."""
+    def test_image_field_is_relative_url_for_cache_safety(self):
+        """AC-3: image field в featured endpoint не зависит от request host."""
         response = self.client.get(FEATURED_URL)
         for brand_data in response.data:
             assert brand_data["image"], f"image empty for {brand_data['name']}"
-            assert brand_data["image"].startswith("http"), f"Expected absolute URL, got {brand_data['image']}"
+            assert brand_data["image"].startswith("/"), f"Expected relative URL, got {brand_data['image']}"
+            assert not brand_data["image"].startswith("http"), (
+                f"Expected non-absolute URL, got {brand_data['image']}"
+            )
+
+    @override_settings(ALLOWED_HOSTS=["testserver", "internal.local", "public.example.com"])
+    def test_cached_payload_not_host_dependent(self):
+        """[AI-Review] Cache payload не должен фиксировать Host из заголовка запроса."""
+        response_internal = self.client.get(FEATURED_URL, HTTP_HOST="internal.local:8000")
+        assert response_internal.status_code == 200
+
+        response_public = self.client.get(FEATURED_URL, HTTP_HOST="public.example.com")
+        assert response_public.status_code == 200
+        assert response_internal.data == response_public.data
+
+        for brand_data in response_public.data:
+            assert "internal.local" not in brand_data["image"]
+            assert "public.example.com" not in brand_data["image"]
 
     def test_empty_when_no_featured(self):
         """Returns empty list when no featured brands exist."""
@@ -120,6 +142,19 @@ class TestFeaturedBrandsEndpoint:
         """Response does NOT contain pagination keys (count, next, previous, results)."""
         response = self.client.get(FEATURED_URL)
         assert isinstance(response.data, list)
+
+    def test_featured_results_are_limited(self):
+        """[AI-Review] Safety limit защищает endpoint от неограниченной выдачи."""
+        for idx in range(FEATURED_BRANDS_MAX_ITEMS + 10):
+            Brand(
+                name=f"LimitBrand-{idx:03d}",
+                is_featured=True,
+                image=_make_image(f"limit-{idx}.png"),
+            ).save()
+
+        response = self.client.get(FEATURED_URL)
+        assert response.status_code == 200
+        assert len(response.data) == FEATURED_BRANDS_MAX_ITEMS
 
 
 LOCMEM_CACHE = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
@@ -136,7 +171,7 @@ class TestFeaturedBrandsCaching:
     @pytest.fixture(autouse=True)
     def setup(self):
         cache.clear()
-        self.client = APIClient()
+        self.client = cast(Any, APIClient())
         self.brand = Brand(name="CachedBrand", is_featured=True, image=_make_image())
         self.brand.save()
         cache.clear()  # clear again after on_commit fires from save
@@ -210,7 +245,7 @@ class TestFeaturedBrandsConstants:
 
     def test_cache_key_is_string(self):
         assert isinstance(FEATURED_BRANDS_CACHE_KEY, str)
-        assert len(FEATURED_BRANDS_CACHE_KEY) > 0
+        assert FEATURED_BRANDS_CACHE_KEY == "products:brands:featured:v1"
 
     def test_cache_timeout_is_one_hour(self):
         assert FEATURED_BRANDS_CACHE_TIMEOUT == 3600
