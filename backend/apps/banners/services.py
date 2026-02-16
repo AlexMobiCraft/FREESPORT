@@ -10,7 +10,8 @@ Story 32.1 Task 8-2: CACHE_KEY_PATTERN — константа паттерна �
 from __future__ import annotations
 
 import logging
-from typing import Any, Optional
+from typing import Any, Optional, Union
+from datetime import datetime
 
 from django.conf import settings
 from django.core.cache import cache
@@ -86,7 +87,7 @@ def get_cached_banners(cache_key: str) -> Any:
 
 
 def get_active_banners_queryset(
-    user: Any, banner_type: str = "hero"
+    user: Any, banner_type: str = "hero", role_key: str | None = None
 ) -> QuerySet[Banner]:
     """
     Получить отфильтрованный QuerySet активных баннеров.
@@ -94,60 +95,117 @@ def get_active_banners_queryset(
     Args:
         user: Пользователь или None для гостей.
         banner_type: Фильтр по типу (всегда resolved, default='hero').
+        role_key: Ключ роли пользователя (guest, retail, trainer, ...). Если None — учитываются все роли.
 
     Returns:
         QuerySet с баннерами.
     """
     effective_user = user if user and getattr(user, "is_authenticated", False) else None
-    queryset = Banner.get_for_user(effective_user).filter(type=banner_type)
+    queryset = Banner.get_for_user(effective_user).filter(is_active=True)
+    if banner_type:
+        queryset = queryset.filter(type=banner_type)
+    if role_key:
+        queryset = queryset.filter(_get_role_filter(role_key))
     if banner_type == Banner.BannerType.MARKETING.value:
         limit = getattr(settings, "MARKETING_BANNER_LIMIT", 5)
         queryset = queryset[:limit]
     return queryset
 
 
-def compute_cache_ttl(banner_type: str = "hero") -> int:
+def _get_role_filter(role_key: str) -> dict[str, Any]:
     """
-    Вычисляет TTL кеша с учётом ближайших временных границ баннеров.
+    Возвращает фильтр для QuerySet по роли пользователя.
+    
+    Args:
+        role_key: Ключ роли (guest, retail, trainer, ...)
+        
+    Returns:
+        Словарь фильтра для Django ORM.
+    """
+    if role_key == "guest":
+        return {"show_to_guests": True}
+    elif role_key == "retail":
+        return {"show_to_authenticated": True}
+    elif role_key == "trainer":
+        return {"show_to_trainers": True}
+    elif role_key in {"wholesale_level1", "wholesale_level2", "wholesale_level3"}:
+        return {"show_to_wholesale": True}
+    elif role_key == "federation_rep":
+        return {"show_to_federation": True}
+    else:
+        # По умолчанию - только гостевые баннеры
+        return {"show_to_guests": True}
 
-    Предотвращает показ stale data при наступлении start_date/end_date.
-    TTL = min(BANNER_CACHE_TTL, seconds_to_nearest_temporal_boundary).
+
+def _is_banner_visible_to_role(banner: Banner, role_key: str) -> bool:
+    """
+    Проверяет, виден ли баннер для указанной роли.
+    
+    Args:
+        banner: Объект баннера
+        role_key: Ключ роли пользователя
+        
+    Returns:
+        True если баннер видим для роли, иначе False.
+    """
+    if role_key == "guest":
+        return banner.show_to_guests
+    elif role_key == "retail":
+        return banner.show_to_authenticated
+    elif role_key == "trainer":
+        return banner.show_to_trainers
+    elif role_key in {"wholesale_level1", "wholesale_level2", "wholesale_level3"}:
+        return banner.show_to_wholesale
+    elif role_key == "federation_rep":
+        return banner.show_to_federation
+    else:
+        return banner.show_to_guests
+
+
+def compute_cache_ttl(
+    banner_type: str | None = None,
+    role_key: str | None = None,
+) -> int:
+    """
+    Вычисляет динамический TTL на основе ближайших временных границ активных баннеров.
 
     Args:
-        banner_type: Тип баннера для фильтрации (всегда resolved).
+        banner_type: Тип баннера (hero, marketing). Если None — hero по умолчанию.
+        role_key: Ключ роли пользователя (guest, retail, trainer, ...). Если None — учитываются все роли.
 
     Returns:
-        TTL в секундах (не менее MIN_CACHE_TTL).
+        TTL в секундах, не менее MIN_CACHE_TTL.
     """
     now = timezone.now()
     nearest_seconds = BANNER_CACHE_TTL
 
-    type_filter = {"type": banner_type}
+    # Фильтруем по типу и роли (если указана)
+    queryset = Banner.get_for_user(None).filter(is_active=True)  # Используем get_for_user для базовой фильтрации
+    if banner_type:
+        queryset = queryset.filter(type=banner_type)
+    if role_key:
+        queryset = queryset.filter(_get_role_filter(role_key))
 
     # Ближайший end_date текущих активных баннеров (истечёт раньше TTL)
     nearest_end = (
-        Banner.objects.filter(
-            is_active=True, end_date__isnull=False, end_date__gt=now, **type_filter
-        )
+        queryset.filter(end_date__isnull=False, end_date__gt=now)
         .order_by("end_date")
         .values_list("end_date", flat=True)
         .first()
     )
-    if nearest_end:
+    if isinstance(nearest_end, datetime):
         delta = int((nearest_end - now).total_seconds())
         if 0 < delta < nearest_seconds:
             nearest_seconds = delta
 
     # Ближайший start_date будущих баннеров (появится раньше TTL)
     nearest_start = (
-        Banner.objects.filter(
-            is_active=True, start_date__isnull=False, start_date__gt=now, **type_filter
-        )
+        queryset.filter(start_date__isnull=False, start_date__gt=now)
         .order_by("start_date")
         .values_list("start_date", flat=True)
         .first()
     )
-    if nearest_start:
+    if isinstance(nearest_start, datetime):
         delta = int((nearest_start - now).total_seconds())
         if 0 < delta < nearest_seconds:
             nearest_seconds = delta

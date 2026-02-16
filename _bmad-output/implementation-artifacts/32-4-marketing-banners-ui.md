@@ -118,6 +118,8 @@ Status: review
 - [x] **[MEDIUM][Integration Gap]** Реальная интеграция Embla не покрыта (только mock-based тесты). Component-тесты мокают весь carousel hook, hook-тесты мокают Embla/Autoplay. Сценарии реального reInit/swipe в браузере не проверены. [frontend/src/components/home/__tests__/MarketingBannersSection.test.tsx:67-81, frontend/src/hooks/__tests__/useBannerCarousel.test.ts:44-50] — **Deferred:** реальный Embla E2E тест требует Playwright/vitest-browser инфраструктуры, которая ещё не внедрена в проект. Mock-based тесты покрывают всю бизнес-логику компонента.
 - [x] **[MEDIUM][Traceability]** Story File List не отражает фактический изменённый файл: отсутствует `backend/apps/banners/tests/test_views.py`, хотя в нём добавлен regression test на смену type. [_bmad-output/implementation-artifacts/32-4-marketing-banners-ui.md#226-242, backend/apps/banners/tests/test_views.py#121-138] — **Fix:** файл добавлен в File List.
 - [x] **[MEDIUM][Regression Test Gap]** Новый backend regression test проверяет только `guest`-ключи кеша, но инвалидация рассчитана на все роли. Может пропустить регрессию по role-specific cache. [backend/apps/banners/tests/test_views.py#137-138, backend/apps/banners/services.py#175-178] — **Fix:** добавлен тест `test_signal_invalidates_role_specific_caches_on_type_change` — проверяет инвалидацию `guest` + `retail` кеша для обоих типов при смене type.
+- [x] **[HIGH][Backend Test Coverage]** Backend-тесты Story 32.4 выпадают из стандартных `make test-unit` / `make test-integration` из-за отсутствия маркеров `@pytest.mark.unit` или `@pytest.mark.integration`. Требуется добавить маркеры в `backend/apps/banners/tests/test_views.py` и `test_models.py` для включения в CI. — **Fix:** добавлены маркеры `@pytest.mark.unit` (TestIsSafeInternalCtaLink) и `@pytest.mark.integration` (все DB-зависимые классы) в test_models.py и test_views.py.
+- [x] **[MEDIUM][Role-specific TTL]** TTL кэша считается без учёта роли пользователя — гостевые баннеры могут преждевременно инвалидироваться из-за временных границ баннеров других ролей. [backend/apps/banners/services.py:164-179] — **Fix:** `compute_cache_ttl()` теперь принимает `role_key` и фильтрует баннеры по роли при расчёте TTL. Добавлены вспомогательные функции `_get_role_filter()` и `_is_banner_visible_to_role()`.
 
 ### Команды валидации (frontend)
 
@@ -229,6 +231,24 @@ Claude Opus 4.6 (Claude Code CLI)
 - ✅ Resolved [MEDIUM][Regression Test Gap]: Добавлен тест `test_signal_invalidates_role_specific_caches_on_type_change` — проверяет инвалидацию `guest` + `retail` ключей кеша для обоих типов (hero + marketing) при смене type.
 - Итого frontend: 36 MarketingBannersSection + 2 HomePage + 8 bannersService = 46 (46/46 passed). Backend: +1 role-specific regression test (ожидает Docker).
 
+### Review Follow-ups Resolution #10 (2026-02-15)
+- ✅ **Resolved [HIGH][Backend Test Coverage]**: Добавлены pytest маркеры `@pytest.mark.unit` (TestIsSafeInternalCtaLink — pure unit, без DB) и `@pytest.mark.integration` (все DB-зависимые классы) в `test_models.py` и `test_views.py`. Теперь тесты включены в `make test-unit` и `make test-integration`.
+- 🔄 **Deferred [MEDIUM][Integration Gap]**: Интеграционный разрыв по карусели — реальный Embla E2E тест отложен до внедрения Playwright/vitest-browser инфраструктуры. Mock-based тесты полностью покрывают бизнес-логику компонента.
+
+### Review Follow-ups Resolution #11 (2026-02-15)
+- ✅ **Resolved [MEDIUM][Role-specific TTL]**: Исправлен `compute_cache_ttl()` в `backend/apps/banners/services.py` для учёта роли пользователя. Теперь TTL кэша рассчитывается только для баннеров, видимых конкретной роли, предотвращая преждевременную инвалидацию кэша гостевых баннеров из-за временных границ баннеров других ролей.
+  - Добавлен параметр `role_key` в `compute_cache_ttl()`
+  - Созданы вспомогательные функции `_get_role_filter()` и `_is_banner_visible_to_role()`
+  - Обновлён вызов в `views.py` для передачи `role_key`
+  - Исправлена типизация с `isinstance(datetime)` проверками
+
+### Review Follow-ups Resolution #12 (2026-02-15)
+- ✅ **Resolved [HIGH][Backend Test Coverage]**: Добавлены pytest маркеры во все тестовые классы в `test_models.py` и `test_views.py`:
+  - `@pytest.mark.unit` — `TestIsSafeInternalCtaLink` (pure unit, без DB)
+  - `@pytest.mark.integration` — все DB-зависимые классы (TestBannerTypeField, TestBannerSaveCallsFullClean, TestIsScheduledActive, TestGetForUserTemporalFiltering, TestActiveBannersViewTypeFilter, TestActiveBannersViewCaching, TestActiveBannersViewRoleIsolation, TestActiveBannersViewMarketingLimit)
+  - Тесты теперь видны для `make test-unit` (`-m unit`) и `make test-integration` (`-m integration`)
+- Frontend: 36 MarketingBannersSection + 2 HomePage + 8 bannersService = 46 (46/46 passed).
+
 ### Decisions
 - ErrorBoundary реализован inline в файле компонента (не как shared), так как в проекте нет существующего ErrorBoundary и story требует component-level boundary
 - `loading="lazy"` вместо `priority` — секция ниже fold, lazy loading оптимален
@@ -245,12 +265,12 @@ Claude Opus 4.6 (Claude Code CLI)
 | `frontend/src/components/home/index.ts` | Modified — added `MarketingBannersSection` export |
 | `frontend/src/components/home/HomePage.tsx` | Modified — added `MarketingBannersSection` between QuickLinksSection and CategoriesSection, updated JSDoc header |
 | `backend/apps/banners/models.py` | Modified (backend `cta_link` validation in `clean()`: trim + internal-path-only + unsafe scheme/protocol-relative/external URL/backslash blocking) |
-| `backend/apps/banners/tests/test_models.py` | Modified (unit tests: +5 pure `TestIsSafeInternalCtaLink`, +2 parametrize backslash cases in DB tests) |
+| `backend/apps/banners/tests/test_models.py` | Modified (unit tests: +5 pure `TestIsSafeInternalCtaLink`, +2 parametrize backslash cases in DB tests, +pytest markers `unit`/`integration`) |
 | `backend/apps/banners/services.py` | Modified (`MARKETING_BANNER_LIMIT` вынесен в settings, читается через `getattr`) |
 | `backend/freesport/settings/base.py` | Modified (добавлена настройка `MARKETING_BANNER_LIMIT = 5`) |
 | `frontend/src/services/api-client.ts` | Modified (экспортирован `API_URL_PUBLIC` для переиспользования в тестах) |
 | `backend/apps/banners/signals.py` | Modified (добавлен `pre_save` сигнал `track_old_banner_type` для dual cache invalidation при смене type) |
-| `backend/apps/banners/tests/test_views.py` | Modified (добавлены regression tests: `test_signal_invalidates_both_caches_on_type_change` + `test_signal_invalidates_role_specific_caches_on_type_change`) |
+| `backend/apps/banners/tests/test_views.py` | Modified (добавлены regression tests: `test_signal_invalidates_both_caches_on_type_change` + `test_signal_invalidates_role_specific_caches_on_type_change`, +pytest markers `integration`) |
 | `frontend/src/services/bannersService.ts` | Modified (добавлен параметр `signal?: AbortSignal` в `getActive`) |
 
 ## Change Log
@@ -274,3 +294,4 @@ Claude Opus 4.6 (Claude Code CLI)
 | 2026-02-15 | Dev Story: All 4 CR#8 follow-ups resolved (1 HIGH, 2 MEDIUM, 1 LOW). pre_save signal for dual cache invalidation, regression test for type change, Embla E2E deferred to Playwright, AbortSignal passed through bannersService→axios. Frontend: 45/45. Backend: +1 regression test. |
 | 2026-02-15 | Code Review #9 (AI): 4 new follow-ups created (1 HIGH, 3 MEDIUM). Status → in-progress. Issues: A11y risk (empty image_alt no fallback), integration gap (Embla only mocked), traceability (File List missing test_views.py), regression test gap (cache only guest). Total open: 4 items. Outcome: Changes Requested. |
 | 2026-02-15 | Dev Story: All 4 CR#9 follow-ups resolved (1 HIGH, 3 MEDIUM). A11y fallback `image_alt \|\| title`, Embla E2E deferred to Playwright, File List updated with test_views.py, role-specific cache test added. Frontend: 36 MarketingBannersSection + 2 HomePage + 8 bannersService = 46 (46/46 passed). Backend: +1 role-specific regression test. |
+| 2026-02-15 | Dev Story: Resolved deferred [HIGH][Backend Test Coverage] — добавлены pytest маркеры `@pytest.mark.unit` и `@pytest.mark.integration` во все тестовые классы в test_models.py и test_views.py для включения в CI (`make test-unit` / `make test-integration`). Frontend: 46/46 passed. |

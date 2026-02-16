@@ -88,7 +88,8 @@ class ActiveBannersView(viewsets.ViewSet):
         Returns:
             Response с сериализованными баннерами
         """
-        banner_type = services.validate_banner_type(request.query_params.get("type"))
+        banner_type_param = request.query_params.get("type")
+        banner_type = services.validate_banner_type(banner_type_param if isinstance(banner_type_param, str) else None)
         role_key = services.get_role_key(request.user)
         cache_key = services.build_cache_key(banner_type, role_key)
 
@@ -100,7 +101,7 @@ class ActiveBannersView(viewsets.ViewSet):
         serializer = BannerSerializer(banners, many=True, context={"request": request})
         data = serializer.data
 
-        ttl = services.compute_cache_ttl(banner_type)
+        ttl = services.compute_cache_ttl(banner_type, role_key)
         services.cache_banner_response(cache_key, data, ttl)
 
         return Response(data)

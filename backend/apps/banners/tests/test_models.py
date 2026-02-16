@@ -20,6 +20,7 @@ from apps.banners.factories import BannerFactory
 from apps.banners.models import Banner
 
 
+@pytest.mark.unit
 class TestIsSafeInternalCtaLink:
     """Pure unit tests for is_safe_internal_cta_link — no DB required."""
 
@@ -54,6 +55,7 @@ class TestIsSafeInternalCtaLink:
         assert is_safe_internal_cta_link("javascript:alert(1)") is False
 
 
+@pytest.mark.integration
 @pytest.mark.django_db
 class TestBannerTypeField:
     """AC1: Banner model has a 'type' field with choices HERO and MARKETING."""
@@ -125,6 +127,7 @@ class TestBannerTypeField:
         assert banner.type == Banner.BannerType.HERO
 
 
+@pytest.mark.integration
 @pytest.mark.django_db
 class TestBannerSaveCallsFullClean:
     """5-4: save() вызывает full_clean() для валидации на уровне модели."""
@@ -209,6 +212,7 @@ class TestBannerSaveCallsFullClean:
         assert banner.pk is not None
 
 
+@pytest.mark.integration
 @pytest.mark.django_db
 class TestIsScheduledActive:
     """9-2: is_scheduled_active учитывает start_date/end_date с мокированным временем."""
@@ -278,6 +282,7 @@ class TestIsScheduledActive:
             assert banner.is_scheduled_active is False
 
 
+@pytest.mark.integration
 @pytest.mark.django_db
 class TestGetForUserTemporalFiltering:
     """9-2: get_for_user корректно фильтрует по start_date/end_date."""

@@ -19,6 +19,7 @@ from apps.banners.models import Banner
 User = get_user_model()
 
 
+@pytest.mark.integration
 @pytest.mark.django_db
 class TestActiveBannersViewTypeFilter:
     """5-3: ?type=hero|marketing query param filtering."""
@@ -71,6 +72,7 @@ class TestActiveBannersViewTypeFilter:
         assert cache.get("banners:list:hero:guest") is not None
 
 
+@pytest.mark.integration
 @pytest.mark.django_db
 class TestActiveBannersViewCaching:
     """5-2: Caching by type in ActiveBannersView."""
@@ -179,6 +181,7 @@ class TestActiveBannersViewCaching:
         assert cache.get("banners:list:marketing:retail") is None
 
 
+@pytest.mark.integration
 @pytest.mark.django_db
 class TestActiveBannersViewRoleIsolation:
     """7-1: Разные роли получают разные кеши — гость не видит оптовые баннеры."""
@@ -274,6 +277,7 @@ class TestActiveBannersViewRoleIsolation:
         assert cache.get("banners:list:hero:retail") is not None
 
 
+@pytest.mark.integration
 @pytest.mark.django_db
 class TestActiveBannersViewMarketingLimit:
     """AC2: ?type=marketing лимит 5 баннеров (FR12)."""
