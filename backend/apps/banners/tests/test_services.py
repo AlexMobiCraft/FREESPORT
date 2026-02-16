@@ -12,6 +12,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from django.core.cache import cache
+from django.db.models import Q
 from django.utils import timezone
 
 from apps.banners.factories import BannerFactory
@@ -21,6 +22,7 @@ from apps.banners.services import (
     CACHE_KEY_PATTERN,
     MIN_CACHE_TTL,
     _ALL_ROLE_KEYS,
+    _get_role_filter,
     build_cache_key,
     cache_banner_response,
     compute_cache_ttl,
@@ -409,20 +411,14 @@ class TestGetRoleFilterReturnsQ:
     """CR-10: _get_role_filter возвращает Q-объекты, синхронизированные с Banner.get_for_user."""
 
     def test_guest_returns_show_to_guests(self):
-        from apps.banners.services import _get_role_filter
-        from django.db.models import Q
         q = _get_role_filter("guest")
         assert isinstance(q, Q)
 
     def test_retail_returns_show_to_authenticated(self):
-        from apps.banners.services import _get_role_filter
-        from django.db.models import Q
         q = _get_role_filter("retail")
         assert isinstance(q, Q)
 
     def test_trainer_includes_authenticated_base(self):
-        from apps.banners.services import _get_role_filter
-        from django.db.models import Q
         q = _get_role_filter("trainer")
         assert isinstance(q, Q)
         # Q object should be an OR of show_to_authenticated and show_to_trainers
@@ -431,24 +427,18 @@ class TestGetRoleFilterReturnsQ:
         assert "show_to_trainers" in q_str
 
     def test_wholesale_includes_authenticated_base(self):
-        from apps.banners.services import _get_role_filter
-        from django.db.models import Q
         q = _get_role_filter("wholesale_level1")
         q_str = str(q)
         assert "show_to_authenticated" in q_str
         assert "show_to_wholesale" in q_str
 
     def test_federation_includes_authenticated_base(self):
-        from apps.banners.services import _get_role_filter
-        from django.db.models import Q
         q = _get_role_filter("federation_rep")
         q_str = str(q)
         assert "show_to_authenticated" in q_str
         assert "show_to_federation" in q_str
 
     def test_unknown_role_falls_back_to_guest(self):
-        from apps.banners.services import _get_role_filter
-        from django.db.models import Q
         q = _get_role_filter("unknown_role")
         assert isinstance(q, Q)
         assert "show_to_guests" in str(q)
