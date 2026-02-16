@@ -91,6 +91,7 @@ describe('ProductCard', () => {
       id: 1,
       name: 'Nike',
       slug: 'nike',
+      is_featured: false,
     },
     images: [
       {

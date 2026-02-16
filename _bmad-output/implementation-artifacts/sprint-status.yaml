@@ -113,7 +113,7 @@ development_status:
   # Source: epics.md (Brands Block Feature)
   # ========================================
   epic-33: in-progress
-  33-1-brand-model-admin-updates: in-progress
+  33-1-brand-model-admin-updates: done
   33-2-api-featured-brands-endpoint: backlog
   33-3-brandsblock-component-logic-ui: backlog
   33-4-integration-into-homepage: backlog

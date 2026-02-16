@@ -7,6 +7,7 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, cast
 
+from django.core.exceptions import ValidationError
 from django.db.models import Count, Q
 from rest_framework import serializers
 
@@ -296,6 +297,17 @@ class BrandSerializer(serializers.ModelSerializer):
     class Meta:
         model = Brand
         fields = ["id", "name", "slug", "image", "description", "website", "is_featured"]
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        """Вызов модельной валидации Brand.clean() для проверки бизнес-правил."""
+        instance = self.instance or Brand()
+        for attr, value in attrs.items():
+            setattr(instance, attr, value)
+        try:
+            instance.clean()
+        except ValidationError as e:
+            raise serializers.ValidationError(e.message_dict)
+        return attrs
 
 
 class CategorySerializer(serializers.ModelSerializer):

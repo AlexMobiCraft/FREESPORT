@@ -249,7 +249,7 @@ class BrandViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         """Активные бренды с опциональной фильтрацией по is_featured"""
-        qs = Brand.objects.filter(is_active=True)
+        qs = Brand.objects.active()
         is_featured = self.request.query_params.get("is_featured")
         if is_featured is not None:
             qs = qs.filter(is_featured=is_featured.lower() in ("true", "1"))

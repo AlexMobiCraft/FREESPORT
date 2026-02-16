@@ -322,3 +322,113 @@ class TestBrandNormalizedNameValidation:
         errors = exc_info.value.message_dict
         assert "image" in errors
         assert "name" in errors
+
+
+@pytest.mark.django_db
+class TestBrandSerializerValidation:
+    """Test BrandSerializer.validate() calls Brand.clean() (AI-Review HIGH fix)."""
+
+    def _make_image(self):
+        """Create a minimal valid image file for testing."""
+        import struct
+        import zlib
+
+        def create_png():
+            signature = b"\x89PNG\r\n\x1a\n"
+
+            def chunk(chunk_type, data):
+                c = chunk_type + data
+                crc = struct.pack(">I", zlib.crc32(c) & 0xFFFFFFFF)
+                return struct.pack(">I", len(data)) + c + crc
+
+            ihdr_data = struct.pack(">IIBBBBB", 1, 1, 8, 2, 0, 0, 0)
+            raw_data = b"\x00\xff\x00\x00"
+            compressed = zlib.compress(raw_data)
+
+            return signature + chunk(b"IHDR", ihdr_data) + chunk(b"IDAT", compressed) + chunk(b"IEND", b"")
+
+        return SimpleUploadedFile("test.png", create_png(), content_type="image/png")
+
+    def test_serializer_rejects_featured_without_image(self):
+        """BrandSerializer raises validation error for is_featured=True without image."""
+        from apps.products.serializers import BrandSerializer
+
+        data = {"name": "FeaturedNoImg", "is_featured": True}
+        serializer = BrandSerializer(data=data)
+        assert not serializer.is_valid()
+        assert "image" in serializer.errors
+
+    def test_serializer_rejects_duplicate_normalized_name(self):
+        """BrandSerializer raises validation error for duplicate normalized name."""
+        from apps.products.serializers import BrandSerializer
+
+        Brand(name="Adidas").save()
+        data = {"name": "ADIDAS"}
+        serializer = BrandSerializer(data=data)
+        assert not serializer.is_valid()
+        assert "name" in serializer.errors
+
+    def test_serializer_allows_valid_brand(self):
+        """BrandSerializer passes for valid brand data."""
+        from apps.products.serializers import BrandSerializer
+
+        data = {"name": "NewUniqueBrand"}
+        serializer = BrandSerializer(data=data)
+        assert serializer.is_valid(), serializer.errors
+
+    def test_serializer_allows_edit_same_brand(self):
+        """BrandSerializer allows editing brand without flagging duplicate."""
+        from apps.products.serializers import BrandSerializer
+
+        brand = Brand(name="EditableBrand")
+        brand.save()
+        data = {"name": "EditableBrand", "is_featured": False}
+        serializer = BrandSerializer(instance=brand, data=data, partial=True)
+        assert serializer.is_valid(), serializer.errors
+
+
+@pytest.mark.django_db
+class TestBrandModelIndexes:
+    """Test db_index settings on Brand fields (AI-Review MEDIUM fix)."""
+
+    def test_is_featured_has_db_index(self):
+        """Brand.is_featured has db_index=True."""
+        field = Brand._meta.get_field("is_featured")
+        assert field.db_index is True
+
+    def test_is_active_has_db_index(self):
+        """Brand.is_active has db_index=True."""
+        field = Brand._meta.get_field("is_active")
+        assert field.db_index is True
+
+
+@pytest.mark.django_db
+class TestBrandCustomManager:
+    """Test Brand custom manager (AI-Review LOW fix)."""
+
+    def test_active_returns_only_active_brands(self):
+        """Brand.objects.active() returns only is_active=True brands."""
+        Brand(name="ActiveBrand", is_active=True).save()
+        Brand(name="InactiveBrand", is_active=False).save()
+        active = Brand.objects.active()
+        names = list(active.values_list("name", flat=True))
+        assert "ActiveBrand" in names
+        assert "InactiveBrand" not in names
+
+    def test_active_is_queryset(self):
+        """Brand.objects.active() returns a QuerySet."""
+        from django.db.models import QuerySet
+        assert isinstance(Brand.objects.active(), QuerySet)
+
+
+@pytest.mark.django_db
+class TestBrandAdminImagePreviewSize:
+    """Test BrandAdmin.image_preview increased size (AI-Review LOW fix)."""
+
+    def test_image_preview_size_50px(self):
+        """Image preview uses max-height:50px."""
+        brand = Brand(name="SizeBrand", image="brands/test.png")
+        brand_admin = BrandAdmin(Brand, None)
+        result = brand_admin.image_preview(brand)
+        assert "max-height:50px" in result
+        assert "max-width:100px" in result

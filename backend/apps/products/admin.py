@@ -139,7 +139,7 @@ class BrandAdmin(admin.ModelAdmin):
     def image_preview(self, obj: Brand) -> str:
         """Превью изображения бренда в list view"""
         if obj.image:
-            return format_html('<img src="{}" style="max-height:30px;max-width:60px;" />', obj.image.url)
+            return format_html('<img src="{}" style="max-height:50px;max-width:100px;" />', obj.image.url)
         return "-"
 
     @admin.action(description="Объединить выбранные бренды")

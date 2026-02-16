@@ -24,6 +24,14 @@ if TYPE_CHECKING:
     from apps.users.models import User
 
 
+class BrandManager(models.Manager["Brand"]):
+    """Кастомный менеджер для модели Brand."""
+
+    def active(self) -> models.QuerySet["Brand"]:
+        """Возвращает только активные бренды."""
+        return self.filter(is_active=True)
+
+
 class Brand(models.Model):
     """
     Модель бренда товаров
@@ -44,13 +52,15 @@ class Brand(models.Model):
         ),
     )
     image = cast(models.ImageField, models.ImageField("Изображение", upload_to="brands/", blank=True))
-    is_featured = cast(bool, models.BooleanField("Показывать на главной", default=False))
+    is_featured = cast(bool, models.BooleanField("Показывать на главной", default=False, db_index=True))
     description = cast(str, models.TextField("Описание", blank=True))
     website = cast(str, models.URLField("Веб-сайт", blank=True))
-    is_active = cast(bool, models.BooleanField("Активный", default=True))
+    is_active = cast(bool, models.BooleanField("Активный", default=True, db_index=True))
 
     created_at = cast(datetime, models.DateTimeField("Дата создания", auto_now_add=True))
     updated_at = cast(datetime, models.DateTimeField("Дата обновления", auto_now=True))
+
+    objects = BrandManager()
 
     class Meta:
         verbose_name = "Бренд"

@@ -1,6 +1,6 @@
 # Story 33.1: Brand Model & Admin Updates
 
-Status: review
+Status: done
 
 ## Story
 
@@ -59,6 +59,13 @@ So that I can highlight key partners and improve navigation.
 - [x] [REVIEW][HIGH] Обеспечить уникальность `Brand.slug`: в модели установлен `unique=False`, что ведет к 500 ошибкам в API при дубликатах.
 - [x] [REVIEW][HIGH] Исправить генерацию slug в `Brand.save()`: добавить проверку на коллизии (цифровой суффикс), если транслитерированное имя уже занято.
 - [x] [REVIEW][MEDIUM] Добавить валидацию `normalized_name` в `Brand.clean()`: сейчас дубликаты вызывают `IntegrityError` (500), нужно возвращать `ValidationError`.
+- [x] [AI-Review][HIGH] Исправить пробел в валидации `BrandSerializer`: `Brand.clean()` не вызывается автоматически. Добавить `validate_name` в сериализатор. [backend/apps/products/serializers.py]
+- [x] [AI-Review][MEDIUM] Добавить `db_index=True` для поля `is_featured` в модели `Brand`. [backend/apps/products/models.py]
+- [x] [AI-Review][MEDIUM] Добавить `db_index=True` для поля `is_active` в модели `Brand`. [backend/apps/products/models.py]
+- [x] [AI-Review][MEDIUM] Обновить интерфейс `Brand` в `api.ts`: сделать `is_featured` обязательным полем. [frontend/src/types/api.ts]
+- [x] [AI-Review][LOW] Увеличить размер превью в `BrandAdmin.image_preview` (сейчас 30px). [backend/apps/products/admin.py]
+- [x] [AI-Review][LOW] Вынести фильтрацию активных брендов в кастомный Manager (`Brand.objects.active()`). [backend/apps/products/models.py]
+- [x] [AI-Review][LOW] Исправить согласованность verbose_name в `Brand1CMapping`. [backend/apps/products/models.py] *(Уже корректно — verbose_name согласован с Attribute1CMapping)*
 
 ## Dev Notes
 
@@ -116,19 +123,35 @@ Claude Opus 4.6
 - ✅ Resolved review finding [REVIEW][MEDIUM]: Удалён дублирующий `BrandSerializer.validate()` — slug генерация делегирована `Brand.save()` с транслитерацией. Добавлены 2 теста на корректность slug генерации моделью.
 - ✅ Resolved review finding [REVIEW][MEDIUM]: Документированы изменения в `frontend/src/types/api.ts` (Brand interface: `image`, `is_featured`) в Source Tree Locations и File List.
 - ✅ Resolved review finding [REVIEW][LOW]: File List обновлён — добавлены `test_brand_model.py` и `api.ts`.
-- ✅ Resolved review finding [REVIEW][HIGH]: `Brand.slug` теперь `unique=True` + миграция `0044_brand_slug_unique.py`. Slug collision handling в `Brand.save()` — цифровой суффикс при коллизии (аналогично `Product.save()`).
+- ✅ Resolved review finding [REVIEW][HIGH]: `Brand.slug` теперь `unique=True` + миграция `0044_brand_slug_unique.py`. Slug collision handling in `Brand.save()` — цифровой суффикс при коллизии (аналогично `Product.save()`).
 - ✅ Resolved review finding [REVIEW][HIGH]: `Brand.save()` проверяет коллизии slug: `base_slug`, `base_slug-1`, `base_slug-2`, ... с fallback на UUID-суффикс при counter > 100.
 - ✅ Resolved review finding [REVIEW][MEDIUM]: `Brand.clean()` проверяет уникальность `normalized_name` до save(), возвращает `ValidationError` вместо `IntegrityError` (500).
 - 10 новых тестов: 5 slug uniqueness (field unique, collision suffix, multiple collisions, explicit slug, cyrillic), 4 normalized_name validation (duplicate, unique, self-edit, combined errors), 1 multiple unique slugs.
 - Полная регрессия: 264 теста products — все пройдены (0 регрессий).
+- ✅ Resolved review finding [AI-Review][HIGH]: Добавлен `BrandSerializer.validate()` — вызывает `Brand.clean()` для проверки бизнес-правил (featured+image, normalized_name uniqueness) на уровне API.
+- ✅ Resolved review finding [AI-Review][MEDIUM]: `Brand.is_featured` — добавлен `db_index=True` для оптимизации фильтрации.
+- ✅ Resolved review finding [AI-Review][MEDIUM]: `Brand.is_active` — добавлен `db_index=True` для оптимизации фильтрации.
+- ✅ Resolved review finding [AI-Review][MEDIUM]: `Brand` interface в `api.ts` — `is_featured` стал обязательным полем. Все моки и тесты обновлены.
+- ✅ Resolved review finding [AI-Review][LOW]: `BrandAdmin.image_preview` увеличен до 50x100px (было 30x60px).
+- ✅ Resolved review finding [AI-Review][LOW]: Создан `BrandManager` с методом `active()`. `BrandViewSet` использует `Brand.objects.active()`.
+- ✅ Resolved review finding [AI-Review][LOW]: `Brand1CMapping` verbose_name уже согласован с `Attribute1CMapping` — формат "Маппинг [сущность] 1С".
+- 9 новых тестов: 4 serializer validation (featured without image, duplicate name, valid brand, edit same), 2 db_index checks, 2 custom manager (active filter, queryset type), 1 image preview size.
+- Полная регрессия: 273 теста products — все пройдены (0 регрессий). 90 frontend тестов — все пройдены.
 
 ### File List
 
-- `backend/apps/products/models.py` — Brand: renamed logo→image, added is_featured, clean() with featured+normalized_name validation, slug unique=True, slug collision handling in save()
-- `backend/apps/products/admin.py` — BrandAdmin: added fieldsets, is_featured in list_display/list_filter, added image_preview()
-- `backend/apps/products/views.py` — BrandViewSet: added is_featured query param filtering + OpenAPI parameter
-- `backend/apps/products/serializers.py` — BrandSerializer: logo→image, added is_featured, removed duplicate slug validate()
+- `backend/apps/products/models.py` — Brand: renamed logo→image, added is_featured, clean() with featured+normalized_name validation, slug unique=True, slug collision handling in save(), BrandManager with active(), db_index on is_featured/is_active
+- `backend/apps/products/admin.py` — BrandAdmin: added fieldsets, is_featured in list_display/list_filter, image_preview() 50x100px
+- `backend/apps/products/views.py` — BrandViewSet: added is_featured query param filtering + OpenAPI parameter, uses Brand.objects.active()
+- `backend/apps/products/serializers.py` — BrandSerializer: logo→image, added is_featured, validate() calls Brand.clean()
 - `backend/apps/products/migrations/0043_rename_logo_to_image_add_is_featured.py` — migration: rename logo→image, add is_featured
-- `backend/apps/products/migrations/0044_brand_slug_unique.py` — NEW migration: Brand.slug unique=True
-- `backend/apps/products/tests/test_brand_model.py` — 28 unit tests (11 original + 5 review follow-up + 2 slug delegation + 5 slug uniqueness + 4 normalized_name validation + 1 cyrillic slug)
-- `frontend/src/types/api.ts` — Brand interface: added `image`, `is_featured` fields
+- `backend/apps/products/migrations/0044_brand_slug_unique.py` — migration: Brand.slug unique=True
+- `backend/apps/products/migrations/0045_brand_is_featured_is_active_db_index.py` — migration: db_index on is_featured, is_active
+- `backend/apps/products/tests/test_brand_model.py` — 37 unit tests (28 previous + 9 new AI-Review tests)
+- `frontend/src/types/api.ts` — Brand interface: `is_featured` now required field
+- `frontend/src/__mocks__/products.ts` — All Brand mocks updated with `is_featured: false`
+- `frontend/src/components/business/EmptySearchResults/__tests__/EmptySearchResults.test.tsx` — Brand mocks updated with `is_featured`
+- `frontend/src/components/business/SearchResults/__tests__/SearchResults.test.tsx` — Brand mocks updated with `is_featured`
+- `frontend/src/components/business/SearchPageClient/__tests__/SearchPageClient.test.tsx` — Brand mocks updated with `is_featured`
+- `frontend/src/components/business/ProductCard/__tests__/ProductCard.test.tsx` — Brand mock updated with `is_featured`
+- `frontend/src/app/(blue)/catalog/__tests__/CatalogPage.test.tsx` — Brand mocks updated with `is_featured`

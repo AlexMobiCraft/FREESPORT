@@ -31,7 +31,7 @@ export interface Brand {
   image?: string | null;
   description?: string | null;
   website?: string | null;
-  is_featured?: boolean;
+  is_featured: boolean;
 }
 
 export interface Product {
