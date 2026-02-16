@@ -53,6 +53,9 @@ So that I can highlight key partners and improve navigation.
 - [x] [MEDIUM] Добавить фильтрацию по `is_featured` в `BrandViewSet` (`apps/products/views.py`).
 - [x] [MEDIUM] Исправить опечатку в папке: `frontend/public/images/brends/` -> `brands/`. *(Уже корректно — папка `brands/` существует, `brends/` отсутствует)*
 - [x] [LOW] Добавить превью изображений в `BrandAdmin` (`apps/products/admin.py`) для улучшения UX.
+- [x] [REVIEW][MEDIUM] Удалить дублирующую логику генерации slug из `BrandSerializer.validate` (уже есть в модели)
+- [x] [REVIEW][MEDIUM] Документировать изменения во `frontend/src/types/api.ts` в File List и Dev Notes
+- [x] [REVIEW][LOW] Обновить File List: добавить `backend/apps/products/tests/test_brand_model.py` и `frontend/src/types/api.ts`
 
 ## Dev Notes
 
@@ -66,7 +69,8 @@ So that I can highlight key partners and improve navigation.
 ### Source Tree Locations
 - `backend/apps/products/models.py`
 - `backend/apps/products/admin.py`
-- `backend/apps/products/tests/test_models.py` (or create if missing)
+- `backend/apps/products/tests/test_brand_model.py` — unit tests for Brand model (Story 33.1)
+- `frontend/src/types/api.ts` — Brand interface updated: added `image`, `is_featured` fields
 
 ### Testing Standards
 - Use `pytest` with `pytest-django`.
@@ -106,12 +110,16 @@ Claude Opus 4.6
 - ✅ Resolved review finding [LOW]: Добавлен `image_preview()` метод в `BrandAdmin` с img тегом 30x60px в list_display.
 - 5 новых тестов: 3 на фильтрацию BrandViewSet (featured=true/false/all), 2 на image_preview (with/without image).
 - Полная регрессия: 252 теста products — все пройдены (0 регрессий).
+- ✅ Resolved review finding [REVIEW][MEDIUM]: Удалён дублирующий `BrandSerializer.validate()` — slug генерация делегирована `Brand.save()` с транслитерацией. Добавлены 2 теста на корректность slug генерации моделью.
+- ✅ Resolved review finding [REVIEW][MEDIUM]: Документированы изменения в `frontend/src/types/api.ts` (Brand interface: `image`, `is_featured`) в Source Tree Locations и File List.
+- ✅ Resolved review finding [REVIEW][LOW]: File List обновлён — добавлены `test_brand_model.py` и `api.ts`.
 
 ### File List
 
 - `backend/apps/products/models.py` — Brand: renamed logo→image, added is_featured, added clean()
 - `backend/apps/products/admin.py` — BrandAdmin: added fieldsets, is_featured in list_display/list_filter, added image_preview()
 - `backend/apps/products/views.py` — BrandViewSet: added is_featured query param filtering + OpenAPI parameter
-- `backend/apps/products/serializers.py` — BrandSerializer: logo→image, added is_featured
+- `backend/apps/products/serializers.py` — BrandSerializer: logo→image, added is_featured, removed duplicate slug validate()
 - `backend/apps/products/migrations/0043_rename_logo_to_image_add_is_featured.py` — NEW migration
-- `backend/apps/products/tests/test_brand_model.py` — 16 unit tests (11 original + 5 review follow-up)
+- `backend/apps/products/tests/test_brand_model.py` — 18 unit tests (11 original + 5 review follow-up + 2 slug delegation)
+- `frontend/src/types/api.ts` — Brand interface: added `image`, `is_featured` fields

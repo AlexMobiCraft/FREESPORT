@@ -297,14 +297,6 @@ class BrandSerializer(serializers.ModelSerializer):
         model = Brand
         fields = ["id", "name", "slug", "image", "description", "website", "is_featured"]
 
-    def validate(self, attrs):
-        """Автоматически создаём slug если не указан"""
-        if not attrs.get("slug") and attrs.get("name"):
-            from django.utils.text import slugify
-
-            attrs["slug"] = slugify(attrs["name"])
-        return attrs
-
 
 class CategorySerializer(serializers.ModelSerializer):
     """
