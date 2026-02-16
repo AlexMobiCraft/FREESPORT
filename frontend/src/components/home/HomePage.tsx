@@ -3,16 +3,19 @@
  *
  * Порядок секций:
  * 1. HeroSection (баннеры)
- * 2. HitsSection (хиты продаж)
- * 3. NewArrivalsSection (новинки)
- * 4. PromoSection (акция)
- * 5. SaleSection (распродажа)
- * 6. NewsSection (новости)
- * 7. BlogSection (блог)
- * 8. SubscribeNewsSection (подписка)
- * 9. WhyFreesportSection (почему выбирают)
- * 10. DeliveryTeaser (доставка)
- * 11. AboutTeaser (FREESPORT + ценности)
+ * 1.5. QuickLinksSection (быстрые ссылки)
+ * 1.6. MarketingBannersSection (маркетинговые баннеры)
+ * 2. CategoriesSection (популярные категории)
+ * 3. HitsSection (хиты продаж)
+ * 4. NewArrivalsSection (новинки)
+ * 5. PromoSection (акция)
+ * 6. SaleSection (распродажа)
+ * 7. NewsSection (новости)
+ * 8. BlogSection (блог)
+ * 9. SubscribeNewsSection (подписка)
+ * 10. WhyFreesportSection (почему выбирают)
+ * 11. DeliveryTeaser (доставка)
+ * 12. AboutTeaser (FREESPORT + ценности)
  */
 
 'use client';
@@ -20,6 +23,8 @@
 import React from 'react';
 import {
   HeroSection,
+  QuickLinksSection,
+  MarketingBannersSection,
   HitsSection,
   NewArrivalsSection,
   PromoSection,
@@ -38,6 +43,12 @@ export const HomePage: React.FC = () => {
     <main className="min-h-screen bg-white">
       {/* 1. Hero Section - Баннеры */}
       <HeroSection />
+
+      {/* 1.5 Quick Links - Быстрые ссылки */}
+      <QuickLinksSection />
+
+      {/* 1.6 Marketing Banners - Маркетинговые баннеры */}
+      <MarketingBannersSection />
 
       {/* 2. Popular Categories - Популярные категории */}
       <CategoriesSection />

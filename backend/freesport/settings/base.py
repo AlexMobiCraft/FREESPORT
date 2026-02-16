@@ -234,6 +234,9 @@ CELERY_BEAT_SCHEDULE = {
     },
 }
 
+# Баннеры
+MARKETING_BANNER_LIMIT = 5  # FR12: Максимальное количество маркетинговых баннеров
+
 # Интернационализация
 LANGUAGE_CODE = "ru-ru"
 TIME_ZONE = "Europe/Moscow"

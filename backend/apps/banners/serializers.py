@@ -25,16 +25,26 @@ class BannerSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Banner
-        fields = [
+        fields = (
             "id",
+            "type",
             "title",
             "subtitle",
             "image_url",
             "image_alt",
             "cta_text",
             "cta_link",
-        ]
-        read_only_fields = fields
+        )
+        read_only_fields = (
+            "id",
+            "type",
+            "title",
+            "subtitle",
+            "image_url",
+            "image_alt",
+            "cta_text",
+            "cta_link",
+        )
 
     def get_image_url(self, obj: Banner) -> str:
         """

@@ -44,16 +44,19 @@ class CategoriesService {
   }
 
   /**
-   * Получить корневые категории для главной страницы (Story 11.2)
-   * GET /categories?parent_id__isnull=true&limit=6
+   * Получить категории с гибкими фильтрами
+   * По умолчанию возвращает корневые (parent_id__isnull=true, limit=6)
+   * Если передан parent_id, фильтр parent_id__isnull не применяется
    */
   async getCategories(params?: GetCategoriesParams): Promise<Category[]> {
+    const defaults: Record<string, unknown> = { limit: 6 };
+    // parent_id__isnull только если parent_id не задан явно
+    if (!params?.parent_id) {
+      defaults.parent_id__isnull = true;
+    }
+
     const response = await apiClient.get<Category[] | PaginatedResponse<Category>>('/categories/', {
-      params: {
-        parent_id__isnull: true, // Django filter: только корневые категории
-        limit: 6, // AC 3: до 6 категорий
-        ...params,
-      },
+      params: { ...defaults, ...params },
     });
     // Handle both array and paginated response formats (for E2E mocks compatibility)
     if (Array.isArray(response.data)) {

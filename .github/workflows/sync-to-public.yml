@@ -20,11 +20,11 @@ jobs:
           
           # 1. Удаление инструментов ИИ и логов работы
           rm -rf _bmad/ _bmad-output/ .claude/ .gemini/ .gemini-clipboard/ .agent/ .agents/ .agentvibes/ .windsurf/
-          rm -rf .kilocodemodes/ .roomodes/ .web-bundles/ .kilocode/
+          rm -rf .roomodes/ .web-bundles/ .kilocode/
           
           # 2. Удаление секретных файлов и локальных конфигов
           rm -f .env .env.prod .mcp.json FREESPORT.code-workspace project-context.md codebase.xml
-          rm -f AGENTS.md GEMINI.md CLAUDE.md
+          rm -f AGENTS.md GEMINI.md CLAUDE.md .kilocodemodes
           
           # 3. Удаление тяжелых данных и архивов 1С
           rm -rf data/import_1c/ data/import_1c.zip

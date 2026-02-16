@@ -12,6 +12,8 @@ export { NewArrivalsSection } from './NewArrivalsSection';
 export { SaleSection } from './SaleSection';
 export { PromoSection } from './PromoSection';
 export { CategoriesSection } from './CategoriesSection';
+export { QuickLinksSection } from './QuickLinksSection';
+export { MarketingBannersSection } from './MarketingBannersSection';
 export { CategoryCard } from './CategoryCard';
 export { NewsSection } from './NewsSection';
 export { BlogSection } from './BlogSection';

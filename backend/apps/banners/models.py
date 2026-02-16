@@ -7,7 +7,9 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional, cast
+from urllib.parse import urlsplit
 
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Q, QuerySet
 from django.utils import timezone
@@ -16,11 +18,44 @@ if TYPE_CHECKING:
     from apps.users.models import User
 
 
+UNSAFE_CTA_SCHEMES = ("javascript:", "data:", "vbscript:")
+
+
+def is_safe_internal_cta_link(link: str) -> bool:
+    """Проверяет, что cta_link является безопасным внутренним относительным путём."""
+    trimmed = link.strip()
+    if not trimmed:
+        return False
+
+    lowered = trimmed.lower()
+    if lowered.startswith(UNSAFE_CTA_SCHEMES):
+        return False
+
+    # Блокируем protocol-relative URL: //evil.com
+    if trimmed.startswith("//"):
+        return False
+
+    # Блокируем обратные слеши — могут использоваться для обфускации путей
+    if "\\" in trimmed:
+        return False
+
+    # Разрешаем только внутренние ссылки вида /catalog и /catalog?x=1
+    if not trimmed.startswith("/"):
+        return False
+
+    parsed = urlsplit(trimmed)
+    return parsed.scheme == "" and parsed.netloc == ""
+
+
 class Banner(models.Model):
     """
     Модель баннера для главной страницы
     Поддерживает таргетинг по группам пользователей и планирование показов
     """
+
+    class BannerType(models.TextChoices):
+        HERO = "hero", "Геройский (Hero)"
+        MARKETING = "marketing", "Маркетинговый"
 
     # Поля контента
     title = cast(
@@ -41,6 +76,7 @@ class Banner(models.Model):
         models.ImageField(
             "Изображение",
             upload_to="promos/%Y/%m/",
+            blank=True,
             help_text="Рекомендуемый размер: 1920×600px",
         ),
     )
@@ -58,6 +94,7 @@ class Banner(models.Model):
         models.CharField(
             "Текст кнопки",
             max_length=50,
+            blank=True,
             help_text="Текст call-to-action кнопки",
         ),
     )
@@ -109,6 +146,16 @@ class Banner(models.Model):
     )
 
     # Поля управления
+    type = cast(
+        str,
+        models.CharField(
+            "Тип баннера",
+            max_length=20,
+            choices=BannerType.choices,
+            default=BannerType.HERO,
+            help_text="Тип определяет место и способ отображения баннера",
+        ),
+    )
     is_active = cast(
         bool,
         models.BooleanField(
@@ -157,6 +204,38 @@ class Banner(models.Model):
     def __str__(self) -> str:
         """Строковое представление баннера"""
         return f"{self.title} (priority: {self.priority})"
+
+    def clean(self) -> None:
+        """
+        Валидация модели:
+        - Image обязательна для Marketing баннеров (AC2)
+        - CTA ссылка должна быть безопасным внутренним относительным путём
+        """
+        super().clean()
+
+        cleaned_cta_link = self.cta_link.strip() if isinstance(self.cta_link, str) else ""
+        if not cleaned_cta_link:
+            raise ValidationError({"cta_link": "Ссылка кнопки обязательна и не может быть пустой."})
+        if not is_safe_internal_cta_link(cleaned_cta_link):
+            raise ValidationError(
+                {
+                    "cta_link": (
+                        "Ссылка кнопки должна быть внутренним относительным путём "
+                        "(например, /catalog) без небезопасных протоколов."
+                    )
+                }
+            )
+        self.cta_link = cleaned_cta_link
+
+        if self.type == self.BannerType.MARKETING and not self.image:
+            raise ValidationError(
+                {"image": "Изображение обязательно для маркетинговых баннеров."}
+            )
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        """Вызывает full_clean() перед сохранением для обеспечения валидации."""
+        self.full_clean()
+        super().save(*args, **kwargs)
 
     @property
     def is_scheduled_active(self) -> bool:

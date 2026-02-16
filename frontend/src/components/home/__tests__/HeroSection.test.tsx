@@ -61,6 +61,7 @@ describe('HeroSection Component', () => {
       vi.mocked(bannersService.getActive).mockResolvedValue([
         {
           id: 1,
+          type: 'hero',
           title: 'API Banner Title',
           subtitle: 'API Banner Subtitle',
           image_url: '/media/banners/test.jpg',
@@ -93,6 +94,7 @@ describe('HeroSection Component', () => {
       vi.mocked(bannersService.getActive).mockResolvedValue([
         {
           id: 1,
+          type: 'hero',
           title: 'First Banner',
           subtitle: 'First Subtitle',
           image_url: '/media/banners/first.jpg',
@@ -102,6 +104,7 @@ describe('HeroSection Component', () => {
         },
         {
           id: 2,
+          type: 'hero',
           title: 'Second Banner',
           subtitle: 'Second Subtitle',
           image_url: '/media/banners/second.jpg',
@@ -337,6 +340,7 @@ describe('HeroSection Component', () => {
       vi.mocked(bannersService.getActive).mockResolvedValue([
         {
           id: 1,
+          type: 'hero',
           title: 'Test Banner',
           subtitle: 'Test Subtitle',
           image_url: '/media/banners/test.jpg',
@@ -391,6 +395,7 @@ describe('HeroSection Component', () => {
       vi.mocked(bannersService.getActive).mockResolvedValue([
         {
           id: 1,
+          type: 'hero',
           title: 'Test Banner',
           subtitle: 'Test Subtitle',
           image_url: '/media/banners/test.jpg',
