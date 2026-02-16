@@ -8,6 +8,8 @@ Tests cover:
 - __str__ method
 - BrandViewSet is_featured filtering (review follow-up)
 - BrandAdmin image_preview (review follow-up)
+- Brand.slug uniqueness and collision handling (review follow-up)
+- Brand.clean() normalized_name duplicate validation (review follow-up)
 """
 
 import pytest
@@ -221,3 +223,102 @@ class TestBrandSerializerSlugGeneration:
         assert serializer.is_valid(), serializer.errors
         # validated_data should NOT contain auto-generated slug (model handles it)
         assert "slug" not in serializer.validated_data or not serializer.validated_data.get("slug")
+
+
+@pytest.mark.django_db
+class TestBrandSlugUniqueness:
+    """Test Brand.slug unique constraint and collision handling (review follow-up)."""
+
+    def test_slug_field_is_unique(self):
+        """Brand.slug field has unique=True."""
+        field = Brand._meta.get_field("slug")
+        assert field.unique is True
+
+    def test_slug_collision_adds_suffix(self):
+        """When auto-generated slug collides, a numeric suffix is appended."""
+        # brand1 occupies slug "beta-brand" via explicit assignment
+        brand1 = Brand(name="Alpha Brand", slug="beta-brand")
+        brand1.save()
+
+        # brand2 auto-generates slug "beta-brand" from name → collision
+        brand2 = Brand(name="Beta Brand")
+        brand2.save()
+
+        assert brand1.slug == "beta-brand"
+        assert brand2.slug == "beta-brand-1"
+
+    def test_slug_collision_multiple_suffixes(self):
+        """Multiple collisions produce incrementing suffixes."""
+        Brand(name="Occupy Alpha", slug="gamma-brand").save()
+        Brand(name="Occupy Beta", slug="gamma-brand-1").save()
+
+        brand3 = Brand(name="Gamma Brand")
+        brand3.save()
+        assert brand3.slug == "gamma-brand-2"
+
+    def test_multiple_brands_unique_slugs(self):
+        """Multiple brands always get unique slugs."""
+        names = ["AlphaOne", "BetaTwo", "GammaThree", "DeltaFour"]
+        brands = []
+        for name in names:
+            b = Brand(name=name)
+            b.save()
+            brands.append(b)
+
+        slugs = [b.slug for b in brands]
+        assert len(slugs) == len(set(slugs)), f"Slugs not unique: {slugs}"
+
+    def test_explicit_slug_preserved(self):
+        """When slug is explicitly provided, it is not overwritten."""
+        brand = Brand(name="Puma", slug="custom-puma-slug")
+        brand.save()
+        assert brand.slug == "custom-puma-slug"
+
+    def test_cyrillic_slug_collision(self):
+        """Cyrillic brand names with same transliteration get unique slugs."""
+        brand1 = Brand(name="Найк Эйр", slug="najk-ejr")
+        brand1.save()
+
+        brand2 = Brand(name="Найк Про")
+        brand2.save()
+        # "najk-pro" should not collide with "najk-ejr"
+        assert brand2.slug == "najk-pro"
+
+
+@pytest.mark.django_db
+class TestBrandNormalizedNameValidation:
+    """Test Brand.clean() validates normalized_name uniqueness (review follow-up)."""
+
+    def test_clean_raises_on_duplicate_normalized_name(self):
+        """clean() raises ValidationError when normalized name collides."""
+        Brand(name="BOYBO").save()
+
+        brand2 = Brand(name="Boy Bo")  # normalizes to same "boybo"
+        with pytest.raises(ValidationError) as exc_info:
+            brand2.clean()
+        assert "name" in exc_info.value.message_dict
+
+    def test_clean_allows_unique_normalized_name(self):
+        """clean() passes when normalized names are different."""
+        Brand(name="Nike").save()
+        brand2 = Brand(name="Adidas")
+        # Should not raise
+        brand2.clean()
+
+    def test_clean_allows_editing_same_brand(self):
+        """clean() does not flag the same brand as duplicate of itself."""
+        brand = Brand(name="Puma")
+        brand.save()
+        # Editing the same brand should pass clean
+        brand.name = "Puma"
+        brand.clean()
+
+    def test_clean_combined_featured_and_duplicate_name(self):
+        """clean() reports both errors when featured without image AND duplicate name."""
+        Brand(name="Nike").save()
+        brand2 = Brand(name="Nike", is_featured=True)
+        with pytest.raises(ValidationError) as exc_info:
+            brand2.clean()
+        errors = exc_info.value.message_dict
+        assert "image" in errors
+        assert "name" in errors

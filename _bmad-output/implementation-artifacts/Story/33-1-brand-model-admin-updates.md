@@ -56,6 +56,9 @@ So that I can highlight key partners and improve navigation.
 - [x] [REVIEW][MEDIUM] Удалить дублирующую логику генерации slug из `BrandSerializer.validate` (уже есть в модели)
 - [x] [REVIEW][MEDIUM] Документировать изменения во `frontend/src/types/api.ts` в File List и Dev Notes
 - [x] [REVIEW][LOW] Обновить File List: добавить `backend/apps/products/tests/test_brand_model.py` и `frontend/src/types/api.ts`
+- [x] [REVIEW][HIGH] Обеспечить уникальность `Brand.slug`: в модели установлен `unique=False`, что ведет к 500 ошибкам в API при дубликатах.
+- [x] [REVIEW][HIGH] Исправить генерацию slug в `Brand.save()`: добавить проверку на коллизии (цифровой суффикс), если транслитерированное имя уже занято.
+- [x] [REVIEW][MEDIUM] Добавить валидацию `normalized_name` в `Brand.clean()`: сейчас дубликаты вызывают `IntegrityError` (500), нужно возвращать `ValidationError`.
 
 ## Dev Notes
 
@@ -113,13 +116,19 @@ Claude Opus 4.6
 - ✅ Resolved review finding [REVIEW][MEDIUM]: Удалён дублирующий `BrandSerializer.validate()` — slug генерация делегирована `Brand.save()` с транслитерацией. Добавлены 2 теста на корректность slug генерации моделью.
 - ✅ Resolved review finding [REVIEW][MEDIUM]: Документированы изменения в `frontend/src/types/api.ts` (Brand interface: `image`, `is_featured`) в Source Tree Locations и File List.
 - ✅ Resolved review finding [REVIEW][LOW]: File List обновлён — добавлены `test_brand_model.py` и `api.ts`.
+- ✅ Resolved review finding [REVIEW][HIGH]: `Brand.slug` теперь `unique=True` + миграция `0044_brand_slug_unique.py`. Slug collision handling в `Brand.save()` — цифровой суффикс при коллизии (аналогично `Product.save()`).
+- ✅ Resolved review finding [REVIEW][HIGH]: `Brand.save()` проверяет коллизии slug: `base_slug`, `base_slug-1`, `base_slug-2`, ... с fallback на UUID-суффикс при counter > 100.
+- ✅ Resolved review finding [REVIEW][MEDIUM]: `Brand.clean()` проверяет уникальность `normalized_name` до save(), возвращает `ValidationError` вместо `IntegrityError` (500).
+- 10 новых тестов: 5 slug uniqueness (field unique, collision suffix, multiple collisions, explicit slug, cyrillic), 4 normalized_name validation (duplicate, unique, self-edit, combined errors), 1 multiple unique slugs.
+- Полная регрессия: 264 теста products — все пройдены (0 регрессий).
 
 ### File List
 
-- `backend/apps/products/models.py` — Brand: renamed logo→image, added is_featured, added clean()
+- `backend/apps/products/models.py` — Brand: renamed logo→image, added is_featured, clean() with featured+normalized_name validation, slug unique=True, slug collision handling in save()
 - `backend/apps/products/admin.py` — BrandAdmin: added fieldsets, is_featured in list_display/list_filter, added image_preview()
 - `backend/apps/products/views.py` — BrandViewSet: added is_featured query param filtering + OpenAPI parameter
 - `backend/apps/products/serializers.py` — BrandSerializer: logo→image, added is_featured, removed duplicate slug validate()
-- `backend/apps/products/migrations/0043_rename_logo_to_image_add_is_featured.py` — NEW migration
-- `backend/apps/products/tests/test_brand_model.py` — 18 unit tests (11 original + 5 review follow-up + 2 slug delegation)
+- `backend/apps/products/migrations/0043_rename_logo_to_image_add_is_featured.py` — migration: rename logo→image, add is_featured
+- `backend/apps/products/migrations/0044_brand_slug_unique.py` — NEW migration: Brand.slug unique=True
+- `backend/apps/products/tests/test_brand_model.py` — 28 unit tests (11 original + 5 review follow-up + 2 slug delegation + 5 slug uniqueness + 4 normalized_name validation + 1 cyrillic slug)
 - `frontend/src/types/api.ts` — Brand interface: added `image`, `is_featured` fields
