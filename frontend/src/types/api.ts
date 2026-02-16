@@ -28,9 +28,10 @@ export interface Brand {
   id: number;
   name: string;
   slug: string;
-  logo?: string | null;
+  image?: string | null;
   description?: string | null;
   website?: string | null;
+  is_featured?: boolean;
 }
 
 export interface Product {

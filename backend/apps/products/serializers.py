@@ -295,7 +295,7 @@ class BrandSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Brand
-        fields = ["id", "name", "slug", "logo", "description", "website"]
+        fields = ["id", "name", "slug", "image", "description", "website", "is_featured"]
 
     def validate(self, attrs):
         """Автоматически создаём slug если не указан"""

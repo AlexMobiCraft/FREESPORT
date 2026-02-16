@@ -248,12 +248,23 @@ class BrandViewSet(viewsets.ReadOnlyModelViewSet):
     pagination_class = BrandPageNumberPagination
 
     def get_queryset(self):
-        """Только активные бренды"""
-        return Brand.objects.filter(is_active=True).order_by("name")
+        """Активные бренды с опциональной фильтрацией по is_featured"""
+        qs = Brand.objects.filter(is_active=True)
+        is_featured = self.request.query_params.get("is_featured")
+        if is_featured is not None:
+            qs = qs.filter(is_featured=is_featured.lower() in ("true", "1"))
+        return qs.order_by("name")
 
     @extend_schema(
         summary="Список брендов",
-        description="Получение списка всех активных брендов",
+        description="Получение списка всех активных брендов с опциональной фильтрацией по is_featured",
+        parameters=[
+            OpenApiParameter(
+                "is_featured",
+                OpenApiTypes.BOOL,
+                description="Фильтр по featured-статусу бренда (true/false)",
+            ),
+        ],
         tags=["Brands"],
     )
     def list(self, request, *args, **kwargs):

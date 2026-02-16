@@ -1,183 +1,164 @@
 ---
 stepsCompleted:
   - step-01-validate-prerequisites
+  - step-02-design-epics
+  - step-03-create-stories
 inputDocuments:
-  - _bmad-output/implementation-artifacts/marketing-banners-story.md
-  - _bmad-output/planning-artifacts/refined-prd.md
+  - _bmad-output/planning-artifacts/prd.md
+  - _bmad-output/planning-artifacts/architecture.md
 ---
 
 # FREESPORT - Epic Breakdown
 
 ## Overview
 
-This document provides the complete epic and story breakdown for FREESPORT, decomposing the requirements from the PRD, UX Design if it exists, and Architecture requirements into implementable stories.
+This document provides the complete epic and story breakdown for FREESPORT (Brands Block Feature), decomposing the requirements from the PRD and Architecture requirements into implementable stories.
 
 ## Requirements Inventory
 
 ### Functional Requirements
 
-FR1: Admin interface must allow creating banners with a distinct 'Marketing' type.
-FR2: Admin interface must allow filtering banners list by type (Hero vs Marketing).
-FR3: API endpoint `/api/banners/` must support `type` query parameter.
-FR4: API must return only Marketing banners when `type=marketing` is requested.
-FR5: API must return only Hero banners when `type=hero` is requested.
-FR6: API must default to returning Hero banners if no type is specified (backward compatibility).
-FR7: All existing banners in the database must be migrated to type 'Hero', and the `type` field must be set to **non-nullable**.
-FR8: Frontend must display a new "Marketing Banners" section on the Home page, located below "Quick Links".
-FR9: Marketing Banners section must implement auto-scrolling carousel behavior.
-FR10: Marketing Banners section must be hidden if no active marketing banners are returned.
-FR11: Frontend must support swipe gestures for carousel on mobile devices.
-FR12: API must limit the number of active marketing banners returned (max 5) to prevent over-loading.
-FR13: Admin Interface must enforce that the 'Image' field is mandatory when 'Marketing' type is selected.
+FR-01: Admin can upload an image (logo) for a `Brand` entity.
+FR-02: Admin can toggle a `Show on Homepage` (`is_featured`) flag for a `Brand`.
+FR-03: System must prevent enabling `Show on Homepage` if no image is uploaded for the brand.
+FR-04: Admin can remove a brand from the homepage by disabling the flag.
+FR-05: User can view a "Brands" section on the homepage (Blue Theme).
+FR-06: User can view a carousel/list of brands marked as `is_featured`.
+FR-07: User sees a visual hover effect (animation) when interacting with a brand logo.
+FR-08: User can click on a brand logo.
+FR-09: Clicking a logo navigates the user to the catalog page with the brand filter active (`/catalog?brand={slug}`).
+FR-10: System provides a public API endpoint to retrieve only `is_featured` brands.
 
 ### NonFunctional Requirements
 
-NFR1: **Backward Compatibility**: Existing Hero section integration must remain functional without modification to consumer code (default API behavior).
-NFR2: **Performance**: Carousel logic must be optimized (reusable hook) to avoid unnecessary re-renders.
-NFR3: **UX**: Design must align with the existing Design System (fonts, spacing, carousel behavior).
-NFR4: **Performance**: Images must be optimized using `Next/Image` with WebP support to ensure fast LCP.
-NFR5: **UX**: Layout Stability (CLS) must be protected using Skeleton loading or fixed aspect ratio containers.
-NFR6: **Reliability**: Frontend section must be wrapped in an Error Boundary to prevent page crashes on component failure.
-NFR7: **Data Integrity**: The `type` field must be mandatory at the database level to prevent invalid states.
-NFR8: **UX**: Images must handle loading errors gracefully (hide slide or show placeholder).
-NFR9: **Performance/Admin**: Banner API response must be cached using explicit keys (e.g., `banners:list:{type}`), and invalidated immediately upon changes in Admin.
+NFR-01: **Image Optimization**: All brand logos must be served in next-gen formats (WebP/AVIF) via Next.js Image component and should not exceed 50KB.
+NFR-02: **CLS (Cumulative Layout Shift)**: The brands block container must define explicit dimensions to prevent layout shift during loading.
+NFR-03: **SSR**: The list of featured brands must be rendered on the server (SSR) to ensure immediate visibility and SEO indexability.
+NFR-04: **Keyboard Navigation**: The carousel component must be navigable using keyboard controls (Tab to focus, Arrows to scroll).
+NFR-05: **Touch Support**: The carousel must support swipe gestures on mobile devices.
+NFR-06: **Contrast**: Background and logo colors must meet WCAG AA contrast standards.
+NFR-07: **Code Standards**: Code must adhere to project TypeScript, ESLint, and Prettier configurations.
+NFR-08: **Isolation**: The `BrandsBlock` must be a self-contained component with minimal external dependencies.
 
 ### Additional Requirements
 
-- **Backend**: Extend `Banner` model with `type` field (choices: HERO, MARKETING). **Database migration must set default=HERO**.
-- **Backend**: Update `ActiveBannersView` to handle filtering logic.
-- **Frontend**: Extract carousel logic into `useBannerCarousel` custom hook for reusability.
-- **Frontend**: Create `MarketingBannersSection` component using the new hook. **Implementation must use a proven library (e.g., Embla/Swiper)**.
-- **Architecture**: Follow standard "Service Layer" pattern if complex logic arises.
+- **Backend**: Update `Brand` model in `apps/products` (Brownfield context).
+- **Backend**: API payloads must use `snake_case`.
+- **Frontend**: Component architecture: `BrandsBlock` (Client) receiving data from Page (Server).
+- **Frontend**: Use `next/image` with `object-contain`.
+- **Architecture**: Follow "Service Layer" pattern if complex validation logic is needed (though validation here is simple).
+- **Integration**: Use `GET /api/v1/products/brands/?is_featured=true` with caching strategy (1h TTL).
 
 ### FR Coverage Map
 
-FR1: Epic 32 - Admin: Create Marketing banners
-FR2: Epic 32 - Admin: Filter banners
-FR3: Epic 32 - API: Type parameter
-FR4: Epic 32 - API: Marketing filter
-FR5: Epic 32 - API: Hero filter
-FR6: Epic 32 - API: Default behavior
-FR7: Epic 32 - Data: Migration
-FR8: Epic 32 - Frontend: New section
-FR9: Epic 32 - Frontend: Auto-scroll
-FR10: Epic 32 - Frontend: Hide if empty
-FR11: Epic 32 - Frontend: Mobile swipe
-FR12: Epic 32 - API: Limit active banners
-FR13: Epic 32 - Admin: Mandatory image
+FR-01: Epic 1 - Admin can manage brand images
+FR-02: Epic 1 - Admin can toggle featured status
+FR-03: Epic 1 - System validates image presence
+FR-04: Epic 1 - Admin can remove featured status
+FR-05: Epic 1 - User sees brands section
+FR-06: Epic 1 - User sees featured brands
+FR-07: Epic 1 - User sees hover effects
+FR-08: Epic 1 - User can click brand logo
+FR-09: Epic 1 - User navigates to catalog
+FR-10: Epic 1 - API provides featured brands
 
 ## Epic List
 
-### Epic 32: Управление маркетинговыми баннерами
+### Epic 33: Brands Block Implementation
+Enable users to quickly navigate to popular brand catalogs from the homepage and allow admins to manage this content.
+**FRs covered:** FR-01, FR-02, FR-03, FR-04, FR-05, FR-06, FR-07, FR-08, FR-09, FR-10.
+**NFRs covered:** NFR-1 to NFR-8.
 
-Маркетологи могут управлять дополнительными рекламными баннерами для продвижения акций, а пользователи видят их в удобном формате карусели на главной странице (с поддержкой мобильных устройств и быстрой загрузкой).
+## Epic 133: Brands Block Implementation
+**Goal:** Enable users to quickly navigate to popular brand catalogs from the homepage and allow admins to manage this content.
 
-**FRs covered:** FR1, FR2, FR3, FR4, FR5, FR6, FR7, FR8, FR9, FR10, FR11, FR12, FR13
-**NFRs covered:** NFR1, NFR2, NFR3, NFR4, NFR5, NFR6, NFR7, NFR8, NFR9
-
-### Story 32.1: Database and Admin Updates
+### Story 33.1: Brand Model & Admin Updates
 
 As an Admin,
-I want to create banners with a specific 'Marketing' type and mandatory image,
-So that I can manage promotional content separately from Hero banners.
+I want to upload brand logos and mark brands as featured on the homepage,
+So that I can highlight key partners and improve navigation.
 
 **Acceptance Criteria:**
 
-**Given** the existing `Banner` model,
-**When** a database migration is executed,
-**Then** a `type` field is added with choices (HERO, MARKETING), default set to HERO for existing records.
-**And** the `type` field is made non-nullable at the database level (NFR7).
+**Given** the existing `Brand` model in `apps/products/models.py`,
+**When** the model is updated,
+**Then** it includes an `image` field (ImageField) and `is_featured` field (BooleanField, default=False).
 
-**Given** the Django Admin interface for Banners,
-**When** creating or editing a banner,
-**Then** a selector for 'Type' is available.
-**And** if 'Marketing' type is selected, the 'Image' field becomes mandatory (FR13).
-**And** if 'Marketing' type is selected, a 'Target URL' field is available.
+**Given** the Django Admin interface for Brands,
+**When** creating or editing a brand,
+**Then** I can upload a logo image and check "Show on Homepage".
 
-**Given** the Banner list view in Admin,
-**When** viewing the list,
-**Then** a filter by 'Type' is available in the sidebar (FR2).
+**Given** I check "Show on Homepage" but do not upload an image,
+**When** I try to save,
+**Then** the system prevents saving and shows a validation error: "Image is required for featured brands" (FR-03).
 
-**Given** the caching mechanism,
-**When** a banner is saved or deleted in Admin,
-**Then** the API cache for that banner type (`banners:list:{type}`) is invalidated immediately (NFR9).
+**Given** the Brand list in Admin,
+**When** viewed,
+**Then** I can see which brands are featured.
 
-### Story 32.2: API Implementation for Marketing Banners
+### Story 33.2: API Featured Brands Endpoint
 
 As a Frontend Developer,
-I want to fetch marketing banners via API with filtering and limits,
-So that I can display the correct content on the homepage without over-fetching.
+I want to fetch a list of featured brands via API,
+So that I can display them on the homepage.
 
 **Acceptance Criteria:**
 
-**Given** the `/api/banners/` endpoint,
-**When** a GET request is made with `?type=marketing`,
-**Then** only active banners with type='Marketing' are returned.
-**And** the results are limited to the 5 most recent active banners (FR12).
-
-**When** a GET request is made with `?type=hero`,
-**Then** only active banners with type='Hero' are returned.
-
-**When** a GET request is made without a `type` parameter,
-**Then** active banners with type='Hero' are returned (Backward Compatibility - NFR1).
+**Given** unauthenticated users,
+**When** they request `GET /api/v1/products/brands/?is_featured=true`,
+**Then** the API returns a JSON list of brands where `is_featured=True`.
+**And** the response includes fields: `id`, `name`, `slug`, `image` (URL).
 
 **Given** the API response,
-**When** requested,
-**Then** the response headers or behavior indicate that the result is cached using the key `banners:list:{type}`.
+**When** serialized,
+**Then** field names are in `snake_case` (e.g. `is_featured`, `company_name` if applicable).
 
-### Story 32.3: Frontend Carousel Logic (Hook)
+**Given** the endpoint configuration,
+**Then** responses are cached for 1 hour to reduce DB load (NFR-Integration).
 
-As a Developer,
-I want a reusable carousel hook with swipe support,
-So that I can easily implement the marketing banner slider and potentially refactor the Hero section later.
-
-**Acceptance Criteria:**
-
-**Given** a new custom hook `useBannerCarousel`,
-**When** initialized with a list of items and options,
-**Then** it provides state and refs for a carousel library implementation (e.g., Embla Carousel or Swiper).
-
-**Given** the carousel implementation,
-**When** viewed on a mobile device,
-**Then** swipe gestures (touch events) are supported for navigating slides (FR11).
-
-**Given** the carousel configuration,
-**When** `autoScroll` is enabled,
-**Then** the slides cycle automatically after a set interval.
-**And** the auto-scrolling pauses on user interaction (hover/touch).
-
-**Given** the component structure,
-**Then** the logic is isolated from the UI rendering, allowing it to be reused in other sections.
-
-### Story 32.4: Marketing Banners UI Section
+### Story 33.3: BrandsBlock Component Logic & UI
 
 As a User,
-I want to see a carousel of marketing offers below Quick Links,
-So that I can learn about current promotions without them interfering with the main Hero banner.
+I want to see a carousel of brand logos on the homepage,
+So that I can quickly access my favorite brands.
 
 **Acceptance Criteria:**
 
-**Given** the Homepage structure,
-**When** the page renders,
-**Then** a new `MarketingBannersSection` is displayed immediately below the "Quick Links" section (FR8).
+**Given** the `BrandsBlock` component in `frontend/src/components/business/home/`,
+**When** it receives a list of brands as props from the Server Component (SSR),
+**Then** it renders a horizontal list/carousel of logos.
 
-**Given** the Marketing Banners section,
-**When** the API returns no active marketing banners,
-**Then** the section is explicitly hidden (renders nothing) (FR10).
+**Given** the component is rendered,
+**When** viewed on different screen sizes,
+**Then** it adapts responsively (e.g., swiper/scrollable on mobile).
 
-**Given** the section is displayed,
-**When** an image is loading,
-**Then** a Skeleton loader or fixed aspect-ratio container prevents Layout Shift (CLS) (NFR5).
-**And** the image is rendered using `Next/Image` with `quality` and `format` optimization (NFR4).
+**Given** brand logos,
+**When** rendered,
+**Then** they use `next/image` with `object-contain` style to handle varying aspect ratios (NFR-01).
 
-**Given** a banner image fails to load (404/Error),
-**When** the error occurs,
-**Then** that specific slide is hidden or replaced with a placeholder (NFR8).
+**Given** a user hovers over a logo,
+**When** using a mouse,
+**Then** a subtle scale/opacity animation occurs (FR-07).
 
-**Given** a critical render error in the component,
-**When** the component crashes,
-**Then** an Error Boundary catches it and hides the section instead of crashing the entire page (NFR6).
-
-**Given** a marketing banner,
+**Given** a user clicks a logo,
 **When** clicked,
-**Then** the user is navigated to the configured `target_url`.
+**Then** they are navigated to `/catalog?brand={slug}` (FR-09).
+
+### Story 33.4: Integration into Homepage
+
+As a User,
+I want to see the brands block in the correct location on the homepage,
+So that I can easily find it.
+
+**Acceptance Criteria:**
+
+**Given** the Blue Theme homepage (`src/app/(blue)/page.tsx`),
+**When** the page renders,
+**Then** it fetches the featured brands on the server side (SSR).
+
+**Given** the fetched data,
+**When** passed to `BrandsBlock`,
+**Then** the block appears immediately below the main marketing banner section.
+
+**Given** the page load process,
+**Then** the brands block has explicit dimensions to prevent Layout Shift (CLS) during hydration (NFR-02).

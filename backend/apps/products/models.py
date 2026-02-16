@@ -11,6 +11,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, cast
 
+from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils.text import slugify
@@ -42,7 +43,8 @@ class Brand(models.Model):
             help_text="Нормализованное название для дедупликации брендов",
         ),
     )
-    logo = cast(models.ImageField, models.ImageField("Логотип", upload_to="brands/", blank=True))
+    image = cast(models.ImageField, models.ImageField("Изображение", upload_to="brands/", blank=True))
+    is_featured = cast(bool, models.BooleanField("Показывать на главной", default=False))
     description = cast(str, models.TextField("Описание", blank=True))
     website = cast(str, models.URLField("Веб-сайт", blank=True))
     is_active = cast(bool, models.BooleanField("Активный", default=True))
@@ -54,6 +56,14 @@ class Brand(models.Model):
         verbose_name = "Бренд"
         verbose_name_plural = "Бренды"
         db_table = "brands"
+
+    def clean(self) -> None:
+        super().clean()
+        if self.is_featured and not self.image:
+            raise ValidationError(
+                {"image": "Image is required for featured brands"},
+                code="featured_requires_image",
+            )
 
     def save(self, *args: Any, **kwargs: Any) -> None:
         # Вычисляем normalized_name при сохранении
