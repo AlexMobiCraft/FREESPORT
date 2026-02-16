@@ -1,6 +1,6 @@
 # Story 33.2: API Featured Brands Endpoint
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -34,21 +34,21 @@ So that I can display them on the homepage in a high-performance carousel.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Update `BrandViewSet` in `apps/products/views.py`
-  - [ ] Implement `featured` action (via `@action(detail=False)`) OR optimize `list` with caching.
+- [x] Task 1: Update `BrandViewSet` in `apps/products/views.py`
+  - [x] Implement `featured` action (via `@action(detail=False)`) OR optimize `list` with caching.
     - *Recommendation*: Use `@action(detail=False, url_path='featured')` to isolate the homepage logic and caching policy from the general catalog filtering.
-  - [ ] Decorate the view with `@method_decorator(cache_page(60*60))`.
-  - [ ] Ensure `pagination_class=None` (or specific large limit) for this action to return a simple list for the carousel (if desired) or standard paginated response.
+  - [x] Decorate the view with `@method_decorator(cache_page(60*60))`.
+  - [x] Ensure `pagination_class=None` (or specific large limit) for this action to return a simple list for the carousel (if desired) or standard paginated response.
     - *Decision*: Keep standard pagination but ensure page size is sufficient (100 is likely enough).
-- [ ] Task 2: Caching Configuration
-  - [ ] Verify `CACHES` setting in `settings.py` (Redis).
-  - [ ] Ensure `django.views.decorators.cache.cache_page` is working with DRF (may need `vary_on_cookie` if auth varies, but here it shouldn't).
-- [ ] Task 3: Testing
-  - [ ] Create `backend/apps/products/tests/test_brand_api.py`.
-  - [ ] Test status code 200 for anonymous users.
-  - [ ] Test that only `is_featured=True` brands are returned.
-  - [ ] Test response structure (fields).
-  - [ ] (Optional) Verify caching headers or behavior (mocking cache).
+- [x] Task 2: Caching Configuration
+  - [x] Verify `CACHES` setting in `settings.py` (Redis).
+  - [x] Ensure `django.views.decorators.cache.cache_page` is working with DRF (may need `vary_on_cookie` if auth varies, but here it shouldn't).
+- [x] Task 3: Testing
+  - [x] Create `backend/apps/products/tests/test_brand_api.py`.
+  - [x] Test status code 200 for anonymous users.
+  - [x] Test that only `is_featured=True` brands are returned.
+  - [x] Test response structure (fields).
+  - [x] (Optional) Verify caching headers or behavior (mocking cache).
 
 ## Dev Notes
 
@@ -85,10 +85,20 @@ So that I can display them on the homepage in a high-performance carousel.
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+Claude Opus 4.6
 
 ### Debug Log References
 
+- Cache isolation fix: added `cache.clear()` in test setup fixture to prevent cross-test cache pollution from `cache_page` decorator.
+
 ### Completion Notes List
 
+- ✅ Task 1: Added `featured` action to `BrandViewSet` using `@action(detail=False, url_path='featured')` with `@method_decorator(cache_page(60*60))` for 1-hour caching. Queries `Brand.objects.active().filter(is_featured=True).order_by("name")`. Standard pagination (page_size=100) preserved via `BrandPageNumberPagination`.
+- ✅ Task 2: Verified `CACHES` configured with `django_redis.cache.RedisCache` in `base.py`, `production.py`. `cache_page` works correctly with DRF — no `vary_on_cookie` needed since endpoint is public data.
+- ✅ Task 3: Created 10 tests in `test_brand_api.py` covering: anonymous access (200), featured-only filtering, inactive exclusion, name ordering, response fields, image URL presence, empty response, pagination structure, cache headers (Cache-Control: max-age), cached response consistency.
+- ✅ Full regression: 283 tests passed, 0 failures.
+
 ### File List
+
+- `backend/apps/products/views.py` — Modified: added `featured` action with caching to `BrandViewSet`
+- `backend/apps/products/tests/test_brand_api.py` — New: 10 tests for featured brands endpoint
