@@ -293,10 +293,20 @@ class BrandSerializer(serializers.ModelSerializer):
     """
 
     slug = serializers.SlugField(required=False)
+    image = serializers.SerializerMethodField()
 
     class Meta:
         model = Brand
         fields = ["id", "name", "slug", "image", "description", "website", "is_featured"]
+
+    def get_image(self, obj: Brand) -> str | None:
+        """Возвращает URL изображения или None."""
+        if not obj.image:
+            return None
+        request = self.context.get("request")
+        if request and hasattr(request, "build_absolute_uri"):
+            return request.build_absolute_uri(obj.image.url)
+        return str(obj.image.url)
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         """Вызов модельной валидации Brand.clean() для проверки бизнес-правил."""

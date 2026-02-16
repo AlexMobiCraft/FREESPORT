@@ -6,8 +6,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from django.utils.decorators import method_decorator
-from django.views.decorators.cache import cache_page
+from django.core.cache import cache
 from rest_framework import filters, permissions, viewsets
 from rest_framework.decorators import action
 from rest_framework.pagination import PageNumberPagination
@@ -286,16 +285,16 @@ class BrandViewSet(viewsets.ReadOnlyModelViewSet):
         description="Получение списка избранных брендов для отображения на главной странице. Ответ кэшируется на 1 час.",
         tags=["Brands"],
     )
-    @method_decorator(cache_page(60 * 60))
-    @action(detail=False, methods=["get"], url_path="featured")
+    @action(detail=False, methods=["get"], url_path="featured", pagination_class=None)
     def featured(self, request, *args, **kwargs):
-        """Список избранных брендов с кэшированием на 1 час."""
+        """Список избранных брендов с кэшированием на 1 час (flat JSON list)."""
+        from apps.products.signals import FEATURED_BRANDS_CACHE_KEY as cache_key
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return Response(cached)
         queryset = Brand.objects.active().filter(is_featured=True).order_by("name")
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
         serializer = self.get_serializer(queryset, many=True)
+        cache.set(cache_key, serializer.data, 60 * 60)
         return Response(serializer.data)
 
 

@@ -5,8 +5,9 @@ Tests cover:
 - AC-1: GET /api/v1/brands/featured/ returns only is_featured=True brands
 - AC-1: Response fields: id, name, slug, image, website
 - AC-1: List ordered by name
-- AC-2: Response is cached (cache_page decorator)
-- AC-3: Response fields in snake_case
+- AC-2: Response is cached for 1 hour with invalidation on Brand changes
+- AC-3: Response returns flat JSON list (no pagination wrapper)
+- AC-3: image field provides absolute URL via build_absolute_uri
 - Anonymous user access (no auth required)
 """
 
@@ -14,11 +15,13 @@ import struct
 import zlib
 
 import pytest
+from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test.utils import override_settings
 from rest_framework.test import APIClient
 
 from apps.products.models import Brand
+from apps.products.signals import FEATURED_BRANDS_CACHE_KEY
 
 
 def _make_png():
@@ -49,7 +52,6 @@ class TestFeaturedBrandsEndpoint:
 
     @pytest.fixture(autouse=True)
     def setup_brands(self):
-        from django.core.cache import cache
         cache.clear()
         self.client = APIClient()
         self.featured1 = Brand(name="Adidas", is_featured=True, image=_make_image("a.png"), website="https://adidas.com")
@@ -66,10 +68,15 @@ class TestFeaturedBrandsEndpoint:
         response = self.client.get(FEATURED_URL)
         assert response.status_code == 200
 
+    def test_returns_flat_json_list(self):
+        """AC-3: Response is a flat JSON list, not paginated wrapper."""
+        response = self.client.get(FEATURED_URL)
+        assert isinstance(response.data, list)
+
     def test_returns_only_featured(self):
         """AC-1: Only is_featured=True brands returned."""
         response = self.client.get(FEATURED_URL)
-        names = [b["name"] for b in response.data["results"]]
+        names = [b["name"] for b in response.data]
         assert "Adidas" in names
         assert "Nike" in names
         assert "Puma" not in names
@@ -77,44 +84,45 @@ class TestFeaturedBrandsEndpoint:
     def test_excludes_inactive_brands(self):
         """Featured but inactive brands are excluded."""
         response = self.client.get(FEATURED_URL)
-        names = [b["name"] for b in response.data["results"]]
+        names = [b["name"] for b in response.data]
         assert "Reebok" not in names
 
     def test_ordered_by_name(self):
         """AC-1: Results ordered by name."""
         response = self.client.get(FEATURED_URL)
-        names = [b["name"] for b in response.data["results"]]
+        names = [b["name"] for b in response.data]
         assert names == sorted(names)
 
     def test_response_fields(self):
         """AC-1, AC-3: Response contains required fields in snake_case."""
         response = self.client.get(FEATURED_URL)
-        brand_data = response.data["results"][0]
+        brand_data = response.data[0]
         required_fields = {"id", "name", "slug", "image", "website"}
         assert required_fields.issubset(set(brand_data.keys()))
 
-    def test_image_field_is_url_or_path(self):
-        """AC-3: image field provides a URL or path."""
+    def test_image_field_is_absolute_url(self):
+        """AC-3: image field provides an absolute URL."""
         response = self.client.get(FEATURED_URL)
-        for brand_data in response.data["results"]:
-            # image should be a non-empty string for featured brands
+        for brand_data in response.data:
             assert brand_data["image"], f"image empty for {brand_data['name']}"
+            assert brand_data["image"].startswith("http"), f"Expected absolute URL, got {brand_data['image']}"
 
     def test_empty_when_no_featured(self):
         """Returns empty list when no featured brands exist."""
-        from django.core.cache import cache
         cache.clear()
         Brand.objects.all().delete()
         Brand(name="OnlyRegular", is_featured=False).save()
         response = self.client.get(FEATURED_URL)
         assert response.status_code == 200
-        assert len(response.data["results"]) == 0
+        assert response.data == []
 
-    def test_pagination_present(self):
-        """Response uses standard pagination structure."""
+    def test_no_pagination_keys(self):
+        """Response does NOT contain pagination keys (count, next, previous, results)."""
         response = self.client.get(FEATURED_URL)
-        assert "count" in response.data
-        assert "results" in response.data
+        assert isinstance(response.data, list)
+
+
+LOCMEM_CACHE = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
 
 
 @pytest.mark.django_db
@@ -123,34 +131,60 @@ class TestFeaturedBrandsCaching:
 
     @pytest.fixture(autouse=True)
     def setup(self):
+        cache.clear()
         self.client = APIClient()
         self.brand = Brand(name="CachedBrand", is_featured=True, image=_make_image())
         self.brand.save()
+        cache.clear()  # clear again after signal fires from save
 
-    @override_settings(
-        CACHES={"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
-    )
-    def test_cache_headers_present(self):
-        """AC-2: Response includes caching headers from cache_page."""
-        from django.core.cache import cache
-        cache.clear()
-
-        response = self.client.get(FEATURED_URL)
-        assert response.status_code == 200
-        # cache_page sets Cache-Control header
-        cache_control = response.get("Cache-Control", "")
-        assert "max-age" in cache_control
-
-    @override_settings(
-        CACHES={"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
-    )
+    @override_settings(CACHES=LOCMEM_CACHE)
     def test_cached_response_same_content(self):
-        """AC-2: Second request returns cached content."""
-        from django.core.cache import cache
+        """AC-2: Second request returns cached content from manual cache."""
         cache.clear()
-
         response1 = self.client.get(FEATURED_URL)
         response2 = self.client.get(FEATURED_URL)
         assert response1.status_code == 200
         assert response2.status_code == 200
         assert response1.data == response2.data
+
+    @override_settings(CACHES=LOCMEM_CACHE)
+    def test_cache_key_set_after_request(self):
+        """AC-2: Cache key is populated after first request."""
+        cache.clear()
+        assert cache.get(FEATURED_BRANDS_CACHE_KEY) is None
+        self.client.get(FEATURED_URL)
+        assert cache.get(FEATURED_BRANDS_CACHE_KEY) is not None
+
+    @override_settings(CACHES=LOCMEM_CACHE)
+    def test_cache_invalidated_on_brand_save(self):
+        """AC-2: Cache is cleared when a Brand is saved."""
+        cache.clear()
+        self.client.get(FEATURED_URL)
+        assert cache.get(FEATURED_BRANDS_CACHE_KEY) is not None
+        # Save a brand — signal should invalidate cache
+        self.brand.name = "UpdatedBrand"
+        self.brand.save()
+        assert cache.get(FEATURED_BRANDS_CACHE_KEY) is None
+
+    @override_settings(CACHES=LOCMEM_CACHE)
+    def test_cache_invalidated_on_brand_delete(self):
+        """AC-2: Cache is cleared when a Brand is deleted."""
+        cache.clear()
+        self.client.get(FEATURED_URL)
+        assert cache.get(FEATURED_BRANDS_CACHE_KEY) is not None
+        self.brand.delete()
+        assert cache.get(FEATURED_BRANDS_CACHE_KEY) is None
+
+    @override_settings(CACHES=LOCMEM_CACHE)
+    def test_new_brand_visible_after_invalidation(self):
+        """AC-2: New featured brand appears after cache invalidation."""
+        cache.clear()
+        response1 = self.client.get(FEATURED_URL)
+        names1 = [b["name"] for b in response1.data]
+        # Create new featured brand — triggers invalidation
+        new_brand = Brand(name="NewFeatured", is_featured=True, image=_make_image("new.png"))
+        new_brand.save()
+        response2 = self.client.get(FEATURED_URL)
+        names2 = [b["name"] for b in response2.data]
+        assert "NewFeatured" in names2
+        assert len(names2) == len(names1) + 1
