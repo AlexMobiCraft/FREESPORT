@@ -32,6 +32,7 @@ from apps.banners.services import (
 from apps.users.models import User
 
 
+@pytest.mark.unit
 class TestGetRoleKey:
     """7-1: get_role_key возвращает корректный ключ роли."""
 
@@ -79,6 +80,7 @@ class TestGetRoleKey:
         assert get_role_key(user) == "retail"
 
 
+@pytest.mark.unit
 class TestValidateBannerType:
     """7-2: validate_banner_type корректно фильтрует типы. Default='hero' (AC1)."""
 
@@ -98,6 +100,7 @@ class TestValidateBannerType:
         assert validate_banner_type("") == "hero"
 
 
+@pytest.mark.unit
 class TestBuildCacheKey:
     """7-1: Ключ кеша включает тип и роль."""
 
@@ -120,6 +123,7 @@ class TestBuildCacheKey:
         assert key_guest != key_wholesale
 
 
+@pytest.mark.integration
 class TestCacheFunctions:
     """7-2: Cache get/set через сервисные функции."""
 
@@ -148,6 +152,7 @@ class TestCacheFunctions:
             mock_cache.set.assert_called_once_with("test_key", data, BANNER_CACHE_TTL)
 
 
+@pytest.mark.integration
 @pytest.mark.django_db
 class TestInvalidateBannerCache:
     """7-1/7-2: Инвалидация очищает ключи по всем ролям."""
@@ -177,6 +182,7 @@ class TestInvalidateBannerCache:
             assert cache.get(f"banners:list:marketing:{role}") == "data"
 
 
+@pytest.mark.unit
 class TestAllRoleKeysDerivedFromUserModel:
     """8-1: _ALL_ROLE_KEYS импортируется из User.ROLE_CHOICES, не хардкодится."""
 
@@ -201,6 +207,7 @@ class TestAllRoleKeysDerivedFromUserModel:
         assert all_role_set == role_choice_values
 
 
+@pytest.mark.unit
 class TestCacheKeyPattern:
     """8-2: CACHE_KEY_PATTERN — константа для формирования ключей кеша."""
 
@@ -226,6 +233,7 @@ class TestCacheKeyPattern:
         assert key == expected
 
 
+@pytest.mark.integration
 @pytest.mark.django_db
 class TestComputeCacheTTL:
     """9-1: Dynamic TTL учитывает ближайшие start_date/end_date баннеров."""
@@ -332,3 +340,115 @@ class TestComputeCacheTTL:
         ttl = compute_cache_ttl()
         # start_date через 3 мин ближе, чем end_date через 10 мин
         assert ttl <= 182
+
+    def test_role_key_guest_filters_by_show_to_guests(self):
+        """TTL для guest учитывает только баннеры с show_to_guests=True."""
+        now = timezone.now()
+        # Баннер виден только retail (не guest) — с close end_date
+        BannerFactory(
+            end_date=now + timedelta(minutes=2),
+            show_to_guests=False,
+            show_to_authenticated=True,
+        )
+        # Guest не видит этот баннер — TTL остаётся default
+        ttl = compute_cache_ttl("hero", role_key="guest")
+        assert ttl == BANNER_CACHE_TTL
+
+    def test_role_key_retail_sees_authenticated_banners(self):
+        """TTL для retail учитывает баннеры с show_to_authenticated=True."""
+        now = timezone.now()
+        BannerFactory(
+            end_date=now + timedelta(minutes=2),
+            show_to_guests=False,
+            show_to_authenticated=True,
+        )
+        ttl = compute_cache_ttl("hero", role_key="retail")
+        assert ttl < BANNER_CACHE_TTL  # ~120с
+
+    def test_role_key_trainer_sees_authenticated_and_trainer_banners(self):
+        """TTL для trainer учитывает show_to_authenticated OR show_to_trainers."""
+        now = timezone.now()
+        # Баннер только для authenticated (не trainers-specific)
+        BannerFactory(
+            end_date=now + timedelta(minutes=2),
+            show_to_guests=False,
+            show_to_authenticated=True,
+            show_to_trainers=False,
+        )
+        ttl = compute_cache_ttl("hero", role_key="trainer")
+        # Trainer видит show_to_authenticated баннеры тоже
+        assert ttl < BANNER_CACHE_TTL
+
+    def test_role_key_trainer_sees_trainer_specific_banners(self):
+        """TTL для trainer учитывает show_to_trainers=True баннеры."""
+        now = timezone.now()
+        BannerFactory(
+            end_date=now + timedelta(minutes=2),
+            show_to_guests=False,
+            show_to_authenticated=False,
+            show_to_trainers=True,
+        )
+        ttl = compute_cache_ttl("hero", role_key="trainer")
+        assert ttl < BANNER_CACHE_TTL
+
+    def test_future_start_date_affects_ttl(self):
+        """Будущий баннер (start_date > now) корректно уменьшает TTL."""
+        now = timezone.now()
+        BannerFactory(
+            start_date=now + timedelta(minutes=4),
+            end_date=now + timedelta(days=7),
+            show_to_guests=True,
+        )
+        ttl = compute_cache_ttl("hero", role_key="guest")
+        # Будущий баннер через 4 мин — TTL ~240с
+        assert MIN_CACHE_TTL <= ttl <= 242
+
+
+@pytest.mark.unit
+class TestGetRoleFilterReturnsQ:
+    """CR-10: _get_role_filter возвращает Q-объекты, синхронизированные с Banner.get_for_user."""
+
+    def test_guest_returns_show_to_guests(self):
+        from apps.banners.services import _get_role_filter
+        from django.db.models import Q
+        q = _get_role_filter("guest")
+        assert isinstance(q, Q)
+
+    def test_retail_returns_show_to_authenticated(self):
+        from apps.banners.services import _get_role_filter
+        from django.db.models import Q
+        q = _get_role_filter("retail")
+        assert isinstance(q, Q)
+
+    def test_trainer_includes_authenticated_base(self):
+        from apps.banners.services import _get_role_filter
+        from django.db.models import Q
+        q = _get_role_filter("trainer")
+        assert isinstance(q, Q)
+        # Q object should be an OR of show_to_authenticated and show_to_trainers
+        q_str = str(q)
+        assert "show_to_authenticated" in q_str
+        assert "show_to_trainers" in q_str
+
+    def test_wholesale_includes_authenticated_base(self):
+        from apps.banners.services import _get_role_filter
+        from django.db.models import Q
+        q = _get_role_filter("wholesale_level1")
+        q_str = str(q)
+        assert "show_to_authenticated" in q_str
+        assert "show_to_wholesale" in q_str
+
+    def test_federation_includes_authenticated_base(self):
+        from apps.banners.services import _get_role_filter
+        from django.db.models import Q
+        q = _get_role_filter("federation_rep")
+        q_str = str(q)
+        assert "show_to_authenticated" in q_str
+        assert "show_to_federation" in q_str
+
+    def test_unknown_role_falls_back_to_guest(self):
+        from apps.banners.services import _get_role_filter
+        from django.db.models import Q
+        q = _get_role_filter("unknown_role")
+        assert isinstance(q, Q)
+        assert "show_to_guests" in str(q)

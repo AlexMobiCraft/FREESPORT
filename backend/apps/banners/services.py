@@ -10,12 +10,12 @@ Story 32.1 Task 8-2: CACHE_KEY_PATTERN — константа паттерна �
 from __future__ import annotations
 
 import logging
-from typing import Any, Optional, Union
 from datetime import datetime
+from typing import Any, Optional
 
 from django.conf import settings
 from django.core.cache import cache
-from django.db.models import QuerySet
+from django.db.models import Q, QuerySet
 from django.utils import timezone
 
 from apps.users.models import User
@@ -112,54 +112,35 @@ def get_active_banners_queryset(
     return queryset
 
 
-def _get_role_filter(role_key: str) -> dict[str, Any]:
+def _get_role_filter(role_key: str) -> Q:
     """
-    Возвращает фильтр для QuerySet по роли пользователя.
-    
+    Возвращает Q-фильтр для QuerySet по роли пользователя.
+
+    Логика синхронизирована с ``Banner.get_for_user()``:
+    - guest → ``show_to_guests=True``
+    - authenticated роли → ``show_to_authenticated=True`` (база) OR role-specific flag
+
     Args:
         role_key: Ключ роли (guest, retail, trainer, ...)
-        
+
     Returns:
-        Словарь фильтра для Django ORM.
+        Q объект для Django ORM filter.
     """
     if role_key == "guest":
-        return {"show_to_guests": True}
-    elif role_key == "retail":
-        return {"show_to_authenticated": True}
+        return Q(show_to_guests=True)
+    # Все authenticated роли имеют базовый доступ show_to_authenticated
+    base = Q(show_to_authenticated=True)
+    if role_key == "retail":
+        return base
     elif role_key == "trainer":
-        return {"show_to_trainers": True}
+        return base | Q(show_to_trainers=True)
     elif role_key in {"wholesale_level1", "wholesale_level2", "wholesale_level3"}:
-        return {"show_to_wholesale": True}
+        return base | Q(show_to_wholesale=True)
     elif role_key == "federation_rep":
-        return {"show_to_federation": True}
+        return base | Q(show_to_federation=True)
     else:
-        # По умолчанию - только гостевые баннеры
-        return {"show_to_guests": True}
-
-
-def _is_banner_visible_to_role(banner: Banner, role_key: str) -> bool:
-    """
-    Проверяет, виден ли баннер для указанной роли.
-    
-    Args:
-        banner: Объект баннера
-        role_key: Ключ роли пользователя
-        
-    Returns:
-        True если баннер видим для роли, иначе False.
-    """
-    if role_key == "guest":
-        return banner.show_to_guests
-    elif role_key == "retail":
-        return banner.show_to_authenticated
-    elif role_key == "trainer":
-        return banner.show_to_trainers
-    elif role_key in {"wholesale_level1", "wholesale_level2", "wholesale_level3"}:
-        return banner.show_to_wholesale
-    elif role_key == "federation_rep":
-        return banner.show_to_federation
-    else:
-        return banner.show_to_guests
+        # Неизвестная роль — fallback на guest
+        return Q(show_to_guests=True)
 
 
 def compute_cache_ttl(
@@ -179,8 +160,9 @@ def compute_cache_ttl(
     now = timezone.now()
     nearest_seconds = BANNER_CACHE_TTL
 
-    # Фильтруем по типу и роли (если указана)
-    queryset = Banner.get_for_user(None).filter(is_active=True)  # Используем get_for_user для базовой фильтрации
+    # Базовый queryset: только активные баннеры БЕЗ temporal/role фильтрации,
+    # чтобы учесть будущие start_date и приближающиеся end_date для TTL.
+    queryset = Banner.objects.filter(is_active=True)
     if banner_type:
         queryset = queryset.filter(type=banner_type)
     if role_key:
