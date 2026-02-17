@@ -323,6 +323,25 @@ class BrandSerializer(serializers.ModelSerializer):
         return attrs
 
 
+class BrandFeaturedSerializer(serializers.ModelSerializer):
+    """Lightweight serializer для featured brands endpoint (без description)."""
+
+    image = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Brand
+        fields = ["id", "name", "slug", "image", "website", "is_featured"]
+
+    def get_image(self, obj: Brand) -> str | None:
+        """Возвращает URL изображения или None."""
+        if not obj.image:
+            return None
+        request = self.context.get("request")
+        if request and hasattr(request, "build_absolute_uri"):
+            return request.build_absolute_uri(obj.image.url)
+        return str(obj.image.url)
+
+
 class CategorySerializer(serializers.ModelSerializer):
     """
     Serializer для категорий с поддержкой иерархии

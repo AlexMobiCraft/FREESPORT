@@ -34,6 +34,7 @@ from .filters import ProductFilter
 from .models import Attribute, AttributeValue, Brand, Category, Product, ProductVariant
 from .serializers import (
     AttributeFilterSerializer,
+    BrandFeaturedSerializer,
     BrandSerializer,
     CategorySerializer,
     CategoryTreeSerializer,
@@ -249,6 +250,8 @@ class BrandViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = BrandSerializer
     lookup_field = "slug"
     pagination_class = BrandPageNumberPagination
+    filter_backends = [filters.SearchFilter]
+    search_fields = ["name"]
 
     def get_queryset(self):
         """Активные бренды с опциональной фильтрацией по is_featured"""
@@ -297,7 +300,7 @@ class BrandViewSet(viewsets.ReadOnlyModelViewSet):
         queryset = self.get_queryset().filter(is_featured=True)[:FEATURED_BRANDS_MAX_ITEMS]
 
         # Не передаем request в контекст, чтобы в кэш не попадал host из заголовка.
-        serializer = self.get_serializer(queryset, many=True, context={})
+        serializer = BrandFeaturedSerializer(queryset, many=True, context={})
         payload = serializer.data
         cache.set(FEATURED_BRANDS_CACHE_KEY, payload, FEATURED_BRANDS_CACHE_TIMEOUT)
         return Response(payload)

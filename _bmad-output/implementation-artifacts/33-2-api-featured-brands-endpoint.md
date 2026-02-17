@@ -67,6 +67,9 @@ So that I can display them on the homepage in a high-performance carousel.
 - [x] [AI-Review][MEDIUM] Featured endpoint missing ordering. The view explicitly removed .order_by("name") but Brand model has no default ordering, violating AC1. [apps/products/views.py]
 - [x] [AI-Review][MEDIUM] File backend/apps/products/signals.py is created but not tracked in git. [backend/apps/products/signals.py]
 - [x] [AI-Review][LOW] Endpoint URL mismatch. AC specifies /api/v1/products/brands/featured/ but implementation uses /api/v1/brands/featured/. [apps/products/urls.py]
+- [x] [AI-Review][MEDIUM] Optimize cache invalidation: check previous state in `signals.py` to only invalidate cache if `is_featured`, `is_active` or other relevant fields changed. This prevents cache thrashing when unrelated fields (like description) are updated. [apps/products/signals.py]
+- [x] [AI-Review][MEDIUM] Add search capabilities: `BrandViewSet` lacks `filter_backends` and `search_fields`. Add `SearchFilter` and enable searching by `name` for better usability. [apps/products/views.py]
+- [x] [AI-Review][LOW] Optimize payload size: Create `BrandFeaturedSerializer` (inheriting or standalone) that excludes `description` field as it's not needed for the carousel and increases JSON size unnecessarily. [apps/products/serializers.py]
 
 ## Dev Notes
 
@@ -138,6 +141,10 @@ Claude Opus 4.6
 - ✅ Resolved review finding [LOW]: Выполнен неймспейсинг cache key: `FEATURED_BRANDS_CACHE_KEY = "products:brands:featured:v1"`.
 - ✅ Resolved review finding [LOW]: Устранено дублирование фильтрации в featured action — используется `self.get_queryset().filter(is_featured=True)` вместо повторной ручной сборки queryset.
 - ✅ Updated tests: `apps/products/tests/test_brand_api.py` — 19 passed. Полный набор `apps/products/tests` — 292 passed.
+- ✅ Resolved review finding [MEDIUM]: Оптимизация инвалидации кэша — добавлен `pre_save` сигнал для отслеживания предыдущего состояния полей Brand. `post_save` теперь инвалидирует кэш только при изменении `is_featured`, `is_active`, `name`, `slug`, `image`, `website`. Изменение `description` не вызывает cache thrashing.
+- ✅ Resolved review finding [MEDIUM]: Добавлен `SearchFilter` + `search_fields = ["name"]` в `BrandViewSet` для поиска брендов по имени.
+- ✅ Resolved review finding [LOW]: Создан `BrandFeaturedSerializer` без поля `description` для оптимизации payload size featured endpoint. Featured action использует `BrandFeaturedSerializer` вместо `BrandSerializer`.
+- ✅ Updated tests: `apps/products/tests/test_brand_api.py` — 28 passed (11 endpoint + 2 search + 2 featured serializer + 7 caching + 5 selective invalidation + 2 constants). Products app regression: 254 passed, 3 pre-existing failures (Windows cp1250 encoding, Celery task ID).
 
 ### Change Log
 
@@ -145,13 +152,14 @@ Claude Opus 4.6
 - 2026-02-16: Addressed remaining 3 review findings (2 MEDIUM, 1 LOW). Restored explicit `.order_by("name")` in featured queryset. Confirmed `signals.py` tracked in git. Documented URL path as intentional REST convention.
 - 2026-02-16: Addressed final 4 review findings (1 HIGH, 2 MEDIUM, 1 LOW). Fixed race condition with `transaction.on_commit`. Extracted constants to `constants.py`. Documented bulk update limitation. Made `BrandSerializer.validate` robust.
 - 2026-02-16: Closed remaining 4 review follow-ups (2 MEDIUM, 2 LOW): cache-safe featured payload (host-independent), bounded featured result set (max 50), namespaced cache key, and queryset duplication reduction. Updated endpoint and regression tests accordingly.
+- 2026-02-17: Addressed final 3 review follow-ups (2 MEDIUM, 1 LOW): selective cache invalidation based on changed fields (prevents thrashing), SearchFilter for brand name search, lightweight BrandFeaturedSerializer without description. Added 9 new tests (28 total).
 
 ### File List
 
-- `backend/apps/products/views.py` — Modified: replaced `cache_page` with manual `cache.set/get`, added `pagination_class=None` to featured action, restored explicit `.order_by("name")`, reused `get_queryset()` in featured action, added `FEATURED_BRANDS_MAX_ITEMS` slice, cached payload serialized with `context={}` for host-safe image URLs
-- `backend/apps/products/serializers.py` — Modified: added `get_image()` method to `BrandSerializer` for absolute URL via `build_absolute_uri`, refactored `validate` to use `Brand(**attrs)`
-- `backend/apps/products/signals.py` — Modified: added `transaction.on_commit` wrapper, updated import to use `constants.py`, documented bulk update limitation
+- `backend/apps/products/views.py` — Modified: replaced `cache_page` with manual `cache.set/get`, added `pagination_class=None` to featured action, restored explicit `.order_by("name")`, reused `get_queryset()` in featured action, added `FEATURED_BRANDS_MAX_ITEMS` slice, cached payload serialized with `context={}` for host-safe image URLs, added `filter_backends=[SearchFilter]` и `search_fields=["name"]`, featured action uses `BrandFeaturedSerializer`
+- `backend/apps/products/serializers.py` — Modified: added `get_image()` method to `BrandSerializer` for absolute URL via `build_absolute_uri`, refactored `validate` to use `Brand(**attrs)`, added `BrandFeaturedSerializer` (lightweight, без description)
+- `backend/apps/products/signals.py` — Modified: refactored to selective invalidation — added `pre_save` signal for tracking previous field state, `post_save` checks `_FEATURED_RELEVANT_FIELDS` diff before invalidating, `post_delete` checks `is_featured` and `is_active`
 - `backend/apps/products/constants.py` — New/Modified: `FEATURED_BRANDS_CACHE_KEY` (namespaced), `FEATURED_BRANDS_CACHE_TIMEOUT`, `FEATURED_BRANDS_MAX_ITEMS`
 - `backend/apps/products/apps.py` — Modified: added `ready()` to register signals
-- `backend/apps/products/tests/test_brand_api.py` — Modified: 19 tests with `transaction=True` for caching, host-independence cache safety checks, featured limit regression test, bulk update limitation test, constants tests
+- `backend/apps/products/tests/test_brand_api.py` — Modified: 28 tests — endpoint (11), search (2), featured serializer (2), caching (7), selective invalidation (5), constants (2)
 - `backend/apps/cart/models.py` — Modified: fixed Django 6.0 compat (`check=` → `condition=` in CheckConstraint)

@@ -239,6 +239,112 @@ class TestFeaturedBrandsCaching:
         # кэш НЕ инвалидирован — это известное ограничение
         assert cache.get(FEATURED_BRANDS_CACHE_KEY) is not None
 
+    @override_settings(CACHES=LOCMEM_CACHE)
+    def test_irrelevant_field_change_does_not_invalidate_cache(self):
+        """[AI-Review] Изменение description не инвалидирует кэш featured brands."""
+        cache.clear()
+        self.client.get(FEATURED_URL)
+        assert cache.get(FEATURED_BRANDS_CACHE_KEY) is not None
+        self.brand.description = "Updated description that should not bust cache"
+        self.brand.save()
+        assert cache.get(FEATURED_BRANDS_CACHE_KEY) is not None
+
+    @override_settings(CACHES=LOCMEM_CACHE)
+    def test_relevant_field_change_invalidates_cache(self):
+        """[AI-Review] Изменение is_featured инвалидирует кэш."""
+        cache.clear()
+        self.client.get(FEATURED_URL)
+        assert cache.get(FEATURED_BRANDS_CACHE_KEY) is not None
+        self.brand.is_featured = False
+        self.brand.save()
+        assert cache.get(FEATURED_BRANDS_CACHE_KEY) is None
+
+    @override_settings(CACHES=LOCMEM_CACHE)
+    def test_name_change_invalidates_cache(self):
+        """[AI-Review] Изменение name инвалидирует кэш (влияет на сортировку и отображение)."""
+        cache.clear()
+        self.client.get(FEATURED_URL)
+        assert cache.get(FEATURED_BRANDS_CACHE_KEY) is not None
+        self.brand.name = "RenamedBrand"
+        self.brand.save()
+        assert cache.get(FEATURED_BRANDS_CACHE_KEY) is None
+
+    @override_settings(CACHES=LOCMEM_CACHE)
+    def test_non_featured_brand_create_does_not_invalidate_cache(self):
+        """[AI-Review] Создание non-featured бренда не инвалидирует кэш."""
+        cache.clear()
+        self.client.get(FEATURED_URL)
+        assert cache.get(FEATURED_BRANDS_CACHE_KEY) is not None
+        Brand(name="RegularNew", is_featured=False).save()
+        assert cache.get(FEATURED_BRANDS_CACHE_KEY) is not None
+
+    @override_settings(CACHES=LOCMEM_CACHE)
+    def test_non_featured_delete_does_not_invalidate_cache(self):
+        """[AI-Review] Удаление non-featured бренда не инвалидирует кэш."""
+        regular = Brand(name="RegularForDelete", is_featured=False)
+        regular.save()
+        cache.clear()
+        self.client.get(FEATURED_URL)
+        assert cache.get(FEATURED_BRANDS_CACHE_KEY) is not None
+        regular.delete()
+        assert cache.get(FEATURED_BRANDS_CACHE_KEY) is not None
+
+
+@pytest.mark.django_db
+class TestBrandSearch:
+    """Test search capabilities on BrandViewSet."""
+
+    @pytest.fixture(autouse=True)
+    def setup_brands(self):
+        self.client = cast(Any, APIClient())
+        Brand(name="Adidas", is_featured=True, image=_make_image("a.png")).save()
+        Brand(name="Nike", is_featured=False).save()
+        Brand(name="Puma", is_featured=False).save()
+
+    def test_search_by_name(self):
+        """[AI-Review] SearchFilter позволяет искать бренды по name."""
+        response = self.client.get("/api/v1/brands/", {"search": "adi"})
+        assert response.status_code == 200
+        names = [b["name"] for b in response.data["results"]]
+        assert "Adidas" in names
+        assert "Nike" not in names
+
+    def test_search_returns_all_without_query(self):
+        """Без параметра search возвращаются все бренды."""
+        response = self.client.get("/api/v1/brands/")
+        assert response.status_code == 200
+        assert len(response.data["results"]) == 3
+
+
+@pytest.mark.django_db
+class TestFeaturedBrandSerializer:
+    """Test that featured endpoint uses lightweight serializer without description."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self):
+        cache.clear()
+        self.client = cast(Any, APIClient())
+        Brand(
+            name="TestBrand",
+            is_featured=True,
+            image=_make_image("t.png"),
+            description="Long description text",
+        ).save()
+
+    def test_featured_response_excludes_description(self):
+        """[AI-Review] Featured endpoint не включает поле description для оптимизации payload."""
+        response = self.client.get(FEATURED_URL)
+        assert response.status_code == 200
+        assert len(response.data) == 1
+        assert "description" not in response.data[0]
+
+    def test_featured_response_includes_required_fields(self):
+        """Featured endpoint возвращает все необходимые поля кроме description."""
+        response = self.client.get(FEATURED_URL)
+        brand_data = response.data[0]
+        required_fields = {"id", "name", "slug", "image", "website", "is_featured"}
+        assert required_fields.issubset(set(brand_data.keys()))
+
 
 class TestFeaturedBrandsConstants:
     """Test that constants are properly defined and importable."""
