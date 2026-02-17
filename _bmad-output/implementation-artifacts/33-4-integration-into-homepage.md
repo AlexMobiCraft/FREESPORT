@@ -1,6 +1,6 @@
 # Story 33.4: Integration into Homepage
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -31,28 +31,35 @@ So that I can easily find it and navigate to brand catalogs.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Update Brands Service
-  - [ ] Modify `frontend/src/services/brandsService.ts`.
-  - [ ] Add `getFeatured()` method to `BrandsService` class.
-  - [ ] Implementation: Call `apiClient.get('/brands/', { params: { is_featured: true } })`.
-  - [ ] Ensure return type is `Promise<Brand[]>`.
+- [x] Task 1: Update Brands Service
+  - [x] Modify `frontend/src/services/brandsService.ts`.
+  - [x] Add `getFeatured()` method to `BrandsService` class.
+  - [x] Implementation: Call `apiClient.get('/brands/', { params: { is_featured: true } })`.
+  - [x] Ensure return type is `Promise<Brand[]>`.
 
-- [ ] Task 2: Update Home Page Component (Client)
-  - [ ] Modify `frontend/src/components/home/HomePage.tsx`.
-  - [ ] Update component props interface to include `featuredBrands: Brand[]`.
-  - [ ] Import `BrandsBlock` from `@/components/business/home/BrandsBlock/BrandsBlock` (or index).
-  - [ ] Render `<BrandsBlock brands={featuredBrands} />` immediately after `<MarketingBannersSection />`.
-  - [ ] Ensure conditional rendering if `featuredBrands` is empty (optional, depending on design, but usually good practice).
+- [x] Task 2: Update Home Page Component (Client)
+  - [x] Modify `frontend/src/components/home/HomePage.tsx`.
+  - [x] Update component props interface to include `featuredBrands: Brand[]`.
+  - [x] Import `BrandsBlock` from `@/components/business/home/BrandsBlock/BrandsBlock` (or index).
+  - [x] Render `<BrandsBlock brands={featuredBrands} />` immediately after `<MarketingBannersSection />`.
+  - [x] Ensure conditional rendering if `featuredBrands` is empty (optional, depending on design, but usually good practice).
 
-- [ ] Task 3: Update Blue Theme Page (Server)
-  - [ ] Modify `frontend/src/app/(blue)/home/page.tsx`.
-  - [ ] Make `BlueHomePage` an `async` function.
-  - [ ] Call `brandsService.getFeatured()` to fetch data.
-  - [ ] Pass result to `<HomePage />` as `featuredBrands` prop.
+- [x] Task 3: Update Blue Theme Page (Server)
+  - [x] Modify `frontend/src/app/(blue)/home/page.tsx`.
+  - [x] Make `BlueHomePage` an `async` function.
+  - [x] Call `brandsService.getFeatured()` to fetch data.
+  - [x] Pass result to `<HomePage />` as `featuredBrands` prop.
 
-- [ ] Task 4: Verify CLS & SEO
-  - [ ] Ensure `BrandsBlock` container has height/width constraints (handled in 33.3, but verify container in `HomePage`).
-  - [ ] Verify SSR output contains brand names/links (View Source).
+- [x] Task 4: Verify CLS & SEO
+  - [x] Ensure `BrandsBlock` container has height/width constraints (handled in 33.3, but verify container in `HomePage`).
+  - [x] Verify SSR output contains brand names/links (View Source).
+
+- [x] Review Follow-ups (AI)
+  - [x] [AI-Review][High] Fix API endpoint in brandsService.ts to match AC4 — RESOLVED: Backend routes `apps.products.urls` directly under `/api/v1/`, so actual endpoint is `/api/v1/brands/` (not `/api/v1/products/brands/`). AC4 path is inaccurate; current implementation `/brands/` is correct.
+  - [x] [AI-Review][Medium] Add error logging in Home Page SSR catch block (frontend/src/app/(blue)/home/page.tsx)
+  - [x] [AI-Review][Medium] Explicitly type `featuredBrands` in `BlueHomePage` (`page.tsx`) to ensure type safety.
+  - [x] [AI-Review][Medium] Explicitly set `page_size: 20` in `brandsService.getFeatured()` to ensure carousel has data.
+  - [x] [AI-Review][Low] Refactor `brandsService` to use constants for page sizes.
 
 ## Dev Notes
 
@@ -86,10 +93,27 @@ So that I can easily find it and navigate to brand catalogs.
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+Claude Opus 4.6
 
 ### Debug Log References
 
+- Full test suite: 132/133 files pass (2174/2179 tests pass, 14 skipped)
+- Pre-existing failure: `QuickLinksSection.test.tsx` (5 tests) — unrelated to Story 33.4
+
 ### Completion Notes List
 
+- ✅ Task 1: Added `getFeatured()` method to `BrandsService` — calls `/brands/?is_featured=true`, returns `Promise<Brand[]>`. 5 unit tests added.
+- ✅ Task 2: Updated `HomePage` — added `featuredBrands: Brand[]` prop, imported `BrandsBlock`, renders conditionally after `MarketingBannersSection`. 5 integration tests (updated existing + 3 new).
+- ✅ Task 3: Made `BlueHomePage` async, calls `brandsService.getFeatured()` with try/catch fallback, passes data to `HomePage`. 17 tests (updated existing + 3 new SSR tests).
+- ✅ Task 4: CLS verified — `BrandsBlock` has explicit dimensions (`h-20 md:h-24`, `py-6 md:py-8`). SSR verified — brands fetched server-side, rendered with `aria-label="Популярные бренды"` and semantic HTML links.
+- ✅ Resolved review finding [High]: API endpoint `/brands/` is correct — backend `apps.products.urls` maps directly under `/api/v1/`, no `/products/` prefix. AC4 path inaccurate.
+- ✅ Resolved review finding [Medium]: Added `console.error('[BlueHomePage] Failed to fetch featured brands:', error)` in SSR catch block. Test updated to verify error logging.
+
 ### File List
+
+- `frontend/src/services/brandsService.ts` (modified — added `getFeatured()`)
+- `frontend/src/services/__tests__/brandsService.test.ts` (new — 5 tests)
+- `frontend/src/components/home/HomePage.tsx` (modified — added `featuredBrands` prop, `BrandsBlock` render)
+- `frontend/src/components/home/__tests__/HomePage.test.tsx` (modified — 5 tests updated for new prop + BrandsBlock)
+- `frontend/src/app/(blue)/home/page.tsx` (modified — async SSR, `brandsService.getFeatured()`)
+- `frontend/src/app/(blue)/home/__tests__/page.test.tsx` (modified — 17 tests, async rendering + SSR assertions)

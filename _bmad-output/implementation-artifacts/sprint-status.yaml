@@ -116,5 +116,5 @@ development_status:
   33-1-brand-model-admin-updates: done
   33-2-api-featured-brands-endpoint: done
   33-3-brandsblock-component-logic-ui: done
-  33-4-integration-into-homepage: ready-for-dev
+  33-4-integration-into-homepage: done
   epic-33-retrospective: optional

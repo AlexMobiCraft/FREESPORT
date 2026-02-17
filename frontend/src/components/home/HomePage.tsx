@@ -5,6 +5,7 @@
  * 1. HeroSection (баннеры)
  * 1.5. QuickLinksSection (быстрые ссылки)
  * 1.6. MarketingBannersSection (маркетинговые баннеры)
+ * 1.7. BrandsBlock (популярные бренды)
  * 2. CategoriesSection (популярные категории)
  * 3. HitsSection (хиты продаж)
  * 4. NewArrivalsSection (новинки)
@@ -37,8 +38,14 @@ import {
   AboutTeaser,
   CategoriesSection,
 } from '@/components/home';
+import { BrandsBlock } from '@/components/business/home/BrandsBlock';
+import type { Brand } from '@/types/api';
 
-export const HomePage: React.FC = () => {
+interface HomePageProps {
+  featuredBrands: Brand[];
+}
+
+export const HomePage: React.FC<HomePageProps> = ({ featuredBrands }) => {
   return (
     <main className="min-h-screen bg-white">
       {/* 1. Hero Section - Баннеры */}
@@ -49,6 +56,9 @@ export const HomePage: React.FC = () => {
 
       {/* 1.6 Marketing Banners - Маркетинговые баннеры */}
       <MarketingBannersSection />
+
+      {/* 1.7 Brands Block - Популярные бренды */}
+      {featuredBrands.length > 0 && <BrandsBlock brands={featuredBrands} />}
 
       {/* 2. Popular Categories - Популярные категории */}
       <CategoriesSection />
