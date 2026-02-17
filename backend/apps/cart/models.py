@@ -52,7 +52,7 @@ class Cart(models.Model):
         constraints = [
             # Корзина должна иметь либо пользователя, либо session_key
             models.CheckConstraint(
-                condition=Q(user__isnull=False) | Q(session_key__isnull=False),
+                check=Q(user__isnull=False) | Q(session_key__isnull=False),
                 name="cart_must_have_user_or_session",
             )
         ]

@@ -21,11 +21,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test.utils import override_settings
 from rest_framework.test import APIClient
 
-from apps.products.constants import (
-    FEATURED_BRANDS_CACHE_KEY,
-    FEATURED_BRANDS_CACHE_TIMEOUT,
-    FEATURED_BRANDS_MAX_ITEMS,
-)
+from apps.products.constants import FEATURED_BRANDS_CACHE_KEY, FEATURED_BRANDS_CACHE_TIMEOUT, FEATURED_BRANDS_MAX_ITEMS
 from apps.products.models import Brand
 
 
@@ -59,7 +55,9 @@ class TestFeaturedBrandsEndpoint:
     def setup_brands(self):
         cache.clear()
         self.client = cast(Any, APIClient())
-        self.featured1 = Brand(name="Adidas", is_featured=True, image=_make_image("a.png"), website="https://adidas.com")
+        self.featured1 = Brand(
+            name="Adidas", is_featured=True, image=_make_image("a.png"), website="https://adidas.com"
+        )
         self.featured1.save()
         self.featured2 = Brand(name="Nike", is_featured=True, image=_make_image("n.png"), website="https://nike.com")
         self.featured2.save()
@@ -111,9 +109,7 @@ class TestFeaturedBrandsEndpoint:
         for brand_data in response.data:
             assert brand_data["image"], f"image empty for {brand_data['name']}"
             assert brand_data["image"].startswith("/"), f"Expected relative URL, got {brand_data['image']}"
-            assert not brand_data["image"].startswith("http"), (
-                f"Expected non-absolute URL, got {brand_data['image']}"
-            )
+            assert not brand_data["image"].startswith("http"), f"Expected non-absolute URL, got {brand_data['image']}"
 
     @override_settings(ALLOWED_HOSTS=["testserver", "internal.local", "public.example.com"])
     def test_cached_payload_not_host_dependent(self):
@@ -353,8 +349,23 @@ class TestFeaturedBrandSerializer:
         """Featured endpoint возвращает все необходимые поля кроме description."""
         response = self.client.get(FEATURED_URL)
         brand_data = response.data[0]
-        required_fields = {"id", "name", "slug", "image", "website", "is_featured"}
+        # is_featured excluded as redundant (implicit true)
+        required_fields = {"id", "name", "slug", "image", "website"}
         assert required_fields.issubset(set(brand_data.keys()))
+        assert "is_featured" not in brand_data
+
+    def test_serializer_forces_relative_url(self):
+        """[AI-Review] Serializer должен возвращать relative URL даже при наличии request в контексте."""
+        from apps.products.serializers import BrandFeaturedSerializer
+
+        request = cast(Any, self.client.get("/"))  # Mock request
+        # Manually force request with build_absolute_uri capability into context
+        brand = Brand.objects.first()
+        serializer = BrandFeaturedSerializer(brand, context={"request": request})
+        image_url = serializer.data["image"]
+
+        assert image_url.startswith("/")
+        assert not image_url.startswith("http")
 
 
 class TestFeaturedBrandsConstants:

@@ -285,11 +285,13 @@ class BrandViewSet(viewsets.ReadOnlyModelViewSet):
 
     @extend_schema(
         summary="Избранные бренды",
-        description="Получение списка избранных брендов для отображения на главной странице. Ответ кэшируется на 1 час.",
+        description=(
+            "Получение списка избранных брендов для отображения на главной странице. " "Ответ кэшируется на 1 час."
+        ),
         tags=["Brands"],
     )
     @action(detail=False, methods=["get"], url_path="featured", pagination_class=None, filter_backends=[])
-    def featured(self, request, *args, **kwargs):
+    def featured(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         """Список избранных брендов с кэшированием на 1 час (flat JSON list).
 
         filter_backends=[] intentionally bypasses global SearchFilter because
