@@ -11,7 +11,18 @@ import { useBannerCarousel } from '../useBannerCarousel';
 import type { UseBannerCarouselOptions } from '../useBannerCarousel';
 
 // Hoisted mocks for vi.mock factory functions
-const { mockEmblaApi, mockUseEmblaCarousel, mockAutoplay } = vi.hoisted(() => {
+const { mockEmblaApi, mockUseEmblaCarousel, mockAutoplay, mockAutoplayInstance } = vi.hoisted(() => {
+  const mockAutoplayInstance = {
+    name: 'autoplay',
+    options: {},
+    init: vi.fn(),
+    destroy: vi.fn(),
+    play: vi.fn(),
+    stop: vi.fn(),
+    reset: vi.fn(),
+    isPlaying: vi.fn(() => false),
+  };
+
   const mockEmblaApi = {
     scrollNext: vi.fn(),
     scrollPrev: vi.fn(),
@@ -24,21 +35,14 @@ const { mockEmblaApi, mockUseEmblaCarousel, mockAutoplay } = vi.hoisted(() => {
     off: vi.fn(),
     destroy: vi.fn(),
     reInit: vi.fn(),
+    plugins: vi.fn(() => ({ autoplay: mockAutoplayInstance })),
   };
 
   const mockUseEmblaCarousel = vi.fn(() => [vi.fn(), mockEmblaApi]);
 
-  const mockAutoplay = vi.fn(() => ({
-    name: 'autoplay',
-    options: {},
-    init: vi.fn(),
-    destroy: vi.fn(),
-    play: vi.fn(),
-    stop: vi.fn(),
-    reset: vi.fn(),
-  }));
+  const mockAutoplay = vi.fn(() => mockAutoplayInstance);
 
-  return { mockEmblaApi, mockUseEmblaCarousel, mockAutoplay };
+  return { mockEmblaApi, mockUseEmblaCarousel, mockAutoplay, mockAutoplayInstance };
 });
 
 vi.mock('embla-carousel-react', () => ({
@@ -1211,6 +1215,178 @@ describe('useBannerCarousel', () => {
       expect(keys).toContain('onDotButtonClick');
       expect(keys).toContain('scrollTo');
       expect(keys).toHaveLength(9);
+    });
+  });
+
+  describe('Autoplay Error Handling (AC1)', () => {
+    it('should not throw when autoplay plugin is unavailable', async () => {
+      mockEmblaApi.plugins.mockReturnValueOnce({} as any);
+      
+      expect(() => {
+        renderHook(() => useBannerCarousel({ autoplay: true }));
+      }).not.toThrow();
+    });
+
+    it('should not throw when plugins() throws an error', async () => {
+      mockEmblaApi.plugins.mockImplementationOnce(() => {
+        throw new Error('Plugin access failed');
+      });
+
+      expect(() => {
+        renderHook(() => useBannerCarousel({ autoplay: true }));
+      }).not.toThrow();
+    });
+
+    it('should not throw when plugins() returns null', async () => {
+      mockEmblaApi.plugins.mockReturnValueOnce(null as any);
+
+      expect(() => {
+        renderHook(() => useBannerCarousel({ autoplay: true }));
+      }).not.toThrow();
+    });
+
+    it('should not throw when autoplay plugin is not an object', async () => {
+      mockEmblaApi.plugins.mockReturnValueOnce({ autoplay: 'invalid' } as any);
+
+      expect(() => {
+        renderHook(() => useBannerCarousel({ autoplay: true }));
+      }).not.toThrow();
+    });
+
+    it('should not call play() when plugin is unavailable', async () => {
+      mockEmblaApi.plugins.mockReturnValueOnce({} as any);
+      mockAutoplayInstance.play.mockClear();
+
+      renderHook(() => useBannerCarousel({ autoplay: true }));
+
+      await waitFor(() => {
+        expect(mockAutoplayInstance.play).not.toHaveBeenCalled();
+      });
+    });
+  });
+
+  describe('Autoplay Method Validation (AC10)', () => {
+    it('should validate play() method exists before calling', async () => {
+      const invalidPlugin = { ...mockAutoplayInstance, play: undefined as any };
+      mockEmblaApi.plugins.mockReturnValueOnce({ autoplay: invalidPlugin } as any);
+
+      expect(() => {
+        renderHook(() => useBannerCarousel({ autoplay: true }));
+      }).not.toThrow();
+    });
+
+    it('should validate play() is a function before calling', async () => {
+      const invalidPlugin = { ...mockAutoplayInstance, play: 'not-a-function' as any };
+      mockEmblaApi.plugins.mockReturnValueOnce({ autoplay: invalidPlugin } as any);
+
+      expect(() => {
+        renderHook(() => useBannerCarousel({ autoplay: true }));
+      }).not.toThrow();
+    });
+
+    it('should call play() when it exists and is a function', async () => {
+      mockAutoplayInstance.play.mockClear();
+      mockAutoplayInstance.isPlaying.mockReturnValue(false);
+
+      renderHook(() => useBannerCarousel({ autoplay: true }));
+
+      await waitFor(() => {
+        expect(mockAutoplayInstance.play).toHaveBeenCalled();
+      });
+    });
+
+    it('should not call play() when already playing', async () => {
+      mockAutoplayInstance.play.mockClear();
+      mockAutoplayInstance.isPlaying.mockReturnValue(true);
+
+      renderHook(() => useBannerCarousel({ autoplay: true }));
+
+      await waitFor(() => {
+        expect(mockAutoplayInstance.play).not.toHaveBeenCalled();
+      });
+    });
+  });
+
+  describe('Autoplay Cleanup and Memory Leaks (AC11)', () => {
+    it('should call stop() on unmount when autoplay is enabled', async () => {
+      mockAutoplayInstance.stop.mockClear();
+
+      const { unmount } = renderHook(() => useBannerCarousel({ autoplay: true }));
+
+      await waitFor(() => {
+        expect(mockEmblaApi.plugins).toHaveBeenCalled();
+      });
+
+      unmount();
+
+      expect(mockAutoplayInstance.stop).toHaveBeenCalled();
+    });
+
+    it('should not throw during cleanup if plugins() fails', async () => {
+      const { unmount } = renderHook(() => useBannerCarousel({ autoplay: true }));
+
+      mockEmblaApi.plugins.mockImplementationOnce(() => {
+        throw new Error('Cleanup error');
+      });
+
+      expect(() => unmount()).not.toThrow();
+    });
+
+    it('should not throw during cleanup if stop() is missing', async () => {
+      const { unmount } = renderHook(() => useBannerCarousel({ autoplay: true }));
+
+      const invalidPlugin = { ...mockAutoplayInstance, stop: undefined as any };
+      mockEmblaApi.plugins.mockReturnValueOnce({ autoplay: invalidPlugin } as any);
+
+      expect(() => unmount()).not.toThrow();
+    });
+
+    it('should not call stop() on unmount when autoplay is disabled', async () => {
+      mockAutoplayInstance.stop.mockClear();
+
+      const { unmount } = renderHook(() => useBannerCarousel({ autoplay: false }));
+
+      unmount();
+
+      expect(mockAutoplayInstance.stop).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Autoplay Race Conditions (AC2)', () => {
+    it('should handle rapid emblaApi changes without errors', async () => {
+      const { rerender } = renderHook(
+        ({ api }) => {
+          mockUseEmblaCarousel.mockReturnValue([vi.fn(), api]);
+          return useBannerCarousel({ autoplay: true });
+        },
+        { initialProps: { api: mockEmblaApi } }
+      );
+
+      const newApi = { ...mockEmblaApi, plugins: vi.fn(() => ({ autoplay: mockAutoplayInstance })) };
+
+      expect(() => {
+        rerender({ api: newApi });
+        rerender({ api: mockEmblaApi });
+        rerender({ api: newApi });
+      }).not.toThrow();
+    });
+
+    it('should use stable callback to prevent race conditions', async () => {
+      mockAutoplayInstance.play.mockClear();
+
+      const { rerender } = renderHook(
+        ({ delay }) => useBannerCarousel({ autoplay: true, autoplayDelay: delay }),
+        { initialProps: { delay: 3000 } }
+      );
+
+      // Rapid rerenders should not cause multiple play() calls due to stable callback
+      rerender({ delay: 3000 });
+      rerender({ delay: 3000 });
+
+      await waitFor(() => {
+        // Should only call play once (or minimal times) due to useCallback stability
+        expect(mockAutoplayInstance.play.mock.calls.length).toBeLessThanOrEqual(2);
+      });
     });
   });
 });
