@@ -71,6 +71,10 @@ So that I can display them on the homepage in a high-performance carousel.
 - [x] [AI-Review][MEDIUM] Add search capabilities: `BrandViewSet` lacks `filter_backends` and `search_fields`. Add `SearchFilter` and enable searching by `name` for better usability. [apps/products/views.py]
 - [x] [AI-Review][LOW] Optimize payload size: Create `BrandFeaturedSerializer` (inheriting or standalone) that excludes `description` field as it's not needed for the carousel and increases JSON size unnecessarily. [apps/products/serializers.py]
 
+- [x] [AI-Review][MEDIUM] Refactor `BrandFeaturedSerializer` to inherit from `BrandSerializer` or a common mixin to eliminate code duplication in `get_image`. [backend/apps/products/serializers.py]
+- [x] [AI-Review][MEDIUM] Refactor `BrandSerializer.validate` to avoid side-effects (modifying `self.instance` directly) during validation. Use `Brand(**attrs)` for validation check instead. [backend/apps/products/serializers.py]
+- [x] [AI-Review][LOW] Clarify `featured` action filtering behavior. Document that global `filter_backends` (SearchFilter) are intentionally bypassed due to fixed caching key strategy. [backend/apps/products/views.py]
+
 ## Dev Notes
 
 ### Architecture & Patterns
@@ -145,6 +149,10 @@ Claude Opus 4.6
 - ✅ Resolved review finding [MEDIUM]: Добавлен `SearchFilter` + `search_fields = ["name"]` в `BrandViewSet` для поиска брендов по имени.
 - ✅ Resolved review finding [LOW]: Создан `BrandFeaturedSerializer` без поля `description` для оптимизации payload size featured endpoint. Featured action использует `BrandFeaturedSerializer` вместо `BrandSerializer`.
 - ✅ Updated tests: `apps/products/tests/test_brand_api.py` — 28 passed (11 endpoint + 2 search + 2 featured serializer + 7 caching + 5 selective invalidation + 2 constants). Products app regression: 254 passed, 3 pre-existing failures (Windows cp1250 encoding, Celery task ID).
+- ✅ Resolved review finding [MEDIUM]: `BrandFeaturedSerializer` теперь наследует от `BrandSerializer` — устранено дублирование `get_image()`. Переопределяет только `Meta.fields` (исключает `description`).
+- ✅ Resolved review finding [MEDIUM]: `BrandSerializer.validate` больше не мутирует `self.instance`. Создаёт временный `Brand()` из merged concrete fields для валидации.
+- ✅ Resolved review finding [LOW]: `featured` action явно устанавливает `filter_backends=[]` с docstring-документацией причины bypass SearchFilter (фиксированный cache key).
+- ✅ Regression: 28 brand API tests passed. Products: 254 passed, 2 pre-existing failures (Celery task ID).
 
 ### Change Log
 
@@ -153,6 +161,7 @@ Claude Opus 4.6
 - 2026-02-16: Addressed final 4 review findings (1 HIGH, 2 MEDIUM, 1 LOW). Fixed race condition with `transaction.on_commit`. Extracted constants to `constants.py`. Documented bulk update limitation. Made `BrandSerializer.validate` robust.
 - 2026-02-16: Closed remaining 4 review follow-ups (2 MEDIUM, 2 LOW): cache-safe featured payload (host-independent), bounded featured result set (max 50), namespaced cache key, and queryset duplication reduction. Updated endpoint and regression tests accordingly.
 - 2026-02-17: Addressed final 3 review follow-ups (2 MEDIUM, 1 LOW): selective cache invalidation based on changed fields (prevents thrashing), SearchFilter for brand name search, lightweight BrandFeaturedSerializer without description. Added 9 new tests (28 total).
+- 2026-02-17: Addressed 3 review follow-ups (2 MEDIUM, 1 LOW): BrandFeaturedSerializer inherits from BrandSerializer (DRY), validate() no longer mutates self.instance, featured action explicitly bypasses SearchFilter with filter_backends=[].
 
 ### File List
 

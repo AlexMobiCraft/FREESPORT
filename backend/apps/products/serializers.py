@@ -309,11 +309,20 @@ class BrandSerializer(serializers.ModelSerializer):
         return str(obj.image.url)
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
-        """Вызов модельной валидации Brand.clean() для проверки бизнес-правил."""
+        """Вызов модельной валидации Brand.clean() для проверки бизнес-правил.
+
+        Создаёт временный экземпляр для валидации, не мутируя self.instance.
+        """
         if self.instance:
-            instance = self.instance
-            for attr, value in attrs.items():
-                setattr(instance, attr, value)
+            concrete_field_names = {f.name for f in Brand._meta.concrete_fields}
+            merged = {
+                name: getattr(self.instance, name)
+                for name in concrete_field_names
+                if hasattr(self.instance, name)
+            }
+            merged.update(attrs)
+            instance = Brand(**{k: v for k, v in merged.items() if k in concrete_field_names})
+            instance.pk = self.instance.pk
         else:
             instance = Brand(**attrs)
         try:
@@ -323,23 +332,15 @@ class BrandSerializer(serializers.ModelSerializer):
         return attrs
 
 
-class BrandFeaturedSerializer(serializers.ModelSerializer):
-    """Lightweight serializer для featured brands endpoint (без description)."""
+class BrandFeaturedSerializer(BrandSerializer):
+    """Lightweight serializer для featured brands endpoint (без description).
 
-    image = serializers.SerializerMethodField()
+    Наследует get_image() от BrandSerializer. Исключает description
+    для оптимизации payload size карусели на главной странице.
+    """
 
-    class Meta:
-        model = Brand
+    class Meta(BrandSerializer.Meta):
         fields = ["id", "name", "slug", "image", "website", "is_featured"]
-
-    def get_image(self, obj: Brand) -> str | None:
-        """Возвращает URL изображения или None."""
-        if not obj.image:
-            return None
-        request = self.context.get("request")
-        if request and hasattr(request, "build_absolute_uri"):
-            return request.build_absolute_uri(obj.image.url)
-        return str(obj.image.url)
 
 
 class CategorySerializer(serializers.ModelSerializer):

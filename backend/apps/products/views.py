@@ -290,9 +290,14 @@ class BrandViewSet(viewsets.ReadOnlyModelViewSet):
         description="Получение списка избранных брендов для отображения на главной странице. Ответ кэшируется на 1 час.",
         tags=["Brands"],
     )
-    @action(detail=False, methods=["get"], url_path="featured", pagination_class=None)
+    @action(detail=False, methods=["get"], url_path="featured", pagination_class=None, filter_backends=[])
     def featured(self, request, *args, **kwargs):
-        """Список избранных брендов с кэшированием на 1 час (flat JSON list)."""
+        """Список избранных брендов с кэшированием на 1 час (flat JSON list).
+
+        filter_backends=[] intentionally bypasses global SearchFilter because
+        this action uses a fixed cache key — applying search params would serve
+        stale/wrong cached results. Search is available on the list endpoint.
+        """
         cached = cache.get(FEATURED_BRANDS_CACHE_KEY)
         if cached is not None:
             return Response(cached)
