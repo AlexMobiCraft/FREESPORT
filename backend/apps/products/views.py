@@ -7,27 +7,15 @@ from __future__ import annotations
 from typing import Any
 
 from django.core.cache import cache
+from django.db.models import Count, Exists, Min, OuterRef, Prefetch, Q, Sum
+from django_filters.rest_framework import DjangoFilterBackend
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import filters, permissions, viewsets
 from rest_framework.decorators import action
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.request import Request
 from rest_framework.response import Response
-
-
-class CustomPageNumberPagination(PageNumberPagination):
-    page_size_query_param = "page_size"
-    max_page_size = 100
-
-
-class BrandPageNumberPagination(CustomPageNumberPagination):
-    page_size = 100
-    max_page_size = 500
-
-
-from django.db.models import Count, Exists, Min, OuterRef, Prefetch, Q, Sum
-from django_filters.rest_framework import DjangoFilterBackend
-from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import OpenApiParameter, extend_schema
 
 from .constants import FEATURED_BRANDS_CACHE_KEY, FEATURED_BRANDS_CACHE_TIMEOUT, FEATURED_BRANDS_MAX_ITEMS
 from .filters import ProductFilter
@@ -42,6 +30,16 @@ from .serializers import (
     ProductListSerializer,
 )
 from .services.facets import AttributeFacetService
+
+
+class CustomPageNumberPagination(PageNumberPagination):
+    page_size_query_param = "page_size"
+    max_page_size = 100
+
+
+class BrandPageNumberPagination(CustomPageNumberPagination):
+    page_size = 100
+    max_page_size = 500
 
 
 class ProductViewSet(viewsets.ReadOnlyModelViewSet):

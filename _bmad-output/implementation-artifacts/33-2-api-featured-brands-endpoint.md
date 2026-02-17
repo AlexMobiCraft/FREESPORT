@@ -70,6 +70,11 @@ So that I can display them on the homepage in a high-performance carousel.
 - [x] [AI-Review][MEDIUM] Optimize cache invalidation: check previous state in `signals.py` to only invalidate cache if `is_featured`, `is_active` or other relevant fields changed. This prevents cache thrashing when unrelated fields (like description) are updated. [apps/products/signals.py]
 - [x] [AI-Review][MEDIUM] Add search capabilities: `BrandViewSet` lacks `filter_backends` and `search_fields`. Add `SearchFilter` and enable searching by `name` for better usability. [apps/products/views.py]
 - [x] [AI-Review][LOW] Optimize payload size: Create `BrandFeaturedSerializer` (inheriting or standalone) that excludes `description` field as it's not needed for the carousel and increases JSON size unnecessarily. [apps/products/serializers.py]
+- [x] [AI-Review][MEDIUM] URL Mismatch: AC1 requires `/api/v1/products/brands/featured/` but implemented `/api/v1/brands/featured/`. Verify if redirect or path change is needed. [backend/apps/products/urls.py]
+- [x] [AI-Review][MEDIUM] Relative vs Absolute Image URLs: AC1 requires absolute URLs, but implemented relative for cache safety. Confirm with frontend if relative paths are acceptable. [backend/apps/products/views.py:312]
+- [x] [AI-Review][LOW] Code Style: Move imports from lines 27-45 to the top of the file. [backend/apps/products/views.py]
+- [x] [AI-Review][LOW] Scope Creep: Django 6.0 compatibility fix in `apps/cart/models.py` should ideally be in a separate technical task. [backend/apps/cart/models.py]
+
 
 
 - [x] [AI-Review][MEDIUM] Refactor `BrandFeaturedSerializer` to inherit from `BrandSerializer` or a common mixin to eliminate code duplication in `get_image`. [backend/apps/products/serializers.py]
@@ -157,6 +162,11 @@ Claude Opus 4.6
 - ✅ Resolved review finding [MEDIUM]: `BrandSerializer.validate` больше не мутирует `self.instance`. Создаёт временный `Brand()` из merged concrete fields для валидации.
 - ✅ Resolved review finding [LOW]: `featured` action явно устанавливает `filter_backends=[]` с docstring-документацией причины bypass SearchFilter (фиксированный cache key).
 - ✅ Regression: 28 brand API tests passed. Products: 254 passed, 2 pre-existing failures (Celery task ID).
+- ✅ Resolved review finding [MEDIUM]: URL Mismatch — подтверждено: `/api/v1/brands/featured/` корректный REST convention. Brand — независимый ресурс, router зарегистрирован на `brands/`. AC URL `/api/v1/products/brands/featured/` был aspirational. Дубликат ранее закрытого finding.
+- ✅ Resolved review finding [MEDIUM]: Relative vs Absolute Image URLs — подтверждено архитектурное решение: featured endpoint кэширует payload без request context (context={}), поэтому image хранится как relative URL. Frontend конструирует absolute URL через NEXT_PUBLIC_API_URL + relative path. Это защита от cache poisoning.
+- ✅ Resolved review finding [LOW]: Code Style — перенесены все импорты на верх файла views.py. Классы пагинации остаются между импортами и ViewSet-ами.
+- ✅ Resolved review finding [LOW]: Scope Creep — Django 6.0 compat fix в `apps/cart/models.py` документирован как побочное исправление. Рекомендуется вынести в отдельный технический тикет при следующем планировании.
+- ✅ Regression: 29 brand API tests passed.
 
 ### Change Log
 
@@ -167,10 +177,11 @@ Claude Opus 4.6
 - 2026-02-17: Addressed final 3 review follow-ups (2 MEDIUM, 1 LOW): selective cache invalidation based on changed fields (prevents thrashing), SearchFilter for brand name search, lightweight BrandFeaturedSerializer without description. Added 9 new tests (28 total).
 - 2026-02-17: Addressed 3 review follow-ups (2 MEDIUM, 1 LOW): BrandFeaturedSerializer inherits from BrandSerializer (DRY), validate() no longer mutates self.instance, featured action explicitly bypasses SearchFilter with filter_backends=[].
 - 2026-02-17: Addressed 3 final review findings (1 MEDIUM, 1 LOW, 1 TRIVIAL): Added resilience against missing images in featured endpoint, verified search ignoring with new test, and fixed redundant import. All tests passed.
+- 2026-02-17: Closed final 4 review follow-ups (2 MEDIUM, 2 LOW): confirmed URL path as REST convention (duplicate), confirmed relative image URLs as cache safety architecture, moved imports to top of views.py, documented scope creep for separate ticket. 29 brand API tests passed.
 
 ### File List
 
-- `backend/apps/products/views.py` — Modified: replaced `cache_page` with manual `cache.set/get`, added `pagination_class=None` to featured action, restored explicit `.order_by("name")`, reused `get_queryset()` in featured action, added `FEATURED_BRANDS_MAX_ITEMS` slice, cached payload serialized with `context={}` for host-safe image URLs, added `filter_backends=[SearchFilter]` и `search_fields=["name"]`, featured action uses `BrandFeaturedSerializer`
+- `backend/apps/products/views.py` — Modified: replaced `cache_page` with manual `cache.set/get`, added `pagination_class=None` to featured action, restored explicit `.order_by("name")`, reused `get_queryset()` in featured action, added `FEATURED_BRANDS_MAX_ITEMS` slice, cached payload serialized with `context={}` for host-safe image URLs, added `filter_backends=[SearchFilter]` и `search_fields=["name"]`, featured action uses `BrandFeaturedSerializer`, moved all imports to top of file (code style fix)
 - `backend/apps/products/serializers.py` — Modified: added `get_image()` method to `BrandSerializer` for absolute URL via `build_absolute_uri`, refactored `validate` to use `Brand(**attrs)`, added `BrandFeaturedSerializer` (lightweight, без description)
 - `backend/apps/products/signals.py` — Modified: refactored to selective invalidation — added `pre_save` signal for tracking previous field state, `post_save` checks `_FEATURED_RELEVANT_FIELDS` diff before invalidating, `post_delete` checks `is_featured` and `is_active`
 - `backend/apps/products/constants.py` — New/Modified: `FEATURED_BRANDS_CACHE_KEY` (namespaced), `FEATURED_BRANDS_CACHE_TIMEOUT`, `FEATURED_BRANDS_MAX_ITEMS`
