@@ -11,6 +11,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, cast
 
+from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils.text import slugify
@@ -23,13 +24,21 @@ if TYPE_CHECKING:
     from apps.users.models import User
 
 
+class BrandManager(models.Manager["Brand"]):
+    """Кастомный менеджер для модели Brand."""
+
+    def active(self) -> models.QuerySet["Brand"]:
+        """Возвращает только активные бренды."""
+        return self.filter(is_active=True)
+
+
 class Brand(models.Model):
     """
     Модель бренда товаров
     """
 
     name = cast(str, models.CharField("Название бренда", max_length=100, unique=False))
-    slug = cast(str, models.SlugField("Slug", max_length=255, unique=False))
+    slug = cast(str, models.SlugField("Slug", max_length=255, unique=True))
     normalized_name = cast(
         str,
         models.CharField(
@@ -42,36 +51,72 @@ class Brand(models.Model):
             help_text="Нормализованное название для дедупликации брендов",
         ),
     )
-    logo = cast(models.ImageField, models.ImageField("Логотип", upload_to="brands/", blank=True))
+    image = cast(models.ImageField, models.ImageField("Изображение", upload_to="brands/", blank=True))
+    is_featured = cast(bool, models.BooleanField("Показывать на главной", default=False, db_index=True))
     description = cast(str, models.TextField("Описание", blank=True))
     website = cast(str, models.URLField("Веб-сайт", blank=True))
-    is_active = cast(bool, models.BooleanField("Активный", default=True))
+    is_active = cast(bool, models.BooleanField("Активный", default=True, db_index=True))
 
     created_at = cast(datetime, models.DateTimeField("Дата создания", auto_now_add=True))
     updated_at = cast(datetime, models.DateTimeField("Дата обновления", auto_now=True))
+
+    objects = BrandManager()
 
     class Meta:
         verbose_name = "Бренд"
         verbose_name_plural = "Бренды"
         db_table = "brands"
 
+    def clean(self) -> None:
+        super().clean()
+        errors: dict[str, str] = {}
+
+        if self.is_featured and not self.image:
+            errors["image"] = "Image is required for featured brands"
+
+        # Проверка уникальности normalized_name до save(), чтобы вернуть
+        # ValidationError вместо IntegrityError (500)
+        if self.name:
+            computed_normalized = normalize_brand_name(self.name)
+            qs = Brand.objects.filter(normalized_name=computed_normalized)
+            if self.pk:
+                qs = qs.exclude(pk=self.pk)
+            if qs.exists():
+                errors["name"] = (
+                    f"Brand with similar name already exists "
+                    f"(normalized: '{computed_normalized}')"
+                )
+
+        if errors:
+            raise ValidationError(errors)
+
     def save(self, *args: Any, **kwargs: Any) -> None:
         # Вычисляем normalized_name при сохранении
-        # Если name пустой, используем пустую строку вместо None
         self.normalized_name = normalize_brand_name(self.name) if self.name else ""
 
         if not self.slug:
             try:
                 # Транслитерация кириллицы в латиницу, затем slugify
                 transliterated = translit(self.name, "ru", reversed=True)
-                self.slug = slugify(transliterated)
+                base_slug = slugify(transliterated)
             except RuntimeError:
                 # Fallback на обычный slugify
-                self.slug = slugify(self.name)
+                base_slug = slugify(self.name)
 
             # Если slug все еще пустой, создаем fallback
-            if not self.slug:
-                self.slug = f"brand-{self.pk or 0}"
+            if not base_slug:
+                base_slug = f"brand-{self.pk or 0}"
+
+            # Обеспечиваем уникальность slug
+            self.slug = base_slug
+            counter = 1
+            while Brand.objects.filter(slug=self.slug).exclude(pk=self.pk).exists():
+                self.slug = f"{base_slug}-{counter}"
+                counter += 1
+                if counter > 100:
+                    self.slug = f"{base_slug}-{uuid.uuid4().hex[:8]}"
+                    break
+
         super().save(*args, **kwargs)
 
     def __str__(self) -> str:

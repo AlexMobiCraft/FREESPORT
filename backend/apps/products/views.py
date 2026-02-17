@@ -6,10 +6,30 @@ from __future__ import annotations
 
 from typing import Any
 
+from django.core.cache import cache
+from django.db.models import Count, Exists, Min, OuterRef, Prefetch, Q, Sum
+from django_filters.rest_framework import DjangoFilterBackend
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import filters, permissions, viewsets
+from rest_framework.decorators import action
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.request import Request
 from rest_framework.response import Response
+
+from .constants import FEATURED_BRANDS_CACHE_KEY, FEATURED_BRANDS_CACHE_TIMEOUT, FEATURED_BRANDS_MAX_ITEMS
+from .filters import ProductFilter
+from .models import Attribute, AttributeValue, Brand, Category, Product, ProductVariant
+from .serializers import (
+    AttributeFilterSerializer,
+    BrandFeaturedSerializer,
+    BrandSerializer,
+    CategorySerializer,
+    CategoryTreeSerializer,
+    ProductDetailSerializer,
+    ProductListSerializer,
+)
+from .services.facets import AttributeFacetService
 
 
 class CustomPageNumberPagination(PageNumberPagination):
@@ -20,24 +40,6 @@ class CustomPageNumberPagination(PageNumberPagination):
 class BrandPageNumberPagination(CustomPageNumberPagination):
     page_size = 100
     max_page_size = 500
-
-
-from django.db.models import Count, Exists, Min, OuterRef, Prefetch, Q, Sum
-from django_filters.rest_framework import DjangoFilterBackend
-from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import OpenApiParameter, extend_schema
-
-from .filters import ProductFilter
-from .models import Attribute, AttributeValue, Brand, Category, Product, ProductVariant
-from .serializers import (
-    AttributeFilterSerializer,
-    BrandSerializer,
-    CategorySerializer,
-    CategoryTreeSerializer,
-    ProductDetailSerializer,
-    ProductListSerializer,
-)
-from .services.facets import AttributeFacetService
 
 
 class ProductViewSet(viewsets.ReadOnlyModelViewSet):
@@ -246,14 +248,28 @@ class BrandViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = BrandSerializer
     lookup_field = "slug"
     pagination_class = BrandPageNumberPagination
+    filter_backends = [filters.SearchFilter]
+    search_fields = ["name"]
 
     def get_queryset(self):
-        """Только активные бренды"""
-        return Brand.objects.filter(is_active=True).order_by("name")
+        """Активные бренды с опциональной фильтрацией по is_featured"""
+        qs = Brand.objects.active().order_by("name")
+        if self.action != "featured":
+            is_featured = self.request.query_params.get("is_featured")
+            if is_featured is not None:
+                qs = qs.filter(is_featured=is_featured.lower() in ("true", "1"))
+        return qs
 
     @extend_schema(
         summary="Список брендов",
-        description="Получение списка всех активных брендов",
+        description="Получение списка всех активных брендов с опциональной фильтрацией по is_featured",
+        parameters=[
+            OpenApiParameter(
+                "is_featured",
+                OpenApiTypes.BOOL,
+                description="Фильтр по featured-статусу бренда (true/false)",
+            ),
+        ],
         tags=["Brands"],
     )
     def list(self, request, *args, **kwargs):
@@ -266,6 +282,35 @@ class BrandViewSet(viewsets.ReadOnlyModelViewSet):
     )
     def retrieve(self, request, *args, **kwargs):
         return super().retrieve(request, *args, **kwargs)
+
+    @extend_schema(
+        summary="Избранные бренды",
+        description="Получение списка избранных брендов для отображения на главной странице. Ответ кэшируется на 1 час.",
+        tags=["Brands"],
+    )
+    @action(detail=False, methods=["get"], url_path="featured", pagination_class=None, filter_backends=[])
+    def featured(self, request, *args, **kwargs):
+        """Список избранных брендов с кэшированием на 1 час (flat JSON list).
+
+        filter_backends=[] intentionally bypasses global SearchFilter because
+        this action uses a fixed cache key — applying search params would serve
+        stale/wrong cached results. Search is available on the list endpoint.
+        """
+        cached = cache.get(FEATURED_BRANDS_CACHE_KEY)
+        if cached is not None:
+            return Response(cached)
+
+        queryset = (
+            self.get_queryset()
+            .filter(is_featured=True)
+            .exclude(Q(image="") | Q(image__isnull=True))[:FEATURED_BRANDS_MAX_ITEMS]
+        )
+
+        # Не передаем request в контекст, чтобы в кэш не попадал host из заголовка.
+        serializer = BrandFeaturedSerializer(queryset, many=True, context={})
+        payload = serializer.data
+        cache.set(FEATURED_BRANDS_CACHE_KEY, payload, FEATURED_BRANDS_CACHE_TIMEOUT)
+        return Response(payload)
 
 
 class AttributeFilterViewSet(viewsets.ReadOnlyModelViewSet):

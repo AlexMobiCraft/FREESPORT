@@ -1,6 +1,6 @@
 # Sprint Status - 1C HTTP Exchange Module
 # =========================================
-# generated: 2026-01-24T10:00:00+01:00
+# generated: 2026-02-16T14:24:01+01:00
 # project: FREESPORT
 # project_key: 1C-HTTP-EXCHANGE
 # tracking_system: file-system
@@ -30,7 +30,7 @@
 # - SM typically creates next story ONLY after previous one is 'done' to incorporate learnings
 # - Dev moves story to 'review', then runs code-review (fresh context, ideally different LLM)
 
-generated: "2026-02-02T12:00:00+01:00"
+generated: "2026-02-16T14:24:01+01:00"
 project: "FREESPORT"
 project_key: "1C-HTTP-EXCHANGE"
 tracking_system: "file-system"
@@ -99,8 +99,22 @@ development_status:
   # Support for marketing banners with specific type, validation, and API filtering.
   # FRs covered: FR1-FR13, NFR1-NFR9
   # ========================================
-  epic-32: in-progress
+  epic-32: done
   32-1-database-and-admin-updates: done
   32-2-api-implementation-marketing-banners: done
-  32-3-frontend-carousel-logic: in-progress
-  32-4-marketing-banners-ui: review
+  32-3-frontend-carousel-logic: done
+  32-4-marketing-banners-ui: done
+
+  # ========================================
+  # Epic 33: Brands Block Implementation
+  # Goal: Enable users to quickly navigate to popular brand catalogs from the homepage and allow admins to manage this content.
+  # FRs covered: FR-01, FR-02, FR-03, FR-04, FR-05, FR-06, FR-07, FR-08, FR-09, FR-10.
+  # NFRs covered: NFR-1 to NFR-8.
+  # Source: epics.md (Brands Block Feature)
+  # ========================================
+  epic-33: in-progress
+  33-1-brand-model-admin-updates: done
+  33-2-api-featured-brands-endpoint: in-progress
+  33-3-brandsblock-component-logic-ui: backlog
+  33-4-integration-into-homepage: backlog
+  epic-33-retrospective: optional

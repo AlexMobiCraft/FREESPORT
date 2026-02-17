@@ -109,6 +109,9 @@ def get_active_banners_queryset(
     if banner_type == Banner.BannerType.MARKETING.value:
         limit = getattr(settings, "MARKETING_BANNER_LIMIT", 5)
         queryset = queryset[:limit]
+    elif banner_type == Banner.BannerType.HERO.value:
+        limit = getattr(settings, "HERO_BANNER_LIMIT", 10)
+        queryset = queryset[:limit]
     return queryset
 
 

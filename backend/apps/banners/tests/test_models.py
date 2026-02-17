@@ -14,10 +14,11 @@ from unittest.mock import patch
 import pytest
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
+from django.db.models import Q
 from django.utils import timezone
 
-from apps.banners.factories import BannerFactory
-from apps.banners.models import Banner
+from apps.banners.factories import BannerFactory, generate_test_image
+from apps.banners.models import Banner, is_safe_internal_cta_link
 
 
 @pytest.mark.unit
@@ -26,32 +27,22 @@ class TestIsSafeInternalCtaLink:
 
     def test_blocks_backslash_in_path(self):
         """Обратный слеш в пути должен быть заблокирован."""
-        from apps.banners.models import is_safe_internal_cta_link
-
         assert is_safe_internal_cta_link("/catalog\\..\\admin") is False
 
     def test_blocks_unc_path(self):
         """UNC-путь (\\\\server\\share) должен быть заблокирован."""
-        from apps.banners.models import is_safe_internal_cta_link
-
         assert is_safe_internal_cta_link("\\\\server\\share") is False
 
     def test_allows_normal_internal_path(self):
         """Обычный внутренний путь должен быть разрешён."""
-        from apps.banners.models import is_safe_internal_cta_link
-
         assert is_safe_internal_cta_link("/catalog?sale=summer") is True
 
     def test_blocks_protocol_relative(self):
         """Protocol-relative URL должен быть заблокирован."""
-        from apps.banners.models import is_safe_internal_cta_link
-
         assert is_safe_internal_cta_link("//evil.com") is False
 
     def test_blocks_javascript_scheme(self):
         """javascript: протокол должен быть заблокирован."""
-        from apps.banners.models import is_safe_internal_cta_link
-
         assert is_safe_internal_cta_link("javascript:alert(1)") is False
 
 
@@ -199,8 +190,6 @@ class TestBannerSaveCallsFullClean:
 
     def test_save_marketing_with_image_succeeds(self):
         """save() Marketing баннера с image проходит."""
-        from apps.banners.factories import generate_test_image
-
         banner = Banner(
             title="Test Marketing OK",
             subtitle="Test",

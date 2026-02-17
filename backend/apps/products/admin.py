@@ -15,6 +15,7 @@ from django.db import transaction
 from django.db.models import Count, QuerySet
 from django.http import HttpRequest, HttpResponseRedirect
 from django.shortcuts import render
+from django.utils.html import format_html
 
 from .forms import (
     MergeAttributesActionForm,
@@ -80,18 +81,49 @@ class BrandAdmin(admin.ModelAdmin):
     """Admin для модели Brand"""
 
     list_display = (
+        "image_preview",
         "name",
         "slug",
         "normalized_name",
+        "is_featured",
         "mappings_count",
         "is_active",
         "created_at",
     )
-    list_filter = ("is_active", "created_at")
+    list_filter = ("is_active", "is_featured", "created_at")
     search_fields = ("name", "slug", "normalized_name")
     prepopulated_fields = {"slug": ("name",)}
     readonly_fields = ("normalized_name", "created_at", "updated_at")
     inlines = [Brand1CMappingInline]
+    fieldsets = (
+        (
+            "Основная информация",
+            {
+                "fields": (
+                    "name",
+                    "slug",
+                    "normalized_name",
+                    "description",
+                    "website",
+                )
+            },
+        ),
+        (
+            "Изображение и отображение",
+            {
+                "fields": (
+                    "image",
+                    "is_featured",
+                )
+            },
+        ),
+        (
+            "Статус и даты",
+            {
+                "fields": ("is_active", "created_at", "updated_at"),
+            },
+        ),
+    )
 
     def get_queryset(self, request: HttpRequest) -> QuerySet[Brand]:
         """Оптимизация запросов и аннотация количества маппингов"""
@@ -102,6 +134,13 @@ class BrandAdmin(admin.ModelAdmin):
     def mappings_count(self, obj: Brand) -> int:
         """Возвращает количество связанных маппингов 1С"""
         return getattr(obj, "mappings_count", 0)
+
+    @admin.display(description="Лого")
+    def image_preview(self, obj: Brand) -> str:
+        """Превью изображения бренда в list view"""
+        if obj.image:
+            return format_html('<img src="{}" style="max-height:50px;max-width:100px;" />', obj.image.url)
+        return "-"
 
     @admin.action(description="Объединить выбранные бренды")
     def merge_brands(self, request: HttpRequest, queryset: QuerySet[Brand]) -> Any:

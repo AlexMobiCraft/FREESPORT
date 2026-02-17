@@ -7,7 +7,8 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, cast
 
-from django.db.models import Count, Q
+from django.core.exceptions import ValidationError
+from django.db.models import Count, Q, Sum
 from rest_framework import serializers
 
 from .models import (
@@ -292,18 +293,54 @@ class BrandSerializer(serializers.ModelSerializer):
     """
 
     slug = serializers.SlugField(required=False)
+    image = serializers.SerializerMethodField()
 
     class Meta:
         model = Brand
-        fields = ["id", "name", "slug", "logo", "description", "website"]
+        fields = ["id", "name", "slug", "image", "description", "website", "is_featured"]
 
-    def validate(self, attrs):
-        """Автоматически создаём slug если не указан"""
-        if not attrs.get("slug") and attrs.get("name"):
-            from django.utils.text import slugify
+    def get_image(self, obj: Brand) -> str | None:
+        """Возвращает URL изображения или None."""
+        if not obj.image:
+            return None
+        request = self.context.get("request")
+        if request and hasattr(request, "build_absolute_uri"):
+            return request.build_absolute_uri(obj.image.url)
+        return str(obj.image.url)
 
-            attrs["slug"] = slugify(attrs["name"])
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        """Вызов модельной валидации Brand.clean() для проверки бизнес-правил.
+
+        Создаёт временный экземпляр для валидации, не мутируя self.instance.
+        """
+        if self.instance:
+            concrete_field_names = {f.name for f in Brand._meta.concrete_fields}
+            merged = {
+                name: getattr(self.instance, name)
+                for name in concrete_field_names
+                if hasattr(self.instance, name)
+            }
+            merged.update(attrs)
+            instance = Brand(**{k: v for k, v in merged.items() if k in concrete_field_names})
+            instance.pk = self.instance.pk
+        else:
+            instance = Brand(**attrs)
+        try:
+            instance.clean()
+        except ValidationError as e:
+            raise serializers.ValidationError(e.message_dict)
         return attrs
+
+
+class BrandFeaturedSerializer(BrandSerializer):
+    """Lightweight serializer для featured brands endpoint (без description).
+
+    Наследует get_image() от BrandSerializer. Исключает description
+    для оптимизации payload size карусели на главной странице.
+    """
+
+    class Meta(BrandSerializer.Meta):
+        fields = ["id", "name", "slug", "image", "website", "is_featured"]
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -540,8 +577,7 @@ class ProductListSerializer(serializers.ModelSerializer):
         if hasattr(obj, "total_stock") and obj.total_stock is not None:
             return int(obj.total_stock)
         # Fallback на агрегацию
-        from django.db.models import Sum
-
+        # Fallback на агрегацию
         result = obj.variants.aggregate(total=Sum("stock_quantity"))
         return int(result["total"] or 0)
 
