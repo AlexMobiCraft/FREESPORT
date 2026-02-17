@@ -10,7 +10,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { BrandsBlock } from './BrandsBlock';
 import type { Brand } from '@/types/api';
 
@@ -53,13 +53,16 @@ vi.mock('next/image', () => ({
     sizes?: string;
     className?: string;
     loading?: string;
+    onError?: () => void;
   }) => (
     // eslint-disable-next-line @next/next/no-img-element
     <img
       src={props.src}
       alt={props.alt}
       data-sizes={props.sizes}
+      data-fill={props.fill ? 'true' : undefined}
       className={props.className}
+      onError={props.onError}
     />
   ),
 }));
@@ -83,6 +86,7 @@ function filterMotionProps(props: Record<string, unknown>) {
   const motionKeys = [
     'whileHover',
     'whileTap',
+    'whileFocus',
     'initial',
     'animate',
     'exit',
@@ -145,7 +149,7 @@ describe('BrandsBlock', () => {
   });
 
   // -------------------------------------------------------------------------
-  // AC1: Component renders carousel from props
+  // AC1: Rendering
   // -------------------------------------------------------------------------
   describe('AC1: Rendering', () => {
     it('renders section with brand logos', () => {
@@ -187,6 +191,13 @@ describe('BrandsBlock', () => {
       expect(img.className).toContain('object-contain');
     });
 
+    it('uses fill layout for responsive image sizing', () => {
+      render(<BrandsBlock brands={singleBrand} />);
+
+      const img = screen.getByAltText('Nike');
+      expect(img).toHaveAttribute('data-fill', 'true');
+    });
+
     it('renders images with appropriate sizes prop', () => {
       render(<BrandsBlock brands={singleBrand} />);
 
@@ -204,6 +215,15 @@ describe('BrandsBlock', () => {
       // Brand with null image should not render an image
       expect(screen.queryByAltText('Nike')).not.toBeInTheDocument();
       expect(screen.getByAltText('Adidas')).toBeInTheDocument();
+    });
+
+    it('hides brand card when image fails to load', () => {
+      render(<BrandsBlock brands={singleBrand} />);
+
+      const img = screen.getByAltText('Nike');
+      fireEvent.error(img);
+
+      expect(screen.queryByAltText('Nike')).not.toBeInTheDocument();
     });
   });
 
@@ -248,6 +268,25 @@ describe('BrandsBlock', () => {
       const section = screen.getByTestId('brands-block');
       expect(section.tagName).toBe('SECTION');
     });
+
+    it('brand links are keyboard-focusable via Tab', () => {
+      render(<BrandsBlock brands={mockBrands} />);
+
+      const links = screen.getAllByRole('link');
+      links.forEach((link) => {
+        // Links are natively focusable, verify no negative tabIndex
+        expect(link).not.toHaveAttribute('tabindex', '-1');
+      });
+    });
+
+    it('each link has accessible name from aria-label', () => {
+      render(<BrandsBlock brands={mockBrands} />);
+
+      const links = screen.getAllByRole('link');
+      expect(links[0]).toHaveAttribute('aria-label', 'Nike');
+      expect(links[1]).toHaveAttribute('aria-label', 'Adidas');
+      expect(links[2]).toHaveAttribute('aria-label', 'Puma');
+    });
   });
 
   // -------------------------------------------------------------------------
@@ -262,15 +301,32 @@ describe('BrandsBlock', () => {
       expect(useEmblaCarousel.default).toHaveBeenCalled();
     });
 
-    it('passes responsive slidesToScroll options', async () => {
+    it('passes configured options to embla', async () => {
       const useEmblaCarousel = await import('embla-carousel-react');
 
       render(<BrandsBlock brands={mockBrands} />);
 
       const callArgs = vi.mocked(useEmblaCarousel.default).mock.calls[0];
+      // Check for constants usage indirectly by checking values
       expect(callArgs[0]).toMatchObject({
         align: 'start',
         loop: true,
+        breakpoints: {
+          '(min-width: 640px)': { slidesToScroll: 2 },
+          '(min-width: 1024px)': { slidesToScroll: 3 },
+        },
+      });
+    });
+
+    it('initializes Autoplay with stopOnMouseEnter: true', async () => {
+      const Autoplay = await import('embla-carousel-autoplay');
+
+      render(<BrandsBlock brands={mockBrands} />);
+
+      expect(Autoplay.default).toHaveBeenCalledWith({
+        delay: 3000,
+        stopOnInteraction: true,
+        stopOnMouseEnter: true, // Verification
       });
     });
   });

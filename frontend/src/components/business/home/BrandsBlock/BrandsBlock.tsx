@@ -1,12 +1,23 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import useEmblaCarousel from 'embla-carousel-react';
 import Autoplay from 'embla-carousel-autoplay';
 import { motion } from 'motion/react';
 import type { Brand } from '@/types/api';
+
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+const BRAND_CARD_IDLE_OPACITY = 'opacity-80';
+
+const BREAKPOINTS = {
+  SM: '(min-width: 640px)',
+  LG: '(min-width: 1024px)',
+};
 
 // ---------------------------------------------------------------------------
 // BrandCard (internal)
@@ -17,25 +28,29 @@ interface BrandCardProps {
 }
 
 const BrandCard: React.FC<BrandCardProps> = ({ brand }) => {
-  if (!brand.image) return null;
+  const [hasError, setHasError] = useState(false);
+
+  if (!brand.image || hasError) return null;
 
   return (
     <Link
       href={`/catalog?brand=${brand.slug}`}
       aria-label={brand.name}
+      className="outline-none"
     >
       <motion.div
         whileHover={{ scale: 1.05, opacity: 1 }}
+        whileFocus={{ scale: 1.05, opacity: 1 }}
         transition={{ duration: 0.2 }}
-        className="flex items-center justify-center h-20 md:h-24 px-4 opacity-80"
+        className={`relative h-20 md:h-24 px-4 ${BRAND_CARD_IDLE_OPACITY}`}
       >
         <Image
           src={brand.image}
           alt={brand.name}
-          width={120}
-          height={60}
+          fill
           sizes="(max-width: 640px) 80px, (max-width: 1024px) 100px, 120px"
-          className="object-contain max-h-full w-auto"
+          className="object-contain"
+          onError={() => setHasError(true)}
         />
       </motion.div>
     </Link>
@@ -60,11 +75,19 @@ export const BrandsBlock: React.FC<BrandsBlockProps> = ({ brands }) => {
       slidesToScroll: 1,
       dragFree: true,
       breakpoints: {
-        '(min-width: 640px)': { slidesToScroll: 2 },
-        '(min-width: 1024px)': { slidesToScroll: 3 },
+        [BREAKPOINTS.SM]: { slidesToScroll: 2 },
+        [BREAKPOINTS.LG]: { slidesToScroll: 3 },
       },
     },
-    visibleBrands.length > 1 ? [Autoplay({ delay: 3000, stopOnInteraction: true })] : []
+    visibleBrands.length > 1
+      ? [
+          Autoplay({
+            delay: 3000,
+            stopOnInteraction: true,
+            stopOnMouseEnter: true,
+          }),
+        ]
+      : []
   );
 
   if (visibleBrands.length === 0) return null;
