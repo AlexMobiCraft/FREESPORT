@@ -114,6 +114,8 @@ const MarketingBannersCarousel: React.FC = () => {
     loop: shouldAnimate,
     autoplay: shouldAnimate,
     autoplayDelay: MARKETING_BANNER_AUTOPLAY_DELAY,
+    stopOnInteraction: false,
+    stopOnMouseEnter: true,
   });
 
   useEffect(() => {
