@@ -302,7 +302,11 @@ class BrandViewSet(viewsets.ReadOnlyModelViewSet):
         if cached is not None:
             return Response(cached)
 
-        queryset = self.get_queryset().filter(is_featured=True)[:FEATURED_BRANDS_MAX_ITEMS]
+        queryset = (
+            self.get_queryset()
+            .filter(is_featured=True)
+            .exclude(Q(image="") | Q(image__isnull=True))[:FEATURED_BRANDS_MAX_ITEMS]
+        )
 
         # Не передаем request в контекст, чтобы в кэш не попадал host из заголовка.
         serializer = BrandFeaturedSerializer(queryset, many=True, context={})

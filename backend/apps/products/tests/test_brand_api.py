@@ -156,6 +156,17 @@ class TestFeaturedBrandsEndpoint:
         assert response.status_code == 200
         assert len(response.data) == FEATURED_BRANDS_MAX_ITEMS
 
+    def test_featured_ignores_search_param(self):
+        """[AI-Review] Featured endpoint ignores search param to protect cache key."""
+        cache.clear()
+        # Request with search param that would filter result if applied
+        # We search for "Adidas" but expect ALL featured brands because search is ignored
+        response = self.client.get(FEATURED_URL, {"search": "adi"})
+        assert response.status_code == 200
+        names = [b["name"] for b in response.data]
+        assert "Adidas" in names
+        assert "Nike" in names
+
 
 LOCMEM_CACHE = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
 

@@ -71,9 +71,13 @@ So that I can display them on the homepage in a high-performance carousel.
 - [x] [AI-Review][MEDIUM] Add search capabilities: `BrandViewSet` lacks `filter_backends` and `search_fields`. Add `SearchFilter` and enable searching by `name` for better usability. [apps/products/views.py]
 - [x] [AI-Review][LOW] Optimize payload size: Create `BrandFeaturedSerializer` (inheriting or standalone) that excludes `description` field as it's not needed for the carousel and increases JSON size unnecessarily. [apps/products/serializers.py]
 
+
 - [x] [AI-Review][MEDIUM] Refactor `BrandFeaturedSerializer` to inherit from `BrandSerializer` or a common mixin to eliminate code duplication in `get_image`. [backend/apps/products/serializers.py]
 - [x] [AI-Review][MEDIUM] Refactor `BrandSerializer.validate` to avoid side-effects (modifying `self.instance` directly) during validation. Use `Brand(**attrs)` for validation check instead. [backend/apps/products/serializers.py]
 - [x] [AI-Review][LOW] Clarify `featured` action filtering behavior. Document that global `filter_backends` (SearchFilter) are intentionally bypassed due to fixed caching key strategy. [backend/apps/products/views.py]
+- [x] [AI-Review][MEDIUM] Missing Image Validation in QuerySet (Resilience): The featured action filters only by is_featured=True. Added exclude(Q(image="") | Q(image__isnull=True)) to prevent nulled images breaking frontend. [apps/products/views.py]
+- [x] [AI-Review][LOW] Implicit Search Ignoring (Testing): Added test_featured_ignores_search_param to verify featured endpoint ignores search parameter to protect cache key. [apps/products/tests/test_brand_api.py]
+- [x] [AI-Review][TRIVIAL] Redundant Import (Code Style): Moved Sum import to top-level in serializers.py. [apps/products/serializers.py]
 
 ## Dev Notes
 
@@ -162,6 +166,7 @@ Claude Opus 4.6
 - 2026-02-16: Closed remaining 4 review follow-ups (2 MEDIUM, 2 LOW): cache-safe featured payload (host-independent), bounded featured result set (max 50), namespaced cache key, and queryset duplication reduction. Updated endpoint and regression tests accordingly.
 - 2026-02-17: Addressed final 3 review follow-ups (2 MEDIUM, 1 LOW): selective cache invalidation based on changed fields (prevents thrashing), SearchFilter for brand name search, lightweight BrandFeaturedSerializer without description. Added 9 new tests (28 total).
 - 2026-02-17: Addressed 3 review follow-ups (2 MEDIUM, 1 LOW): BrandFeaturedSerializer inherits from BrandSerializer (DRY), validate() no longer mutates self.instance, featured action explicitly bypasses SearchFilter with filter_backends=[].
+- 2026-02-17: Addressed 3 final review findings (1 MEDIUM, 1 LOW, 1 TRIVIAL): Added resilience against missing images in featured endpoint, verified search ignoring with new test, and fixed redundant import. All tests passed.
 
 ### File List
 

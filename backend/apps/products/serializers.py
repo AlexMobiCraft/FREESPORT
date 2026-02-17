@@ -8,7 +8,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Any, cast
 
 from django.core.exceptions import ValidationError
-from django.db.models import Count, Q
+from django.db.models import Count, Q, Sum
 from rest_framework import serializers
 
 from .models import (
@@ -577,8 +577,7 @@ class ProductListSerializer(serializers.ModelSerializer):
         if hasattr(obj, "total_stock") and obj.total_stock is not None:
             return int(obj.total_stock)
         # Fallback на агрегацию
-        from django.db.models import Sum
-
+        # Fallback на агрегацию
         result = obj.variants.aggregate(total=Sum("stock_quantity"))
         return int(result["total"] or 0)
 
