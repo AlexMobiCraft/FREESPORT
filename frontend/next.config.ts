@@ -78,7 +78,7 @@ const nextConfig: NextConfig = {
         source: '/media/:path*',
         destination: process.env.NEXT_PUBLIC_MEDIA_URL_INTERNAL
           ? `${process.env.NEXT_PUBLIC_MEDIA_URL_INTERNAL}/media/:path*`
-          : 'http://backend:8000/media/:path*',
+          : 'http://localhost:8001/media/:path*',
       },
       {
         source: '/electric-orange',
