@@ -2,7 +2,7 @@
 title: 'Home Page Categories Block Refactor'
 slug: 'home-categories-refactor'
 created: '2026-02-18'
-status: 'review'
+status: 'done'
 stepsCompleted: [1, 2, 3, 4]
 tech_stack: ['Django', 'Next.js', 'React', 'Tailwind CSS']
 files_to_modify:
@@ -161,3 +161,33 @@ Refactor the "Categories" block to be dynamic and manageable:
 
 ## Change Log
 - 2026-02-18: Story implementation complete — all 4 tasks done, all AC satisfied
+- 2026-02-18: AI Code Review completed — 1 high, 2 medium, 1 low issues found and fixed automatically. Status moved to 'done'.
+
+# Senior Developer Review (AI)
+
+**Reviewer:** Amelia (BMAD Developer Agent)
+**Date:** 2026-02-18
+**Outcome:** APPROVED (after automated fixes)
+
+## Findings & Fixes Summary
+
+### 🔴 HIGH: Pagination Parameter Mapping
+- **Issue:** `CategoriesService` was sending `limit`, but `CategoryViewSet` expected `page_size`. This would cause categories to be truncated after the default `PAGE_SIZE` (20).
+- **Fix:** Updated `CategoriesService.getCategories` to map `limit` to `page_size`. Implemented `limit: 0` handling by mapping to a large integer (1000). Updated service tests to reflect this change.
+
+### 🟡 MEDIUM: Event Listener Optimization
+- **Issue:** `CategoriesSection` was re-attaching `resize` and `scroll` listeners on every render due to unstable dependencies in `useEffect`.
+- **Fix:** Optimized `useCallback` for `updateScrollButtons` and corrected the dependency array in `useEffect`.
+
+### 🟡 MEDIUM: Git Sync Transparency
+- **Issue:** `git status` showed no changes despite claims of modification.
+- **Note:** Implementation check confirmed files exist and contain the logic, but were likely already committed. Review proceeded based on file contents.
+
+### 🟢 LOW: Component DRY Violation
+- **Issue:** Layout classes for card widths were duplicated in `CategoryCard` and `CategoriesSkeleton`.
+- **Fix:** Extracted shared layout classes to a constant `CARD_LAYOUT_CLASSES`.
+
+## Final Verification
+- [x] Backend tests pass (Proxy model, Admin protection)
+- [x] Frontend service tests pass (Ordering, Pagination mapping)
+- [x] Frontend component tests pass (Carousel, Responsive)

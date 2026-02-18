@@ -157,9 +157,24 @@ describe('categoriesService', () => {
         ordering: 'sort_order',
       });
 
-      expect(capturedUrl).toContain('limit=0');
+      expect(capturedUrl).not.toContain('limit=0');
+      expect(capturedUrl).toContain('page_size=1000');
       expect(capturedUrl).toContain('ordering=sort_order');
       expect(capturedUrl).toContain('parent_id__isnull=true');
+    });
+
+    test('maps generic limit to page_size', async () => {
+      let capturedUrl = '';
+      server.use(
+        http.get('http://localhost:8001/api/v1/categories/', ({ request }) => {
+          capturedUrl = request.url;
+          return HttpResponse.json({ results: [] });
+        })
+      );
+
+      await categoriesService.getCategories({ limit: 10 });
+      expect(capturedUrl).not.toContain('limit=10');
+      expect(capturedUrl).toContain('page_size=10');
     });
   });
 });

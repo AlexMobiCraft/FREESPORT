@@ -50,14 +50,23 @@ class CategoriesService {
    * Если передан parent_id, фильтр parent_id__isnull не применяется
    */
   async getCategories(params?: GetCategoriesParams): Promise<Category[]> {
-    const defaults: Record<string, unknown> = { limit: 6 };
+    const defaults: Record<string, unknown> = { page_size: 6 };
     // parent_id__isnull только если parent_id не задан явно
     if (!params?.parent_id) {
       defaults.parent_id__isnull = true;
     }
 
+    const apiParams: Record<string, any> = { ...defaults, ...params };
+
+    // Map 'limit' to 'page_size' for Django REST Framework compatibility
+    if (params?.limit !== undefined) {
+      // 0 means "all" (or reasonably large amount like 1000)
+      apiParams.page_size = params.limit === 0 ? 1000 : params.limit;
+      delete apiParams.limit;
+    }
+
     const response = await apiClient.get<Category[] | PaginatedResponse<Category>>('/categories/', {
-      params: { ...defaults, ...params },
+      params: apiParams,
     });
     // Handle both array and paginated response formats (for E2E mocks compatibility)
     if (Array.isArray(response.data)) {

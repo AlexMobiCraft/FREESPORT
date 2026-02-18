@@ -22,6 +22,7 @@ import categoriesService from '@/services/categoriesService';
 import type { Category } from '@/types/api';
 
 const PLACEHOLDER_IMAGE = '/images/category-placeholder.png';
+const CARD_LAYOUT_CLASSES = 'flex-shrink-0 w-[80vw] sm:w-[40vw] md:w-[250px]';
 
 /**
  * Loading Skeleton для карусели категорий
@@ -32,7 +33,7 @@ const CategoriesSkeleton: React.FC = () => (
       {[...Array(5)].map((_, index) => (
         <div
           key={index}
-          className="flex-shrink-0 w-[80vw] sm:w-[40vw] md:w-[250px] bg-neutral-100 rounded-lg animate-pulse"
+          className={`${CARD_LAYOUT_CLASSES} bg-neutral-100 rounded-lg animate-pulse`}
           aria-hidden="true"
         >
           <div className="aspect-[4/3] bg-neutral-200 rounded-t-lg" />
@@ -78,7 +79,7 @@ const CategoryCard: React.FC<CategoryCardProps> = ({ category }) => {
   return (
     <a
       href={`/catalog/${category.slug}`}
-      className="flex-shrink-0 snap-start w-[80vw] sm:w-[40vw] md:w-[250px] block rounded-lg overflow-hidden shadow-default hover:shadow-hover transition-shadow bg-white group"
+      className={`${CARD_LAYOUT_CLASSES} snap-start block rounded-lg overflow-hidden shadow-default hover:shadow-hover transition-shadow bg-white group`}
       data-testid="category-card"
     >
       <div className="aspect-[4/3] overflow-hidden bg-neutral-100">
@@ -148,7 +149,10 @@ export const CategoriesSection: React.FC = () => {
     const el = scrollRef.current;
     if (!el) return;
 
+    // Initial check
     updateScrollButtons();
+
+    // Add listeners
     el.addEventListener('scroll', updateScrollButtons, { passive: true });
     window.addEventListener('resize', updateScrollButtons);
 
@@ -156,6 +160,7 @@ export const CategoriesSection: React.FC = () => {
       el.removeEventListener('scroll', updateScrollButtons);
       window.removeEventListener('resize', updateScrollButtons);
     };
+    // updateScrollButtons is stable (useCallback []), so this effect only runs when categories/isLoading change
   }, [isLoading, categories, updateScrollButtons]);
 
   const scroll = (direction: 'left' | 'right') => {
