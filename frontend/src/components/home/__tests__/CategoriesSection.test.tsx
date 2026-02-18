@@ -1,6 +1,6 @@
 /**
  * CategoriesSection Component Tests
- * Story 11.2 - AC 3, 5
+ * Story: home-categories-refactor — AC 3, 4, 5
  */
 
 import { describe, it, expect, beforeAll, afterEach, afterAll, vi } from 'vitest';
@@ -16,7 +16,7 @@ afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
 describe('CategoriesSection', () => {
-  it('loads and displays 6 root categories', async () => {
+  it('loads and displays root categories in carousel', async () => {
     render(<CategoriesSection />);
 
     // Loading state
@@ -32,25 +32,39 @@ describe('CategoriesSection', () => {
       expect(screen.getByText('Баскетбол')).toBeInTheDocument();
     });
 
-    // Проверяем заголовок
     expect(screen.getByText('Популярные категории')).toBeInTheDocument();
   });
 
-  it('displays category icons and product counts', async () => {
+  it('renders images with cover fit and placeholder fallback', async () => {
     render(<CategoriesSection />);
 
     await waitFor(() => {
       expect(screen.getByText('Футбол')).toBeInTheDocument();
     });
 
-    // Проверяем отображение количества товаров с правильным склонением
-    expect(screen.getByText('150 товаров')).toBeInTheDocument(); // Футбол
-    expect(screen.getByText('230 товаров')).toBeInTheDocument(); // Бег
-    expect(screen.getByText('95 товаров')).toBeInTheDocument(); // Теннис
+    const cards = screen.getAllByTestId('category-card');
+    expect(cards.length).toBe(6);
 
-    // Проверяем наличие emoji иконок (они рендерятся как text content)
-    const categoryCards = screen.getAllByRole('listitem');
-    expect(categoryCards.length).toBe(6);
+    // Категории с image отображают их
+    const footballImg = screen.getByAltText('Футбол') as HTMLImageElement;
+    expect(footballImg.src).toContain('/media/categories/football.jpg');
+    expect(footballImg.className).toContain('object-cover');
+
+    // Категории без image (Теннис, image: null) получают placeholder
+    const tennisImg = screen.getByAltText('Теннис') as HTMLImageElement;
+    expect(tennisImg.src).toContain('category-placeholder.png');
+  });
+
+  it('displays product counts', async () => {
+    render(<CategoriesSection />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Футбол')).toBeInTheDocument();
+    });
+
+    expect(screen.getByText('150 товаров')).toBeInTheDocument();
+    expect(screen.getByText('230 товаров')).toBeInTheDocument();
+    expect(screen.getByText('95 товаров')).toBeInTheDocument();
   });
 
   it('category links navigate to correct catalog URLs', async () => {
@@ -60,14 +74,12 @@ describe('CategoriesSection', () => {
       expect(screen.getByText('Футбол')).toBeInTheDocument();
     });
 
-    // Проверяем что ссылки ведут на правильные URL (listitem содержат href)
-    const allLinks = screen.getAllByRole('listitem');
-    expect(allLinks[0]).toHaveAttribute('href', '/catalog/football');
-    expect(allLinks[1]).toHaveAttribute('href', '/catalog/running');
+    const cards = screen.getAllByTestId('category-card');
+    expect(cards[0]).toHaveAttribute('href', '/catalog/football');
+    expect(cards[1]).toHaveAttribute('href', '/catalog/running');
   });
 
   it('shows error state on API failure and allows retry', { timeout: 20000 }, async () => {
-    // Устанавливаем error handler ДО render
     server.use(
       http.get('*/categories/', () => {
         return new HttpResponse(JSON.stringify({ detail: 'Internal Server Error' }), {
@@ -80,7 +92,6 @@ describe('CategoriesSection', () => {
     const user = userEvent.setup();
     render(<CategoriesSection />);
 
-    // Проверяем error state (дожидаемся, что загрузка завершится ошибкой)
     await waitFor(
       () => {
         expect(screen.getByText(/Не удалось загрузить категории/i)).toBeInTheDocument();
@@ -103,13 +114,18 @@ describe('CategoriesSection', () => {
     );
   });
 
-  it('uses correct API endpoint with parent_id__isnull filter', async () => {
+  it('uses ordering=sort_order and limit=0 in API call', async () => {
     const requestSpy = vi.fn();
 
     server.use(
       http.get('*/categories/', ({ request }) => {
         requestSpy(request.url);
-        return HttpResponse.json([]);
+        return HttpResponse.json({
+          count: 0,
+          next: null,
+          previous: null,
+          results: [],
+        });
       })
     );
 
@@ -120,14 +136,20 @@ describe('CategoriesSection', () => {
     });
 
     const calledUrl = requestSpy.mock.calls[0][0];
-    expect(calledUrl).toContain('parent_id__isnull=true');
-    expect(calledUrl).toContain('limit=6');
+    expect(calledUrl).toContain('parent__slug=kategorii-dlya-glavnoy');
+    expect(calledUrl).toContain('ordering=sort_order');
+    expect(calledUrl).toContain('page_size=1000');
   });
 
   it('does not render when no categories are returned', async () => {
     server.use(
       http.get('*/categories/', () => {
-        return HttpResponse.json([]);
+        return HttpResponse.json({
+          count: 0,
+          next: null,
+          previous: null,
+          results: [],
+        });
       })
     );
 
@@ -140,18 +162,51 @@ describe('CategoriesSection', () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it('uses responsive grid layout', async () => {
+  it('uses carousel layout instead of grid', async () => {
     render(<CategoriesSection />);
 
     await waitFor(() => {
       expect(screen.getByText('Футбол')).toBeInTheDocument();
     });
 
-    // Проверяем что grid container имеет правильные классы
-    const gridContainer = screen.getByRole('list');
-    expect(gridContainer).toHaveClass('grid');
-    expect(gridContainer).toHaveClass('grid-cols-1');
-    expect(gridContainer).toHaveClass('sm:grid-cols-2');
-    expect(gridContainer).toHaveClass('lg:grid-cols-3');
+    const carousel = screen.getByRole('list', { name: /Карусель категорий/i });
+    expect(carousel).toBeInTheDocument();
+    expect(carousel.className).toContain('flex');
+    expect(carousel.className).toContain('overflow-x-auto');
+    expect(carousel.className).not.toContain('grid');
+  });
+
+  it('renders all categories without limit of 6', async () => {
+    // 10 категорий
+    const manyCategories = Array.from({ length: 10 }, (_, i) => ({
+      id: i + 1,
+      name: `Категория ${i + 1}`,
+      slug: `category-${i + 1}`,
+      parent_id: null,
+      level: 1,
+      icon: null,
+      image: null,
+      products_count: (i + 1) * 10,
+    }));
+
+    server.use(
+      http.get('*/categories/', () => {
+        return HttpResponse.json({
+          count: manyCategories.length,
+          next: null,
+          previous: null,
+          results: manyCategories,
+        });
+      })
+    );
+
+    render(<CategoriesSection />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Категория 1')).toBeInTheDocument();
+    });
+
+    const cards = screen.getAllByTestId('category-card');
+    expect(cards.length).toBe(10);
   });
 });

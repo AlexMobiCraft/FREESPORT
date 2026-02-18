@@ -128,6 +128,7 @@ export interface Category {
   parent_id: number | null;
   level: number;
   icon: string | null;
+  image?: string | null;
   products_count: number;
   description?: string;
 }

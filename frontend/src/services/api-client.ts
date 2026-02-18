@@ -24,7 +24,7 @@ const isServer = typeof window === 'undefined';
 export const API_URL_PUBLIC = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api/v1';
 const API_URL_INTERNAL = process.env.INTERNAL_API_URL
   ? `${process.env.INTERNAL_API_URL}/api/v1`
-  : process.env.NEXT_PUBLIC_API_URL_INTERNAL || 'http://backend:8000/api/v1';
+  : process.env.NEXT_PUBLIC_API_URL_INTERNAL || 'http://localhost:8001/api/v1';
 const API_URL = isServer ? API_URL_INTERNAL : API_URL_PUBLIC;
 const API_TIMEOUT = parseInt(process.env.NEXT_PUBLIC_API_TIMEOUT || '30000');
 

@@ -11,16 +11,7 @@ from django.core.exceptions import ValidationError
 from django.db.models import Count, Q, Sum
 from rest_framework import serializers
 
-from .models import (
-    Attribute,
-    AttributeValue,
-    Brand,
-    Category,
-    ColorMapping,
-    Product,
-    ProductImage,
-    ProductVariant,
-)
+from .models import Attribute, AttributeValue, Brand, Category, ColorMapping, Product, ProductImage, ProductVariant
 
 
 class AttributeValueSerializer(serializers.ModelSerializer):
@@ -305,42 +296,61 @@ class BrandSerializer(serializers.ModelSerializer):
             return None
         request = self.context.get("request")
         if request and hasattr(request, "build_absolute_uri"):
-            return request.build_absolute_uri(obj.image.url)
+            return str(request.build_absolute_uri(obj.image.url))
         return str(obj.image.url)
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         """Вызов модельной валидации Brand.clean() для проверки бизнес-правил.
 
         Создаёт временный экземпляр для валидации, не мутируя self.instance.
+        Возвращает обновленные атрибуты, так как clean() может нормализовать данные.
         """
-        if self.instance:
-            concrete_field_names = {f.name for f in Brand._meta.concrete_fields}
+        instance: Brand
+        if self.instance and not isinstance(self.instance, list):
+            brand_instance = cast(Brand, self.instance)
+            concrete_field_names = {f.name for f in Brand._meta.concrete_fields}  # type: ignore[attr-defined]
             merged = {
-                name: getattr(self.instance, name)
-                for name in concrete_field_names
-                if hasattr(self.instance, name)
+                name: getattr(brand_instance, name) for name in concrete_field_names if hasattr(brand_instance, name)
             }
             merged.update(attrs)
             instance = Brand(**{k: v for k, v in merged.items() if k in concrete_field_names})
-            instance.pk = self.instance.pk
+            instance.pk = brand_instance.pk
         else:
             instance = Brand(**attrs)
+
         try:
             instance.clean()
         except ValidationError as e:
             raise serializers.ValidationError(e.message_dict)
+
+        # Update attrs with any normalized values from clean()
+        for key in attrs.keys():
+            if hasattr(instance, key):
+                attrs[key] = getattr(instance, key)
+
         return attrs
 
 
 class BrandFeaturedSerializer(BrandSerializer):
     """Lightweight serializer для featured brands endpoint (без description).
 
-    Наследует get_image() от BrandSerializer. Исключает description
-    для оптимизации payload size карусели на главной странице.
+    Наследует BrandSerializer, но переопределяет get_image для гарантии
+    относительных URL (cache safety) и исключает description/is_featured.
     """
 
     class Meta(BrandSerializer.Meta):
-        fields = ["id", "name", "slug", "image", "website", "is_featured"]
+        fields = ["id", "name", "slug", "image", "website"]
+
+    def get_image(self, obj: Brand) -> str | None:
+        """
+        Возвращает относительный URL изображения для безопасного кэширования.
+
+        Игнорирует request.build_absolute_uri, чтобы в кэш не попал
+        Host-заголовок пользователя (cache poisoning protection).
+        """
+        if not obj.image:
+            return None
+        return str(obj.image.url)
 
 
 class CategorySerializer(serializers.ModelSerializer):

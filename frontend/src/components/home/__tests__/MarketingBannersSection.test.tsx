@@ -614,6 +614,25 @@ describe('MarketingBannersSection', () => {
         autoplay: true,
       });
     });
+
+    it('должен передавать autoplay профиль с stopOnInteraction=false и stopOnMouseEnter=true', async () => {
+      vi.mocked(bannersService.getActive).mockResolvedValue(mockMarketingBanners);
+
+      render(<MarketingBannersSection />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('marketing-banners-section')).toBeInTheDocument();
+      });
+
+      const lastCall = vi.mocked(useBannerCarousel).mock.calls.at(-1);
+      expect(lastCall?.[0]).toMatchObject({
+        loop: true,
+        autoplay: true,
+        autoplayDelay: 3000,
+        stopOnInteraction: false,
+        stopOnMouseEnter: true,
+      });
+    });
   });
 
   // -------------------------------------------------------------------------

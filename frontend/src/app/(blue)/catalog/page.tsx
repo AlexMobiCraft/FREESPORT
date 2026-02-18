@@ -530,6 +530,19 @@ const CatalogContent: React.FC = () => {
     };
   }, []);
 
+  // Синхронизация фильтра бренда с URL
+  useEffect(() => {
+    const brandSlug = searchParams.get('brand');
+    // Если есть параметр в URL и бренды загружены
+    if (brandSlug && brands.length > 0) {
+      const foundBrand = brands.find(b => b.slug === brandSlug);
+      if (foundBrand) {
+        // Устанавливаем фильтр (заменяем текущий выбор или добавляем - логичнее заменить при прямом переходе)
+        setSelectedBrandIds(new Set([foundBrand.id]));
+      }
+    }
+  }, [searchParams, brands]);
+
   useEffect(() => {
     if (!activeCategoryId || !categoryTree.length) return;
     const pathNodes = findCategoryPathById(categoryTree, activeCategoryId);

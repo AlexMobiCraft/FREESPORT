@@ -172,7 +172,6 @@ class TestInvalidateBannerCache:
         for role in _ALL_ROLE_KEYS:
             assert cache.get(f"banners:list:hero:{role}") is None
 
-
     def test_invalidate_hero_does_not_clear_marketing(self):
         """Инвалидация hero НЕ затрагивает marketing ключи."""
         for role in _ALL_ROLE_KEYS:

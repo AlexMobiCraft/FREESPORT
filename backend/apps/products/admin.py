@@ -31,6 +31,7 @@ from .models import (
     Brand1CMapping,
     Category,
     ColorMapping,
+    HomepageCategory,
     Product,
     ProductImage,
     ProductVariant,
@@ -270,6 +271,54 @@ class CategoryAdmin(admin.ModelAdmin):
     prepopulated_fields = {"slug": ("name",)}
     readonly_fields = ("created_at", "updated_at")
     raw_id_fields = ("parent",)
+
+
+@admin.register(HomepageCategory)
+class HomepageCategoryAdmin(admin.ModelAdmin):
+    """
+    Admin для управления категориями на главной странице.
+    Показывает только корневые категории (parent=None).
+    Удаление запрещено для безопасности каталога.
+    """
+
+    list_display = ("id", "image_preview", "name", "parent", "sort_order", "is_active")
+    list_editable = ("sort_order", "is_active")
+    list_display_links = ("name",)
+    list_filter = ("parent", "is_active")
+    search_fields = ("name", "slug")
+    ordering = ("sort_order",)
+    fields = ("name", "parent", "image", "sort_order", "is_active")
+    readonly_fields = ("name", "parent")
+
+    def get_queryset(self, request: HttpRequest) -> QuerySet:
+        """Все категории для удобного выбора (без ограничений по уровню)."""
+        qs = super().get_queryset(request)
+        return qs
+
+    def has_delete_permission(self, request: HttpRequest = None, obj: Any = None) -> bool:
+        """Запрет удаления категорий из этого раздела."""
+        return False
+
+    def has_add_permission(self, request: HttpRequest) -> bool:
+        """Запрет добавления — категории создаются в основном разделе."""
+        return False
+
+    @admin.display(description="Изображение")
+    def image_preview(self, obj: HomepageCategory) -> str:
+        """Превью изображения категории."""
+        if obj.image:
+            return format_html(
+                '<img src="{}" style="max-height:50px;max-width:80px;object-fit:cover;" />',
+                obj.image.url,
+            )
+        return "-"
+
+    def get_form(self, request: HttpRequest, obj: Any = None, **kwargs: Any) -> Any:
+        """Добавляем help_text к полю image."""
+        form = super().get_form(request, obj, **kwargs)
+        if "image" in form.base_fields:
+            form.base_fields["image"].help_text = "Рекомендуемый размер: 400x300px (4:3)"
+        return form
 
 
 @admin.register(Product)

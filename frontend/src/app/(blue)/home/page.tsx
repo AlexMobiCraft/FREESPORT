@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 import { HomePage } from '@/components/home/HomePage';
+import brandsService from '@/services/brandsService';
+import type { Brand } from '@/types/api';
 
 export const metadata: Metadata = {
   title: 'FREESPORT - Спортивные товары оптом и в розницу',
@@ -24,6 +26,13 @@ export const metadata: Metadata = {
 
 export const revalidate = 3600; // ISR: обновление каждый час
 
-export default function BlueHomePage() {
-  return <HomePage />;
+export default async function BlueHomePage() {
+  let featuredBrands: Brand[] = [];
+  try {
+    featuredBrands = await brandsService.getFeatured();
+  } catch (error) {
+    console.error('[BlueHomePage] Failed to fetch featured brands:', error);
+  }
+
+  return <HomePage featuredBrands={featuredBrands} />;
 }

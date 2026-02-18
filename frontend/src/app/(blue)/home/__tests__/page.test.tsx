@@ -5,16 +5,16 @@
  * - Корректный рендеринг страницы на роуте /
  * - Наличие SEO метатегов
  * - Интеграцию с HeroSection
+ * - SSR-загрузку featured brands
  * - Адаптивность на разных viewport размерах
  */
 
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
-import Home, { metadata, revalidate } from '../page';
+import BlueHomePage, { metadata, revalidate } from '../page';
 import { ToastProvider } from '@/components/ui/Toast/ToastProvider';
 
-// Mock authStore state (mutable)
 // Mock authStore state (mutable)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let mockAuthState: any = {
@@ -62,6 +62,25 @@ vi.mock('@/services/categoriesService', () => ({
   },
 }));
 
+const mockGetFeatured = vi.fn().mockResolvedValue([
+  { id: 1, name: 'Nike', slug: 'nike', image: '/media/brands/nike.png', is_featured: true },
+  { id: 2, name: 'Adidas', slug: 'adidas', image: '/media/brands/adidas.png', is_featured: true },
+]);
+
+vi.mock('@/services/brandsService', () => ({
+  default: {
+    getFeatured: (...args: unknown[]) => mockGetFeatured(...args),
+  },
+}));
+
+/**
+ * Helper: await async server component and render the returned JSX
+ */
+async function renderAsyncPage() {
+  const jsx = await BlueHomePage();
+  return render(<ToastProvider>{jsx}</ToastProvider>);
+}
+
 describe('Главная страница (/)', () => {
   beforeEach(() => {
     // Reset mock state before each test
@@ -75,24 +94,17 @@ describe('Главная страница (/)', () => {
       logout: vi.fn(),
       getRefreshToken: vi.fn().mockReturnValue(null),
     };
+    mockGetFeatured.mockClear();
   });
 
   describe('Рендеринг страницы', () => {
-    it('должна рендериться без ошибок', () => {
-      const { container } = render(
-        <ToastProvider>
-          <Home />
-        </ToastProvider>
-      );
+    it('должна рендериться без ошибок', async () => {
+      const { container } = await renderAsyncPage();
       expect(container).toBeInTheDocument();
     });
 
     it('должна содержать HeroSection компонент', async () => {
-      render(
-        <ToastProvider>
-          <Home />
-        </ToastProvider>
-      );
+      await renderAsyncPage();
 
       // Проверка наличия hero секции по заголовку (ждём загрузку)
       expect(
@@ -101,13 +113,38 @@ describe('Главная страница (/)', () => {
     });
 
     it('должна содержать секцию с популярными категориями', async () => {
-      render(
-        <ToastProvider>
-          <Home />
-        </ToastProvider>
-      );
+      await renderAsyncPage();
 
       expect(await screen.findByText(/Популярные категории/i)).toBeInTheDocument();
+    });
+  });
+
+  describe('SSR data fetching', () => {
+    it('AC1: вызывает brandsService.getFeatured() на сервере', async () => {
+      await renderAsyncPage();
+
+      expect(mockGetFeatured).toHaveBeenCalledTimes(1);
+    });
+
+    it('AC1: передаёт featured brands в HomePage', async () => {
+      await renderAsyncPage();
+
+      // BrandsBlock рендерится с данными брендов
+      expect(screen.getByLabelText('Популярные бренды')).toBeInTheDocument();
+    });
+
+    it('рендерит страницу без ошибок при сбое API и логирует ошибку', async () => {
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      mockGetFeatured.mockRejectedValueOnce(new Error('API Error'));
+
+      const { container } = await renderAsyncPage();
+
+      expect(container).toBeInTheDocument();
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        '[BlueHomePage] Failed to fetch featured brands:',
+        expect.any(Error)
+      );
+      consoleErrorSpy.mockRestore();
     });
   });
 
@@ -154,24 +191,16 @@ describe('Главная страница (/)', () => {
   });
 
   describe('Адаптивность', () => {
-    it('должна иметь responsive контейнер', () => {
-      const { container } = render(
-        <ToastProvider>
-          <Home />
-        </ToastProvider>
-      );
+    it('должна иметь responsive контейнер', async () => {
+      const { container } = await renderAsyncPage();
 
       // Проверка наличия контейнеров с max-width
       const containers = container.querySelectorAll('.max-w-7xl, .mx-auto');
       expect(containers.length).toBeGreaterThan(0);
     });
 
-    it('должна содержать адаптивные padding классы', () => {
-      const { container } = render(
-        <ToastProvider>
-          <Home />
-        </ToastProvider>
-      );
+    it('должна содержать адаптивные padding классы', async () => {
+      const { container } = await renderAsyncPage();
 
       // Проверка responsive padding (sm:px-6, lg:px-8)
       const responsiveContainers = container.querySelectorAll('[class*="px-"]');
@@ -193,11 +222,7 @@ describe('Главная страница (/)', () => {
       mockAuthState.isAuthenticated = true;
       mockAuthState.accessToken = 'mock-token';
 
-      render(
-        <ToastProvider>
-          <Home />
-        </ToastProvider>
-      );
+      await renderAsyncPage();
 
       // HeroSection должен показывать баннер (может быть любой текст из баннера)
       await waitFor(() => {
@@ -220,11 +245,7 @@ describe('Главная страница (/)', () => {
       mockAuthState.isAuthenticated = true;
       mockAuthState.accessToken = 'mock-token';
 
-      render(
-        <ToastProvider>
-          <Home />
-        </ToastProvider>
-      );
+      await renderAsyncPage();
 
       // HeroSection должен показывать баннер (может быть любой текст из баннера)
       await waitFor(() => {

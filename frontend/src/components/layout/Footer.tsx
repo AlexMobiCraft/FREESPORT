@@ -26,9 +26,36 @@ const DEFAULT_COLUMNS: FooterColumn[] = [
   {
     title: 'Каталог',
     links: [
-      { label: 'Каталог', href: '/catalog' },
-      { label: 'Новости', href: '/news' },
-      { label: 'Блог', href: '/blog' },
+      { label: 'Фитнес и атлетика', href: '/catalog?category=fitnes-i-atletika' },
+      { label: 'Спортивные игры', href: '/catalog?category=sportivnye-igry' },
+      { label: 'Единоборства', href: '/catalog?category=edinoborstva' },
+      { label: 'Плавание', href: '/catalog?category=plavanie' },
+      { label: 'Гимнастика и танцы', href: '/catalog?category=gimnastika-i-tantsy' },
+      { label: 'Зимние товары', href: '/catalog?category=zimnie-tovary' },
+      { label: 'Оборудование', href: '/catalog?category=oborudovanie' },
+      { label: 'Детский транспорт', href: '/catalog?category=detskiy-transport' },
+      { label: 'Спортивные комплексы и батуты', href: '/catalog?category=sportivnye-kompleksy-i-batuty' },
+      { label: 'Бассейны, пляж, аксессуары', href: '/catalog?category=basseyny-plyazh-aksessuary' },
+      { label: 'Туризм', href: '/catalog?category=turizm' },
+      { label: 'Сувенирная продукция', href: '/catalog?category=suvenirnaya-produktsiya' },
+    ],
+  },
+  {
+    title: 'Компания',
+    links: [
+      { label: 'Личный кабинет', href: ' /profile' },
+      { label: 'Реквизиты', href: '/requisites' },
+      { label: 'Политика конфиденциальности', href: '/policy' },
+    ],
+  },
+  {
+    title: 'Клиентам',
+    links: [
+      { label: 'Памятка клиенту', href: ' /home' },
+      { label: 'Маркетинговые материалы', href: '/home' },
+      { label: 'Условия сотрудничества', href: '/home' },
+      { label: 'Условия доставки', href: '/delivery' },
+      { label: 'Розница', href: '/home' },
     ],
   },
   {
@@ -82,7 +109,7 @@ const DEFAULT_SOCIAL_LINKS: SocialLink[] = [
 export const Footer: React.FC<FooterProps> = ({
   columns = DEFAULT_COLUMNS,
   socialLinks = DEFAULT_SOCIAL_LINKS,
-  copyright = '© 2025 FREESPORT. Все права защищены.',
+  copyright = '© 2026 FREESPORT. Все права защищены.',
 }) => {
   return (
     <footer className="bg-[#111827] text-white py-12" role="contentinfo">

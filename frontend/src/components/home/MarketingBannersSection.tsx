@@ -77,6 +77,22 @@ const MarketingBannersSkeleton: React.FC = () => (
 );
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Marketing banner autoplay delay in milliseconds.
+ * 
+ * UX Justification (AC12):
+ * - 3000ms (3 seconds) provides optimal balance between engagement and readability
+ * - Shorter intervals (<2s) can be disruptive and prevent users from reading banner content
+ * - Longer intervals (>5s) reduce engagement and banner visibility
+ * - Industry standard for marketing carousels is 3-5 seconds
+ * - This value can be overridden via backend configuration in future iterations
+ */
+const MARKETING_BANNER_AUTOPLAY_DELAY = 3000;
+
+// ---------------------------------------------------------------------------
 // MarketingBannersCarousel (inner component)
 // ---------------------------------------------------------------------------
 
@@ -97,7 +113,9 @@ const MarketingBannersCarousel: React.FC = () => {
   } = useBannerCarousel({
     loop: shouldAnimate,
     autoplay: shouldAnimate,
-    autoplayDelay: 5000,
+    autoplayDelay: MARKETING_BANNER_AUTOPLAY_DELAY,
+    stopOnInteraction: false,
+    stopOnMouseEnter: true,
   });
 
   useEffect(() => {
@@ -156,43 +174,43 @@ const MarketingBannersCarousel: React.FC = () => {
       <div ref={emblaRef} className="overflow-hidden rounded-2xl">
         <div className="flex">
           {visibleBanners.map(banner => (
-              <div
-                className="flex-[0_0_100%] min-w-0 relative"
-                key={banner.id}
-              >
-                {isSafeLink(banner.cta_link) ? (
-                  <Link
-                    href={getSafeHref(banner.cta_link)}
-                    className="block relative w-full aspect-[21/9] md:aspect-[3/1]"
-                    aria-label={banner.title}
-                  >
-                    <Image
-                      src={banner.image_url}
-                      alt={banner.image_alt || banner.title}
-                      fill
-                      sizes="(max-width: 768px) 100vw, 1280px"
-                      className="object-cover"
-                      loading="lazy"
-                      onError={() => handleImageError(banner.id)}
-                    />
-                  </Link>
-                ) : (
-                  <div
-                    className="block relative w-full aspect-[21/9] md:aspect-[3/1]"
-                    aria-label={banner.title}
-                  >
-                    <Image
-                      src={banner.image_url}
-                      alt={banner.image_alt || banner.title}
-                      fill
-                      sizes="(max-width: 768px) 100vw, 1280px"
-                      className="object-cover"
-                      loading="lazy"
-                      onError={() => handleImageError(banner.id)}
-                    />
-                  </div>
-                )}
-              </div>
+            <div
+              className="flex-[0_0_100%] min-w-0 relative"
+              key={banner.id}
+            >
+              {isSafeLink(banner.cta_link) ? (
+                <Link
+                  href={getSafeHref(banner.cta_link)}
+                  className="block relative w-full aspect-[21/9] md:aspect-[3/1]"
+                  aria-label={banner.title}
+                >
+                  <Image
+                    src={banner.image_url}
+                    alt={banner.image_alt || banner.title}
+                    fill
+                    sizes="(max-width: 768px) 100vw, 1280px"
+                    className="object-cover"
+                    loading="lazy"
+                    onError={() => handleImageError(banner.id)}
+                  />
+                </Link>
+              ) : (
+                <div
+                  className="block relative w-full aspect-[21/9] md:aspect-[3/1]"
+                  aria-label={banner.title}
+                >
+                  <Image
+                    src={banner.image_url}
+                    alt={banner.image_alt || banner.title}
+                    fill
+                    sizes="(max-width: 768px) 100vw, 1280px"
+                    className="object-cover"
+                    loading="lazy"
+                    onError={() => handleImageError(banner.id)}
+                  />
+                </div>
+              )}
+            </div>
           ))}
         </div>
       </div>
@@ -209,9 +227,8 @@ const MarketingBannersCarousel: React.FC = () => {
               type="button"
               key={index}
               onClick={() => onDotButtonClick(index)}
-              className={`w-2 h-2 rounded-full transition-all ${
-                index === selectedIndex ? 'bg-cyan-600 w-8' : 'bg-gray-300'
-              }`}
+              className={`w-2 h-2 rounded-full transition-all ${index === selectedIndex ? 'bg-cyan-600 w-8' : 'bg-gray-300'
+                }`}
               aria-current={index === selectedIndex ? 'true' : undefined}
               aria-label={`Баннер ${index + 1}`}
             />

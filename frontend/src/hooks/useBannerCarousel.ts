@@ -266,6 +266,63 @@ export function useBannerCarousel(options: UseBannerCarouselOptions = {}): UseBa
     };
   }, [emblaApi, onSelect, onReInit]);
 
+  /**
+   * Autoplay lifecycle management with error handling and cleanup.
+   * 
+   * Handles:
+   * - Safe plugin access with try-catch (AC1: no errors when plugin unavailable)
+   * - Race condition prevention via stable callback (AC2)
+   * - Full play/pause/stop lifecycle (AC7)
+   * - Memory leak prevention via cleanup (AC11)
+   * - Method validation before calling (AC10)
+   * 
+   * This effect manages autoplay plugin initialization and cleanup.
+   * It handles cases where plugins are re-initialized dynamically (React 19, Strict Mode)
+   * or when data loads asynchronously.
+   */
+  const startAutoplay = useCallback(() => {
+    if (!emblaApi || !autoplay) return;
+
+    try {
+      const plugins = emblaApi.plugins();
+      if (!plugins || typeof plugins.autoplay !== 'object') return;
+      
+      const autoplayPlugin = plugins.autoplay;
+      
+      // Validate play method exists before calling (AC10)
+      if (typeof autoplayPlugin.play === 'function' && !autoplayPlugin.isPlaying()) {
+        autoplayPlugin.play();
+      }
+    } catch (error) {
+      // Silently handle plugin access errors (AC1)
+      // Plugin may not be available or initialized yet
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('Failed to start autoplay:', error);
+      }
+    }
+  }, [emblaApi, autoplay]);
+
+  useEffect(() => {
+    startAutoplay();
+
+    // Cleanup: stop autoplay on unmount to prevent memory leaks (AC11)
+    return () => {
+      if (!emblaApi || !autoplay) return;
+      
+      try {
+        const plugins = emblaApi.plugins();
+        if (plugins && typeof plugins.autoplay === 'object') {
+          const autoplayPlugin = plugins.autoplay;
+          if (typeof autoplayPlugin.stop === 'function') {
+            autoplayPlugin.stop();
+          }
+        }
+      } catch (error) {
+        // Silently handle cleanup errors
+      }
+    };
+  }, [startAutoplay, emblaApi, autoplay]);
+
   return {
     emblaRef,
     selectedIndex,

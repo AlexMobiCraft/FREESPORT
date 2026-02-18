@@ -18,7 +18,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 
 from .constants import FEATURED_BRANDS_CACHE_KEY, FEATURED_BRANDS_CACHE_TIMEOUT, FEATURED_BRANDS_MAX_ITEMS
-from .filters import ProductFilter
+from .filters import CategoryFilter, ProductFilter
 from .models import Attribute, AttributeValue, Brand, Category, Product, ProductVariant
 from .serializers import (
     AttributeFilterSerializer,
@@ -179,6 +179,10 @@ class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [permissions.AllowAny]
     serializer_class = CategorySerializer
     lookup_field = "slug"
+    filterset_class = CategoryFilter
+    
+    # filterset_fields больше не нужен, так как используем filterset_class
+    # filterset_fields = ["parent", "parent__slug", "is_active"]
 
     def get_queryset(self):
         """QuerySet с подсчетом товаров в категориях"""
@@ -285,11 +289,13 @@ class BrandViewSet(viewsets.ReadOnlyModelViewSet):
 
     @extend_schema(
         summary="Избранные бренды",
-        description="Получение списка избранных брендов для отображения на главной странице. Ответ кэшируется на 1 час.",
+        description=(
+            "Получение списка избранных брендов для отображения на главной странице. " "Ответ кэшируется на 1 час."
+        ),
         tags=["Brands"],
     )
     @action(detail=False, methods=["get"], url_path="featured", pagination_class=None, filter_backends=[])
-    def featured(self, request, *args, **kwargs):
+    def featured(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         """Список избранных брендов с кэшированием на 1 час (flat JSON list).
 
         filter_backends=[] intentionally bypasses global SearchFilter because

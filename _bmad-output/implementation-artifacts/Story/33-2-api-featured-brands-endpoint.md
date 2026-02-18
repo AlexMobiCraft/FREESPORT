@@ -1,6 +1,6 @@
 # Story 33.2: API Featured Brands Endpoint
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -178,6 +178,9 @@ Claude Opus 4.6
 - 2026-02-17: Addressed 3 review follow-ups (2 MEDIUM, 1 LOW): BrandFeaturedSerializer inherits from BrandSerializer (DRY), validate() no longer mutates self.instance, featured action explicitly bypasses SearchFilter with filter_backends=[].
 - 2026-02-17: Addressed 3 final review findings (1 MEDIUM, 1 LOW, 1 TRIVIAL): Added resilience against missing images in featured endpoint, verified search ignoring with new test, and fixed redundant import. All tests passed.
 - 2026-02-17: Closed final 4 review follow-ups (2 MEDIUM, 2 LOW): confirmed URL path as REST convention (duplicate), confirmed relative image URLs as cache safety architecture, moved imports to top of views.py, documented scope creep for separate ticket. 29 brand API tests passed.
+- 2026-02-17: Addressed 4 additional review findings (2 MEDIUM, 2 LOW): Fixed validation normalization loss, hardened cache safety in BrandFeaturedSerializer by forcing relative URLs, removed redundant is_featured field from payload, added type hints. All 30 tests passed.
+- 2026-02-17: Verified implementation with tests (30/30 passed) and linters (black, isort, flake8, mypy). All checks are green. Django 6.0 compatibility warning in Cart model is noted but kept as-is to satisfy current mypy/django-stubs version.
+- 2026-02-17: Final status check: black (OK), isort (OK), flake8 (OK), mypy (OK), pytest (OK). Story completed and verified.
 
 ### File List
 
