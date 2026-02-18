@@ -290,8 +290,18 @@ class HomepageCategoryAdmin(admin.ModelAdmin):
     readonly_fields = ("name",)
 
     def get_queryset(self, request: HttpRequest) -> QuerySet:
-        """Только корневые категории (parent=None)."""
-        return super().get_queryset(request).filter(parent__isnull=True)
+        """Только подкатегории 'Категории для главной' внутри 'СПОРТ'."""
+        qs = super().get_queryset(request)
+        target_parent = Category.objects.filter(
+            name="Категории для главной",
+            parent__name="СПОРТ"
+        ).first()
+
+        if target_parent:
+            return qs.filter(parent=target_parent)
+
+        # Fallback на корневые категории, если спец. категория не найдена
+        return qs.filter(parent__isnull=True)
 
     def has_delete_permission(self, request: HttpRequest = None, obj: Any = None) -> bool:
         """Запрет удаления категорий из этого раздела."""

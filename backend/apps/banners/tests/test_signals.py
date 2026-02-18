@@ -77,4 +77,3 @@ class TestBannerCacheInvalidation:
         banner.save()
         for role in _ALL_ROLE_KEYS:
             assert cache.get(f"banners:list:hero:{role}") is None
-

@@ -8,6 +8,7 @@ import type { Category, CategoryTree } from '@/types/api';
 interface GetCategoriesParams {
   parent_id?: number | null;
   parent_id__isnull?: boolean;
+  parent__slug?: string;
   level?: number;
   limit?: number;
   ordering?: string;
@@ -51,8 +52,8 @@ class CategoriesService {
    */
   async getCategories(params?: GetCategoriesParams): Promise<Category[]> {
     const defaults: Record<string, unknown> = { page_size: 6 };
-    // parent_id__isnull только если parent_id не задан явно
-    if (!params?.parent_id) {
+    // parent_id__isnull только если родитель не задан явно (через ID или Slug)
+    if (!params?.parent_id && !params?.parent__slug) {
       defaults.parent_id__isnull = true;
     }
 

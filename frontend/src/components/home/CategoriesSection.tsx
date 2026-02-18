@@ -122,7 +122,7 @@ export const CategoriesSection: React.FC = () => {
       setIsLoading(true);
       setError(null);
       const data = await categoriesService.getCategories({
-        parent_id__isnull: true,
+        parent__slug: 'kategorii-dlya-glavnoy',
         ordering: 'sort_order',
         limit: 0,
       });

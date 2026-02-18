@@ -179,6 +179,7 @@ class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [permissions.AllowAny]
     serializer_class = CategorySerializer
     lookup_field = "slug"
+    filterset_fields = ["parent", "parent__slug", "is_active"]
 
     def get_queryset(self):
         """QuerySet с подсчетом товаров в категориях"""

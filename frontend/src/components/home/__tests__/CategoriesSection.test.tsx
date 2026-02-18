@@ -136,9 +136,9 @@ describe('CategoriesSection', () => {
     });
 
     const calledUrl = requestSpy.mock.calls[0][0];
-    expect(calledUrl).toContain('parent_id__isnull=true');
+    expect(calledUrl).toContain('parent__slug=kategorii-dlya-glavnoy');
     expect(calledUrl).toContain('ordering=sort_order');
-    expect(calledUrl).toContain('limit=0');
+    expect(calledUrl).toContain('page_size=1000');
   });
 
   it('does not render when no categories are returned', async () => {
