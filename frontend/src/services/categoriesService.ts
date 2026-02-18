@@ -57,7 +57,7 @@ class CategoriesService {
       defaults.parent_id__isnull = true;
     }
 
-    const apiParams: Record<string, any> = { ...defaults, ...params };
+    const apiParams: Record<string, unknown> = { ...defaults, ...params };
 
     // Map 'limit' to 'page_size' for Django REST Framework compatibility
     if (params?.limit !== undefined) {

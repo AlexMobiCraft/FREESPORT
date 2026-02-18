@@ -1220,6 +1220,7 @@ describe('useBannerCarousel', () => {
 
   describe('Autoplay Error Handling (AC1)', () => {
     it('should not throw when autoplay plugin is unavailable', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       mockEmblaApi.plugins.mockReturnValueOnce({} as any);
       
       expect(() => {
@@ -1238,6 +1239,7 @@ describe('useBannerCarousel', () => {
     });
 
     it('should not throw when plugins() returns null', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       mockEmblaApi.plugins.mockReturnValueOnce(null as any);
 
       expect(() => {
@@ -1246,6 +1248,7 @@ describe('useBannerCarousel', () => {
     });
 
     it('should not throw when autoplay plugin is not an object', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       mockEmblaApi.plugins.mockReturnValueOnce({ autoplay: 'invalid' } as any);
 
       expect(() => {

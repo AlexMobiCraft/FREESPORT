@@ -281,7 +281,7 @@ class HomepageCategoryAdmin(admin.ModelAdmin):
     Удаление запрещено для безопасности каталога.
     """
 
-    list_display = ("image_preview", "name", "sort_order", "is_active")
+    list_display = ("id", "image_preview", "name", "sort_order", "is_active")
     list_editable = ("sort_order", "is_active")
     list_display_links = ("name",)
     search_fields = ("name",)
@@ -290,17 +290,18 @@ class HomepageCategoryAdmin(admin.ModelAdmin):
     readonly_fields = ("name",)
 
     def get_queryset(self, request: HttpRequest) -> QuerySet:
-        """Только подкатегории 'Категории для главной' внутри 'СПОРТ'."""
+        """Только подкатегории 'Категории для главной'."""
         qs = super().get_queryset(request)
-        target_parent = Category.objects.filter(
-            name="Категории для главной",
-            parent__name="СПОРТ"
-        ).first()
+        target_parent = Category.objects.filter(slug="kategorii-dlya-glavnoy").first()
+        
+        logger.info(f"HomepageCategoryAdmin: target_parent found: {target_parent}")
 
         if target_parent:
-            return qs.filter(parent=target_parent)
+            filtered_qs = qs.filter(parent=target_parent)
+            logger.info(f"HomepageCategoryAdmin: returning {filtered_qs.count()} children")
+            return filtered_qs
 
-        # Fallback на корневые категории, если спец. категория не найдена
+        logger.info("HomepageCategoryAdmin: fallback to root categories")
         return qs.filter(parent__isnull=True)
 
     def has_delete_permission(self, request: HttpRequest = None, obj: Any = None) -> bool:
