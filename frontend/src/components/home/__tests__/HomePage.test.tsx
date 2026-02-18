@@ -80,7 +80,7 @@ describe('HomePage', () => {
     expect(brandsBlock).not.toBeInTheDocument();
   });
 
-  it('рендерит все секции главной страницы', () => {
+  it('рендерит все секции главной страницы в правильном порядке', () => {
     const { container } = render(<HomePage featuredBrands={mockBrands} />);
 
     const expectedSections = [
@@ -89,20 +89,28 @@ describe('HomePage', () => {
       'marketing-banners-section',
       'brands-block',
       'categories-section',
+      'about-section',
       'hits-section',
       'new-arrivals-section',
       'promo-section',
       'sale-section',
       'news-section',
-      'blog-section',
-      'subscribe-section',
       'why-section',
+      'subscribe-section',
       'delivery-section',
-      'about-section',
     ];
 
+    const sections = container.querySelectorAll('[data-testid]');
+    const testIds = Array.from(sections).map(el => el.getAttribute('data-testid'));
+
+    // Проверка наличия и порядка
     for (const testId of expectedSections) {
       expect(container.querySelector(`[data-testid="${testId}"]`)).toBeInTheDocument();
     }
+
+    // Проверка порядка (необязательно для всех, но полезно для тех, что перемещали)
+    expect(testIds.indexOf('about-section')).toBe(testIds.indexOf('categories-section') + 1);
+    expect(testIds.indexOf('why-section')).toBe(testIds.indexOf('news-section') + 1);
+    expect(testIds).not.toContain('blog-section');
   });
 });

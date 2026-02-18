@@ -3,20 +3,19 @@
  *
  * Порядок секций:
  * 1. HeroSection (баннеры)
- * 1.5. QuickLinksSection (быстрые ссылки)
- * 1.6. MarketingBannersSection (маркетинговые баннеры)
- * 1.7. BrandsBlock (популярные бренды)
- * 2. CategoriesSection (популярные категории)
- * 3. HitsSection (хиты продаж)
- * 4. NewArrivalsSection (новинки)
- * 5. PromoSection (акция)
- * 6. SaleSection (распродажа)
- * 7. NewsSection (новости)
- * 8. BlogSection (блог)
- * 9. SubscribeNewsSection (подписка)
- * 10. WhyFreesportSection (почему выбирают)
- * 11. DeliveryTeaser (доставка)
- * 12. AboutTeaser (FREESPORT + ценности)
+ * 2. QuickLinksSection (быстрые ссылки)
+ * 3. MarketingBannersSection (маркетинговые баннеры)
+ * 4. BrandsBlock (популярные бренды)
+ * 5. CategoriesSection (популярные категории)
+ * 6. AboutTeaser (О нас)
+ * 7. HitsSection (хиты продаж)
+ * 8. NewArrivalsSection (новинки)
+ * 9. PromoSection (акция)
+ * 10. SaleSection (распродажа)
+ * 11. NewsSection (новости)
+ * 12. WhyFreesportSection (почему выбирают)
+ * 13. SubscribeNewsSection (подписка)
+ * 14. DeliveryTeaser (доставка)
  */
 
 'use client';
@@ -31,7 +30,6 @@ import {
   PromoSection,
   SaleSection,
   NewsSection,
-  BlogSection,
   SubscribeNewsSection,
   WhyFreesportSection,
   DeliveryTeaser,
@@ -51,47 +49,44 @@ export const HomePage: React.FC<HomePageProps> = ({ featuredBrands }) => {
       {/* 1. Hero Section - Баннеры */}
       <HeroSection />
 
-      {/* 1.5 Quick Links - Быстрые ссылки */}
+      {/* 2. Quick Links - Быстрые ссылки */}
       <QuickLinksSection />
 
-      {/* 1.6 Marketing Banners - Маркетинговые баннеры */}
+      {/* 3. Marketing Banners - Маркетинговые баннеры */}
       <MarketingBannersSection />
 
-      {/* 1.7 Brands Block - Популярные бренды */}
+      {/* 4. Brands Block - Популярные бренды */}
       {featuredBrands.length > 0 && <BrandsBlock brands={featuredBrands} />}
 
-      {/* 2. Popular Categories - Популярные категории */}
+      {/* 5. Popular Categories - Популярные категории */}
       <CategoriesSection />
 
-      {/* 2. Hits Section - Хиты продаж */}
+      {/* 6. About Teaser - О нас (Перемещен под категории) */}
+      <AboutTeaser />
+
+      {/* 7. Hits Section - Хиты продаж */}
       <HitsSection />
 
-      {/* 3. New Arrivals Section - Новинки */}
+      {/* 8. New Arrivals Section - Новинки */}
       <NewArrivalsSection />
 
-      {/* 4. Promo Section - Акция */}
+      {/* 9. Promo Section - Акция */}
       <PromoSection />
 
-      {/* 5. Sale Section - Распродажа */}
+      {/* 10. Sale Section - Распродажа */}
       <SaleSection />
 
-      {/* 6. News Section - Новости */}
+      {/* 11. News Section - Новости */}
       <NewsSection />
 
-      {/* 7. Blog Section - Наш блог */}
-      <BlogSection />
-
-      {/* 8. Subscribe Section - Подписка на новости */}
-      <SubscribeNewsSection />
-
-      {/* 9. Why FREESPORT Section */}
+      {/* 12. Why FREESPORT Section (Перемещен под новости) */}
       <WhyFreesportSection />
 
-      {/* 10. Delivery Teaser - Доставка по России */}
-      <DeliveryTeaser />
+      {/* 13. Subscribe Section - Подписка на новости */}
+      <SubscribeNewsSection />
 
-      {/* 11. About Teaser - FREESPORT + Наши ценности */}
-      <AboutTeaser />
+      {/* 14. Delivery Teaser - Доставка по России */}
+      <DeliveryTeaser />
 
       {/* Footer рендерится в layout */}
     </main>

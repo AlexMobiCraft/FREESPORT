@@ -115,29 +115,25 @@ const HeroSection = () => {
   if (isLoading) {
     return (
       <section
-        className="relative overflow-hidden text-white md:min-h-[400px]"
+        className="relative overflow-hidden text-gray-900 md:min-h-[400px]"
         aria-label="Hero section loading"
         data-testid="hero-skeleton"
       >
-        <div
-          className="absolute inset-0 bg-gradient-to-br from-[#111827] to-[#1f2937]"
-          aria-hidden="true"
-        />
         <div className="relative mx-auto px-3 md:px-4 lg:px-6 max-w-[1280px] h-full flex flex-col-reverse gap-6 py-8 md:py-12 md:flex-row md:items-center">
           <div className="text-center md:text-left max-w-2xl space-y-6">
             {/* Skeleton title */}
-            <div className="h-12 bg-gray-700 rounded-lg animate-pulse w-3/4 mx-auto md:mx-0" />
+            <div className="h-12 bg-gray-200 rounded-lg animate-pulse w-3/4 mx-auto md:mx-0" />
             {/* Skeleton subtitle */}
-            <div className="h-6 bg-gray-700 rounded-lg animate-pulse w-full" />
-            <div className="h-6 bg-gray-700 rounded-lg animate-pulse w-5/6 mx-auto md:mx-0" />
+            <div className="h-6 bg-gray-200 rounded-lg animate-pulse w-full" />
+            <div className="h-6 bg-gray-200 rounded-lg animate-pulse w-5/6 mx-auto md:mx-0" />
             {/* Skeleton button */}
             <div className="flex justify-center md:justify-start">
-              <div className="h-14 w-48 bg-gray-700 rounded-2xl animate-pulse" />
+              <div className="h-14 w-48 bg-gray-200 rounded-2xl animate-pulse" />
             </div>
           </div>
           <div className="flex w-full md:w-[480px] items-center justify-center md:justify-end md:self-center md:flex-shrink-0">
             <div className="relative w-full max-w-[480px] aspect-[7/4]">
-              <div className="h-full min-h-[300px] bg-gray-700 rounded-[32px] animate-pulse" />
+              <div className="h-full min-h-[300px] bg-gray-200 rounded-[32px] animate-pulse" />
             </div>
           </div>
         </div>
@@ -153,20 +149,15 @@ const HeroSection = () => {
 
     return (
       <section
-        className="relative overflow-hidden text-white md:min-h-[400px]"
+        className="relative overflow-hidden text-gray-900 md:min-h-[400px]"
         aria-label="Hero section"
       >
-        <div
-          className="absolute inset-0 bg-gradient-to-br from-[#111827] to-[#1f2937]"
-          aria-hidden="true"
-        />
-
         <div className="relative mx-auto px-3 md:px-4 lg:px-6 max-w-[1280px] h-full flex flex-col-reverse gap-6 py-8 md:py-12 md:flex-row md:items-center">
           <div className="text-center md:text-left md:flex-1 md:pr-8">
-            <h1 className="text-3xl md:text-4xl font-bold mb-4 text-white">
+            <h1 className="text-3xl md:text-4xl font-bold mb-4">
               {bannerContent.title}
             </h1>
-            <p className="text-base font-medium mb-6 mx-auto md:mx-0 text-[#E5E7EB] max-w-3xl">
+            <p className="text-base font-medium mb-6 mx-auto md:mx-0 text-gray-600 max-w-3xl">
               {bannerContent.subtitle}
             </p>
             <div className="flex justify-center md:justify-start">
@@ -174,7 +165,7 @@ const HeroSection = () => {
                 <Button
                   variant="primary"
                   size="large"
-                  className="shadow-[0_0_30px_rgba(8,145,178,0.35)]"
+                  className="shadow-[0_10px_30px_rgba(8,145,178,0.2)]"
                 >
                   {bannerContent.cta.text}
                 </Button>
@@ -188,10 +179,10 @@ const HeroSection = () => {
                 src="/og-image.jpg"
                 alt="FREESPORT — подборка спортивных товаров"
                 fill
-                className="rounded-[32px] object-cover shadow-[0_35px_120px_rgba(0,0,0,0.35)]"
+                className="rounded-[32px] object-cover shadow-[0_35px_120px_rgba(0,0,0,0.15)]"
                 priority
               />
-              <div className="pointer-events-none absolute inset-0 rounded-[32px] ring-1 ring-white/10" />
+              <div className="pointer-events-none absolute inset-0 rounded-[32px] ring-1 ring-gray-900/5" />
             </div>
           </div>
         </div>
@@ -204,23 +195,18 @@ const HeroSection = () => {
 
   return (
     <section
-      className="relative overflow-hidden text-white md:min-h-[400px]"
+      className="relative overflow-hidden text-gray-900 md:min-h-[400px]"
       aria-label="Hero section"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
     >
-      <div
-        className="absolute inset-0 bg-gradient-to-br from-[#111827] to-[#1f2937]"
-        aria-hidden="true"
-      />
-
       <div className="relative mx-auto px-3 md:px-4 lg:px-6 max-w-[1280px] h-full flex flex-col-reverse gap-6 py-8 md:py-12 md:flex-row md:items-center">
         <div className="text-center md:text-left md:flex-1 md:pr-8 md:self-stretch md:flex md:flex-col md:justify-center">
           <div>
-            <h1 className="text-3xl md:text-4xl font-bold mb-4 text-white">
+            <h1 className="text-3xl md:text-4xl font-bold mb-4">
               {currentBanner.title}
             </h1>
-            <p className="text-base font-medium mb-6 mx-auto md:mx-0 text-[#E5E7EB] max-w-3xl">
+            <p className="text-base font-medium mb-6 mx-auto md:mx-0 text-gray-600 max-w-3xl">
               {currentBanner.subtitle}
             </p>
           </div>
@@ -229,7 +215,7 @@ const HeroSection = () => {
               <Button
                 variant="primary"
                 size="large"
-                className="shadow-[0_0_30px_rgba(8,145,178,0.35)]"
+                className="shadow-[0_10px_30px_rgba(8,145,178,0.2)]"
               >
                 {currentBanner.cta_text}
               </Button>
@@ -243,11 +229,11 @@ const HeroSection = () => {
               src={currentBanner.image_url}
               alt={currentBanner.image_alt}
               fill
-              className="rounded-[32px] object-cover shadow-[0_35px_120px_rgba(0,0,0,0.35)]"
+              className="rounded-[32px] object-cover shadow-[0_35px_120px_rgba(0,0,0,0.15)]"
               priority
               unoptimized
             />
-            <div className="pointer-events-none absolute inset-0 rounded-[32px] ring-1 ring-white/10" />
+            <div className="pointer-events-none absolute inset-0 rounded-[32px] ring-1 ring-gray-900/5" />
           </div>
         </div>
       </div>
@@ -259,9 +245,8 @@ const HeroSection = () => {
             <button
               key={index}
               onClick={() => setCurrentIndex(index)}
-              className={`w-2 h-2 rounded-full transition-all ${
-                index === currentIndex ? 'bg-white w-8' : 'bg-white/50'
-              }`}
+              className={`w-2 h-2 rounded-full transition-all ${index === currentIndex ? 'bg-gray-900 w-8' : 'bg-gray-300'
+                }`}
               aria-label={`Go to banner ${index + 1}`}
             />
           ))}
