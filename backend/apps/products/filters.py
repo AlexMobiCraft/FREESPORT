@@ -490,3 +490,29 @@ class ProductFilter(django_filters.FilterSet):
         else:
             # Товары без скидки
             return queryset.filter(discount_percent__isnull=True)
+
+
+class CategoryFilter(django_filters.FilterSet):
+    """
+    Фильтр для категорий
+    """
+
+    parent = django_filters.NumberFilter(field_name="parent")
+    parent__slug = django_filters.CharFilter(field_name="parent__slug")
+    is_active = django_filters.BooleanFilter(field_name="is_active")
+
+    # Фильтр для главной страницы: возвращает категории с sort_order > 0
+    is_homepage = django_filters.BooleanFilter(method="filter_is_homepage")
+
+    class Meta:
+        model = Category
+        fields = ["parent", "parent__slug", "is_active", "is_homepage"]
+
+    def filter_is_homepage(self, queryset, name, value):
+        """
+        Фильтр для категорий на главной странице.
+        Если is_homepage=true, возвращаем категории с sort_order > 0.
+        """
+        if value:
+            return queryset.filter(sort_order__gt=0)
+        return queryset

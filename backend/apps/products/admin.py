@@ -281,28 +281,19 @@ class HomepageCategoryAdmin(admin.ModelAdmin):
     Удаление запрещено для безопасности каталога.
     """
 
-    list_display = ("id", "image_preview", "name", "sort_order", "is_active")
+    list_display = ("id", "image_preview", "name", "parent", "sort_order", "is_active")
     list_editable = ("sort_order", "is_active")
     list_display_links = ("name",)
-    search_fields = ("name",)
+    list_filter = ("parent", "is_active")
+    search_fields = ("name", "slug")
     ordering = ("sort_order",)
-    fields = ("name", "image", "sort_order", "is_active")
-    readonly_fields = ("name",)
+    fields = ("name", "parent", "image", "sort_order", "is_active")
+    readonly_fields = ("name", "parent")
 
     def get_queryset(self, request: HttpRequest) -> QuerySet:
-        """Только подкатегории 'Категории для главной'."""
+        """Все категории для удобного выбора (без ограничений по уровню)."""
         qs = super().get_queryset(request)
-
-        # Поиск целевой категории по слагу или имени
-        target_parent = Category.objects.filter(slug="kategorii-dlya-glavnoy").first()
-        if not target_parent:
-            target_parent = Category.objects.filter(name="Категории для главной").first()
-
-        if target_parent:
-            return qs.filter(parent=target_parent)
-
-        # Fallback на корневые категории
-        return qs.filter(parent__isnull=True)
+        return qs
 
     def has_delete_permission(self, request: HttpRequest = None, obj: Any = None) -> bool:
         """Запрет удаления категорий из этого раздела."""

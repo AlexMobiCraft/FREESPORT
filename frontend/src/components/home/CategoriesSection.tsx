@@ -17,6 +17,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import Link from 'next/link';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import categoriesService from '@/services/categoriesService';
 import type { Category } from '@/types/api';
@@ -77,8 +78,8 @@ const CategoryCard: React.FC<CategoryCardProps> = ({ category }) => {
   const imageSrc = category.image || PLACEHOLDER_IMAGE;
 
   return (
-    <a
-      href={`/catalog/${category.slug}`}
+    <Link
+      href={`/catalog?category=${category.slug}`}
       className={`${CARD_LAYOUT_CLASSES} snap-start block rounded-lg overflow-hidden shadow-default hover:shadow-hover transition-shadow bg-white group`}
       data-testid="category-card"
     >
@@ -102,7 +103,7 @@ const CategoryCard: React.FC<CategoryCardProps> = ({ category }) => {
           <p className="text-xs text-text-secondary mt-1">{category.products_count} товаров</p>
         )}
       </div>
-    </a>
+    </Link>
   );
 };
 
@@ -122,9 +123,9 @@ export const CategoriesSection: React.FC = () => {
       setIsLoading(true);
       setError(null);
       const data = await categoriesService.getCategories({
-        parent__slug: 'kategorii-dlya-glavnoy',
+        is_homepage: true,
         ordering: 'sort_order',
-        limit: 0,
+        limit: 50,
       });
       setCategories(data);
     } catch (err) {

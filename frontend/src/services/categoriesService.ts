@@ -12,6 +12,7 @@ interface GetCategoriesParams {
   level?: number;
   limit?: number;
   ordering?: string;
+  is_homepage?: boolean;
 }
 
 interface PaginatedResponse<T> {
@@ -52,8 +53,8 @@ class CategoriesService {
    */
   async getCategories(params?: GetCategoriesParams): Promise<Category[]> {
     const defaults: Record<string, unknown> = { page_size: 6 };
-    // parent_id__isnull только если родитель не задан явно (через ID или Slug)
-    if (!params?.parent_id && !params?.parent__slug) {
+    // parent_id__isnull только если родитель не задан явно и это не для главной страницы
+    if (!params?.parent_id && !params?.parent__slug && !params?.is_homepage) {
       defaults.parent_id__isnull = true;
     }
 
