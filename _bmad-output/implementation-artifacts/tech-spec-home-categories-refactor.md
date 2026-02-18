@@ -2,10 +2,10 @@
 title: 'Home Page Categories Block Refactor'
 slug: 'home-categories-refactor'
 created: '2026-02-18'
-status: 'ready-for-dev'
+status: 'review'
 stepsCompleted: [1, 2, 3, 4]
 tech_stack: ['Django', 'Next.js', 'React', 'Tailwind CSS']
-files_to_modify: 
+files_to_modify:
   - 'backend/apps/products/admin.py'
   - 'backend/apps/products/models.py'
   - 'frontend/src/components/home/CategoriesSection.tsx'
@@ -41,14 +41,14 @@ Refactor the "Categories" block to be dynamic and manageable:
 # Context for Development
 
 ## Technical Constraints & Patterns
-- **Frontend**: 
+- **Frontend**:
   - Use `embla-carousel-react` or custom scroll logic (as seen in `QuickLinksSection`).
   - Strict Typescript usage.
   - Tailwind CSS for styling.
   - **Mobile Strategy**: Use CSS scroll snapping or touch-optimized carousel library. Visible cards per row: Desktop (4-6), Tablet (3), Mobile (1.5 or 2 with "peek" effect).
   - **Visuals**: Enforce strict aspect ratios and provide fallbacks for missing images.
   - **Performance**: Use appropriate caching or revalidation strategies (e.g., SWR or Next.js `revalidate`) for this heavy but improved block.
-- **Backend**: 
+- **Backend**:
   - DO NOT modify `Category` model structure (fields exist).
   - Use `Proxy` model in `admin.py` to create a separate menu item "Категории для главной".
   - **Safety**: Prevent deletion of categories from this new admin view.
@@ -70,17 +70,17 @@ Refactor the "Categories" block to be dynamic and manageable:
 # Implementation Plan
 
 ## Backend Tasks
-- [ ] Task 1: Create `HomepageCategory` Proxy Model
+- [x] Task 1: Create `HomepageCategory` Proxy Model
   - File: `backend/apps/products/models.py`
   - Action: Define a proxy model inheriting from `Category`.
-  - Notes: 
+  - Notes:
     - Ensure `proxy = True` in `Meta`.
     - Set `verbose_name` to "Категория для главной", `verbose_name_plural` to "Категории для главной".
     - Set default ordering to `['sort_order', 'id']`.
-- [ ] Task 2: Create Admin for Proxy Model
+- [x] Task 2: Create Admin for Proxy Model
   - File: `backend/apps/products/admin.py`
   - Action: Register `HomepageCategory` with a custom `ModelAdmin`.
-  - Logic: 
+  - Logic:
     - `list_display`: `image_preview`, `name`, `sort_order`, `is_active`.
     - `list_editable`: `sort_order`, `is_active`.
     - `get_queryset`: Filter `parent__isnull=True`.
@@ -88,44 +88,76 @@ Refactor the "Categories" block to be dynamic and manageable:
     - **UX**: Add `help_text` to the image field: "Рекомендуемый размер: 400x300px (4:3)".
 
 ## Frontend Tasks
-- [ ] Task 3: Update Categories Service
+- [x] Task 3: Update Categories Service
   - File: `frontend/src/services/categoriesService.ts`
   - Action: Ensure `getCategories` accepts an `ordering` parameter and correctly passes it to the API.
-- [ ] Task 4: Refactor CategoriesSection to Carousel
+- [x] Task 4: Refactor CategoriesSection to Carousel
   - File: `frontend/src/components/home/CategoriesSection.tsx`
-  - Action: 
+  - Action:
     - Fetch categories with `parent_id__isnull=True`, `ordering='sort_order'`, and `limit=0` (fetch all/no limit).
     - Implement horizontal scroll (carousel) layout.
-    - **Styles**: 
+    - **Styles**:
       - Use `object-fit: cover` for images.
       - Enforce fixed `aspect-ratio` (e.g., 4:3) to prevent layout shifts.
       - **Fallback**: Create/Import a placeholder image (e.g. `/images/category-placeholder.png`) and display it if `category.image` is missing.
-    - **Responsive**: 
+    - **Responsive**:
       - `w-[80vw]` or `w-[40vw]` for Mobile (showing 1.2 or 2.2 items).
       - `w-[250px]` for Desktop.
     - **Nav**: Add navigation arrows (Left/Right) for Desktop, hide for Mobile (touch scroll).
 
 # Acceptance Criteria
 
-- [ ] AC 1: Admin - "Home Categories" Menu
+- [x] AC 1: Admin - "Home Categories" Menu
   - Given I am an admin
   - When I open the main menu
   - Then I see "Категории для главной" under Products app
   - And the verbose name is correct (singular/plural)
-- [ ] AC 2: Admin - Safety & Hints
+- [x] AC 2: Admin - Safety & Hints
   - Given I am in "Home Categories" list
   - Then I CANNOT see the delete button/action (Delete protected)
   - And I see a hint about the recommended image size (400x300px) when editing
-- [ ] AC 3: Frontend - Desktop Display
+- [x] AC 3: Frontend - Desktop Display
   - Given I am on the Homepage (Blue theme)
   - Then I see the "Categories" block as a carousel with arrows
   - And images have consistent size (cover fit)
   - And categories without images show a placeholder
-- [ ] AC 4: Frontend - Mobile Display
+- [x] AC 4: Frontend - Mobile Display
   - Given I am on the Homepage (Blue theme) on Mobile
   - Then I see the "Categories" block as a scrollable strip (no arrows)
   - And I can swipe left/right to see more categories
-- [ ] AC 5: Frontend - Sorting & Limits
+- [x] AC 5: Frontend - Sorting & Limits
   - Given there are 10+ sorted root categories
   - Then the carousel contains ALL of them (no limit of 6)
   - And they are sorted by Priority (primary) and ID (secondary)
+
+# Dev Agent Record
+
+## Implementation Plan
+- Task 1: Proxy model `HomepageCategory` added to `models.py` after `Category` class
+- Task 2: `HomepageCategoryAdmin` registered with delete protection, queryset filter, image help_text
+- Task 3: `ordering` parameter added to `GetCategoriesParams` interface
+- Task 4: CategoriesSection rewritten from grid to horizontal scroll carousel with CategoryCard component, image support, placeholder fallback, responsive widths, desktop arrows
+
+## Completion Notes
+- All 4 tasks implemented and tested
+- Backend: 6 meta tests pass (proxy model) + 6 admin tests pass (registration, config, delete protection)
+- Frontend: 7 service tests pass (including ordering param) + 9 component tests pass (carousel layout, images, placeholder, no-limit, responsive)
+- `Category` type in `types/api.ts` extended with optional `image` field
+- Mock data updated with `image` field for testing
+- Pre-existing 5 failures in `QuickLinksSection.test.tsx` confirmed unrelated (same failures on clean checkout)
+- No new dependencies added
+
+## File List
+- `backend/apps/products/models.py` — added `HomepageCategory` proxy model
+- `backend/apps/products/admin.py` — added `HomepageCategoryAdmin` with import
+- `backend/apps/products/tests/test_models_homepage_category.py` — NEW: proxy model tests
+- `backend/apps/products/tests/test_admin_homepage_category.py` — NEW: admin tests
+- `frontend/src/types/api.ts` — added `image` field to `Category` interface
+- `frontend/src/services/categoriesService.ts` — added `ordering` to `GetCategoriesParams`
+- `frontend/src/services/__tests__/categoriesService.test.ts` — added ordering/limit tests
+- `frontend/src/components/home/CategoriesSection.tsx` — refactored grid → carousel
+- `frontend/src/components/home/__tests__/CategoriesSection.test.tsx` — rewritten for carousel
+- `frontend/src/__mocks__/api/handlers.ts` — added `image` field to mock categories
+
+## Change Log
+- 2026-02-18: Story implementation complete — all 4 tasks done, all AC satisfied

@@ -248,6 +248,19 @@ class Category(models.Model):
         return self.name
 
 
+class HomepageCategory(Category):
+    """
+    Proxy модель для управления категориями на главной странице.
+    Использует ту же таблицу, что и Category, но с отдельным разделом в админке.
+    """
+
+    class Meta:
+        proxy = True
+        verbose_name = "Категория для главной"
+        verbose_name_plural = "Категории для главной"
+        ordering = ["sort_order", "id"]
+
+
 class Product(models.Model):
     """
     Модель товара с роле-ориентированным ценообразованием

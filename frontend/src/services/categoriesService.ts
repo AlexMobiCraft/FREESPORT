@@ -10,6 +10,7 @@ interface GetCategoriesParams {
   parent_id__isnull?: boolean;
   level?: number;
   limit?: number;
+  ordering?: string;
 }
 
 interface PaginatedResponse<T> {

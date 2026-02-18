@@ -114,4 +114,52 @@ describe('categoriesService', () => {
       expect(result).toHaveLength(0);
     });
   });
+
+  describe('getCategories', () => {
+    test('passes ordering parameter to API', async () => {
+      let capturedUrl = '';
+      server.use(
+        http.get('http://localhost:8001/api/v1/categories/', ({ request }) => {
+          capturedUrl = request.url;
+          return HttpResponse.json({
+            count: 1,
+            next: null,
+            previous: null,
+            results: [{ id: 1, name: 'Бег', slug: 'beg' }],
+          });
+        })
+      );
+
+      await categoriesService.getCategories({
+        ordering: 'sort_order',
+      });
+
+      expect(capturedUrl).toContain('ordering=sort_order');
+    });
+
+    test('passes limit=0 to fetch all categories', async () => {
+      let capturedUrl = '';
+      server.use(
+        http.get('http://localhost:8001/api/v1/categories/', ({ request }) => {
+          capturedUrl = request.url;
+          return HttpResponse.json({
+            count: 0,
+            next: null,
+            previous: null,
+            results: [],
+          });
+        })
+      );
+
+      await categoriesService.getCategories({
+        limit: 0,
+        parent_id__isnull: true,
+        ordering: 'sort_order',
+      });
+
+      expect(capturedUrl).toContain('limit=0');
+      expect(capturedUrl).toContain('ordering=sort_order');
+      expect(capturedUrl).toContain('parent_id__isnull=true');
+    });
+  });
 });
