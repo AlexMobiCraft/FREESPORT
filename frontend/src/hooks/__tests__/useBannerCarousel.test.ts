@@ -1257,6 +1257,7 @@ describe('useBannerCarousel', () => {
     });
 
     it('should not call play() when plugin is unavailable', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       mockEmblaApi.plugins.mockReturnValueOnce({} as any);
       mockAutoplayInstance.play.mockClear();
 
@@ -1270,7 +1271,9 @@ describe('useBannerCarousel', () => {
 
   describe('Autoplay Method Validation (AC10)', () => {
     it('should validate play() method exists before calling', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const invalidPlugin = { ...mockAutoplayInstance, play: undefined as any };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       mockEmblaApi.plugins.mockReturnValueOnce({ autoplay: invalidPlugin } as any);
 
       expect(() => {
@@ -1279,7 +1282,9 @@ describe('useBannerCarousel', () => {
     });
 
     it('should validate play() is a function before calling', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const invalidPlugin = { ...mockAutoplayInstance, play: 'not-a-function' as any };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       mockEmblaApi.plugins.mockReturnValueOnce({ autoplay: invalidPlugin } as any);
 
       expect(() => {
@@ -1338,7 +1343,9 @@ describe('useBannerCarousel', () => {
     it('should not throw during cleanup if stop() is missing', async () => {
       const { unmount } = renderHook(() => useBannerCarousel({ autoplay: true }));
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const invalidPlugin = { ...mockAutoplayInstance, stop: undefined as any };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       mockEmblaApi.plugins.mockReturnValueOnce({ autoplay: invalidPlugin } as any);
 
       expect(() => unmount()).not.toThrow();

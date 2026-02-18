@@ -292,16 +292,16 @@ class HomepageCategoryAdmin(admin.ModelAdmin):
     def get_queryset(self, request: HttpRequest) -> QuerySet:
         """Только подкатегории 'Категории для главной'."""
         qs = super().get_queryset(request)
+
+        # Поиск целевой категории по слагу или имени
         target_parent = Category.objects.filter(slug="kategorii-dlya-glavnoy").first()
-        
-        logger.info(f"HomepageCategoryAdmin: target_parent found: {target_parent}")
+        if not target_parent:
+            target_parent = Category.objects.filter(name="Категории для главной").first()
 
         if target_parent:
-            filtered_qs = qs.filter(parent=target_parent)
-            logger.info(f"HomepageCategoryAdmin: returning {filtered_qs.count()} children")
-            return filtered_qs
+            return qs.filter(parent=target_parent)
 
-        logger.info("HomepageCategoryAdmin: fallback to root categories")
+        # Fallback на корневые категории
         return qs.filter(parent__isnull=True)
 
     def has_delete_permission(self, request: HttpRequest = None, obj: Any = None) -> bool:

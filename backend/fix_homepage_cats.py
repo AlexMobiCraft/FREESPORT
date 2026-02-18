@@ -1,4 +1,3 @@
-
 import os
 import django
 
@@ -7,12 +6,13 @@ django.setup()
 
 from apps.products.models import Category
 
+
 def fix_categories():
     sport = Category.objects.filter(name='СПОРТ').first()
     if not sport:
         print("Category 'СПОРТ' not found!")
         return
-        
+
     target = Category.objects.filter(name='Категории для главной', parent=sport).first()
     if not target:
         target = Category.objects.create(
@@ -36,6 +36,7 @@ def fix_categories():
             child.parent = target
             child.save()
             print(f"Moved '{name}' to 'Категории для главной'")
+
 
 if __name__ == "__main__":
     fix_categories()
