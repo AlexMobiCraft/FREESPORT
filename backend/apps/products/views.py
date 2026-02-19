@@ -180,7 +180,7 @@ class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = CategorySerializer
     lookup_field = "slug"
     filterset_class = CategoryFilter
-    
+
     # filterset_fields больше не нужен, так как используем filterset_class
     # filterset_fields = ["parent", "parent__slug", "is_active"]
 
