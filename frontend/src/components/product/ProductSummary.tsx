@@ -387,7 +387,7 @@ export default function ProductSummary({
               className={`font-medium ${selectedVariant.is_in_stock ? 'text-green-600' : 'text-red-600'}`}
             >
               {selectedVariant.is_in_stock
-                ? `${selectedVariant.available_quantity} шт.`
+                ? selectedVariant.stock_range || `${selectedVariant.available_quantity} шт.`
                 : 'Нет в наличии'}
             </span>
           </div>

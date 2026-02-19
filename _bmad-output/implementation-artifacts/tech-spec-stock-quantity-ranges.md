@@ -2,7 +2,7 @@
 title: 'Stock Quantity Ranges'
 slug: 'stock-quantity-ranges'
 created: '2026-02-19'
-status: 'ready-for-dev'
+status: 'implementation-complete'
 stepsCompleted: [1, 2, 3, 4]
 tech_stack: ['Django', 'React', 'TypeScript']
 files_to_modify: 
@@ -61,18 +61,18 @@ The user wants to display product stock quantities as ranges (e.g., "1-5", "50+"
 # Implementation Plan
 
 ## Backend Tasks
-- [ ] Task 1: Update ProductVariantSerializer
+- [x] Task 1: Update ProductVariantSerializer
   - File: `backend/apps/products/serializers.py`
   - Action: Add `stock_range` field with `SerializerMethodField`. Implement `get_stock_range` using the logic (1-5, 6-19, 20-49, 50+). Use `available_quantity` for calculation.
-- [ ] Task 2: Add Backend Tests
+- [x] Task 2: Add Backend Tests
   - File: `backend/apps/products/tests/test_serializers.py`
   - Action: Add `test_stock_range` cases covering all ranges (0, 3, 10, 30, 60).
 
 ## Frontend Tasks
-- [ ] Task 3: Update Types
+- [x] Task 3: Update Types
   - File: `frontend/src/types/api.ts`
   - Action: Add `stock_range?: string` to `ProductVariant` interface.
-- [ ] Task 4: Update UI
+- [x] Task 4: Update UI
   - File: `frontend/src/components/product/ProductSummary.tsx`
   - Action: Replace `${selectedVariant.available_quantity} шт.` with `${selectedVariant.stock_range}` in the selected variant info block. Ensure it handles cases where `stock_range` might be missing gracefully (though backend ensures it).
 

@@ -55,6 +55,7 @@ class ProductVariantSerializer(serializers.ModelSerializer):
     color_hex = serializers.SerializerMethodField()
     is_in_stock = serializers.BooleanField(read_only=True)
     available_quantity = serializers.IntegerField(read_only=True)
+    stock_range = serializers.SerializerMethodField()
     attributes = serializers.SerializerMethodField()
     main_image = serializers.SerializerMethodField()
     gallery_images = serializers.SerializerMethodField()
@@ -71,6 +72,7 @@ class ProductVariantSerializer(serializers.ModelSerializer):
             "stock_quantity",
             "is_in_stock",
             "available_quantity",
+            "stock_range",
             "rrp",
             "msrp",
             "main_image",
@@ -104,6 +106,29 @@ class ProductVariantSerializer(serializers.ModelSerializer):
             data.pop("msrp", None)
 
         return data
+
+    def get_stock_range(self, obj: ProductVariant) -> str | None:
+        """
+        Получить диапазон остатков (1-5, 6-19, 20-49, 50+)
+
+        Args:
+            obj: ProductVariant instance
+
+        Returns:
+            str | None: Строка диапазона или None если товара нет
+        """
+        quantity = obj.available_quantity
+
+        if quantity <= 0:
+            return None
+        elif quantity <= 5:
+            return "1 - 5"
+        elif quantity <= 19:
+            return "6 - 19"
+        elif quantity <= 49:
+            return "20 - 49"
+        else:
+            return "50 и более"
 
     def get_main_image(self, obj: ProductVariant) -> str | None:
         """

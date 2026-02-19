@@ -291,3 +291,35 @@ class TestProductVariantSerializer:
 
         assert isinstance(data["gallery_images"], list)
         assert len(data["gallery_images"]) == 2
+
+    def test_stock_range_field(self, variant, api_factory):
+        """Тест: stock_range возвращает правильный диапазон"""
+        cases = [
+            (0, None),
+            (3, "1 - 5"),
+            (5, "1 - 5"),
+            (6, "6 - 19"),
+            (10, "6 - 19"),
+            (19, "6 - 19"),
+            (20, "20 - 49"),
+            (30, "20 - 49"),
+            (49, "20 - 49"),
+            (50, "50 и более"),
+            (100, "50 и более"),
+        ]
+
+        request = api_factory.get("/")
+        serializer = ProductVariantSerializer(variant, context={"request": request})
+
+        for qty, expected_range in cases:
+            variant.stock_quantity = qty
+            variant.reserved_quantity = 0 # Reset reserved to keep it clean
+            variant.save()
+            
+            # Refresh from DB to ensure computed property available_quantity is updated? 
+            # Actually serializer uses model property.
+            variant.refresh_from_db()
+
+            data = serializer.to_representation(variant)
+            assert data.get("stock_range") == expected_range, f"Failed for quantity {qty}"
+
