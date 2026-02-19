@@ -41,7 +41,7 @@ describe('Footer', () => {
   });
 
   describe('Rendering - Columns', () => {
-    it('renders all 3 default column titles', () => {
+    it('renders all 5 default column titles', () => {
       render(<Footer />);
 
       const headings = screen.getAllByRole('heading', { level: 3 });
@@ -50,7 +50,9 @@ describe('Footer', () => {
       expect(headingTexts).toContain('Каталог');
       expect(headingTexts).toContain('Информация');
       expect(headingTexts).toContain('Контакты');
-      expect(headings.length).toBe(3);
+      expect(headingTexts).toContain('Компания');
+      expect(headingTexts).toContain('Клиентам');
+      expect(headings.length).toBe(5);
     });
 
     it('renders Information section links', () => {
@@ -64,9 +66,14 @@ describe('Footer', () => {
     it('renders Каталог column links', () => {
       render(<Footer />);
 
-      expect(screen.getByRole('link', { name: 'Каталог' })).toHaveAttribute('href', '/catalog');
-      expect(screen.getByRole('link', { name: 'Новости' })).toHaveAttribute('href', '/news');
-      expect(screen.getByRole('link', { name: 'Блог' })).toHaveAttribute('href', '/blog');
+      expect(screen.getByRole('link', { name: 'Фитнес и атлетика' })).toHaveAttribute(
+        'href',
+        '/catalog?category=fitnes-i-atletika'
+      );
+      expect(screen.getByRole('link', { name: 'Спортивные игры' })).toHaveAttribute(
+        'href',
+        '/catalog?category=sportivnye-igry'
+      );
     });
 
     it('renders Контакты column with tel: and mailto: links', () => {
@@ -106,7 +113,7 @@ describe('Footer', () => {
     it('applies hover styles to column links', () => {
       render(<Footer />);
 
-      const link = screen.getByRole('link', { name: 'Каталог' });
+      const link = screen.getByRole('link', { name: 'Фитнес и атлетика' });
       expect(link).toHaveClass('hover:text-white', 'transition-colors');
     });
   });
@@ -187,7 +194,7 @@ describe('Footer', () => {
     it('renders default copyright text', () => {
       render(<Footer />);
 
-      expect(screen.getByText('© 2025 FREESPORT. Все права защищены.')).toBeInTheDocument();
+      expect(screen.getByText('© 2026 FREESPORT. Все права защищены.')).toBeInTheDocument();
     });
 
     it('renders custom copyright when provided', () => {
@@ -199,7 +206,7 @@ describe('Footer', () => {
     it('applies correct typography to copyright (text-xs text-neutral-500)', () => {
       render(<Footer />);
 
-      const copyrightText = screen.getByText('© 2025 FREESPORT. Все права защищены.');
+      const copyrightText = screen.getByText('© 2026 FREESPORT. Все права защищены.');
       expect(copyrightText).toHaveClass('text-xs', 'text-neutral-500');
     });
   });
@@ -268,7 +275,7 @@ describe('Footer', () => {
       const footer = screen.getByRole('contentinfo');
       const headings = footer.querySelectorAll('h3');
 
-      expect(headings.length).toBe(3); // 3 default columns
+      expect(headings.length).toBe(5); // 5 default columns
     });
 
     it('all navigation links are keyboard accessible', () => {
@@ -319,7 +326,7 @@ describe('Footer', () => {
     it('applies transition effects for hover states', () => {
       render(<Footer />);
 
-      const link = screen.getByRole('link', { name: 'Каталог' });
+      const link = screen.getByRole('link', { name: 'Фитнес и атлетика' });
       expect(link).toHaveClass('transition-colors');
     });
   });

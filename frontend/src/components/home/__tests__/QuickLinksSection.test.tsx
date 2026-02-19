@@ -42,7 +42,7 @@ const mockCategories = [
 describe('QuickLinksSection', () => {
     it('renders 3 static quick links', async () => {
         server.use(
-            http.get('*/categories/', () => HttpResponse.json([]))
+            http.get('*/categories-tree/', () => HttpResponse.json([]))
         );
 
         render(<QuickLinksSection />);
@@ -56,7 +56,7 @@ describe('QuickLinksSection', () => {
 
     it('static links have correct hrefs', async () => {
         server.use(
-            http.get('*/categories/', () => HttpResponse.json([]))
+            http.get('*/categories-tree/', () => HttpResponse.json([]))
         );
 
         render(<QuickLinksSection />);
@@ -69,14 +69,14 @@ describe('QuickLinksSection', () => {
         const hits = screen.getByText('Хиты продаж').closest('a');
         const sale = screen.getByText('Скидки').closest('a');
 
-        expect(novinki).toHaveAttribute('href', '/catalog?sort=new');
-        expect(hits).toHaveAttribute('href', '/catalog?sort=popular');
-        expect(sale).toHaveAttribute('href', '/catalog?is_discounted=true');
+        expect(novinki).toHaveAttribute('href', '/catalog?is_new=true');
+        expect(hits).toHaveAttribute('href', '/catalog?is_hit=true');
+        expect(sale).toHaveAttribute('href', '/catalog?is_sale=true');
     });
 
     it('loads and displays categories from API', async () => {
         server.use(
-            http.get('*/categories/', () => HttpResponse.json(mockCategories))
+            http.get('*/categories-tree/', () => HttpResponse.json(mockCategories))
         );
 
         render(<QuickLinksSection />);
@@ -90,7 +90,7 @@ describe('QuickLinksSection', () => {
 
     it('category links point to /catalog/{slug}', async () => {
         server.use(
-            http.get('*/categories/', () => HttpResponse.json(mockCategories))
+            http.get('*/categories-tree/', () => HttpResponse.json(mockCategories))
         );
 
         render(<QuickLinksSection />);
@@ -99,16 +99,18 @@ describe('QuickLinksSection', () => {
             expect(screen.getByText('Футбол')).toBeInTheDocument();
         });
 
+        // В QuickLinksSection ссылки на категории теперь имеют формат /catalog?category={slug}
+        // на основе кода: href={`/catalog?category=${category.slug}`}
         const footballLink = screen.getByText('Футбол').closest('a');
         const runningLink = screen.getByText('Бег').closest('a');
 
-        expect(footballLink).toHaveAttribute('href', '/catalog/football');
-        expect(runningLink).toHaveAttribute('href', '/catalog/running');
+        expect(footballLink).toHaveAttribute('href', '/catalog?category=football');
+        expect(runningLink).toHaveAttribute('href', '/catalog?category=running');
     });
 
     it('shows only static links on API error (graceful degradation)', async () => {
         server.use(
-            http.get('*/categories/', () => {
+            http.get('*/categories-tree/', () => {
                 return new HttpResponse(null, { status: 500 });
             })
         );
@@ -128,7 +130,7 @@ describe('QuickLinksSection', () => {
 
     it('renders section with correct aria label', async () => {
         server.use(
-            http.get('*/categories/', () => HttpResponse.json(mockCategories))
+            http.get('*/categories-tree/', () => HttpResponse.json(mockCategories))
         );
 
         render(<QuickLinksSection />);
@@ -143,7 +145,7 @@ describe('QuickLinksSection', () => {
 
     it('renders fixed and scrollable zones separately', async () => {
         server.use(
-            http.get('*/categories/', () => HttpResponse.json([]))
+            http.get('*/categories-tree/', () => HttpResponse.json([]))
         );
 
         render(<QuickLinksSection />);
@@ -163,7 +165,7 @@ describe('QuickLinksSection', () => {
 
     it('renders both static and dynamic items as listitems', async () => {
         server.use(
-            http.get('*/categories/', () => HttpResponse.json(mockCategories))
+            http.get('*/categories-tree/', () => HttpResponse.json(mockCategories))
         );
 
         render(<QuickLinksSection />);

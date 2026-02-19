@@ -47,12 +47,14 @@ describe('CategoriesSection', () => {
 
     // Категории с image отображают их
     const footballImg = screen.getByAltText('Футбол') as HTMLImageElement;
-    expect(footballImg.src).toContain('/media/categories/football.jpg');
+    expect(footballImg.src).toBeTruthy();
+    // next/image might use a different URL format but it should eventually point to our media
+    expect(decodeURIComponent(footballImg.src)).toContain('/media/categories/football.jpg');
     expect(footballImg.className).toContain('object-cover');
 
     // Категории без image (Теннис, image: null) получают placeholder
     const tennisImg = screen.getByAltText('Теннис') as HTMLImageElement;
-    expect(tennisImg.src).toContain('category-placeholder.png');
+    expect(decodeURIComponent(tennisImg.src)).toContain('category-placeholder.png');
   });
 
   it('displays product counts', async () => {
@@ -75,8 +77,8 @@ describe('CategoriesSection', () => {
     });
 
     const cards = screen.getAllByTestId('category-card');
-    expect(cards[0]).toHaveAttribute('href', '/catalog/football');
-    expect(cards[1]).toHaveAttribute('href', '/catalog/running');
+    expect(cards[0]).toHaveAttribute('href', '/catalog?category=football');
+    expect(cards[1]).toHaveAttribute('href', '/catalog?category=running');
   });
 
   it('shows error state on API failure and allows retry', { timeout: 20000 }, async () => {
@@ -114,7 +116,7 @@ describe('CategoriesSection', () => {
     );
   });
 
-  it('uses ordering=sort_order and limit=0 in API call', async () => {
+  it('uses is_homepage=true and ordering=sort_order in API call', async () => {
     const requestSpy = vi.fn();
 
     server.use(
@@ -136,9 +138,9 @@ describe('CategoriesSection', () => {
     });
 
     const calledUrl = requestSpy.mock.calls[0][0];
-    expect(calledUrl).toContain('parent__slug=kategorii-dlya-glavnoy');
+    expect(calledUrl).toContain('is_homepage=true');
     expect(calledUrl).toContain('ordering=sort_order');
-    expect(calledUrl).toContain('page_size=1000');
+    expect(calledUrl).toContain('page_size=50');
   });
 
   it('does not render when no categories are returned', async () => {

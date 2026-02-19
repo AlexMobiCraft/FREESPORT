@@ -492,7 +492,7 @@ const CatalogContent: React.FC = () => {
     return () => {
       isMounted = false;
     };
-  }, [searchParams]);
+  }, [searchParams, hasBadgeFilter]);
 
   // Чтение параметра search из URL при инициализации
   useEffect(() => {

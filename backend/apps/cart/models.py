@@ -5,13 +5,13 @@
 
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from django.contrib.auth import get_user_model
 from django.core.validators import MinValueValidator
 from django.db import models
 from django.db.models import Q
-from decimal import Decimal
 
 if TYPE_CHECKING:
     from django.db.models import QuerySet

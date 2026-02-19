@@ -17,12 +17,7 @@ import xml.etree.ElementTree as ET
 import pytest
 from rest_framework.test import APIClient
 
-from tests.conftest import (
-    OrderFactory,
-    OrderItemFactory,
-    ProductVariantFactory,
-    UserFactory,
-)
+from tests.conftest import OrderFactory, OrderItemFactory, ProductVariantFactory, UserFactory
 from tests.utils import ONEC_PASSWORD, parse_commerceml_response, perform_1c_checkauth
 
 pytestmark = pytest.mark.django_db

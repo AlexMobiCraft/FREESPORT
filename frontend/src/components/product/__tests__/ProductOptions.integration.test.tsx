@@ -41,6 +41,7 @@ const mockVariants: ProductVariant[] = [
     stock_quantity: 15,
     is_in_stock: true,
     available_quantity: 15,
+    stock_range: '15 шт.',
     main_image: '/media/nike-red.jpg',
     gallery_images: ['/media/nike-red-side.jpg', '/media/nike-red-back.jpg'],
   },
@@ -54,6 +55,7 @@ const mockVariants: ProductVariant[] = [
     stock_quantity: 10,
     is_in_stock: true,
     available_quantity: 10,
+    stock_range: '10 шт.',
     main_image: '/media/nike-blue.jpg',
     gallery_images: ['/media/nike-blue-side.jpg'],
   },
@@ -67,6 +69,7 @@ const mockVariants: ProductVariant[] = [
     stock_quantity: 0,
     is_in_stock: false,
     available_quantity: 0,
+    stock_range: 'Нет в наличии',
     main_image: '/media/nike-red.jpg',
   },
   {
@@ -79,6 +82,7 @@ const mockVariants: ProductVariant[] = [
     stock_quantity: 5,
     is_in_stock: true,
     available_quantity: 5,
+    stock_range: '5 шт.',
     main_image: '/media/nike-blue.jpg',
   },
 ];

@@ -454,11 +454,7 @@ class TestAttributeAdminMergeAttributes:
 
         from django.contrib.auth import get_user_model
 
-        from apps.products.models import (
-            Attribute,
-            AttributeValue,
-            AttributeValue1CMapping,
-        )
+        from apps.products.models import Attribute, AttributeValue, AttributeValue1CMapping
 
         User = get_user_model()
 

@@ -58,11 +58,11 @@ class TestBannerTypeField:
 
     def test_type_choices_hero(self):
         """BannerType.HERO === 'hero'."""
-        assert Banner.BannerType.HERO == "hero"
+        assert Banner.BannerType.HERO.value == "hero"
 
     def test_type_choices_marketing(self):
         """BannerType.MARKETING === 'marketing'."""
-        assert Banner.BannerType.MARKETING == "marketing"
+        assert Banner.BannerType.MARKETING.value == "marketing"
 
     def test_type_choices_labels(self):
         """Choices содержат корректные label."""

@@ -71,9 +71,7 @@ class TestImportOrchestratorService:
 
     def test_orchestrator_is_importable(self):
         """Service class exists and is importable."""
-        from apps.integrations.onec_exchange.import_orchestrator import (
-            ImportOrchestratorService,
-        )
+        from apps.integrations.onec_exchange.import_orchestrator import ImportOrchestratorService
 
         svc = ImportOrchestratorService("test-sessid", "goods.xml")
         assert svc.sessid == "test-sessid"
@@ -90,9 +88,7 @@ class TestImportOrchestratorService:
 
     def test_detect_file_type(self):
         """File type detection works correctly."""
-        from apps.integrations.onec_exchange.import_orchestrator import (
-            ImportOrchestratorService,
-        )
+        from apps.integrations.onec_exchange.import_orchestrator import ImportOrchestratorService
 
         assert ImportOrchestratorService("s", "goods_1.xml")._detect_file_type() == "goods"
         assert ImportOrchestratorService("s", "import_data.xml")._detect_file_type() == "goods"
@@ -123,9 +119,7 @@ class TestAsyncImportDispatch:
         settings.MEDIA_ROOT = str(tmp_path)
         (tmp_path / "1c_import").mkdir(parents=True, exist_ok=True)
 
-        from apps.integrations.onec_exchange.import_orchestrator import (
-            ImportOrchestratorService,
-        )
+        from apps.integrations.onec_exchange.import_orchestrator import ImportOrchestratorService
 
         with patch("apps.products.tasks.process_1c_import_task") as mock_task:
             mock_task.delay.return_value.id = "fake-task-id"
@@ -147,9 +141,7 @@ class TestAsyncImportDispatch:
 
     def test_execute_no_call_command(self):
         """Import orchestrator must not use call_command (synchronous)."""
-        from apps.integrations.onec_exchange.import_orchestrator import (
-            ImportOrchestratorService,
-        )
+        from apps.integrations.onec_exchange.import_orchestrator import ImportOrchestratorService
 
         source = inspect.getsource(ImportOrchestratorService)
         assert "call_command" not in source
@@ -165,9 +157,7 @@ class TestFinalizeBatchReliability:
         settings.MEDIA_ROOT = str(tmp_path)
         (tmp_path / "1c_import").mkdir(parents=True, exist_ok=True)
 
-        from apps.integrations.onec_exchange.import_orchestrator import (
-            ImportOrchestratorService,
-        )
+        from apps.integrations.onec_exchange.import_orchestrator import ImportOrchestratorService
 
         svc = ImportOrchestratorService("test-finalize-fail", "goods.xml")
 
@@ -190,9 +180,7 @@ class TestFinalizeBatchReliability:
         settings.MEDIA_ROOT = str(tmp_path)
         (tmp_path / "1c_import").mkdir(parents=True, exist_ok=True)
 
-        from apps.integrations.onec_exchange.import_orchestrator import (
-            ImportOrchestratorService,
-        )
+        from apps.integrations.onec_exchange.import_orchestrator import ImportOrchestratorService
 
         svc = ImportOrchestratorService("test-partial", "goods.xml")
 
@@ -220,17 +208,13 @@ class TestTransferFilesUnified:
 
     def test_no_transfer_files_complete_method(self):
         """LOW: _transfer_files_complete should no longer exist."""
-        from apps.integrations.onec_exchange.import_orchestrator import (
-            ImportOrchestratorService,
-        )
+        from apps.integrations.onec_exchange.import_orchestrator import ImportOrchestratorService
 
         assert not hasattr(ImportOrchestratorService, "_transfer_files_complete")
 
     def test_transfer_files_accepts_label_param(self):
         """LOW: _transfer_files accepts a label parameter for log context."""
-        from apps.integrations.onec_exchange.import_orchestrator import (
-            ImportOrchestratorService,
-        )
+        from apps.integrations.onec_exchange.import_orchestrator import ImportOrchestratorService
 
         sig = inspect.signature(ImportOrchestratorService._transfer_files)
         assert "label" in sig.parameters

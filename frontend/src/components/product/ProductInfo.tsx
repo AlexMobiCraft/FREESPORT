@@ -134,6 +134,14 @@ export default function ProductInfo({
             Бренд: <span className="font-medium">{product.brand}</span>
           </span>
         )}
+        {product.sku && (
+          <span className="text-neutral-400">|</span>
+        )}
+        {product.sku && (
+          <span>
+            Артикул: <span className="font-medium">{product.sku}</span>
+          </span>
+        )}
       </div>
 
       {/* Рейтинг */}

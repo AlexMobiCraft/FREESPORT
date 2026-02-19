@@ -286,19 +286,16 @@ export function useBannerCarousel(options: UseBannerCarouselOptions = {}): UseBa
     try {
       const plugins = emblaApi.plugins();
       if (!plugins || typeof plugins.autoplay !== 'object') return;
-      
+
       const autoplayPlugin = plugins.autoplay;
-      
+
       // Validate play method exists before calling (AC10)
       if (typeof autoplayPlugin.play === 'function' && !autoplayPlugin.isPlaying()) {
         autoplayPlugin.play();
       }
-    } catch (error) {
+    } catch {
       // Silently handle plugin access errors (AC1)
       // Plugin may not be available or initialized yet
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('Failed to start autoplay:', error);
-      }
     }
   }, [emblaApi, autoplay]);
 
@@ -308,7 +305,7 @@ export function useBannerCarousel(options: UseBannerCarouselOptions = {}): UseBa
     // Cleanup: stop autoplay on unmount to prevent memory leaks (AC11)
     return () => {
       if (!emblaApi || !autoplay) return;
-      
+
       try {
         const plugins = emblaApi.plugins();
         if (plugins && typeof plugins.autoplay === 'object') {
@@ -317,7 +314,7 @@ export function useBannerCarousel(options: UseBannerCarouselOptions = {}): UseBa
             autoplayPlugin.stop();
           }
         }
-      } catch (error) {
+      } catch {
         // Silently handle cleanup errors
       }
     };

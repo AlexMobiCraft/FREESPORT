@@ -12,17 +12,9 @@ from pathlib import Path
 import pytest
 from django.db import IntegrityError
 
-from apps.products.models import (
-    Attribute,
-    Attribute1CMapping,
-    AttributeValue,
-    AttributeValue1CMapping,
-)
+from apps.products.models import Attribute, Attribute1CMapping, AttributeValue, AttributeValue1CMapping
 from apps.products.services.attribute_import import AttributeImportService
-from apps.products.utils.attributes import (
-    normalize_attribute_name,
-    normalize_attribute_value,
-)
+from apps.products.utils.attributes import normalize_attribute_name, normalize_attribute_value
 
 # Глобальный счетчик для обеспечения уникальности в тестах
 _unique_counter = 0
