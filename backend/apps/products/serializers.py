@@ -13,6 +13,13 @@ from rest_framework import serializers
 
 from .models import Attribute, AttributeValue, Brand, Category, ColorMapping, Product, ProductImage, ProductVariant
 
+# Константы для отображения диапазонов остатков
+STOCK_RANGE_LIMITS = {
+    "LOW": 5,
+    "MEDIUM": 19,
+    "HIGH": 49,
+}
+
 
 class AttributeValueSerializer(serializers.ModelSerializer):
     """
@@ -55,6 +62,7 @@ class ProductVariantSerializer(serializers.ModelSerializer):
     color_hex = serializers.SerializerMethodField()
     is_in_stock = serializers.BooleanField(read_only=True)
     available_quantity = serializers.IntegerField(read_only=True)
+    stock_range = serializers.SerializerMethodField()
     attributes = serializers.SerializerMethodField()
     main_image = serializers.SerializerMethodField()
     gallery_images = serializers.SerializerMethodField()
@@ -71,6 +79,7 @@ class ProductVariantSerializer(serializers.ModelSerializer):
             "stock_quantity",
             "is_in_stock",
             "available_quantity",
+            "stock_range",
             "rrp",
             "msrp",
             "main_image",
@@ -104,6 +113,31 @@ class ProductVariantSerializer(serializers.ModelSerializer):
             data.pop("msrp", None)
 
         return data
+
+    def get_stock_range(self, obj: ProductVariant) -> str | None:
+        """
+        Получить диапазон остатков (1-5, 6-19, 20-49, 50+)
+
+        Args:
+            obj: ProductVariant instance
+
+        Returns:
+            str | None: Строка диапазона или None если товара нет
+        """
+        quantity = obj.available_quantity
+
+        quantity = obj.available_quantity
+
+        if quantity <= 0:
+            return None
+        elif quantity <= STOCK_RANGE_LIMITS["LOW"]:
+            return f"1 - {STOCK_RANGE_LIMITS['LOW']}"
+        elif quantity <= STOCK_RANGE_LIMITS["MEDIUM"]:
+            return f"{STOCK_RANGE_LIMITS['LOW'] + 1} - {STOCK_RANGE_LIMITS['MEDIUM']}"
+        elif quantity <= STOCK_RANGE_LIMITS["HIGH"]:
+            return f"{STOCK_RANGE_LIMITS['MEDIUM'] + 1} - {STOCK_RANGE_LIMITS['HIGH']}"
+        else:
+            return f"{STOCK_RANGE_LIMITS['HIGH'] + 1} и более"
 
     def get_main_image(self, obj: ProductVariant) -> str | None:
         """
