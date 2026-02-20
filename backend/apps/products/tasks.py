@@ -76,9 +76,7 @@ def process_1c_import_task(
                 logger.info(f"Found {len(zip_files)} ZIP files in import dir. Unpacking...")
                 import zipfile
 
-                from apps.integrations.onec_exchange.routing_service import (
-                    XML_ROUTING_RULES,
-                )
+                from apps.integrations.onec_exchange.routing_service import XML_ROUTING_RULES
 
                 for zf in zip_files:
                     try:
@@ -153,6 +151,12 @@ def process_1c_import_task(
                     except Exception as e:
                         logger.error(f"Failed to unpack {zf.name}: {e}")
                         session.report += f"[{timezone.now()}] Ошибка распаковки {zf.name}: {e}\n"
+                        # Remove the corrupted zip file so it doesn't get retried endlessly
+                        try:
+                            zf.unlink()
+                            logger.info(f"Deleted corrupted archive: {zf.name}")
+                        except OSError as del_err:
+                            logger.warning(f"Failed to delete corrupted archive {zf.name}: {del_err}")
 
                 session.save(update_fields=["report"])
 

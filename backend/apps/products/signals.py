@@ -15,9 +15,7 @@ from .constants import FEATURED_BRANDS_CACHE_KEY
 from .models import Brand
 
 # Поля Brand, влияющие на featured endpoint payload.
-_FEATURED_RELEVANT_FIELDS = frozenset(
-    {"is_featured", "is_active", "name", "slug", "image", "website"}
-)
+_FEATURED_RELEVANT_FIELDS = frozenset({"is_featured", "is_active", "name", "slug", "image", "website"})
 
 
 @receiver(pre_save, sender=Brand)

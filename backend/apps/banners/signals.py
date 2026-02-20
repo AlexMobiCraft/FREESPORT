@@ -20,9 +20,7 @@ from .services import invalidate_banner_cache
 
 
 @receiver(pre_save, sender=Banner)
-def track_old_banner_type(
-    sender: type[Banner], instance: Banner, **kwargs: Any
-) -> None:
+def track_old_banner_type(sender: type[Banner], instance: Banner, **kwargs: Any) -> None:
     """
     Сохраняет старый type баннера перед save для инвалидации кеша обоих типов.
 
@@ -31,17 +29,15 @@ def track_old_banner_type(
     if instance.pk:
         try:
             old_instance = Banner.objects.only("type").get(pk=instance.pk)
-            instance._old_type = old_instance.type
+            instance._old_type = old_instance.type  # type: ignore[attr-defined]
         except Banner.DoesNotExist:
-            instance._old_type = None
+            instance._old_type = None  # type: ignore[attr-defined]
     else:
-        instance._old_type = None
+        instance._old_type = None  # type: ignore[attr-defined]
 
 
 @receiver(post_save, sender=Banner)
-def invalidate_banner_cache_on_save(
-    sender: type[Banner], instance: Banner, **kwargs: Any
-) -> None:
+def invalidate_banner_cache_on_save(sender: type[Banner], instance: Banner, **kwargs: Any) -> None:
     """
     Инвалидирует кэш при сохранении баннера.
 
@@ -56,9 +52,7 @@ def invalidate_banner_cache_on_save(
 
 
 @receiver(post_delete, sender=Banner)
-def invalidate_banner_cache_on_delete(
-    sender: type[Banner], instance: Banner, **kwargs: Any
-) -> None:
+def invalidate_banner_cache_on_delete(sender: type[Banner], instance: Banner, **kwargs: Any) -> None:
     """
     Инвалидирует кэш при удалении баннера.
 

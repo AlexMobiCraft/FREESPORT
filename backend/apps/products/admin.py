@@ -17,11 +17,7 @@ from django.http import HttpRequest, HttpResponseRedirect
 from django.shortcuts import render
 from django.utils.html import format_html
 
-from .forms import (
-    MergeAttributesActionForm,
-    MergeBrandsActionForm,
-    TransferMappingsActionForm,
-)
+from .forms import MergeAttributesActionForm, MergeBrandsActionForm, TransferMappingsActionForm
 from .models import (
     Attribute,
     Attribute1CMapping,
@@ -295,7 +291,7 @@ class HomepageCategoryAdmin(admin.ModelAdmin):
         qs = super().get_queryset(request)
         return qs
 
-    def has_delete_permission(self, request: HttpRequest = None, obj: Any = None) -> bool:
+    def has_delete_permission(self, request: HttpRequest | None = None, obj: Any = None) -> bool:
         """Запрет удаления категорий из этого раздела."""
         return False
 
@@ -313,7 +309,7 @@ class HomepageCategoryAdmin(admin.ModelAdmin):
             )
         return "-"
 
-    def get_form(self, request: HttpRequest, obj: Any = None, **kwargs: Any) -> Any:
+    def get_form(self, request: HttpRequest, obj: Any = None, change: bool = False, **kwargs: Any) -> Any:
         """Добавляем help_text к полю image."""
         form = super().get_form(request, obj, **kwargs)
         if "image" in form.base_fields:

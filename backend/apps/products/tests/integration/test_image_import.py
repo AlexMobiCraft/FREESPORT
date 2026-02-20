@@ -13,10 +13,7 @@ import pytest
 from django.test import override_settings
 
 from apps.products.models import Brand, Category, ImportSession, Product, ProductVariant
-from apps.products.services.variant_import import (
-    VariantImportProcessor,
-    normalize_image_path,
-)
+from apps.products.services.variant_import import VariantImportProcessor, normalize_image_path
 
 
 @pytest.fixture

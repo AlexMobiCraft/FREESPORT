@@ -24,7 +24,7 @@ class TestHomepageCategoryMeta:
         assert HomepageCategory._meta.verbose_name_plural == "Категории для главной"
 
     def test_default_ordering(self):
-        assert list(HomepageCategory._meta.ordering) == ["sort_order", "id"]
+        assert list(HomepageCategory._meta.ordering or []) == ["sort_order", "id"]
 
     def test_str_method_inherited(self):
         cat = HomepageCategory(name="Бег", slug="beg")

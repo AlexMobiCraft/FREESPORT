@@ -651,10 +651,7 @@ class TestOrdersFilenameConstant:
 
     def test_constants_exist(self):
         """LOW: Constants are defined at module level."""
-        from apps.integrations.onec_exchange.views import (
-            ORDERS_XML_FILENAME,
-            ORDERS_ZIP_FILENAME,
-        )
+        from apps.integrations.onec_exchange.views import ORDERS_XML_FILENAME, ORDERS_ZIP_FILENAME
 
         assert ORDERS_XML_FILENAME == "orders.xml"
         assert ORDERS_ZIP_FILENAME == "orders.zip"

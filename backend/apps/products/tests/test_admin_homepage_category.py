@@ -4,6 +4,7 @@ Story: home-categories-refactor, Task 2.
 """
 
 from django.contrib import admin
+from django.test import RequestFactory
 
 from apps.products.admin import HomepageCategoryAdmin
 from apps.products.models import HomepageCategory
@@ -37,7 +38,8 @@ class TestHomepageCategoryAdminRegistration:
     def test_has_delete_permission_returns_false(self):
         """has_delete_permission всегда False (защита от удаления)."""
         instance = admin.site._registry[HomepageCategory]
-        assert instance.has_delete_permission(request=None) is False
+        request = RequestFactory().get("/")
+        assert instance.has_delete_permission(request=request) is False
 
     def test_ordering(self):
         """Сортировка по sort_order."""

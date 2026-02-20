@@ -18,10 +18,10 @@ from django.utils import timezone
 from apps.banners.factories import BannerFactory
 from apps.banners.models import Banner
 from apps.banners.services import (
+    _ALL_ROLE_KEYS,
     BANNER_CACHE_TTL,
     CACHE_KEY_PATTERN,
     MIN_CACHE_TTL,
-    _ALL_ROLE_KEYS,
     _get_role_filter,
     build_cache_key,
     cache_banner_response,

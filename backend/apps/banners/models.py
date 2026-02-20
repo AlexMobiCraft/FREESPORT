@@ -228,9 +228,7 @@ class Banner(models.Model):
         self.cta_link = cleaned_cta_link
 
         if self.type == self.BannerType.MARKETING and not self.image:
-            raise ValidationError(
-                {"image": "Изображение обязательно для маркетинговых баннеров."}
-            )
+            raise ValidationError({"image": "Изображение обязательно для маркетинговых баннеров."})
 
     def save(self, *args: Any, **kwargs: Any) -> None:
         """Вызывает full_clean() перед сохранением для обеспечения валидации."""

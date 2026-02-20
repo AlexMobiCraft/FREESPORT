@@ -16,13 +16,9 @@ from rest_framework.response import Response
 from rest_framework.test import APIClient
 
 from apps.orders.models import Order
-from tests.conftest import (
-    OrderFactory,
-    OrderItemFactory,
-    ProductVariantFactory,
-    UserFactory,
-)
-from tests.utils import EXCHANGE_URL, ONEC_PASSWORD, build_orders_xml as _build_orders_xml
+from tests.conftest import OrderFactory, OrderItemFactory, ProductVariantFactory, UserFactory
+from tests.utils import EXCHANGE_URL, ONEC_PASSWORD
+from tests.utils import build_orders_xml as _build_orders_xml
 from tests.utils import parse_commerceml_response, perform_1c_checkauth
 
 pytestmark = [pytest.mark.django_db, pytest.mark.integration]
