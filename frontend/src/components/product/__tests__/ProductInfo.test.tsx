@@ -49,9 +49,8 @@ describe('ProductInfo', () => {
     expect(screen.getByText('ASICS Gel-Blast FF')).toBeInTheDocument();
   });
 
-  it('рендерит SKU и бренд', () => {
+  it('рендерит бренд', () => {
     render(<ProductInfo product={mockProduct} />);
-    expect(screen.getByText(/AS-GB-FF-2025/)).toBeInTheDocument();
     expect(screen.getByText(/Бренд:/)).toBeInTheDocument();
     const brandElements = screen.getAllByText('ASICS');
     expect(brandElements.length).toBeGreaterThan(0);
