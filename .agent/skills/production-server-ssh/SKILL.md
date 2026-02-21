@@ -64,8 +64,9 @@ docker compose --env-file .env.prod -f docker/docker-compose.prod.yml up -d --bu
 # 1. Зайти в папку проекта
 cd /home/freesport/freesport/
 
-# 2. Подтянуть изменения
-git pull origin main
+# 2. Подтянуть изменения (принудительно, во избежание конфликтов)
+git fetch origin main
+git reset --hard origin/main
 
 # 3. Применить миграции (если были изменения в моделях)
 docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec backend python manage.py migrate
