@@ -76,7 +76,7 @@ export const OrdersList: React.FC<OrdersListProps> = ({
   return (
     <div className={cn('w-full', className)}>
       {/* Фильтры по статусу */}
-      <div className="flex items-center gap-2 mb-6 overflow-x-auto pb-2 scrollbar-hide">
+      <div className="flex items-center gap-2 mb-6 overflow-x-auto pt-2 pl-2 pb-2 scrollbar-hide">
         {STATUS_TABS.map(tab => {
           const isActive = tab.id === statusFilter;
           return (
