@@ -369,10 +369,7 @@ export default function ProductSummary({
       {/* Информация о выбранном варианте */}
       {selectedVariant && (
         <div className="p-3 bg-neutral-50 rounded-lg" data-testid="selected-variant-info">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-neutral-600">Артикул варианта:</span>
-            <span className="font-medium text-neutral-900">{selectedVariant.sku}</span>
-          </div>
+
           {canSeeRrp && parseFloat(selectedVariant.rrp || '0') > 0 && (
             <div className="flex items-center justify-between text-sm mt-1">
               <span className="text-neutral-600">РРЦ:</span>

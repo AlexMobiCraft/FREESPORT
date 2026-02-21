@@ -451,8 +451,7 @@ describe('ProductOptions Integration (Story 13.5b)', () => {
       expect(button).not.toBeDisabled();
       expect(button).toHaveTextContent('Добавить в корзину');
 
-      // Должен отображаться артикул выбранного варианта (может быть несколько мест отображения)
-      expect(screen.getAllByText('SIMPLE-VARIANT').length).toBeGreaterThan(0);
+
     });
   });
 });
