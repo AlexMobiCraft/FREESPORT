@@ -38,7 +38,7 @@ docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec backe
 Используй для обновления логики (Python/JS код), если не менялись зависимости и структура контейнеров.
 ```bash
 # Перезапуск основных сервисов (код подтягивается через волюмы или образы уже обновлены)
-docker compose --env-file .env.prod -f docker/docker-compose.prod.yml restart backend frontend
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml restart backend frontend nginx
 ```
 > [!NOTE]
 > Если изменения во фронтенде требуют пересборки статики (Next.js build), используй сценарий "Обновление фронтенда".
@@ -52,6 +52,7 @@ docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec backe
 ### 4. Обновление только фронтенда (Frontend Only)
 ```bash
 docker compose --env-file .env.prod -f docker/docker-compose.prod.yml up -d --build frontend
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml restart nginx
 ```
 
 ### 5. Обслуживание (Migrations & Static)
