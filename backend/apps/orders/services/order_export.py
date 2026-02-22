@@ -167,6 +167,26 @@ class OrderExportService:
         products = self._create_products_element(order)
         document.append(products)
 
+        # Значения реквизитов документа
+        doc_props = ET.Element("ЗначенияРеквизитов")
+        
+        doc_prop1 = ET.Element("ЗначениеРеквизита")
+        self._add_text_element(doc_prop1, "Наименование", "Статус заказа")
+        self._add_text_element(doc_prop1, "Значение", "Новый")
+        doc_props.append(doc_prop1)
+        
+        doc_prop2 = ET.Element("ЗначениеРеквизита")
+        self._add_text_element(doc_prop2, "Наименование", "Отменен")
+        self._add_text_element(doc_prop2, "Значение", "false")
+        doc_props.append(doc_prop2)
+
+        doc_prop3 = ET.Element("ЗначениеРеквизита")
+        self._add_text_element(doc_prop3, "Наименование", "Сайт")
+        self._add_text_element(doc_prop3, "Значение", "freesport.ru")
+        doc_props.append(doc_prop3)
+
+        document.append(doc_props)
+
         return document
 
     def _create_counterparties_element(self, order: "Order") -> ET.Element:
@@ -282,6 +302,21 @@ class OrderExportService:
             self._add_text_element(product, "ЦенаЗаЕдиницу", self._format_price(item.unit_price))
             self._add_text_element(product, "Количество", str(item.quantity))
             self._add_text_element(product, "Сумма", self._format_price(item.total_price))
+
+            # Реквизиты товара (обязательно для загрузки в 1С УТ)
+            props = ET.Element("ЗначенияРеквизитов")
+            
+            prop1 = ET.Element("ЗначениеРеквизита")
+            self._add_text_element(prop1, "Наименование", "ВидНоменклатуры")
+            self._add_text_element(prop1, "Значение", "Товар")
+            props.append(prop1)
+            
+            prop2 = ET.Element("ЗначениеРеквизита")
+            self._add_text_element(prop2, "Наименование", "ТипНоменклатуры")
+            self._add_text_element(prop2, "Значение", "Товар")
+            props.append(prop2)
+            
+            product.append(props)
 
             products.append(product)
 
