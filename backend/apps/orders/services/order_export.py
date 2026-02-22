@@ -152,6 +152,7 @@ class OrderExportService:
         # Convert to local time before formatting to ensure correct date
         local_created_at = timezone.localtime(order.created_at)
         self._add_text_element(document, "Дата", local_created_at.strftime("%Y-%m-%d"))
+        self._add_text_element(document, "Время", local_created_at.strftime("%H:%M:%S"))
         self._add_text_element(document, "ХозОперация", self.OPERATION_TYPE)
         self._add_text_element(document, "Роль", self.ROLE)
         self._add_text_element(document, "Валюта", self.CURRENCY)
