@@ -24,14 +24,15 @@ jobs:
           
           # 2. Удаление секретных файлов и локальных конфигов
           rm -f .env .env.prod .mcp.json FREESPORT.code-workspace project-context.md codebase.xml
-          rm -f AGENTS.md GEMINI.md CLAUDE.md .kilocodemodes 
+          rm -f AGENTS.md GEMINI.md CLAUDE.md .kilocodemodes pytest.ini pyrightconfig.json 
           
           # 3. Удаление тяжелых данных и архивов 1С
           rm -rf data/import_1c/ data/import_1c.zip
           rm -f import_1c.tar.gz import_data_xml_only.zip
           
           # 4. Удаление временных файлов и логов
-          rm -rf logs/ .pytest_cache/ .husky/ .pytype/ backend/Dockerfile.test backend/Dockerfile.prod 
+          rm -rf logs/ .pytest_cache/ .husky/ .pytype/ backend/Dockerfile.test backend/Dockerfile.prod mypy_output.txt 
+          rm -rf  .roomodes/ .web-bundles/ .kilocode/ .agent/ .agents/ .agentvibes/ .windsurf/  
           
           # 5. Удаление тестовых и отладочных Docker-конфигураций (часто вызывают ложные срабатывания Secret Scanning)
           rm -f backend/Dockerfile.test backend/Dockerfile.dev frontend/Dockerfile.dev
