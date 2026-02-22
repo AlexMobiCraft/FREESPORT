@@ -371,11 +371,16 @@ class ICExchangeView(APIView):
         exchange_cfg = getattr(settings, "ONEC_EXCHANGE", {})
         zip_support = exchange_cfg.get("ZIP_SUPPORT", True)
         file_limit = exchange_cfg.get("FILE_LIMIT_BYTES", 100 * 1024 * 1024)
-        version = exchange_cfg.get("COMMERCEML_VERSION", "3.1")
+        
+        exchange_type = request.query_params.get("type", "")
+        if exchange_type == "sale":
+            version = "2.09"
+        else:
+            version = exchange_cfg.get("COMMERCEML_VERSION", "3.1")
 
         response_text = (
             f"zip={'yes' if zip_support else 'no'}\nfile_limit={file_limit}\n"
-            f"sessid={sessid}\nversion={version}"
+            f"sessid={sessid}\nversion={version}\n"
         )
         return HttpResponse(response_text, content_type="text/plain; charset=utf-8")
 

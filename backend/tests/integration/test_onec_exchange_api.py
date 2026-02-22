@@ -164,6 +164,20 @@ class Test1CInitMode:
         assert re.match(r"^version=\d+\.\d+$", content[3]), f"Line 4 format error: {content[3]}"
         assert content[3] == "version=3.1"
 
+    def test_init_success_sale_version(self):
+        """
+        [Fix] GET ?type=sale&mode=init must return version=2.09
+        instead of 3.1 to support 1C order processing.
+        """
+        auth_header = self._get_auth_header()
+        self.client.get(self.url, data={"mode": "checkauth"}, HTTP_AUTHORIZATION=auth_header)
+        
+        response = self.client.get(self.url, data={"mode": "init", "type": "sale"})
+        
+        assert response.status_code == status.HTTP_200_OK
+        content = response.content.decode("utf-8").splitlines()
+        assert content[3] == "version=2.09"
+
     def test_init_unauthenticated(self):
         """
         TC2/AC2: Unauthenticated ?mode=init returns 401 Unauthorized.
