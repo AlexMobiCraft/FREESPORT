@@ -356,6 +356,12 @@ class ICExchangeView(APIView):
             if file_service.is_complete():
                 logger.info(f"New exchange cycle detected for {sessid}. Performing full cleanup.")
                 file_service.cleanup_session(force=True)
+                
+                # Also clean up the shared import directory to prevent loops with old XML segments
+                from .routing_service import FileRoutingService
+                routing_service = FileRoutingService(sessid)
+                routing_service.cleanup_import_dir(force=True)
+                
                 file_service.clear_complete()
             else:
                 logger.info(f"Continuing existing exchange cycle for {sessid}. Accumulating files.")
