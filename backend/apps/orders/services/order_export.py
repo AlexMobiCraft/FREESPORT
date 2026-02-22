@@ -216,6 +216,9 @@ class OrderExportService:
             else:
                 name = str(user.full_name or user.email or "")
                 self._add_text_element(counterparty, "Наименование", name)
+                self._add_text_element(counterparty, "ПолноеНаименование", name)
+                
+            self._add_text_element(counterparty, "Роль", "Покупатель")
 
             # ИНН только если есть tax_id
             if user.tax_id:
@@ -244,6 +247,8 @@ class OrderExportService:
             # Наименование from customer_name or email
             name = order.customer_name or order.customer_email or f"Гость #{order.order_number}"
             self._add_text_element(counterparty, "Наименование", name)
+            self._add_text_element(counterparty, "ПолноеНаименование", name)
+            self._add_text_element(counterparty, "Роль", "Покупатель")
 
             # Контакты from order fields
             contacts = ET.Element("Контакты")
