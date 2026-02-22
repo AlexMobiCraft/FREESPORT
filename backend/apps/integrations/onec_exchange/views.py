@@ -233,6 +233,10 @@ class ICExchangeView(APIView):
             return self.handle_file_upload(request)
         elif mode == "import":
             return self.handle_import(request)
+        elif mode == "query":
+            return self.handle_query(request)
+        elif mode == "success":
+            return self.handle_success(request)
         elif mode == "complete":
             return self.handle_complete(request)
         elif mode == "deactivate":
@@ -406,7 +410,14 @@ class ICExchangeView(APIView):
             .prefetch_related("items__variant")
         )
 
-        service = OrderExportService()
+        exchange_type = request.query_params.get("type", "")
+        if exchange_type == "sale":
+            schema_ver = "2.09"
+        else:
+            exchange_cfg = getattr(settings, "ONEC_EXCHANGE", {})
+            schema_ver = str(exchange_cfg.get("COMMERCEML_VERSION", "3.1"))
+
+        service = OrderExportService(schema_version=schema_ver)
         use_zip = request.query_params.get("zip", "").lower() == "yes"
 
         import tempfile

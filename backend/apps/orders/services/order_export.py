@@ -35,11 +35,17 @@ class OrderExportService:
 
     DEFAULT_SCHEMA_VERSION = "3.1"
 
+    def __init__(self, schema_version: str | None = None):
+        if schema_version:
+            self._schema_version = schema_version
+        else:
+            exchange_cfg = getattr(settings, "ONEC_EXCHANGE", {})
+            self._schema_version = str(exchange_cfg.get("COMMERCEML_VERSION", self.DEFAULT_SCHEMA_VERSION))
+
     @property
     def SCHEMA_VERSION(self) -> str:
-        """Read CommerceML version from settings, falling back to default."""
-        exchange_cfg = getattr(settings, "ONEC_EXCHANGE", {})
-        return str(exchange_cfg.get("COMMERCEML_VERSION", self.DEFAULT_SCHEMA_VERSION))
+        """Read CommerceML version from init or settings."""
+        return self._schema_version
 
     CURRENCY = "RUB"
     EXCHANGE_RATE = "1"
