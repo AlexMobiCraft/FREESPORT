@@ -189,3 +189,38 @@ class FileRoutingService:
         logger.info(f"Routed file: {filename} -> {subdir or 'root'} " f"(session: {self.session_id[:8]}...)")
 
         return target_path
+
+    def cleanup_import_dir(self, force: bool = False) -> int:
+        """
+        Cleans up the shared import directory.
+
+        As the import directory is shared across sessions, 1C can create segmented 
+        XML files that accumulate. This method ensures old segments are cleared before 
+        a new exchange cycle begins.
+
+        Args:
+            force: If True, completely deletes all files and directories 
+                   except `.dry_run` flag.
+
+        Returns:
+            Number of files/directories deleted
+        """
+        if not self.import_dir.exists():
+            return 0
+
+        deleted_count = 0
+        for item in self.import_dir.iterdir():
+            if item.name == ".dry_run":
+                continue
+            
+            try:
+                if item.is_file():
+                    item.unlink()
+                elif item.is_dir():
+                    shutil.rmtree(item)
+                deleted_count += 1
+            except OSError as e:
+                logger.warning(f"Failed to delete {item.name} during import cleanup: {e}")
+
+        logger.info(f"Cleaned up import directory: deleted {deleted_count} items")
+        return deleted_count

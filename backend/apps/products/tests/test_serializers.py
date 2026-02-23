@@ -12,11 +12,7 @@ import pytest
 from rest_framework.request import Request
 from rest_framework.test import APIRequestFactory
 
-from apps.products.factories import (
-    ColorMappingFactory,
-    ProductFactory,
-    ProductVariantFactory,
-)
+from apps.products.factories import ColorMappingFactory, ProductFactory, ProductVariantFactory
 from apps.products.models import ColorMapping, ProductVariant
 from apps.products.serializers import ProductVariantSerializer
 from apps.users.models import User
@@ -313,13 +309,12 @@ class TestProductVariantSerializer:
 
         for qty, expected_range in cases:
             variant.stock_quantity = qty
-            variant.reserved_quantity = 0 # Reset reserved to keep it clean
+            variant.reserved_quantity = 0  # Reset reserved to keep it clean
             variant.save()
-            
-            # Refresh from DB to ensure computed property available_quantity is updated? 
+
+            # Refresh from DB to ensure computed property available_quantity is updated?
             # Actually serializer uses model property.
             variant.refresh_from_db()
 
             data = serializer.to_representation(variant)
             assert data.get("stock_range") == expected_range, f"Failed for quantity {qty}"
-

@@ -8,6 +8,7 @@
 """
 
 import pytest
+from typing import Any, cast
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from rest_framework.test import APIClient
@@ -161,7 +162,7 @@ class TestActiveBannersViewCaching:
         )
         retail_client = APIClient()
         refresh = RefreshToken.for_user(retail_user)
-        retail_client.credentials(HTTP_AUTHORIZATION=f"Bearer {str(refresh.access_token)}")
+        retail_client.credentials(HTTP_AUTHORIZATION=f"Bearer {str(cast(RefreshToken, refresh).access_token)}")
         retail_client.get("/api/v1/banners/", {"type": "hero"})
         retail_client.get("/api/v1/banners/", {"type": "marketing"})
 
@@ -193,7 +194,7 @@ class TestActiveBannersViewRoleIsolation:
         """Создаёт APIClient с JWT для данного пользователя."""
         client = APIClient()
         refresh = RefreshToken.for_user(user)
-        client.credentials(HTTP_AUTHORIZATION=f"Bearer {str(refresh.access_token)}")
+        client.credentials(HTTP_AUTHORIZATION=f"Bearer {str(cast(RefreshToken, refresh).access_token)}")
         return client
 
     def test_guest_does_not_see_wholesale_banners(self):
@@ -265,9 +266,7 @@ class TestActiveBannersViewRoleIsolation:
         )
 
         guest_client = APIClient()
-        retail_user = User.objects.create_user(
-            email="retail_cache@test.local", password="testpass123", role="retail"
-        )
+        retail_user = User.objects.create_user(email="retail_cache@test.local", password="testpass123", role="retail")
         retail_client = self._make_authenticated_client(retail_user)
 
         guest_client.get("/api/v1/banners/")

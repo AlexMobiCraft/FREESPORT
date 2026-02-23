@@ -9,20 +9,9 @@ from django.contrib import messages
 from django.contrib.admin.sites import AdminSite
 from django.test import RequestFactory, TestCase
 
-from apps.products.admin import (
-    Brand1CMappingAdmin,
-    Brand1CMappingInline,
-    BrandAdmin,
-    ProductAdmin,
-)
+from apps.products.admin import Brand1CMappingAdmin, Brand1CMappingInline, BrandAdmin, ProductAdmin
 from apps.products.models import Brand, Brand1CMapping, Product
-from tests.factories import (
-    Brand1CMappingFactory,
-    BrandFactory,
-    CategoryFactory,
-    ProductFactory,
-    UserFactory,
-)
+from tests.factories import Brand1CMappingFactory, BrandFactory, CategoryFactory, ProductFactory, UserFactory
 
 
 @pytest.mark.django_db

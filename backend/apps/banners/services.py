@@ -86,9 +86,7 @@ def get_cached_banners(cache_key: str) -> Any:
     return cache.get(cache_key)
 
 
-def get_active_banners_queryset(
-    user: Any, banner_type: str = "hero", role_key: str | None = None
-) -> QuerySet[Banner]:
+def get_active_banners_queryset(user: Any, banner_type: str = "hero", role_key: str | None = None) -> QuerySet[Banner]:
     """
     Получить отфильтрованный QuerySet активных баннеров.
 
@@ -198,9 +196,7 @@ def compute_cache_ttl(
     return max(nearest_seconds, MIN_CACHE_TTL)
 
 
-def cache_banner_response(
-    cache_key: str, data: Any, ttl: Optional[int] = None
-) -> None:
+def cache_banner_response(cache_key: str, data: Any, ttl: Optional[int] = None) -> None:
     """Кеширует сериализованные данные баннеров."""
     cache.set(cache_key, data, ttl if ttl is not None else BANNER_CACHE_TTL)
 

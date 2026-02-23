@@ -76,9 +76,7 @@ def process_1c_import_task(
                 logger.info(f"Found {len(zip_files)} ZIP files in import dir. Unpacking...")
                 import zipfile
 
-                from apps.integrations.onec_exchange.routing_service import (
-                    XML_ROUTING_RULES,
-                )
+                from apps.integrations.onec_exchange.routing_service import XML_ROUTING_RULES
 
                 for zf in zip_files:
                     try:
@@ -153,6 +151,12 @@ def process_1c_import_task(
                     except Exception as e:
                         logger.error(f"Failed to unpack {zf.name}: {e}")
                         session.report += f"[{timezone.now()}] Ошибка распаковки {zf.name}: {e}\n"
+                        # Remove the corrupted zip file so it doesn't get retried endlessly
+                        try:
+                            zf.unlink()
+                            logger.info(f"Deleted corrupted archive: {zf.name}")
+                        except OSError as del_err:
+                            logger.warning(f"Failed to delete corrupted archive {zf.name}: {del_err}")
 
                 session.save(update_fields=["report"])
 
@@ -220,6 +224,15 @@ def process_1c_import_task(
             session.finished_at = timezone.now()
             session.report += f"[{timestamp}] Импорт успешно завершен.\n"
             session.save(update_fields=["status", "finished_at", "report", "updated_at"])
+
+        # Clean up shared import directory after successful import
+        try:
+            from apps.integrations.onec_exchange.routing_service import FileRoutingService
+            routing_service = FileRoutingService(session.session_key)
+            cleaned = routing_service.cleanup_import_dir()
+            logger.info(f"Post-import cleanup removed {cleaned} items from import directory.")
+        except Exception as cleanup_err:
+            logger.warning(f"Failed post-import cleanup: {cleanup_err}")
 
         return "success"
 

@@ -336,7 +336,7 @@ class ICExchangeView(APIView):
             request.session.save()
             session_id = request.session.session_key
 
-        response_text = f"success\r\n{cookie_name}\r\n{session_id}"
+        response_text = f"success\n{cookie_name}\n{session_id}"
         return HttpResponse(response_text, content_type="text/plain; charset=utf-8")
 
     def handle_init(self, request):
@@ -356,6 +356,12 @@ class ICExchangeView(APIView):
             if file_service.is_complete():
                 logger.info(f"New exchange cycle detected for {sessid}. Performing full cleanup.")
                 file_service.cleanup_session(force=True)
+                
+                # Also clean up the shared import directory to prevent loops with old XML segments
+                from .routing_service import FileRoutingService
+                routing_service = FileRoutingService(sessid)
+                routing_service.cleanup_import_dir(force=True)
+                
                 file_service.clear_complete()
             else:
                 logger.info(f"Continuing existing exchange cycle for {sessid}. Accumulating files.")
@@ -368,8 +374,8 @@ class ICExchangeView(APIView):
         version = exchange_cfg.get("COMMERCEML_VERSION", "3.1")
 
         response_text = (
-            f"zip={'yes' if zip_support else 'no'}\r\nfile_limit={file_limit}\r\n"
-            f"sessid={sessid}\r\nversion={version}"
+            f"zip={'yes' if zip_support else 'no'}\nfile_limit={file_limit}\n"
+            f"sessid={sessid}\nversion={version}"
         )
         return HttpResponse(response_text, content_type="text/plain; charset=utf-8")
 

@@ -18,6 +18,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import categoriesService from '@/services/categoriesService';
 import type { Category } from '@/types/api';
@@ -83,18 +84,13 @@ const CategoryCard: React.FC<CategoryCardProps> = ({ category }) => {
       className={`${CARD_LAYOUT_CLASSES} snap-start block rounded-lg overflow-hidden shadow-default hover:shadow-hover transition-shadow bg-white group`}
       data-testid="category-card"
     >
-      <div className="aspect-[4/3] overflow-hidden bg-neutral-100">
-        <img
+      <div className="aspect-[4/3] overflow-hidden bg-neutral-100 relative">
+        <Image
           src={imageSrc}
           alt={category.name}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-          loading="lazy"
-          onError={(e) => {
-            const target = e.target as HTMLImageElement;
-            if (target.src !== PLACEHOLDER_IMAGE) {
-              target.src = PLACEHOLDER_IMAGE;
-            }
-          }}
+          fill
+          className="object-cover group-hover:scale-105 transition-transform duration-300"
+          sizes="(max-width: 640px) 80vw, (max-width: 768px) 40vw, 250px"
         />
       </div>
       <div className="p-3 text-center">

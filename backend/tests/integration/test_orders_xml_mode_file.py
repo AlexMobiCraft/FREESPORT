@@ -21,8 +21,9 @@ from apps.integrations.onec_exchange.throttling import OneCExchangeThrottle
 from apps.integrations.onec_exchange.views import ORDERS_XML_MAX_SIZE, ICExchangeView
 from apps.orders.models import Order
 from tests.conftest import OrderFactory, UserFactory, get_unique_suffix
-from tests.utils import EXCHANGE_URL, ONEC_PASSWORD, build_orders_xml as _build_orders_xml  # noqa: E402
+from tests.utils import EXCHANGE_URL, ONEC_PASSWORD
 from tests.utils import build_multi_orders_xml as _build_multi_orders_xml  # noqa: E402
+from tests.utils import build_orders_xml as _build_orders_xml  # noqa: E402
 from tests.utils import perform_1c_checkauth
 
 
@@ -462,10 +463,7 @@ class TestOrdersXmlModeFile:
             for _ in range(3)
         ]
 
-        orders_data = [
-            {"order_number": o.order_number, "status_1c": s}
-            for o, s in zip(orders, statuses_1c)
-        ]
+        orders_data = [{"order_number": o.order_number, "status_1c": s} for o, s in zip(orders, statuses_1c)]
         xml_data = _build_multi_orders_xml(orders_data)
 
         response = self._post_orders_xml(xml_data)

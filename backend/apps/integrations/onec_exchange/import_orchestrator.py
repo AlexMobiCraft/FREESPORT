@@ -228,6 +228,12 @@ class ImportOrchestratorService:
                 except Exception as unzip_err:
                     logger.error(f"[IMPORT] Failed to unpack {zf.name}: {unzip_err}")
                     session.report += f"[{timezone.now()}] Ошибка распаковки {zf.name}: " f"{unzip_err}\n"
+                    # Remove the corrupted zip file so it doesn't get retried endlessly
+                    try:
+                        zf.unlink()
+                        logger.info(f"[IMPORT] Deleted corrupted archive: {zf.name}")
+                    except OSError as del_err:
+                        logger.warning(f"[IMPORT] Failed to delete corrupted archive {zf.name}: {del_err}")
 
             session.save(update_fields=["report"])
 

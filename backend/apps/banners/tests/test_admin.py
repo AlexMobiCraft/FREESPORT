@@ -8,6 +8,7 @@
 """
 
 import pytest
+from typing import Any, cast
 from django.contrib.admin.sites import AdminSite
 from django.core.exceptions import ValidationError
 from django.test import RequestFactory
@@ -75,15 +76,15 @@ class TestBannerAdminFieldsets:
     def test_cta_link_in_fieldsets(self):
         """cta_link (target_url) присутствует в fieldsets."""
         admin = BannerAdmin(Banner, AdminSite())
-        all_fields = []
+        all_fields: list[str] = []
         for _, options in admin.fieldsets:
-            all_fields.extend(options["fields"])
+            all_fields.extend(cast(Any, options["fields"]))
         assert "cta_link" in all_fields
 
     def test_type_in_fieldsets(self):
         """type присутствует в fieldsets."""
         admin = BannerAdmin(Banner, AdminSite())
-        all_fields = []
+        all_fields: list[str] = []
         for _, options in admin.fieldsets:
-            all_fields.extend(options["fields"])
+            all_fields.extend(cast(Any, options["fields"]))
         assert "type" in all_fields

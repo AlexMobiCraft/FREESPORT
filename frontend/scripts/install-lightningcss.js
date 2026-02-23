@@ -36,25 +36,25 @@ if (platform === 'linux' && arch === 'x64') {
   const isMuslEnv = isMusl();
   const packages = isMuslEnv
     ? [
-        {
-          name: 'lightningcss-linux-x64-musl',
-          version: '1.30.1',
-        },
-        {
-          name: '@tailwindcss/oxide-linux-x64-musl',
-          version: '4.1.11',
-        },
-      ]
+      {
+        name: 'lightningcss-linux-x64-musl',
+        version: '1.30.1',
+      },
+      {
+        name: '@tailwindcss/oxide-linux-x64-musl',
+        version: '4.1.11',
+      },
+    ]
     : [
-        {
-          name: 'lightningcss-linux-x64-gnu',
-          version: '1.30.1',
-        },
-        {
-          name: '@tailwindcss/oxide-linux-x64-gnu',
-          version: '4.1.11',
-        },
-      ];
+      {
+        name: 'lightningcss-linux-x64-gnu',
+        version: '1.30.1',
+      },
+      {
+        name: '@tailwindcss/oxide-linux-x64-gnu',
+        version: '4.1.11',
+      },
+    ];
 
   const envType = isMuslEnv ? 'linux-x64-musl (Alpine/Docker)' : 'linux-x64-gnu (Ubuntu/local)';
   console.log(`Detected ${envType} environment.`);
@@ -66,7 +66,7 @@ if (platform === 'linux' && arch === 'x64') {
         require.resolve(pkg.name);
         console.log(`✅ ${pkg.name} is already installed.`);
         continue;
-      } catch (e) {
+      } catch {
         // Module not found, proceed to install
       }
 

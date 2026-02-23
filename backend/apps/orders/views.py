@@ -10,11 +10,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from .models import Order
-from .serializers import (
-    OrderCreateSerializer,
-    OrderDetailSerializer,
-    OrderListSerializer,
-)
+from .serializers import OrderCreateSerializer, OrderDetailSerializer, OrderListSerializer
 
 
 class OrderViewSet(viewsets.ModelViewSet):

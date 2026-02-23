@@ -82,10 +82,7 @@ class Brand(models.Model):
             if self.pk:
                 qs = qs.exclude(pk=self.pk)
             if qs.exists():
-                errors["name"] = (
-                    f"Brand with similar name already exists "
-                    f"(normalized: '{computed_normalized}')"
-                )
+                errors["name"] = f"Brand with similar name already exists " f"(normalized: '{computed_normalized}')"
 
         if errors:
             raise ValidationError(errors)

@@ -9,10 +9,12 @@
  */
 
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import Image from 'next/image';
 import type { ProductImage } from '@/types/api';
 import type { ProductVariant } from '@/types/api';
 import { normalizeImageUrl } from '@/utils/media';
+import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface ProductImageGalleryProps {
   images: ProductImage[];
@@ -44,6 +46,11 @@ export default function ProductImageGallery({
     images && images.length > 0 ? images : [PLACEHOLDER_IMAGE]
   );
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   /**
    * Обновляет изображения при изменении selectedVariant
@@ -105,6 +112,21 @@ export default function ProductImageGallery({
       setSelectedImage(getDefaultImage(baseImages));
     }
   }, [selectedVariant, images, productName]);
+
+  /**
+   * Управление прокруткой body при открытии лайтбокса
+   * Предотвращает прокрутку страницы за модальным окном
+   */
+  useEffect(() => {
+    if (isLightboxOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isLightboxOpen]);
 
   if (!images || images.length === 0) {
     return (
@@ -180,11 +202,10 @@ export default function ProductImageGallery({
             <button
               key={`${image.image}-${index}`}
               onClick={() => setSelectedImage(image)}
-              className={`aspect-square rounded-lg border overflow-hidden transition-all hover:border-primary-500 ${
-                image.image === selectedImage.image
-                  ? 'border-primary-500 border-2 ring-2 ring-primary-200'
-                  : 'border-neutral-200'
-              }`}
+              className={`aspect-square rounded-lg border overflow-hidden transition-all hover:border-primary-500 ${image.image === selectedImage.image
+                ? 'border-primary-500 border-2 ring-2 ring-primary-200'
+                : 'border-neutral-200'
+                }`}
               aria-label={`Показать изображение ${index + 1}`}
             >
               <div className="relative w-full h-full">
@@ -202,55 +223,18 @@ export default function ProductImageGallery({
       )}
 
       {/* Lightbox Modal */}
-      {isLightboxOpen && (
+      {isLightboxOpen && mounted && createPortal(
         <div
-          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center"
+          className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center p-0"
           onClick={closeLightbox}
           onKeyDown={e => e.key === 'Escape' && closeLightbox()}
           role="dialog"
           aria-modal="true"
           tabIndex={-1}
         >
-          {/* Close button */}
-          <button
-            onClick={closeLightbox}
-            className="absolute top-4 right-4 text-white hover:text-neutral-300 transition-colors z-10"
-            aria-label="Закрыть"
-          >
-            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </button>
-
-          {/* Previous button */}
-          {galleryImages.length > 1 && (
-            <button
-              onClick={e => {
-                e.stopPropagation();
-                navigateImage('prev');
-              }}
-              className="absolute left-4 text-white hover:text-neutral-300 transition-colors z-10"
-              aria-label="Предыдущее изображение"
-            >
-              <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M15 19l-7-7 7-7"
-                />
-              </svg>
-            </button>
-          )}
-
-          {/* Image */}
+          {/* Main Image Viewport */}
           <div
-            className="relative max-w-6xl max-h-[90vh] w-full h-full flex items-center justify-center p-4"
+            className="relative max-w-6xl max-h-[90vh] w-full h-full flex items-center justify-center p-4 cursor-default"
             onClick={e => e.stopPropagation()}
             onKeyDown={e => e.stopPropagation()}
             role="presentation"
@@ -261,8 +245,34 @@ export default function ProductImageGallery({
               fill
               sizes="90vw"
               className="object-contain"
+              priority
             />
           </div>
+
+          {/* Controls - Rendered after image for proper z-index layering */}
+
+          {/* Close button */}
+          <button
+            onClick={closeLightbox}
+            className="absolute top-6 right-6 p-2 bg-black/40 hover:bg-black/60 text-white rounded-full backdrop-blur-md transition-all z-[110] group border border-white/20"
+            aria-label="Закрыть"
+          >
+            <X className="w-8 h-8 group-hover:scale-110 transition-transform" />
+          </button>
+
+          {/* Previous button */}
+          {galleryImages.length > 1 && (
+            <button
+              onClick={e => {
+                e.stopPropagation();
+                navigateImage('prev');
+              }}
+              className="absolute left-6 top-1/2 -translate-y-1/2 p-3 bg-black/40 hover:bg-black/60 text-white rounded-full backdrop-blur-md transition-all z-[110] group border border-white/20"
+              aria-label="Предыдущее изображение"
+            >
+              <ChevronLeft className="w-8 h-8 group-hover:-translate-x-1 transition-transform" />
+            </button>
+          )}
 
           {/* Next button */}
           {galleryImages.length > 1 && (
@@ -271,28 +281,22 @@ export default function ProductImageGallery({
                 e.stopPropagation();
                 navigateImage('next');
               }}
-              className="absolute right-4 text-white hover:text-neutral-300 transition-colors z-10"
+              className="absolute right-6 top-1/2 -translate-y-1/2 p-3 bg-black/40 hover:bg-black/60 text-white rounded-full backdrop-blur-md transition-all z-[110] group border border-white/20"
               aria-label="Следующее изображение"
             >
-              <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 5l7 7-7 7"
-                />
-              </svg>
+              <ChevronRight className="w-8 h-8 group-hover:translate-x-1 transition-transform" />
             </button>
           )}
 
           {/* Image counter */}
           {galleryImages.length > 1 && (
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-white/10 backdrop-blur-sm text-white px-4 py-2 rounded-full text-sm">
+            <div className="absolute bottom-8 left-1/2 -translate-x-1/2 bg-black/40 backdrop-blur-md text-white px-6 py-2 rounded-full text-sm font-medium border border-white/10 z-[110]">
               {galleryImages.findIndex(img => img.image === selectedImage.image) + 1} /{' '}
               {galleryImages.length}
             </div>
           )}
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );

@@ -13,6 +13,8 @@ Tests cover:
 """
 
 import pytest
+from typing import Any, cast
+from django.contrib.admin.sites import AdminSite
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import RequestFactory
@@ -190,7 +192,7 @@ class TestBrandAdminImagePreview:
     def test_image_preview_with_image(self):
         """Brands with image show an img tag."""
         brand = Brand(name="WithImage", image="brands/test.png")
-        brand_admin = BrandAdmin(Brand, None)
+        brand_admin = BrandAdmin(Brand, AdminSite())
         result = brand_admin.image_preview(brand)
         assert "<img" in result
         assert "brands/test.png" in result
@@ -198,7 +200,7 @@ class TestBrandAdminImagePreview:
     def test_image_preview_without_image(self):
         """Brands without image show dash."""
         brand = Brand(name="NoImage")
-        brand_admin = BrandAdmin(Brand, None)
+        brand_admin = BrandAdmin(Brand, AdminSite())
         result = brand_admin.image_preview(brand)
         assert result == "-"
 
@@ -394,12 +396,12 @@ class TestBrandModelIndexes:
     def test_is_featured_has_db_index(self):
         """Brand.is_featured has db_index=True."""
         field = Brand._meta.get_field("is_featured")
-        assert field.db_index is True
+        assert cast(Any, field).db_index is True
 
     def test_is_active_has_db_index(self):
         """Brand.is_active has db_index=True."""
         field = Brand._meta.get_field("is_active")
-        assert field.db_index is True
+        assert cast(Any, field).db_index is True
 
 
 @pytest.mark.django_db
@@ -418,6 +420,7 @@ class TestBrandCustomManager:
     def test_active_is_queryset(self):
         """Brand.objects.active() returns a QuerySet."""
         from django.db.models import QuerySet
+
         assert isinstance(Brand.objects.active(), QuerySet)
 
 
@@ -428,7 +431,7 @@ class TestBrandAdminImagePreviewSize:
     def test_image_preview_size_50px(self):
         """Image preview uses max-height:50px."""
         brand = Brand(name="SizeBrand", image="brands/test.png")
-        brand_admin = BrandAdmin(Brand, None)
+        brand_admin = BrandAdmin(Brand, AdminSite())
         result = brand_admin.image_preview(brand)
         assert "max-height:50px" in result
         assert "max-width:100px" in result

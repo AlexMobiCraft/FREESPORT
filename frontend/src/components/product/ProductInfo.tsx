@@ -29,8 +29,6 @@ export default function ProductInfo({
       ? parseFloat(selectedVariant.current_price)
       : getPriceForRole(price, userRole);
 
-  // Используем артикул варианта, если он выбран
-  const displayedSku = selectedVariant?.sku || product.sku;
 
   // Определяем статус наличия
   const getStockStatus = () => {
@@ -129,19 +127,14 @@ export default function ProductInfo({
       {/* Название товара */}
       <h1 className="text-3xl font-bold text-neutral-900 leading-tight">{product.name}</h1>
 
-      {/* SKU и Бренд */}
+      {/* Бренд */}
       <div className="flex items-center gap-4 text-base text-neutral-600">
-        <span>
-          Артикул: <span className="font-medium">{displayedSku}</span>
-        </span>
         {product.brand && (
-          <>
-            <span className="text-neutral-400">|</span>
-            <span>
-              Бренд: <span className="font-medium">{product.brand}</span>
-            </span>
-          </>
+          <span>
+            Бренд: <span className="font-medium">{product.brand}</span>
+          </span>
         )}
+
       </div>
 
       {/* Рейтинг */}

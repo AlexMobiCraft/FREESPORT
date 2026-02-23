@@ -525,11 +525,7 @@ class TestFileStreamService:
         File locking prevents corruption during concurrent writes.
         This verifies the lock file is created and prevents simultaneous access.
         """
-        from apps.integrations.onec_exchange.file_service import (
-            FileLock,
-            FileLockError,
-            FileStreamService,
-        )
+        from apps.integrations.onec_exchange.file_service import FileLock, FileLockError, FileStreamService
 
         service = FileStreamService("lock-test-session")
 
