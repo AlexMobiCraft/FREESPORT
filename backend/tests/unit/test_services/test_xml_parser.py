@@ -51,8 +51,8 @@ class TestXMLDataParser:
         assert result[0]["category_id"] == "category-uuid-456"
         assert len(result[0]["images"]) == 1
 
-    def test_parse_offers_xml_with_characteristics(self, tmp_path):
-        """Проверка парсинга offers.xml с характеристиками"""
+    def test_parse_offers_xml_with_characteristics_and_images(self, tmp_path):
+        """Проверка парсинга offers.xml с характеристиками и картинками"""
         offers_xml = """<?xml version="1.0" encoding="UTF-8"?>
 <ПакетПредложений>
   <Предложения>
@@ -70,6 +70,7 @@ class TestXMLDataParser:
           <Значение>Черный</Значение>
         </ХарактеристикаТовара>
       </ХарактеристикиТовара>
+      <Картинка>import_files/offers/image1.jpg</Картинка>
     </Предложение>
   </Предложения>
 </ПакетПредложений>"""
@@ -85,6 +86,9 @@ class TestXMLDataParser:
         assert result[0]["name"] == "Товар размер M"
         assert "characteristics" in result[0]
         assert len(result[0]["characteristics"]) == 2
+        assert "images" in result[0]
+        assert len(result[0]["images"]) == 1
+        assert result[0]["images"][0] == "import_files/offers/image1.jpg"
 
     def test_parse_prices_xml_with_role_mapping(self, tmp_path):
         """Проверка маппинга типов цен на роли пользователей"""
