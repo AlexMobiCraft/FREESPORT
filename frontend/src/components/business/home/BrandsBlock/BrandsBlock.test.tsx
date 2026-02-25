@@ -70,13 +70,9 @@ vi.mock('next/image', () => ({
 // Mock motion/react
 vi.mock('motion/react', () => ({
   motion: {
-    div: ({
-      children,
-      ...props
-    }: {
-      children?: React.ReactNode;
-      [key: string]: unknown;
-    }) => <div {...filterMotionProps(props)}>{children}</div>,
+    div: ({ children, ...props }: { children?: React.ReactNode; [key: string]: unknown }) => (
+      <div {...filterMotionProps(props)}>{children}</div>
+    ),
   },
 }));
 
@@ -155,9 +151,7 @@ describe('BrandsBlock', () => {
     it('renders section with brand logos', () => {
       render(<BrandsBlock brands={mockBrands} />);
 
-      expect(
-        screen.getByTestId('brands-block')
-      ).toBeInTheDocument();
+      expect(screen.getByTestId('brands-block')).toBeInTheDocument();
     });
 
     it('renders all provided brands', () => {
@@ -206,10 +200,7 @@ describe('BrandsBlock', () => {
     });
 
     it('handles brands with null image gracefully', () => {
-      const brandsWithNullImage: Brand[] = [
-        { ...mockBrands[0], image: null },
-        mockBrands[1],
-      ];
+      const brandsWithNullImage: Brand[] = [{ ...mockBrands[0], image: null }, mockBrands[1]];
       render(<BrandsBlock brands={brandsWithNullImage} />);
 
       // Brand with null image should not render an image
@@ -249,15 +240,13 @@ describe('BrandsBlock', () => {
     it('has aria-label on section', () => {
       render(<BrandsBlock brands={mockBrands} />);
 
-      expect(
-        screen.getByLabelText('Популярные бренды')
-      ).toBeInTheDocument();
+      expect(screen.getByLabelText('Популярные бренды')).toBeInTheDocument();
     });
 
     it('all images have alt text with brand name', () => {
       render(<BrandsBlock brands={mockBrands} />);
 
-      mockBrands.forEach((brand) => {
+      mockBrands.forEach(brand => {
         expect(screen.getByAltText(brand.name)).toBeInTheDocument();
       });
     });
@@ -273,7 +262,7 @@ describe('BrandsBlock', () => {
       render(<BrandsBlock brands={mockBrands} />);
 
       const links = screen.getAllByRole('link');
-      links.forEach((link) => {
+      links.forEach(link => {
         // Links are natively focusable, verify no negative tabIndex
         expect(link).not.toHaveAttribute('tabindex', '-1');
       });

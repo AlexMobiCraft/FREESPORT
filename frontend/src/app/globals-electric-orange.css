@@ -187,7 +187,6 @@
    TYPOGRAPHY UTILITIES
    ============================================ */
 @layer utilities {
-
   /* Display text with skew */
   .text-display-xl {
     font-family: var(--font-display);
@@ -284,7 +283,6 @@
    GEOMETRY UTILITIES (Skew)
    ============================================ */
 @layer utilities {
-
   /* Skewed containers */
   .skew-container {
     transform: skewX(var(--skew-angle));
@@ -318,7 +316,6 @@
    BUTTON COMPONENTS
    ============================================ */
 @layer components {
-
   /* Base button */
   .btn {
     display: inline-flex;
@@ -414,7 +411,6 @@
    FORM COMPONENTS (Rectangular - no skew)
    ============================================ */
 @layer components {
-
   /* Base input */
   .input {
     width: 100%;
@@ -544,7 +540,6 @@
    CARD COMPONENTS (Rectangular)
    ============================================ */
 @layer components {
-
   /* Generic Card */
   .card {
     background: var(--bg-card);
@@ -732,7 +727,6 @@
    SIDEBAR WIDGET
    ============================================ */
 @layer components {
-
   /* Sidebar Panel Container */
   .sidebar-panel {
     background: var(--bg-card);
@@ -807,12 +801,12 @@
     transform: skewX(var(--skew-angle));
   }
 
-  .checkbox-row input:checked+.custom-check {
+  .checkbox-row input:checked + .custom-check {
     background-color: var(--color-primary);
     border-color: var(--color-primary);
   }
 
-  .checkbox-row input:checked+.custom-check::after {
+  .checkbox-row input:checked + .custom-check::after {
     content: '✓';
     color: var(--color-text-inverse);
     font-weight: 900;
@@ -962,7 +956,6 @@
   }
 
   @keyframes glowPulse {
-
     0%,
     100% {
       box-shadow: 0 0 20px rgba(255, 107, 0, 0.3);
@@ -1034,7 +1027,6 @@
    ACCESSIBILITY - Reduced Motion
    ============================================ */
 @media (prefers-reduced-motion: reduce) {
-
   *,
   *::before,
   *::after {

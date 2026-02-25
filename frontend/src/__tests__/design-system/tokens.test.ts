@@ -150,10 +150,10 @@ describe('Design System v2.1 - Accessibility (WCAG 2.1)', () => {
     const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
     return result
       ? {
-        r: parseInt(result[1], 16),
-        g: parseInt(result[2], 16),
-        b: parseInt(result[3], 16),
-      }
+          r: parseInt(result[1], 16),
+          g: parseInt(result[2], 16),
+          b: parseInt(result[3], 16),
+        }
       : { r: 0, g: 0, b: 0 };
   }
 
@@ -224,8 +224,10 @@ describe('Design System v2.1 - Accessibility (WCAG 2.1)', () => {
 
       combinations.forEach(({ text, bg, name }) => {
         const contrast = getContrast(text, bg);
-        const threshold = (bg === '#ff6600' || text === '#ff6600') ? 2.9 : 4.5;
-        expect(contrast, `${name} должен иметь контраст >= ${threshold}:1`).toBeGreaterThanOrEqual(threshold);
+        const threshold = bg === '#ff6600' || text === '#ff6600' ? 2.9 : 4.5;
+        expect(contrast, `${name} должен иметь контраст >= ${threshold}:1`).toBeGreaterThanOrEqual(
+          threshold
+        );
       });
     });
   });

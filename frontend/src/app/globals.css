@@ -298,7 +298,6 @@ body {
 
 /* Accessibility - Reduced Motion */
 @media (prefers-reduced-motion: reduce) {
-
   *,
   *::before,
   *::after {

@@ -34,7 +34,10 @@ const DEFAULT_COLUMNS: FooterColumn[] = [
       { label: 'Зимние товары', href: '/catalog?category=zimnie-tovary' },
       { label: 'Оборудование', href: '/catalog?category=oborudovanie' },
       { label: 'Детский транспорт', href: '/catalog?category=detskiy-transport' },
-      { label: 'Спортивные комплексы и батуты', href: '/catalog?category=sportivnye-kompleksy-i-batuty' },
+      {
+        label: 'Спортивные комплексы и батуты',
+        href: '/catalog?category=sportivnye-kompleksy-i-batuty',
+      },
       { label: 'Бассейны, пляж, аксессуары', href: '/catalog?category=basseyny-plyazh-aksessuary' },
       { label: 'Туризм', href: '/catalog?category=turizm' },
       { label: 'Сувенирная продукция', href: '/catalog?category=suvenirnaya-produktsiya' },

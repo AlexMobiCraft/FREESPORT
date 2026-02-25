@@ -33,11 +33,7 @@ const BrandCard: React.FC<BrandCardProps> = ({ brand }) => {
   if (!brand.image || hasError) return null;
 
   return (
-    <Link
-      href={`/catalog?brand=${brand.slug}`}
-      aria-label={brand.name}
-      className="outline-none"
-    >
+    <Link href={`/catalog?brand=${brand.slug}`} aria-label={brand.name} className="outline-none">
       <motion.div
         whileHover={{ scale: 1.05, opacity: 1 }}
         whileFocus={{ scale: 1.05, opacity: 1 }}
@@ -66,7 +62,7 @@ export interface BrandsBlockProps {
 }
 
 export const BrandsBlock: React.FC<BrandsBlockProps> = ({ brands }) => {
-  const visibleBrands = brands.filter((b) => b.image);
+  const visibleBrands = brands.filter(b => b.image);
 
   const [emblaRef] = useEmblaCarousel(
     {
@@ -100,7 +96,7 @@ export const BrandsBlock: React.FC<BrandsBlockProps> = ({ brands }) => {
     >
       <div ref={emblaRef} className="overflow-hidden">
         <div className="flex">
-          {visibleBrands.map((brand) => (
+          {visibleBrands.map(brand => (
             <div
               key={brand.id}
               className="flex-[0_0_33.333%] sm:flex-[0_0_25%] md:flex-[0_0_20%] lg:flex-[0_0_16.666%] min-w-0"

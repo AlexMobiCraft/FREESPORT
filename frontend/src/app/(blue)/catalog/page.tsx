@@ -229,10 +229,10 @@ const PriceRangeSlider: React.FC<PriceRangeSliderProps> = ({ min, max, step, val
           height: 18px;
           width: 18px;
           border-radius: 50%;
-          background: #FF6B00;
-          border: 4px solid #FFE0B2;
-          background: #FF6600;
-          border: 4px solid #FFD6B3;
+          background: #ff6b00;
+          border: 4px solid #ffe0b2;
+          background: #ff6600;
+          border: 4px solid #ffd6b3;
           box-shadow: 0 2px 6px rgba(255, 102, 0, 0.35);
           cursor: pointer;
           margin-top: -9px;
@@ -242,8 +242,8 @@ const PriceRangeSlider: React.FC<PriceRangeSliderProps> = ({ min, max, step, val
           height: 18px;
           width: 18px;
           border-radius: 50%;
-          background: #FF6600;
-          border: 4px solid #FFD6B3;
+          background: #ff6600;
+          border: 4px solid #ffd6b3;
           box-shadow: 0 2px 6px rgba(255, 102, 0, 0.35);
           cursor: pointer;
         }
@@ -996,16 +996,18 @@ const CatalogContent: React.FC = () => {
               <div className="flex items-center gap-3">
                 <div className="inline-flex items-center rounded-full bg-gray-100 p-1">
                   <button
-                    className={`flex items-center gap-1 rounded-full px-3 py-2 text-sm font-medium ${viewMode === 'grid' ? 'bg-white text-gray-900 shadow' : 'text-gray-500'
-                      }`}
+                    className={`flex items-center gap-1 rounded-full px-3 py-2 text-sm font-medium ${
+                      viewMode === 'grid' ? 'bg-white text-gray-900 shadow' : 'text-gray-500'
+                    }`}
                     onClick={() => setViewMode('grid')}
                   >
                     <Grid2x2 className="h-4 w-4" />
                     <span className="hidden sm:inline">Сетка</span>
                   </button>
                   <button
-                    className={`flex items-center gap-1 rounded-full px-3 py-2 text-sm font-medium ${viewMode === 'list' ? 'bg-white text-gray-900 shadow' : 'text-gray-500'
-                      }`}
+                    className={`flex items-center gap-1 rounded-full px-3 py-2 text-sm font-medium ${
+                      viewMode === 'list' ? 'bg-white text-gray-900 shadow' : 'text-gray-500'
+                    }`}
                     onClick={() => setViewMode('list')}
                   >
                     <List className="h-4 w-4" />

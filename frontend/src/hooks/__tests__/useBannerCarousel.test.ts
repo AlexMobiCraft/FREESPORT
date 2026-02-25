@@ -11,39 +11,41 @@ import { useBannerCarousel } from '../useBannerCarousel';
 import type { UseBannerCarouselOptions } from '../useBannerCarousel';
 
 // Hoisted mocks for vi.mock factory functions
-const { mockEmblaApi, mockUseEmblaCarousel, mockAutoplay, mockAutoplayInstance } = vi.hoisted(() => {
-  const mockAutoplayInstance = {
-    name: 'autoplay',
-    options: {},
-    init: vi.fn(),
-    destroy: vi.fn(),
-    play: vi.fn(),
-    stop: vi.fn(),
-    reset: vi.fn(),
-    isPlaying: vi.fn(() => false),
-  };
+const { mockEmblaApi, mockUseEmblaCarousel, mockAutoplay, mockAutoplayInstance } = vi.hoisted(
+  () => {
+    const mockAutoplayInstance = {
+      name: 'autoplay',
+      options: {},
+      init: vi.fn(),
+      destroy: vi.fn(),
+      play: vi.fn(),
+      stop: vi.fn(),
+      reset: vi.fn(),
+      isPlaying: vi.fn(() => false),
+    };
 
-  const mockEmblaApi = {
-    scrollNext: vi.fn(),
-    scrollPrev: vi.fn(),
-    scrollTo: vi.fn(),
-    canScrollNext: vi.fn(() => true),
-    canScrollPrev: vi.fn(() => false),
-    selectedScrollSnap: vi.fn(() => 0),
-    scrollSnapList: vi.fn(() => [0, 1, 2]),
-    on: vi.fn(),
-    off: vi.fn(),
-    destroy: vi.fn(),
-    reInit: vi.fn(),
-    plugins: vi.fn(() => ({ autoplay: mockAutoplayInstance })),
-  };
+    const mockEmblaApi = {
+      scrollNext: vi.fn(),
+      scrollPrev: vi.fn(),
+      scrollTo: vi.fn(),
+      canScrollNext: vi.fn(() => true),
+      canScrollPrev: vi.fn(() => false),
+      selectedScrollSnap: vi.fn(() => 0),
+      scrollSnapList: vi.fn(() => [0, 1, 2]),
+      on: vi.fn(),
+      off: vi.fn(),
+      destroy: vi.fn(),
+      reInit: vi.fn(),
+      plugins: vi.fn(() => ({ autoplay: mockAutoplayInstance })),
+    };
 
-  const mockUseEmblaCarousel = vi.fn(() => [vi.fn(), mockEmblaApi]);
+    const mockUseEmblaCarousel = vi.fn(() => [vi.fn(), mockEmblaApi]);
 
-  const mockAutoplay = vi.fn(() => mockAutoplayInstance);
+    const mockAutoplay = vi.fn(() => mockAutoplayInstance);
 
-  return { mockEmblaApi, mockUseEmblaCarousel, mockAutoplay, mockAutoplayInstance };
-});
+    return { mockEmblaApi, mockUseEmblaCarousel, mockAutoplay, mockAutoplayInstance };
+  }
+);
 
 vi.mock('embla-carousel-react', () => ({
   default: mockUseEmblaCarousel,
@@ -620,9 +622,12 @@ describe('useBannerCarousel', () => {
     });
 
     it('should maintain referential stability of empty plugins array when autoplay=false', () => {
-      const { rerender } = renderHook(({ delay }) => useBannerCarousel({ autoplay: false, autoplayDelay: delay }), {
-        initialProps: { delay: 4000 },
-      });
+      const { rerender } = renderHook(
+        ({ delay }) => useBannerCarousel({ autoplay: false, autoplayDelay: delay }),
+        {
+          initialProps: { delay: 4000 },
+        }
+      );
 
       const callsBefore = mockUseEmblaCarousel.mock.calls.length;
 
@@ -787,9 +792,7 @@ describe('useBannerCarousel', () => {
       // Verify each handler is unregistered with same event name and handler reference
       const offCalls = mockEmblaApi.off.mock.calls;
       registeredHandlers.forEach(({ event, handler }) => {
-        const matchingOff = offCalls.find(
-          call => call[0] === event && call[1] === handler
-        );
+        const matchingOff = offCalls.find(call => call[0] === event && call[1] === handler);
         expect(matchingOff).toBeDefined();
       });
     });
@@ -844,18 +847,14 @@ describe('useBannerCarousel', () => {
       mockAutoplay.mockClear();
       renderHook(() => useBannerCarousel({ autoplay: true }));
 
-      expect(mockAutoplay).toHaveBeenCalledWith(
-        expect.objectContaining({ delay: 4000 })
-      );
+      expect(mockAutoplay).toHaveBeenCalledWith(expect.objectContaining({ delay: 4000 }));
     });
 
     it('should configure auto-cycle with custom delay', () => {
       mockAutoplay.mockClear();
       renderHook(() => useBannerCarousel({ autoplay: true, autoplayDelay: 6000 }));
 
-      expect(mockAutoplay).toHaveBeenCalledWith(
-        expect.objectContaining({ delay: 6000 })
-      );
+      expect(mockAutoplay).toHaveBeenCalledWith(expect.objectContaining({ delay: 6000 }));
     });
 
     it('should enable pause on hover by default (stopOnMouseEnter=true)', () => {
@@ -954,9 +953,7 @@ describe('useBannerCarousel', () => {
       rerender({ delay: 6000 });
 
       expect(mockAutoplay.mock.calls.length).toBe(initialCallCount + 1);
-      expect(mockAutoplay).toHaveBeenLastCalledWith(
-        expect.objectContaining({ delay: 6000 })
-      );
+      expect(mockAutoplay).toHaveBeenLastCalledWith(expect.objectContaining({ delay: 6000 }));
     });
   });
 
@@ -966,9 +963,7 @@ describe('useBannerCarousel', () => {
       renderHook(() => useBannerCarousel({ autoplayDelay: 5000 }));
 
       // AC3: "defined interval" should activate autoplay
-      expect(mockAutoplay).toHaveBeenCalledWith(
-        expect.objectContaining({ delay: 5000 })
-      );
+      expect(mockAutoplay).toHaveBeenCalledWith(expect.objectContaining({ delay: 5000 }));
     });
 
     it('should NOT enable autoplay when neither autoplay nor autoplayDelay is provided', () => {
@@ -1072,9 +1067,7 @@ describe('useBannerCarousel', () => {
       mockAutoplay.mockClear();
       renderHook(() => useBannerCarousel({ autoplay: true, autoplayDelay: 3000 }));
 
-      expect(mockAutoplay).toHaveBeenCalledWith(
-        expect.objectContaining({ delay: 3000 })
-      );
+      expect(mockAutoplay).toHaveBeenCalledWith(expect.objectContaining({ delay: 3000 }));
     });
 
     it('should ignore Infinity speed and exclude from options', () => {
@@ -1095,9 +1088,7 @@ describe('useBannerCarousel', () => {
       mockAutoplay.mockClear();
       renderHook(() => useBannerCarousel({ autoplay: true, autoplayDelay: Infinity }));
 
-      expect(mockAutoplay).toHaveBeenCalledWith(
-        expect.objectContaining({ delay: 4000 })
-      );
+      expect(mockAutoplay).toHaveBeenCalledWith(expect.objectContaining({ delay: 4000 }));
     });
   });
 
@@ -1143,10 +1134,9 @@ describe('useBannerCarousel', () => {
     it('should transition plugins from active to empty when autoplay is disabled', () => {
       mockAutoplay.mockClear();
 
-      const { rerender } = renderHook(
-        ({ autoplay }) => useBannerCarousel({ autoplay }),
-        { initialProps: { autoplay: true } }
-      );
+      const { rerender } = renderHook(({ autoplay }) => useBannerCarousel({ autoplay }), {
+        initialProps: { autoplay: true },
+      });
 
       // Verify plugin is active
       let lastCall = mockUseEmblaCarousel.mock.calls[mockUseEmblaCarousel.mock.calls.length - 1];
@@ -1162,10 +1152,9 @@ describe('useBannerCarousel', () => {
     it('should transition plugins from empty to active when autoplay is enabled', () => {
       mockAutoplay.mockClear();
 
-      const { rerender } = renderHook(
-        ({ autoplay }) => useBannerCarousel({ autoplay }),
-        { initialProps: { autoplay: false } }
-      );
+      const { rerender } = renderHook(({ autoplay }) => useBannerCarousel({ autoplay }), {
+        initialProps: { autoplay: false },
+      });
 
       // Verify plugins empty
       let lastCall = mockUseEmblaCarousel.mock.calls[mockUseEmblaCarousel.mock.calls.length - 1];
@@ -1222,7 +1211,7 @@ describe('useBannerCarousel', () => {
     it('should not throw when autoplay plugin is unavailable', async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       mockEmblaApi.plugins.mockReturnValueOnce({} as any);
-      
+
       expect(() => {
         renderHook(() => useBannerCarousel({ autoplay: true }));
       }).not.toThrow();
@@ -1372,7 +1361,10 @@ describe('useBannerCarousel', () => {
         { initialProps: { api: mockEmblaApi } }
       );
 
-      const newApi = { ...mockEmblaApi, plugins: vi.fn(() => ({ autoplay: mockAutoplayInstance })) };
+      const newApi = {
+        ...mockEmblaApi,
+        plugins: vi.fn(() => ({ autoplay: mockAutoplayInstance })),
+      };
 
       expect(() => {
         rerender({ api: newApi });

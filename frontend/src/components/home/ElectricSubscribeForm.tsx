@@ -78,10 +78,11 @@ export const ElectricSubscribeForm: React.FC = () => {
             className={`
                    w-full bg-[var(--bg-card)] border-2 px-4 py-3 outline-none transition-all duration-300 transform skew-x-12
                    placeholder:text-[var(--color-text-muted)]
-                   ${errors.email
-                ? 'border-red-500 focus:border-red-500'
-                : 'border-[var(--border-default)] focus:border-[var(--color-primary)]'
-              }
+                   ${
+                     errors.email
+                       ? 'border-red-500 focus:border-red-500'
+                       : 'border-[var(--border-default)] focus:border-[var(--color-primary)]'
+                   }
                 `}
             {...register('email', {
               required: 'Email обязателен',
