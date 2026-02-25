@@ -388,6 +388,7 @@ describe('useBannerCarousel', () => {
     it('should not include speed in options when not provided', () => {
       renderHook(() => useBannerCarousel({}));
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const calls = mockUseEmblaCarousel.mock.calls as any[][];
       const lastCall = calls[calls.length - 1];
       expect(lastCall[0]).not.toHaveProperty('speed');
@@ -581,6 +582,7 @@ describe('useBannerCarousel', () => {
       rerender({ opts: { ...options } });
 
       // useEmblaCarousel should be called again, but with memoized options
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const calls = mockUseEmblaCarousel.mock.calls as any[][];
       const firstOptions = calls[initialCallCount - 1][0];
       const secondOptions = calls[calls.length - 1][0];
@@ -602,6 +604,7 @@ describe('useBannerCarousel', () => {
       const callsAfter = mockUseEmblaCarousel.mock.calls.length;
 
       // Plugins array should be REFERENTIALLY stable (toBe checks identity)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const calls = mockUseEmblaCarousel.mock.calls as any[][];
       const pluginsBefore = calls[callsBefore - 1][1];
       const pluginsAfter = calls[callsAfter - 1][1];
@@ -639,6 +642,7 @@ describe('useBannerCarousel', () => {
       const callsAfter = mockUseEmblaCarousel.mock.calls.length;
 
       // Empty plugins array should be REFERENTIALLY stable (same constant)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const calls = mockUseEmblaCarousel.mock.calls as any[][];
       const pluginsBefore = calls[callsBefore - 1][1];
       const pluginsAfter = calls[callsAfter - 1][1];
@@ -652,6 +656,7 @@ describe('useBannerCarousel', () => {
     it('should explicitly set dragFree: false for 1:1 finger tracking (AC2)', () => {
       renderHook(() => useBannerCarousel({}));
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const calls = mockUseEmblaCarousel.mock.calls as any[][];
       const lastCall = calls[calls.length - 1];
       const emblaOptions = lastCall[0];
@@ -753,6 +758,7 @@ describe('useBannerCarousel', () => {
         })
       );
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const calls = mockUseEmblaCarousel.mock.calls as any[][];
       const lastCall = calls[calls.length - 1];
 
@@ -1015,6 +1021,7 @@ describe('useBannerCarousel', () => {
     it('should ignore invalid speed (NaN) and use default', () => {
       renderHook(() => useBannerCarousel({ speed: NaN }));
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const calls = mockUseEmblaCarousel.mock.calls as any[][];
       const lastCall = calls[calls.length - 1];
       // NaN should be filtered out
@@ -1024,6 +1031,7 @@ describe('useBannerCarousel', () => {
     it('should ignore invalid speed (<=0) and use default', () => {
       renderHook(() => useBannerCarousel({ speed: 0 }));
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const calls = mockUseEmblaCarousel.mock.calls as any[][];
       const lastCall = calls[calls.length - 1];
       expect(lastCall[0]).not.toHaveProperty('speed');
@@ -1032,6 +1040,7 @@ describe('useBannerCarousel', () => {
     it('should ignore negative speed and use default', () => {
       renderHook(() => useBannerCarousel({ speed: -5 }));
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const calls = mockUseEmblaCarousel.mock.calls as any[][];
       const lastCall = calls[calls.length - 1];
       expect(lastCall[0]).not.toHaveProperty('speed');
@@ -1067,6 +1076,7 @@ describe('useBannerCarousel', () => {
     it('should accept valid positive speed', () => {
       renderHook(() => useBannerCarousel({ speed: 15 }));
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const calls = mockUseEmblaCarousel.mock.calls as any[][];
       const lastCall = calls[calls.length - 1];
       expect(lastCall[0]).toHaveProperty('speed', 15);
@@ -1082,6 +1092,7 @@ describe('useBannerCarousel', () => {
     it('should ignore Infinity speed and exclude from options', () => {
       renderHook(() => useBannerCarousel({ speed: Infinity }));
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const calls = mockUseEmblaCarousel.mock.calls as any[][];
       const lastCall = calls[calls.length - 1];
       expect(lastCall[0]).not.toHaveProperty('speed');
@@ -1090,6 +1101,7 @@ describe('useBannerCarousel', () => {
     it('should ignore -Infinity speed and exclude from options', () => {
       renderHook(() => useBannerCarousel({ speed: -Infinity }));
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const calls = mockUseEmblaCarousel.mock.calls as any[][];
       const lastCall = calls[calls.length - 1];
       expect(lastCall[0]).not.toHaveProperty('speed');
@@ -1138,6 +1150,7 @@ describe('useBannerCarousel', () => {
 
       renderHook(() => useBannerCarousel({ autoplay: true }));
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const calls = mockUseEmblaCarousel.mock.calls as any[][];
       const lastCall = calls[calls.length - 1];
       expect(lastCall[1]).toContain(mockPlugin);
@@ -1148,6 +1161,7 @@ describe('useBannerCarousel', () => {
 
       renderHook(() => useBannerCarousel({ autoplay: false }));
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const calls = mockUseEmblaCarousel.mock.calls as any[][];
       const lastCall = calls[calls.length - 1];
       expect(lastCall[1]).toEqual([]);
@@ -1161,6 +1175,7 @@ describe('useBannerCarousel', () => {
       });
 
       // Verify plugin is active
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const calls = mockUseEmblaCarousel.mock.calls as any[][];
       let lastCall = calls[calls.length - 1];
       expect(lastCall[1].length).toBe(1);
@@ -1180,6 +1195,7 @@ describe('useBannerCarousel', () => {
       });
 
       // Verify plugins empty
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const calls = mockUseEmblaCarousel.mock.calls as any[][];
       let lastCall = calls[calls.length - 1];
       expect(lastCall[1]).toEqual([]);
