@@ -171,9 +171,9 @@ class Test1CInitMode:
         """
         auth_header = self._get_auth_header()
         self.client.get(self.url, data={"mode": "checkauth"}, HTTP_AUTHORIZATION=auth_header)
-        
+
         response = self.client.get(self.url, data={"mode": "init", "type": "sale"})
-        
+
         assert response.status_code == status.HTTP_200_OK
         content = response.content.decode("utf-8").splitlines()
         assert content[3] == "version=2.09"

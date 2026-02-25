@@ -310,7 +310,7 @@ class XMLDataParser:
                         char_list.append({"name": char_name, "value": char_value})
                 if char_list:
                     offer_data["characteristics"] = char_list
-            
+
             # Извлечение и валидация путей изображений с дедупликацией
             image_elements = offer_element.findall(".//Картинка")
 

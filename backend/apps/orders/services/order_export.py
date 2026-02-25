@@ -169,12 +169,12 @@ class OrderExportService:
 
         # Значения реквизитов документа
         doc_props = ET.Element("ЗначенияРеквизитов")
-        
+
         doc_prop1 = ET.Element("ЗначениеРеквизита")
         self._add_text_element(doc_prop1, "Наименование", "Статус заказа")
         self._add_text_element(doc_prop1, "Значение", "Новый")
         doc_props.append(doc_prop1)
-        
+
         doc_prop2 = ET.Element("ЗначениеРеквизита")
         self._add_text_element(doc_prop2, "Наименование", "Отменен")
         self._add_text_element(doc_prop2, "Значение", "false")
@@ -217,7 +217,7 @@ class OrderExportService:
                 name = str(user.full_name or user.email or "")
                 self._add_text_element(counterparty, "Наименование", name)
                 self._add_text_element(counterparty, "ПолноеНаименование", name)
-                
+
             self._add_text_element(counterparty, "Роль", "Покупатель")
 
             # ИНН только если есть tax_id
@@ -310,17 +310,17 @@ class OrderExportService:
 
             # Реквизиты товара (обязательно для загрузки в 1С УТ)
             props = ET.Element("ЗначенияРеквизитов")
-            
+
             prop1 = ET.Element("ЗначениеРеквизита")
             self._add_text_element(prop1, "Наименование", "ВидНоменклатуры")
             self._add_text_element(prop1, "Значение", "Товар")
             props.append(prop1)
-            
+
             prop2 = ET.Element("ЗначениеРеквизита")
             self._add_text_element(prop2, "Наименование", "ТипНоменклатуры")
             self._add_text_element(prop2, "Значение", "Товар")
             props.append(prop2)
-            
+
             product.append(props)
 
             products.append(product)
