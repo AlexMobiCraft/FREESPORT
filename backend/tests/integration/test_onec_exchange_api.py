@@ -32,7 +32,7 @@ class Test1CCheckAuth:
         self.url = "/api/integration/1c/exchange/"
         self.test_user = User.objects.create_user(
             email="1c@example.com",
-            password="secure_password_123",
+            password="pass123",
             first_name="1C",
             last_name="Technical",
             is_staff=True,
@@ -43,7 +43,7 @@ class Test1CCheckAuth:
         AC 1: GET ?mode=checkauth with valid Basic Auth
         returns 200, text/plain, and success lines.
         """
-        auth_header = "Basic " + base64.b64encode(b"1c@example.com:secure_password_123").decode("ascii")
+        auth_header = "Basic " + base64.b64encode(b"1c@example.com:pass123").decode("ascii")
 
         response = self.client.get(self.url, data={"mode": "checkauth"}, HTTP_AUTHORIZATION=auth_header)
 
@@ -78,12 +78,12 @@ class Test1CCheckAuth:
         """
         User.objects.create_user(
             email="regular@example.com",
-            password="password123",
+            password="pass123",
             first_name="Regular",
             last_name="User",
             is_staff=False,
         )
-        auth_header = "Basic " + base64.b64encode(b"regular@example.com:password123").decode("ascii")
+        auth_header = "Basic " + base64.b64encode(b"regular@example.com:pass123").decode("ascii")
 
         response = self.client.get(self.url, data={"mode": "checkauth"}, HTTP_AUTHORIZATION=auth_header)
 
@@ -95,7 +95,7 @@ class Test1CCheckAuth:
         """
         perm_user = User.objects.create_user(
             email="perm@example.com",
-            password="password123",
+            password="pass123",
             first_name="Perm",
             last_name="User",
             is_staff=False,
@@ -105,7 +105,7 @@ class Test1CCheckAuth:
         permission = Permission.objects.get(codename="can_exchange_1c")
         perm_user.user_permissions.add(permission)
 
-        auth_header = "Basic " + base64.b64encode(b"perm@example.com:password123").decode("ascii")
+        auth_header = "Basic " + base64.b64encode(b"perm@example.com:pass123").decode("ascii")
 
         response = self.client.get(self.url, data={"mode": "checkauth"}, HTTP_AUTHORIZATION=auth_header)
 
@@ -126,13 +126,13 @@ class Test1CInitMode:
         self.url = "/api/integration/1c/exchange/"
         self.test_user = User.objects.create_user(
             email="1c_init@example.com",
-            password="secure_password_123",
+            password="pass123",
             first_name="1C",
             last_name="Technical",
             is_staff=True,
         )
 
-    def _get_auth_header(self, email="1c_init@example.com", password="secure_password_123"):
+    def _get_auth_header(self, email="1c_init@example.com", password="pass123"):
         """Helper to create Basic Auth header."""
         credentials = f"{email}:{password}".encode("utf-8")
         return "Basic " + base64.b64encode(credentials).decode("ascii")
@@ -211,7 +211,7 @@ class Test1CInitMode:
         email = f"regular_init_{uuid.uuid4().hex[:8]}@example.com"
         user = User.objects.create_user(
             email=email,
-            password="password123",
+            password="pass123",
             is_staff=False,
         )
 
@@ -294,12 +294,12 @@ class TestImportConcurrency:
         self.url = "/api/integration/1c/exchange/"
         self.user = User.objects.create_user(
             email="1c_import@example.com",
-            password="password",
+            password="pass123",
             first_name="1C",
             last_name="Robot",
             is_staff=True,
         )
-        self.auth_header = "Basic " + base64.b64encode(b"1c_import@example.com:password").decode("ascii")
+        self.auth_header = "Basic " + base64.b64encode(b"1c_import@example.com:pass123").decode("ascii")
 
     def test_idempotency_active_session(self):
         """
