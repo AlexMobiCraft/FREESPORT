@@ -217,6 +217,7 @@ export const SearchAutocomplete: React.ForwardRefExoticComponent<
       >
         <SearchField
           ref={ref}
+          data-testid="search-input"
           placeholder={placeholder}
           onSearch={handleSearch}
           onChange={handleChange}
