@@ -489,8 +489,8 @@ test.describe('Checkout Autofill E2E Tests', () => {
   async function setupAuthMocks(page: Page) {
     await setupApiMocks(page);
 
-    // Мок API текущего пользователя
-    await page.route('**/api/v1/users/me/**', async route => {
+    // Мок API текущего пользователя - AuthProvider вызывает /profile/
+    await page.route('**/api/v1/users/profile/**', async route => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -521,9 +521,17 @@ test.describe('Checkout Autofill E2E Tests', () => {
 
     // Устанавливаем localStorage/cookies для имитации авторизации
     await page.addInitScript(() => {
-      localStorage.setItem('auth_token', 'mock-access-token');
-      localStorage.setItem('refresh_token', 'mock-refresh-token');
+      localStorage.setItem('refreshToken', 'mock-refresh-token');
     });
+
+    await page.context().addCookies([
+      {
+        name: 'refreshToken',
+        value: 'mock-refresh-token',
+        domain: 'localhost',
+        path: '/',
+      },
+    ]);
 
     await page.goto('/checkout');
 

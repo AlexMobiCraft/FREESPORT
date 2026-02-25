@@ -52,6 +52,10 @@ test.describe('Profile Page - Edit Profile Flow', () => {
         },
       ]);
 
+      await page.addInitScript(() => {
+        localStorage.setItem('refreshToken', 'mock-refresh-token');
+      });
+
       // ACT
       await page.goto('/profile');
 
@@ -63,7 +67,7 @@ test.describe('Profile Page - Edit Profile Flow', () => {
 
   test.describe('Profile Form Display', () => {
     test.beforeEach(async ({ page }) => {
-      // Установка auth cookies
+      // Установка auth cookies для middleware
       await page.context().addCookies([
         {
           name: 'refreshToken',
@@ -72,6 +76,11 @@ test.describe('Profile Page - Edit Profile Flow', () => {
           path: '/',
         },
       ]);
+
+      // Установка localStorage для client-side authStore
+      await page.addInitScript(() => {
+        localStorage.setItem('refreshToken', 'mock-refresh-token');
+      });
 
       // Mock API для получения профиля
       await page.route('**/api/v1/users/profile/', async route => {
@@ -125,6 +134,10 @@ test.describe('Profile Page - Edit Profile Flow', () => {
           path: '/',
         },
       ]);
+
+      await page.addInitScript(() => {
+        localStorage.setItem('refreshToken', 'mock-refresh-token');
+      });
 
       // Mock GET profile
       await page.route('**/api/v1/users/profile/', async route => {
@@ -199,6 +212,10 @@ test.describe('Profile Page - Edit Profile Flow', () => {
         },
       ]);
 
+      await page.addInitScript(() => {
+        localStorage.setItem('refreshToken', 'mock-refresh-token');
+      });
+
       // Mock B2B user profile
       await page.route('**/api/v1/users/profile/', async route => {
         if (route.request().method() === 'GET') {
@@ -240,6 +257,10 @@ test.describe('Profile Page - Edit Profile Flow', () => {
         },
       ]);
 
+      await page.addInitScript(() => {
+        localStorage.setItem('refreshToken', 'mock-refresh-token');
+      });
+
       await page.route('**/api/v1/users/profile/', async route => {
         await route.fulfill({
           status: 200,
@@ -276,6 +297,10 @@ test.describe('Profile Page - Edit Profile Flow', () => {
           path: '/',
         },
       ]);
+
+      await page.addInitScript(() => {
+        localStorage.setItem('refreshToken', 'mock-refresh-token');
+      });
 
       await page.route('**/api/v1/users/profile/', async route => {
         await route.fulfill({

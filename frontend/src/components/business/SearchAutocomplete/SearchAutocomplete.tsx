@@ -208,7 +208,7 @@ export const SearchAutocomplete: React.ForwardRefExoticComponent<
           isMobile && 'w-full',
           className
         )}
-        data-testid="search-autocomplete"
+        data-testid="search-field"
         onKeyDown={e => {
           if (e.key === 'Escape') {
             setIsFocused(false);
@@ -233,7 +233,6 @@ export const SearchAutocomplete: React.ForwardRefExoticComponent<
           onFocus={handleFocus}
           onBlur={handleBlur}
           aria-label="Поиск товаров"
-          data-testid="search-field"
         />
 
         {/* История поиска - показывается при фокусе на пустом поле */}
