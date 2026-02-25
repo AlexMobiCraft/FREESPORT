@@ -388,7 +388,8 @@ describe('useBannerCarousel', () => {
     it('should not include speed in options when not provided', () => {
       renderHook(() => useBannerCarousel({}));
 
-      const lastCall = mockUseEmblaCarousel.mock.calls[mockUseEmblaCarousel.mock.calls.length - 1];
+      const calls = mockUseEmblaCarousel.mock.calls as any[][];
+      const lastCall = calls[calls.length - 1];
       expect(lastCall[0]).not.toHaveProperty('speed');
     });
 
@@ -580,7 +581,7 @@ describe('useBannerCarousel', () => {
       rerender({ opts: { ...options } });
 
       // useEmblaCarousel should be called again, but with memoized options
-      const calls = mockUseEmblaCarousel.mock.calls;
+      const calls = mockUseEmblaCarousel.mock.calls as any[][];
       const firstOptions = calls[initialCallCount - 1][0];
       const secondOptions = calls[calls.length - 1][0];
 
@@ -601,8 +602,9 @@ describe('useBannerCarousel', () => {
       const callsAfter = mockUseEmblaCarousel.mock.calls.length;
 
       // Plugins array should be REFERENTIALLY stable (toBe checks identity)
-      const pluginsBefore = mockUseEmblaCarousel.mock.calls[callsBefore - 1][1];
-      const pluginsAfter = mockUseEmblaCarousel.mock.calls[callsAfter - 1][1];
+      const calls = mockUseEmblaCarousel.mock.calls as any[][];
+      const pluginsBefore = calls[callsBefore - 1][1];
+      const pluginsAfter = calls[callsAfter - 1][1];
 
       expect(pluginsBefore).toBe(pluginsAfter);
     });
@@ -637,8 +639,9 @@ describe('useBannerCarousel', () => {
       const callsAfter = mockUseEmblaCarousel.mock.calls.length;
 
       // Empty plugins array should be REFERENTIALLY stable (same constant)
-      const pluginsBefore = mockUseEmblaCarousel.mock.calls[callsBefore - 1][1];
-      const pluginsAfter = mockUseEmblaCarousel.mock.calls[callsAfter - 1][1];
+      const calls = mockUseEmblaCarousel.mock.calls as any[][];
+      const pluginsBefore = calls[callsBefore - 1][1];
+      const pluginsAfter = calls[callsAfter - 1][1];
 
       expect(pluginsBefore).toBe(pluginsAfter);
       expect(pluginsBefore).toHaveLength(0);
@@ -649,7 +652,8 @@ describe('useBannerCarousel', () => {
     it('should explicitly set dragFree: false for 1:1 finger tracking (AC2)', () => {
       renderHook(() => useBannerCarousel({}));
 
-      const lastCall = mockUseEmblaCarousel.mock.calls[mockUseEmblaCarousel.mock.calls.length - 1];
+      const calls = mockUseEmblaCarousel.mock.calls as any[][];
+      const lastCall = calls[calls.length - 1];
       const emblaOptions = lastCall[0];
 
       // dragFree should be explicitly false (not relying on Embla default)
@@ -749,7 +753,8 @@ describe('useBannerCarousel', () => {
         })
       );
 
-      const lastCall = mockUseEmblaCarousel.mock.calls[mockUseEmblaCarousel.mock.calls.length - 1];
+      const calls = mockUseEmblaCarousel.mock.calls as any[][];
+      const lastCall = calls[calls.length - 1];
 
       expect(lastCall[0]).toEqual({
         loop: false,
@@ -1010,7 +1015,8 @@ describe('useBannerCarousel', () => {
     it('should ignore invalid speed (NaN) and use default', () => {
       renderHook(() => useBannerCarousel({ speed: NaN }));
 
-      const lastCall = mockUseEmblaCarousel.mock.calls[mockUseEmblaCarousel.mock.calls.length - 1];
+      const calls = mockUseEmblaCarousel.mock.calls as any[][];
+      const lastCall = calls[calls.length - 1];
       // NaN should be filtered out
       expect(lastCall[0]).not.toHaveProperty('speed');
     });
@@ -1018,14 +1024,16 @@ describe('useBannerCarousel', () => {
     it('should ignore invalid speed (<=0) and use default', () => {
       renderHook(() => useBannerCarousel({ speed: 0 }));
 
-      const lastCall = mockUseEmblaCarousel.mock.calls[mockUseEmblaCarousel.mock.calls.length - 1];
+      const calls = mockUseEmblaCarousel.mock.calls as any[][];
+      const lastCall = calls[calls.length - 1];
       expect(lastCall[0]).not.toHaveProperty('speed');
     });
 
     it('should ignore negative speed and use default', () => {
       renderHook(() => useBannerCarousel({ speed: -5 }));
 
-      const lastCall = mockUseEmblaCarousel.mock.calls[mockUseEmblaCarousel.mock.calls.length - 1];
+      const calls = mockUseEmblaCarousel.mock.calls as any[][];
+      const lastCall = calls[calls.length - 1];
       expect(lastCall[0]).not.toHaveProperty('speed');
     });
 
@@ -1059,7 +1067,8 @@ describe('useBannerCarousel', () => {
     it('should accept valid positive speed', () => {
       renderHook(() => useBannerCarousel({ speed: 15 }));
 
-      const lastCall = mockUseEmblaCarousel.mock.calls[mockUseEmblaCarousel.mock.calls.length - 1];
+      const calls = mockUseEmblaCarousel.mock.calls as any[][];
+      const lastCall = calls[calls.length - 1];
       expect(lastCall[0]).toHaveProperty('speed', 15);
     });
 
@@ -1073,14 +1082,16 @@ describe('useBannerCarousel', () => {
     it('should ignore Infinity speed and exclude from options', () => {
       renderHook(() => useBannerCarousel({ speed: Infinity }));
 
-      const lastCall = mockUseEmblaCarousel.mock.calls[mockUseEmblaCarousel.mock.calls.length - 1];
+      const calls = mockUseEmblaCarousel.mock.calls as any[][];
+      const lastCall = calls[calls.length - 1];
       expect(lastCall[0]).not.toHaveProperty('speed');
     });
 
     it('should ignore -Infinity speed and exclude from options', () => {
       renderHook(() => useBannerCarousel({ speed: -Infinity }));
 
-      const lastCall = mockUseEmblaCarousel.mock.calls[mockUseEmblaCarousel.mock.calls.length - 1];
+      const calls = mockUseEmblaCarousel.mock.calls as any[][];
+      const lastCall = calls[calls.length - 1];
       expect(lastCall[0]).not.toHaveProperty('speed');
     });
 
@@ -1113,12 +1124,22 @@ describe('useBannerCarousel', () => {
   describe('AC3 Behavioral: Autoplay Plugin Flow', () => {
     it('should pass the autoplay plugin instance to useEmblaCarousel in plugins array', () => {
       mockAutoplay.mockClear();
-      const mockPlugin = { name: 'autoplay', init: vi.fn(), destroy: vi.fn() };
+      const mockPlugin = {
+        name: 'autoplay',
+        options: {},
+        init: vi.fn(),
+        destroy: vi.fn(),
+        play: vi.fn(),
+        stop: vi.fn(),
+        reset: vi.fn(),
+        isPlaying: vi.fn(),
+      };
       mockAutoplay.mockReturnValueOnce(mockPlugin);
 
       renderHook(() => useBannerCarousel({ autoplay: true }));
 
-      const lastCall = mockUseEmblaCarousel.mock.calls[mockUseEmblaCarousel.mock.calls.length - 1];
+      const calls = mockUseEmblaCarousel.mock.calls as any[][];
+      const lastCall = calls[calls.length - 1];
       expect(lastCall[1]).toContain(mockPlugin);
     });
 
@@ -1127,7 +1148,8 @@ describe('useBannerCarousel', () => {
 
       renderHook(() => useBannerCarousel({ autoplay: false }));
 
-      const lastCall = mockUseEmblaCarousel.mock.calls[mockUseEmblaCarousel.mock.calls.length - 1];
+      const calls = mockUseEmblaCarousel.mock.calls as any[][];
+      const lastCall = calls[calls.length - 1];
       expect(lastCall[1]).toEqual([]);
     });
 
@@ -1139,13 +1161,14 @@ describe('useBannerCarousel', () => {
       });
 
       // Verify plugin is active
-      let lastCall = mockUseEmblaCarousel.mock.calls[mockUseEmblaCarousel.mock.calls.length - 1];
+      const calls = mockUseEmblaCarousel.mock.calls as any[][];
+      let lastCall = calls[calls.length - 1];
       expect(lastCall[1].length).toBe(1);
 
       // Disable autoplay
       rerender({ autoplay: false });
 
-      lastCall = mockUseEmblaCarousel.mock.calls[mockUseEmblaCarousel.mock.calls.length - 1];
+      lastCall = calls[calls.length - 1];
       expect(lastCall[1]).toEqual([]);
     });
 
@@ -1157,13 +1180,14 @@ describe('useBannerCarousel', () => {
       });
 
       // Verify plugins empty
-      let lastCall = mockUseEmblaCarousel.mock.calls[mockUseEmblaCarousel.mock.calls.length - 1];
+      const calls = mockUseEmblaCarousel.mock.calls as any[][];
+      let lastCall = calls[calls.length - 1];
       expect(lastCall[1]).toEqual([]);
 
       // Enable autoplay
       rerender({ autoplay: true });
 
-      lastCall = mockUseEmblaCarousel.mock.calls[mockUseEmblaCarousel.mock.calls.length - 1];
+      lastCall = calls[calls.length - 1];
       expect(lastCall[1].length).toBe(1);
     });
   });
