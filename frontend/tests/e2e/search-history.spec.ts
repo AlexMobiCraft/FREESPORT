@@ -229,10 +229,7 @@ test.describe('Search History Flow E2E Tests', () => {
     await expect(page.locator('[data-testid="search-history"]')).toBeVisible({ timeout: 5000 });
 
     // Кликаем по элементу истории
-    await page
-      .locator('[role="option"]:has-text("кроссовки")')
-      .first()
-      .click();
+    await page.locator('[role="option"]:has-text("кроссовки")').first().click();
 
     // Проверяем редирект на страницу поиска
     await page.waitForURL(/.*search\?q=.*/, { timeout: 10000 });

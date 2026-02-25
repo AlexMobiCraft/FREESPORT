@@ -38,16 +38,15 @@ export function OrderSummary({ isSubmitting, submitError, isCartEmpty }: OrderSu
 
   return (
     <div
-      className={cn(
-        "rounded-lg bg-white p-6 shadow-sm",
-        !isEmpty && "lg:sticky lg:top-4"
-      )}
+      className={cn('rounded-lg bg-white p-6 shadow-sm', !isEmpty && 'lg:sticky lg:top-4')}
       data-testid="order-summary"
     >
       <h2 className="mb-4 text-lg font-semibold text-gray-900">Ваш заказ</h2>
 
       {isEmpty ? (
-        <p className="text-sm text-gray-600" data-testid="empty-cart-message">Корзина пуста</p>
+        <p className="text-sm text-gray-600" data-testid="empty-cart-message">
+          Корзина пуста
+        </p>
       ) : (
         <>
           {/* Список товаров */}
@@ -58,7 +57,9 @@ export function OrderSummary({ isSubmitting, submitError, isCartEmpty }: OrderSu
                   <p className="font-medium text-gray-900">{item.product.name}</p>
                   {(item.variant.color_name || item.variant.size_value) && (
                     <p className="text-xs text-gray-500">
-                      {[item.variant.color_name, item.variant.size_value].filter(Boolean).join(' / ')}
+                      {[item.variant.color_name, item.variant.size_value]
+                        .filter(Boolean)
+                        .join(' / ')}
                     </p>
                   )}
                   <p className="text-gray-600">
@@ -76,7 +77,9 @@ export function OrderSummary({ isSubmitting, submitError, isCartEmpty }: OrderSu
             {/* Итого за товары */}
             <div className="mb-2 flex justify-between text-sm">
               <span className="text-gray-600">Итого за товары:</span>
-              <span className="font-medium text-gray-900" data-testid="total-price-items">{totalPrice.toLocaleString('ru-RU')} ₽</span>
+              <span className="font-medium text-gray-900" data-testid="total-price-items">
+                {totalPrice.toLocaleString('ru-RU')} ₽
+              </span>
             </div>
 
             {/* Доставка (placeholder) */}

@@ -105,27 +105,30 @@ async function setupApiMocks(page: Page) {
   });
 
   // Мок API корзины - перехватываем любые вариации пути
-  await page.route(url => url.pathname.includes('/cart'), async route => {
-    const method = route.request().method();
+  await page.route(
+    url => url.pathname.includes('/cart'),
+    async route => {
+      const method = route.request().method();
 
-    if (method === 'GET') {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          items: [mockCartItem],
-          total_items: 1,
-          total_price: 1000,
-        }),
-      });
-    } else {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ success: true }),
-      });
+      if (method === 'GET') {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            items: [mockCartItem],
+            total_items: 1,
+            total_price: 1000,
+          }),
+        });
+      } else {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ success: true }),
+        });
+      }
     }
-  });
+  );
 
   // Мок API способов доставки
   await page.route('**/api/v1/delivery/methods/**', async route => {
@@ -335,8 +338,12 @@ test.describe('Checkout Flow E2E Tests', () => {
     await expect(page.locator(`text=${mockCreatedOrder.order_number}`)).toBeVisible();
 
     // Проверяем наличие кнопок навигации
-    await expect(page.getByRole('main').getByRole('link', { name: 'Продолжить покупки' })).toBeVisible();
-    await expect(page.getByRole('main').getByRole('link', { name: 'Личный кабинет' })).toBeVisible();
+    await expect(
+      page.getByRole('main').getByRole('link', { name: 'Продолжить покупки' })
+    ).toBeVisible();
+    await expect(
+      page.getByRole('main').getByRole('link', { name: 'Личный кабинет' })
+    ).toBeVisible();
   });
 });
 
@@ -576,7 +583,7 @@ test.describe('Checkout Autofill E2E Tests', () => {
  */
 test.describe('Checkout Error Handling E2E Tests', () => {
   test.beforeEach(async ({ page }) => {
-    // Большинство тестов здесь переопределяют моки сами, 
+    // Большинство тестов здесь переопределяют моки сами,
     // но базовые нужны для начальной загрузки страницы
     await setupApiMocks(page);
   });
