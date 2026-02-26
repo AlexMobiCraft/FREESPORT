@@ -52,52 +52,15 @@ const MAX_VISIBLE_PAGES = 5;
 const DEFAULT_ORDERING = 'name';
 const DEFAULT_CATEGORY_LABEL = 'Спорт';
 
-const CATEGORY_ICON_MAP: Record<string, string> = {
-  sport: '🏃',
-  спорт: '🏃',
-  tourism: '🥾',
-  туризм: '🥾',
-  fitness: '💪',
-  фитнес: '💪',
-  'фитнес и атлетика': '💪',
-  swimming: '🏊',
-  плавание: '🏊',
-  games: '⚽',
-  'спортивные игры': '⚽',
-  martial: '🥊',
-  единоборства: '🥊',
-  gymnastics: '🤸',
-  гимнастика: '🤸',
-  apparel: '👕',
-  'одежда спортивная': '👕',
-  transport: '🚲',
-  'детский транспорт': '🚲',
-};
-
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
 const getNodeKey = (path: number[]) => path.join(' > ');
-
-const getIconForCategory = (name: string, slug?: string) => {
-  const normalizedSlug = slug
-    ?.toLowerCase()
-    .replace(/[^a-z0-9\-а-яё]/gi, '')
-    .trim();
-  const normalizedName = name.toLowerCase();
-  if (normalizedSlug && CATEGORY_ICON_MAP[normalizedSlug]) {
-    return CATEGORY_ICON_MAP[normalizedSlug];
-  }
-  if (CATEGORY_ICON_MAP[normalizedName]) {
-    return CATEGORY_ICON_MAP[normalizedName];
-  }
-  return undefined;
-};
 
 const mapCategoryTreeNode = (node: CategoryTreeResponse): CategoryNode => ({
   id: node.id,
   label: node.name,
   slug: node.slug,
-  icon: node.icon || getIconForCategory(node.name, node.slug),
+  icon: node.icon || undefined,
   children: node.children?.map(mapCategoryTreeNode),
 });
 
@@ -300,11 +263,11 @@ const CategoryTree: React.FC<{
                 type="button"
                 onClick={() => onSelect(node)}
                 className={
-                  'flex-1 rounded-lg px-2 py-1 text-left text-sm transition-colors ' +
+                  'flex-1 min-w-0 rounded-lg px-2 py-1 text-left text-sm transition-colors ' +
                   (isActive
                     ? 'bg-primary-subtle text-primary font-semibold'
                     : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900') +
-                  ' flex items-center gap-2'
+                  ' flex items-start gap-2'
                 }
               >
                 {node.icon &&
@@ -313,7 +276,7 @@ const CategoryTree: React.FC<{
                   ) : (
                     <span className="text-lg flex-shrink-0 leading-none">{node.icon}</span>
                   ))}
-                <span className="truncate">{node.label}</span>
+                <span className="break-words">{node.label}</span>
               </button>
             </div>
             {hasChildren && isExpanded && (
@@ -1003,18 +966,16 @@ const CatalogContent: React.FC = () => {
               <div className="flex items-center gap-3">
                 <div className="inline-flex items-center rounded-full bg-gray-100 p-1">
                   <button
-                    className={`flex items-center gap-1 rounded-full px-3 py-2 text-sm font-medium ${
-                      viewMode === 'grid' ? 'bg-white text-gray-900 shadow' : 'text-gray-500'
-                    }`}
+                    className={`flex items-center gap-1 rounded-full px-3 py-2 text-sm font-medium ${viewMode === 'grid' ? 'bg-white text-gray-900 shadow' : 'text-gray-500'
+                      }`}
                     onClick={() => setViewMode('grid')}
                   >
                     <Grid2x2 className="h-4 w-4" />
                     <span className="hidden sm:inline">Сетка</span>
                   </button>
                   <button
-                    className={`flex items-center gap-1 rounded-full px-3 py-2 text-sm font-medium ${
-                      viewMode === 'list' ? 'bg-white text-gray-900 shadow' : 'text-gray-500'
-                    }`}
+                    className={`flex items-center gap-1 rounded-full px-3 py-2 text-sm font-medium ${viewMode === 'list' ? 'bg-white text-gray-900 shadow' : 'text-gray-500'
+                      }`}
                     onClick={() => setViewMode('list')}
                   >
                     <List className="h-4 w-4" />
