@@ -81,7 +81,7 @@ vi.mock('next/image', () => ({
     return React.createElement('img', {
       ...props,
       // Извлекаем пропсы, которые next/image обрабатывает специфично
-      src: typeof props.src === 'string' ? props.src : (props.src?.src || ''),
+      src: typeof props.src === 'string' ? props.src : props.src?.src || '',
       alt: props.alt || '',
       // Удаляем пропсы, которые не должны быть на обычном img
       fill: undefined,

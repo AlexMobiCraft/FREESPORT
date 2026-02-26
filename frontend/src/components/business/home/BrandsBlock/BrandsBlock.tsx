@@ -78,12 +78,12 @@ export const BrandsBlock: React.FC<BrandsBlockProps> = ({ brands }) => {
     },
     visibleBrands.length > 1
       ? [
-        Autoplay({
-          delay: 3000,
-          stopOnInteraction: true,
-          stopOnMouseEnter: true,
-        }),
-      ]
+          Autoplay({
+            delay: 3000,
+            stopOnInteraction: true,
+            stopOnMouseEnter: true,
+          }),
+        ]
       : []
   );
 

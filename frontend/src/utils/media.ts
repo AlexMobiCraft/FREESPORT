@@ -38,7 +38,7 @@ export function normalizeImageUrl(url: string | null | undefined): string {
     return normalizedUrl;
   }
 
-  // Если URL относительный и не начинается с /, 
+  // Если URL относительный и не начинается с /,
   // то это вероятнее всего путь от корня MEDIA_ROOT в Django (напр. "categories/icons/...")
   // Добавляем /media/ префикс, который будет обработан прокси в next.config.js
   if (!normalizedUrl.startsWith('/')) {
