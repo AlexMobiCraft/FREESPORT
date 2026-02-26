@@ -30,7 +30,7 @@ class TestSyncLoggingSystem:
         """Создает тестового пользователя"""
         return User.objects.create_user(
             email="integration@test.com",
-            password="testpass123",
+            password="pass123",
         )
 
     @pytest.fixture
@@ -38,7 +38,7 @@ class TestSyncLoggingSystem:
         """Создает админского пользователя"""
         return User.objects.create_superuser(
             email="admin@test.com",
-            password="adminpass123",
+            password="adm1234",
         )
 
     @pytest.fixture

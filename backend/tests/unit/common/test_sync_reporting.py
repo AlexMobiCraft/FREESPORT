@@ -31,7 +31,7 @@ class TestSyncReportGenerator:
         """Фикстура для создания тестового пользователя"""
         return User.objects.create_user(
             email="test@example.com",
-            password="testpass123",
+            password="pass123",
         )
 
     @pytest.fixture
