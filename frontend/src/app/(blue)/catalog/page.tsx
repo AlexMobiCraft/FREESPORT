@@ -97,7 +97,7 @@ const mapCategoryTreeNode = (node: CategoryTreeResponse): CategoryNode => ({
   id: node.id,
   label: node.name,
   slug: node.slug,
-  icon: getIconForCategory(node.name, node.slug),
+  icon: node.icon || getIconForCategory(node.name, node.slug),
   children: node.children?.map(mapCategoryTreeNode),
 });
 
@@ -303,10 +303,16 @@ const CategoryTree: React.FC<{
                   'flex-1 rounded-lg px-2 py-1 text-left text-sm transition-colors ' +
                   (isActive
                     ? 'bg-primary-subtle text-primary font-semibold'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900')
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900') +
+                  ' flex items-center gap-2'
                 }
               >
-                {node.label}
+                {node.icon && (
+                  node.icon.startsWith('http') || node.icon.startsWith('/') ?
+                    <img src={node.icon} alt="" className="w-5 h-5 object-contain flex-shrink-0" /> :
+                    <span className="text-lg flex-shrink-0 leading-none">{node.icon}</span>
+                )}
+                <span className="truncate">{node.label}</span>
               </button>
             </div>
             {hasChildren && isExpanded && (
@@ -996,18 +1002,16 @@ const CatalogContent: React.FC = () => {
               <div className="flex items-center gap-3">
                 <div className="inline-flex items-center rounded-full bg-gray-100 p-1">
                   <button
-                    className={`flex items-center gap-1 rounded-full px-3 py-2 text-sm font-medium ${
-                      viewMode === 'grid' ? 'bg-white text-gray-900 shadow' : 'text-gray-500'
-                    }`}
+                    className={`flex items-center gap-1 rounded-full px-3 py-2 text-sm font-medium ${viewMode === 'grid' ? 'bg-white text-gray-900 shadow' : 'text-gray-500'
+                      }`}
                     onClick={() => setViewMode('grid')}
                   >
                     <Grid2x2 className="h-4 w-4" />
                     <span className="hidden sm:inline">Сетка</span>
                   </button>
                   <button
-                    className={`flex items-center gap-1 rounded-full px-3 py-2 text-sm font-medium ${
-                      viewMode === 'list' ? 'bg-white text-gray-900 shadow' : 'text-gray-500'
-                    }`}
+                    className={`flex items-center gap-1 rounded-full px-3 py-2 text-sm font-medium ${viewMode === 'list' ? 'bg-white text-gray-900 shadow' : 'text-gray-500'
+                      }`}
                     onClick={() => setViewMode('list')}
                   >
                     <List className="h-4 w-4" />

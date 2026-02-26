@@ -22,6 +22,8 @@ import categoriesService from '@/services/categoriesService';
 import type { Category, CategoryTree } from '@/types/api';
 import { STATIC_QUICK_LINKS } from '@/config/quickLinks';
 
+import { normalizeImageUrl } from '@/utils/media';
+
 export const QuickLinksSection: React.FC = () => {
   const [categories, setCategories] = useState<(Category | CategoryTree)[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -175,10 +177,22 @@ export const QuickLinksSection: React.FC = () => {
                 >
                   {category.icon && (
                     <span
-                      className="flex items-center justify-center w-8 h-8 rounded-full bg-neutral-100 text-base"
+                      className="flex items-center justify-center w-8 h-8 rounded-full bg-neutral-100 text-base flex-shrink-0"
                       aria-hidden="true"
                     >
-                      {category.icon}
+                      <img
+                        src={normalizeImageUrl(category.icon)}
+                        alt=""
+                        className="w-5 h-5 object-contain"
+                        onError={e => {
+                          // Fallback if image fails to load (maybe it WAS an emoji?)
+                          const target = e.currentTarget;
+                          if (category.icon && !category.icon.includes('/')) {
+                            target.parentElement!.innerText = category.icon;
+                            target.remove();
+                          }
+                        }}
+                      />
                     </span>
                   )}
                   <span>{category.name}</span>

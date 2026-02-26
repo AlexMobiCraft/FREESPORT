@@ -40,7 +40,7 @@ const mockCategories = [
     slug: 'football',
     parent_id: null,
     level: 0,
-    icon: '⚽',
+    icon: 'http://localhost/media/categories/icons/football.svg',
     products_count: 150,
   },
   {
@@ -49,7 +49,7 @@ const mockCategories = [
     slug: 'running',
     parent_id: null,
     level: 0,
-    icon: '🏃',
+    icon: 'http://localhost/media/categories/icons/running.svg',
     products_count: 230,
   },
   {
@@ -58,7 +58,7 @@ const mockCategories = [
     slug: 'tennis',
     parent_id: null,
     level: 0,
-    icon: '🎾',
+    icon: null,
     products_count: 95,
   },
 ];

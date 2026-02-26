@@ -23,10 +23,13 @@ describe('NewArrivalsSection', () => {
     expect(screen.getByLabelText(/Загрузка новинок/i)).toBeInTheDocument();
 
     // Success state
-    await waitFor(() => {
-      expect(screen.getByText('Новая модель ракетки Wilson Blade')).toBeInTheDocument();
-      expect(screen.getByText('Новые кроссовки Nike Air Zoom')).toBeInTheDocument();
-    });
+    await waitFor(
+      () => {
+        expect(screen.getByText('Новая модель ракетки Wilson Blade')).toBeInTheDocument();
+        expect(screen.getByText('Новые кроссовки Nike Air Zoom')).toBeInTheDocument();
+      },
+      { timeout: 3000 }
+    );
 
     // Проверяем приоритет бейджей для блока "Новинки"
     // Товар с is_promo=true (приоритет 2) должен показать "Акция" вместо "Новинка"

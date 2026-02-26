@@ -5,6 +5,7 @@
 // Установка env переменных для тестов
 process.env.NEXT_PUBLIC_API_URL = 'http://localhost:8001/api/v1';
 process.env.INTERNAL_API_URL = 'http://localhost:8001';
+process.env.NEXT_PUBLIC_MEDIA_URL = 'http://localhost:8001';
 
 // Подключение дополнительных матчеров для DOM элементов (Vitest версия)
 import '@testing-library/jest-dom/vitest';
@@ -12,6 +13,7 @@ import { vi } from 'vitest';
 
 // Подключение vitest-axe для accessibility тестирования
 import 'vitest-axe/extend-expect';
+import React from 'react';
 
 // Импорт глобальных стилей для тестирования CSS переменных
 import './src/app/globals.css';
@@ -70,3 +72,24 @@ global.console = {
   debug: vi.fn(),
   info: vi.fn(),
 };
+
+// Мокирование next/image
+vi.mock('next/image', () => ({
+  __esModule: true,
+  default: (props: any) => {
+    // eslint-disable-next-line @next/next/no-img-element
+    return React.createElement('img', {
+      ...props,
+      // Извлекаем пропсы, которые next/image обрабатывает специфично
+      src: typeof props.src === 'string' ? props.src : (props.src?.src || ''),
+      alt: props.alt || '',
+      // Удаляем пропсы, которые не должны быть на обычном img
+      fill: undefined,
+      priority: undefined,
+      loading: undefined,
+      quality: undefined,
+      sizes: undefined,
+      onError: undefined,
+    });
+  },
+}));

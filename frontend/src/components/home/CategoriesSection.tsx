@@ -22,6 +22,7 @@ import Image from 'next/image';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import categoriesService from '@/services/categoriesService';
 import type { Category } from '@/types/api';
+import { normalizeImageUrl } from '@/utils/media';
 
 const PLACEHOLDER_IMAGE = '/images/category-placeholder.png';
 const CARD_LAYOUT_CLASSES = 'flex-shrink-0 w-[80vw] sm:w-[40vw] md:w-[250px]';
@@ -76,20 +77,22 @@ interface CategoryCardProps {
 }
 
 const CategoryCard: React.FC<CategoryCardProps> = ({ category }) => {
-  const imageSrc = category.image || PLACEHOLDER_IMAGE;
+  const isIcon = Boolean(category.icon);
+  const rawImageSrc = category.icon || category.image;
+  const imageSrc = rawImageSrc ? normalizeImageUrl(rawImageSrc) : PLACEHOLDER_IMAGE;
 
   return (
     <Link
       href={`/catalog?category=${category.slug}`}
-      className={`${CARD_LAYOUT_CLASSES} snap-start block rounded-lg overflow-hidden shadow-default hover:shadow-hover transition-shadow bg-white group`}
+      className={`${CARD_LAYOUT_CLASSES} snap-start block rounded-lg overflow-hidden shadow-default hover:shadow-hover transition-shadow bg-white group flex flex-col`}
       data-testid="category-card"
     >
-      <div className="aspect-[4/3] overflow-hidden bg-neutral-100 relative">
+      <div className="aspect-[4/3] overflow-hidden bg-neutral-100 flex-shrink-0 relative">
         <Image
           src={imageSrc}
           alt={category.name}
           fill
-          className="object-cover group-hover:scale-105 transition-transform duration-300"
+          className={`${isIcon ? 'object-contain p-6 group-hover:scale-110 hover:drop-shadow-sm' : 'object-cover group-hover:scale-105'} transition-transform duration-300`}
           sizes="(max-width: 640px) 80vw, (max-width: 768px) 40vw, 250px"
         />
       </div>

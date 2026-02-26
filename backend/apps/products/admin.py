@@ -8,6 +8,7 @@ import logging
 from typing import Any, cast
 
 from django.contrib import admin, messages
+from django.contrib.admin import SimpleListFilter
 from django.contrib.admin.helpers import ACTION_CHECKBOX_NAME
 from django.contrib.admin.models import CHANGE, LogEntry
 from django.contrib.contenttypes.models import ContentType
@@ -257,12 +258,54 @@ class Brand1CMappingAdmin(admin.ModelAdmin):
     actions = ["transfer_to_brand"]
 
 
+class HasIconFilter(SimpleListFilter):
+    title = "С иконкой"
+    parameter_name = "has_icon"
+
+    def lookups(self, request: HttpRequest, model_admin: Any) -> tuple:
+        return (("yes", "Да"), ("no", "Нет"))
+
+    def queryset(self, request: HttpRequest, queryset: QuerySet) -> QuerySet | None:
+        if self.value() == "yes":
+            return queryset.exclude(icon="")
+        if self.value() == "no":
+            return queryset.filter(icon="")
+
+
+class HasImageFilter(SimpleListFilter):
+    title = "С картинкой"
+    parameter_name = "has_image"
+
+    def lookups(self, request: HttpRequest, model_admin: Any) -> tuple:
+        return (("yes", "Да"), ("no", "Нет"))
+
+    def queryset(self, request: HttpRequest, queryset: QuerySet) -> QuerySet | None:
+        if self.value() == "yes":
+            return queryset.exclude(image="")
+        if self.value() == "no":
+            return queryset.filter(image="")
+
+
+class IsOnHomepageFilter(SimpleListFilter):
+    title = "На главной"
+    parameter_name = "is_homepage"
+
+    def lookups(self, request: HttpRequest, model_admin: Any) -> tuple:
+        return (("yes", "Да"), ("no", "Нет"))
+
+    def queryset(self, request: HttpRequest, queryset: QuerySet) -> QuerySet | None:
+        if self.value() == "yes":
+            return queryset.filter(sort_order__gt=0)
+        if self.value() == "no":
+            return queryset.filter(sort_order=0)
+
+
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
     """Admin для модели Category"""
 
     list_display = ("name", "slug", "parent", "onec_id", "is_active", "created_at")
-    list_filter = ("is_active", "created_at")
+    list_filter = ("is_active", IsOnHomepageFilter, HasIconFilter, HasImageFilter, "created_at")
     search_fields = ("name", "slug", "onec_id")
     prepopulated_fields = {"slug": ("name",)}
     readonly_fields = ("created_at", "updated_at")
@@ -283,7 +326,7 @@ class HomepageCategoryAdmin(admin.ModelAdmin):
     list_filter = ("parent", "is_active")
     search_fields = ("name", "slug")
     ordering = ("sort_order",)
-    fields = ("name", "parent", "image", "sort_order", "is_active")
+    fields = ("name", "parent", "icon", "image", "sort_order", "is_active")
     readonly_fields = ("name", "parent")
 
     def get_queryset(self, request: HttpRequest) -> QuerySet:

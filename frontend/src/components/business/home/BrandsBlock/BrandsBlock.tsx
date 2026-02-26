@@ -7,6 +7,7 @@ import useEmblaCarousel from 'embla-carousel-react';
 import Autoplay from 'embla-carousel-autoplay';
 import { motion } from 'motion/react';
 import type { Brand } from '@/types/api';
+import { normalizeImageUrl } from '@/utils/media';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -41,7 +42,7 @@ const BrandCard: React.FC<BrandCardProps> = ({ brand }) => {
         className={`relative h-20 md:h-24 px-4 ${BRAND_CARD_IDLE_OPACITY}`}
       >
         <Image
-          src={brand.image}
+          src={normalizeImageUrl(brand.image)}
           alt={brand.name}
           fill
           sizes="(max-width: 640px) 80px, (max-width: 1024px) 100px, 120px"
@@ -77,12 +78,12 @@ export const BrandsBlock: React.FC<BrandsBlockProps> = ({ brands }) => {
     },
     visibleBrands.length > 1
       ? [
-          Autoplay({
-            delay: 3000,
-            stopOnInteraction: true,
-            stopOnMouseEnter: true,
-          }),
-        ]
+        Autoplay({
+          delay: 3000,
+          stopOnInteraction: true,
+          stopOnMouseEnter: true,
+        }),
+      ]
       : []
   );
 
