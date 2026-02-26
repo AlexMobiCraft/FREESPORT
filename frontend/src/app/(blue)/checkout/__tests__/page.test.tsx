@@ -57,6 +57,7 @@ describe('CheckoutPage', () => {
       items: mockCartItems,
       totalPrice: 100,
       totalItems: 1,
+      fetchCart: vi.fn(),
     });
   });
 
@@ -169,6 +170,7 @@ describe('CheckoutPage', () => {
         items: [],
         totalPrice: 0,
         totalItems: 0,
+        fetchCart: vi.fn(),
       });
 
       render(<CheckoutPageClient />);

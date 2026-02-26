@@ -116,24 +116,28 @@ export function OrderSummary({ isSubmitting, submitError, isCartEmpty }: OrderSu
         </div>
       )}
 
-      {/* Кнопка оформления заказа - ВСЕГДА В DOM для тестов */}
-      <Button
-        type="submit"
-        variant="primary"
-        size="large"
-        className="mt-6 w-full text-white"
-        loading={isSubmitting}
-        disabled={isEmpty || isSubmitting}
-        aria-busy={isSubmitting}
-        data-testid="checkout-submit-button"
-      >
-        {isSubmitting ? 'Оформление...' : 'Оформить заказ'}
-      </Button>
+      {/* Кнопка оформления заказа - отображается только если корзина не пуста */}
+      {!isEmpty && (
+        <>
+          <Button
+            type="submit"
+            variant="primary"
+            size="large"
+            className="mt-6 w-full text-white"
+            loading={isSubmitting}
+            disabled={isSubmitting}
+            aria-busy={isSubmitting}
+            data-testid="checkout-submit-button"
+          >
+            {isSubmitting ? 'Оформление...' : 'Оформить заказ'}
+          </Button>
 
-      {/* Дополнительная информация - ВСЕГДА В DOM */}
-      <p className="mt-4 text-center text-xs text-gray-500">
-        Нажимая кнопку, вы соглашаетесь с условиями обработки персональных данных
-      </p>
+          {/* Дополнительная информация */}
+          <p className="mt-4 text-center text-xs text-gray-500">
+            Нажимая кнопку, вы соглашаетесь с условиями обработки персональных данных
+          </p>
+        </>
+      )}
     </div>
   );
 }
