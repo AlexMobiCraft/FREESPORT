@@ -25,14 +25,14 @@ import type { Category } from '@/types/api';
 import { normalizeImageUrl } from '@/utils/media';
 
 const PLACEHOLDER_IMAGE = '/images/category-placeholder.png';
-const CARD_LAYOUT_CLASSES = 'flex-shrink-0 w-[80vw] sm:w-[40vw] md:w-[250px]';
+const CARD_LAYOUT_CLASSES = 'flex-shrink-0 w-[calc(50%-4px)] md:w-[200px]';
 
 /**
  * Loading Skeleton для карусели категорий
  */
 const CategoriesSkeleton: React.FC = () => (
   <div aria-label="Загрузка категорий" role="status" aria-live="polite">
-    <div className="flex gap-4 overflow-hidden">
+    <div className="flex gap-2 overflow-x-auto snap-x snap-mandatory scrollbar-hide py-2 lg:mx-4">
       {[...Array(5)].map((_, index) => (
         <div
           key={index}
@@ -93,7 +93,7 @@ const CategoryCard: React.FC<CategoryCardProps> = ({ category }) => {
           alt={category.name}
           fill
           className={`${isIcon ? 'object-contain p-6 group-hover:scale-110 hover:drop-shadow-sm' : 'object-cover group-hover:scale-105'} transition-transform duration-300`}
-          sizes="(max-width: 640px) 80vw, (max-width: 768px) 40vw, 250px"
+          sizes="(max-width: 640px) 50vw, 200px"
         />
       </div>
       <div className="p-3 text-center">
@@ -177,7 +177,7 @@ export const CategoriesSection: React.FC = () => {
 
   return (
     <section
-      className="max-w-[1280px] mx-auto px-3 md:px-4 lg:px-6 mb-16"
+      className="max-w-[1316px] mx-auto px-3 md:px-4 lg:px-6 mb-16 relative"
       aria-labelledby="categories-heading"
     >
       <h2 id="categories-heading" className="text-3xl font-bold mb-8 text-text-primary">
@@ -190,45 +190,43 @@ export const CategoriesSection: React.FC = () => {
       {/* Error State */}
       {error && !isLoading && <ErrorState onRetry={loadCategories} />}
 
+      {/* Стрелка влево (desktop only) */}
+      {canScrollLeft && !isLoading && !error && categories.length > 0 && (
+        <button
+          type="button"
+          onClick={() => scroll('left')}
+          className="absolute left-0 top-1/2 -translate-y-1/2 z-10 hidden lg:flex items-center justify-center w-12 h-12 bg-transparent text-primary focus:outline-none hover:opacity-80 transition-opacity"
+          aria-label="Прокрутить влево"
+        >
+          <ChevronLeft className="w-7 h-7" />
+        </button>
+      )}
+
+      {/* Стрелка вправо (desktop only) */}
+      {canScrollRight && !isLoading && !error && categories.length > 0 && (
+        <button
+          type="button"
+          onClick={() => scroll('right')}
+          className="absolute right-0 top-1/2 -translate-y-1/2 z-10 hidden lg:flex items-center justify-center w-12 h-12 bg-transparent text-primary focus:outline-none hover:opacity-80 transition-opacity"
+          aria-label="Прокрутить вправо"
+        >
+          <ChevronRight className="w-7 h-7" />
+        </button>
+      )}
+
       {/* Success State — Carousel */}
       {!isLoading && !error && categories.length > 0 && (
-        <div className="relative group">
-          {/* Стрелка влево (desktop only) */}
-          {canScrollLeft && (
-            <button
-              type="button"
-              onClick={() => scroll('left')}
-              className="hidden md:flex absolute -left-3 top-1/2 -translate-y-1/2 z-10 w-10 h-10 items-center justify-center rounded-full bg-white shadow-md hover:shadow-lg transition-shadow border border-neutral-200"
-              aria-label="Прокрутить влево"
-            >
-              <ChevronLeft className="w-5 h-5 text-neutral-600" />
-            </button>
-          )}
-
-          <div
-            ref={scrollRef}
-            className="flex gap-4 overflow-x-auto snap-x snap-mandatory scrollbar-hide"
-            role="list"
-            aria-label="Карусель категорий"
-          >
-            {categories.map(category => (
-              <div key={category.id} role="listitem">
-                <CategoryCard category={category} />
-              </div>
-            ))}
-          </div>
-
-          {/* Стрелка вправо (desktop only) */}
-          {canScrollRight && (
-            <button
-              type="button"
-              onClick={() => scroll('right')}
-              className="hidden md:flex absolute -right-3 top-1/2 -translate-y-1/2 z-10 w-10 h-10 items-center justify-center rounded-full bg-white shadow-md hover:shadow-lg transition-shadow border border-neutral-200"
-              aria-label="Прокрутить вправо"
-            >
-              <ChevronRight className="w-5 h-5 text-neutral-600" />
-            </button>
-          )}
+        <div
+          ref={scrollRef}
+          className="flex gap-2 overflow-x-auto snap-x snap-mandatory scrollbar-hide py-2 lg:mx-4"
+          role="list"
+          aria-label="Карусель категорий"
+        >
+          {categories.map(category => (
+            <div key={category.id} role="listitem">
+              <CategoryCard category={category} />
+            </div>
+          ))}
         </div>
       )}
     </section>
