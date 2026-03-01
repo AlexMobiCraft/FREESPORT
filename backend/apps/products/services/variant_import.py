@@ -1411,12 +1411,7 @@ class VariantImportProcessor:
                     for cat in categories_data:
                         pid = cat.get("parent_id")
                         cat_id = cat.get("id")
-                        if (
-                            pid
-                            and pid in allowed_ids
-                            and cat_id
-                            and cat_id not in allowed_ids
-                        ):
+                        if pid and pid in allowed_ids and cat_id and cat_id not in allowed_ids:
                             allowed_ids.add(cat_id)
                             changed = True
 

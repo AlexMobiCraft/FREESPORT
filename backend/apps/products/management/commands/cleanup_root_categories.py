@@ -52,21 +52,13 @@ class Command(BaseCommand):
         from apps.products.models import Category, HomepageCategory, Product
 
         execute = options.get("execute", False)
-        root_name = options.get("root_name") or getattr(
-            settings, "ROOT_CATEGORY_NAME", "СПОРТ"
-        )
+        root_name = options.get("root_name") or getattr(settings, "ROOT_CATEGORY_NAME", "СПОРТ")
 
         if not root_name:
-            self.stderr.write(
-                self.style.ERROR(
-                    "❌ ROOT_CATEGORY_NAME не задан ни в settings, ни через --root-name"
-                )
-            )
+            self.stderr.write(self.style.ERROR("❌ ROOT_CATEGORY_NAME не задан ни в settings, ни через --root-name"))
             return
 
-        self.stdout.write(
-            self.style.NOTICE(f"\n{'=' * 60}")
-        )
+        self.stdout.write(self.style.NOTICE(f"\n{'=' * 60}"))
         self.stdout.write(
             self.style.NOTICE(
                 f"🔍 Cleanup Root Categories | "
@@ -74,19 +66,14 @@ class Command(BaseCommand):
                 f"Режим: {'EXECUTE' if execute else 'DRY-RUN'}"
             )
         )
-        self.stdout.write(
-            self.style.NOTICE(f"{'=' * 60}\n")
-        )
+        self.stdout.write(self.style.NOTICE(f"{'=' * 60}\n"))
 
         # ======================================================================
         # ШАГ 1: Аудит — найти все корневые категории
         # ======================================================================
         root_categories = Category.objects.filter(parent=None)
         self.stdout.write(
-            self.style.HTTP_INFO(
-                f"📋 Шаг 1: Аудит корневых категорий (parent=None): "
-                f"{root_categories.count()}"
-            )
+            self.style.HTTP_INFO(f"📋 Шаг 1: Аудит корневых категорий (parent=None): " f"{root_categories.count()}")
         )
 
         for root_cat in root_categories:
@@ -98,33 +85,19 @@ class Command(BaseCommand):
             products_on_root = Product.objects.filter(category=root_cat).count()
             # Товары привязанные ко всем потомкам
             descendant_ids = self._get_all_descendant_ids(root_cat)
-            products_on_descendants = Product.objects.filter(
-                category_id__in=descendant_ids
-            ).count()
+            products_on_descendants = Product.objects.filter(category_id__in=descendant_ids).count()
 
             marker = "🎯" if root_cat.name == root_name else "🗑️"
+            self.stdout.write(f"   {marker} «{root_cat.name}» (onec_id={root_cat.onec_id})")
+            self.stdout.write(f"      Прямых children: {direct_children}, " f"всего потомков: {all_descendants}")
             self.stdout.write(
-                f"   {marker} «{root_cat.name}» (onec_id={root_cat.onec_id})"
-            )
-            self.stdout.write(
-                f"      Прямых children: {direct_children}, "
-                f"всего потомков: {all_descendants}"
-            )
-            self.stdout.write(
-                f"      Товаров на корневой: {products_on_root}, "
-                f"товаров на потомках: {products_on_descendants}"
+                f"      Товаров на корневой: {products_on_root}, " f"товаров на потомках: {products_on_descendants}"
             )
 
             # Проверка HomepageCategory
-            homepage_count = HomepageCategory.objects.filter(
-                Q(pk=root_cat.pk) | Q(pk__in=descendant_ids)
-            ).count()
+            homepage_count = HomepageCategory.objects.filter(Q(pk=root_cat.pk) | Q(pk__in=descendant_ids)).count()
             if homepage_count > 0:
-                self.stdout.write(
-                    self.style.WARNING(
-                        f"      ⚠️ HomepageCategory записей: {homepage_count}"
-                    )
-                )
+                self.stdout.write(self.style.WARNING(f"      ⚠️ HomepageCategory записей: {homepage_count}"))
 
         # ======================================================================
         # ШАГ 2: Найти якорную категорию
@@ -133,8 +106,7 @@ class Command(BaseCommand):
         if not anchor:
             self.stderr.write(
                 self.style.WARNING(
-                    f"\n⚠️ Якорная категория «{root_name}» не найдена среди "
-                    f"корневых. Ничего не делаем."
+                    f"\n⚠️ Якорная категория «{root_name}» не найдена среди " f"корневых. Ничего не делаем."
                 )
             )
             return
@@ -143,13 +115,10 @@ class Command(BaseCommand):
         anchor_children_count = anchor_children.count()
         self.stdout.write(
             self.style.SUCCESS(
-                f"\n✅ Якорная категория найдена: «{anchor.name}» "
-                f"(pk={anchor.pk}, onec_id={anchor.onec_id})"
+                f"\n✅ Якорная категория найдена: «{anchor.name}» " f"(pk={anchor.pk}, onec_id={anchor.onec_id})"
             )
         )
-        self.stdout.write(
-            f"   Прямых дочерних для reparent: {anchor_children_count}"
-        )
+        self.stdout.write(f"   Прямых дочерних для reparent: {anchor_children_count}")
 
         # Другие корневые (кроме якорной)
         other_roots = root_categories.exclude(pk=anchor.pk)
@@ -160,25 +129,15 @@ class Command(BaseCommand):
         for other_root in other_roots:
             desc_ids = self._get_all_descendant_ids(other_root)
             desc_ids.add(other_root.pk)
-            cascade_products += Product.objects.filter(
-                category_id__in=desc_ids
-            ).count()
+            cascade_products += Product.objects.filter(category_id__in=desc_ids).count()
 
         # Товары на якорной напрямую
         anchor_direct_products = Product.objects.filter(category=anchor).count()
 
         if other_roots_count > 0:
-            self.stdout.write(
-                self.style.WARNING(
-                    f"\n🗑️ Другие корневые для удаления: {other_roots_count}"
-                )
-            )
+            self.stdout.write(self.style.WARNING(f"\n🗑️ Другие корневые для удаления: {other_roots_count}"))
             if cascade_products > 0:
-                self.stdout.write(
-                    self.style.WARNING(
-                        f"   ⚠️ CASCADE удалит {cascade_products} товаров!"
-                    )
-                )
+                self.stdout.write(self.style.WARNING(f"   ⚠️ CASCADE удалит {cascade_products} товаров!"))
 
         if anchor_direct_products > 0:
             self.stdout.write(
@@ -191,8 +150,7 @@ class Command(BaseCommand):
         if not execute:
             self.stdout.write(
                 self.style.WARNING(
-                    "\n🔍 DRY-RUN: Изменения НЕ применены. "
-                    "Используйте --execute для реального запуска."
+                    "\n🔍 DRY-RUN: Изменения НЕ применены. " "Используйте --execute для реального запуска."
                 )
             )
             return
@@ -206,32 +164,21 @@ class Command(BaseCommand):
 
         # ВАЖНО: материализуем PKs ДО reparent, иначе ленивый QuerySet
         # подхватит reparented children (у которых parent станет None)
-        other_root_pks = list(
-            Category.objects.filter(parent=None)
-            .exclude(pk=anchor.pk)
-            .values_list("pk", flat=True)
-        )
+        other_root_pks = list(Category.objects.filter(parent=None).exclude(pk=anchor.pk).values_list("pk", flat=True))
 
         with transaction.atomic():
             # Шаг 3: Reparent дочерних якорной
             reparented = Category.objects.filter(parent=anchor).update(parent=None)
-            self.stdout.write(
-                self.style.SUCCESS(
-                    f"\n✅ Шаг 3: Reparented {reparented} категорий → parent=None"
-                )
-            )
+            self.stdout.write(self.style.SUCCESS(f"\n✅ Шаг 3: Reparented {reparented} категорий → parent=None"))
 
             # Шаг 4: Удалить якорную (уже без children)
-            anchor_products_deleted = Product.objects.filter(
-                category=anchor
-            ).count()
+            anchor_products_deleted = Product.objects.filter(category=anchor).count()
             products_deleted_cascade += anchor_products_deleted
             anchor.delete()
             categories_deleted += 1
             self.stdout.write(
                 self.style.SUCCESS(
-                    f"✅ Шаг 4: Удалена якорная «{root_name}» "
-                    f"(товаров удалено каскадно: {anchor_products_deleted})"
+                    f"✅ Шаг 4: Удалена якорная «{root_name}» " f"(товаров удалено каскадно: {anchor_products_deleted})"
                 )
             )
 
@@ -243,9 +190,7 @@ class Command(BaseCommand):
                         other_cat = Category.objects.get(pk=other_pk)
                         desc_ids = self._get_all_descendant_ids(other_cat)
                         desc_ids.add(other_cat.pk)
-                        other_products = Product.objects.filter(
-                            category_id__in=desc_ids
-                        ).count()
+                        other_products = Product.objects.filter(category_id__in=desc_ids).count()
                         products_deleted_cascade += other_products
 
                         cat_name = other_cat.name
@@ -261,12 +206,7 @@ class Command(BaseCommand):
                     except Category.DoesNotExist:
                         pass  # Уже удалена каскадно
 
-            self.stdout.write(
-                self.style.SUCCESS(
-                    f"✅ Шаг 5: Удалено посторонних корневых: "
-                    f"{len(other_root_pks)}"
-                )
-            )
+            self.stdout.write(self.style.SUCCESS(f"✅ Шаг 5: Удалено посторонних корневых: " f"{len(other_root_pks)}"))
 
         # ======================================================================
         # ШАГ 6: Итоговый отчёт
@@ -275,9 +215,7 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS("📊 ИТОГОВЫЙ ОТЧЁТ:"))
         self.stdout.write(f"   Категорий reparented:     {reparented}")
         self.stdout.write(f"   Категорий удалено:        {categories_deleted}")
-        self.stdout.write(
-            f"   Товаров удалено каскадно: {products_deleted_cascade}"
-        )
+        self.stdout.write(f"   Товаров удалено каскадно: {products_deleted_cascade}")
         remaining = Category.objects.filter(parent=None).count()
         self.stdout.write(f"   Корневых категорий сейчас: {remaining}")
         self.stdout.write(f"{'=' * 60}")

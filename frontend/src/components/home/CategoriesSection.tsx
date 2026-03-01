@@ -97,7 +97,9 @@ const CategoryCard: React.FC<CategoryCardProps> = ({ category }) => {
         />
       </div>
       <div className="p-3 text-center">
-        <h3 className="text-sm md:text-base font-semibold text-text-primary line-clamp-2 min-h-[2.5rem] md:min-h-[3rem] flex items-center justify-center">{category.name}</h3>
+        <h3 className="text-sm md:text-base font-semibold text-text-primary line-clamp-2 min-h-[2.5rem] md:min-h-[3rem] flex items-center justify-center">
+          {category.name}
+        </h3>
       </div>
     </Link>
   );
