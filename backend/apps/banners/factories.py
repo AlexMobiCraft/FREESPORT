@@ -47,6 +47,7 @@ class BannerFactory(factory.django.DjangoModelFactory):
     title = factory.LazyFunction(lambda: f"Баннер {get_unique_suffix()}")
     subtitle = factory.Faker("text", max_nb_chars=100)
     image = factory.LazyFunction(generate_test_image)
+    mobile_image = ""
     image_alt = factory.Faker("text", max_nb_chars=50)
     cta_text = "Подробнее"
     cta_link = factory.LazyFunction(lambda: f"/promo/{get_unique_suffix()}")
@@ -129,3 +130,15 @@ class InactiveBannerFactory(BannerFactory):
 
     is_active = False
     show_to_guests = True
+
+
+class MarketingBannerFactory(BannerFactory):
+    """Factory для маркетинговых баннеров"""
+
+    type = Banner.BannerType.MARKETING
+
+
+class MarketingBannerWithMobileImageFactory(MarketingBannerFactory):
+    """Factory для маркетинговых баннеров с мобильным изображением"""
+
+    mobile_image = factory.LazyFunction(generate_test_image)

@@ -39,7 +39,7 @@ class BannerAdmin(admin.ModelAdmin):
         "show_to_federation",
     )
     search_fields = ("title", "subtitle")
-    readonly_fields = ("created_at", "updated_at", "image_preview")
+    readonly_fields = ("created_at", "updated_at", "image_preview", "mobile_image_preview")
 
     fieldsets = (
         (
@@ -51,6 +51,8 @@ class BannerAdmin(admin.ModelAdmin):
                     "subtitle",
                     "image",
                     "image_preview",
+                    "mobile_image",
+                    "mobile_image_preview",
                     "image_alt",
                     "cta_text",
                     "cta_link",
@@ -94,6 +96,16 @@ class BannerAdmin(admin.ModelAdmin):
                 obj.image.url,
             )
         return format_html('<span style="color: #999;">{}</span>', "Нет изображения")
+
+    @admin.display(description="Превью (мобильное)")
+    def mobile_image_preview(self, obj: Banner) -> SafeString:
+        """Превью мобильного изображения. Использует format_html() для экранирования."""
+        if obj.mobile_image:
+            return format_html(
+                '<img src="{}" style="max-width: 200px; max-height: 100px;" />',
+                obj.mobile_image.url,
+            )
+        return format_html('<span style="color: #999;">{}</span>', "Нет мобильного изображения")
 
     @admin.display(description="Целевые группы")
     def target_groups_display(self, obj: Banner) -> str:

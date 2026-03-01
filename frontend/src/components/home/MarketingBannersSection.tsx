@@ -11,7 +11,6 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, Component } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import bannersService from '@/services/bannersService';
 import { useBannerCarousel } from '@/hooks/useBannerCarousel';
@@ -172,42 +171,47 @@ const MarketingBannersCarousel: React.FC = () => {
     >
       <div ref={emblaRef} className="overflow-hidden rounded-2xl">
         <div className="flex">
-          {visibleBanners.map(banner => (
-            <div className="flex-[0_0_100%] min-w-0 relative" key={banner.id}>
-              {isSafeLink(banner.cta_link) ? (
-                <Link
-                  href={getSafeHref(banner.cta_link)}
-                  className="block relative w-full aspect-[21/9] md:aspect-[3/1]"
-                  aria-label={banner.title}
-                >
-                  <Image
-                    src={banner.image_url}
-                    alt={banner.image_alt || banner.title}
-                    fill
-                    sizes="(max-width: 768px) 100vw, 1280px"
-                    className="object-cover"
-                    loading="lazy"
-                    onError={() => handleImageError(banner.id)}
+          {visibleBanners.map(banner => {
+            const picture = (
+              <picture>
+                {banner.mobile_image_url && (
+                  <source
+                    media="(max-width: 767px)"
+                    srcSet={banner.mobile_image_url}
                   />
-                </Link>
-              ) : (
-                <div
-                  className="block relative w-full aspect-[21/9] md:aspect-[3/1]"
-                  aria-label={banner.title}
-                >
-                  <Image
-                    src={banner.image_url}
-                    alt={banner.image_alt || banner.title}
-                    fill
-                    sizes="(max-width: 768px) 100vw, 1280px"
-                    className="object-cover"
-                    loading="lazy"
-                    onError={() => handleImageError(banner.id)}
-                  />
-                </div>
-              )}
-            </div>
-          ))}
+                )}
+                <img
+                  src={banner.image_url}
+                  alt={banner.image_alt || banner.title}
+                  loading="lazy"
+                  decoding="async"
+                  className="w-full h-full object-cover absolute inset-0"
+                  onError={() => handleImageError(banner.id)}
+                />
+              </picture>
+            );
+
+            return (
+              <div className="flex-[0_0_100%] min-w-0 relative" key={banner.id}>
+                {isSafeLink(banner.cta_link) ? (
+                  <Link
+                    href={getSafeHref(banner.cta_link)}
+                    className="block relative w-full aspect-[21/9] md:aspect-[3/1]"
+                    aria-label={banner.title}
+                  >
+                    {picture}
+                  </Link>
+                ) : (
+                  <div
+                    className="block relative w-full aspect-[21/9] md:aspect-[3/1]"
+                    aria-label={banner.title}
+                  >
+                    {picture}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -223,9 +227,8 @@ const MarketingBannersCarousel: React.FC = () => {
               type="button"
               key={index}
               onClick={() => onDotButtonClick(index)}
-              className={`w-2 h-2 rounded-full transition-all ${
-                index === selectedIndex ? 'bg-cyan-600 w-8' : 'bg-gray-300'
-              }`}
+              className={`w-2 h-2 rounded-full transition-all ${index === selectedIndex ? 'bg-cyan-600 w-8' : 'bg-gray-300'
+                }`}
               aria-current={index === selectedIndex ? 'true' : undefined}
               aria-label={`Баннер ${index + 1}`}
             />
