@@ -11,6 +11,7 @@ import Link from 'next/link';
 import Button from '@/components/ui/Button';
 import { Checkbox } from '@/components/ui/Checkbox';
 import { SearchAutocomplete } from '@/components/business/SearchAutocomplete';
+import { Skeleton } from '@/components/ui/Skeleton';
 import { Grid2x2, List } from 'lucide-react';
 import { ProductCard as BusinessProductCard } from '@/components/business/ProductCard/ProductCard';
 import productsService, { type ProductFilters } from '@/services/productsService';
@@ -840,18 +841,31 @@ const CatalogContent: React.FC = () => {
           })}
         </nav>
 
-        {/* Заголовок и поиск выровнены по сетке основного контента */}
-        <div className="mt-6 grid gap-8 lg:grid-cols-[280px_1fr] items-center">
-          <h1 className="text-4xl font-semibold text-gray-900">{activeCategoryLabel}</h1>
+        {/* Единый грид для Поиска и Заголовка */}
+        <div className="mt-6 grid grid-cols-1 lg:grid-cols-[280px_1fr] lg:grid-rows-[auto_auto] gap-x-8 gap-y-4 lg:gap-y-6 items-start">
+          {/* 1. H1 - первый в DOM, визуально на второй строке.
+                 min-h адаптивен (2rem mobile, 2.5rem desktop), совпадая с размером шрифта. */}
+          <h1 className="lg:row-start-2 lg:col-span-2 self-start text-2xl md:text-4xl font-semibold text-primary break-words md:break-normal min-h-[2rem] md:min-h-[2.5rem]">
+            {isCategoriesLoading ? (
+              <Skeleton className="h-[2rem] md:h-[2.5rem] w-[60%] max-w-sm" />
+            ) : (
+              activeCategoryLabel || 'Каталог'
+            )}
+          </h1>
 
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+          {/* 2. Поиск - второй в DOM, визуально на первой строке в правой колонке. */}
+          <search
+            role="search"
+            className="lg:row-start-1 lg:col-start-2 flex flex-col sm:flex-row items-start sm:items-center gap-4 relative z-20 w-full"
+          >
+            {/* SearchAutocomplete должен растягиваться на w-full если нужно */}
             <SearchAutocomplete
               ref={searchInputRef}
               placeholder="Поиск в каталоге..."
               onSearch={handleSearchChange}
               minLength={2}
               debounceMs={300}
-              className="w-full sm:max-w-md"
+              className="w-full relative z-30"
               aria-label="Поиск товаров в каталоге"
             />
 
@@ -867,7 +881,7 @@ const CatalogContent: React.FC = () => {
                 запросу «{searchQuery}»
               </span>
             )}
-          </div>
+          </search>
         </div>
 
         <div className="mt-8 grid gap-8 lg:grid-cols-[280px_1fr]">
@@ -966,16 +980,18 @@ const CatalogContent: React.FC = () => {
               <div className="flex items-center gap-3">
                 <div className="inline-flex items-center rounded-full bg-gray-100 p-1">
                   <button
-                    className={`flex items-center gap-1 rounded-full px-3 py-2 text-sm font-medium ${viewMode === 'grid' ? 'bg-white text-gray-900 shadow' : 'text-gray-500'
-                      }`}
+                    className={`flex items-center gap-1 rounded-full px-3 py-2 text-sm font-medium ${
+                      viewMode === 'grid' ? 'bg-white text-gray-900 shadow' : 'text-gray-500'
+                    }`}
                     onClick={() => setViewMode('grid')}
                   >
                     <Grid2x2 className="h-4 w-4" />
                     <span className="hidden sm:inline">Сетка</span>
                   </button>
                   <button
-                    className={`flex items-center gap-1 rounded-full px-3 py-2 text-sm font-medium ${viewMode === 'list' ? 'bg-white text-gray-900 shadow' : 'text-gray-500'
-                      }`}
+                    className={`flex items-center gap-1 rounded-full px-3 py-2 text-sm font-medium ${
+                      viewMode === 'list' ? 'bg-white text-gray-900 shadow' : 'text-gray-500'
+                    }`}
                     onClick={() => setViewMode('list')}
                   >
                     <List className="h-4 w-4" />
