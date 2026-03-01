@@ -77,7 +77,6 @@ global.console = {
 vi.mock('next/image', () => ({
   __esModule: true,
   default: (props: any) => {
-     
     return React.createElement('img', {
       ...props,
       // Извлекаем пропсы, которые next/image обрабатывает специфично
