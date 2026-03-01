@@ -100,6 +100,9 @@ const CategoryCard: React.FC<CategoryCardProps> = ({ category }) => {
         <h3 className="text-sm md:text-base font-semibold text-text-primary line-clamp-2 min-h-[2.5rem] md:min-h-[3rem] flex items-center justify-center">
           {category.name}
         </h3>
+        {category.products_count !== undefined && (
+          <p className="text-xs text-text-secondary mt-1">{category.products_count} товаров</p>
+        )}
       </div>
     </Link>
   );
