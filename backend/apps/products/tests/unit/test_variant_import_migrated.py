@@ -424,7 +424,7 @@ class TestProcessCategoriesFiltering:
         ]
 
         with override_settings(ROOT_CATEGORY_NAME="НЕСУЩЕСТВУЮЩАЯ"):
-            with caplog.at_level(logging.ERROR, logger="import_products"):
+            with caplog.at_level(logging.ERROR, logger="apps.products.services.variant_import"):
                 result = processor.process_categories(categories_data)
 
         # Fallback: все категории импортированы
