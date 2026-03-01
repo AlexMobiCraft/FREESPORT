@@ -208,13 +208,33 @@ describe('BrandsBlock', () => {
       expect(screen.getByAltText('Adidas')).toBeInTheDocument();
     });
 
-    it('hides brand card when image fails to load', () => {
+    it('switches to generic fallback image when logo fails to load', () => {
       render(<BrandsBlock brands={singleBrand} />);
 
       const img = screen.getByAltText('Nike');
       fireEvent.error(img);
 
-      expect(screen.queryByAltText('Nike')).not.toBeInTheDocument();
+      expect(screen.getByAltText('Nike')).toHaveAttribute('src', '/images/No_image.svg');
+    });
+
+    it('tries static fallback for *_black media logos before generic placeholder', () => {
+      const brandWithBlackLogo: Brand[] = [
+        {
+          ...mockBrands[0],
+          name: 'BoyBo',
+          slug: 'boybo',
+          image: '/media/brands/BOYBO_black.png',
+        },
+      ];
+
+      render(<BrandsBlock brands={brandWithBlackLogo} />);
+
+      const img = screen.getByAltText('BoyBo');
+      fireEvent.error(img);
+      expect(screen.getByAltText('BoyBo')).toHaveAttribute('src', '/images/brands/BOYBO%20black.png');
+
+      fireEvent.error(screen.getByAltText('BoyBo'));
+      expect(screen.getByAltText('BoyBo')).toHaveAttribute('src', '/images/No_image.svg');
     });
   });
 

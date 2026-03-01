@@ -2,28 +2,45 @@
  * Brands Service - методы для работы с брендами
  */
 
+import { isAxiosError } from 'axios';
 import apiClient from './api-client';
 import type { Brand, PaginatedResponse } from '@/types/api';
+import { normalizeImageUrl } from '@/utils/media';
 
 const DEFAULT_PAGE_SIZE = 100;
 const FEATURED_PAGE_SIZE = 20;
 
+type FeaturedBrandPayload = Omit<Brand, 'is_featured'> & { is_featured?: boolean };
+type FeaturedBrandsResponse = FeaturedBrandPayload[] | PaginatedResponse<FeaturedBrandPayload>;
+
 class BrandsService {
   /**
-   * Нормализует URL изображения бренда.
-   * Если URL содержит внутренний адрес Docker (backend:8000) или localhost:8001,
-   * заменяет его на относительный путь для обработки через Next.js proxy.
+   * Нормализует URL изображения бренда для корректной работы в браузере.
    */
-  private normalizeBrand(brand: Brand): Brand {
+  private normalizeBrand<T extends { image?: string | null }>(brand: T): T {
     if (brand.image) {
-      // Заменяем внутренние Docker URL и localhost URL на относительные пути
-      const normalizedImage = brand.image
-        .replace(/^http:\/\/backend:8000\/media\//, '/media/')
-        .replace(/^http:\/\/localhost:8001\/media\//, '/media/');
-
-      return { ...brand, image: normalizedImage };
+      return {
+        ...brand,
+        image: normalizeImageUrl(brand.image),
+      };
     }
+
     return brand;
+  }
+
+  private normalizeFeaturedBrands(data: FeaturedBrandsResponse): Brand[] {
+    const brands = Array.isArray(data) ? data : data.results;
+
+    return brands.map(brand => {
+      const normalized = this.normalizeBrand(brand);
+
+      return {
+        ...normalized,
+        description: normalized.description ?? null,
+        website: normalized.website ?? null,
+        is_featured: normalized.is_featured ?? true,
+      };
+    });
   }
 
   async getAll(): Promise<Brand[]> {
@@ -36,8 +53,24 @@ class BrandsService {
   }
 
   async getFeatured(): Promise<Brand[]> {
-    const response = await apiClient.get<Brand[]>('/brands/featured/');
-    return response.data; // The featured endpoint returns flat arrays directly
+    try {
+      const response = await apiClient.get<FeaturedBrandsResponse>('/brands/featured/');
+      return this.normalizeFeaturedBrands(response.data);
+    } catch (error) {
+      // Backward compatibility: старые backend-сборки могли не иметь /brands/featured/
+      if (!isAxiosError(error) || error.response?.status !== 404) {
+        throw error;
+      }
+
+      const fallbackResponse = await apiClient.get<PaginatedResponse<FeaturedBrandPayload>>('/brands/', {
+        params: {
+          is_featured: true,
+          page_size: FEATURED_PAGE_SIZE,
+        },
+      });
+
+      return this.normalizeFeaturedBrands(fallbackResponse.data);
+    }
   }
 }
 

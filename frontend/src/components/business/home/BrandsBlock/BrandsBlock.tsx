@@ -20,6 +20,23 @@ const BREAKPOINTS = {
   LG: '(min-width: 1024px)',
 };
 
+const BRAND_IMAGE_FALLBACK_SRC = '/images/No_image.svg';
+const BRAND_IMAGE_MEDIA_PREFIX = '/media/brands/';
+
+function buildStaticBrandFallback(imageUrl: string): string | null {
+  if (!imageUrl.startsWith(BRAND_IMAGE_MEDIA_PREFIX)) {
+    return null;
+  }
+
+  const fileName = imageUrl.split('/').pop();
+  if (!fileName || !/_black\.[a-z0-9]+$/i.test(fileName)) {
+    return null;
+  }
+
+  const staticFileName = fileName.replace(/_black(?=\.[a-z0-9]+$)/i, ' black');
+  return `/images/brands/${encodeURIComponent(staticFileName)}`;
+}
+
 // ---------------------------------------------------------------------------
 // BrandCard (internal)
 // ---------------------------------------------------------------------------
@@ -29,9 +46,24 @@ interface BrandCardProps {
 }
 
 const BrandCard: React.FC<BrandCardProps> = ({ brand }) => {
-  const [hasError, setHasError] = useState(false);
+  const normalizedImage = normalizeImageUrl(brand.image);
+  const staticBrandFallback = buildStaticBrandFallback(normalizedImage);
+  const [imageSrc, setImageSrc] = useState(normalizedImage);
+  const [isStaticFallbackUsed, setIsStaticFallbackUsed] = useState(false);
 
-  if (!brand.image || hasError) return null;
+  if (!brand.image) return null;
+
+  const handleImageError = () => {
+    if (!isStaticFallbackUsed && staticBrandFallback && imageSrc !== staticBrandFallback) {
+      setImageSrc(staticBrandFallback);
+      setIsStaticFallbackUsed(true);
+      return;
+    }
+
+    if (imageSrc !== BRAND_IMAGE_FALLBACK_SRC) {
+      setImageSrc(BRAND_IMAGE_FALLBACK_SRC);
+    }
+  };
 
   return (
     <Link href={`/catalog?brand=${brand.slug}`} aria-label={brand.name} className="outline-none">
@@ -42,12 +74,12 @@ const BrandCard: React.FC<BrandCardProps> = ({ brand }) => {
         className={`relative h-20 md:h-24 px-4 ${BRAND_CARD_IDLE_OPACITY}`}
       >
         <Image
-          src={normalizeImageUrl(brand.image)}
+          src={imageSrc}
           alt={brand.name}
           fill
           sizes="(max-width: 640px) 80px, (max-width: 1024px) 100px, 120px"
           className="object-contain"
-          onError={() => setHasError(true)}
+          onError={handleImageError}
         />
       </motion.div>
     </Link>
