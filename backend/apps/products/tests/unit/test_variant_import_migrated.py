@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import pytest
 from django.db import IntegrityError
+from django.test import override_settings
 
 from apps.products.models import Brand, Brand1CMapping, Category, ImportSession, PriceType
 from apps.products.services.variant_import import BrandData, CategoryData, PriceTypeData, VariantImportProcessor
@@ -302,6 +303,138 @@ class TestProcessCategories:
         # Assert
         assert result["created"] == 0
         assert result["errors"] == 1
+
+
+# ============================================================================
+# TestProcessCategoriesFiltering
+# ============================================================================
+
+
+class TestProcessCategoriesFiltering:
+    """Тесты для фильтрации корневых категорий в process_categories()"""
+
+    def test_process_categories_skips_root_categories(self, processor):
+        """Корневые категории не создаются в БД при активной фильтрации."""
+        suffix = get_unique_suffix()
+        categories_data: list[CategoryData] = [
+            {"id": f"sport_{suffix}", "name": "СПОРТ"},
+            {"id": f"tech_{suffix}", "name": "БЫТОВАЯ ТЕХНИКА"},
+            {"id": f"clothes_{suffix}", "name": f"Одежда {suffix}", "parent_id": f"sport_{suffix}"},
+        ]
+
+        with override_settings(ROOT_CATEGORY_NAME="СПОРТ"):
+            result = processor.process_categories(categories_data)
+
+        # Корневые не создаются
+        assert not Category.objects.filter(onec_id=f"sport_{suffix}").exists()
+        assert not Category.objects.filter(onec_id=f"tech_{suffix}").exists()
+        # Дочерняя СПОРТ создаётся
+        assert Category.objects.filter(onec_id=f"clothes_{suffix}").exists()
+        assert result["created"] == 1
+
+    def test_process_categories_imports_sport_children_as_root(self, processor):
+        """Дочерние СПОРТ → parent=None (корневые на сайте)."""
+        suffix = get_unique_suffix()
+        categories_data: list[CategoryData] = [
+            {"id": f"sport_{suffix}", "name": "СПОРТ"},
+            {"id": f"clothes_{suffix}", "name": f"Одежда {suffix}", "parent_id": f"sport_{suffix}"},
+            {"id": f"shoes_{suffix}", "name": f"Обувь {suffix}", "parent_id": f"sport_{suffix}"},
+        ]
+
+        with override_settings(ROOT_CATEGORY_NAME="СПОРТ"):
+            result = processor.process_categories(categories_data)
+
+        clothes = Category.objects.get(onec_id=f"clothes_{suffix}")
+        shoes = Category.objects.get(onec_id=f"shoes_{suffix}")
+        assert clothes.parent is None
+        assert shoes.parent is None
+        assert result["created"] == 2
+
+    def test_process_categories_imports_deep_descendants(self, processor):
+        """[F4] Глубокие потомки (внуки, правнуки) якорной тоже импортируются."""
+        suffix = get_unique_suffix()
+        categories_data: list[CategoryData] = [
+            {"id": f"sport_{suffix}", "name": "СПОРТ"},
+            {"id": f"clothes_{suffix}", "name": f"Одежда {suffix}", "parent_id": f"sport_{suffix}"},
+            {"id": f"tshirts_{suffix}", "name": f"Футболки {suffix}", "parent_id": f"clothes_{suffix}"},
+            {"id": f"polo_{suffix}", "name": f"Поло {suffix}", "parent_id": f"tshirts_{suffix}"},
+        ]
+
+        with override_settings(ROOT_CATEGORY_NAME="СПОРТ"):
+            result = processor.process_categories(categories_data)
+
+        # Все потомки должны быть созданы
+        assert Category.objects.filter(onec_id=f"clothes_{suffix}").exists()
+        assert Category.objects.filter(onec_id=f"tshirts_{suffix}").exists()
+        assert Category.objects.filter(onec_id=f"polo_{suffix}").exists()
+        assert result["created"] == 3
+
+        # Иерархия сохранена (кроме прямых child якорной)
+        tshirts = Category.objects.get(onec_id=f"tshirts_{suffix}")
+        clothes = Category.objects.get(onec_id=f"clothes_{suffix}")
+        polo = Category.objects.get(onec_id=f"polo_{suffix}")
+        assert tshirts.parent == clothes
+        assert polo.parent == tshirts
+        assert clothes.parent is None  # Прямой child якорной → root
+
+    def test_process_categories_ignores_non_sport_root_descendants(self, processor):
+        """Потомки НЕ-СПОРТ корневых не импортируются."""
+        suffix = get_unique_suffix()
+        categories_data: list[CategoryData] = [
+            {"id": f"sport_{suffix}", "name": "СПОРТ"},
+            {"id": f"tech_{suffix}", "name": "БЫТОВАЯ ТЕХНИКА"},
+            {"id": f"clothes_{suffix}", "name": f"Одежда {suffix}", "parent_id": f"sport_{suffix}"},
+            {"id": f"fridges_{suffix}", "name": f"Холодильники {suffix}", "parent_id": f"tech_{suffix}"},
+        ]
+
+        with override_settings(ROOT_CATEGORY_NAME="СПОРТ"):
+            result = processor.process_categories(categories_data)
+
+        assert Category.objects.filter(onec_id=f"clothes_{suffix}").exists()
+        assert not Category.objects.filter(onec_id=f"fridges_{suffix}").exists()
+        assert result["created"] == 1
+
+    def test_process_categories_fallback_without_root_name(self, processor):
+        """Если ROOT_CATEGORY_NAME=None, импортирует всё (тихо)."""
+        suffix = get_unique_suffix()
+        categories_data: list[CategoryData] = [
+            {"id": f"sport_{suffix}", "name": "СПОРТ"},
+            {"id": f"tech_{suffix}", "name": "БЫТОВАЯ ТЕХНИКА"},
+            {"id": f"clothes_{suffix}", "name": f"Одежда {suffix}", "parent_id": f"sport_{suffix}"},
+        ]
+
+        with override_settings(ROOT_CATEGORY_NAME=None):
+            result = processor.process_categories(categories_data)
+
+        # Все категории должны быть созданы (обратная совместимость)
+        assert Category.objects.filter(onec_id=f"sport_{suffix}").exists()
+        assert Category.objects.filter(onec_id=f"tech_{suffix}").exists()
+        assert Category.objects.filter(onec_id=f"clothes_{suffix}").exists()
+        assert result["created"] == 3
+        assert "root_not_found" not in result
+
+    def test_process_categories_error_log_when_root_not_found(self, processor, caplog):
+        """[F8] Если ROOT_CATEGORY_NAME задан но не найден → error лог + fallback."""
+        import logging
+
+        suffix = get_unique_suffix()
+        categories_data: list[CategoryData] = [
+            {"id": f"sport_{suffix}", "name": "СПОРТ"},
+            {"id": f"clothes_{suffix}", "name": f"Одежда {suffix}", "parent_id": f"sport_{suffix}"},
+        ]
+
+        with override_settings(ROOT_CATEGORY_NAME="НЕСУЩЕСТВУЮЩАЯ"):
+            with caplog.at_level(logging.ERROR, logger="import_products"):
+                result = processor.process_categories(categories_data)
+
+        # Fallback: все категории импортированы
+        assert Category.objects.filter(onec_id=f"sport_{suffix}").exists()
+        assert Category.objects.filter(onec_id=f"clothes_{suffix}").exists()
+        assert result["created"] == 2
+        assert result.get("root_not_found") is True
+
+        # Проверяем error лог
+        assert any("НЕСУЩЕСТВУЮЩАЯ" in record.message for record in caplog.records)
 
 
 # ============================================================================

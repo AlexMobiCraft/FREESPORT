@@ -18,6 +18,7 @@ from decimal import Decimal
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Sequence, TypedDict
 
+from django.conf import settings
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.db import models, transaction
@@ -1345,16 +1346,22 @@ class VariantImportProcessor:
         1. Создаём все категории без родительских связей
         2. Устанавливаем родительские связи с валидацией циклов
 
+        Фильтрация корневых категорий:
+        - Если ROOT_CATEGORY_NAME задан: импортируются только подкатегории якорной
+        - Если не задан (None): импортируются все категории (обратная совместимость)
+        - Если задан но не найден: logger.error + fallback на полный импорт
+
         Args:
             categories_data: Список данных категорий с полями
                              id, name, description, parent_id
 
         Returns:
-            dict с количеством created, updated, errors, cycles_detected
+            dict с количеством created, updated, errors, cycles_detected,
+            и опционально root_not_found
         """
         from apps.products.models import Category
 
-        result = {
+        result: dict[str, int | bool] = {
             "created": 0,
             "updated": 0,
             "errors": 0,
@@ -1362,7 +1369,71 @@ class VariantImportProcessor:
         }
         category_map: dict[str, Category] = {}
 
-        # ШАГ 1: Создаём/обновляем все категории без parent
+        # ======================================================================
+        # Фильтрация корневых категорий по ROOT_CATEGORY_NAME
+        # ======================================================================
+        root_category_name = getattr(settings, "ROOT_CATEGORY_NAME", None)
+        filtering_active = False
+        root_ids: set[str] = set()
+        allowed_ids: set[str] = set()
+        anchor_id: str | None = None
+
+        if root_category_name:
+            # Определяем root_ids — ID категорий без parent_id (корневые)
+            for cat in categories_data:
+                if not cat.get("parent_id"):
+                    cat_id = cat.get("id")
+                    if cat_id:
+                        root_ids.add(cat_id)
+
+            # Ищем якорную среди корневых
+            for cat in categories_data:
+                cat_id = cat.get("id")
+                if cat_id in root_ids and cat.get("name") == root_category_name:
+                    anchor_id = cat_id
+                    break
+
+            if anchor_id:
+                filtering_active = True
+
+                # Строим allowed_ids — multi-pass алгоритм (iterative set expansion)
+                # Seed: прямые children якорной
+                for cat in categories_data:
+                    if cat.get("parent_id") == anchor_id:
+                        cat_id = cat.get("id")
+                        if cat_id:
+                            allowed_ids.add(cat_id)
+
+                # Expand: добавлять children уже allowed
+                changed = True
+                while changed:
+                    changed = False
+                    for cat in categories_data:
+                        pid = cat.get("parent_id")
+                        cat_id = cat.get("id")
+                        if (
+                            pid
+                            and pid in allowed_ids
+                            and cat_id
+                            and cat_id not in allowed_ids
+                        ):
+                            allowed_ids.add(cat_id)
+                            changed = True
+
+                logger.info(
+                    f"Category filtering active: anchor='{root_category_name}' "
+                    f"(id={anchor_id}), allowed={len(allowed_ids)}, "
+                    f"root_ids={len(root_ids)}"
+                )
+            else:
+                # ROOT_CATEGORY_NAME задан но не найден среди корневых
+                logger.error(
+                    f"ROOT_CATEGORY_NAME='{root_category_name}' не найден среди "
+                    f"корневых категорий в XML. Fallback: импорт всех категорий."
+                )
+                result["root_not_found"] = True
+
+        # ШАГ 1: Создаём/обновляем категории без parent
         for i, category_data in enumerate(categories_data):
             try:
                 onec_id = category_data.get("id")
@@ -1372,6 +1443,13 @@ class VariantImportProcessor:
                 if not onec_id or not name:
                     result["errors"] += 1
                     continue
+
+                # Фильтрация: пропускаем корневые и не-allowed
+                if filtering_active:
+                    if onec_id in root_ids:
+                        continue  # Пропускаем все корневые
+                    if onec_id not in allowed_ids:
+                        continue  # Пропускаем не-allowed (потомки других корневых)
 
                 if (i + 1) % 50 == 0:
                     self.log_progress(f"Обработка категорий: {i + 1}...")
@@ -1406,10 +1484,20 @@ class VariantImportProcessor:
                     continue  # Корневая категория или ошибка
 
                 child_category: Category | None = category_map.get(onec_id)
-                parent: Category | None = category_map.get(parent_id)
 
                 if not child_category:
                     continue
+
+                # Фильтрация parent при активной фильтрации
+                if filtering_active:
+                    if parent_id == anchor_id:
+                        # Дочерние якорной → не устанавливаем parent (корневые на сайте)
+                        continue
+                    if parent_id in root_ids:
+                        # Parent = другая корневая → пропускаем
+                        continue
+
+                parent: Category | None = category_map.get(parent_id)
 
                 if not parent:
                     continue
@@ -1430,6 +1518,7 @@ class VariantImportProcessor:
             f"Categories processed: {result['created']} created, "
             f"{result['updated']} updated, {result['errors']} errors, "
             f"{result['cycles_detected']} cycles detected"
+            + (f", filtering={'active' if filtering_active else 'inactive'}" "")
         )
         return result
 

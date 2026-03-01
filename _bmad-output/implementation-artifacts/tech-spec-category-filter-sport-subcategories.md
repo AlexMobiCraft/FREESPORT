@@ -2,7 +2,7 @@
 title: 'Фильтрация категорий 1С: импорт только подкатегорий СПОРТ'
 slug: 'category-filter-sport-subcategories'
 created: '2026-03-01T08:04:19+01:00'
-status: 'ready-for-dev'
+status: 'implemented'
 stepsCompleted: [1, 2, 3, 4]
 tech_stack: [Django 5.x, PostgreSQL, Celery, XML/CommerceML 3.1, Python 3.12]
 files_to_modify:
@@ -74,12 +74,12 @@ adversarial_review: 'completed 2026-03-01, F4/F5/F6/F7/F8/F9 addressed'
 
 ### Tasks
 
-- [ ] **Task 1: Добавить ROOT_CATEGORY_NAME в settings**
+- [x] **Task 1: Добавить ROOT_CATEGORY_NAME в settings**
   - File: `backend/backend/settings.py`
   - Action: Добавить `ROOT_CATEGORY_NAME = os.environ.get("ROOT_CATEGORY_NAME", "СПОРТ")` рядом с `ONEC_DATA_DIR` (строка ~197)
   - Notes: Аналогичный паттерн: env-переменная с default
 
-- [ ] **Task 2: Создать management command cleanup_root_categories**
+- [x] **Task 2: Создать management command cleanup_root_categories**
   - File: `backend/apps/products/management/commands/cleanup_root_categories.py` (NEW)
   - Action: Создать Django management command со следующей логикой:
     1. Аргументы: `--dry-run` (по умолч.), `--root-name` (override settings), `--execute` (для реального запуска)
@@ -106,7 +106,7 @@ adversarial_review: 'completed 2026-03-01, F4/F5/F6/F7/F8/F9 addressed'
     docker compose --env-file .env -f docker/docker-compose.yml exec -T backend python manage.py cleanup_root_categories --execute
     ```
 
-- [ ] **Task 3: Модифицировать process_categories() в variant_import.py**
+- [x] **Task 3: Модифицировать process_categories() в variant_import.py**
   - File: `backend/apps/products/services/variant_import.py`
   - Action: В начале метода `process_categories()`:
     1. Получить `ROOT_CATEGORY_NAME` из `django.conf.settings` (с `getattr` default=None)
@@ -138,7 +138,7 @@ adversarial_review: 'completed 2026-03-01, F4/F5/F6/F7/F8/F9 addressed'
     - Если `ROOT_CATEGORY_NAME is None` (не задан) — импортировать как раньше (обратная совместимость), тихо
     - Если задан но не найден — ERROR лог + fallback
 
-- [ ] **Task 4: Тесты для cleanup command**
+- [x] **Task 4: Тесты для cleanup command**
   - File: `backend/apps/products/tests/unit/test_cleanup_root_categories.py` (NEW)
   - Action: Создать тесты:
     - `test_dry_run_shows_info_without_changes` — dry-run не меняет данные
@@ -152,7 +152,7 @@ adversarial_review: 'completed 2026-03-01, F4/F5/F6/F7/F8/F9 addressed'
     - `test_homepage_categories_not_broken` — **[F9]** HomepageCategory записи, привязанные к сохранённым категориям, работают
   - Notes: Использовать `call_command`, `@pytest.mark.django_db`, фабрики Category/Product
 
-- [ ] **Task 5: Обновить тесты process_categories()**
+- [x] **Task 5: Обновить тесты process_categories()**
   - File: `backend/apps/products/tests/unit/test_variant_import_migrated.py`
   - Action: Добавить тесты:
     - `test_process_categories_skips_root_categories` — корневые не создаются в БД
@@ -165,18 +165,18 @@ adversarial_review: 'completed 2026-03-01, F4/F5/F6/F7/F8/F9 addressed'
 
 ### Acceptance Criteria
 
-- [ ] **AC1**: Given БД с категорией «СПОРТ» (parent=None) и её дочерними, when `cleanup_root_categories --dry-run`, then выводится инфо без изменений в БД
-- [ ] **AC2**: Given БД с «СПОРТ» → дочерние, when `cleanup_root_categories --execute`, then дочерние СПОРТ получают parent=None
-- [ ] **AC3**: Given после reparent, when cleanup завершён, then категория «СПОРТ» удалена из БД
-- [ ] **AC4**: Given другие корневые категории (не СПОРТ), when cleanup, then они удалены вместе с потомками и товарами (CASCADE)
-- [ ] **AC5**: Given товары привязаны к подкатегориям СПОРТ, when cleanup, then товары **не** удалены (категории сохранены)
-- [ ] **AC6**: Given `categories_data` из parse_groups_xml с корневой СПОРТ, when `process_categories()`, then корневые категории **не** создаются в БД
-- [ ] **AC7**: Given `categories_data` с children СПОРТ, when `process_categories()`, then дочерние СПОРТ создаются с parent=None
-- [ ] **AC8**: Given потомки НЕ-СПОРТ корневых, when `process_categories()`, then они **не** импортируются
-- [ ] **AC9**: Given ROOT_CATEGORY_NAME=None (не задан), when `process_categories()`, then импорт работает как раньше (fallback, тихо)
-- [ ] **AC10**: Given ROOT_CATEGORY_NAME="СПОРТ" но СПОРТ отсутствует в XML, when `process_categories()`, then `logger.error()` + fallback + result содержит `root_not_found: True` [F8]
-- [ ] **AC11**: Given HomepageCategory записи привязаны к подкатегориям СПОРТ, when cleanup, then записи сохранены и корректны [F9]
-- [ ] **AC12**: Given cleanup завершён, when просмотр docker logs, then виден итоговый отчёт (reparented/deleted counts) [F7]
+- [x] **AC1**: Given БД с категорией «СПОРТ» (parent=None) и её дочерними, when `cleanup_root_categories --dry-run`, then выводится инфо без изменений в БД
+- [x] **AC2**: Given БД с «СПОРТ» → дочерние, when `cleanup_root_categories --execute`, then дочерние СПОРТ получают parent=None
+- [x] **AC3**: Given после reparent, when cleanup завершён, then категория «СПОРТ» удалена из БД
+- [x] **AC4**: Given другие корневые категории (не СПОРТ), when cleanup, then они удалены вместе с потомками и товарами (CASCADE)
+- [x] **AC5**: Given товары привязаны к подкатегориям СПОРТ, when cleanup, then товары **не** удалены (категории сохранены)
+- [x] **AC6**: Given `categories_data` из parse_groups_xml с корневой СПОРТ, when `process_categories()`, then корневые категории **не** создаются в БД
+- [x] **AC7**: Given `categories_data` с children СПОРТ, when `process_categories()`, then дочерние СПОРТ создаются с parent=None
+- [x] **AC8**: Given потомки НЕ-СПОРТ корневых, when `process_categories()`, then они **не** импортируются
+- [x] **AC9**: Given ROOT_CATEGORY_NAME=None (не задан), when `process_categories()`, then импорт работает как раньше (fallback, тихо)
+- [x] **AC10**: Given ROOT_CATEGORY_NAME="СПОРТ" но СПОРТ отсутствует в XML, when `process_categories()`, then `logger.error()` + fallback + result содержит `root_not_found: True` [F8]
+- [x] **AC11**: Given HomepageCategory записи привязаны к подкатегориям СПОРТ, when cleanup, then записи сохранены и корректны [F9]
+- [x] **AC12**: Given cleanup завершён, when просмотр docker logs, then виден итоговый отчёт (reparented/deleted counts) [F7]
 
 ## Additional Context
 
