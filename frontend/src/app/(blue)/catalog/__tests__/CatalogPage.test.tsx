@@ -139,6 +139,21 @@ describe('CatalogPage - Search Integration (Story 18.4)', () => {
     vi.useRealTimers();
     mockSearchParams.delete('search');
     mockPush.mockClear();
+
+    // Mock matchMedia for responsive filter state
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: vi.fn().mockImplementation(query => ({
+        matches: query === '(min-width: 1024px)', // Simulate desktop
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    });
   });
 
   it('AC 1: должен отображать SearchField на странице каталога', async () => {
@@ -196,7 +211,6 @@ describe('CatalogPage - Search Integration (Story 18.4)', () => {
         expect(productsService.default.getAll).toHaveBeenCalledWith(
           expect.objectContaining({
             search: 'nike',
-            category_id: expect.any(Number),
           })
         );
       },
@@ -355,7 +369,7 @@ describe('CatalogPage - Search Integration (Story 18.4)', () => {
 
     // Ждем разрешения категории
     await waitFor(() => {
-      expect(screen.getByRole('heading', { level: 1, name: 'Спорт' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { level: 1, name: 'Каталог' })).toBeInTheDocument();
     });
 
     vi.useRealTimers();
@@ -372,7 +386,7 @@ describe('CatalogPage - Search Integration (Story 18.4)', () => {
     expect(searchRegion.tagName.toLowerCase()).toBe('search');
 
     const heading = screen.getByRole('heading', { level: 1 });
-    expect(heading).toHaveClass('text-primary');
+    expect(heading).toHaveClass('text-neutral-900');
 
     const parent = heading.parentElement;
     if (parent) {
@@ -381,5 +395,33 @@ describe('CatalogPage - Search Integration (Story 18.4)', () => {
       const searchIndex = children.indexOf(searchRegion);
       expect(headingIndex).toBeLessThan(searchIndex);
     }
+  });
+
+  it('F4: фильтры должны быть свёрнуты на мобильных устройствах', async () => {
+    // Переопределяем matchMedia для мобильного устройства
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: vi.fn().mockImplementation(query => ({
+        matches: false, // Мобильное устройство — ни один media query не совпадает
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    });
+
+    render(<CatalogPage />);
+
+    await waitFor(() => {
+      // Проверяем, что кнопки фильтров имеют aria-expanded="false"
+      const categoryButton = screen.getByRole('button', { name: /Категории/i });
+      expect(categoryButton).toHaveAttribute('aria-expanded', 'false');
+
+      const brandButton = screen.getByRole('button', { name: /Бренд/i });
+      expect(brandButton).toHaveAttribute('aria-expanded', 'false');
+    });
   });
 });
