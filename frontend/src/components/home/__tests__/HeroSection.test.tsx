@@ -37,7 +37,7 @@ describe('HeroSection Component', () => {
   describe('Loading State', () => {
     it('должен показывать skeleton loader во время загрузки', () => {
       // Mock never-resolving promise для имитации загрузки
-      vi.mocked(bannersService.getActive).mockReturnValue(new Promise(() => { }));
+      vi.mocked(bannersService.getActive).mockReturnValue(new Promise(() => {}));
 
       vi.mocked(useAuthStore).mockReturnValue({
         user: null,

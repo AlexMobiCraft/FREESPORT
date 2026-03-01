@@ -152,7 +152,7 @@ describe('MarketingBannersSection', () => {
   // -------------------------------------------------------------------------
   describe('AC3: Состояние загрузки', () => {
     it('должен показывать skeleton loader во время загрузки', () => {
-      vi.mocked(bannersService.getActive).mockReturnValue(new Promise(() => { }));
+      vi.mocked(bannersService.getActive).mockReturnValue(new Promise(() => {}));
 
       render(<MarketingBannersSection />);
 
@@ -161,7 +161,7 @@ describe('MarketingBannersSection', () => {
     });
 
     it('skeleton должен содержать контейнер с фиксированным aspect-ratio', () => {
-      vi.mocked(bannersService.getActive).mockReturnValue(new Promise(() => { }));
+      vi.mocked(bannersService.getActive).mockReturnValue(new Promise(() => {}));
 
       const { container } = render(<MarketingBannersSection />);
 
@@ -764,7 +764,7 @@ describe('MarketingBannersSection', () => {
       };
 
       // Suppress console.error for expected error boundary trigger
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => { });
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
       const { container } = render(
         <MarketingBannerErrorBoundary>
