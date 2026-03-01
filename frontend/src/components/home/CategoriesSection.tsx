@@ -84,7 +84,7 @@ const CategoryCard: React.FC<CategoryCardProps> = ({ category }) => {
   return (
     <Link
       href={`/catalog?category=${category.slug}`}
-      className={`${CARD_LAYOUT_CLASSES} snap-start block rounded-lg overflow-hidden shadow-default hover:shadow-hover transition-shadow bg-white group flex flex-col`}
+      className="block w-full rounded-lg overflow-hidden shadow-default hover:shadow-hover transition-shadow bg-white group flex flex-col"
       data-testid="category-card"
     >
       <div className="aspect-[4/3] overflow-hidden bg-neutral-100 flex-shrink-0 relative">
@@ -97,10 +97,7 @@ const CategoryCard: React.FC<CategoryCardProps> = ({ category }) => {
         />
       </div>
       <div className="p-3 text-center">
-        <h3 className="text-base font-semibold text-text-primary truncate">{category.name}</h3>
-        {category.products_count !== undefined && category.products_count > 0 && (
-          <p className="text-xs text-text-secondary mt-1">{category.products_count} товаров</p>
-        )}
+        <h3 className="text-sm md:text-base font-semibold text-text-primary line-clamp-2 min-h-[2.5rem] md:min-h-[3rem] flex items-center justify-center">{category.name}</h3>
       </div>
     </Link>
   );
@@ -223,7 +220,7 @@ export const CategoriesSection: React.FC = () => {
           aria-label="Карусель категорий"
         >
           {categories.map(category => (
-            <div key={category.id} role="listitem">
+            <div key={category.id} role="listitem" className={`${CARD_LAYOUT_CLASSES} snap-start`}>
               <CategoryCard category={category} />
             </div>
           ))}
