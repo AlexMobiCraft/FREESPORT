@@ -865,7 +865,7 @@ const CatalogContent: React.FC = () => {
               onSearch={handleSearchChange}
               minLength={2}
               debounceMs={300}
-              className="w-full relative z-30"
+              className="w-full max-w-full relative z-30"
               aria-label="Поиск товаров в каталоге"
             />
 
@@ -980,18 +980,16 @@ const CatalogContent: React.FC = () => {
               <div className="flex items-center gap-3">
                 <div className="inline-flex items-center rounded-full bg-gray-100 p-1">
                   <button
-                    className={`flex items-center gap-1 rounded-full px-3 py-2 text-sm font-medium ${
-                      viewMode === 'grid' ? 'bg-white text-gray-900 shadow' : 'text-gray-500'
-                    }`}
+                    className={`flex items-center gap-1 rounded-full px-3 py-2 text-sm font-medium ${viewMode === 'grid' ? 'bg-white text-gray-900 shadow' : 'text-gray-500'
+                      }`}
                     onClick={() => setViewMode('grid')}
                   >
                     <Grid2x2 className="h-4 w-4" />
                     <span className="hidden sm:inline">Сетка</span>
                   </button>
                   <button
-                    className={`flex items-center gap-1 rounded-full px-3 py-2 text-sm font-medium ${
-                      viewMode === 'list' ? 'bg-white text-gray-900 shadow' : 'text-gray-500'
-                    }`}
+                    className={`flex items-center gap-1 rounded-full px-3 py-2 text-sm font-medium ${viewMode === 'list' ? 'bg-white text-gray-900 shadow' : 'text-gray-500'
+                      }`}
                     onClick={() => setViewMode('list')}
                   >
                     <List className="h-4 w-4" />
