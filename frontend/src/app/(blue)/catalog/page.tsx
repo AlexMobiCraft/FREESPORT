@@ -925,7 +925,7 @@ const CatalogContent: React.FC = () => {
               />
 
               <div className="space-y-2 text-sm text-gray-600">
-                <details open>
+                <details>
                   <summary className="cursor-pointer font-medium text-gray-900">Бренд</summary>
                   <div className="mt-2 flex flex-col gap-1">
                     {isBrandsLoading && <p className="text-xs text-gray-400">Загрузка...</p>}
