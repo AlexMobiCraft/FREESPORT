@@ -91,6 +91,7 @@ const mockMarketingBanners: Banner[] = [
     title: 'Летняя распродажа',
     subtitle: 'Скидки до 50%',
     image_url: '/media/banners/summer-sale.jpg',
+    mobile_image_url: '',
     image_alt: 'Летняя распродажа баннер',
     cta_text: 'Купить со скидкой',
     cta_link: '/catalog?sale=summer',
@@ -101,6 +102,7 @@ const mockMarketingBanners: Banner[] = [
     title: 'Новая коллекция кроссовок',
     subtitle: 'Бренды Nike, Adidas, Puma',
     image_url: '/media/banners/sneakers.jpg',
+    mobile_image_url: '',
     image_alt: 'Коллекция кроссовок',
     cta_text: 'Смотреть коллекцию',
     cta_link: '/catalog/sneakers',
@@ -115,6 +117,7 @@ const threeBanners: Banner[] = [
     title: 'Зимний сезон',
     subtitle: 'Куртки и термобелье',
     image_url: '/media/banners/winter.jpg',
+    mobile_image_url: '',
     image_alt: 'Зимний сезон баннер',
     cta_text: 'Смотреть',
     cta_link: '/catalog/winter',
@@ -149,7 +152,7 @@ describe('MarketingBannersSection', () => {
   // -------------------------------------------------------------------------
   describe('AC3: Состояние загрузки', () => {
     it('должен показывать skeleton loader во время загрузки', () => {
-      vi.mocked(bannersService.getActive).mockReturnValue(new Promise(() => {}));
+      vi.mocked(bannersService.getActive).mockReturnValue(new Promise(() => { }));
 
       render(<MarketingBannersSection />);
 
@@ -158,7 +161,7 @@ describe('MarketingBannersSection', () => {
     });
 
     it('skeleton должен содержать контейнер с фиксированным aspect-ratio', () => {
-      vi.mocked(bannersService.getActive).mockReturnValue(new Promise(() => {}));
+      vi.mocked(bannersService.getActive).mockReturnValue(new Promise(() => { }));
 
       const { container } = render(<MarketingBannersSection />);
 
@@ -231,7 +234,7 @@ describe('MarketingBannersSection', () => {
       await waitFor(() => {
         const img = screen.getByAltText('Летняя распродажа баннер');
         expect(img).toBeInTheDocument();
-        expect(img).toHaveAttribute('data-sizes', '(max-width: 768px) 100vw, 1280px');
+        expect(img).toHaveAttribute('sizes', '(max-width: 768px) 100vw, 1280px');
       });
     });
   });
@@ -761,7 +764,7 @@ describe('MarketingBannersSection', () => {
       };
 
       // Suppress console.error for expected error boundary trigger
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => { });
 
       const { container } = render(
         <MarketingBannerErrorBoundary>

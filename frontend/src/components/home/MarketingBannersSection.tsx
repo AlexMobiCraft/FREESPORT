@@ -180,6 +180,7 @@ const MarketingBannersCarousel: React.FC = () => {
                 <img
                   src={banner.image_url}
                   alt={banner.image_alt || banner.title}
+                  sizes="(max-width: 768px) 100vw, 1280px"
                   loading="lazy"
                   decoding="async"
                   className="w-full h-full object-cover absolute inset-0"
@@ -224,9 +225,8 @@ const MarketingBannersCarousel: React.FC = () => {
               type="button"
               key={index}
               onClick={() => onDotButtonClick(index)}
-              className={`w-2 h-2 rounded-full transition-all ${
-                index === selectedIndex ? 'bg-cyan-600 w-8' : 'bg-gray-300'
-              }`}
+              className={`w-2 h-2 rounded-full transition-all ${index === selectedIndex ? 'bg-cyan-600 w-8' : 'bg-gray-300'
+                }`}
               aria-current={index === selectedIndex ? 'true' : undefined}
               aria-label={`Баннер ${index + 1}`}
             />
