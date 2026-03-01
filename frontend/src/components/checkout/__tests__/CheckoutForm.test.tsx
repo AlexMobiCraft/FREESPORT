@@ -63,6 +63,7 @@ describe('CheckoutForm', () => {
       items: mockCartItems,
       totalPrice: 200,
       totalItems: 2,
+      fetchCart: vi.fn(),
     });
   });
 
@@ -191,6 +192,7 @@ describe('CheckoutForm', () => {
         items: [],
         totalPrice: 0,
         totalItems: 0,
+        fetchCart: vi.fn(),
       });
 
       render(<CheckoutForm user={null} />);

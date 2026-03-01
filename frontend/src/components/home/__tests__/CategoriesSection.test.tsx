@@ -45,14 +45,13 @@ describe('CategoriesSection', () => {
     const cards = screen.getAllByTestId('category-card');
     expect(cards.length).toBe(6);
 
-    // Категории с image отображают их
+    // Категории с icon отображают их (иконка имеет высший приоритет)
     const footballImg = screen.getByAltText('Футбол') as HTMLImageElement;
     expect(footballImg.src).toBeTruthy();
-    // next/image might use a different URL format but it should eventually point to our media
-    expect(decodeURIComponent(footballImg.src)).toContain('/media/categories/football.jpg');
-    expect(footballImg.className).toContain('object-cover');
+    expect(decodeURIComponent(footballImg.src)).toContain('/media/categories/icons/football.svg');
+    expect(footballImg.className).toContain('object-contain');
 
-    // Категории без image (Теннис, image: null) получают placeholder
+    // Категории без icon и без image (Теннис) получают placeholder
     const tennisImg = screen.getByAltText('Теннис') as HTMLImageElement;
     expect(decodeURIComponent(tennisImg.src)).toContain('category-placeholder.png');
   });

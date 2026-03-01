@@ -7,6 +7,7 @@ import useEmblaCarousel from 'embla-carousel-react';
 import Autoplay from 'embla-carousel-autoplay';
 import { motion } from 'motion/react';
 import type { Brand } from '@/types/api';
+import { normalizeImageUrl } from '@/utils/media';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -33,11 +34,7 @@ const BrandCard: React.FC<BrandCardProps> = ({ brand }) => {
   if (!brand.image || hasError) return null;
 
   return (
-    <Link
-      href={`/catalog?brand=${brand.slug}`}
-      aria-label={brand.name}
-      className="outline-none"
-    >
+    <Link href={`/catalog?brand=${brand.slug}`} aria-label={brand.name} className="outline-none">
       <motion.div
         whileHover={{ scale: 1.05, opacity: 1 }}
         whileFocus={{ scale: 1.05, opacity: 1 }}
@@ -45,7 +42,7 @@ const BrandCard: React.FC<BrandCardProps> = ({ brand }) => {
         className={`relative h-20 md:h-24 px-4 ${BRAND_CARD_IDLE_OPACITY}`}
       >
         <Image
-          src={brand.image}
+          src={normalizeImageUrl(brand.image)}
           alt={brand.name}
           fill
           sizes="(max-width: 640px) 80px, (max-width: 1024px) 100px, 120px"
@@ -66,7 +63,7 @@ export interface BrandsBlockProps {
 }
 
 export const BrandsBlock: React.FC<BrandsBlockProps> = ({ brands }) => {
-  const visibleBrands = brands.filter((b) => b.image);
+  const visibleBrands = brands.filter(b => b.image);
 
   const [emblaRef] = useEmblaCarousel(
     {
@@ -100,7 +97,7 @@ export const BrandsBlock: React.FC<BrandsBlockProps> = ({ brands }) => {
     >
       <div ref={emblaRef} className="overflow-hidden">
         <div className="flex">
-          {visibleBrands.map((brand) => (
+          {visibleBrands.map(brand => (
             <div
               key={brand.id}
               className="flex-[0_0_33.333%] sm:flex-[0_0_25%] md:flex-[0_0_20%] lg:flex-[0_0_16.666%] min-w-0"

@@ -92,11 +92,12 @@ jobs:
     - name: Загрузка результатов тестов и покрытия
       uses: actions/upload-artifact@v4
       if: always()
+      continue-on-error: true
       with:
         name: frontend-test-results
+        retention-days: 1
         path: |
           frontend/coverage/
-          frontend/.next/
           
     - name: Загрузка отчетов покрытия в Codecov
       uses: codecov/codecov-action@v4

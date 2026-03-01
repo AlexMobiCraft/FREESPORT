@@ -228,6 +228,7 @@ def process_1c_import_task(
         # Clean up shared import directory after successful import
         try:
             from apps.integrations.onec_exchange.routing_service import FileRoutingService
+
             routing_service = FileRoutingService(session.session_key)
             cleaned = routing_service.cleanup_import_dir()
             logger.info(f"Post-import cleanup removed {cleaned} items from import directory.")

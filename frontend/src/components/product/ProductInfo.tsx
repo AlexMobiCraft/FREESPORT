@@ -29,7 +29,6 @@ export default function ProductInfo({
       ? parseFloat(selectedVariant.current_price)
       : getPriceForRole(price, userRole);
 
-
   // Определяем статус наличия
   const getStockStatus = () => {
     if (product.stock_quantity > 0) {
@@ -134,7 +133,6 @@ export default function ProductInfo({
             Бренд: <span className="font-medium">{product.brand}</span>
           </span>
         )}
-
       </div>
 
       {/* Рейтинг */}

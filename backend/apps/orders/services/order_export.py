@@ -35,11 +35,17 @@ class OrderExportService:
 
     DEFAULT_SCHEMA_VERSION = "3.1"
 
+    def __init__(self, schema_version: str | None = None):
+        if schema_version:
+            self._schema_version = schema_version
+        else:
+            exchange_cfg = getattr(settings, "ONEC_EXCHANGE", {})
+            self._schema_version = str(exchange_cfg.get("COMMERCEML_VERSION", self.DEFAULT_SCHEMA_VERSION))
+
     @property
     def SCHEMA_VERSION(self) -> str:
-        """Read CommerceML version from settings, falling back to default."""
-        exchange_cfg = getattr(settings, "ONEC_EXCHANGE", {})
-        return str(exchange_cfg.get("COMMERCEML_VERSION", self.DEFAULT_SCHEMA_VERSION))
+        """Read CommerceML version from init or settings."""
+        return self._schema_version
 
     CURRENCY = "RUB"
     EXCHANGE_RATE = "1"
@@ -146,6 +152,7 @@ class OrderExportService:
         # Convert to local time before formatting to ensure correct date
         local_created_at = timezone.localtime(order.created_at)
         self._add_text_element(document, "Дата", local_created_at.strftime("%Y-%m-%d"))
+        self._add_text_element(document, "Время", local_created_at.strftime("%H:%M:%S"))
         self._add_text_element(document, "ХозОперация", self.OPERATION_TYPE)
         self._add_text_element(document, "Роль", self.ROLE)
         self._add_text_element(document, "Валюта", self.CURRENCY)
@@ -159,6 +166,26 @@ class OrderExportService:
         # Блок товаров
         products = self._create_products_element(order)
         document.append(products)
+
+        # Значения реквизитов документа
+        doc_props = ET.Element("ЗначенияРеквизитов")
+
+        doc_prop1 = ET.Element("ЗначениеРеквизита")
+        self._add_text_element(doc_prop1, "Наименование", "Статус заказа")
+        self._add_text_element(doc_prop1, "Значение", "Новый")
+        doc_props.append(doc_prop1)
+
+        doc_prop2 = ET.Element("ЗначениеРеквизита")
+        self._add_text_element(doc_prop2, "Наименование", "Отменен")
+        self._add_text_element(doc_prop2, "Значение", "false")
+        doc_props.append(doc_prop2)
+
+        doc_prop3 = ET.Element("ЗначениеРеквизита")
+        self._add_text_element(doc_prop3, "Наименование", "Сайт")
+        self._add_text_element(doc_prop3, "Значение", "freesport.ru")
+        doc_props.append(doc_prop3)
+
+        document.append(doc_props)
 
         return document
 
@@ -189,6 +216,9 @@ class OrderExportService:
             else:
                 name = str(user.full_name or user.email or "")
                 self._add_text_element(counterparty, "Наименование", name)
+                self._add_text_element(counterparty, "ПолноеНаименование", name)
+
+            self._add_text_element(counterparty, "Роль", "Покупатель")
 
             # ИНН только если есть tax_id
             if user.tax_id:
@@ -217,6 +247,8 @@ class OrderExportService:
             # Наименование from customer_name or email
             name = order.customer_name or order.customer_email or f"Гость #{order.order_number}"
             self._add_text_element(counterparty, "Наименование", name)
+            self._add_text_element(counterparty, "ПолноеНаименование", name)
+            self._add_text_element(counterparty, "Роль", "Покупатель")
 
             # Контакты from order fields
             contacts = ET.Element("Контакты")
@@ -275,6 +307,21 @@ class OrderExportService:
             self._add_text_element(product, "ЦенаЗаЕдиницу", self._format_price(item.unit_price))
             self._add_text_element(product, "Количество", str(item.quantity))
             self._add_text_element(product, "Сумма", self._format_price(item.total_price))
+
+            # Реквизиты товара (обязательно для загрузки в 1С УТ)
+            props = ET.Element("ЗначенияРеквизитов")
+
+            prop1 = ET.Element("ЗначениеРеквизита")
+            self._add_text_element(prop1, "Наименование", "ВидНоменклатуры")
+            self._add_text_element(prop1, "Значение", "Товар")
+            props.append(prop1)
+
+            prop2 = ET.Element("ЗначениеРеквизита")
+            self._add_text_element(prop2, "Наименование", "ТипНоменклатуры")
+            self._add_text_element(prop2, "Значение", "Товар")
+            props.append(prop2)
+
+            product.append(props)
 
             products.append(product)
 

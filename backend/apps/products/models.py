@@ -184,6 +184,10 @@ class Category(models.Model):
         ),
     )
     description = cast(str, models.TextField("Описание", blank=True))
+    icon = cast(
+        models.FileField,
+        models.FileField("Иконка", upload_to="categories/icons/", blank=True),
+    )
     image = cast(
         models.ImageField,
         models.ImageField("Изображение", upload_to="categories/", blank=True),

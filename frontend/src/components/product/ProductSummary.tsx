@@ -17,7 +17,6 @@ import { useCartStore } from '@/stores/cartStore';
 import { useAuthStore } from '@/stores/authStore';
 import { useFavoritesStore } from '@/stores/favoritesStore';
 import { useToast } from '@/components/ui/Toast';
-import { formatPrice } from '@/utils/pricing';
 import ProductInfo from './ProductInfo';
 import { ProductOptions, type SelectedOptions } from './ProductOptions';
 import { QuantitySelector } from '@/components/cart/QuantitySelector';
@@ -141,15 +140,6 @@ export default function ProductSummary({
 
   // Варианты товара (если есть) - мемоизируем для стабильности ссылки
   const variants = useMemo(() => product.variants || [], [product.variants]);
-
-  // RRP видят только оптовики (1-3), тренеры и админы
-  const canSeeRrp = useMemo(
-    () =>
-      ['wholesale_level1', 'wholesale_level2', 'wholesale_level3', 'trainer', 'admin'].includes(
-        userRole
-      ),
-    [userRole]
-  );
 
   // Ref для callback чтобы избежать лишних перерендеров
   const onVariantChangeRef = useRef(onVariantChange);

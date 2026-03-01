@@ -52,6 +52,10 @@ test.describe('Profile Page - Edit Profile Flow', () => {
         },
       ]);
 
+      await page.addInitScript(() => {
+        localStorage.setItem('refreshToken', 'mock-refresh-token');
+      });
+
       // ACT
       await page.goto('/profile');
 
@@ -63,7 +67,7 @@ test.describe('Profile Page - Edit Profile Flow', () => {
 
   test.describe('Profile Form Display', () => {
     test.beforeEach(async ({ page }) => {
-      // Установка auth cookies
+      // Установка auth cookies для middleware
       await page.context().addCookies([
         {
           name: 'refreshToken',
@@ -72,6 +76,11 @@ test.describe('Profile Page - Edit Profile Flow', () => {
           path: '/',
         },
       ]);
+
+      // Установка localStorage для client-side authStore
+      await page.addInitScript(() => {
+        localStorage.setItem('refreshToken', 'mock-refresh-token');
+      });
 
       // Mock API для получения профиля
       await page.route('**/api/v1/users/profile/', async route => {
@@ -126,6 +135,10 @@ test.describe('Profile Page - Edit Profile Flow', () => {
         },
       ]);
 
+      await page.addInitScript(() => {
+        localStorage.setItem('refreshToken', 'mock-refresh-token');
+      });
+
       // Mock GET profile
       await page.route('**/api/v1/users/profile/', async route => {
         if (route.request().method() === 'GET') {
@@ -179,11 +192,18 @@ test.describe('Profile Page - Edit Profile Flow', () => {
       await page.goto('/profile');
 
       // ACT - вводим невалидный телефон
-      await page.locator('input[id="phone"]').fill('123');
-      await page.click('button[type="submit"]');
+      // Используем более надежный метод ввода для PhoneInput
+      const phoneInput = page.locator('input[id="phone"]');
+      await phoneInput.focus();
+      await phoneInput.fill('');
+      await phoneInput.pressSequentially('123', { delay: 50 });
+
+      const submitButton = page.locator('button[type="submit"]');
+      await expect(submitButton).toBeEnabled({ timeout: 5000 });
+      await submitButton.click();
 
       // ASSERT
-      await expect(page.locator('text=Телефон должен быть в формате')).toBeVisible();
+      await expect(page.locator('text=Телефон должен быть в формате').first()).toBeVisible();
     });
   });
 
@@ -198,6 +218,10 @@ test.describe('Profile Page - Edit Profile Flow', () => {
           path: '/',
         },
       ]);
+
+      await page.addInitScript(() => {
+        localStorage.setItem('refreshToken', 'mock-refresh-token');
+      });
 
       // Mock B2B user profile
       await page.route('**/api/v1/users/profile/', async route => {
@@ -240,6 +264,10 @@ test.describe('Profile Page - Edit Profile Flow', () => {
         },
       ]);
 
+      await page.addInitScript(() => {
+        localStorage.setItem('refreshToken', 'mock-refresh-token');
+      });
+
       await page.route('**/api/v1/users/profile/', async route => {
         await route.fulfill({
           status: 200,
@@ -277,6 +305,10 @@ test.describe('Profile Page - Edit Profile Flow', () => {
         },
       ]);
 
+      await page.addInitScript(() => {
+        localStorage.setItem('refreshToken', 'mock-refresh-token');
+      });
+
       await page.route('**/api/v1/users/profile/', async route => {
         await route.fulfill({
           status: 200,
@@ -302,7 +334,7 @@ test.describe('Profile Page - Edit Profile Flow', () => {
       await page.goto('/profile');
 
       // ASSERT
-      await expect(page.locator('text=Личный кабинет')).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Личный кабинет' })).toBeVisible();
       await expect(page.locator('aside a[href="/profile"]')).toBeVisible();
       await expect(page.locator('aside a[href="/profile/orders"]')).toBeVisible();
       await expect(page.locator('aside a[href="/profile/addresses"]')).toBeVisible();

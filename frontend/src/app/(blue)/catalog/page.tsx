@@ -11,6 +11,7 @@ import Link from 'next/link';
 import Button from '@/components/ui/Button';
 import { Checkbox } from '@/components/ui/Checkbox';
 import { SearchAutocomplete } from '@/components/business/SearchAutocomplete';
+import { Skeleton } from '@/components/ui/Skeleton';
 import { Grid2x2, List } from 'lucide-react';
 import { ProductCard as BusinessProductCard } from '@/components/business/ProductCard/ProductCard';
 import productsService, { type ProductFilters } from '@/services/productsService';
@@ -52,52 +53,15 @@ const MAX_VISIBLE_PAGES = 5;
 const DEFAULT_ORDERING = 'name';
 const DEFAULT_CATEGORY_LABEL = 'Спорт';
 
-const CATEGORY_ICON_MAP: Record<string, string> = {
-  sport: '🏃',
-  спорт: '🏃',
-  tourism: '🥾',
-  туризм: '🥾',
-  fitness: '💪',
-  фитнес: '💪',
-  'фитнес и атлетика': '💪',
-  swimming: '🏊',
-  плавание: '🏊',
-  games: '⚽',
-  'спортивные игры': '⚽',
-  martial: '🥊',
-  единоборства: '🥊',
-  gymnastics: '🤸',
-  гимнастика: '🤸',
-  apparel: '👕',
-  'одежда спортивная': '👕',
-  transport: '🚲',
-  'детский транспорт': '🚲',
-};
-
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
 const getNodeKey = (path: number[]) => path.join(' > ');
-
-const getIconForCategory = (name: string, slug?: string) => {
-  const normalizedSlug = slug
-    ?.toLowerCase()
-    .replace(/[^a-z0-9\-а-яё]/gi, '')
-    .trim();
-  const normalizedName = name.toLowerCase();
-  if (normalizedSlug && CATEGORY_ICON_MAP[normalizedSlug]) {
-    return CATEGORY_ICON_MAP[normalizedSlug];
-  }
-  if (CATEGORY_ICON_MAP[normalizedName]) {
-    return CATEGORY_ICON_MAP[normalizedName];
-  }
-  return undefined;
-};
 
 const mapCategoryTreeNode = (node: CategoryTreeResponse): CategoryNode => ({
   id: node.id,
   label: node.name,
   slug: node.slug,
-  icon: getIconForCategory(node.name, node.slug),
+  icon: node.icon || undefined,
   children: node.children?.map(mapCategoryTreeNode),
 });
 
@@ -229,10 +193,10 @@ const PriceRangeSlider: React.FC<PriceRangeSliderProps> = ({ min, max, step, val
           height: 18px;
           width: 18px;
           border-radius: 50%;
-          background: #FF6B00;
-          border: 4px solid #FFE0B2;
-          background: #FF6600;
-          border: 4px solid #FFD6B3;
+          background: #ff6b00;
+          border: 4px solid #ffe0b2;
+          background: #ff6600;
+          border: 4px solid #ffd6b3;
           box-shadow: 0 2px 6px rgba(255, 102, 0, 0.35);
           cursor: pointer;
           margin-top: -9px;
@@ -242,8 +206,8 @@ const PriceRangeSlider: React.FC<PriceRangeSliderProps> = ({ min, max, step, val
           height: 18px;
           width: 18px;
           border-radius: 50%;
-          background: #FF6600;
-          border: 4px solid #FFD6B3;
+          background: #ff6600;
+          border: 4px solid #ffd6b3;
           box-shadow: 0 2px 6px rgba(255, 102, 0, 0.35);
           cursor: pointer;
         }
@@ -300,13 +264,20 @@ const CategoryTree: React.FC<{
                 type="button"
                 onClick={() => onSelect(node)}
                 className={
-                  'flex-1 rounded-lg px-2 py-1 text-left text-sm transition-colors ' +
+                  'flex-1 min-w-0 rounded-lg px-2 py-1 text-left text-sm transition-colors ' +
                   (isActive
                     ? 'bg-primary-subtle text-primary font-semibold'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900')
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900') +
+                  ' flex items-start gap-2'
                 }
               >
-                {node.label}
+                {node.icon &&
+                  (node.icon.startsWith('http') || node.icon.startsWith('/') ? (
+                    <img src={node.icon} alt="" className="w-5 h-5 object-contain flex-shrink-0" />
+                  ) : (
+                    <span className="text-lg flex-shrink-0 leading-none">{node.icon}</span>
+                  ))}
+                <span className="break-words">{node.label}</span>
               </button>
             </div>
             {hasChildren && isExpanded && (
@@ -870,18 +841,31 @@ const CatalogContent: React.FC = () => {
           })}
         </nav>
 
-        {/* Заголовок и поиск выровнены по сетке основного контента */}
-        <div className="mt-6 grid gap-8 lg:grid-cols-[280px_1fr] items-center">
-          <h1 className="text-4xl font-semibold text-gray-900">{activeCategoryLabel}</h1>
+        {/* Единый грид для Поиска и Заголовка */}
+        <div className="mt-6 grid grid-cols-1 lg:grid-cols-[280px_1fr] lg:grid-rows-[auto_auto] gap-x-8 gap-y-4 lg:gap-y-6 items-start">
+          {/* 1. H1 - первый в DOM, визуально на второй строке.
+                 min-h адаптивен (2rem mobile, 2.5rem desktop), совпадая с размером шрифта. */}
+          <h1 className="lg:row-start-2 lg:col-span-2 self-start text-2xl md:text-4xl font-semibold text-primary break-words md:break-normal min-h-[2rem] md:min-h-[2.5rem]">
+            {isCategoriesLoading ? (
+              <Skeleton className="h-[2rem] md:h-[2.5rem] w-[60%] max-w-sm" />
+            ) : (
+              activeCategoryLabel || 'Каталог'
+            )}
+          </h1>
 
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+          {/* 2. Поиск - второй в DOM, визуально на первой строке в правой колонке. */}
+          <search
+            role="search"
+            className="lg:row-start-1 lg:col-start-2 flex flex-col sm:flex-row items-start sm:items-center gap-4 relative z-20 w-full"
+          >
+            {/* SearchAutocomplete должен растягиваться на w-full если нужно */}
             <SearchAutocomplete
               ref={searchInputRef}
               placeholder="Поиск в каталоге..."
               onSearch={handleSearchChange}
               minLength={2}
               debounceMs={300}
-              className="w-full sm:max-w-md"
+              className="w-full max-w-full relative z-30"
               aria-label="Поиск товаров в каталоге"
             />
 
@@ -897,7 +881,7 @@ const CatalogContent: React.FC = () => {
                 запросу «{searchQuery}»
               </span>
             )}
-          </div>
+          </search>
         </div>
 
         <div className="mt-8 grid gap-8 lg:grid-cols-[280px_1fr]">
@@ -941,7 +925,7 @@ const CatalogContent: React.FC = () => {
               />
 
               <div className="space-y-2 text-sm text-gray-600">
-                <details open>
+                <details>
                   <summary className="cursor-pointer font-medium text-gray-900">Бренд</summary>
                   <div className="mt-2 flex flex-col gap-1">
                     {isBrandsLoading && <p className="text-xs text-gray-400">Загрузка...</p>}
@@ -996,16 +980,18 @@ const CatalogContent: React.FC = () => {
               <div className="flex items-center gap-3">
                 <div className="inline-flex items-center rounded-full bg-gray-100 p-1">
                   <button
-                    className={`flex items-center gap-1 rounded-full px-3 py-2 text-sm font-medium ${viewMode === 'grid' ? 'bg-white text-gray-900 shadow' : 'text-gray-500'
-                      }`}
+                    className={`flex items-center gap-1 rounded-full px-3 py-2 text-sm font-medium ${
+                      viewMode === 'grid' ? 'bg-white text-gray-900 shadow' : 'text-gray-500'
+                    }`}
                     onClick={() => setViewMode('grid')}
                   >
                     <Grid2x2 className="h-4 w-4" />
                     <span className="hidden sm:inline">Сетка</span>
                   </button>
                   <button
-                    className={`flex items-center gap-1 rounded-full px-3 py-2 text-sm font-medium ${viewMode === 'list' ? 'bg-white text-gray-900 shadow' : 'text-gray-500'
-                      }`}
+                    className={`flex items-center gap-1 rounded-full px-3 py-2 text-sm font-medium ${
+                      viewMode === 'list' ? 'bg-white text-gray-900 shadow' : 'text-gray-500'
+                    }`}
                     onClick={() => setViewMode('list')}
                   >
                     <List className="h-4 w-4" />

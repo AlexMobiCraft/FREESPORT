@@ -48,6 +48,7 @@ export interface UseSearchHistoryReturn {
  */
 export function useSearchHistory(): UseSearchHistoryReturn {
   const [history, setHistory] = useState<string[]>([]);
+  const [isLoaded, setIsLoaded] = useState(false);
 
   // Загрузка из localStorage при монтировании
   useEffect(() => {
@@ -63,15 +64,16 @@ export function useSearchHistory(): UseSearchHistoryReturn {
           console.error('Failed to parse search history:', e);
         }
       }
+      setIsLoaded(true);
     }
   }, []);
 
-  // Сохранение в localStorage при изменении
+  // Сохранение в localStorage при изменении (только после загрузки)
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    if (isLoaded && typeof window !== 'undefined') {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
     }
-  }, [history]);
+  }, [history, isLoaded]);
 
   /**
    * Добавляет запрос в историю

@@ -136,6 +136,7 @@ vi.mock('next/navigation', () => ({
 describe('CatalogPage - Search Integration (Story 18.4)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useRealTimers();
     mockSearchParams.delete('search');
     mockPush.mockClear();
   });
@@ -330,5 +331,55 @@ describe('CatalogPage - Search Integration (Story 18.4)', () => {
     const calls = (productsService.default.getAll as Mock).mock.calls;
     const callsWithSearch = calls.filter((call: Array<Record<string, unknown>>) => call[0]?.search);
     expect(callsWithSearch).toHaveLength(0);
+  });
+
+  it('AC 4: должен отображать состояния загрузки (Skeleton) при ожидании категорий', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+
+    const categoriesService = await import('@/services/categoriesService');
+    // Мокаем API с задержкой
+    (categoriesService.default.getTree as Mock).mockImplementationOnce(
+      () => new Promise(resolve => setTimeout(() => resolve(mockCategories), 100))
+    );
+
+    render(<CatalogPage />);
+
+    // Проверяем наличие Skeleton
+    const heading = screen.getByRole('heading', { level: 1 });
+    expect(heading.querySelector('.animate-pulse')).toBeInTheDocument();
+
+    // Разрешаем таймер
+    act(() => {
+      vi.runAllTimers();
+    });
+
+    // Ждем разрешения категории
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { level: 1, name: 'Спорт' })).toBeInTheDocument();
+    });
+
+    vi.useRealTimers();
+  });
+
+  it('AC 3: должен содержать корректную семантику: <search role="search"> и правильный порядок DOM для H1', async () => {
+    render(<CatalogPage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('search')).toBeInTheDocument();
+    });
+
+    const searchRegion = screen.getByRole('search');
+    expect(searchRegion.tagName.toLowerCase()).toBe('search');
+
+    const heading = screen.getByRole('heading', { level: 1 });
+    expect(heading).toHaveClass('text-primary');
+
+    const parent = heading.parentElement;
+    if (parent) {
+      const children = Array.from(parent.children);
+      const headingIndex = children.indexOf(heading);
+      const searchIndex = children.indexOf(searchRegion);
+      expect(headingIndex).toBeLessThan(searchIndex);
+    }
   });
 });

@@ -33,13 +33,19 @@ export function normalizeImageUrl(url: string | null | undefined): string {
     }
   }
 
-  // Если URL относительный (начинается с /), возвращаем как есть
-  // Nginx обработает /media/ пути
-  if (normalizedUrl.startsWith('/')) {
+  // Если URL абсолютный (http/https), возвращаем как есть
+  if (normalizedUrl.startsWith('http://') || normalizedUrl.startsWith('https://')) {
     return normalizedUrl;
   }
 
-  // Если URL уже публичный (http/https), возвращаем как есть
+  // Если URL относительный и не начинается с /,
+  // то это вероятнее всего путь от корня MEDIA_ROOT в Django (напр. "categories/icons/...")
+  // Добавляем /media/ префикс, который будет обработан прокси в next.config.js
+  if (!normalizedUrl.startsWith('/')) {
+    return `/media/${normalizedUrl}`;
+  }
+
+  // Если URL уже начинается с /, возвращаем как есть
   return normalizedUrl;
 }
 
