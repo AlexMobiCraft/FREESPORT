@@ -36,13 +36,8 @@ class BrandsService {
   }
 
   async getFeatured(): Promise<Brand[]> {
-    const response = await apiClient.get<PaginatedResponse<Brand>>('/brands/', {
-      params: {
-        is_featured: true,
-        page_size: FEATURED_PAGE_SIZE,
-      },
-    });
-    return response.data.results.map(this.normalizeBrand);
+    const response = await apiClient.get<Brand[]>('/brands/featured/');
+    return response.data; // The featured endpoint returns flat arrays directly
   }
 }
 
