@@ -62,12 +62,15 @@ class BrandsService {
         throw error;
       }
 
-      const fallbackResponse = await apiClient.get<PaginatedResponse<FeaturedBrandPayload>>('/brands/', {
-        params: {
-          is_featured: true,
-          page_size: FEATURED_PAGE_SIZE,
-        },
-      });
+      const fallbackResponse = await apiClient.get<PaginatedResponse<FeaturedBrandPayload>>(
+        '/brands/',
+        {
+          params: {
+            is_featured: true,
+            page_size: FEATURED_PAGE_SIZE,
+          },
+        }
+      );
 
       return this.normalizeFeaturedBrands(fallbackResponse.data);
     }

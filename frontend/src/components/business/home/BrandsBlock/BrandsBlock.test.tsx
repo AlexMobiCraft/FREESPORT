@@ -231,7 +231,10 @@ describe('BrandsBlock', () => {
 
       const img = screen.getByAltText('BoyBo');
       fireEvent.error(img);
-      expect(screen.getByAltText('BoyBo')).toHaveAttribute('src', '/images/brands/BOYBO%20black.png');
+      expect(screen.getByAltText('BoyBo')).toHaveAttribute(
+        'src',
+        '/images/brands/BOYBO%20black.png'
+      );
 
       fireEvent.error(screen.getByAltText('BoyBo'));
       expect(screen.getByAltText('BoyBo')).toHaveAttribute('src', '/images/No_image.svg');
