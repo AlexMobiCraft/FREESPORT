@@ -49,7 +49,7 @@ export const DeliveryTeaser: React.FC = () => {
             return (
               <div
                 key={index}
-                className="relative bg-neutral-50 rounded-2xl p-6 shadow-md hover:shadow-lg transition-shadow duration-200"
+                className="relative bg-neutral-50 rounded-2xl p-6 shadow-md hover:shadow-lg transition-shadow duration-200 flex flex-col items-center text-center md:items-start md:text-left"
               >
                 {/* Badge */}
                 {option.badge && (
