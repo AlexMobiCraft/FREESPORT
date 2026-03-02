@@ -98,8 +98,8 @@ export default function DeliveryPage() {
         <Card className="p-5 sm:p-8">
           <div className="flex flex-col gap-6 sm:gap-8">
             <div className="flex items-center gap-3 sm:gap-4">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-primary-subtle flex items-center justify-center flex-shrink-0">
-                <TKIcon className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
+              <div className="w-16 h-16 rounded-xl bg-primary-subtle flex items-center justify-center flex-shrink-0">
+                <TKIcon className="w-12 h-12 text-primary" />
               </div>
               <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
                 <h2 className="text-title-m sm:text-title-l font-semibold text-text-primary">
@@ -128,8 +128,8 @@ export default function DeliveryPage() {
         <Card className="p-5 sm:p-8">
           <div className="flex flex-col gap-6 sm:gap-8">
             <div className="flex items-center gap-3 sm:gap-4">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-primary-subtle flex items-center justify-center flex-shrink-0">
-                <PickupIcon className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
+              <div className="w-16 h-16 rounded-xl bg-primary-subtle flex items-center justify-center flex-shrink-0">
+                <PickupIcon className="w-12 h-12 text-primary" />
               </div>
               <h2 className="text-title-m sm:text-title-l font-semibold text-text-primary">
                 {deliveryOptions.pickup.title}
@@ -170,8 +170,8 @@ export default function DeliveryPage() {
         {/* Контакты логистики */}
         <Card className="p-5 sm:p-8">
           <div className="flex items-center gap-3 sm:gap-4 mb-5 sm:mb-6">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-primary-subtle flex items-center justify-center flex-shrink-0">
-              <Mail className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
+            <div className="w-16 h-16 rounded-xl bg-primary-subtle flex items-center justify-center flex-shrink-0">
+              <Mail className="w-12 h-12 text-primary" />
             </div>
             <h2 className="text-title-m sm:text-title-l font-semibold text-text-primary">
               Контакты отдела логистики
@@ -180,12 +180,12 @@ export default function DeliveryPage() {
 
           <div className="space-y-4">
             {/* Телефон */}
-            <div className="flex flex-col sm:flex-row sm:items-center gap-1">
-              <span className="text-body-s text-text-secondary sm:w-20">Телефон:</span>
+            <div className="flex items-baseline gap-2">
+              <span className="text-body-s text-text-secondary whitespace-nowrap">Телефон:</span>
               <a
                 href={contacts.phoneLink}
                 className={cn(
-                  'text-body-m sm:text-body-l text-primary font-medium',
+                  'text-body-m sm:text-body-l text-primary font-medium whitespace-nowrap',
                   'hover:text-primary-hover transition-colors duration-short'
                 )}
               >
@@ -194,12 +194,12 @@ export default function DeliveryPage() {
             </div>
 
             {/* Email */}
-            <div className="flex flex-col sm:flex-row sm:items-center gap-1">
-              <span className="text-body-s text-text-secondary sm:w-20">Email:</span>
+            <div className="flex items-baseline gap-2">
+              <span className="text-body-s text-text-secondary whitespace-nowrap">Email:</span>
               <a
                 href={contacts.emailLink}
                 className={cn(
-                  'text-body-m sm:text-body-l text-primary font-medium',
+                  'text-body-m sm:text-body-l text-primary font-medium whitespace-nowrap',
                   'hover:text-primary-hover transition-colors duration-short'
                 )}
               >
