@@ -201,17 +201,11 @@ describe('DeliveryPage (/delivery)', () => {
       expect(iconContainers.length).toBeGreaterThanOrEqual(2);
     });
 
-    it('должна отображать иконку Phone для телефона', () => {
+    it('должна отображать только три иконки в основных блоках', () => {
       const { container } = render(<DeliveryPage />);
-      const contactsSection = container.querySelectorAll('.bg-primary-subtle');
-      // Phone + Mail = минимум 4 иконки всего (TK, Pickup, Phone, Mail)
-      expect(contactsSection.length).toBeGreaterThanOrEqual(4);
-    });
-
-    it('должна отображать иконку Mail для email', () => {
-      const { container } = render(<DeliveryPage />);
-      const contactsSection = container.querySelectorAll('.bg-primary-subtle');
-      expect(contactsSection.length).toBeGreaterThanOrEqual(4);
+      const iconContainers = container.querySelectorAll('.bg-primary-subtle');
+      // TK + Pickup + Contacts Header = 3 иконки
+      expect(iconContainers.length).toBe(3);
     });
 
     it('должна отображать иконку AlertTriangle для предупреждения', () => {
@@ -226,7 +220,7 @@ describe('DeliveryPage (/delivery)', () => {
       render(<DeliveryPage />);
       const h1 = screen.getByRole('heading', { level: 1 });
 
-      expect(h1).toHaveClass('text-headline-xl');
+      expect(h1).toHaveClass('text-headline-l');
     });
 
     it('должна иметь hover-эффекты для ссылок', () => {
