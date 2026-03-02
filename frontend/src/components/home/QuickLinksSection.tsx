@@ -90,10 +90,10 @@ export const QuickLinksSection: React.FC = () => {
       className="relative max-w-[1280px] mx-auto px-3 md:px-4 lg:px-6 py-4 md:py-6"
       aria-label="Быстрые ссылки"
     >
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-1 overflow-x-auto md:overflow-visible scrollbar-hide md:scrollbar-default snap-x snap-mandatory md:snap-none">
         {/* Фиксированные быстрые ссылки */}
         <div
-          className="flex items-center gap-1 flex-shrink-0"
+          className="flex items-center gap-1 flex-shrink-0 snap-start md:snap-align-none"
           role="list"
           aria-label="Быстрые фильтры"
         >
@@ -128,7 +128,7 @@ export const QuickLinksSection: React.FC = () => {
         <div className="w-px h-8 bg-neutral-200 flex-shrink-0 mx-1" aria-hidden="true" />
 
         {/* Прокручиваемые категории */}
-        <div className="relative flex-1 min-w-0 group">
+        <div className="relative shrink-0 md:shrink md:flex-1 md:min-w-0 group">
           {/* Стрелка влево */}
           {canScrollLeft && (
             <button
@@ -143,7 +143,7 @@ export const QuickLinksSection: React.FC = () => {
 
           <div
             ref={scrollRef}
-            className="flex gap-1 overflow-x-auto snap-x snap-mandatory scrollbar-hide"
+            className="flex gap-1 overflow-visible md:overflow-x-auto md:snap-x md:snap-mandatory scrollbar-hide"
             role="list"
             aria-label="Категории товаров"
           >
