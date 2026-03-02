@@ -46,7 +46,7 @@
   width: 64px;
   height: 64px;
   background: var(--color-primary-subtle); /* #E7F3FF */
-  border-radius: var(--radius-default); /* 12px */
+  border-radius: var(--radius-md); /* 16px */
   display: flex;
   align-items: center;
   justify-content: center;
