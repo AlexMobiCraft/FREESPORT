@@ -81,108 +81,113 @@ export default function DeliveryPage() {
       </div>
 
       {/* Hero Section */}
-      <section className="bg-white py-12">
+      <section className="bg-white py-8 sm:py-12">
         <div className="container mx-auto px-4 text-center">
-          <h1 className="text-headline-xl font-bold text-text-primary mb-4">Условия доставки</h1>
-          <p className="text-body-l text-text-secondary max-w-2xl mx-auto">
+          <h1 className="text-headline-l sm:text-headline-xl font-bold text-text-primary mb-3 sm:mb-4">
+            Условия доставки
+          </h1>
+          <p className="text-body-m sm:text-body-l text-text-secondary max-w-2xl mx-auto">
             Мы предлагаем удобные варианты получения заказа
           </p>
         </div>
       </section>
 
       {/* Main Content */}
-      <section className="container mx-auto px-4 py-12 space-y-8">
+      <section className="container mx-auto px-4 py-8 sm:py-12 space-y-6 sm:space-y-8">
         {/* Доставка до ТК */}
-        <Card className="p-8">
-          <div className="flex items-start gap-6">
-            <div className="flex-shrink-0">
-              <div className="w-16 h-16 rounded-full bg-primary-subtle flex items-center justify-center">
-                <TKIcon className="w-8 h-8 text-primary" />
+        <Card className="p-5 sm:p-8">
+          <div className="flex flex-col gap-6 sm:gap-8">
+            <div className="flex items-center gap-3 sm:gap-4">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-primary-subtle flex items-center justify-center flex-shrink-0">
+                <TKIcon className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
               </div>
-            </div>
-
-            <div className="flex-grow">
-              <div className="flex items-center gap-4 mb-4">
-                <h2 className="text-title-l font-semibold text-text-primary">
+              <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
+                <h2 className="text-title-m sm:text-title-l font-semibold text-text-primary">
                   {deliveryOptions.tk.title}
                 </h2>
-                <Badge variant="delivered">{deliveryOptions.tk.badge}</Badge>
+                <Badge variant="delivered" className="w-fit">
+                  {deliveryOptions.tk.badge}
+                </Badge>
               </div>
-
-              <ul className="space-y-3">
-                {deliveryOptions.tk.conditions.map((condition, index) => (
-                  <li key={index} className="flex items-start gap-3">
-                    <span className="text-primary mt-1">•</span>
-                    <span className="text-body-m text-text-secondary">{condition}</span>
-                  </li>
-                ))}
-              </ul>
             </div>
+
+            <ul className="space-y-2 sm:space-y-3">
+              {deliveryOptions.tk.conditions.map((condition, index) => (
+                <li key={index} className="flex items-start gap-3">
+                  <span className="text-primary mt-1">•</span>
+                  <span className="text-body-s sm:text-body-m text-text-secondary">
+                    {condition}
+                  </span>
+                </li>
+              ))}
+            </ul>
           </div>
         </Card>
 
         {/* Самовывоз */}
-        <Card className="p-8">
-          <div className="flex items-start gap-6">
-            <div className="flex-shrink-0">
-              <div className="w-16 h-16 rounded-full bg-primary-subtle flex items-center justify-center">
-                <PickupIcon className="w-8 h-8 text-primary" />
+        <Card className="p-5 sm:p-8">
+          <div className="flex flex-col gap-6 sm:gap-8">
+            <div className="flex items-center gap-3 sm:gap-4">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-primary-subtle flex items-center justify-center flex-shrink-0">
+                <PickupIcon className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
               </div>
-            </div>
-
-            <div className="flex-grow">
-              <h2 className="text-title-l font-semibold text-text-primary mb-4">
+              <h2 className="text-title-m sm:text-title-l font-semibold text-text-primary">
                 {deliveryOptions.pickup.title}
               </h2>
+            </div>
 
-              <div className="space-y-4">
-                <div>
-                  <span className="text-body-s text-text-secondary">Минимальный заказ: </span>
-                  <span className="text-body-m font-semibold text-text-primary">
-                    {deliveryOptions.pickup.minOrder}
-                  </span>
-                </div>
+            <div className="space-y-3 sm:space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                <span className="text-body-s text-text-secondary">Минимальный заказ: </span>
+                <span className="text-body-m font-semibold text-text-primary">
+                  {deliveryOptions.pickup.minOrder}
+                </span>
+              </div>
 
-                <div>
-                  <span className="text-body-s text-text-secondary">Адрес: </span>
-                  <span className="text-body-m text-text-primary">
-                    {deliveryOptions.pickup.address}
-                  </span>
-                </div>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                <span className="text-body-s text-text-secondary">Адрес: </span>
+                <span className="text-body-m text-text-primary">
+                  {deliveryOptions.pickup.address}
+                </span>
+              </div>
 
-                {/* Карта */}
-                <div className="mt-6">
-                  <MapEmbed />
-                </div>
+              {/* Карта */}
+              <div className="mt-4 sm:mt-6">
+                <MapEmbed />
+              </div>
 
-                {/* Предупреждение */}
-                <div className="flex items-start gap-3 mt-6 p-4 bg-warning-subtle rounded-lg">
-                  <AlertTriangle className="w-5 h-5 text-warning flex-shrink-0 mt-0.5" />
-                  <p className="text-body-s text-text-secondary">
-                    {deliveryOptions.pickup.warning}
-                  </p>
-                </div>
+              {/* Предупреждение */}
+              <div className="flex items-start gap-3 mt-4 sm:mt-6 p-4 bg-warning-subtle rounded-lg">
+                <AlertTriangle className="w-5 h-5 text-warning flex-shrink-0 mt-0.5" />
+                <p className="text-body-s sm:text-body-m text-text-secondary">
+                  {deliveryOptions.pickup.warning}
+                </p>
               </div>
             </div>
           </div>
         </Card>
 
         {/* Контакты логистики */}
-        <Card className="p-8">
-          <h2 className="text-title-l font-semibold text-text-primary mb-6">
-            Контакты отдела логистики
-          </h2>
+        <Card className="p-5 sm:p-8">
+          <div className="flex items-center gap-3 sm:gap-4 mb-5 sm:mb-6">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-primary-subtle flex items-center justify-center flex-shrink-0">
+              <Mail className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
+            </div>
+            <h2 className="text-title-m sm:text-title-l font-semibold text-text-primary">
+              Контакты отдела логистики
+            </h2>
+          </div>
 
           <div className="space-y-4">
             {/* Телефон */}
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-primary-subtle flex items-center justify-center">
-                <Phone className="w-6 h-6 text-primary" />
+            <div className="flex items-center gap-3 sm:gap-4">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-primary-subtle flex items-center justify-center">
+                <Phone className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
               </div>
               <a
                 href={contacts.phoneLink}
                 className={cn(
-                  'text-body-l text-primary',
+                  'text-body-m sm:text-body-l text-primary',
                   'hover:text-primary-hover transition-colors duration-short'
                 )}
               >
@@ -191,14 +196,14 @@ export default function DeliveryPage() {
             </div>
 
             {/* Email */}
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-primary-subtle flex items-center justify-center">
-                <Mail className="w-6 h-6 text-primary" />
+            <div className="flex items-center gap-3 sm:gap-4">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-primary-subtle flex items-center justify-center">
+                <Mail className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
               </div>
               <a
                 href={contacts.emailLink}
                 className={cn(
-                  'text-body-l text-primary',
+                  'text-body-m sm:text-body-l text-primary',
                   'hover:text-primary-hover transition-colors duration-short'
                 )}
               >
