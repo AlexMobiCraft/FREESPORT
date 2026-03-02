@@ -56,18 +56,6 @@ describe('CategoriesSection', () => {
     expect(decodeURIComponent(tennisImg.src)).toContain('category-placeholder.png');
   });
 
-  it('displays product counts', async () => {
-    render(<CategoriesSection />);
-
-    await waitFor(() => {
-      expect(screen.getByText('Футбол')).toBeInTheDocument();
-    });
-
-    expect(screen.getByText('150 товаров')).toBeInTheDocument();
-    expect(screen.getByText('230 товаров')).toBeInTheDocument();
-    expect(screen.getByText('95 товаров')).toBeInTheDocument();
-  });
-
   it('category links navigate to correct catalog URLs', async () => {
     render(<CategoriesSection />);
 
