@@ -1509,6 +1509,16 @@ class VariantImportProcessor:
             except Exception:
                 result["errors"] += 1
 
+        # Деактивация устаревших категорий (Story 1C Fixes)
+        valid_onec_ids = list(category_map.keys())
+        if valid_onec_ids:
+            obsolete_categories_updated = Category.objects.filter(
+                onec_id__isnull=False
+            ).exclude(
+                onec_id__in=valid_onec_ids
+            ).update(is_active=False)
+            logger.info(f"Deactivated {obsolete_categories_updated} obsolete categories.")
+
         logger.info(
             f"Categories processed: {result['created']} created, "
             f"{result['updated']} updated, {result['errors']} errors, "
@@ -1614,6 +1624,13 @@ class VariantImportProcessor:
 
                 # Ищем существующий бренд по normalized_name
                 existing_brand = Brand.objects.filter(normalized_name=normalized).first()
+                
+                # Добавляем fallback-поиск бренда по name__iexact
+                if not existing_brand:
+                    existing_brand = Brand.objects.filter(name__iexact=onec_name).first()
+                    if existing_brand:
+                        self.stats["brand_fallbacks"] += 1
+                        logger.info(f"Brand found via fallback: {onec_name}")
 
                 if existing_brand:
                     # Бренд существует - создаём только маппинг (объединение дубликатов)
@@ -1698,6 +1715,13 @@ class VariantImportProcessor:
             f"{result['mappings_created']} mappings created, "
             f"{result['mappings_updated']} mappings updated"
         )
+        
+        # Инвалидация кэша избранных брендов
+        from django.core.cache import cache
+        from apps.products.constants import FEATURED_BRANDS_CACHE_KEY
+        cache.delete(FEATURED_BRANDS_CACHE_KEY)
+        logger.info("Invalidated featured brands cache after import.")
+
         return result
 
     def log_progress(self, message: str) -> None:
