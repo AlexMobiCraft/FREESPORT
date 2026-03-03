@@ -394,6 +394,33 @@ class TestProcessCategoriesFiltering:
         assert not Category.objects.filter(onec_id=f"fridges_{suffix}").exists()
         assert result["created"] == 1
 
+    def test_get_or_create_category_returns_none_for_filtered(self, processor):
+        """_get_or_create_category возвращает None для категорий вне allowed_ids."""
+        suffix = get_unique_suffix()
+        categories_data: list[CategoryData] = [
+            {"id": f"sport_{suffix}", "name": "СПОРТ"},
+            {"id": f"junk_{suffix}", "name": "Номенклатура к удалению"},
+            {"id": f"clothes_{suffix}", "name": f"Одежда {suffix}", "parent_id": f"sport_{suffix}"},
+        ]
+
+        with override_settings(ROOT_CATEGORY_NAME="СПОРТ"):
+            processor.process_categories(categories_data)
+
+        # allowed: только clothes (дочерняя СПОРТ)
+        assert processor._category_filtering_active is True
+        assert f"clothes_{suffix}" in processor._allowed_category_ids
+        assert f"junk_{suffix}" not in processor._allowed_category_ids
+
+        # Товар с категорией из allowed — возвращает категорию
+        result_allowed = processor._get_or_create_category({"category_id": f"clothes_{suffix}"})
+        assert result_allowed is not None
+
+        # Товар с категорией вне allowed — возвращает None
+        result_filtered = processor._get_or_create_category({"category_id": f"junk_{suffix}"})
+        assert result_filtered is None
+        # Категория НЕ создана в БД
+        assert not Category.objects.filter(onec_id=f"junk_{suffix}").exists()
+
     def test_process_categories_fallback_without_root_name(self, processor):
         """Если ROOT_CATEGORY_NAME=None, импортирует всё (тихо)."""
         suffix = get_unique_suffix()
