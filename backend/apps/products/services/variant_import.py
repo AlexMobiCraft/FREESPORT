@@ -1265,6 +1265,10 @@ class VariantImportProcessor:
             return category
 
         # Fallback категория
+        # Если включена строгая фильтрация категорий, игнорируем товары без категории
+        if self._category_filtering_active:
+            return None
+
         category, _ = Category.objects.get_or_create(
             slug="uncategorized",
             defaults={"name": "Без категории", "is_active": True},
