@@ -153,6 +153,7 @@ class TestProcessPriceTypes:
 class TestProcessCategories:
     """Тесты для process_categories()"""
 
+    @override_settings(ROOT_CATEGORY_NAME=None)
     def test_create_root_categories(self, processor):
         """Создание корневых категорий без parent"""
         # Arrange
@@ -182,6 +183,7 @@ class TestProcessCategories:
         assert cat1.description == "Описание категории"
         assert cat1.parent is None
 
+    @override_settings(ROOT_CATEGORY_NAME=None)
     def test_create_child_categories(self, processor):
         """Создание дочерних категорий с parent"""
         # Arrange
@@ -209,6 +211,7 @@ class TestProcessCategories:
         parent = Category.objects.get(onec_id=f"cat_{suffix}_parent")
         assert child.parent == parent
 
+    @override_settings(ROOT_CATEGORY_NAME=None)
     def test_update_existing_category(self, processor):
         """Обновление существующей категории"""
         # Arrange
@@ -243,6 +246,7 @@ class TestProcessCategories:
         assert cat.description == "New description"
         assert cat.is_active is True
 
+    @override_settings(ROOT_CATEGORY_NAME=None)
     def test_detect_circular_reference(self, processor):
         """Обнаружение циклических ссылок"""
         # Arrange
@@ -271,6 +275,7 @@ class TestProcessCategories:
         # Должен обнаружить хотя бы один цикл
         assert result["cycles_detected"] >= 1
 
+    @override_settings(ROOT_CATEGORY_NAME=None)
     def test_skip_category_with_missing_id(self, processor):
         """Пропуск категории без id"""
         # Arrange
@@ -287,6 +292,7 @@ class TestProcessCategories:
         assert result["created"] == 0
         assert result["errors"] == 1
 
+    @override_settings(ROOT_CATEGORY_NAME=None)
     def test_skip_category_with_missing_name(self, processor):
         """Пропуск категории без name"""
         # Arrange
@@ -441,7 +447,7 @@ class TestProcessCategoriesFiltering:
         assert "root_not_found" not in result
 
     def test_process_categories_error_log_when_root_not_found(self, processor, caplog):
-        """[F8] Если ROOT_CATEGORY_NAME задан но не найден → error лог + fallback."""
+        """[F8] Если ROOT_CATEGORY_NAME задан но не найден → error лог и отмена импорта файла (return empty result)."""
         import logging
 
         suffix = get_unique_suffix()
@@ -454,10 +460,11 @@ class TestProcessCategoriesFiltering:
             with caplog.at_level(logging.ERROR, logger="apps.products.services.variant_import"):
                 result = processor.process_categories(categories_data)
 
-        # Fallback: все категории импортированы
-        assert Category.objects.filter(onec_id=f"sport_{suffix}").exists()
-        assert Category.objects.filter(onec_id=f"clothes_{suffix}").exists()
-        assert result["created"] == 2
+        # Cancel the import: 0 categories imported
+        assert not Category.objects.filter(onec_id=f"sport_{suffix}").exists()
+        assert not Category.objects.filter(onec_id=f"clothes_{suffix}").exists()
+        assert result["created"] == 0
+        assert result["updated"] == 0
         assert result.get("root_not_found") is True
 
         # Проверяем error лог
