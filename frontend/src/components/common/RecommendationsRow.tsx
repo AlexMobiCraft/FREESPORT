@@ -102,7 +102,7 @@ export const RecommendationsRow: React.FC<RecommendationsRowProps> = ({
                     alt={product.name}
                     fill
                     sizes="180px"
-                    className="object-cover"
+                    className="object-contain"
                     loading="lazy"
                   />
                 ) : (

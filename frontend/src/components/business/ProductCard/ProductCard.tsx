@@ -248,7 +248,7 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
                 alt={product.name}
                 fill
                 sizes="180px"
-                className="object-cover"
+                className="object-contain"
                 onError={() => setImageSrc(IMAGE_FALLBACK_PATH)}
                 loading="lazy"
               />
@@ -355,7 +355,7 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
                   alt={product.name}
                   fill
                   sizes="120px"
-                  className="object-cover"
+                  className="object-contain"
                   onError={() => setImageSrc('/images/No_image.svg')}
                   loading="lazy"
                 />
@@ -507,7 +507,7 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
                 alt={product.name}
                 fill
                 sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                className="object-cover"
+                className="object-contain"
                 onError={() => setImageSrc('/images/No_image.svg')}
                 loading="lazy"
               />
