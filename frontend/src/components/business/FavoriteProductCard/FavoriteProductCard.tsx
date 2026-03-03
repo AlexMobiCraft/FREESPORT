@@ -101,7 +101,7 @@ export const FavoriteProductCard: React.FC<FavoriteProductCardProps> = ({
               src={resolveImageUrl(favorite.product_image)!}
               alt={favorite.product_name}
               fill
-              className="object-cover"
+              className="object-contain"
               sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
             />
           ) : (

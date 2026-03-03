@@ -297,6 +297,10 @@ class VariantImportProcessor:
         self._missing_products_logged: set[str] = set()
         self._missing_variants_logged: set[str] = set()
 
+        # Фильтрация категорий (заполняется в process_categories)
+        self._category_filtering_active: bool = False
+        self._allowed_category_ids: set[str] = set()
+
     # ========================================================================
     # Helper methods
     # ========================================================================
@@ -486,6 +490,12 @@ class VariantImportProcessor:
 
         # Получаем категорию
         category = self._get_or_create_category(goods_data)
+
+        if category is None:
+            # Категория отфильтрована — пропускаем товар
+            self.stats["skipped"] += 1
+            logger.debug(f"Product {parent_id} skipped: category filtered out")
+            return None
 
         # Получаем бренд
         brand = self._determine_brand(brand_id, str(parent_id))
@@ -1215,17 +1225,25 @@ class VariantImportProcessor:
         return brand
 
     def _get_or_create_category(self, goods_data: dict[str, Any]) -> Any:
-        """Получает или создаёт категорию"""
+        """Получает или создаёт категорию.
+
+        При активной фильтрации (self._category_filtering_active) не создаёт
+        placeholder для категорий вне allowed_ids — возвращает None.
+        """
         from apps.products.models import Category
 
         category_id = goods_data.get("category_id")
 
         if category_id:
+            # Фильтрация: если категория не в allowed — не создаём и не ищем
+            if self._category_filtering_active and category_id not in self._allowed_category_ids:
+                return None
+
             category = Category.objects.filter(onec_id=category_id).first()
             if category:
                 return category
 
-            # Создаём placeholder категорию
+            # Создаём placeholder категорию (только для allowed)
             category_name = goods_data.get("category_name", f"Категория {category_id}")
             slug = slugify(category_name) or f"category-{uuid.uuid4().hex[:8]}"
 
@@ -1414,6 +1432,10 @@ class VariantImportProcessor:
                         if pid and pid in allowed_ids and cat_id and cat_id not in allowed_ids:
                             allowed_ids.add(cat_id)
                             changed = True
+
+                # Сохраняем для использования в _get_or_create_category
+                self._category_filtering_active = True
+                self._allowed_category_ids = allowed_ids.copy()
 
                 logger.info(
                     f"Category filtering active: anchor='{root_category_name}' "
