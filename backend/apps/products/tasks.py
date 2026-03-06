@@ -200,21 +200,37 @@ def process_1c_import_task(
             elif fn_lower.startswith("rests"):
                 detected_file_type = "rests"
 
-        # Запуск management команды
-        args: list[Any] = []
-        options = {
-            "celery_task_id": self.request.id,
-            "file_type": detected_file_type,
-            "import_session_id": session_id,
-        }
-        if data_dir:
-            options["data_dir"] = data_dir
-
-        logger.info(
-            f"Starting 1C import for session {session_id} "
-            f"(key={session.session_key}, file_type={detected_file_type}, file={zip_filename})"
+        # Определяем тип импорта: контрагенты или товарный каталог
+        contragents_dir = target_import_dir / "contragents" if target_import_dir.exists() else None
+        has_contragents = bool(
+            contragents_dir
+            and contragents_dir.exists()
+            and list(contragents_dir.glob("contragents*.xml"))
         )
-        call_command("import_products_from_1c", *args, **options)
+
+        if has_contragents:
+            effective_data_dir = data_dir or str(target_import_dir)
+            logger.info(
+                f"Starting 1C customers import for session {session_id} "
+                f"(key={session.session_key}, data_dir={effective_data_dir})"
+            )
+            call_command("import_customers_from_1c", data_dir=effective_data_dir)
+        else:
+            # Запуск management команды импорта товарного каталога
+            args: list[Any] = []
+            options = {
+                "celery_task_id": self.request.id,
+                "file_type": detected_file_type,
+                "import_session_id": session_id,
+            }
+            if data_dir:
+                options["data_dir"] = data_dir
+
+            logger.info(
+                f"Starting 1C import for session {session_id} "
+                f"(key={session.session_key}, file_type={detected_file_type}, file={zip_filename})"
+            )
+            call_command("import_products_from_1c", *args, **options)
 
         # Финализация сессии (если команда сама не завершила её)
         session.refresh_from_db()
@@ -228,6 +244,7 @@ def process_1c_import_task(
         # Clean up shared import directory after successful import
         try:
             from apps.integrations.onec_exchange.routing_service import FileRoutingService
+
             routing_service = FileRoutingService(session.session_key)
             cleaned = routing_service.cleanup_import_dir()
             logger.info(f"Post-import cleanup removed {cleaned} items from import directory.")

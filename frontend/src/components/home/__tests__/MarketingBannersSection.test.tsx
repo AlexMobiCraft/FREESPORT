@@ -14,10 +14,7 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
-import {
-  MarketingBannersSection,
-  MarketingBannerErrorBoundary,
-} from '../MarketingBannersSection';
+import { MarketingBannersSection, MarketingBannerErrorBoundary } from '../MarketingBannersSection';
 import bannersService from '@/services/bannersService';
 import type { Banner } from '@/types/banners';
 
@@ -94,6 +91,7 @@ const mockMarketingBanners: Banner[] = [
     title: 'Летняя распродажа',
     subtitle: 'Скидки до 50%',
     image_url: '/media/banners/summer-sale.jpg',
+    mobile_image_url: '',
     image_alt: 'Летняя распродажа баннер',
     cta_text: 'Купить со скидкой',
     cta_link: '/catalog?sale=summer',
@@ -104,6 +102,7 @@ const mockMarketingBanners: Banner[] = [
     title: 'Новая коллекция кроссовок',
     subtitle: 'Бренды Nike, Adidas, Puma',
     image_url: '/media/banners/sneakers.jpg',
+    mobile_image_url: '',
     image_alt: 'Коллекция кроссовок',
     cta_text: 'Смотреть коллекцию',
     cta_link: '/catalog/sneakers',
@@ -118,6 +117,7 @@ const threeBanners: Banner[] = [
     title: 'Зимний сезон',
     subtitle: 'Куртки и термобелье',
     image_url: '/media/banners/winter.jpg',
+    mobile_image_url: '',
     image_alt: 'Зимний сезон баннер',
     cta_text: 'Смотреть',
     cta_link: '/catalog/winter',
@@ -157,9 +157,7 @@ describe('MarketingBannersSection', () => {
       render(<MarketingBannersSection />);
 
       expect(screen.getByTestId('marketing-banners-skeleton')).toBeInTheDocument();
-      expect(
-        screen.getByLabelText('Маркетинговые баннеры загружаются')
-      ).toBeInTheDocument();
+      expect(screen.getByLabelText('Маркетинговые баннеры загружаются')).toBeInTheDocument();
     });
 
     it('skeleton должен содержать контейнер с фиксированным aspect-ratio', () => {
@@ -182,28 +180,20 @@ describe('MarketingBannersSection', () => {
       const { container } = render(<MarketingBannersSection />);
 
       await waitFor(() => {
-        expect(
-          screen.queryByTestId('marketing-banners-skeleton')
-        ).not.toBeInTheDocument();
+        expect(screen.queryByTestId('marketing-banners-skeleton')).not.toBeInTheDocument();
       });
 
-      expect(
-        screen.queryByTestId('marketing-banners-section')
-      ).not.toBeInTheDocument();
+      expect(screen.queryByTestId('marketing-banners-section')).not.toBeInTheDocument();
       expect(container.innerHTML).toBe('');
     });
 
     it('должен рендерить null при ошибке API', async () => {
-      vi.mocked(bannersService.getActive).mockRejectedValue(
-        new Error('Network Error')
-      );
+      vi.mocked(bannersService.getActive).mockRejectedValue(new Error('Network Error'));
 
       const { container } = render(<MarketingBannersSection />);
 
       await waitFor(() => {
-        expect(
-          screen.queryByTestId('marketing-banners-skeleton')
-        ).not.toBeInTheDocument();
+        expect(screen.queryByTestId('marketing-banners-skeleton')).not.toBeInTheDocument();
       });
 
       expect(container.innerHTML).toBe('');
@@ -220,14 +210,10 @@ describe('MarketingBannersSection', () => {
       render(<MarketingBannersSection />);
 
       await waitFor(() => {
-        expect(
-          screen.getByTestId('marketing-banners-section')
-        ).toBeInTheDocument();
+        expect(screen.getByTestId('marketing-banners-section')).toBeInTheDocument();
       });
 
-      expect(
-        screen.getByLabelText('Маркетинговые предложения')
-      ).toBeInTheDocument();
+      expect(screen.getByLabelText('Маркетинговые предложения')).toBeInTheDocument();
     });
 
     it('должен вызывать bannersService.getActive с типом marketing', async () => {
@@ -248,10 +234,7 @@ describe('MarketingBannersSection', () => {
       await waitFor(() => {
         const img = screen.getByAltText('Летняя распродажа баннер');
         expect(img).toBeInTheDocument();
-        expect(img).toHaveAttribute(
-          'data-sizes',
-          '(max-width: 768px) 100vw, 1280px'
-        );
+        expect(img).toHaveAttribute('sizes', '(max-width: 768px) 100vw, 1280px');
       });
     });
   });
@@ -290,10 +273,12 @@ describe('MarketingBannersSection', () => {
   // -------------------------------------------------------------------------
   describe('Security: cta_link guard', () => {
     it('не должен рендерить ссылку для javascript: протокола', async () => {
-      const maliciousBanner: Banner[] = [{
-        ...mockMarketingBanners[0],
-        cta_link: 'javascript:alert(1)',
-      }];
+      const maliciousBanner: Banner[] = [
+        {
+          ...mockMarketingBanners[0],
+          cta_link: 'javascript:alert(1)',
+        },
+      ];
       vi.mocked(bannersService.getActive).mockResolvedValue(maliciousBanner);
       vi.mocked(useBannerCarousel).mockReturnValue({
         emblaRef: vi.fn(),
@@ -317,10 +302,12 @@ describe('MarketingBannersSection', () => {
     });
 
     it('не должен рендерить ссылку для data: протокола', async () => {
-      const maliciousBanner: Banner[] = [{
-        ...mockMarketingBanners[0],
-        cta_link: 'data:text/html,<script>alert(1)</script>',
-      }];
+      const maliciousBanner: Banner[] = [
+        {
+          ...mockMarketingBanners[0],
+          cta_link: 'data:text/html,<script>alert(1)</script>',
+        },
+      ];
       vi.mocked(bannersService.getActive).mockResolvedValue(maliciousBanner);
       vi.mocked(useBannerCarousel).mockReturnValue({
         emblaRef: vi.fn(),
@@ -344,10 +331,12 @@ describe('MarketingBannersSection', () => {
     });
 
     it('не должен рендерить ссылку для внешних URL', async () => {
-      const externalBanner: Banner[] = [{
-        ...mockMarketingBanners[0],
-        cta_link: 'https://evil.com/phishing',
-      }];
+      const externalBanner: Banner[] = [
+        {
+          ...mockMarketingBanners[0],
+          cta_link: 'https://evil.com/phishing',
+        },
+      ];
       vi.mocked(bannersService.getActive).mockResolvedValue(externalBanner);
       vi.mocked(useBannerCarousel).mockReturnValue({
         emblaRef: vi.fn(),
@@ -371,10 +360,12 @@ describe('MarketingBannersSection', () => {
     });
 
     it('не должен рендерить ссылку для vbscript: протокола', async () => {
-      const vbsBanner: Banner[] = [{
-        ...mockMarketingBanners[0],
-        cta_link: 'vbscript:MsgBox("xss")',
-      }];
+      const vbsBanner: Banner[] = [
+        {
+          ...mockMarketingBanners[0],
+          cta_link: 'vbscript:MsgBox("xss")',
+        },
+      ];
       vi.mocked(bannersService.getActive).mockResolvedValue(vbsBanner);
       vi.mocked(useBannerCarousel).mockReturnValue({
         emblaRef: vi.fn(),
@@ -398,10 +389,12 @@ describe('MarketingBannersSection', () => {
     });
 
     it('не должен рендерить ссылку для protocol-relative URL (//evil.com)', async () => {
-      const prBanner: Banner[] = [{
-        ...mockMarketingBanners[0],
-        cta_link: '//evil.com/phishing',
-      }];
+      const prBanner: Banner[] = [
+        {
+          ...mockMarketingBanners[0],
+          cta_link: '//evil.com/phishing',
+        },
+      ];
       vi.mocked(bannersService.getActive).mockResolvedValue(prBanner);
       vi.mocked(useBannerCarousel).mockReturnValue({
         emblaRef: vi.fn(),
@@ -425,10 +418,12 @@ describe('MarketingBannersSection', () => {
     });
 
     it('не должен рендерить ссылку для cta_link с backslash', async () => {
-      const backslashBanner: Banner[] = [{
-        ...mockMarketingBanners[0],
-        cta_link: '/catalog\\..\\admin',
-      }];
+      const backslashBanner: Banner[] = [
+        {
+          ...mockMarketingBanners[0],
+          cta_link: '/catalog\\..\\admin',
+        },
+      ];
       vi.mocked(bannersService.getActive).mockResolvedValue(backslashBanner);
       vi.mocked(useBannerCarousel).mockReturnValue({
         emblaRef: vi.fn(),
@@ -452,10 +447,12 @@ describe('MarketingBannersSection', () => {
     });
 
     it('должен использовать trimmed href для ссылки с пробелами', async () => {
-      const spacedBanner: Banner[] = [{
-        ...mockMarketingBanners[0],
-        cta_link: '  /catalog?sale=summer  ',
-      }];
+      const spacedBanner: Banner[] = [
+        {
+          ...mockMarketingBanners[0],
+          cta_link: '  /catalog?sale=summer  ',
+        },
+      ];
       vi.mocked(bannersService.getActive).mockResolvedValue(spacedBanner);
 
       render(<MarketingBannersSection />);
@@ -645,9 +642,7 @@ describe('MarketingBannersSection', () => {
       render(<MarketingBannersSection />);
 
       await waitFor(() => {
-        expect(
-          screen.getByAltText('Летняя распродажа баннер')
-        ).toBeInTheDocument();
+        expect(screen.getByAltText('Летняя распродажа баннер')).toBeInTheDocument();
       });
 
       // Trigger image error on first banner
@@ -655,9 +650,7 @@ describe('MarketingBannersSection', () => {
       fireEvent.error(img);
 
       await waitFor(() => {
-        expect(
-          screen.queryByAltText('Летняя распродажа баннер')
-        ).not.toBeInTheDocument();
+        expect(screen.queryByAltText('Летняя распродажа баннер')).not.toBeInTheDocument();
       });
 
       // Second banner should still be visible
@@ -681,9 +674,7 @@ describe('MarketingBannersSection', () => {
       const { container } = render(<MarketingBannersSection />);
 
       await waitFor(() => {
-        expect(
-          screen.getByAltText('Летняя распродажа баннер')
-        ).toBeInTheDocument();
+        expect(screen.getByAltText('Летняя распродажа баннер')).toBeInTheDocument();
       });
 
       const img = screen.getByAltText('Летняя распродажа баннер');
@@ -806,9 +797,7 @@ describe('MarketingBannersSection', () => {
       render(<MarketingBannersSection />);
 
       await waitFor(() => {
-        expect(
-          screen.getByLabelText('Маркетинговые предложения')
-        ).toBeInTheDocument();
+        expect(screen.getByLabelText('Маркетинговые предложения')).toBeInTheDocument();
       });
     });
 
@@ -818,20 +807,18 @@ describe('MarketingBannersSection', () => {
       render(<MarketingBannersSection />);
 
       await waitFor(() => {
-        expect(
-          screen.getByAltText('Летняя распродажа баннер')
-        ).toBeInTheDocument();
-        expect(
-          screen.getByAltText('Коллекция кроссовок')
-        ).toBeInTheDocument();
+        expect(screen.getByAltText('Летняя распродажа баннер')).toBeInTheDocument();
+        expect(screen.getByAltText('Коллекция кроссовок')).toBeInTheDocument();
       });
     });
 
     it('должен использовать title как fallback для пустого image_alt', async () => {
-      const bannerNoAlt: Banner[] = [{
-        ...mockMarketingBanners[0],
-        image_alt: '',
-      }];
+      const bannerNoAlt: Banner[] = [
+        {
+          ...mockMarketingBanners[0],
+          image_alt: '',
+        },
+      ];
       vi.mocked(bannersService.getActive).mockResolvedValue(bannerNoAlt);
       vi.mocked(useBannerCarousel).mockReturnValue({
         emblaRef: vi.fn(),

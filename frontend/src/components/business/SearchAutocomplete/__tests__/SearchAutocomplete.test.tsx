@@ -148,7 +148,7 @@ describe('SearchAutocomplete', () => {
     it('renders SearchField component', () => {
       render(<SearchAutocomplete />);
 
-      expect(screen.getByTestId('search-autocomplete')).toBeInTheDocument();
+      expect(screen.getByTestId('search-field')).toBeInTheDocument();
       expect(screen.getByRole('combobox')).toBeInTheDocument();
     });
 
@@ -161,14 +161,14 @@ describe('SearchAutocomplete', () => {
     it('renders in desktop mode with max-width constraint', () => {
       render(<SearchAutocomplete />);
 
-      const container = screen.getByTestId('search-autocomplete');
+      const container = screen.getByTestId('search-field');
       expect(container).toHaveClass('max-w-[300px]');
     });
 
     it('renders in mobile mode with full width', () => {
       render(<SearchAutocomplete isMobile />);
 
-      const container = screen.getByTestId('search-autocomplete');
+      const container = screen.getByTestId('search-field');
       expect(container).not.toHaveClass('max-w-[300px]');
       expect(container).toHaveClass('w-full');
     });

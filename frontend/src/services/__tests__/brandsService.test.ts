@@ -31,11 +31,90 @@ const mockBrands = [
 
 describe('brandsService', () => {
   describe('getFeatured', () => {
-    test('fetches featured brands with is_featured=true param', async () => {
-      let capturedUrl = '';
+    test('fetches featured brands from dedicated endpoint', async () => {
       server.use(
+        http.get(`${API_BASE_URL}/brands/featured/`, () => {
+          return HttpResponse.json([
+            {
+              id: 1,
+              name: 'Nike',
+              slug: 'nike',
+              image: '/media/brands/nike.png',
+              website: null,
+            },
+          ]);
+        })
+      );
+
+      const result = await brandsService.getFeatured();
+
+      expect(result).toHaveLength(1);
+      expect(result[0].name).toBe('Nike');
+      expect(result[0].is_featured).toBe(true);
+    });
+
+    test('normalizes internal media URLs for featured brands', async () => {
+      server.use(
+        http.get(`${API_BASE_URL}/brands/featured/`, () => {
+          return HttpResponse.json([
+            {
+              id: 1,
+              name: 'Nike',
+              slug: 'nike',
+              image: 'http://backend:8000/media/brands/nike.png',
+              website: null,
+            },
+          ]);
+        })
+      );
+
+      const result = await brandsService.getFeatured();
+
+      expect(result[0].image).toBe('/media/brands/nike.png');
+    });
+
+    test('supports paginated payload from featured endpoint', async () => {
+      server.use(
+        http.get(`${API_BASE_URL}/brands/featured/`, () => {
+          return HttpResponse.json({
+            count: 2,
+            next: null,
+            previous: null,
+            results: [
+              {
+                id: 1,
+                name: 'Nike',
+                slug: 'nike',
+                image: '/media/brands/nike.png',
+                website: null,
+              },
+              {
+                id: 2,
+                name: 'Adidas',
+                slug: 'adidas',
+                image: '/media/brands/adidas.png',
+                website: null,
+              },
+            ],
+          });
+        })
+      );
+
+      const result = await brandsService.getFeatured();
+
+      expect(result).toHaveLength(2);
+      expect(result[1].name).toBe('Adidas');
+    });
+
+    test('fallbacks to legacy /brands/ endpoint on 404 for /brands/featured/', async () => {
+      let capturedLegacyUrl = '';
+
+      server.use(
+        http.get(`${API_BASE_URL}/brands/featured/`, () => {
+          return HttpResponse.json({ detail: 'Not found' }, { status: 404 });
+        }),
         http.get(`${API_BASE_URL}/brands/`, ({ request }) => {
-          capturedUrl = request.url;
+          capturedLegacyUrl = request.url;
           return HttpResponse.json({
             count: 2,
             next: null,
@@ -48,23 +127,16 @@ describe('brandsService', () => {
       const result = await brandsService.getFeatured();
 
       expect(result).toHaveLength(2);
-      expect(result[0].name).toBe('Nike');
-      expect(result[1].name).toBe('Adidas');
 
-      const url = new URL(capturedUrl);
+      const url = new URL(capturedLegacyUrl);
       expect(url.searchParams.get('is_featured')).toBe('true');
       expect(url.searchParams.get('page_size')).toBe('20');
     });
 
     test('returns empty array when no featured brands', async () => {
       server.use(
-        http.get(`${API_BASE_URL}/brands/`, () => {
-          return HttpResponse.json({
-            count: 0,
-            next: null,
-            previous: null,
-            results: [],
-          });
+        http.get(`${API_BASE_URL}/brands/featured/`, () => {
+          return HttpResponse.json([]);
         })
       );
 
@@ -76,7 +148,7 @@ describe('brandsService', () => {
 
     test('handles network error', async () => {
       server.use(
-        http.get(`${API_BASE_URL}/brands/`, () => {
+        http.get(`${API_BASE_URL}/brands/featured/`, () => {
           return HttpResponse.error();
         })
       );
@@ -84,25 +156,14 @@ describe('brandsService', () => {
       await expect(brandsService.getFeatured()).rejects.toThrow();
     });
 
-    test('returns Brand[] type', async () => {
+    test('does not fallback to legacy endpoint on non-404 response', async () => {
       server.use(
-        http.get(`${API_BASE_URL}/brands/`, () => {
-          return HttpResponse.json({
-            count: 1,
-            next: null,
-            previous: null,
-            results: [mockBrands[0]],
-          });
+        http.get(`${API_BASE_URL}/brands/featured/`, () => {
+          return HttpResponse.json({ detail: 'Bad request' }, { status: 400 });
         })
       );
 
-      const result = await brandsService.getFeatured();
-
-      expect(result[0]).toHaveProperty('id');
-      expect(result[0]).toHaveProperty('name');
-      expect(result[0]).toHaveProperty('slug');
-      expect(result[0]).toHaveProperty('image');
-      expect(result[0]).toHaveProperty('is_featured');
+      await expect(brandsService.getFeatured()).rejects.toThrow();
     });
   });
 

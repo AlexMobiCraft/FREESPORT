@@ -485,19 +485,21 @@ export default function DesignComparisonPage() {
           <div className="inline-flex rounded-full bg-white p-1 shadow-sm">
             <button
               onClick={() => setViewMode('side-by-side')}
-              className={`px-6 py-2 rounded-full text-sm font-medium transition-colors ${viewMode === 'side-by-side'
+              className={`px-6 py-2 rounded-full text-sm font-medium transition-colors ${
+                viewMode === 'side-by-side'
                   ? 'bg-primary text-white'
                   : 'text-gray-600 hover:text-gray-900'
-                }`}
+              }`}
             >
               Рядом
             </button>
             <button
               onClick={() => setViewMode('toggle')}
-              className={`px-6 py-2 rounded-full text-sm font-medium transition-colors ${viewMode === 'toggle'
+              className={`px-6 py-2 rounded-full text-sm font-medium transition-colors ${
+                viewMode === 'toggle'
                   ? 'bg-primary text-white'
                   : 'text-gray-600 hover:text-gray-900'
-                }`}
+              }`}
             >
               Переключение
             </button>
@@ -510,19 +512,21 @@ export default function DesignComparisonPage() {
             <div className="inline-flex rounded-full bg-white p-1 shadow-sm">
               <button
                 onClick={() => setActiveScheme('current')}
-                className={`px-6 py-2 rounded-full text-sm font-medium transition-colors ${activeScheme === 'current'
+                className={`px-6 py-2 rounded-full text-sm font-medium transition-colors ${
+                  activeScheme === 'current'
                     ? 'bg-gray-800 text-white'
                     : 'text-gray-600 hover:text-gray-900'
-                  }`}
+                }`}
               >
                 Текущая (Синяя)
               </button>
               <button
                 onClick={() => setActiveScheme('new')}
-                className={`px-6 py-2 rounded-full text-sm font-medium transition-colors ${activeScheme === 'new'
+                className={`px-6 py-2 rounded-full text-sm font-medium transition-colors ${
+                  activeScheme === 'new'
                     ? 'bg-primary text-white'
                     : 'text-gray-600 hover:text-gray-900'
-                  }`}
+                }`}
               >
                 Новая (Оранжевая)
               </button>

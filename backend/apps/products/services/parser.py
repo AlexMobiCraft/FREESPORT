@@ -311,6 +311,23 @@ class XMLDataParser:
                 if char_list:
                     offer_data["characteristics"] = char_list
 
+            # Извлечение и валидация путей изображений с дедупликацией
+            image_elements = offer_element.findall(".//Картинка")
+
+            if image_elements:
+                validated_images = []
+                seen_paths: set[str] = set()  # Для дедупликации
+
+                for image in image_elements:
+                    if image.text:
+                        validated_path = self._validate_image_path(image.text.strip())
+                        if validated_path and validated_path not in seen_paths:
+                            validated_images.append(validated_path)
+                            seen_paths.add(validated_path)
+
+                if validated_images:
+                    offer_data["images"] = validated_images
+
             if offer_data.get("id"):  # Только если есть ID
                 offers_list.append(offer_data)
 

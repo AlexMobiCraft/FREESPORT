@@ -4,7 +4,7 @@
 # Environment variables and secrets
 .env
 .env.local
-#.env.prod
+.env.prod
 .env.staging
 *.key
 *.pem
@@ -164,7 +164,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
-#.env.prod
+.env.prod
 backend/.ssh/
 backend/celerybeat-schedule.dat
 

@@ -5,11 +5,11 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { Truck, MapPin } from 'lucide-react';
+import { Truck, MapPin, LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui';
 
 interface DeliveryOption {
-  icon: React.ComponentType<{ className?: string }>;
+  icon: LucideIcon;
   title: string;
   badge?: string;
   description: string;
@@ -49,7 +49,7 @@ export const DeliveryTeaser: React.FC = () => {
             return (
               <div
                 key={index}
-                className="relative bg-neutral-50 rounded-2xl p-6 shadow-md hover:shadow-lg transition-shadow duration-200"
+                className="group relative bg-neutral-50 rounded-2xl p-6 shadow-md hover:shadow-lg transition-all duration-200 flex flex-col items-center text-center md:items-start md:text-left hover:-translate-y-0.5"
               >
                 {/* Badge */}
                 {option.badge && (
@@ -62,8 +62,8 @@ export const DeliveryTeaser: React.FC = () => {
 
                 {/* Icon */}
                 <div className="mb-4">
-                  <div className="inline-flex items-center justify-center w-16 h-16 bg-primary-subtle rounded-full">
-                    <IconComponent className="w-8 h-8 text-primary" />
+                  <div className="inline-flex items-center justify-center w-16 h-16 bg-primary-subtle rounded-xl shadow-sm transition-colors duration-medium group-hover:bg-secondary-subtle">
+                    <IconComponent className="w-12 h-12 text-primary" strokeWidth={1.5} />
                   </div>
                 </div>
 
