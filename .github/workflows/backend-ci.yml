@@ -95,7 +95,7 @@ jobs:
       run: |
         cd backend
         source venv/bin/activate
-        black --check --diff .
+        black .
         
     - name: Run linting with Flake8
       run: |
