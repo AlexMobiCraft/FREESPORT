@@ -274,7 +274,6 @@ jobs:
     needs: [test, build]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
-    environment: staging
     
     permissions:
       actions: write
@@ -292,7 +291,6 @@ jobs:
             workflow_id: 'deploy.yml',
             ref: 'develop',
             inputs: {
-              environment: 'staging',
               skip_tests: 'true'
             }
           });
