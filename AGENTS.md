@@ -139,7 +139,13 @@ pytest -v --cov=apps --cov-report=term-missing
 
 ## Разработка и тестирование Backend
 
-- **Тестирование через Docker**: ВСЕГДА запускай тесты бекенда внутри Docker-контейнера. Не пытайся использовать локальный `pytest` или `poetry run pytest`.
+- **Локальное тестирование**: Для запуска `pytest` локально необходимо предварительно инициировать (активировать) виртуальное окружение.
+  *Пример (в PowerShell из корня проекта):*
+  ```powershell
+  .\backend\venv\Scripts\Activate.ps1
+  pytest <путь_к_тесту>
+  ```
+- **Тестирование через Docker**: При необходимости запустить тесты внутри Docker-контейнера:
   *Пример команды:*
   `docker compose --env-file .env -f docker/docker-compose.yml exec -T backend pytest <путь_к_тесту>`
 
