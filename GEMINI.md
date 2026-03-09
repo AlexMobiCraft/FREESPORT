@@ -1,44 +1,23 @@
-# Gemini Added Memories
+# Gemini Added Memories (Специфические правила для Gemini)
 
 - Отвечай и веди документацию исключительно на русском языке
+- См. общее руководство: [AGENTS.md](file:///c:/Users/tkachenko/DEV/FREESPORT/AGENTS.md)
 
-# Command Validation Rules
+# Command Validation Rules (Валидация команд)
 
-- **CRITICAL**: Before executing any terminal command via `run_command`, verify that the `CommandLine` parameter:
-  1. Starts with a valid command name (e.g., `docker`, `npm`, `python`, `git`) using only **Latin characters**
-  2. Contains **NO Cyrillic characters** (like `с`, `а`, `о`, `е` which look similar to Latin `c`, `a`, `o`, `e`)
-  3. Has **NO leading special characters or whitespace** before the command
-- **PowerShell Chaining**: В среде Windows PowerShell для объединения команд используй `;` вместо `&&`. (Например: `git add .; git commit -m "..."; git push`).
+Это правило специфично для LLM моделей, чтобы избежать ошибок при генерации команд:
 
-# Terminal & SSH Rules (Anti-Hang)
+- **CRITICAL**: Перед выполнением любой терминальной команды через `run_command`, убедись, что параметр `CommandLine`:
+  1. Начинается с валидного имени команды (например, `docker`, `npm`, `python`, `git`), используя только **латинские символы**.
+  2. НЕ содержит **кириллических символов** (таких как `с`, `а`, `о`, `е`, которые похожи на латинские `c`, `a`, `o`, `e`).
+  3. НЕ имеет ведущих специальных символов или пробелов перед командой.
 
-- **Execution from Subdirectories**: Чтобы избежать зависаний терминала из-за индексации Git/Oh-My-Posh в корне проекта, ВСЕГДА запускай команды из подпапки (например, `scripts/` или `backend/`). Git автоматически найдет корень проекта.
-- **SSH Authentication**: Используй только SSH-ключи через `ssh-agent`. Избегай интерактивных запросов пароля, так как они приводят к зависанию агента.
-- **Production Git Updates**: При обновлении кода на продакшен-сервере НИКОГДА не используй `git pull`. ВСЕГДА используй: `git fetch origin main; git reset --hard origin/main`, чтобы избежать конфликтов и ошибки `divergent branches`.
-- **Session Hygiene**: Если команды начинают выполняться медленно, используй опцию "Close Completely" при перезагрузке Antigravity, чтобы очистить зомби-процессы.
-- **Command Shell**: Для простых системных задач (echo, dir, move) используй `cmd /c` вместо PowerShell, так как он запускается быстрее.
+# Проектные правила и инструкции
 
-# Frontend Development Rules
+Для обеспечения корректной работы в данном проекте, следуй инструкциям в основном руководстве:
 
-- **CRITICAL**: After making changes to frontend code (`frontend/src/`), you **MUST** restart the Docker container before verifying the changes in browser:
-  ```bash
-  # Standard restart (for hot-reload issues)
-  docker compose --env-file .env -f docker/docker-compose.yml restart frontend
-  
-  # Full rebuild (when dependencies or config changed)
-  docker compose --env-file .env -f docker/docker-compose.yml up -d --build frontend
-  ```
-- This is required because the frontend runs in a Docker container and changes are not automatically reflected without restart.
-
-# Backend Development & Testing
-
-- **Testing via Docker**: ВСЕГДА запускай тесты бекенда внутри Docker-контейнера. Не пытайся использовать локальный `pytest` или `poetry run pytest`.
-  Пример команды:
-  `docker compose --env-file .env -f docker/docker-compose.yml exec -T backend pytest <путь_к_тесту>`
-
-# Project Reference
-
-Справочная информация о проекте (архитектура, стек, команды запуска и тесты) перенесена в отдельный файл:
-👉 `docs/PROJECT_INFO.md`
-
-Всегда обращайся к нему для понимания структуры проекта, но следуй правилам выше при выполнении команд.
+- [Работа в Windows и PowerShell](file:///c:/Users/tkachenko/DEV/FREESPORT/AGENTS.md#работа-в-среде-windows-и-terminal)
+- [Правила Terminal и SSH (защита от зависаний)](file:///c:/Users/tkachenko/DEV/FREESPORT/AGENTS.md#правила-работы-с-терминалом-и-ssh-защита-от-зависаний)
+- [Разработка Frontend (перезапуск Docker)](file:///c:/Users/tkachenko/DEV/FREESPORT/AGENTS.md#правила-разработки-frontend)
+- [Разработка и тестирование Backend](file:///c:/Users/tkachenko/DEV/FREESPORT/AGENTS.md#разработка-и-тестирование-backend)
+- [Проектная документация (Architecture, Stack)](file:///c:/Users/tkachenko/DEV/FREESPORT/AGENTS.md#справочная-информация)
