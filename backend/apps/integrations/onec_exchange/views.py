@@ -233,6 +233,10 @@ class ICExchangeView(APIView):
             return self.handle_file_upload(request)
         elif mode == "import":
             return self.handle_import(request)
+        elif mode == "query":
+            return self.handle_query(request)
+        elif mode == "success":
+            return self.handle_success(request)
         elif mode == "complete":
             return self.handle_complete(request)
         elif mode == "deactivate":
@@ -356,12 +360,13 @@ class ICExchangeView(APIView):
             if file_service.is_complete():
                 logger.info(f"New exchange cycle detected for {sessid}. Performing full cleanup.")
                 file_service.cleanup_session(force=True)
-                
+
                 # Also clean up the shared import directory to prevent loops with old XML segments
                 from .routing_service import FileRoutingService
+
                 routing_service = FileRoutingService(sessid)
                 routing_service.cleanup_import_dir(force=True)
-                
+
                 file_service.clear_complete()
             else:
                 logger.info(f"Continuing existing exchange cycle for {sessid}. Accumulating files.")
@@ -371,11 +376,15 @@ class ICExchangeView(APIView):
         exchange_cfg = getattr(settings, "ONEC_EXCHANGE", {})
         zip_support = exchange_cfg.get("ZIP_SUPPORT", True)
         file_limit = exchange_cfg.get("FILE_LIMIT_BYTES", 100 * 1024 * 1024)
-        version = exchange_cfg.get("COMMERCEML_VERSION", "3.1")
+
+        exchange_type = request.query_params.get("type", "")
+        if exchange_type == "sale":
+            version = "2.09"
+        else:
+            version = exchange_cfg.get("COMMERCEML_VERSION", "3.1")
 
         response_text = (
-            f"zip={'yes' if zip_support else 'no'}\nfile_limit={file_limit}\n"
-            f"sessid={sessid}\nversion={version}"
+            f"zip={'yes' if zip_support else 'no'}\nfile_limit={file_limit}\n" f"sessid={sessid}\nversion={version}\n"
         )
         return HttpResponse(response_text, content_type="text/plain; charset=utf-8")
 
@@ -401,7 +410,14 @@ class ICExchangeView(APIView):
             .prefetch_related("items__variant")
         )
 
-        service = OrderExportService()
+        exchange_type = request.query_params.get("type", "")
+        if exchange_type == "sale":
+            schema_ver = "2.09"
+        else:
+            exchange_cfg = getattr(settings, "ONEC_EXCHANGE", {})
+            schema_ver = str(exchange_cfg.get("COMMERCEML_VERSION", "3.1"))
+
+        service = OrderExportService(schema_version=schema_ver)
         use_zip = request.query_params.get("zip", "").lower() == "yes"
 
         import tempfile

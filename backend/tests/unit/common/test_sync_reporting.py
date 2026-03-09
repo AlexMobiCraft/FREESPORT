@@ -31,29 +31,32 @@ class TestSyncReportGenerator:
         """Фикстура для создания тестового пользователя"""
         return User.objects.create_user(
             email="test@example.com",
-            password="testpass123",
+            password="pass123",
         )
 
     @pytest.fixture
     def create_test_logs(self, test_user):
         """Создает тестовые логи для отчетов"""
-        today = timezone.now().date()
+        today = timezone.localdate()
 
         # Успешные операции
         for i in range(10):
-            CustomerSyncLog.objects.create(
+            log = CustomerSyncLog.objects.create(
                 operation_type=CustomerSyncLog.OperationType.IMPORT_FROM_1C,
                 status=CustomerSyncLog.StatusType.SUCCESS,
                 customer=test_user,
                 onec_id=f"1C_SUCCESS_{i}",
                 duration_ms=100 + i * 10,
                 correlation_id=uuid.uuid4(),
-                created_at=timezone.make_aware(timezone.datetime.combine(today, timezone.datetime.min.time())),
+            )
+            # Force created_at because of auto_now_add
+            CustomerSyncLog.objects.filter(id=log.id).update(
+                created_at=timezone.make_aware(timezone.datetime.combine(today, timezone.datetime.min.time()))
             )
 
         # Ошибочные операции
         for i in range(5):
-            CustomerSyncLog.objects.create(
+            log = CustomerSyncLog.objects.create(
                 operation_type=CustomerSyncLog.OperationType.EXPORT_TO_1C,
                 status=CustomerSyncLog.StatusType.ERROR,
                 customer=test_user,
@@ -61,12 +64,15 @@ class TestSyncReportGenerator:
                 duration_ms=50 + i * 5,
                 error_message="Connection failed",
                 correlation_id=uuid.uuid4(),
-                created_at=timezone.make_aware(timezone.datetime.combine(today, timezone.datetime.min.time())),
+            )
+            # Force created_at because of auto_now_add
+            CustomerSyncLog.objects.filter(id=log.id).update(
+                created_at=timezone.make_aware(timezone.datetime.combine(today, timezone.datetime.min.time()))
             )
 
     def test_generate_daily_summary_structure(self, generator, create_test_logs):
         """Тест структуры ежедневного отчета"""
-        today = timezone.now().date()
+        today = timezone.localdate()
         report = generator.generate_daily_summary(today)
 
         assert "date" in report
@@ -80,7 +86,7 @@ class TestSyncReportGenerator:
 
     def test_generate_daily_summary_counts(self, generator, create_test_logs):
         """Тест подсчетов в ежедневном отчете"""
-        today = timezone.now().date()
+        today = timezone.localdate()
         report = generator.generate_daily_summary(today)
 
         assert report["total_operations"] == 15  # 10 успешных + 5 ошибок
@@ -89,7 +95,7 @@ class TestSyncReportGenerator:
 
     def test_generate_daily_summary_no_data(self, generator):
         """Тест отчета при отсутствии данных"""
-        future_date = timezone.now().date() + timedelta(days=365)
+        future_date = timezone.localdate() + timedelta(days=365)
         report = generator.generate_daily_summary(future_date)
 
         assert report["total_operations"] == 0
@@ -98,7 +104,7 @@ class TestSyncReportGenerator:
 
     def test_generate_weekly_error_analysis_structure(self, generator, create_test_logs):
         """Тест структуры еженедельного анализа ошибок"""
-        start_date = timezone.now().date() - timedelta(days=7)
+        start_date = timezone.localdate() - timedelta(days=7)
         report = generator.generate_weekly_error_analysis(start_date)
 
         assert "period" in report
@@ -110,7 +116,7 @@ class TestSyncReportGenerator:
 
     def test_generate_weekly_error_analysis_counts(self, generator, create_test_logs):
         """Тест подсчетов в еженедельном анализе"""
-        today = timezone.now().date()
+        today = timezone.localdate()
         report = generator.generate_weekly_error_analysis(today)
 
         assert report["total_errors"] == 5
@@ -181,7 +187,7 @@ class TestSyncReportGenerator:
 
     def test_format_daily_report_text(self, generator, create_test_logs):
         """Тест форматирования текстового отчета"""
-        today = timezone.now().date()
+        today = timezone.localdate()
         report = generator.generate_daily_summary(today)
         text = generator._format_daily_report_text(report)
 
@@ -192,7 +198,7 @@ class TestSyncReportGenerator:
 
     def test_format_weekly_report_text(self, generator, create_test_logs):
         """Тест форматирования еженедельного текстового отчета"""
-        start_date = timezone.now().date()
+        start_date = timezone.localdate()
         report = generator.generate_weekly_error_analysis(start_date)
         text = generator._format_weekly_report_text(report)
 

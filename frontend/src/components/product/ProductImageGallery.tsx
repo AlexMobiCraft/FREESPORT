@@ -202,10 +202,11 @@ export default function ProductImageGallery({
             <button
               key={`${image.image}-${index}`}
               onClick={() => setSelectedImage(image)}
-              className={`aspect-square rounded-lg border overflow-hidden transition-all hover:border-primary-500 ${image.image === selectedImage.image
-                ? 'border-primary-500 border-2 ring-2 ring-primary-200'
-                : 'border-neutral-200'
-                }`}
+              className={`aspect-square rounded-lg border overflow-hidden transition-all hover:border-primary-500 ${
+                image.image === selectedImage.image
+                  ? 'border-primary-500 border-2 ring-2 ring-primary-200'
+                  : 'border-neutral-200'
+              }`}
               aria-label={`Показать изображение ${index + 1}`}
             >
               <div className="relative w-full h-full">
@@ -223,81 +224,83 @@ export default function ProductImageGallery({
       )}
 
       {/* Lightbox Modal */}
-      {isLightboxOpen && mounted && createPortal(
-        <div
-          className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center p-0"
-          onClick={closeLightbox}
-          onKeyDown={e => e.key === 'Escape' && closeLightbox()}
-          role="dialog"
-          aria-modal="true"
-          tabIndex={-1}
-        >
-          {/* Main Image Viewport */}
+      {isLightboxOpen &&
+        mounted &&
+        createPortal(
           <div
-            className="relative max-w-6xl max-h-[90vh] w-full h-full flex items-center justify-center p-4 cursor-default"
-            onClick={e => e.stopPropagation()}
-            onKeyDown={e => e.stopPropagation()}
-            role="presentation"
-          >
-            <Image
-              src={selectedImage.image}
-              alt={selectedImage.alt_text || productName}
-              fill
-              sizes="90vw"
-              className="object-contain"
-              priority
-            />
-          </div>
-
-          {/* Controls - Rendered after image for proper z-index layering */}
-
-          {/* Close button */}
-          <button
+            className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center p-0"
             onClick={closeLightbox}
-            className="absolute top-6 right-6 p-2 bg-black/40 hover:bg-black/60 text-white rounded-full backdrop-blur-md transition-all z-[110] group border border-white/20"
-            aria-label="Закрыть"
+            onKeyDown={e => e.key === 'Escape' && closeLightbox()}
+            role="dialog"
+            aria-modal="true"
+            tabIndex={-1}
           >
-            <X className="w-8 h-8 group-hover:scale-110 transition-transform" />
-          </button>
-
-          {/* Previous button */}
-          {galleryImages.length > 1 && (
-            <button
-              onClick={e => {
-                e.stopPropagation();
-                navigateImage('prev');
-              }}
-              className="absolute left-6 top-1/2 -translate-y-1/2 p-3 bg-black/40 hover:bg-black/60 text-white rounded-full backdrop-blur-md transition-all z-[110] group border border-white/20"
-              aria-label="Предыдущее изображение"
+            {/* Main Image Viewport */}
+            <div
+              className="relative max-w-6xl max-h-[90vh] w-full h-full flex items-center justify-center p-4 cursor-default"
+              onClick={e => e.stopPropagation()}
+              onKeyDown={e => e.stopPropagation()}
+              role="presentation"
             >
-              <ChevronLeft className="w-8 h-8 group-hover:-translate-x-1 transition-transform" />
-            </button>
-          )}
-
-          {/* Next button */}
-          {galleryImages.length > 1 && (
-            <button
-              onClick={e => {
-                e.stopPropagation();
-                navigateImage('next');
-              }}
-              className="absolute right-6 top-1/2 -translate-y-1/2 p-3 bg-black/40 hover:bg-black/60 text-white rounded-full backdrop-blur-md transition-all z-[110] group border border-white/20"
-              aria-label="Следующее изображение"
-            >
-              <ChevronRight className="w-8 h-8 group-hover:translate-x-1 transition-transform" />
-            </button>
-          )}
-
-          {/* Image counter */}
-          {galleryImages.length > 1 && (
-            <div className="absolute bottom-8 left-1/2 -translate-x-1/2 bg-black/40 backdrop-blur-md text-white px-6 py-2 rounded-full text-sm font-medium border border-white/10 z-[110]">
-              {galleryImages.findIndex(img => img.image === selectedImage.image) + 1} /{' '}
-              {galleryImages.length}
+              <Image
+                src={selectedImage.image}
+                alt={selectedImage.alt_text || productName}
+                fill
+                sizes="90vw"
+                className="object-contain"
+                priority
+              />
             </div>
-          )}
-        </div>,
-        document.body
-      )}
+
+            {/* Controls - Rendered after image for proper z-index layering */}
+
+            {/* Close button */}
+            <button
+              onClick={closeLightbox}
+              className="absolute top-6 right-6 p-2 bg-black/40 hover:bg-black/60 text-white rounded-full backdrop-blur-md transition-all z-[110] group border border-white/20"
+              aria-label="Закрыть"
+            >
+              <X className="w-8 h-8 group-hover:scale-110 transition-transform" />
+            </button>
+
+            {/* Previous button */}
+            {galleryImages.length > 1 && (
+              <button
+                onClick={e => {
+                  e.stopPropagation();
+                  navigateImage('prev');
+                }}
+                className="absolute left-6 top-1/2 -translate-y-1/2 p-3 bg-black/40 hover:bg-black/60 text-white rounded-full backdrop-blur-md transition-all z-[110] group border border-white/20"
+                aria-label="Предыдущее изображение"
+              >
+                <ChevronLeft className="w-8 h-8 group-hover:-translate-x-1 transition-transform" />
+              </button>
+            )}
+
+            {/* Next button */}
+            {galleryImages.length > 1 && (
+              <button
+                onClick={e => {
+                  e.stopPropagation();
+                  navigateImage('next');
+                }}
+                className="absolute right-6 top-1/2 -translate-y-1/2 p-3 bg-black/40 hover:bg-black/60 text-white rounded-full backdrop-blur-md transition-all z-[110] group border border-white/20"
+                aria-label="Следующее изображение"
+              >
+                <ChevronRight className="w-8 h-8 group-hover:translate-x-1 transition-transform" />
+              </button>
+            )}
+
+            {/* Image counter */}
+            {galleryImages.length > 1 && (
+              <div className="absolute bottom-8 left-1/2 -translate-x-1/2 bg-black/40 backdrop-blur-md text-white px-6 py-2 rounded-full text-sm font-medium border border-white/10 z-[110]">
+                {galleryImages.findIndex(img => img.image === selectedImage.image) + 1} /{' '}
+                {galleryImages.length}
+              </div>
+            )}
+          </div>,
+          document.body
+        )}
     </>
   );
 }

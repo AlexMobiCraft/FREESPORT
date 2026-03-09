@@ -246,10 +246,11 @@ export const ElectricHeroSection = () => {
               <button
                 key={index}
                 onClick={() => setCurrentIndex(index)}
-                className={`h-2 transition-all duration-300 ${index === currentIndex
+                className={`h-2 transition-all duration-300 ${
+                  index === currentIndex
                     ? 'w-8 bg-[var(--color-primary)]'
                     : 'w-2 bg-[var(--color-text-secondary)]/50 hover:bg-[var(--color-text-secondary)]'
-                  }`}
+                }`}
                 style={{ transform: 'skewX(-12deg)' }}
                 aria-label={`Go to banner ${index + 1}`}
               />

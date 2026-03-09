@@ -268,6 +268,10 @@ DATA_UPLOAD_MAX_NUMBER_FIELDS = 5000
 # Поддерживает переменную окружения ONEC_DATA_DIR
 ONEC_DATA_DIR = os.environ.get("ONEC_DATA_DIR", str(BASE_DIR / "data" / "import_1c"))
 
+# Имя корневой категории 1С для фильтрации при импорте
+# Подкатегории этой категории импортируются как корневые на сайте
+ROOT_CATEGORY_NAME = os.environ.get("ROOT_CATEGORY_NAME", "СПОРТ")
+
 if sys.version_info >= (3, 8):
     from typing import TypedDict
 

@@ -22,6 +22,7 @@ class BannerSerializer(serializers.ModelSerializer):
     """
 
     image_url = serializers.SerializerMethodField()
+    mobile_image_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Banner
@@ -31,6 +32,7 @@ class BannerSerializer(serializers.ModelSerializer):
             "title",
             "subtitle",
             "image_url",
+            "mobile_image_url",
             "image_alt",
             "cta_text",
             "cta_link",
@@ -41,6 +43,7 @@ class BannerSerializer(serializers.ModelSerializer):
             "title",
             "subtitle",
             "image_url",
+            "mobile_image_url",
             "image_alt",
             "cta_text",
             "cta_link",
@@ -61,4 +64,18 @@ class BannerSerializer(serializers.ModelSerializer):
         """
         if obj.image:
             return cast(str, obj.image.url)  # Returns /media/banners/...
+        return ""
+
+    def get_mobile_image_url(self, obj: Banner) -> str:
+        """
+        Получить URL мобильного изображения баннера
+
+        Args:
+            obj: Объект баннера
+
+        Returns:
+            Относительный URL мобильного изображения или пустая строка
+        """
+        if obj.mobile_image:
+            return cast(str, obj.mobile_image.url)
         return ""

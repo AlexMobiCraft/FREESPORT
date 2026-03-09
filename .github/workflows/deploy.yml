@@ -3,6 +3,11 @@ name: Deploy to Server
 on:
   workflow_dispatch:
     inputs:
+      environment:
+        description: 'Окружение для деплоя'
+        required: false
+        default: 'production'
+        type: string
       skip_tests:
         description: 'Пропустить тесты (только для hotfix)'
         required: false
@@ -19,12 +24,14 @@ jobs:
   setup:
     runs-on: ubuntu-latest
     outputs:
-      environment: production
-      should_deploy: true
+      environment: ${{ steps.set-env.outputs.environment }}
+      should_deploy: ${{ steps.set-env.outputs.should_deploy }}
     steps:
-      - name: Выбор production окружения
+      - name: Определение окружения
+        id: set-env
         run: |
-          echo "environment=production" >> $GITHUB_OUTPUT
+          ENV_NAME="${{ github.event.inputs.environment || 'production' }}"
+          echo "environment=$ENV_NAME" >> $GITHUB_OUTPUT
           echo "should_deploy=true" >> $GITHUB_OUTPUT
 
   # Тестирование перед деплоем

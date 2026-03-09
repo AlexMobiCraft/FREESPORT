@@ -194,12 +194,12 @@ class FileRoutingService:
         """
         Cleans up the shared import directory.
 
-        As the import directory is shared across sessions, 1C can create segmented 
-        XML files that accumulate. This method ensures old segments are cleared before 
+        As the import directory is shared across sessions, 1C can create segmented
+        XML files that accumulate. This method ensures old segments are cleared before
         a new exchange cycle begins.
 
         Args:
-            force: If True, completely deletes all files and directories 
+            force: If True, completely deletes all files and directories
                    except `.dry_run` flag.
 
         Returns:
@@ -212,7 +212,7 @@ class FileRoutingService:
         for item in self.import_dir.iterdir():
             if item.name == ".dry_run":
                 continue
-            
+
             try:
                 if item.is_file():
                     item.unlink()

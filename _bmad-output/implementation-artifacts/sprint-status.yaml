@@ -112,7 +112,7 @@ development_status:
   # NFRs covered: NFR-1 to NFR-8.
   # Source: epics.md (Brands Block Feature)
   # ========================================
-  epic-33: in-progress
+  epic-33: done
   33-1-brand-model-admin-updates: done
   33-2-api-featured-brands-endpoint: done
   33-3-brandsblock-component-logic-ui: done

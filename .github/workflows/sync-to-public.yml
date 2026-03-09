@@ -24,31 +24,44 @@ jobs:
           
           # 2. Удаление секретных файлов и локальных конфигов
           rm -f .env .env.prod .mcp.json FREESPORT.code-workspace project-context.md codebase.xml
-          rm -f AGENTS.md GEMINI.md CLAUDE.md .kilocodemodes 
+          rm -f AGENTS.md GEMINI.md CLAUDE.md .kilocodemodes pytest.ini pyrightconfig.json 
           
           # 3. Удаление тяжелых данных и архивов 1С
           rm -rf data/import_1c/ data/import_1c.zip
           rm -f import_1c.tar.gz import_data_xml_only.zip
           
           # 4. Удаление временных файлов и логов
-          rm -rf logs/ .pytest_cache/ .husky/ .pytype/ backend/Dockerfile.test backend/Dockerfile.prod 
+          rm -rf logs/ .pytest_cache/ .husky/ .pytype/ backend/Dockerfile.test backend/Dockerfile.prod mypy_output.txt 
+          rm -rf  .roomodes/ .web-bundles/ .kilocode/ .agent/ .agents/ .agentvibes/ .windsurf/  
           
-          # 5. Очистка документации от черновиков (опционально)
-          rm -f docs/Отчет_для_заказчика.md
-          rm -rf docs/archive/  # Мы сохранили старый README туда, в паблике он не нужен
-          rm -rf frontend/docs/
-
+          # 5. Удаление тестовых и отладочных Docker-конфигураций (часто вызывают ложные срабатывания Secret Scanning)
+          rm -f backend/Dockerfile.test backend/Dockerfile.dev frontend/Dockerfile.dev
+          rm -f docker/docker-compose-temp.yml
+          
           # 6. Удаление скриптов
           rm -rf scripts/
+
+          # 7. Очистка документации от черновиков, внутренних логов и системных гайдов
+          # Удаляем папки, которые не нужны в публичном портфолио
+          rm -rf docs/archive/ docs/ci-cd/ docs/frontend/ docs/decisions/ docs/deploy/
+          rm -rf docs/architecture/ai-implementation/
+          rm -rf frontend/docs/
+          
+          # Удаляем специфические файлы
+          rm -f docs/project-scan-report.json docs/technical-debt.md docs/testing-docker.md
+          rm -f docs/development-guide.md docs/component-inventory-frontend.md
+          rm -f docs/.wds-project-outline.yaml docs/Отчет_для_заказчика.md
+          
+          # 8. Удаление самих workflow файлов для публичного репозитория
+          # Это решает проблему отсутствия прав 'workflow' у PAT и скрывает внутренние CI процессы
+          rm -rf .github/workflows/ 
           
           echo "Cleanup finished."
 
       - name: Push to Public Repository
         env:
-          # В настройках приватного репозитория (Settings -> Secrets -> Actions)
-          # создайте секрет PUBLIC_REPO_TOKEN с вашим Personal Access Token (PAT)
-          GITHUB_TOKEN: ${{ secrets.PUBLIC_REPO_TOKEN }}
-          # Замените на URL вашего публичного репозитория
+          # Используем кастомное имя переменной, чтобы избежать конфликта с системным GITHUB_TOKEN
+          SYNC_TOKEN: ${{ secrets.PUBLIC_REPO_TOKEN }}
           PUBLIC_REPO_URL: "github.com/AlexMobiCraft/FREESPORT-B2B.git"
         run: |
           # Создаем временную директорию для формирования чистого коммита
@@ -56,16 +69,24 @@ jobs:
           cp -ra . ../public_sync/
           cd ../public_sync
           
-          # Инициализируем новый репозиторий с чистого листа (без истории приватных коммитов)
-          git init
+          # УДАЛЯЕМ ПАПКУ .git приватного репозитория, чтобы не переносить историю коммитов!
+          # Это предотвратит срабатывание Secret Scanning на старые коммиты.
+          rm -rf .git
+          
+          # Инициализируем абсолютно новый чистый репозиторий с веткой main
+          git init -b main
           git config user.name "Freesport Sync Bot"
           git config user.email "bot@freesport.ru"
           
           git add .
           git commit -m "chore: public release $(date +'%Y-%m-%d %H:%M')"
           
-          # Принудительная отправка в ветку main публичного репозитория
-          git remote add public https://x-access-token:${GITHUB_TOKEN}@${PUBLIC_REPO_URL}
+          # Явно передаем токен в URL.
+          git remote add public "https://x-access-token:${SYNC_TOKEN}@${PUBLIC_REPO_URL}"
+          
+          # Отключаем использование учетных данных от actions/checkout
+          git config --local http.https://github.com/.extraheader ""
+          
           git push public main --force
           
           echo "Successfully synced to public repository!"

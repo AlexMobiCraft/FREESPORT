@@ -18,6 +18,7 @@ from decimal import Decimal
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Sequence, TypedDict
 
+from django.conf import settings
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.db import models, transaction
@@ -296,6 +297,13 @@ class VariantImportProcessor:
         self._missing_products_logged: set[str] = set()
         self._missing_variants_logged: set[str] = set()
 
+        # Фильтрация категорий (заполняется в process_categories)
+        self._category_filtering_active: bool = False
+        self._allowed_category_ids: set[str] = set()
+
+        # Коллекция всех валидных категорий для деактивации устаревших
+        self._valid_category_onec_ids: set[str] = set()
+
     # ========================================================================
     # Helper methods
     # ========================================================================
@@ -485,6 +493,12 @@ class VariantImportProcessor:
 
         # Получаем категорию
         category = self._get_or_create_category(goods_data)
+
+        if category is None:
+            # Категория отфильтрована — пропускаем товар
+            self.stats["skipped"] += 1
+            logger.debug(f"Product {parent_id} skipped: category filtered out")
+            return None
 
         # Получаем бренд
         brand = self._determine_brand(brand_id, str(parent_id))
@@ -1214,17 +1228,25 @@ class VariantImportProcessor:
         return brand
 
     def _get_or_create_category(self, goods_data: dict[str, Any]) -> Any:
-        """Получает или создаёт категорию"""
+        """Получает или создаёт категорию.
+
+        При активной фильтрации (self._category_filtering_active) не создаёт
+        placeholder для категорий вне allowed_ids — возвращает None.
+        """
         from apps.products.models import Category
 
         category_id = goods_data.get("category_id")
 
         if category_id:
+            # Фильтрация: если категория не в allowed — не создаём и не ищем
+            if self._category_filtering_active and category_id not in self._allowed_category_ids:
+                return None
+
             category = Category.objects.filter(onec_id=category_id).first()
             if category:
                 return category
 
-            # Создаём placeholder категорию
+            # Создаём placeholder категорию (только для allowed)
             category_name = goods_data.get("category_name", f"Категория {category_id}")
             slug = slugify(category_name) or f"category-{uuid.uuid4().hex[:8]}"
 
@@ -1243,6 +1265,10 @@ class VariantImportProcessor:
             return category
 
         # Fallback категория
+        # Если включена строгая фильтрация категорий, игнорируем товары без категории
+        if self._category_filtering_active:
+            return None
+
         category, _ = Category.objects.get_or_create(
             slug="uncategorized",
             defaults={"name": "Без категории", "is_active": True},
@@ -1345,16 +1371,22 @@ class VariantImportProcessor:
         1. Создаём все категории без родительских связей
         2. Устанавливаем родительские связи с валидацией циклов
 
+        Фильтрация корневых категорий:
+        - Если ROOT_CATEGORY_NAME задан: импортируются только подкатегории якорной
+        - Если не задан (None): импортируются все категории (обратная совместимость)
+        - Если задан но не найден: logger.error + fallback на полный импорт
+
         Args:
             categories_data: Список данных категорий с полями
                              id, name, description, parent_id
 
         Returns:
-            dict с количеством created, updated, errors, cycles_detected
+            dict с количеством created, updated, errors, cycles_detected,
+            и опционально root_not_found
         """
         from apps.products.models import Category
 
-        result = {
+        result: dict[str, int | bool] = {
             "created": 0,
             "updated": 0,
             "errors": 0,
@@ -1362,7 +1394,101 @@ class VariantImportProcessor:
         }
         category_map: dict[str, Category] = {}
 
-        # ШАГ 1: Создаём/обновляем все категории без parent
+        # ======================================================================
+        # Фильтрация корневых категорий по ROOT_CATEGORY_NAME
+        # ======================================================================
+        root_category_name = getattr(settings, "ROOT_CATEGORY_NAME", None)
+        filtering_active = False
+        root_ids: set[str] = set()
+        allowed_ids: set[str] = set()
+        anchor_id: str | None = None
+
+        if root_category_name:
+            # Определяем root_ids — ID категорий без parent_id (корневые)
+            for cat in categories_data:
+                if not cat.get("parent_id"):
+                    cat_id = cat.get("id")
+                    if cat_id:
+                        root_ids.add(cat_id)
+
+            # 1. Ищем якорную среди корневых
+            for cat in categories_data:
+                cat_id = cat.get("id")
+                if cat_id in root_ids and cat.get("name") == root_category_name:
+                    anchor_id = cat_id
+                    break
+
+            # 2. Ищем якорную в базе, если не нашли в XML (случай инкрементального обновления)
+            if not anchor_id:
+                anchor_cat = Category.objects.filter(name=root_category_name, parent__isnull=True).first()
+                if anchor_cat:
+                    anchor_id = anchor_cat.onec_id
+
+            if anchor_id:
+                filtering_active = True
+                self._category_filtering_active = True
+                # Не добавляем anchor_id в allowed_category_ids т.к. якорь не создается на сайте
+
+                # Загружаем существующие категории из БД для построения дерева разрешенных
+                db_categories = list(
+                    Category.objects.exclude(onec_id__isnull=True)
+                    .exclude(onec_id="")
+                    .values("onec_id", "parent__onec_id")
+                )
+                db_parent_map = {c["onec_id"]: c["parent__onec_id"] for c in db_categories if c["onec_id"]}
+
+                # Инициализация Seed: прямые потомки якорной из БД
+                for db_cat in db_categories:
+                    if db_cat["parent__onec_id"] == anchor_id and db_cat["onec_id"]:
+                        self._allowed_category_ids.add(db_cat["onec_id"])
+
+                # Инициализация Seed: прямые потомки якорной из XML
+                for cat in categories_data:
+                    if cat.get("parent_id") == anchor_id:
+                        cat_id = cat.get("id")
+                        if cat_id:
+                            self._allowed_category_ids.add(cat_id)
+
+                # Expand из БД (если часть дерева уже импортирована)
+                changed = True
+                while changed:
+                    changed = False
+                    for cat_id, pid in db_parent_map.items():
+                        if pid in self._allowed_category_ids and cat_id not in self._allowed_category_ids:
+                            self._allowed_category_ids.add(cat_id)
+                            changed = True
+
+                # Expand из текущего XML
+                changed = True
+                while changed:
+                    changed = False
+                    for cat in categories_data:
+                        pid = cat.get("parent_id")
+                        cat_id = cat.get("id")
+                        if (
+                            pid
+                            and pid in self._allowed_category_ids
+                            and cat_id
+                            and cat_id not in self._allowed_category_ids
+                        ):
+                            self._allowed_category_ids.add(cat_id)
+                            changed = True
+
+                logger.info(
+                    f"Category filtering active: anchor='{root_category_name}' "
+                    f"(id={anchor_id}), total_allowed={len(self._allowed_category_ids)}, "
+                    f"root_ids={len(root_ids)}"
+                )
+            else:
+                # ROOT_CATEGORY_NAME задан но не найден ни в XML, ни в БД
+                logger.error(
+                    f"ROOT_CATEGORY_NAME='{root_category_name}' не найден ни в XML, "
+                    f"ни в БД. Импорт категорий из этого файла отменен."
+                )
+                result["root_not_found"] = True
+                return result
+
+        # ШАГ 1: Создаём/обновляем категории без parent
         for i, category_data in enumerate(categories_data):
             try:
                 onec_id = category_data.get("id")
@@ -1372,6 +1498,13 @@ class VariantImportProcessor:
                 if not onec_id or not name:
                     result["errors"] += 1
                     continue
+
+                # Фильтрация: пропускаем все корневые и не-allowed
+                if filtering_active:
+                    if onec_id in root_ids:
+                        continue  # Пропускаем все корневые (в т.ч. якорь)
+                    if onec_id not in self._allowed_category_ids:
+                        continue  # Пропускаем не-allowed (потомки других корневых)
 
                 if (i + 1) % 50 == 0:
                     self.log_progress(f"Обработка категорий: {i + 1}...")
@@ -1386,6 +1519,7 @@ class VariantImportProcessor:
                 )
 
                 category_map[onec_id] = category
+                self._valid_category_onec_ids.add(onec_id)
 
                 if created:
                     result["created"] += 1
@@ -1406,10 +1540,17 @@ class VariantImportProcessor:
                     continue  # Корневая категория или ошибка
 
                 child_category: Category | None = category_map.get(onec_id)
-                parent: Category | None = category_map.get(parent_id)
 
                 if not child_category:
                     continue
+
+                # Фильтрация parent при активной фильтрации
+                if filtering_active:
+                    if parent_id in root_ids and parent_id != anchor_id:
+                        # Parent = другая корневая → пропускаем
+                        continue
+
+                parent: Category | None = category_map.get(parent_id)
 
                 if not parent:
                     continue
@@ -1420,7 +1561,11 @@ class VariantImportProcessor:
                     continue
 
                 # Устанавливаем parent
-                child_category.parent = parent
+                if filtering_active and parent_id == anchor_id:
+                    # Если родитель — якорная, делаем корневой (на сайте)
+                    child_category.parent = None
+                else:
+                    child_category.parent = parent
                 child_category.save(update_fields=["parent"])
 
             except Exception:
@@ -1430,8 +1575,24 @@ class VariantImportProcessor:
             f"Categories processed: {result['created']} created, "
             f"{result['updated']} updated, {result['errors']} errors, "
             f"{result['cycles_detected']} cycles detected"
+            + (f", filtering={'active' if filtering_active else 'inactive'}" "")
         )
         return result
+
+    def deactivate_obsolete_categories(self) -> None:
+        """Деактивация устаревших категорий после обработки всех XML файлов"""
+        if not self._valid_category_onec_ids:
+            return
+
+        from apps.products.models import Category
+
+        obsolete_categories_updated = (
+            Category.objects.filter(onec_id__isnull=False)
+            .exclude(onec_id__in=self._valid_category_onec_ids)
+            .update(is_active=False)
+        )
+
+        logger.info(f"Deactivated {obsolete_categories_updated} obsolete categories.")
 
     def _has_circular_reference(
         self,
@@ -1531,6 +1692,13 @@ class VariantImportProcessor:
                 # Ищем существующий бренд по normalized_name
                 existing_brand = Brand.objects.filter(normalized_name=normalized).first()
 
+                # Добавляем fallback-поиск бренда по name__iexact
+                if not existing_brand:
+                    existing_brand = Brand.objects.filter(name__iexact=onec_name).first()
+                    if existing_brand:
+                        self.stats["brand_fallbacks"] += 1
+                        logger.info(f"Brand found via fallback: {onec_name}")
+
                 if existing_brand:
                     # Бренд существует - создаём только маппинг (объединение дубликатов)
                     Brand1CMapping.objects.create(
@@ -1614,6 +1782,14 @@ class VariantImportProcessor:
             f"{result['mappings_created']} mappings created, "
             f"{result['mappings_updated']} mappings updated"
         )
+
+        # Инвалидация кэша избранных брендов
+        from django.core.cache import cache
+        from apps.products.constants import FEATURED_BRANDS_CACHE_KEY
+
+        cache.delete(FEATURED_BRANDS_CACHE_KEY)
+        logger.info("Invalidated featured brands cache after import.")
+
         return result
 
     def log_progress(self, message: str) -> None:
@@ -1640,6 +1816,13 @@ class VariantImportProcessor:
     def finalize_session(self, status: str, error_message: str = "") -> None:
         """Завершение сессии импорта"""
         from apps.products.models import ImportSession
+
+        # Перед финальным сохранением статуса применяем деактивацию
+        if status == ImportSession.ImportStatus.COMPLETED or status == "completed":
+            try:
+                self.deactivate_obsolete_categories()
+            except Exception as e:
+                logger.error(f"Error during deactivate_obsolete_categories: {e}")
 
         try:
             session = ImportSession.objects.get(id=self.session_id)

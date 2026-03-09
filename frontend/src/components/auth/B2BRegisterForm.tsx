@@ -135,7 +135,9 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
               />
             </svg>
             <div>
-              <h3 className="text-lg font-semibold text-text-primary mb-2">Заявка на рассмотрении</h3>
+              <h3 className="text-lg font-semibold text-text-primary mb-2">
+                Заявка на рассмотрении
+              </h3>
               <p className="text-body-m text-text-primary mb-3">
                 Ваша заявка на регистрацию в качестве бизнес-партнера успешно отправлена.
               </p>
@@ -174,7 +176,9 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
 
       {/* AC 3: Информационная панель о B2B регистрации */}
       <div className="p-4 rounded-md bg-primary-subtle border border-primary/20 mb-6">
-        <p className="text-body-s text-text-primary font-medium">📊 Регистрация для бизнес-партнеров</p>
+        <p className="text-body-s text-text-primary font-medium">
+          📊 Регистрация для бизнес-партнеров
+        </p>
         <p className="text-body-xs text-text-secondary mt-1">
           После проверки реквизитов вы получите доступ к оптовым ценам
         </p>

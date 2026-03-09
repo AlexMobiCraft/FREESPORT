@@ -626,6 +626,7 @@ class TestVariantImportProcessor(TransactionTestCase):
 class TestIntegrationVerification(TestCase):
     """Тесты Integration Verification (IV1, IV2, IV3)"""
 
+    @override_settings(ROOT_CATEGORY_NAME=None)
     def test_iv1_brands_categories_unchanged(self):
         """IV1: Импорт брендов и категорий работает без изменений
 
