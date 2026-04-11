@@ -188,6 +188,7 @@ dmypy.json
 #Проверить-.txt
 
 # Обменные файлы
+.\backend\data\import_1c
 .\data\import_1c
 data/import_1c/
 backend/celerybeat-schedule.dat
