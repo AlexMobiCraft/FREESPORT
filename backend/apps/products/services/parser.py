@@ -43,6 +43,7 @@ class OfferData(TypedDict, total=False):
     name: str
     article: str
     characteristics: list[OfferCharacteristic]
+    images: list[str]
 
 
 class PriceItem(TypedDict):

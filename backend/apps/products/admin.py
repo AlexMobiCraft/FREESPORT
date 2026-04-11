@@ -270,6 +270,7 @@ class HasIconFilter(SimpleListFilter):
             return queryset.exclude(icon="")
         if self.value() == "no":
             return queryset.filter(icon="")
+        return None
 
 
 class HasImageFilter(SimpleListFilter):
@@ -284,6 +285,7 @@ class HasImageFilter(SimpleListFilter):
             return queryset.exclude(image="")
         if self.value() == "no":
             return queryset.filter(image="")
+        return None
 
 
 class IsOnHomepageFilter(SimpleListFilter):
@@ -298,6 +300,7 @@ class IsOnHomepageFilter(SimpleListFilter):
             return queryset.filter(sort_order__gt=0)
         if self.value() == "no":
             return queryset.filter(sort_order=0)
+        return None
 
 
 @admin.register(Category)

@@ -203,9 +203,7 @@ def process_1c_import_task(
         # Определяем тип импорта: контрагенты или товарный каталог
         contragents_dir = target_import_dir / "contragents" if target_import_dir.exists() else None
         has_contragents = bool(
-            contragents_dir
-            and contragents_dir.exists()
-            and list(contragents_dir.glob("contragents*.xml"))
+            contragents_dir and contragents_dir.exists() and list(contragents_dir.glob("contragents*.xml"))
         )
 
         if has_contragents:
@@ -245,9 +243,12 @@ def process_1c_import_task(
         try:
             from apps.integrations.onec_exchange.routing_service import FileRoutingService
 
-            routing_service = FileRoutingService(session.session_key)
-            cleaned = routing_service.cleanup_import_dir()
-            logger.info(f"Post-import cleanup removed {cleaned} items from import directory.")
+            if session.session_key:
+                routing_service = FileRoutingService(str(session.session_key))
+                cleaned = routing_service.cleanup_import_dir()
+                logger.info(f"Post-import cleanup removed {cleaned} items from import directory.")
+            else:
+                logger.warning("Session key is missing, skipping cleanup.")
         except Exception as cleanup_err:
             logger.warning(f"Failed post-import cleanup: {cleanup_err}")
 
