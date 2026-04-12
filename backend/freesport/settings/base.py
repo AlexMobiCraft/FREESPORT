@@ -297,6 +297,7 @@ ONEC_EXCHANGE = {
         "STATUS": "Не согласован",
         "ORGANIZATION": "ФРИСПОРТ ООО",
         "AGREEMENT": "Стандартное",
+        "WAREHOUSE": "2 ТЛВ склад",
     },
 }
 

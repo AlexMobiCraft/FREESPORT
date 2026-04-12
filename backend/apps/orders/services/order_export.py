@@ -177,6 +177,7 @@ class OrderExportService:
         self._add_requisite(doc_props, "Статус заказа", order_defaults["STATUS"])
         self._add_requisite(doc_props, "Организация", order_defaults["ORGANIZATION"])
         self._add_requisite(doc_props, "Соглашение", order_defaults["AGREEMENT"])
+        self._add_requisite(doc_props, "Склад", order_defaults["WAREHOUSE"])
 
         self._add_requisite(doc_props, "Отменен", "false")
         self._add_requisite(doc_props, "Проведен", "false")
@@ -333,6 +334,7 @@ class OrderExportService:
             "STATUS": defaults.get("STATUS", "Не согласован"),
             "ORGANIZATION": defaults.get("ORGANIZATION", ""),
             "AGREEMENT": defaults.get("AGREEMENT", ""),
+            "WAREHOUSE": defaults.get("WAREHOUSE", ""),
         }
 
     def _add_requisite(self, parent: ET.Element, name: str, value: str) -> None:
