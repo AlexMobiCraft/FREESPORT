@@ -291,6 +291,13 @@ ONEC_EXCHANGE = {
     "COMMERCEML_VERSION": "3.1",  # CommerceML protocol version
     "TEMP_DIR": MEDIA_ROOT / "1c_temp",  # Temporary directory for chunked uploads
     "IMPORT_DIR": MEDIA_ROOT / "1c_import",  # Story 2.2: Directory for routed import files
+    # Реквизиты заказа для УТ 11 (передаются в XML как ЗначенияРеквизитов)
+    "ORDER_DEFAULTS": {
+        "OPERATION": "Реализация",
+        "STATUS": "Не согласован",
+        "ORGANIZATION": "ФРИСПОРТ ООО",
+        "AGREEMENT": "Стандартное",
+    },
 }
 
 # Тип первичного ключа по умолчанию

@@ -167,23 +167,20 @@ class OrderExportService:
         products = self._create_products_element(order)
         document.append(products)
 
-        # Значения реквизитов документа
+        # Значения реквизитов документа (обязательные для УТ 11)
         doc_props = ET.Element("ЗначенияРеквизитов")
 
-        doc_prop1 = ET.Element("ЗначениеРеквизита")
-        self._add_text_element(doc_prop1, "Наименование", "Статус заказа")
-        self._add_text_element(doc_prop1, "Значение", "Новый")
-        doc_props.append(doc_prop1)
+        order_defaults = self._get_order_defaults()
 
-        doc_prop2 = ET.Element("ЗначениеРеквизита")
-        self._add_text_element(doc_prop2, "Наименование", "Отменен")
-        self._add_text_element(doc_prop2, "Значение", "false")
-        doc_props.append(doc_prop2)
+        # Обязательные реквизиты УТ 11
+        self._add_requisite(doc_props, "Операция", order_defaults["OPERATION"])
+        self._add_requisite(doc_props, "Статус заказа", order_defaults["STATUS"])
+        self._add_requisite(doc_props, "Организация", order_defaults["ORGANIZATION"])
+        self._add_requisite(doc_props, "Соглашение", order_defaults["AGREEMENT"])
 
-        doc_prop3 = ET.Element("ЗначениеРеквизита")
-        self._add_text_element(doc_prop3, "Наименование", "Сайт")
-        self._add_text_element(doc_prop3, "Значение", "freesport.ru")
-        doc_props.append(doc_prop3)
+        self._add_requisite(doc_props, "Отменен", "false")
+        self._add_requisite(doc_props, "Проведен", "false")
+        self._add_requisite(doc_props, "Сайт", "freesport.ru")
 
         document.append(doc_props)
 
@@ -326,6 +323,24 @@ class OrderExportService:
             products.append(product)
 
         return products
+
+    def _get_order_defaults(self) -> dict:
+        """Read order default requisites from settings.ONEC_EXCHANGE.ORDER_DEFAULTS."""
+        exchange_cfg = getattr(settings, "ONEC_EXCHANGE", {})
+        defaults = exchange_cfg.get("ORDER_DEFAULTS", {})
+        return {
+            "OPERATION": defaults.get("OPERATION", "Реализация"),
+            "STATUS": defaults.get("STATUS", "Не согласован"),
+            "ORGANIZATION": defaults.get("ORGANIZATION", ""),
+            "AGREEMENT": defaults.get("AGREEMENT", ""),
+        }
+
+    def _add_requisite(self, parent: ET.Element, name: str, value: str) -> None:
+        """Добавление элемента ЗначениеРеквизита."""
+        prop = ET.Element("ЗначениеРеквизита")
+        self._add_text_element(prop, "Наименование", name)
+        self._add_text_element(prop, "Значение", value)
+        parent.append(prop)
 
     def _add_text_element(self, parent: ET.Element, tag: str, text: str) -> ET.Element:
         """Добавление текстового элемента к родителю."""
