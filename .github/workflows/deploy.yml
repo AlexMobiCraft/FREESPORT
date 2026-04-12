@@ -139,6 +139,7 @@ jobs:
     needs: [setup, test]
     if: always() && needs.setup.outputs.should_deploy == 'true' && (needs.test.result == 'success' || needs.test.result == 'skipped')
     runs-on: ubuntu-latest
+    environment: ${{ needs.setup.outputs.environment }}
     permissions:
       contents: read
       packages: write
