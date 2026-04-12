@@ -7,6 +7,11 @@ process.env.NEXT_PUBLIC_API_URL = 'http://localhost:8001/api/v1';
 process.env.INTERNAL_API_URL = 'http://localhost:8001';
 process.env.NEXT_PUBLIC_MEDIA_URL = 'http://localhost:8001';
 
+// Полифил window.event для happy-dom (React DOM resolveUpdatePriority требует его)
+if (typeof window !== 'undefined' && !('event' in window)) {
+  Object.defineProperty(window, 'event', { value: undefined, writable: true });
+}
+
 // Подключение дополнительных матчеров для DOM элементов (Vitest версия)
 import '@testing-library/jest-dom/vitest';
 import { vi } from 'vitest';

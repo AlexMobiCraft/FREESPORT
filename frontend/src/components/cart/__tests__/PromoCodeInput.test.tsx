@@ -12,6 +12,7 @@
  * - Accessibility
  *
  * @see Story 26.4: Promo Code Integration
+ *
  */
 
 import React from 'react';
