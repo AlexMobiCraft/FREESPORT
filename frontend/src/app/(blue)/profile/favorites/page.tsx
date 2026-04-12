@@ -11,22 +11,24 @@
 
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
 import { FavoritesList } from '@/components/business/FavoritesList';
 import Button from '@/components/ui/Button';
-import { favoriteService } from '@/services/favoriteService';
+import { useFavoritesStore } from '@/stores/favoritesStore';
 import { useCartStore } from '@/stores/cartStore';
-import type { Favorite, FavoriteWithAvailability } from '@/types/favorite';
+import type { FavoriteWithAvailability } from '@/types/favorite';
 
 /**
  * Страница избранных товаров
  */
 export default function FavoritesPage() {
-  // State
-  const [favorites, setFavorites] = useState<FavoriteWithAvailability[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // Zustand store для избранного (тот же store, что используется в каталоге)
+  const storeFavorites = useFavoritesStore(state => state.favorites);
+  const isLoading = useFavoritesStore(state => state.isLoading);
+  const error = useFavoritesStore(state => state.error);
+  const fetchFavorites = useFavoritesStore(state => state.fetchFavorites);
+  const removeFavorite = useFavoritesStore(state => state.removeFavorite);
 
   // Action states
   const [addingToCartId, setAddingToCartId] = useState<number | null>(null);
@@ -35,44 +37,22 @@ export default function FavoritesPage() {
   // Cart store
   const addToCart = useCartStore(state => state.addItem);
 
-  /**
-   * Преобразование Favorite в FavoriteWithAvailability
-   * ВАЖНО: Проверка доступности на уровне варианта (AC: 7)
-   * В текущей реализации используем product_sku для определения доступности
-   * TODO: Запросить данные варианта через API для точной проверки stock_quantity
-   */
-  const transformFavorites = useCallback((items: Favorite[]): FavoriteWithAvailability[] => {
-    return items.map(item => ({
-      ...item,
-      // По умолчанию считаем доступным, если есть product_sku
-      // В будущем здесь будет запрос к API вариантов
-      isAvailable: !!item.product_sku,
-      variantId: undefined, // Будет заполнено при получении данных варианта
-      stockQuantity: undefined,
-    }));
-  }, []);
-
-  /**
-   * Загрузка избранных товаров при монтировании
-   */
-  const fetchFavorites = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      const data = await favoriteService.getFavorites();
-      setFavorites(transformFavorites(data));
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Ошибка загрузки избранного';
-      setError(message);
-      toast.error(message);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [transformFavorites]);
-
+  // Загрузка избранных при монтировании
   useEffect(() => {
     fetchFavorites();
   }, [fetchFavorites]);
+
+  // Преобразование Favorite в FavoriteWithAvailability (AC: 7)
+  const favorites: FavoriteWithAvailability[] = useMemo(
+    () =>
+      storeFavorites.map(item => ({
+        ...item,
+        isAvailable: !!item.product_sku,
+        variantId: undefined,
+        stockQuantity: undefined,
+      })),
+    [storeFavorites]
+  );
 
   /**
    * Добавить товар в корзину (AC: 5)
@@ -86,8 +66,6 @@ export default function FavoritesPage() {
     setAddingToCartId(favorite.id);
 
     try {
-      // Используем product ID для добавления в корзину
-      // TODO: Использовать variantId когда он будет доступен
       const result = await addToCart(favorite.product, 1);
 
       if (result.success) {
@@ -107,22 +85,15 @@ export default function FavoritesPage() {
    * Удалить из избранного (AC: 6)
    */
   const handleRemoveFavorite = async (favoriteId: number) => {
-    // Сохраняем для отката
-    const removedFavorite = favorites.find(f => f.id === favoriteId);
+    const favorite = favorites.find(f => f.id === favoriteId);
+    if (!favorite) return;
 
     setRemovingId(favoriteId);
 
-    // Optimistic UI: мгновенно удаляем из списка
-    setFavorites(prev => prev.filter(f => f.id !== favoriteId));
-
     try {
-      await favoriteService.removeFavorite(favoriteId);
+      await removeFavorite(favorite.product);
       toast.success('Удалено из избранного');
     } catch (err) {
-      // Откат при ошибке
-      if (removedFavorite) {
-        setFavorites(prev => [...prev, removedFavorite]);
-      }
       const message = err instanceof Error ? err.message : 'Ошибка удаления из избранного';
       toast.error(message);
     } finally {
