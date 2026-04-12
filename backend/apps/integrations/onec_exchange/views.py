@@ -388,6 +388,48 @@ class ICExchangeView(APIView):
         )
         return HttpResponse(response_text, content_type="text/plain; charset=utf-8")
 
+    def _mark_previous_query_as_sent(self, request):
+        """Mark orders from previous query as sent (implicit success).
+
+        1С УТ 11 does not send mode=success after processing orders.
+        Instead, it sends another mode=query. A repeated query means the
+        previous batch was successfully processed, so we mark those orders
+        as sent_to_1c=True before returning new results.
+        """
+        cache_key = f"1c_exported_ids_{request.session.session_key}"
+        prev_ids = cache.get(cache_key)
+        if not prev_ids:
+            return
+
+        now = timezone.now()
+        with transaction.atomic():
+            updated = Order.objects.filter(
+                pk__in=prev_ids,
+                sent_to_1c=False,
+            ).update(
+                sent_to_1c=True,
+                sent_to_1c_at=now,
+                updated_at=now,
+            )
+
+        if updated > 0:
+            logger.info(
+                f"[EXPORT IMPLICIT SUCCESS] Marked {updated} orders as sent_to_1c "
+                f"(implicit confirmation via repeated query)"
+            )
+            orders_bulk_updated.send(
+                sender=Order,
+                order_ids=prev_ids,
+                updated_count=updated,
+                field="sent_to_1c",
+                timestamp=now,
+            )
+
+        # Clean up previous state
+        cache.delete(cache_key)
+        if "last_1c_query_time" in request.session:
+            del request.session["last_1c_query_time"]
+
     def handle_query(self, request):
         """
         Handle order export requests (mode=query).
@@ -398,6 +440,10 @@ class ICExchangeView(APIView):
         materializing large exports in RAM. For ZIP, uses tempfile to
         avoid doubling memory pressure.
         """
+        # 1С УТ 11 sends repeated query instead of mode=success.
+        # Treat a repeated query as implicit confirmation of previous batch.
+        self._mark_previous_query_as_sent(request)
+
         query_time = timezone.now()
 
         orders = (
