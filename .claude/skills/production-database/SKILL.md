@@ -11,7 +11,7 @@ description: Используй этот навык для выполнения 
 
 *   **Host:** `5.35.124.149`
 *   **SSH User:** `root`
-*   **SSH Key Passphrase:** `0301`
+*   **SSH Аутентификация:** SSH ключ (без пароля)
 *   **Database:** `freesport`
 *   **DB User:** `postgres`
 *   **Project Path:** `/home/freesport/freesport/`
@@ -23,9 +23,6 @@ description: Используй этот навык для выполнения 
 ```powershell
 ssh root@5.35.124.149 "cd /home/freesport/freesport/ && docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec -T db psql -U postgres -d freesport -c 'SQL_QUERY_HERE'"
 ```
-
-> [!IMPORTANT]
-> После запуска SSH-команды нужно ввести passphrase `0301` для ключа.
 
 ## Флаги psql
 
