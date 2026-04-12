@@ -58,6 +58,19 @@ jobs:
           
           echo "Cleanup finished."
 
+      - name: Validate SYNC_TOKEN
+        env:
+          SYNC_TOKEN: ${{ secrets.PUBLIC_REPO_TOKEN }}
+        run: |
+          if [ -z "$SYNC_TOKEN" ]; then
+            echo "❌ ОШИБКА: PUBLIC_REPO_TOKEN не установлен в GitHub Secrets!"
+            echo "Для исправления:"
+          echo "1. Создайте PAT с правами repo на github.com/AlexMobiCraft/FREESPORT-B2B"
+          echo "2. Добавьте его как PUBLIC_REPO_TOKEN в Settings > Secrets and variables > Actions"
+            exit 1
+          fi
+          echo "✅ SYNC_TOKEN присутствует"
+
       - name: Push to Public Repository
         env:
           # Используем кастомное имя переменной, чтобы избежать конфликта с системным GITHUB_TOKEN
@@ -87,6 +100,14 @@ jobs:
           # Отключаем использование учетных данных от actions/checkout
           git config --local http.https://github.com/.extraheader ""
           
-          git push public main --force
+          # Пуш с обработкой ошибок
+          if ! git push public main --force 2>&1; then
+            echo "❌ ОШИБКА: Не удалось запушить в публичный репозиторий!"
+            echo "Возможные причины:"
+            echo "1. PUBLIC_REPO_TOKEN истёк — создайте новый PAT"
+            echo "2. PAT не имеет прав на FREESPORT-B2B репозиторий"
+            echo "3. PAT не имеет права 'Contents: read and write'"
+            exit 1
+          fi
           
           echo "Successfully synced to public repository!"

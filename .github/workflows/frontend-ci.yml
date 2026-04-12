@@ -15,6 +15,7 @@ on:
 env:
   NODE_VERSION: '22.x'
   NEXT_PUBLIC_API_URL: 'http://localhost:8001/api/v1'
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   # Этап 1: Качество кода и тестирование
@@ -106,8 +107,7 @@ jobs:
         flags: frontend
         name: frontend-coverage
         fail_ci_if_error: false
-      env:
-        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}  # Optional: configure in repository secrets
+        token: ${{ secrets.CODECOV_TOKEN }}
         
   # Этап 2: Сборка Docker образа
   build:
