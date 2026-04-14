@@ -4,7 +4,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("products", "0046_homepagecategory"),
+        ("products", "0047_category_icon"),
     ]
 
     operations = [

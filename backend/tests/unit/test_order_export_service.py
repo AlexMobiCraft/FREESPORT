@@ -1313,3 +1313,404 @@ class TestOrderExportServiceStreaming:
 
         # Same order ID
         assert regular_docs[0].find("Ид").text == streaming_docs[0].find("Ид").text
+
+
+# =============================================================================
+# Tests for VAT/organization/warehouse/price-type helpers (PR #32)
+# =============================================================================
+
+
+def _make_order_with_variant(variant, user=None, total=Decimal("2109.00")):
+    """Helper: create Order + OrderItem for a given variant."""
+    if user is None:
+        user = UserFactory(email=f"test-{get_unique_suffix()}@example.com", role="retail")
+    order = Order.objects.create(
+        user=user,
+        total_amount=total,
+        delivery_address="Москва",
+        delivery_method="courier",
+        payment_method="card",
+    )
+    OrderItem.objects.create(
+        order=order,
+        product=variant.product,
+        variant=variant,
+        quantity=1,
+        unit_price=total,
+        total_price=total,
+        product_name=variant.product.name,
+        product_sku=variant.sku,
+    )
+    return order
+
+
+@pytest.mark.unit
+@pytest.mark.django_db
+class TestGetOrderVatRate:
+    """Unit tests for OrderExportService._get_order_vat_rate()."""
+
+    def test_returns_variant_vat_rate_when_set(self):
+        """When first variant has vat_rate=22, method returns Decimal('22')."""
+        variant = ProductVariantFactory(
+            onec_id=f"v-{get_unique_suffix()}",
+            retail_price=Decimal("1000.00"),
+            vat_rate=Decimal("22"),
+        )
+        order = _make_order_with_variant(variant)
+
+        service = OrderExportService()
+        assert service._get_order_vat_rate(order) == Decimal("22")
+
+    def test_returns_default_when_vat_rate_is_null(self, settings):
+        """When variant has vat_rate=None, method returns DEFAULT_VAT_RATE (22)."""
+        variant = ProductVariantFactory(
+            onec_id=f"v-{get_unique_suffix()}",
+            retail_price=Decimal("1000.00"),
+            vat_rate=None,
+        )
+        order = _make_order_with_variant(variant)
+
+        settings.ONEC_EXCHANGE = {**settings.ONEC_EXCHANGE, "DEFAULT_VAT_RATE": 22}
+        service = OrderExportService()
+        assert service._get_order_vat_rate(order) == Decimal("22")
+
+    def test_uses_five_percent_rate(self):
+        """When variant has vat_rate=5, method returns Decimal('5')."""
+        variant = ProductVariantFactory(
+            onec_id=f"v-{get_unique_suffix()}",
+            retail_price=Decimal("1000.00"),
+            vat_rate=Decimal("5"),
+        )
+        order = _make_order_with_variant(variant)
+
+        service = OrderExportService()
+        assert service._get_order_vat_rate(order) == Decimal("5")
+
+
+@pytest.mark.unit
+class TestGetOrgAndWarehouse:
+    """Unit tests for OrderExportService._get_org_and_warehouse()."""
+
+    def test_vat_22_returns_ip_semeryuk(self, settings):
+        """НДС 22% → ИП Семерюк + 1 СДВ склад."""
+        settings.ONEC_EXCHANGE = {
+            **settings.ONEC_EXCHANGE,
+            "ORGANIZATION_BY_VAT": {
+                22: {"name": "ИП Семерюк", "warehouse": "1 СДВ склад"},
+                5: {"name": "ИП Терещенко", "warehouse": "2 ТЛВ склад"},
+            },
+        }
+        service = OrderExportService()
+        org, wh = service._get_org_and_warehouse(Decimal("22"))
+        assert org == "ИП Семерюк"
+        assert wh == "1 СДВ склад"
+
+    def test_vat_5_returns_ip_tereshchenko(self, settings):
+        """НДС 5% → ИП Терещенко + 2 ТЛВ склад."""
+        settings.ONEC_EXCHANGE = {
+            **settings.ONEC_EXCHANGE,
+            "ORGANIZATION_BY_VAT": {
+                22: {"name": "ИП Семерюк", "warehouse": "1 СДВ склад"},
+                5: {"name": "ИП Терещенко", "warehouse": "2 ТЛВ склад"},
+            },
+        }
+        service = OrderExportService()
+        org, wh = service._get_org_and_warehouse(Decimal("5"))
+        assert org == "ИП Терещенко"
+        assert wh == "2 ТЛВ склад"
+
+    def test_unknown_vat_uses_defaults(self, settings):
+        """Unknown VAT rate falls back to DEFAULT_ORGANIZATION / DEFAULT_WAREHOUSE."""
+        settings.ONEC_EXCHANGE = {
+            **settings.ONEC_EXCHANGE,
+            "ORGANIZATION_BY_VAT": {},
+            "DEFAULT_ORGANIZATION": "ИП Семерюк",
+            "DEFAULT_WAREHOUSE": "1 СДВ склад",
+        }
+        service = OrderExportService()
+        org, wh = service._get_org_and_warehouse(Decimal("20"))
+        assert org == "ИП Семерюк"
+        assert wh == "1 СДВ склад"
+
+
+@pytest.mark.unit
+@pytest.mark.django_db
+class TestGetPriceType:
+    """Unit tests for OrderExportService._get_price_type()."""
+
+    def test_retail_user_gets_rrts(self, settings):
+        """Retail user → price type 'РРЦ'."""
+        settings.ONEC_EXCHANGE = {
+            **settings.ONEC_EXCHANGE,
+            "PRICE_TYPE_BY_ROLE": {"retail": "РРЦ"},
+            "DEFAULT_PRICE_TYPE": "РРЦ",
+        }
+        user = UserFactory(email=f"retail-{get_unique_suffix()}@example.com", role="retail")
+        variant = ProductVariantFactory(onec_id=f"v-{get_unique_suffix()}", retail_price=Decimal("100"))
+        order = _make_order_with_variant(variant, user=user)
+
+        service = OrderExportService()
+        assert service._get_price_type(order) == "РРЦ"
+
+    def test_wholesale_level1_gets_opt1(self, settings):
+        """Wholesale level1 → price type 'Опт 1 (300-600 тыс.руб в квартал)'."""
+        settings.ONEC_EXCHANGE = {
+            **settings.ONEC_EXCHANGE,
+            "PRICE_TYPE_BY_ROLE": {
+                "wholesale_level1": "Опт 1 (300-600 тыс.руб в квартал)"
+            },
+            "DEFAULT_PRICE_TYPE": "РРЦ",
+        }
+        user = UserFactory(
+            email=f"ws1-{get_unique_suffix()}@example.com", role="wholesale_level1"
+        )
+        variant = ProductVariantFactory(onec_id=f"v-{get_unique_suffix()}", retail_price=Decimal("100"))
+        order = _make_order_with_variant(variant, user=user)
+
+        service = OrderExportService()
+        assert service._get_price_type(order) == "Опт 1 (300-600 тыс.руб в квартал)"
+
+    def test_trainer_gets_trener(self, settings):
+        """Trainer user → price type 'Тренерская'."""
+        settings.ONEC_EXCHANGE = {
+            **settings.ONEC_EXCHANGE,
+            "PRICE_TYPE_BY_ROLE": {"trainer": "Тренерская"},
+            "DEFAULT_PRICE_TYPE": "РРЦ",
+        }
+        user = UserFactory(email=f"trainer-{get_unique_suffix()}@example.com", role="trainer")
+        variant = ProductVariantFactory(onec_id=f"v-{get_unique_suffix()}", retail_price=Decimal("100"))
+        order = _make_order_with_variant(variant, user=user)
+
+        service = OrderExportService()
+        assert service._get_price_type(order) == "Тренерская"
+
+    def test_guest_order_gets_default_price_type(self, settings):
+        """Guest order (no user) → DEFAULT_PRICE_TYPE."""
+        settings.ONEC_EXCHANGE = {
+            **settings.ONEC_EXCHANGE,
+            "PRICE_TYPE_BY_ROLE": {"retail": "РРЦ"},
+            "DEFAULT_PRICE_TYPE": "РРЦ",
+        }
+        variant = ProductVariantFactory(onec_id=f"v-{get_unique_suffix()}", retail_price=Decimal("100"))
+        order = Order.objects.create(
+            user=None,
+            customer_name="Гость",
+            customer_email=f"guest-{get_unique_suffix()}@example.com",
+            total_amount=Decimal("100.00"),
+            delivery_address="Адрес",
+            delivery_method="courier",
+            payment_method="card",
+        )
+        OrderItem.objects.create(
+            order=order,
+            product=variant.product,
+            variant=variant,
+            quantity=1,
+            unit_price=Decimal("100.00"),
+            total_price=Decimal("100.00"),
+            product_name=variant.product.name,
+            product_sku=variant.sku,
+        )
+
+        service = OrderExportService()
+        assert service._get_price_type(order) == "РРЦ"
+
+
+@pytest.mark.unit
+class TestCalcVatAmount:
+    """Unit tests for OrderExportService._calc_vat_amount()."""
+
+    def test_vat_22_included_in_price(self):
+        """НДС 22% в том числе: 2109 × 22 / 122 ≈ 380.31."""
+        service = OrderExportService()
+        result = service._calc_vat_amount(Decimal("2109.00"), Decimal("22"))
+        assert result == Decimal("380.31")
+
+    def test_vat_5_included_in_price(self):
+        """НДС 5% в том числе: 1050 × 5 / 105 = 50.00."""
+        service = OrderExportService()
+        result = service._calc_vat_amount(Decimal("1050.00"), Decimal("5"))
+        assert result == Decimal("50.00")
+
+    def test_result_has_two_decimal_places(self):
+        """Result must be rounded to 2 decimal places."""
+        service = OrderExportService()
+        result = service._calc_vat_amount(Decimal("100.00"), Decimal("22"))
+        assert result == result.quantize(Decimal("0.01"))
+
+
+@pytest.mark.unit
+@pytest.mark.django_db
+class TestOrderExportVatAndOrgInXML:
+    """Integration-style tests: verify new XML elements are present in output."""
+
+    def _create_order(self, vat_rate, role="retail"):
+        user = UserFactory(
+            email=f"test-vat-{get_unique_suffix()}@example.com", role=role
+        )
+        variant = ProductVariantFactory(
+            onec_id=f"v-{get_unique_suffix()}",
+            retail_price=Decimal("2109.00"),
+            vat_rate=vat_rate,
+        )
+        return _make_order_with_variant(variant, user=user, total=Decimal("2109.00"))
+
+    def test_organization_in_xml_for_import_goods(self, settings):
+        """НДС 22% → <Организация>ИП Семерюк</Организация> in document."""
+        settings.ONEC_EXCHANGE = {
+            **settings.ONEC_EXCHANGE,
+            "ORGANIZATION_BY_VAT": {
+                22: {"name": "ИП Семерюк", "warehouse": "1 СДВ склад"},
+                5: {"name": "ИП Терещенко", "warehouse": "2 ТЛВ склад"},
+            },
+            "DEFAULT_VAT_RATE": 22,
+        }
+        order = self._create_order(Decimal("22"))
+        service = OrderExportService()
+        xml_str = service.generate_xml(Order.objects.filter(id=order.id))
+        root = ET.fromstring(xml_str)
+
+        org = root.find(".//Документ/Организация")
+        assert org is not None
+        assert org.text == "ИП Семерюк"
+
+    def test_warehouse_in_xml_for_import_goods(self, settings):
+        """НДС 22% → <Склад>1 СДВ склад</Склад> in document."""
+        settings.ONEC_EXCHANGE = {
+            **settings.ONEC_EXCHANGE,
+            "ORGANIZATION_BY_VAT": {
+                22: {"name": "ИП Семерюк", "warehouse": "1 СДВ склад"},
+                5: {"name": "ИП Терещенко", "warehouse": "2 ТЛВ склад"},
+            },
+            "DEFAULT_VAT_RATE": 22,
+        }
+        order = self._create_order(Decimal("22"))
+        service = OrderExportService()
+        xml_str = service.generate_xml(Order.objects.filter(id=order.id))
+        root = ET.fromstring(xml_str)
+
+        wh = root.find(".//Документ/Склад")
+        assert wh is not None
+        assert wh.text == "1 СДВ склад"
+
+    def test_agreement_in_xml(self, settings):
+        """<Соглашение><Наименование>Стандартное</Наименование></Соглашение> present."""
+        settings.ONEC_EXCHANGE = {
+            **settings.ONEC_EXCHANGE,
+            "DEFAULT_AGREEMENT": "Стандартное",
+            "DEFAULT_VAT_RATE": 22,
+        }
+        order = self._create_order(None)  # null vat_rate → default
+        service = OrderExportService()
+        xml_str = service.generate_xml(Order.objects.filter(id=order.id))
+        root = ET.fromstring(xml_str)
+
+        agreement = root.find(".//Соглашение/Наименование")
+        assert agreement is not None
+        assert agreement.text == "Стандартное"
+
+    def test_action_rezervirovat_in_item(self, settings):
+        """Each <Товар> has <Действие>Резервировать</Действие>."""
+        settings.ONEC_EXCHANGE = {
+            **settings.ONEC_EXCHANGE,
+            "DEFAULT_ITEM_ACTION": "Резервировать",
+            "DEFAULT_VAT_RATE": 22,
+        }
+        order = self._create_order(Decimal("22"))
+        service = OrderExportService()
+        xml_str = service.generate_xml(Order.objects.filter(id=order.id))
+        root = ET.fromstring(xml_str)
+
+        action = root.find(".//Товар/Действие")
+        assert action is not None
+        assert action.text == "Резервировать"
+
+    def test_vid_tseny_in_item(self, settings):
+        """Each <Товар> has <ВидЦены><Наименование>...</Наименование></ВидЦены>."""
+        settings.ONEC_EXCHANGE = {
+            **settings.ONEC_EXCHANGE,
+            "PRICE_TYPE_BY_ROLE": {"retail": "РРЦ"},
+            "DEFAULT_PRICE_TYPE": "РРЦ",
+            "DEFAULT_VAT_RATE": 22,
+        }
+        order = self._create_order(Decimal("22"), role="retail")
+        service = OrderExportService()
+        xml_str = service.generate_xml(Order.objects.filter(id=order.id))
+        root = ET.fromstring(xml_str)
+
+        vid_ceny = root.find(".//Товар/ВидЦены/Наименование")
+        assert vid_ceny is not None
+        assert vid_ceny.text == "РРЦ"
+
+    def test_nds_uchten_v_summe_true(self, settings):
+        """Each <Товар> has <Налоги> with <УчтенВСумме>true</УчтенВСумме>."""
+        settings.ONEC_EXCHANGE = {
+            **settings.ONEC_EXCHANGE,
+            "DEFAULT_VAT_RATE": 22,
+            "ORGANIZATION_BY_VAT": {22: {"name": "ИП Семерюк", "warehouse": "1 СДВ склад"}},
+        }
+        order = self._create_order(Decimal("22"))
+        service = OrderExportService()
+        xml_str = service.generate_xml(Order.objects.filter(id=order.id))
+        root = ET.fromstring(xml_str)
+
+        uchten = root.find(".//Товар/Налоги/Налог/УчтенВСумме")
+        assert uchten is not None
+        assert uchten.text == "true"
+
+    def test_nds_stavka_22_in_item(self, settings):
+        """НДС ставка 22% correctly exported in <Ставка>22</Ставка>."""
+        settings.ONEC_EXCHANGE = {
+            **settings.ONEC_EXCHANGE,
+            "DEFAULT_VAT_RATE": 22,
+            "ORGANIZATION_BY_VAT": {22: {"name": "ИП Семерюк", "warehouse": "1 СДВ склад"}},
+        }
+        order = self._create_order(Decimal("22"))
+        service = OrderExportService()
+        xml_str = service.generate_xml(Order.objects.filter(id=order.id))
+        root = ET.fromstring(xml_str)
+
+        stavka = root.find(".//Товар/Налоги/Налог/Ставка")
+        assert stavka is not None
+        assert stavka.text == "22"
+
+    def test_nds_summa_calculated_inclusively(self, settings):
+        """НДС сумма = 2109 × 22 / 122 = 380.31 (в том числе)."""
+        settings.ONEC_EXCHANGE = {
+            **settings.ONEC_EXCHANGE,
+            "DEFAULT_VAT_RATE": 22,
+            "ORGANIZATION_BY_VAT": {22: {"name": "ИП Семерюк", "warehouse": "1 СДВ склад"}},
+        }
+        order = self._create_order(Decimal("22"))
+        service = OrderExportService()
+        xml_str = service.generate_xml(Order.objects.filter(id=order.id))
+        root = ET.fromstring(xml_str)
+
+        nds_summa = root.find(".//Товар/Налоги/Налог/Сумма")
+        assert nds_summa is not None
+        assert nds_summa.text == "380.31"
+
+    def test_requisites_organization_uses_dynamic_value(self, settings):
+        """ЗначенияРеквизитов/Организация should match dynamic org (not static default)."""
+        settings.ONEC_EXCHANGE = {
+            **settings.ONEC_EXCHANGE,
+            "ORGANIZATION_BY_VAT": {
+                22: {"name": "ИП Семерюк", "warehouse": "1 СДВ склад"},
+                5: {"name": "ИП Терещенко", "warehouse": "2 ТЛВ склад"},
+            },
+            "DEFAULT_VAT_RATE": 5,
+        }
+        order = self._create_order(Decimal("5"))
+        service = OrderExportService()
+        xml_str = service.generate_xml(Order.objects.filter(id=order.id))
+        root = ET.fromstring(xml_str)
+
+        # Find Организация in ЗначенияРеквизитов
+        req_org = None
+        for req in root.findall(".//Документ/ЗначенияРеквизитов/ЗначениеРеквизита"):
+            name_el = req.find("Наименование")
+            if name_el is not None and name_el.text == "Организация":
+                req_org = req.find("Значение")
+                break
+        assert req_org is not None
+        assert req_org.text == "ИП Терещенко"
