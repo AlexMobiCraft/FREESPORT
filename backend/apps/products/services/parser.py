@@ -291,8 +291,7 @@ class XMLDataParser:
                     goods_data["vat_rate"] = Decimal(vat_rate_str)
                 except Exception:
                     logger.warning(
-                        f"Товар {goods_data.get('id', '?')}: "
-                        f"не удалось распарсить СтавкаНДС='{vat_rate_raw}'"
+                        f"Товар {goods_data.get('id', '?')}: " f"не удалось распарсить СтавкаНДС='{vat_rate_raw}'"
                     )
 
             if goods_data.get("id"):  # Только если есть ID

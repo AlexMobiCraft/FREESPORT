@@ -332,11 +332,7 @@ class OrderExportService:
             self._add_text_element(vid_ceny, "Наименование", price_type_name)
 
             # НДС «в том числе» (включён в сумму строки)
-            item_vat_rate = (
-                Decimal(str(item.variant.vat_rate))
-                if item.variant.vat_rate is not None
-                else order_vat_rate
-            )
+            item_vat_rate = Decimal(str(item.variant.vat_rate)) if item.variant.vat_rate is not None else order_vat_rate
             vat_amount = self._calc_vat_amount(item.total_price, item_vat_rate)
 
             taxes = ET.SubElement(product, "Налоги")
