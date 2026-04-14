@@ -296,6 +296,8 @@ class VariantImportProcessor:
         self._stock_buffer: dict[str, int] = {}
         self._missing_products_logged: set[str] = set()
         self._missing_variants_logged: set[str] = set()
+        # Маппинг parent_onec_id → vat_rate из goods.xml
+        self._product_vat_rates: dict[str, Decimal] = {}
 
         # Фильтрация категорий (заполняется в process_categories)
         self._category_filtering_active: bool = False
@@ -417,6 +419,11 @@ class VariantImportProcessor:
             brand_id = str(goods_data.get("brand_id")) if goods_data.get("brand_id") else None
 
             logger.info(f"Processing product from goods.xml: {parent_id}")
+
+            # Сохраняем ставку НДС для последующего использования при создании вариантов
+            vat_rate = goods_data.get("vat_rate")
+            if vat_rate is not None:
+                self._product_vat_rates[parent_id] = Decimal(str(vat_rate))
 
             # Проверка существующего товара
             existing = Product.objects.filter(models.Q(onec_id=parent_id) | models.Q(parent_onec_id=parent_id)).first()
@@ -643,13 +650,16 @@ class VariantImportProcessor:
                 self.stats["skipped"] += 1
                 return None
 
+            # Ставка НДС из маппинга goods.xml → variants
+            vat_rate = self._product_vat_rates.get(parent_id)
+
             # Проверка существующего варианта
             existing_variant = ProductVariant.objects.filter(onec_id=onec_id).first()
             if existing_variant:
-                return self._update_existing_variant(existing_variant, offer_data, base_dir, skip_images)
+                return self._update_existing_variant(existing_variant, offer_data, base_dir, skip_images, vat_rate)
 
             # Создание нового варианта
-            return self._create_new_variant(product, onec_id, offer_data, base_dir, skip_images)
+            return self._create_new_variant(product, onec_id, offer_data, base_dir, skip_images, vat_rate)
 
         except Exception as e:
             self._log_error(f"Error processing variant from offer: {e}", offer_data)
@@ -661,6 +671,7 @@ class VariantImportProcessor:
         offer_data: dict[str, Any],
         base_dir: str | None,
         skip_images: bool,
+        vat_rate: "Decimal | None" = None,
     ) -> Any:
         """Обновление существующего ProductVariant"""
         fields_to_update: list[str] = []
@@ -695,6 +706,11 @@ class VariantImportProcessor:
             variant.is_active = True
             fields_to_update.append("is_active")
 
+        # Обновляем ставку НДС если известна из goods.xml
+        if vat_rate is not None and variant.vat_rate != vat_rate:
+            variant.vat_rate = vat_rate
+            fields_to_update.append("vat_rate")
+
         if fields_to_update:
             variant.save(update_fields=fields_to_update)
 
@@ -725,6 +741,7 @@ class VariantImportProcessor:
         offer_data: dict[str, Any],
         base_dir: str | None,
         skip_images: bool,
+        vat_rate: "Decimal | None" = None,
     ) -> Any | None:
         """Создание нового ProductVariant"""
         from apps.products.models import ProductVariant
@@ -762,6 +779,7 @@ class VariantImportProcessor:
             trainer_price=None,
             federation_price=None,
             stock_quantity=0,  # Будет обновлен из rests.xml
+            vat_rate=vat_rate,  # Ставка НДС из goods.xml
         )
 
         try:

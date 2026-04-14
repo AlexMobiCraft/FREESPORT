@@ -291,14 +291,40 @@ ONEC_EXCHANGE = {
     "COMMERCEML_VERSION": "3.1",  # CommerceML protocol version
     "TEMP_DIR": MEDIA_ROOT / "1c_temp",  # Temporary directory for chunked uploads
     "IMPORT_DIR": MEDIA_ROOT / "1c_import",  # Story 2.2: Directory for routed import files
-    # Реквизиты заказа для УТ 11 (передаются в XML как ЗначенияРеквизитов)
+    # Реквизиты заказа для УТ 11 (фиксированные значения — операция и статус)
     "ORDER_DEFAULTS": {
         "OPERATION": "Реализация",
         "STATUS": "Не согласован",
-        "ORGANIZATION": "ФРИСПОРТ ООО",
-        "AGREEMENT": "Стандартное",
-        "WAREHOUSE": "2 ТЛВ склад",
+        # Организация, Склад и Соглашение определяются динамически
+        # через ORGANIZATION_BY_VAT и DEFAULT_* ниже
     },
+    # -------------------------------------------------------------------------
+    # Настройки экспорта заказов в 1С
+    # -------------------------------------------------------------------------
+    # Маппинг ставки НДС (int) → организация и склад
+    # ИП Семерюк — импортные товары (НДС 22%), ИП Терещенко — российские (НДС 5%)
+    "ORGANIZATION_BY_VAT": {
+        22: {"name": "ИП Семерюк", "warehouse": "1 СДВ склад"},
+        5: {"name": "ИП Терещенко", "warehouse": "2 ТЛВ склад"},
+    },
+    # Значения по умолчанию (используются если vat_rate не задан у варианта)
+    "DEFAULT_VAT_RATE": 22,
+    "DEFAULT_ORGANIZATION": "ИП Семерюк",
+    "DEFAULT_WAREHOUSE": "1 СДВ склад",
+    # Соглашение и действие строки — фиксированные значения
+    "DEFAULT_AGREEMENT": "Стандартное",
+    "DEFAULT_ITEM_ACTION": "Резервировать",
+    # Маппинг роли покупателя → вид цены в 1С
+    "PRICE_TYPE_BY_ROLE": {
+        "retail": "РРЦ",
+        "wholesale_level1": "Опт 1 (300-600 тыс.руб в квартал)",
+        "wholesale_level2": "Опт 2 (150-300 тыс.руб в квартал)",
+        "wholesale_level3": "Опт 3 (50-150 тыс.руб в квартал)",
+        "trainer": "Тренерская",
+        "federation_rep": "Партнер",
+        "admin": "РРЦ",
+    },
+    "DEFAULT_PRICE_TYPE": "РРЦ",
 }
 
 # Тип первичного ключа по умолчанию

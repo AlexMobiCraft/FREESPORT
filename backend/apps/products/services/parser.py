@@ -31,6 +31,7 @@ class GoodsData(TypedDict, total=False):
     brand_id: str
     images: list[str]
     property_values: list[PropertyValueData]  # Значения свойств товара
+    vat_rate: Decimal  # Ставка НДС из <СтавкаНДС>, например Decimal("22") или Decimal("5")
 
 
 class OfferCharacteristic(TypedDict):
@@ -281,6 +282,18 @@ class XMLDataParser:
 
                 if validated_images:
                     goods_data["images"] = validated_images
+
+            # Ставка НДС: "22%" → Decimal("22"), "5" → Decimal("5")
+            vat_rate_raw = self._find_text(product_element, "СтавкаНДС")
+            if vat_rate_raw:
+                vat_rate_str = vat_rate_raw.replace("%", "").strip()
+                try:
+                    goods_data["vat_rate"] = Decimal(vat_rate_str)
+                except Exception:
+                    logger.warning(
+                        f"Товар {goods_data.get('id', '?')}: "
+                        f"не удалось распарсить СтавкаНДС='{vat_rate_raw}'"
+                    )
 
             if goods_data.get("id"):  # Только если есть ID
                 goods_list.append(goods_data)
