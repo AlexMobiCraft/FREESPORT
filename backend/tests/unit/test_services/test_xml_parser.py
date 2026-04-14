@@ -648,3 +648,53 @@ class TestXMLDataParserBrandParsing:
         assert len(goods_list) == 1
         goods_data = goods_list[0]
         assert goods_data["brand_id"] == brand_uuid
+
+
+@pytest.mark.unit
+class TestXMLDataParserVatRate:
+    """Тесты парсинга ставки НДС из <СтавкаНДС> в goods.xml."""
+
+    def _make_goods_xml(self, vat_rate_tag: str, tmp_path) -> str:
+        xml = f"""<?xml version="1.0" encoding="UTF-8"?>
+<Каталог>
+  <Товары>
+    <Товар>
+      <Ид>test-uuid-vat</Ид>
+      <Наименование>Товар с НДС</Наименование>
+      {vat_rate_tag}
+    </Товар>
+  </Товары>
+</Каталог>"""
+        f = tmp_path / "goods.xml"
+        f.write_text(xml, encoding="utf-8")
+        return str(f)
+
+    def test_vat_rate_numeric_without_percent(self, tmp_path):
+        """<СтавкаНДС>22</СтавкаНДС> → vat_rate = Decimal('22')."""
+        path = self._make_goods_xml("<СтавкаНДС>22</СтавкаНДС>", tmp_path)
+        result = XMLDataParser().parse_goods_xml(path)
+        assert result[0]["vat_rate"] == Decimal("22")
+
+    def test_vat_rate_with_percent_suffix(self, tmp_path):
+        """<СтавкаНДС>22%</СтавкаНДС> → vat_rate = Decimal('22')."""
+        path = self._make_goods_xml("<СтавкаНДС>22%</СтавкаНДС>", tmp_path)
+        result = XMLDataParser().parse_goods_xml(path)
+        assert result[0]["vat_rate"] == Decimal("22")
+
+    def test_vat_rate_5_percent(self, tmp_path):
+        """<СтавкаНДС>5%</СтавкаНДС> → vat_rate = Decimal('5')."""
+        path = self._make_goods_xml("<СтавкаНДС>5%</СтавкаНДС>", tmp_path)
+        result = XMLDataParser().parse_goods_xml(path)
+        assert result[0]["vat_rate"] == Decimal("5")
+
+    def test_vat_rate_absent_tag(self, tmp_path):
+        """Отсутствие тега <СтавкаНДС> → поле vat_rate не добавляется в dict."""
+        path = self._make_goods_xml("", tmp_path)
+        result = XMLDataParser().parse_goods_xml(path)
+        assert "vat_rate" not in result[0]
+
+    def test_vat_rate_invalid_value_is_skipped(self, tmp_path):
+        """Непарсируемое значение → поле vat_rate не добавляется (нет исключения)."""
+        path = self._make_goods_xml("<СтавкаНДС>НДС не установлен</СтавкаНДС>", tmp_path)
+        result = XMLDataParser().parse_goods_xml(path)
+        assert "vat_rate" not in result[0]
