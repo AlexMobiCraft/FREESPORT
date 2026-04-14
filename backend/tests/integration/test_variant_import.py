@@ -893,6 +893,7 @@ class TestHybridImagesLogic(TransactionTestCase):
         assert "products/base/image2.jpg" in effective[1]
 
 
+@pytest.mark.django_db(transaction=True)
 class TestVariantImportVatRate(TransactionTestCase):
     """Тесты сохранения ставки НДС при импорте вариантов из 1С."""
 
