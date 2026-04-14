@@ -1456,14 +1456,10 @@ class TestGetPriceType:
         """Wholesale level1 → price type 'Опт 1 (300-600 тыс.руб в квартал)'."""
         settings.ONEC_EXCHANGE = {
             **settings.ONEC_EXCHANGE,
-            "PRICE_TYPE_BY_ROLE": {
-                "wholesale_level1": "Опт 1 (300-600 тыс.руб в квартал)"
-            },
+            "PRICE_TYPE_BY_ROLE": {"wholesale_level1": "Опт 1 (300-600 тыс.руб в квартал)"},
             "DEFAULT_PRICE_TYPE": "РРЦ",
         }
-        user = UserFactory(
-            email=f"ws1-{get_unique_suffix()}@example.com", role="wholesale_level1"
-        )
+        user = UserFactory(email=f"ws1-{get_unique_suffix()}@example.com", role="wholesale_level1")
         variant = ProductVariantFactory(onec_id=f"v-{get_unique_suffix()}", retail_price=Decimal("100"))
         order = _make_order_with_variant(variant, user=user)
 
@@ -1545,9 +1541,7 @@ class TestOrderExportVatAndOrgInXML:
     """Integration-style tests: verify new XML elements are present in output."""
 
     def _create_order(self, vat_rate, role="retail"):
-        user = UserFactory(
-            email=f"test-vat-{get_unique_suffix()}@example.com", role=role
-        )
+        user = UserFactory(email=f"test-vat-{get_unique_suffix()}@example.com", role=role)
         variant = ProductVariantFactory(
             onec_id=f"v-{get_unique_suffix()}",
             retail_price=Decimal("2109.00"),

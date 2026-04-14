@@ -902,9 +902,7 @@ class TestVariantImportVatRate(TransactionTestCase):
             status=ImportSession.ImportStatus.STARTED,
         )
         self.brand = Brand.objects.create(name="Brand VAT", slug="brand-vat", is_active=True)
-        self.category = Category.objects.create(
-            name="Cat VAT", slug="cat-vat", onec_id="cat-vat-001", is_active=True
-        )
+        self.category = Category.objects.create(name="Cat VAT", slug="cat-vat", onec_id="cat-vat-001", is_active=True)
         self.processor = VariantImportProcessor(session_id=self.session.pk, batch_size=500)
 
     def _make_product(self, onec_id: str) -> "Product":
