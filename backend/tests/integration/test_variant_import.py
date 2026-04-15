@@ -961,6 +961,7 @@ class TestVariantImportVatRate(TransactionTestCase):
             product=product,
             onec_id="vat-prod-update#v-001",
             sku="VAT-UPDATE-001",
+            retail_price=Decimal("0"),
             vat_rate=Decimal("5"),
             is_active=True,
         )
