@@ -293,7 +293,7 @@ class VariantImportProcessor:
         # Кэш для оптимизации поиска
         self._product_cache: dict[str, Any] = {}
         self._variant_cache: dict[str, Any] = {}
-        self._stock_buffer: dict[str, int] = {}
+        self._stock_buffer: dict[str, dict[str, Any]] = {}
         self._missing_products_logged: set[str] = set()
         self._missing_variants_logged: set[str] = set()
         # Маппинг parent_onec_id → vat_rate из goods.xml
@@ -1051,6 +1051,7 @@ class VariantImportProcessor:
         try:
             onec_id = rest_data.get("id")
             quantity = rest_data.get("quantity", 0)
+            warehouse_id = str(rest_data.get("warehouse_id") or "").strip()
 
             if not onec_id:
                 self._log_error("Missing id in rest_data", rest_data)
@@ -1065,13 +1066,38 @@ class VariantImportProcessor:
                 self.stats["warnings"] += 1
                 return False
 
-            # Суммируем остатки если товар на разных складах
-            total_quantity = self._stock_buffer.get(onec_id, 0) + quantity
-            self._stock_buffer[onec_id] = total_quantity
+            # Остатки приходят отдельными строками по складам.
+            # Храним суммарный остаток и определяем основной склад по наибольшему количеству.
+            stock_state = self._stock_buffer.setdefault(onec_id, {"total": 0, "warehouses": {}})
+            stock_state["total"] += quantity
+            if warehouse_id:
+                warehouse_totals = stock_state["warehouses"]
+                warehouse_totals[warehouse_id] = warehouse_totals.get(warehouse_id, 0) + quantity
+
+            total_quantity = int(stock_state["total"])
+            primary_warehouse_id = self._select_primary_warehouse_id(
+                stock_state["warehouses"],
+                variant.warehouse_id,
+            )
+            primary_warehouse_name = self._resolve_warehouse_name(primary_warehouse_id)
+            primary_vat_rate = self._get_vat_rate_by_warehouse_name(primary_warehouse_name)
 
             variant.stock_quantity = total_quantity
+            if primary_warehouse_id:
+                variant.warehouse_id = primary_warehouse_id
+            if primary_warehouse_name:
+                variant.warehouse_name = primary_warehouse_name
+            if primary_vat_rate is not None:
+                variant.vat_rate = primary_vat_rate
             variant.last_sync_at = timezone.now()
-            variant.save(update_fields=["stock_quantity", "last_sync_at"])
+            update_fields = ["stock_quantity", "last_sync_at"]
+            if primary_warehouse_id:
+                update_fields.append("warehouse_id")
+            if primary_warehouse_name:
+                update_fields.append("warehouse_name")
+            if primary_vat_rate is not None:
+                update_fields.append("vat_rate")
+            variant.save(update_fields=update_fields)
 
             # Обновляем статус родительского Product
             product = variant.product
@@ -1222,6 +1248,58 @@ class VariantImportProcessor:
             self._variant_cache[onec_id] = variant
 
         return variant
+
+    def _select_primary_warehouse_id(
+        self,
+        warehouse_totals: dict[str, int],
+        current_warehouse_id: str | None = None,
+    ) -> str | None:
+        """Возвращает склад с максимальным остатком, сохраняя текущий при равенстве."""
+        if not warehouse_totals:
+            return current_warehouse_id
+
+        max_qty = max(warehouse_totals.values())
+        if current_warehouse_id and warehouse_totals.get(current_warehouse_id) == max_qty:
+            return current_warehouse_id
+
+        for warehouse_id, qty in warehouse_totals.items():
+            if qty == max_qty:
+                return warehouse_id
+
+        return current_warehouse_id
+
+    def _resolve_warehouse_name(self, warehouse_id: str | None) -> str | None:
+        """Преобразует GUID склада из rests.xml в имя склада из настроек."""
+        if not warehouse_id:
+            return None
+
+        exchange_cfg = getattr(settings, "ONEC_EXCHANGE", {})
+        warehouse_name_by_id = exchange_cfg.get("WAREHOUSE_NAME_BY_ID", {})
+        if warehouse_id in warehouse_name_by_id:
+            return str(warehouse_name_by_id[warehouse_id])
+
+        warehouse_rules = exchange_cfg.get("WAREHOUSE_RULES", {})
+        if warehouse_id in warehouse_rules:
+            return warehouse_id
+
+        return None
+
+    def _get_vat_rate_by_warehouse_name(self, warehouse_name: str | None) -> Decimal | None:
+        """Возвращает ставку НДС по имени склада."""
+        if not warehouse_name:
+            return None
+
+        exchange_cfg = getattr(settings, "ONEC_EXCHANGE", {})
+        warehouse_rules = exchange_cfg.get("WAREHOUSE_RULES", {})
+        info = warehouse_rules.get(warehouse_name)
+        if not info:
+            return None
+
+        vat_rate = info.get("vat_rate")
+        if vat_rate is None:
+            return None
+
+        return Decimal(str(vat_rate))
 
     def _determine_brand(self, brand_id: str | None, parent_id: str) -> Any:
         """Определяет бренд через Brand1CMapping или возвращает fallback"""

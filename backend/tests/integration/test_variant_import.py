@@ -524,6 +524,59 @@ class TestVariantImportProcessor(TransactionTestCase):
         assert variant.stock_quantity == 80  # 50 + 30
         assert self.processor.stats["stocks_updated"] == 2
 
+    @override_settings(
+        ONEC_EXCHANGE={
+            "WAREHOUSE_NAME_BY_ID": {
+                "warehouse-001": "1 СДВ склад",
+                "warehouse-002": "2 ТЛВ склад",
+            },
+            "WAREHOUSE_RULES": {
+                "1 СДВ склад": {"organization": "ИП Семерюк Д. В.", "vat_rate": 22},
+                "2 ТЛВ склад": {"organization": "ИП Терещенко Л.В.", "vat_rate": 5},
+            },
+        }
+    )
+    def test_update_variant_stock_sets_primary_warehouse_and_vat_rate(self):
+        """Основной склад варианта определяется по максимальному остатку и обновляет vat_rate."""
+        product = Product.objects.create(
+            name="Тестовый товар склад",
+            slug="test-product-warehouse",
+            onec_id="test-product-warehouse-001",
+            parent_onec_id="test-product-warehouse-001",
+            brand=self.brand,
+            category=self.category,
+            description="",
+            is_active=True,
+        )
+        variant = ProductVariant.objects.create(
+            product=product,
+            sku="TEST-WH-001",
+            onec_id="test-product-warehouse-001#variant-001",
+            retail_price=Decimal("0"),
+            stock_quantity=0,
+        )
+
+        self.processor.update_variant_stock(
+            {
+                "id": "test-product-warehouse-001#variant-001",
+                "warehouse_id": "warehouse-001",
+                "quantity": 10,
+            }
+        )
+        self.processor.update_variant_stock(
+            {
+                "id": "test-product-warehouse-001#variant-001",
+                "warehouse_id": "warehouse-002",
+                "quantity": 30,
+            }
+        )
+
+        variant.refresh_from_db()
+        assert variant.stock_quantity == 40
+        assert variant.warehouse_id == "warehouse-002"
+        assert variant.warehouse_name == "2 ТЛВ склад"
+        assert variant.vat_rate == Decimal("5")
+
     def test_batch_processing(self):
         """AC9/NFR4: Batch processing по 500 записей"""
         # Создаём Product

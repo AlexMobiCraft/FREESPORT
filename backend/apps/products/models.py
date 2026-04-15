@@ -961,6 +961,27 @@ class ProductVariant(models.Model):
     )
 
     # Остатки
+    warehouse_id = cast(
+        str | None,
+        models.CharField(
+            "Идентификатор склада 1С",
+            max_length=64,
+            null=True,
+            blank=True,
+            db_index=True,
+            help_text="GUID склада из rests.xml, по которому определяется организация и ставка НДС",
+        ),
+    )
+    warehouse_name = cast(
+        str | None,
+        models.CharField(
+            "Склад",
+            max_length=255,
+            null=True,
+            blank=True,
+            help_text="Человекочитаемое имя склада 1С, например '1 СДВ склад'",
+        ),
+    )
     stock_quantity = cast(
         int,
         models.PositiveIntegerField(
