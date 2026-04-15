@@ -159,9 +159,11 @@ class OrderExportService:
         self._add_text_element(document, "Курс", self.EXCHANGE_RATE)
         self._add_text_element(document, "Сумма", self._format_price(order.total_amount))
 
-        # Организация и склад по ставке НДС первого товара
+        # Организация и склад определяются по складу первого товара,
+        # fallback — по vat_rate для старых данных.
+        order_warehouse_name = self._get_order_warehouse_name(order)
         order_vat_rate = self._get_order_vat_rate(order)
-        org_name, warehouse_name = self._get_org_and_warehouse(order_vat_rate)
+        org_name, warehouse_name = self._get_org_and_warehouse(order_vat_rate, order_warehouse_name)
         exchange_cfg = getattr(settings, "ONEC_EXCHANGE", {})
         agreement_name = exchange_cfg.get("DEFAULT_AGREEMENT", "Стандартное")
 
@@ -332,7 +334,7 @@ class OrderExportService:
             self._add_text_element(vid_ceny, "Наименование", price_type_name)
 
             # НДС «в том числе» (включён в сумму строки)
-            item_vat_rate = Decimal(str(item.variant.vat_rate)) if item.variant.vat_rate is not None else order_vat_rate
+            item_vat_rate = self._get_variant_vat_rate(item.variant, order_vat_rate)
             vat_amount = self._calc_vat_amount(item.total_price, item_vat_rate)
 
             taxes = ET.SubElement(product, "Налоги")
@@ -367,30 +369,76 @@ class OrderExportService:
 
     def _get_order_vat_rate(self, order: "Order") -> Decimal:
         """
-        Определяет ставку НДС заказа по первому варианту товара с заполненным vat_rate.
-        Fallback — DEFAULT_VAT_RATE из настроек (по умолчанию 22).
+        Определяет ставку НДС заказа по первому варианту товара:
+        сначала из vat_rate, затем по warehouse_name, затем по DEFAULT_VAT_RATE.
         """
         exchange_cfg = getattr(settings, "ONEC_EXCHANGE", {})
         default_rate = Decimal(str(exchange_cfg.get("DEFAULT_VAT_RATE", 22)))
         for item in order.items.all():
-            if item.variant and item.variant.vat_rate is not None:
+            if not item.variant:
+                continue
+            if item.variant.vat_rate is not None:
                 return Decimal(str(item.variant.vat_rate))
+            warehouse_vat_rate = self._get_vat_rate_by_warehouse_name(item.variant.warehouse_name)
+            if warehouse_vat_rate is not None:
+                return warehouse_vat_rate
         return default_rate
 
-    def _get_org_and_warehouse(self, vat_rate: Decimal) -> tuple[str, str]:
+    def _get_order_warehouse_name(self, order: "Order") -> str | None:
+        """Возвращает склад первого товара заказа, если он уже определён у варианта."""
+        for item in order.items.all():
+            if item.variant and item.variant.warehouse_name:
+                return str(item.variant.warehouse_name)
+        return None
+
+    def _get_org_and_warehouse(self, vat_rate: Decimal, warehouse_name: str | None = None) -> tuple[str, str]:
         """
-        Возвращает (название организации, название склада) по ставке НДС.
-        Маппинг настраивается через ONEC_EXCHANGE['ORGANIZATION_BY_VAT'].
+        Возвращает (название организации, название склада).
+        Приоритет: warehouse_name -> vat_rate -> DEFAULT_*.
         """
         exchange_cfg = getattr(settings, "ONEC_EXCHANGE", {})
+        warehouse_rules = exchange_cfg.get("WAREHOUSE_RULES", {})
+        if warehouse_name:
+            warehouse_info = warehouse_rules.get(warehouse_name)
+            if warehouse_info:
+                return warehouse_info["organization"], warehouse_name
+
         mapping = exchange_cfg.get("ORGANIZATION_BY_VAT", {})
         info = mapping.get(int(vat_rate))
         if info:
             return info["name"], info["warehouse"]
         return (
-            exchange_cfg.get("DEFAULT_ORGANIZATION", "ИП Семерюк"),
+            exchange_cfg.get("DEFAULT_ORGANIZATION", "ИП Семерюк Д. В."),
             exchange_cfg.get("DEFAULT_WAREHOUSE", "1 СДВ склад"),
         )
+
+    def _get_vat_rate_by_warehouse_name(self, warehouse_name: str | None) -> Decimal | None:
+        """Возвращает ставку НДС по имени склада."""
+        if not warehouse_name:
+            return None
+
+        exchange_cfg = getattr(settings, "ONEC_EXCHANGE", {})
+        warehouse_rules = exchange_cfg.get("WAREHOUSE_RULES", {})
+        info = warehouse_rules.get(warehouse_name)
+        if not info:
+            return None
+
+        vat_rate = info.get("vat_rate")
+        if vat_rate is None:
+            return None
+
+        return Decimal(str(vat_rate))
+
+    def _get_variant_vat_rate(self, variant: "ProductVariant", default_rate: Decimal) -> Decimal:
+        """Возвращает НДС варианта: собственный vat_rate, затем ставка по складу, затем default."""
+        if variant.vat_rate is not None:
+            return Decimal(str(variant.vat_rate))
+
+        warehouse_vat_rate = self._get_vat_rate_by_warehouse_name(variant.warehouse_name)
+        if warehouse_vat_rate is not None:
+            return warehouse_vat_rate
+
+        return default_rate
 
     def _get_price_type(self, order: "Order") -> str:
         """
