@@ -1,4 +1,5 @@
 # Docker Compose для тестирования FREESPORT Platform
+name: freesport-test
 
 services:
   # PostgreSQL тестовая база данных

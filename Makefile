@@ -68,40 +68,40 @@ down:
 # Все тесты
 test:
 	@echo "Запуск всех тестов..."
-	cd docker && docker compose --env-file .env -f docker-compose.test.yml down --remove-orphans --volumes
-	cd docker && docker compose --env-file .env -f docker-compose.test.yml up --build --abort-on-container-exit --exit-code-from backend
-	cd docker && docker compose --env-file .env -f docker-compose.test.yml down
+	cd docker && docker compose -p freesport-test --env-file .env -f docker-compose.test.yml down --remove-orphans --volumes
+	cd docker && docker compose -p freesport-test --env-file .env -f docker-compose.test.yml up --build --abort-on-container-exit --exit-code-from backend
+	cd docker && docker compose -p freesport-test --env-file .env -f docker-compose.test.yml down
 
 # Unit-тесты
 test-unit:
 	@echo "Запуск unit-тестов..."
-	cd docker && docker compose --env-file .env -f docker-compose.test.yml down --remove-orphans
-	cd docker && docker compose --env-file .env -f docker-compose.test.yml run --rm backend pytest -v -m unit --cov=apps --cov-report=term-missing
-	cd docker && docker compose --env-file .env -f docker-compose.test.yml down
+	cd docker && docker compose -p freesport-test --env-file .env -f docker-compose.test.yml down --remove-orphans
+	cd docker && docker compose -p freesport-test --env-file .env -f docker-compose.test.yml run --rm backend pytest -v -m unit --cov=apps --cov-report=term-missing
+	cd docker && docker compose -p freesport-test --env-file .env -f docker-compose.test.yml down
 
 # Интеграционные тесты
 test-integration:
 	@echo "Запуск интеграционных тестов..."
-	cd docker && docker compose --env-file .env -f docker-compose.test.yml down --remove-orphans
-	cd docker && docker compose --env-file .env -f docker-compose.test.yml run --rm backend pytest -v -m integration --cov=apps --cov-report=term-missing
-	cd docker && docker compose --env-file .env -f docker-compose.test.yml down
+	cd docker && docker compose -p freesport-test --env-file .env -f docker-compose.test.yml down --remove-orphans
+	cd docker && docker compose -p freesport-test --env-file .env -f docker-compose.test.yml run --rm backend pytest -v -m integration --cov=apps --cov-report=term-missing
+	cd docker && docker compose -p freesport-test --env-file .env -f docker-compose.test.yml down
 
 # Быстрые тесты (без сборки образов)
 test-fast:
 	@echo "Быстрый запуск тестов (без пересборки)..."
-	cd docker && docker compose --env-file .env -f docker-compose.test.yml run --rm backend pytest -v --tb=short
+	cd docker && docker compose -p freesport-test --env-file .env -f docker-compose.test.yml run --rm backend pytest -v --tb=short
 
 # Логи всех сервисов
 logs:
-	cd docker && docker compose --env-file .env -f docker-compose.test.yml logs -f
+	cd docker && docker compose -p freesport-test --env-file .env -f docker-compose.test.yml logs -f
 
 # Shell в backend контейнере
 shell:
-	cd docker && docker compose --env-file .env -f docker-compose.test.yml exec backend bash
+	cd docker && docker compose -p freesport-test --env-file .env -f docker-compose.test.yml exec backend bash
 
 # Подключение к БД
 db-shell:
-	cd docker && docker compose --env-file .env -f docker-compose.test.yml exec db psql -U freesport_user -d freesport
+	cd docker && docker compose -p freesport-test --env-file .env -f docker-compose.test.yml exec db psql -U freesport_user -d freesport
 
 # Очистка Docker volumes и неиспользуемых образов
 clean:
