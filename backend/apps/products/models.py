@@ -942,6 +942,24 @@ class ProductVariant(models.Model):
         ),
     )
 
+    # НДС
+    vat_rate = cast(
+        "Decimal | None",
+        models.DecimalField(
+            "Ставка НДС (%)",
+            max_digits=5,
+            decimal_places=2,
+            null=True,
+            blank=True,
+            help_text=(
+                "Ставка НДС в % (22 — импортные товары ИП Семерюк, "
+                "5 — российские товары ИП Терещенко). "
+                "Заполняется автоматически при импорте из 1С (<СтавкаНДС>). "
+                "Если не заполнено, используется DEFAULT_VAT_RATE из настроек."
+            ),
+        ),
+    )
+
     # Остатки
     stock_quantity = cast(
         int,
