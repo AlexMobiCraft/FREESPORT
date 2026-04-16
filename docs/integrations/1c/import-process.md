@@ -63,6 +63,10 @@ flowchart TD
   - The core logic for processing imported data.
   - Implements the "Hybrid" image import strategy (Base images in Product, Variant images in ProductVariant).
   - Handles the creation and update of `Product`, `ProductVariant`, `Category`, and `Brand`.
+  - During stock processing (`rests_*.xml`), determines the primary warehouse and VAT rate per variant:
+    - `_select_primary_warehouse_id` — returns the warehouse GUID with the highest cumulative stock (current warehouse is preferred on tie).
+    - `_resolve_warehouse_name` — maps GUID → human-readable name via `settings.ONEC_EXCHANGE["WAREHOUSE_NAME_BY_ID"]`.
+    - `_get_vat_rate_by_warehouse_name` — looks up `vat_rate` in `settings.ONEC_EXCHANGE["WAREHOUSE_RULES"]` by warehouse name.
 
 - **`XMLDataParser`** (`apps/products/services/parser.py`):
   - Responsibile for parsing raw XML files (CommerceML format) into Python dictionaries.
@@ -74,7 +78,7 @@ flowchart TD
 2. **Products**: Created from `goods.xml`. Base images are imported here.
 3. **Variants**: Created from `offers.xml`. SKU, characteristics (Size, Color), and variant-specific images are processed.
 4. **Prices**: Updated from `prices.xml`. Linked to specific variants.
-5. **Stock**: Updated from `rests.xml`. Linked to specific variants.
+5. **Stock**: Updated from `rests_*.xml`. Linked to specific variants. In addition to `stock_quantity`, the processor determines the **primary warehouse** (highest total stock) and updates `warehouse_id`, `warehouse_name`, and `vat_rate` on each `ProductVariant` via `ONEC_EXCHANGE` settings.
 
 ## Usage
 

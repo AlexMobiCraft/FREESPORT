@@ -207,7 +207,10 @@ graph TD
 | `<Артикул>` | `sku` | Записывается как основной артикул. |
 | `<ХарактеристикиТовара>` | `specifications` | **Объединяется** с базовыми свойствами. |
 | `prices.xml` -> `<Цены>` | `retail_price`, `opt1_price` и т.д. | Цены мапятся на соответствующие поля. |
-| `rests.xml` -> `<Количество>` | `stock_quantity` | Остатки суммируются и записываются. |
+| `rests_*.xml` -> `<Количество>` | `stock_quantity` | Остатки суммируются по всем складам. |
+| `rests_*.xml` -> `<Склад><Ид>` | `warehouse_id` | GUID основного склада (с максимальным остатком). Резолвится через `ONEC_EXCHANGE["WAREHOUSE_NAME_BY_ID"]`. |
+| `WAREHOUSE_NAME_BY_ID[warehouse_id]` | `warehouse_name` | Человекочитаемое имя склада, например `"1 СДВ склад"`. |
+| `WAREHOUSE_RULES[warehouse_name]["vat_rate"]` | `vat_rate` | Ставка НДС (%), определяемая по складу при импорте остатков. Переопределяет значение из `<СтавкаНДС>` в goods.xml. |
 
 
 ### 4.2 Маппинг справочников
@@ -216,7 +219,7 @@ graph TD
 | :--- | :--- | :--- |
 | `groups.xml` | `Category` | Создание иерархии категорий. |
 | `priceLists.xml` | `PriceType` | Маппинг типов цен 1С на роли пользователей. |
-| `storages.xml` | `(не используется)` | Остатки агрегируются, детальная информация по складам игнорируется. |
+| `storages.xml` | `(не используется напрямую)` | Маппинг GUID склада → имя задаётся в `settings.ONEC_EXCHANGE["WAREHOUSE_NAME_BY_ID"]`. |
 | `units.xml` | `Unit` | Единицы измерения. |
 | `propertiesGoods/` | `Attribute`, `AttributeValue`, `Attribute1CMapping`, `AttributeValue1CMapping`, `Brand` | Создание атрибутов с дедупликацией и **определение бренда** (если он задан как свойство). |
 | `propertiesOffers/` | `Attribute`, `AttributeValue`, `Attribute1CMapping`, `AttributeValue1CMapping` | Создание атрибутов для SKU с дедупликацией. |
