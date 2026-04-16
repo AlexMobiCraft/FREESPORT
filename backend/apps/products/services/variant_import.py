@@ -1881,6 +1881,7 @@ class VariantImportProcessor:
 
         # Инвалидация кэша избранных брендов
         from django.core.cache import cache
+
         from apps.products.constants import FEATURED_BRANDS_CACHE_KEY
 
         cache.delete(FEATURED_BRANDS_CACHE_KEY)

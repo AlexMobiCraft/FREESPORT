@@ -14,14 +14,9 @@ import pytest
 from django.utils.html import format_html
 
 from apps.banners.admin import BannerAdmin
-from apps.banners.factories import (
-    BannerFactory,
-    MarketingBannerFactory,
-    MarketingBannerWithMobileImageFactory,
-)
+from apps.banners.factories import BannerFactory, MarketingBannerFactory, MarketingBannerWithMobileImageFactory
 from apps.banners.models import Banner
 from apps.banners.serializers import BannerSerializer
-
 
 # ---------------------------------------------------------------------------
 # Model Tests

@@ -1,0 +1,33 @@
+{
+  "env": {
+    "ANTHROPIC_AUTH_TOKEN": "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",
+    "ANTHROPIC_BASE_URL": "https://openrouter.ai/api",
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "qwen/qwen3.6-plus:free",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "qwen/qwen3.6-plus:free",
+    "ANTHROPIC_DEFAULT_OPUS_MODEL": "qwen/qwen3.6-plus:free",
+    "CLAUDE_CODE_SUBAGENT_MODEL": "qwen/qwen3.6-plus:free"
+
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "bash /c/Users/tkachenko/.claude/statusline-command.sh"
+  },
+  "enabledPlugins": {
+    "telegram@claude-plugins-official": true,
+    "codex@openai-codex": true
+  },
+  "extraKnownMarketplaces": {
+    "openai-codex": {
+      "source": {
+        "source": "github",
+        "repo": "openai/codex-plugin-cc"
+      }
+    }
+  },
+  "language": "русский",
+  "autoUpdatesChannel": "latest",
+  "voiceEnabled": true,
+  "autoDreamEnabled": true,
+  "skipDangerousModePermissionPrompt": true
+}
