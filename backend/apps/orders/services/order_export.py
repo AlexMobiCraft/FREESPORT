@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     from django.db.models import QuerySet
 
     from apps.orders.models import Order
+    from apps.products.models import ProductVariant
     from apps.users.models import User
 
 logger = logging.getLogger(__name__)
@@ -447,10 +448,10 @@ class OrderExportService:
         """
         exchange_cfg = getattr(settings, "ONEC_EXCHANGE", {})
         role_map = exchange_cfg.get("PRICE_TYPE_BY_ROLE", {})
-        default_pt = exchange_cfg.get("DEFAULT_PRICE_TYPE", "РРЦ")
+        default_pt = str(exchange_cfg.get("DEFAULT_PRICE_TYPE", "РРЦ"))
         user = order.user
         if user:
-            return role_map.get(user.role, default_pt)
+            return str(role_map.get(user.role, default_pt))
         return default_pt
 
     def _calc_vat_amount(self, total_price: Decimal, vat_rate: Decimal) -> Decimal:
