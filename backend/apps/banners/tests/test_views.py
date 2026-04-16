@@ -7,8 +7,9 @@
 - 7-1: Cache key collision fix — роли изолированы в кеше
 """
 
-import pytest
 from typing import Any, cast
+
+import pytest
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from rest_framework.test import APIClient
