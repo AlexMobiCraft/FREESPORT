@@ -83,6 +83,8 @@ class OrderDetailSerializer(serializers.ModelSerializer):
             "sent_to_1c",
             "sent_to_1c_at",
             "status_1c",
+            "is_master",
+            "vat_group",
             "created_at",
             "updated_at",
             "items",
@@ -106,6 +108,8 @@ class OrderDetailSerializer(serializers.ModelSerializer):
             "sent_to_1c",
             "sent_to_1c_at",
             "status_1c",
+            "is_master",
+            "vat_group",
         ]
 
 
@@ -244,14 +248,7 @@ class OrderCreateSerializer(serializers.ModelSerializer):
             item_total = user_price * cart_item.quantity
             total_amount += item_total
 
-            # Формируем информацию о варианте (размер, цвет)
-            variant_info_parts = []
-            if variant.size_value:
-                variant_info_parts.append(f"Размер: {variant.size_value}")
-            if variant.color_name:
-                variant_info_parts.append(f"Цвет: {variant.color_name}")
-            variant_info_str = ", ".join(variant_info_parts)
-
+            snapshot = OrderItem.build_snapshot(product, variant)
             order_items.append(
                 OrderItem(
                     order=order,
@@ -260,9 +257,7 @@ class OrderCreateSerializer(serializers.ModelSerializer):
                     quantity=cart_item.quantity,
                     unit_price=user_price,
                     total_price=item_total,
-                    product_name=product.name,
-                    product_sku=variant.sku,
-                    variant_info=variant_info_str,
+                    **snapshot,
                 )
             )
 
@@ -322,6 +317,7 @@ class OrderListSerializer(serializers.ModelSerializer):
             "delivery_method",
             "payment_method",
             "payment_status",
+            "is_master",
             "sent_to_1c",
             "created_at",
             "total_items",
@@ -336,6 +332,7 @@ class OrderListSerializer(serializers.ModelSerializer):
             "delivery_method",
             "payment_method",
             "payment_status",
+            "is_master",
             "sent_to_1c",
             "created_at",
             "total_items",

@@ -35,7 +35,12 @@ class Order(models.Model):
     Поля интеграции с 1С:
     - sent_to_1c: флаг отправки заказа в 1С
     - sent_to_1c_at: дата/время отправки в 1С
-    - status_1c: оригинальный статус из 1С"""
+    - status_1c: оригинальный статус из 1С
+
+    Поля VAT / Субзаказы:
+    - parent_order: ссылка на мастер-заказ (только для субзаказов)
+    - is_master: True — заказ видит клиент; False — технический субзаказ для 1С
+    - vat_group: ставка НДС группы товаров в субзаказе (5 или 22)"""
 
     objects = models.Manager()
 
@@ -66,6 +71,10 @@ class Order(models.Model):
         notes: str
         created_at: datetime
         updated_at: datetime
+        parent_order: "Order | None"
+        is_master: bool
+        vat_group: "Decimal | None"
+        sub_orders: "RelatedManager[Order]"
 
     ORDER_STATUSES = ORDER_STATUSES
 
@@ -193,6 +202,40 @@ class Order(models.Model):
             help_text="Заказ не прошёл валидацию для экспорта в 1С (например, нет товаров)",
         ),
     )
+
+    # VAT / Субзаказы
+    parent_order = cast(
+        "Order | None",
+        models.ForeignKey(
+            "self",
+            on_delete=models.CASCADE,
+            null=True,
+            blank=True,
+            related_name="sub_orders",
+            verbose_name="Мастер-заказ",
+            help_text="Заполнено только для дочерних субзаказов",
+        ),
+    )
+    is_master = cast(
+        bool,
+        models.BooleanField(
+            "Мастер-заказ",
+            default=True,
+            help_text="True — заказ видит клиент; False — технический субзаказ для 1С",
+        ),
+    )
+    vat_group = cast(
+        "Decimal | None",
+        models.DecimalField(
+            "Группа НДС (%)",
+            max_digits=5,
+            decimal_places=2,
+            null=True,
+            blank=True,
+            help_text="Ставка НДС группы товаров в этом субзаказе (5 или 22)",
+        ),
+    )
+
     paid_at = cast(
         "datetime | None",
         models.DateTimeField("Дата оплаты", null=True, blank=True),
@@ -291,6 +334,7 @@ class OrderItem(models.Model):
         product_name: str
         product_sku: str
         variant_info: str
+        vat_rate: "Decimal | None"
         created_at: datetime
         updated_at: datetime
 
@@ -348,6 +392,17 @@ class OrderItem(models.Model):
             help_text="Размер, цвет и др. характеристики варианта",
         ),
     )
+    vat_rate = cast(
+        "Decimal | None",
+        models.DecimalField(
+            "Ставка НДС (%)",
+            max_digits=5,
+            decimal_places=2,
+            null=True,
+            blank=True,
+            help_text="Снимок ставки НДС варианта на момент создания заказа",
+        ),
+    )
 
     created_at = cast(datetime, models.DateTimeField("Дата создания", auto_now_add=True))
     updated_at = cast(datetime, models.DateTimeField("Дата обновления", auto_now=True))
@@ -363,25 +418,42 @@ class OrderItem(models.Model):
             models.Index(fields=["order", "variant"]),
         ]
 
+    @staticmethod
+    def build_snapshot(product: "ProductType | None", variant: "ProductVariantType | None") -> dict:
+        """Формирует словарь snapshot-полей из продукта и варианта.
+
+        Используется в save() и OrderCreateSerializer.create() для гарантии
+        единообразного формирования product_name, product_sku, variant_info, vat_rate.
+        """
+        parts: list[str] = []
+        if variant:
+            if getattr(variant, "size_value", None):
+                parts.append(f"Размер: {variant.size_value}")
+            if getattr(variant, "color_name", None):
+                parts.append(f"Цвет: {variant.color_name}")
+        raw_vat = getattr(variant, "vat_rate", None) if variant else None
+        return {
+            "product_name": product.name if product else "",
+            "product_sku": getattr(variant, "sku", "") if variant else "",
+            "variant_info": ", ".join(parts),
+            "vat_rate": Decimal(str(raw_vat)) if raw_vat is not None else None,
+        }
+
     def save(self, *args: Any, **kwargs: Any) -> None:
         # Автоматически рассчитываем общую стоимость
         self.total_price = self.unit_price * self.quantity
 
-        # Сохраняем снимок данных продукта
-        if self.product and not self.product_name:
-            self.product_name = getattr(self.product, "name", self.product_name)
-
-        if self.variant:
+        # Сохраняем снимок данных продукта (заполняем только незаполненные поля)
+        if self._state.adding:
+            snapshot = OrderItem.build_snapshot(self.product, self.variant)
+            if not self.product_name:
+                self.product_name = snapshot["product_name"]
             if not self.product_sku:
-                self.product_sku = getattr(self.variant, "sku", self.product_sku)
+                self.product_sku = snapshot["product_sku"]
             if not self.variant_info:
-                # Формируем информацию о варианте
-                parts = []
-                if self.variant.color_name:
-                    parts.append(f"Цвет: {self.variant.color_name}")
-                if self.variant.size_value:
-                    parts.append(f"Размер: {self.variant.size_value}")
-                self.variant_info = ", ".join(parts)
+                self.variant_info = snapshot["variant_info"]
+            if self.vat_rate is None:
+                self.vat_rate = snapshot["vat_rate"]
 
         super().save(*args, **kwargs)
 

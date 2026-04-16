@@ -14,6 +14,7 @@ from apps.products.models import Brand, Category, Product, ProductVariant
 User = get_user_model()
 
 
+@pytest.mark.integration
 class CartOrderIntegrationTest(TestCase):
     """Тестирование интеграции корзины и заказов"""
 
@@ -196,3 +197,70 @@ class CartOrderIntegrationTest(TestCase):
 
         self.assertEqual(initial_orders_count, final_orders_count)
         self.assertEqual(initial_cart_items, final_cart_items)
+
+    def test_order_item_vat_rate_captured_via_api(self):
+        """[AI-Review][Medium] vat_rate снимается при создании заказа через API endpoint (bulk_create path)"""
+        from decimal import Decimal
+
+        self.client.force_authenticate(user=self.user)
+
+        # Устанавливаем vat_rate у варианта
+        self.variant1.vat_rate = Decimal("5.00")
+        self.variant1.save()
+
+        # Добавляем товар в корзину через API
+        self.client.post("/api/v1/cart/items/", {"variant_id": self.variant1.id, "quantity": 1})
+
+        # Создаём заказ через API endpoint
+        order_data = {
+            "delivery_address": "Ул. Тестовая, 1",
+            "delivery_method": "pickup",
+            "payment_method": "card",
+        }
+        order_response = self.client.post("/api/v1/orders/", order_data)
+        self.assertEqual(order_response.status_code, 201)
+
+        # Проверяем, что vat_rate сохранился в OrderItem
+        order_id = order_response.data["id"]
+        order = Order.objects.get(id=order_id)
+        items = list(order.items.all())
+
+        self.assertEqual(len(items), 1)
+        self.assertEqual(
+            items[0].vat_rate,
+            Decimal("5.00"),
+            "vat_rate должен быть снят из variant при создании заказа через API (bulk_create path)",
+        )
+
+    def test_order_item_vat_rate_null_via_api_when_no_variant_vat(self):
+        """[AI-Review][Medium] vat_rate остаётся None, если у variant нет vat_rate — проверка через API"""
+        from decimal import Decimal
+
+        self.client.force_authenticate(user=self.user)
+
+        # Убеждаемся, что у варианта нет vat_rate
+        self.variant1.vat_rate = None
+        self.variant1.save()
+
+        # Добавляем товар в корзину через API
+        self.client.post("/api/v1/cart/items/", {"variant_id": self.variant1.id, "quantity": 1})
+
+        # Создаём заказ через API endpoint
+        order_data = {
+            "delivery_address": "Ул. Тестовая, 2",
+            "delivery_method": "pickup",
+            "payment_method": "cash",
+        }
+        order_response = self.client.post("/api/v1/orders/", order_data)
+        self.assertEqual(order_response.status_code, 201)
+
+        # Проверяем, что vat_rate = None
+        order_id = order_response.data["id"]
+        order = Order.objects.get(id=order_id)
+        items = list(order.items.all())
+
+        self.assertEqual(len(items), 1)
+        self.assertIsNone(
+            items[0].vat_rate,
+            "vat_rate должен быть None, если у variant нет vat_rate",
+        )

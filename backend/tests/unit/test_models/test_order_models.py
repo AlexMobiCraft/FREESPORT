@@ -10,7 +10,8 @@ from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 
 from apps.orders.models import Order, OrderItem
-from tests.conftest import OrderFactory, OrderItemFactory, ProductFactory, UserFactory
+from apps.orders.serializers import OrderDetailSerializer, OrderListSerializer
+from tests.conftest import OrderFactory, OrderItemFactory, ProductFactory, ProductVariantFactory, UserFactory
 
 
 @pytest.mark.django_db
@@ -344,3 +345,142 @@ class TestOrderItemModel:
         assert OrderItem._meta.verbose_name == "Элемент заказа"
         assert OrderItem._meta.verbose_name_plural == "Элементы заказа"
         assert OrderItem._meta.db_table == "order_items"
+
+
+@pytest.mark.unit
+@pytest.mark.django_db
+class TestOrderVatSplitFields:
+    """Тесты новых полей VAT-разбивки (Story 34-1)"""
+
+    # --- Task 6.1: дефолтные значения новых полей Order ---
+
+    def test_order_default_values_new_fields(self):
+        """AC2, AC3: is_master=True, parent_order=None, vat_group=None по умолчанию"""
+        order = OrderFactory.create()
+
+        assert order.is_master is True
+        assert order.parent_order is None
+        assert order.vat_group is None
+
+    # --- Task 6.2: создание дочернего заказа ---
+
+    def test_create_child_order_with_parent(self):
+        """AC1, AC2, AC3: создание субзаказа с parent_order, is_master=False, vat_group"""
+        master = OrderFactory.create()
+        child = OrderFactory.create(
+            parent_order=master,
+            is_master=False,
+            vat_group=Decimal("5.00"),
+        )
+
+        assert child.parent_order == master
+        assert child.is_master is False
+        assert child.vat_group == Decimal("5.00")
+
+    # --- Task 6.3: related_name sub_orders ---
+
+    def test_sub_orders_related_name(self):
+        """AC1: related_name='sub_orders' работает корректно"""
+        master = OrderFactory.create()
+        OrderFactory.create(parent_order=master, is_master=False, vat_group=Decimal("22.00"))
+
+        assert master.sub_orders.count() == 1
+
+    def test_cascade_delete_sub_orders(self):
+        """AC1: при удалении мастера дочерние удаляются (CASCADE)"""
+        master = OrderFactory.create()
+        child_id = OrderFactory.create(parent_order=master, is_master=False).pk
+
+        master.delete()
+
+        assert not Order.objects.filter(pk=child_id).exists()
+
+    # --- Task 6.4: OrderItem.vat_rate ---
+
+    def test_order_item_vat_rate_default_none(self):
+        """AC4: vat_rate = None по умолчанию, если у варианта нет vat_rate"""
+        variant = ProductVariantFactory.create(vat_rate=None)
+        item = OrderItemFactory.create(variant=variant)
+
+        assert item.vat_rate is None
+
+    def test_order_item_vat_rate_set_from_variant(self):
+        """AC4: vat_rate снимается из variant.vat_rate при первом save()"""
+        variant = ProductVariantFactory.create(vat_rate=Decimal("5.00"))
+        item = OrderItemFactory.create(variant=variant)
+
+        assert item.vat_rate == Decimal("5.00")
+
+    def test_order_item_vat_rate_not_overwritten(self):
+        """AC4: vat_rate не перезаписывается при повторном save()"""
+        variant = ProductVariantFactory.create(vat_rate=Decimal("5.00"))
+        item = OrderItemFactory.create(variant=variant)
+
+        # Меняем vat_rate у варианта — снимок должен остаться прежним
+        variant.vat_rate = Decimal("22.00")
+        variant.save()
+        item.save()
+        item.refresh_from_db()
+
+        assert item.vat_rate == Decimal("5.00")
+
+    def test_order_item_variant_info_not_backfilled_after_first_save(self):
+        """Snapshot variant_info не должен меняться после первого сохранения, даже если у variant появились атрибуты."""
+        product = ProductFactory.create(create_variant=False)
+        variant = ProductVariantFactory.create(product=product, size_value="", color_name="")
+        item = OrderItemFactory.create(product=product, variant=variant, variant_info="")
+
+        assert item.variant_info == ""
+
+        variant.size_value = "L"
+        variant.color_name = "Красный"
+        variant.save()
+
+        item.save()
+        item.refresh_from_db()
+
+        assert item.variant_info == ""
+
+    # --- Task 6.5: сериализация OrderDetailSerializer ---
+
+    def test_order_detail_serializer_includes_is_master(self):
+        """AC7: is_master присутствует в OrderDetailSerializer output"""
+        order = OrderFactory.create(is_master=True)
+        data = OrderDetailSerializer(order).data
+
+        assert "is_master" in data
+        assert data["is_master"] is True
+
+    def test_order_detail_serializer_includes_vat_group(self):
+        """AC7: vat_group присутствует в OrderDetailSerializer output"""
+        order = OrderFactory.create(vat_group=Decimal("5.00"))
+        data = OrderDetailSerializer(order).data
+
+        assert "vat_group" in data
+        assert Decimal(data["vat_group"]) == Decimal("5.00")
+
+    # --- Task 6.6: сериализация OrderListSerializer ---
+
+    def test_order_list_serializer_includes_is_master(self):
+        """AC7: is_master присутствует в OrderListSerializer output"""
+        order = OrderFactory.create(is_master=False)
+        data = OrderListSerializer(order).data
+
+        assert "is_master" in data
+        assert data["is_master"] is False
+
+    # --- Task 6.7: OrderCreateSerializer не принимает новые поля ---
+
+    def test_order_create_serializer_ignores_is_master(self):
+        """AC7: is_master НЕ принимается OrderCreateSerializer как input"""
+        from apps.orders.serializers import OrderCreateSerializer
+
+        serializer = OrderCreateSerializer()
+        assert "is_master" not in serializer.fields
+
+    def test_order_create_serializer_ignores_vat_group(self):
+        """AC7: vat_group НЕ принимается OrderCreateSerializer как input"""
+        from apps.orders.serializers import OrderCreateSerializer
+
+        serializer = OrderCreateSerializer()
+        assert "vat_group" not in serializer.fields

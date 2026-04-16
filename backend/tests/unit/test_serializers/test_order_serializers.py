@@ -371,6 +371,97 @@ class TestOrderStatusUpdate:
             assert order.status == status
 
 
+@pytest.mark.unit
+@pytest.mark.django_db
+class TestOrderItemVatRateSnapshot:
+    """Regression-тесты: vat_rate заполняется при bulk_create (Review 34-1 [High])"""
+
+    def test_order_item_vat_rate_set_via_serializer(
+        self,
+        user_factory,
+        cart_factory,
+        product_factory,
+        cart_item_factory,
+        product_variant_factory,
+    ):
+        """vat_rate из variant снимается при создании заказа через OrderCreateSerializer (bulk_create path)"""
+        from decimal import Decimal
+        from unittest.mock import Mock
+
+        from apps.orders.models import OrderItem
+
+        user = user_factory.create()
+        product = product_factory.create(retail_price=Decimal("500.00"))
+        variant = product.variants.first()
+
+        # Устанавливаем vat_rate у варианта
+        variant.vat_rate = Decimal("5.00")
+        variant.save()
+
+        cart = cart_factory.create(user=user)
+        cart_item_factory.create(cart=cart, product=product, quantity=1)
+
+        mock_request = Mock()
+        mock_request.user = user
+
+        data = {
+            "delivery_address": "Ул. Тестовая, 1",
+            "delivery_method": "pickup",
+            "payment_method": "card",
+        }
+        serializer = OrderCreateSerializer(data=data, context={"request": mock_request})
+        assert serializer.is_valid(), serializer.errors
+
+        order = serializer.save()
+
+        items = list(order.items.all())
+        assert len(items) == 1
+        assert items[0].vat_rate == Decimal("5.00"), (
+            "vat_rate должен быть снят из variant при создании через bulk_create"
+        )
+
+    def test_order_item_vat_rate_null_when_variant_has_no_vat(
+        self,
+        user_factory,
+        cart_factory,
+        product_factory,
+        cart_item_factory,
+    ):
+        """vat_rate остаётся None, если у variant нет vat_rate"""
+        from decimal import Decimal
+        from unittest.mock import Mock
+
+        from apps.orders.models import OrderItem
+
+        user = user_factory.create()
+        product = product_factory.create(retail_price=Decimal("200.00"))
+        variant = product.variants.first()
+
+        # Убедимся, что vat_rate = None
+        variant.vat_rate = None
+        variant.save()
+
+        cart = cart_factory.create(user=user)
+        cart_item_factory.create(cart=cart, product=product, quantity=1)
+
+        mock_request = Mock()
+        mock_request.user = user
+
+        data = {
+            "delivery_address": "Ул. Тестовая, 2",
+            "delivery_method": "pickup",
+            "payment_method": "card",
+        }
+        serializer = OrderCreateSerializer(data=data, context={"request": mock_request})
+        assert serializer.is_valid(), serializer.errors
+
+        order = serializer.save()
+
+        items = list(order.items.all())
+        assert len(items) == 1
+        assert items[0].vat_rate is None
+
+
 @pytest.mark.django_db
 class TestOrderListSerializer:
     """Тесты сериализатора списка заказов"""
