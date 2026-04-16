@@ -128,6 +128,7 @@ const Header: React.FC = () => {
               {/* Избранное */}
               <Link
                 href="/profile/favorites"
+                prefetch={false}
                 aria-label="Избранное"
                 className="p-2 text-text-primary hover:text-text-secondary transition-colors duration-short focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-sm"
               >
@@ -161,6 +162,7 @@ const Header: React.FC = () => {
                   </span>
                   <Link
                     href="/profile"
+                    prefetch={false}
                     aria-label="Профиль"
                     className="p-2 text-text-primary hover:text-text-secondary transition-colors duration-short focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-sm"
                   >
@@ -244,6 +246,7 @@ const Header: React.FC = () => {
                       </Link>
                       <Link
                         href="/profile/favorites"
+                        prefetch={false}
                         onClick={() => setIsMobileMenuOpen(false)}
                         aria-label="Избранное"
                         className="p-2 text-text-primary hover:text-text-secondary transition-colors"
@@ -268,6 +271,7 @@ const Header: React.FC = () => {
                       </Link>
                       <Link
                         href="/profile"
+                        prefetch={false}
                         onClick={() => setIsMobileMenuOpen(false)}
                         aria-label="Профиль"
                         className="p-2 text-text-primary hover:text-text-secondary transition-colors"
@@ -301,6 +305,7 @@ const Header: React.FC = () => {
                       </Link>
                       <Link
                         href="/profile/favorites"
+                        prefetch={false}
                         onClick={() => setIsMobileMenuOpen(false)}
                         aria-label="Избранное"
                         className="p-2 text-text-primary hover:text-text-secondary transition-colors"

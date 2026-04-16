@@ -46,7 +46,7 @@ const DEFAULT_COLUMNS: FooterColumn[] = [
   {
     title: 'Компания',
     links: [
-      { label: 'Личный кабинет', href: ' /profile' },
+      { label: 'Личный кабинет', href: '/profile' },
       { label: 'Реквизиты', href: '/requisites' },
       { label: 'Политика конфиденциальности', href: '/policy' },
     ],
@@ -54,7 +54,7 @@ const DEFAULT_COLUMNS: FooterColumn[] = [
   {
     title: 'Клиентам',
     links: [
-      { label: 'Памятка клиенту', href: ' /home' },
+      { label: 'Памятка клиенту', href: '/home' },
       { label: 'Маркетинговые материалы', href: '/home' },
       { label: 'Условия сотрудничества', href: '/home' },
       { label: 'Условия доставки', href: '/delivery' },
@@ -127,6 +127,7 @@ export const Footer: React.FC<FooterProps> = ({
                   <li key={linkIndex}>
                     <Link
                       href={link.href}
+                      prefetch={link.href.startsWith('/profile') ? false : undefined}
                       className="text-sm text-[#9ca3af] hover:text-white transition-colors"
                     >
                       {link.label}
