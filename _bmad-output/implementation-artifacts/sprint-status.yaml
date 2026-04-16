@@ -118,3 +118,17 @@ development_status:
   33-3-brandsblock-component-logic-ui: done
   33-4-integration-into-homepage: done
   epic-33-retrospective: optional
+
+  # ========================================
+  # Epic 34: Разбивка заказов по ставке НДС
+  # Goal: Обеспечить корректное создание и экспорт заказов с товарами разных ставок НДС,
+  #       с поддержкой независимых статусов субзаказов из 1С.
+  # FRs covered: разбивка Order на master/sub по vat_group, экспорт субзаказов, агрегация статусов
+  # Source: sprint-change-proposal-2026-04-16.md
+  # ========================================
+  epic-34: in-progress
+  34-1-order-model-vat-split-fields-migrations: ready-for-dev
+  34-2-sub-order-creation-logic-and-api: backlog
+  34-3-order-export-service-sub-orders: backlog
+  34-4-order-status-import-aggregation: backlog
+  34-5-tests-update-epics-4-5: backlog
