@@ -1,7 +1,7 @@
 # Gemini Added Memories (Специфические правила для Gemini)
 
 - Отвечай и веди документацию исключительно на русском языке
-- См. общее руководство: [AGENTS.md](file:///c:/Users/tkachenko/DEV/FREESPORT/AGENTS.md)
+- См. общее руководство: [AGENTS.md](file:///c:/Users/1/DEV/FREESPORT/AGENTS.md)
 
 # Command Validation Rules (Валидация команд)
 
