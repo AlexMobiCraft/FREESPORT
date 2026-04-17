@@ -178,6 +178,48 @@ class TestOrderAPI:
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert "Корзина пуста" in str(response.data)
 
+    def test_create_order_guest_happy_path_via_session_cart(self, db):
+        """Fifth follow-up: успешный guest checkout через session-корзину.
+
+        Публичный `AllowAny` flow `OrderCreateSerializer._get_user_cart()` должен
+        корректно находить гостевую корзину по session_key и создавать заказ.
+        """
+        # Имитация гостевой сессии через APIClient (session middleware создаст session_key)
+        self.client.post(
+            reverse("cart:cart-items-list"),
+            {"variant_id": self.variant.id, "quantity": 1},
+        )
+        # Убеждаемся, что гостевая корзина создана с session_key
+        session_key = self.client.session.session_key
+        assert session_key is not None
+        guest_cart = Cart.objects.get(session_key=session_key, user__isnull=True)
+        assert guest_cart.items.count() == 1
+
+        order_data = {
+            "delivery_address": "Guest addr 1",
+            "delivery_method": "pickup",
+            "payment_method": "card",
+            "customer_email": "guest@example.com",
+            "customer_phone": "+79990000000",
+            "customer_name": "Guest User",
+        }
+
+        url = reverse("orders:order-list")
+        response = self.client.post(url, order_data)
+
+        assert response.status_code == status.HTTP_201_CREATED
+        order = Order.objects.get(order_number=response.data["order_number"])
+        assert order.user is None
+        assert order.is_master is True
+        assert order.customer_email == "guest@example.com"
+        # После VAT-split items живут на субзаказах
+        sub_orders = list(order.sub_orders.all())
+        assert len(sub_orders) == 1
+        assert sub_orders[0].items.count() == 1
+        # Гостевая корзина очищена
+        guest_cart.refresh_from_db()
+        assert not guest_cart.items.exists()
+
     def test_legacy_master_with_direct_items_backward_compat(self, db):
         """Regression (Story 34-2 Third Follow-up): legacy мастер-заказ с direct items
         (без sub_orders) должен корректно сериализоваться — items/subtotal/total_items/
@@ -435,3 +477,93 @@ class TestOrderAPI:
         response = self.client.get(url)
         assert response.status_code == status.HTTP_200_OK
         assert len(response.data["results"]) == 2
+
+    def test_create_order_accepts_customer_field_names(self, db):
+        """Regression (Story 34-2 Ninth Follow-up / AC12): POST /api/v1/orders/ принимает
+        customer_name/customer_email/customer_phone/notes — поля OrderCreateSerializer.
+        Проверяем, что данные корректно сохраняются в Order (synchronization frontend contract).
+        """
+        self.client.force_authenticate(user=self.user)
+
+        cart = Cart.objects.create(user=self.user)
+        CartItem.objects.create(
+            cart=cart,
+            variant=self.variant,
+            quantity=1,
+            price_snapshot=self.variant.retail_price,
+        )
+
+        order_data = {
+            "delivery_address": "123456, г. Москва, ул. Тестовая, д. 1",
+            "delivery_method": "courier",
+            "payment_method": "card",
+            "customer_name": "Иван Петров",
+            "customer_email": "ivan@example.com",
+            "customer_phone": "+79001234567",
+            "notes": "Позвоните за час до доставки",
+        }
+
+        url = reverse("orders:order-list")
+        response = self.client.post(url, order_data)
+
+        assert response.status_code == status.HTTP_201_CREATED
+        order = Order.objects.get(order_number=response.data["order_number"])
+        assert order.customer_name == "Иван Петров"
+        assert order.customer_email == "ivan@example.com"
+        assert order.customer_phone == "+79001234567"
+        assert order.notes == "Позвоните за час до доставки"
+        assert order.is_master is True
+
+    def test_list_endpoint_returns_list_serializer_contract(self, db):
+        """Regression (Story 34-2 Ninth Follow-up / AC12): GET /api/v1/orders/ возвращает
+        набор полей OrderListSerializer — contract test для синхронизации с frontend OrderListItem.
+        """
+        self.client.force_authenticate(user=self.user)
+
+        Order.objects.create(
+            user=self.user,
+            delivery_address="Contract Test Address",
+            delivery_method="courier",
+            payment_method="card",
+            total_amount=Decimal("100.00"),
+            customer_name="Test User",
+            customer_email="test@example.com",
+        )
+
+        url = reverse("orders:order-list")
+        response = self.client.get(url)
+
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.data["results"]) == 1
+        item = response.data["results"][0]
+
+        # Обязательные поля OrderListSerializer / frontend OrderListItem
+        expected_fields = {
+            "id",
+            "user",
+            "order_number",
+            "customer_display_name",
+            "status",
+            "total_amount",
+            "delivery_method",
+            "payment_method",
+            "payment_status",
+            "is_master",
+            "vat_group",
+            "sent_to_1c",
+            "created_at",
+            "total_items",
+        }
+        assert expected_fields.issubset(set(item.keys())), f"Отсутствующие поля: {expected_fields - set(item.keys())}"
+
+        # Поля detail-только НЕ должны присутствовать в list
+        list_only_contract = {
+            "items",
+            "subtotal",
+            "calculated_total",
+            "delivery_cost",
+            "discount_amount",
+            "can_be_cancelled",
+        }
+        overlap = list_only_contract.intersection(set(item.keys()))
+        assert not overlap, f"List endpoint не должен отдавать detail-поля: {overlap}"

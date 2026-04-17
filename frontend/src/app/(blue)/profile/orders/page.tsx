@@ -12,7 +12,7 @@ import { OrdersList } from '@/components/business/OrdersList';
 import { Spinner } from '@/components/ui';
 import Button from '@/components/ui/Button';
 import ordersService from '@/services/ordersService';
-import type { Order, OrderStatus } from '@/types/order';
+import type { OrderListItem, OrderStatus } from '@/types/order';
 
 const PAGE_SIZE = 20;
 
@@ -53,7 +53,7 @@ function OrdersPageContent() {
   const statusFilter = parseStatusFilter(searchParams.get('status'));
   const currentPage = parsePageNumber(searchParams.get('page'));
 
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [orders, setOrders] = useState<OrderListItem[]>([]);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);

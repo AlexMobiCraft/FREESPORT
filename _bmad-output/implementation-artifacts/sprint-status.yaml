@@ -128,7 +128,7 @@ development_status:
   # ========================================
   epic-34: in-progress
   34-1-order-model-vat-split-fields-migrations: done
-  34-2-sub-order-creation-logic-and-api: in-progress
+  34-2-sub-order-creation-logic-and-api: review
   34-3-order-export-service-sub-orders: backlog
   34-4-order-status-import-aggregation: backlog
   34-5-tests-update-epics-4-5: backlog

@@ -13,6 +13,7 @@ import type { CheckoutFormData } from '@/schemas/checkoutSchema';
 import type { CartItem } from '@/types/cart';
 import type {
   Order,
+  OrderListItem,
   CreateOrderPayload,
   CreateOrderResponse,
   OrderValidationError,
@@ -32,28 +33,23 @@ export interface OrderFilters {
 }
 
 /**
- * Маппинг CheckoutFormData -> CreateOrderPayload
- * Преобразует данные формы в формат API
+ * Маппинг CheckoutFormData -> CreateOrderPayload (контракт OrderCreateSerializer).
+ * Backend строит заказ из server-side корзины; поле items в payload не передаётся.
  */
 function mapFormDataToPayload(
   formData: CheckoutFormData,
-  cartItems: CartItem[]
+  _cartItems: CartItem[]
 ): CreateOrderPayload {
   return {
-    email: formData.email,
-    phone: formData.phone,
-    first_name: formData.firstName,
-    last_name: formData.lastName,
+    customer_email: formData.email,
+    customer_phone: formData.phone,
+    customer_name: `${formData.firstName} ${formData.lastName}`.trim(),
     delivery_address: `${formData.postalCode}, г. ${formData.city}, ул. ${formData.street}, д. ${formData.house}${
       formData.buildingSection ? `, корп. ${formData.buildingSection}` : ''
     }${formData.apartment ? `, кв. ${formData.apartment}` : ''}`,
     delivery_method: formData.deliveryMethod,
     payment_method: formData.paymentMethod,
-    items: cartItems.map(item => ({
-      variant_id: item.variant_id,
-      quantity: item.quantity,
-    })),
-    comment: formData.comment || undefined,
+    notes: formData.comment || undefined,
   };
 }
 
@@ -133,10 +129,10 @@ class OrdersService {
   }
 
   /**
-   * Получить список заказов с пагинацией
+   * Получить список заказов с пагинацией (контракт OrderListSerializer).
    */
-  async getAll(filters?: OrderFilters): Promise<PaginatedResponse<Order>> {
-    const response = await apiClient.get<PaginatedResponse<Order>>('/orders/', {
+  async getAll(filters?: OrderFilters): Promise<PaginatedResponse<OrderListItem>> {
+    const response = await apiClient.get<PaginatedResponse<OrderListItem>>('/orders/', {
       params: filters,
     });
     return response.data;

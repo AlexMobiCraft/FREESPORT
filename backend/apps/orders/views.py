@@ -3,6 +3,7 @@ API Views для заказов FREESPORT
 Поддерживает создание заказов из корзины и просмотр деталей
 """
 
+from django.db import transaction
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import OpenApiExample, OpenApiResponse, extend_schema
 from rest_framework import permissions, status, viewsets
@@ -192,9 +193,10 @@ class OrderViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        order.status = "cancelled"
-        order.save()
-        order.sub_orders.update(status="cancelled")
+        with transaction.atomic():
+            order.status = "cancelled"
+            order.save()
+            order.sub_orders.update(status="cancelled")
 
         serializer = self.get_serializer(order)
         return Response(serializer.data)

@@ -1181,3 +1181,51 @@ class TestOrderVATSplit:
 
         # Транзакция откатилась: ни мастер, ни субзаказы не сохранились
         assert Order.objects.count() == initial_order_count
+
+    def test_snapshot_prices_used_not_live_catalog_price(
+        self,
+        user_factory,
+        cart_factory,
+        product_factory,
+        cart_item_factory,
+    ):
+        """[AI-Review][Medium] Regression: unit_price, sub_order.total_amount и
+        master.total_amount вычисляются из cart snapshot, а не из live catalog price.
+
+        Сценарий: товар добавлен в корзину по цене 100 руб. (snapshot), затем
+        retail_price изменён на 999 руб. Все финансовые поля заказа должны
+        использовать snapshot (100 руб.), а не обновлённую цену каталога.
+        """
+        from apps.orders.models import OrderItem
+
+        user = user_factory.create()
+        cart = cart_factory.create(user=user)
+
+        product = product_factory.create(retail_price=Decimal("100.00"))
+        variant = product.variants.first()
+        variant.vat_rate = Decimal("5.00")
+        variant.save()
+
+        # Добавляем в корзину — snapshot фиксирует цену 100.00
+        cart_item_factory.create(cart=cart, product=product, quantity=3)
+
+        # Изменяем цену в каталоге ПОСЛЕ добавления в корзину
+        variant.retail_price = Decimal("999.00")
+        variant.save()
+
+        master = self._create_order_via_serializer(user, cart_factory)
+
+        # OrderItem.unit_price = snapshot (100), не live (999)
+        items = list(OrderItem.objects.filter(order__parent_order=master))
+        assert len(items) == 1
+        assert items[0].unit_price == Decimal("100.00")
+        assert items[0].total_price == Decimal("300.00")  # 100 * 3
+
+        # sub_order.total_amount = snapshot total (300), не live (2997)
+        from apps.orders.models import Order
+
+        sub = Order.objects.get(parent_order=master)
+        assert sub.total_amount == Decimal("300.00")
+
+        # master.total_amount = sub totals + delivery_cost (pickup=0)
+        assert master.total_amount == Decimal("300.00")

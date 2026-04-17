@@ -69,13 +69,13 @@ const mockCartItems: CartItem[] = [
 
 describe('ordersService', () => {
   describe('mapFormDataToPayload', () => {
-    test('корректно маппит данные формы в payload', () => {
+    test('корректно маппит данные формы в payload (контракт OrderCreateSerializer)', () => {
       const payload = mapFormDataToPayload(mockFormData, mockCartItems);
 
-      expect(payload.email).toBe('test@example.com');
-      expect(payload.phone).toBe('+79001234567');
-      expect(payload.first_name).toBe('Иван');
-      expect(payload.last_name).toBe('Петров');
+      // Поля customer_* соответствуют полям модели Order
+      expect(payload.customer_email).toBe('test@example.com');
+      expect(payload.customer_phone).toBe('+79001234567');
+      expect(payload.customer_name).toBe('Иван Петров');
 
       // Проверка строки адреса: "123456, г. Москва, ул. Ленина, д. 10, кв. 5"
       const expectedAddress = '123456, г. Москва, ул. Ленина, д. 10, кв. 5';
@@ -83,10 +83,10 @@ describe('ordersService', () => {
 
       expect(payload.delivery_method).toBe('courier');
       expect(payload.payment_method).toBe('card');
-      expect(payload.comment).toBe('Позвоните за час до доставки');
-      expect(payload.items).toHaveLength(1);
-      expect(payload.items[0].variant_id).toBe(123);
-      expect(payload.items[0].quantity).toBe(2);
+      expect(payload.notes).toBe('Позвоните за час до доставки');
+
+      // items не передаются — backend строит заказ из server-side корзины
+      expect((payload as Record<string, unknown>)['items']).toBeUndefined();
     });
 
     test('обрабатывает пустые optional поля', () => {
@@ -100,7 +100,7 @@ describe('ordersService', () => {
 
       expect(payload.delivery_address).toContain('123456, г. Москва, ул. Ленина, д. 10');
       expect(payload.delivery_address).not.toContain('кв.');
-      expect(payload.comment).toBeUndefined();
+      expect(payload.notes).toBeUndefined();
     });
   });
 

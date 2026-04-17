@@ -44,7 +44,8 @@ class OrderCreateService:
             raw_vat = getattr(variant, "vat_rate", None)
             key: Decimal | None = Decimal(str(raw_vat)) if raw_vat is not None else None
             groups[key].append(ci)
-            total_items_sum += variant.get_price_for_user(user) * ci.quantity
+            # Используем снимок цены из корзины, а не пересчитываем по текущему каталогу.
+            total_items_sum += ci.total_price
 
         # 2. Создать мастер-заказ (delivery_cost и discount_amount только здесь)
         master = Order(
@@ -63,7 +64,7 @@ class OrderCreateService:
         order_item_manager = cast(BaseManager[OrderItem], getattr(OrderItem, "objects"))
 
         for vat_key, items in groups.items():
-            group_total = Decimal(sum(ci.variant.get_price_for_user(user) * ci.quantity for ci in items))
+            group_total = Decimal(sum(ci.total_price for ci in items))
             sub = Order(
                 user=user,
                 is_master=False,
@@ -88,7 +89,7 @@ class OrderCreateService:
             for ci in items:
                 variant = ci.variant
                 product = variant.product
-                unit_price = variant.get_price_for_user(user)
+                unit_price = ci.price_snapshot
                 snapshot = OrderItem.build_snapshot(product, variant)
                 sub_items.append(
                     OrderItem(

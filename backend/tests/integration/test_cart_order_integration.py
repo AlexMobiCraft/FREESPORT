@@ -134,6 +134,42 @@ class CartOrderIntegrationTest(TestCase):
 
         self.assertEqual(cart_price, order_price)
 
+    def test_order_creation_uses_cart_price_snapshot_on_price_change(self):
+        """Regression: цена в заказе берётся из snapshot корзины, а не из текущего каталога.
+
+        Сценарий: товар добавлен в корзину по цене 100 руб., затем
+        цена в каталоге изменилась до 999 руб. Заказ должен сохранять
+        цену snapshot (100 руб.), зафиксированную при добавлении.
+        """
+        self.client.force_authenticate(user=self.user)
+
+        # Добавляем товар в корзину (snapshot фиксирует retail_price=100)
+        self.client.post("/api/v1/cart/items/", {"variant_id": self.variant1.id, "quantity": 2})
+
+        # Изменяем цену в каталоге ПОСЛЕ добавления в корзину
+        self.variant1.retail_price = 999.00
+        self.variant1.save()
+
+        # Создаём заказ
+        order_data = {
+            "delivery_address": "Test Address",
+            "delivery_method": "pickup",
+            "payment_method": "cash",
+        }
+        order_response = self.client.post("/api/v1/orders/", order_data)
+        self.assertEqual(order_response.status_code, 201)
+
+        order_id = order_response.data["id"]
+        order_detail = self.client.get(f"/api/v1/orders/{order_id}/")
+        item = order_detail.data["items"][0]
+
+        # unit_price должен быть snapshot (100.00), а не новой ценой (999.00)
+        self.assertEqual(float(item["unit_price"]), 100.00)
+        self.assertEqual(float(item["total_price"]), 200.00)  # 100 * 2
+
+        # total_amount мастера тоже по snapshot (без delivery_cost для pickup)
+        self.assertEqual(float(order_response.data["total_amount"]), 200.00)
+
     def test_cart_validation_before_order_creation(self):
         """Валидация корзины перед созданием заказа"""
         self.client.force_authenticate(user=self.user)
@@ -547,3 +583,78 @@ class VATSplitAPITest(TestCase):
         # Корзина очищена
         cart_response = self.client.get("/api/v1/cart/")
         self.assertEqual(cart_response.data["total_items"], 0)
+
+    def test_list_serializer_exposes_vat_group(self):
+        """Fifth follow-up: list endpoint должен отдавать поле vat_group у мастера.
+
+        Клиентский контракт Story 34-1 добавил vat_group в OrderListSerializer;
+        AC12 Story 34-2 требует сохранения этого поля в list-ответе.
+        """
+        self._create_order_with_multi_vat_cart()
+
+        self.client.force_authenticate(user=self.user)
+        response = self.client.get("/api/v1/orders/")
+        self.assertEqual(response.status_code, 200)
+
+        results = response.data["results"] if "results" in response.data else response.data
+        self.assertEqual(len(results), 1)
+        self.assertIn("vat_group", results[0])
+        # У мастера vat_group=None (VAT живёт на субзаказах)
+        self.assertIsNone(results[0]["vat_group"])
+
+    def test_create_response_exposes_vat_group(self):
+        """Fifth follow-up: POST /orders/ response должен содержать vat_group."""
+        response = self._create_order_with_multi_vat_cart()
+        self.assertEqual(response.status_code, 201)
+        self.assertIn("vat_group", response.data)
+        self.assertIsNone(response.data["vat_group"])
+
+    def test_retrieve_response_exposes_vat_group(self):
+        """Fifth follow-up: GET /orders/<id>/ должен содержать vat_group у мастера."""
+        response_create = self._create_order_with_multi_vat_cart()
+        master_id = response_create.data["id"]
+
+        self.client.force_authenticate(user=self.user)
+        response = self.client.get(f"/api/v1/orders/{master_id}/")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("vat_group", response.data)
+        self.assertIsNone(response.data["vat_group"])
+
+    def test_cancel_atomic_rollback_on_sub_orders_failure(self):
+        """Fifth follow-up: cascade cancel должен быть атомарным.
+
+        Если sub_orders.update() падает, мастер не должен остаться в cancelled —
+        transaction.atomic в OrderViewSet.cancel() откатывает master.save().
+        """
+        from unittest.mock import patch
+
+        from django.db.models.query import QuerySet
+
+        self._create_order_with_multi_vat_cart()
+        master = Order.objects.filter(user=self.user, is_master=True).first()
+        self.assertEqual(master.status, "pending")
+
+        self.client.force_authenticate(user=self.user)
+
+        original_update = QuerySet.update
+
+        def failing_update(self, *args, **kwargs):
+            if self.model is Order and kwargs.get("status") == "cancelled":
+                raise Exception("Simulated DB error on cascade cancel")
+            return original_update(self, *args, **kwargs)
+
+        # Отключаем raise_request_exception, чтобы получить Response вместо исключения
+        self.client.raise_request_exception = False
+
+        with patch.object(QuerySet, "update", failing_update):
+            response = self.client.post(f"/api/v1/orders/{master.id}/cancel/")
+
+        # Endpoint должен вернуть ошибку (не 200 OK)
+        self.assertGreaterEqual(response.status_code, 500)
+
+        master.refresh_from_db()
+        # При откате транзакции master остаётся в исходном статусе
+        self.assertEqual(master.status, "pending")
+        # Субзаказы тоже не затронуты
+        sub_statuses = list(Order.objects.filter(parent_order=master).values_list("status", flat=True))
+        self.assertTrue(all(s != "cancelled" for s in sub_statuses))
