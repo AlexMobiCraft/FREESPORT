@@ -78,21 +78,31 @@ class TestOrderAPI:
         assert response.status_code == status.HTTP_201_CREATED
         assert "order_number" in response.data
 
-        # Проверяем, что заказ создался
+        # Проверяем, что заказ создался (мастер-заказ по контракту Story 34-2)
         order = Order.objects.get(order_number=response.data["order_number"])
         assert order.user == self.user
+        assert order.is_master is True
         assert order.status == "pending"
         assert order.total_amount == Decimal("700.00")  # 2 * 100 + 500 доставка
         assert order.delivery_cost == Decimal("500.00")
 
-        # Проверяем, что создались OrderItem
-        assert order.items.count() == 1
-        order_item = order.items.first()
+        # После VAT-split позиции живут на субзаказах, а не на мастере
+        assert order.items.count() == 0
+        sub_orders = list(order.sub_orders.all())
+        assert len(sub_orders) == 1  # однородная корзина (одна vat_rate=None)
+        sub = sub_orders[0]
+        assert sub.is_master is False
+        assert sub.items.count() == 1
+        order_item = sub.items.first()
         assert order_item.variant == self.variant
         assert order_item.quantity == 2
         assert order_item.unit_price == Decimal("100.00")
         assert order_item.product_name == "Test Product"
         assert order_item.product_sku == "TEST001"
+
+        # В API-ответе items агрегированы из субзаказов — клиентский контракт сохранён
+        assert len(response.data["items"]) == 1
+        assert response.data["items"][0]["product_name"] == "Test Product"
 
         # Проверяем, что корзина очистилась
         assert not cart.items.exists()
@@ -167,6 +177,52 @@ class TestOrderAPI:
         # 400 Bad Request because cart is missing/empty, not 401 Unauthorized
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert "Корзина пуста" in str(response.data)
+
+    def test_legacy_master_with_direct_items_backward_compat(self, db):
+        """Regression (Story 34-2 Third Follow-up): legacy мастер-заказ с direct items
+        (без sub_orders) должен корректно сериализоваться — items/subtotal/total_items/
+        calculated_total читаются по direct items, а не возвращают пустые значения.
+        """
+        self.client.force_authenticate(user=self.user)
+
+        # Legacy master: is_master=True (default), но sub_orders нет, items живут на самом заказе
+        order = Order.objects.create(
+            user=self.user,
+            delivery_address="legacy",
+            delivery_method="courier",
+            payment_method="card",
+            total_amount=Decimal("700.00"),
+            delivery_cost=Decimal("500.00"),
+        )
+        assert order.is_master is True
+        assert order.sub_orders.count() == 0
+        OrderItem.objects.create(
+            order=order,
+            product=self.product,
+            variant=self.variant,
+            quantity=2,
+            unit_price=Decimal("100.00"),
+            product_name=self.product.name,
+            product_sku=self.variant.sku,
+        )
+
+        # Detail endpoint: items/агрегаты корректно читаются по direct items
+        url = reverse("orders:order-detail", kwargs={"pk": order.pk})
+        response = self.client.get(url)
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.data["items"]) == 1
+        assert response.data["items"][0]["product_name"] == "Test Product"
+        assert response.data["total_items"] == 2
+        assert Decimal(str(response.data["subtotal"])) == Decimal("200.00")
+        # Legacy calculated_total = сумма позиций (поведение Order.calculated_total
+        # до Story 34-2 — delivery не включалась); AC12 backward compat.
+        assert Decimal(str(response.data["calculated_total"])) == Decimal("200.00")
+
+        # List endpoint: total_items также корректен для legacy master
+        list_url = reverse("orders:order-list")
+        list_response = self.client.get(list_url)
+        assert list_response.status_code == status.HTTP_200_OK
+        assert list_response.data["results"][0]["total_items"] == 2
 
     def test_get_order_detail_success(self, db):
         """Тест получения детальной информации о заказе"""

@@ -21,6 +21,7 @@ from apps.users.serializers import AddressSerializer as DeliveryAddressSerialize
 User = get_user_model()
 
 
+@pytest.mark.unit
 @pytest.mark.django_db
 class TestOrderDetailSerializer:
     """Тесты детального сериализатора заказов"""
@@ -58,9 +59,10 @@ class TestOrderDetailSerializer:
         assert data["customer_display_name"] == "John Doe"  # type: ignore
 
     def test_order_with_items_serialization(self, user_factory, order_factory, product_factory, order_item_factory):
-        """Тест сериализации заказа с товарами"""
+        """Тест сериализации заказа с товарами (субзаказ, is_master=False)"""
         user = user_factory.create()
-        order = order_factory.create(user=user)
+        # is_master=False: items принадлежат субзаказу напрямую
+        order = order_factory.create(user=user, is_master=False)
 
         product1 = product_factory.create(name="Товар 1", retail_price=Decimal("1000.00"))
         product2 = product_factory.create(name="Товар 2", retail_price=Decimal("1500.00"))
@@ -85,8 +87,6 @@ class TestOrderDetailSerializer:
 
         assert "items" in data
         assert len(data["items"]) == 2
-        # Имена товаров должны быть в ответе через SerializerMethodField
-        # или прямо из OrderItem (если есть depth=1)
         item_names = [item["product_name"] for item in data["items"]]
         assert "Товар 1" in item_names
         assert "Товар 2" in item_names
@@ -149,6 +149,7 @@ class TestOrderItemSerializer:
         assert data["total_price"] == "500.00"  # type: ignore
 
 
+@pytest.mark.unit
 @pytest.mark.django_db
 class TestOrderCreateSerializer:
     """Тесты сериализатора создания заказа"""
@@ -303,7 +304,9 @@ class TestOrderCreateSerializer:
         product_factory,
         cart_item_factory,
     ):
-        """Тест создания заказа из корзины"""
+        """Тест создания заказа из корзины — items живут в субзаказах"""
+        from apps.orders.models import OrderItem
+
         user = user_factory.create()
         address = address_factory.create(user=user)
         cart = cart_factory.create(user=user)
@@ -329,8 +332,12 @@ class TestOrderCreateSerializer:
         serializer = OrderCreateSerializer(data=data, context={"request": mock_request})
         assert serializer.is_valid(), serializer.errors
 
-        order = serializer.save()
-        assert order.items.count() == 2  # type: ignore
+        master = serializer.save()
+        # После Story 34-2: items живут в субзаказах, не на мастере
+        assert master.is_master
+        assert master.items.count() == 0
+        total_sub_items = OrderItem.objects.filter(order__parent_order=master).count()
+        assert total_sub_items == 2  # type: ignore
 
     def test_order_creation_without_address(self, user_factory, address_factory):
         """Тест создания заказа без адреса доставки"""
@@ -412,13 +419,14 @@ class TestOrderItemVatRateSnapshot:
         serializer = OrderCreateSerializer(data=data, context={"request": mock_request})
         assert serializer.is_valid(), serializer.errors
 
-        order = serializer.save()
+        master = serializer.save()
 
-        items = list(order.items.all())
-        assert len(items) == 1
-        assert items[0].vat_rate == Decimal("5.00"), (
-            "vat_rate должен быть снят из variant при создании через bulk_create"
-        )
+        # После Story 34-2: items в субзаказах
+        sub_items = list(OrderItem.objects.filter(order__parent_order=master))
+        assert len(sub_items) == 1
+        assert sub_items[0].vat_rate == Decimal(
+            "5.00"
+        ), "vat_rate должен быть снят из variant при создании через bulk_create"
 
     def test_order_item_vat_rate_null_when_variant_has_no_vat(
         self,
@@ -455,13 +463,15 @@ class TestOrderItemVatRateSnapshot:
         serializer = OrderCreateSerializer(data=data, context={"request": mock_request})
         assert serializer.is_valid(), serializer.errors
 
-        order = serializer.save()
+        master = serializer.save()
 
-        items = list(order.items.all())
-        assert len(items) == 1
-        assert items[0].vat_rate is None
+        # После Story 34-2: items в субзаказах
+        sub_items = list(OrderItem.objects.filter(order__parent_order=master))
+        assert len(sub_items) == 1
+        assert sub_items[0].vat_rate is None
 
 
+@pytest.mark.unit
 @pytest.mark.django_db
 class TestOrderListSerializer:
     """Тесты сериализатора списка заказов"""
@@ -496,6 +506,7 @@ class TestOrderListSerializer:
         assert data[0]["user"] == user1.id
 
 
+@pytest.mark.unit
 @pytest.mark.django_db
 class TestOrderDetailExtended:
     """Тесты расширенного детального сериализатора заказа"""
@@ -508,15 +519,17 @@ class TestOrderDetailExtended:
         product_factory,
         order_item_factory,
     ):
-        """Тест детальной сериализации заказа"""
+        """Тест детальной сериализации заказа (субзаказ, is_master=False)"""
         user = user_factory.create()
         address = address_factory.create(user=user)
+        # is_master=False: items принадлежат субзаказу
         order = order_factory.create(
             user=user,
             delivery_address=address,
             status="confirmed",
             payment_method="card",
             delivery_method="courier",
+            is_master=False,
         )
 
         product = product_factory.create(name="Детальный товар")
@@ -532,9 +545,9 @@ class TestOrderDetailExtended:
         assert len(data["items"]) == 1  # type: ignore
 
     def test_order_detail_performance(self, user_factory, order_factory, product_factory, order_item_factory):
-        """Тест производительности детального сериализатора"""
+        """Тест производительности детального сериализатора (субзаказ, is_master=False)"""
         user = user_factory.create()
-        order = order_factory.create(user=user)
+        order = order_factory.create(user=user, is_master=False)
 
         # Создаем заказ с множеством товаров
         products = product_factory.create_batch(5)
@@ -596,6 +609,7 @@ class TestDeliveryAddressSerializer:
         assert address.city == "Санкт-Петербург"  # type: ignore
 
 
+@pytest.mark.unit
 @pytest.mark.django_db
 class TestOrderIntegration:
     """Интеграционные тесты заказов"""
@@ -654,11 +668,11 @@ class TestOrderIntegration:
         category_factory,
         brand_factory,
     ):
-        """Тест производительности заказа с множеством товаров"""
+        """Тест производительности заказа с множеством товаров (субзаказ, is_master=False)"""
         from tests.conftest import get_unique_suffix
 
         user = user_factory.create()
-        order = order_factory.create(user=user)
+        order = order_factory.create(user=user, is_master=False)
         category = category_factory.create()
         brand = brand_factory.create()
 
@@ -693,3 +707,477 @@ class TestOrderIntegration:
         assert len(data) == 3
         for order_data in data:
             assert order_data["user"] == b2b_user.id
+
+
+@pytest.mark.unit
+@pytest.mark.django_db
+class TestOrderVATSplit:
+    """Unit-тесты разбивки заказа по VAT-группам (Story 34-2)."""
+
+    def _create_order_via_serializer(self, user, cart_factory, additional_data=None):
+        """Вспомогательный метод: создать заказ через сериализатор."""
+        from unittest.mock import Mock
+
+        mock_request = Mock()
+        mock_request.user = user
+
+        data = {
+            "delivery_address": "Ул. Тестовая, 1",
+            "delivery_method": "pickup",
+            "payment_method": "card",
+            **(additional_data or {}),
+        }
+        serializer = OrderCreateSerializer(data=data, context={"request": mock_request})
+        assert serializer.is_valid(), serializer.errors
+        return serializer.save()
+
+    def test_multi_vat_split_two_rates(
+        self,
+        user_factory,
+        cart_factory,
+        product_factory,
+        cart_item_factory,
+    ):
+        """AC1: мульти-VAT (5% и 22%) → 1 мастер + 2 субзаказа с правильными vat_group."""
+        from apps.orders.models import Order, OrderItem
+
+        user = user_factory.create()
+        cart = cart_factory.create(user=user)
+
+        product1 = product_factory.create(retail_price=Decimal("100.00"))
+        product2 = product_factory.create(retail_price=Decimal("200.00"))
+
+        variant1 = product1.variants.first()
+        variant2 = product2.variants.first()
+        variant1.vat_rate = Decimal("5.00")
+        variant1.save()
+        variant2.vat_rate = Decimal("22.00")
+        variant2.save()
+
+        cart_item_factory.create(cart=cart, product=product1, quantity=1)
+        cart_item_factory.create(cart=cart, product=product2, quantity=1)
+
+        master = self._create_order_via_serializer(user, cart_factory)
+
+        assert master.is_master
+        assert master.parent_order is None
+
+        sub_orders = list(Order.objects.filter(parent_order=master).order_by("vat_group"))
+        assert len(sub_orders) == 2
+
+        vat_groups = {sub.vat_group for sub in sub_orders}
+        assert Decimal("5.00") in vat_groups
+        assert Decimal("22.00") in vat_groups
+
+        for sub in sub_orders:
+            assert not sub.is_master
+            assert sub.parent_order_id == master.pk
+
+    def test_homogeneous_cart_one_rate(
+        self,
+        user_factory,
+        cart_factory,
+        product_factory,
+        cart_item_factory,
+    ):
+        """AC2: однородная корзина (1 ставка) → 1 мастер + 1 субзаказ."""
+        from apps.orders.models import Order
+
+        user = user_factory.create()
+        cart = cart_factory.create(user=user)
+
+        product1 = product_factory.create(retail_price=Decimal("100.00"))
+        product2 = product_factory.create(retail_price=Decimal("50.00"))
+
+        for p in [product1, product2]:
+            v = p.variants.first()
+            v.vat_rate = Decimal("5.00")
+            v.save()
+
+        cart_item_factory.create(cart=cart, product=product1, quantity=1)
+        cart_item_factory.create(cart=cart, product=product2, quantity=2)
+
+        master = self._create_order_via_serializer(user, cart_factory)
+
+        sub_orders = list(Order.objects.filter(parent_order=master))
+        assert len(sub_orders) == 1
+        assert sub_orders[0].vat_group == Decimal("5.00")
+
+    def test_mixed_none_and_rate(
+        self,
+        user_factory,
+        cart_factory,
+        product_factory,
+        cart_item_factory,
+    ):
+        """AC7: смесь vat_rate=None и vat_rate=5 → 2 субзаказа (vat_group=None и vat_group=5)."""
+        from apps.orders.models import Order
+
+        user = user_factory.create()
+        cart = cart_factory.create(user=user)
+
+        p_with_vat = product_factory.create(retail_price=Decimal("100.00"))
+        p_no_vat = product_factory.create(retail_price=Decimal("200.00"))
+
+        v_with_vat = p_with_vat.variants.first()
+        v_with_vat.vat_rate = Decimal("5.00")
+        v_with_vat.save()
+
+        v_no_vat = p_no_vat.variants.first()
+        v_no_vat.vat_rate = None
+        v_no_vat.save()
+
+        cart_item_factory.create(cart=cart, product=p_with_vat, quantity=1)
+        cart_item_factory.create(cart=cart, product=p_no_vat, quantity=1)
+
+        master = self._create_order_via_serializer(user, cart_factory)
+
+        sub_orders = list(Order.objects.filter(parent_order=master))
+        assert len(sub_orders) == 2
+
+        vat_groups = {sub.vat_group for sub in sub_orders}
+        assert None in vat_groups
+        assert Decimal("5.00") in vat_groups
+
+    def test_master_has_no_direct_items(
+        self,
+        user_factory,
+        cart_factory,
+        product_factory,
+        cart_item_factory,
+    ):
+        """AC3: master.items.count() == 0; все позиции в субзаказах."""
+        from apps.orders.models import OrderItem
+
+        user = user_factory.create()
+        cart = cart_factory.create(user=user)
+        product = product_factory.create(retail_price=Decimal("100.00"))
+        cart_item_factory.create(cart=cart, product=product, quantity=2)
+
+        master = self._create_order_via_serializer(user, cart_factory)
+
+        assert master.items.count() == 0
+        sub_items = OrderItem.objects.filter(order__parent_order=master)
+        assert sub_items.count() == 1
+
+    def test_delivery_cost_only_on_master(
+        self,
+        user_factory,
+        cart_factory,
+        product_factory,
+        cart_item_factory,
+    ):
+        """AC4: delivery_cost только на мастере; у субзаказов = 0.
+        master.total_amount = сумма позиций + delivery_cost."""
+        from apps.orders.models import Order
+
+        user = user_factory.create()
+        cart = cart_factory.create(user=user)
+
+        product = product_factory.create(retail_price=Decimal("100.00"))
+        variant = product.variants.first()
+        variant.vat_rate = Decimal("5.00")
+        variant.save()
+
+        cart_item_factory.create(cart=cart, product=product, quantity=3)
+
+        # delivery_method=courier → delivery_cost=500
+        mock_request = __import__("unittest.mock", fromlist=["Mock"]).Mock()
+        mock_request.user = user
+        serializer = OrderCreateSerializer(
+            data={
+                "delivery_address": "Test",
+                "delivery_method": "courier",
+                "payment_method": "card",
+            },
+            context={"request": mock_request},
+        )
+        assert serializer.is_valid(), serializer.errors
+        master = serializer.save()
+
+        assert master.delivery_cost == Decimal("500")
+
+        sub_orders = list(Order.objects.filter(parent_order=master))
+        assert len(sub_orders) == 1
+        assert sub_orders[0].delivery_cost == Decimal("0")
+
+        # master.total_amount = 100*3 + 500
+        assert master.total_amount == Decimal("800")
+        # sub.total_amount = 100*3
+        assert sub_orders[0].total_amount == Decimal("300")
+
+    def test_atomicity_on_error(
+        self,
+        user_factory,
+        cart_factory,
+        product_factory,
+        cart_item_factory,
+    ):
+        """AC5: при ошибке ни мастер, ни субзаказы не сохраняются."""
+        from apps.orders.models import Order
+
+        user = user_factory.create()
+        cart = cart_factory.create(user=user)
+
+        product = product_factory.create(retail_price=Decimal("100.00"), stock_quantity=1)
+        # Добавляем количество, которое проходит validate(), но потом уменьшаем stock
+        cart_item_factory.create(cart=cart, product=product, quantity=1)
+
+        # Уменьшаем stock до 0 ПОСЛЕ добавления в корзину (validate уже прошёл),
+        # симулируем ошибку списания. Реальнее — просто убеждаемся через DB constraint.
+        # Тест проверяет: если сервис бросит исключение, ничего не сохраняется.
+        initial_order_count = Order.objects.count()
+
+        from unittest.mock import Mock, patch
+
+        mock_request = Mock()
+        mock_request.user = user
+
+        serializer = OrderCreateSerializer(
+            data={
+                "delivery_address": "Test",
+                "delivery_method": "pickup",
+                "payment_method": "card",
+            },
+            context={"request": mock_request},
+        )
+        assert serializer.is_valid(), serializer.errors
+
+        # Патчим cart.clear() чтобы оно бросило исключение после создания заказов
+        with patch.object(cart.__class__, "clear", side_effect=Exception("simulated error")):
+            try:
+                serializer.save()
+            except Exception:
+                pass
+
+        # Транзакция откатилась — никаких заказов не создано
+        assert Order.objects.count() == initial_order_count
+
+    def test_vat_rate_snapshot_in_all_sub_orders(
+        self,
+        user_factory,
+        cart_factory,
+        product_factory,
+        cart_item_factory,
+    ):
+        """AC3/Task 6.7: OrderItem.vat_rate заполнен через build_snapshot во всех субзаказах."""
+        from apps.orders.models import OrderItem
+
+        user = user_factory.create()
+        cart = cart_factory.create(user=user)
+
+        p1 = product_factory.create(retail_price=Decimal("100.00"))
+        p2 = product_factory.create(retail_price=Decimal("200.00"))
+
+        v1 = p1.variants.first()
+        v1.vat_rate = Decimal("5.00")
+        v1.save()
+
+        v2 = p2.variants.first()
+        v2.vat_rate = Decimal("22.00")
+        v2.save()
+
+        cart_item_factory.create(cart=cart, product=p1, quantity=1)
+        cart_item_factory.create(cart=cart, product=p2, quantity=1)
+
+        master = self._create_order_via_serializer(user, cart_factory)
+
+        sub_items = list(OrderItem.objects.filter(order__parent_order=master).select_related("variant"))
+        assert len(sub_items) == 2
+
+        vat_rates = {item.vat_rate for item in sub_items}
+        assert Decimal("5.00") in vat_rates
+        assert Decimal("22.00") in vat_rates
+
+    def test_sub_order_inherits_master_attributes(
+        self,
+        user_factory,
+        cart_factory,
+        product_factory,
+        cart_item_factory,
+    ):
+        """AC6: субзаказ наследует customer/delivery/payment данные от мастера."""
+        from apps.orders.models import Order
+
+        user = user_factory.create()
+        cart = cart_factory.create(user=user)
+
+        product = product_factory.create(retail_price=Decimal("100.00"))
+        cart_item_factory.create(cart=cart, product=product, quantity=1)
+
+        from unittest.mock import Mock
+
+        mock_request = Mock()
+        mock_request.user = user
+        serializer = OrderCreateSerializer(
+            data={
+                "delivery_address": "Ул. Ленина, 1",
+                "delivery_method": "courier",
+                "payment_method": "card",
+                "notes": "Test note",
+                "customer_name": "Иван",
+                "customer_email": "ivan@test.com",
+                "customer_phone": "+79001234567",
+            },
+            context={"request": mock_request},
+        )
+        assert serializer.is_valid(), serializer.errors
+        master = serializer.save()
+
+        sub = Order.objects.get(parent_order=master)
+        assert sub.customer_name == master.customer_name
+        assert sub.customer_email == master.customer_email
+        assert sub.customer_phone == master.customer_phone
+        assert sub.delivery_address == master.delivery_address
+        assert sub.delivery_method == master.delivery_method
+        assert sub.payment_method == master.payment_method
+        assert sub.notes == master.notes
+        assert sub.status == "pending"
+        assert sub.payment_status == "pending"
+
+    def test_master_items_aggregated_in_serializer(
+        self,
+        user_factory,
+        cart_factory,
+        product_factory,
+        cart_item_factory,
+    ):
+        """AC11: OrderDetailSerializer для мастера показывает items всех субзаказов."""
+        user = user_factory.create()
+        cart = cart_factory.create(user=user)
+
+        p1 = product_factory.create(retail_price=Decimal("100.00"))
+        p2 = product_factory.create(retail_price=Decimal("200.00"))
+        v1 = p1.variants.first()
+        v1.vat_rate = Decimal("5.00")
+        v1.save()
+        v2 = p2.variants.first()
+        v2.vat_rate = Decimal("22.00")
+        v2.save()
+
+        cart_item_factory.create(cart=cart, product=p1, quantity=2)
+        cart_item_factory.create(cart=cart, product=p2, quantity=1)
+
+        master = self._create_order_via_serializer(user, cart_factory)
+
+        serializer = OrderDetailSerializer(master)
+        data = serializer.data
+
+        assert len(data["items"]) == 2
+        assert data["total_items"] == 3  # 2 + 1
+
+    def test_master_calculated_total_includes_delivery_cost(
+        self,
+        user_factory,
+        cart_factory,
+        product_factory,
+        cart_item_factory,
+    ):
+        """AC4/AC11: calculated_total мастера = сумма items субзаказов + delivery_cost."""
+        user = user_factory.create()
+        cart = cart_factory.create(user=user)
+
+        p1 = product_factory.create(retail_price=Decimal("100.00"))
+        p2 = product_factory.create(retail_price=Decimal("200.00"))
+        v1 = p1.variants.first()
+        v1.vat_rate = Decimal("5.00")
+        v1.save()
+        v2 = p2.variants.first()
+        v2.vat_rate = Decimal("22.00")
+        v2.save()
+
+        cart_item_factory.create(cart=cart, product=p1, quantity=2)
+        cart_item_factory.create(cart=cart, product=p2, quantity=1)
+
+        # delivery_method=courier → delivery_cost=500
+        master = self._create_order_via_serializer(user, cart_factory, additional_data={"delivery_method": "courier"})
+
+        serializer = OrderDetailSerializer(master)
+        data = serializer.data
+
+        # 100*2 + 200*1 + 500 = 900
+        expected_total = Decimal("900.00")
+        assert Decimal(str(data["calculated_total"])) == expected_total
+        # calculated_total должен совпадать с total_amount мастера (AC4)
+        assert Decimal(str(data["calculated_total"])) == master.total_amount
+
+    def test_master_calculated_total_homogeneous_cart_with_delivery(
+        self,
+        user_factory,
+        cart_factory,
+        product_factory,
+        cart_item_factory,
+    ):
+        """Regression: calculated_total мастера корректен и для однородной корзины с доставкой."""
+        user = user_factory.create()
+        cart = cart_factory.create(user=user)
+
+        product = product_factory.create(retail_price=Decimal("150.00"))
+        v = product.variants.first()
+        v.vat_rate = Decimal("5.00")
+        v.save()
+
+        cart_item_factory.create(cart=cart, product=product, quantity=4)
+
+        # post=300 стоимость доставки
+        master = self._create_order_via_serializer(user, cart_factory, additional_data={"delivery_method": "post"})
+
+        serializer = OrderDetailSerializer(master)
+        data = serializer.data
+
+        # 150*4 + 300 = 900
+        expected_total = Decimal("900.00")
+        assert Decimal(str(data["calculated_total"])) == expected_total
+        assert Decimal(str(data["calculated_total"])) == master.total_amount
+
+    def test_rollback_on_post_validation_stock_depletion(
+        self,
+        user_factory,
+        cart_factory,
+        product_factory,
+        cart_item_factory,
+    ):
+        """AC5/Task 6.6: реальный rollback при post-validation stock failure.
+
+        Сценарий race condition:
+        1. Валидация проходит (stock=3, qty=3).
+        2. Параллельный checkout забрал остатки — stock=0.
+        3. Наш service при conditional update получает updated=0 → ValidationError.
+        4. Транзакция откатывается, ни мастер, ни субзаказы не создаются.
+        """
+        from apps.orders.models import Order
+
+        user = user_factory.create()
+        cart = cart_factory.create(user=user)
+
+        product = product_factory.create(retail_price=Decimal("100.00"), stock_quantity=3)
+        cart_item_factory.create(cart=cart, product=product, quantity=3)
+
+        initial_order_count = Order.objects.count()
+
+        from unittest.mock import Mock
+
+        mock_request = Mock()
+        mock_request.user = user
+
+        serializer = OrderCreateSerializer(
+            data={
+                "delivery_address": "Test",
+                "delivery_method": "pickup",
+                "payment_method": "card",
+            },
+            context={"request": mock_request},
+        )
+        assert serializer.is_valid(), serializer.errors
+
+        # Симулируем параллельный checkout — stock ушёл в 0 ПОСЛЕ валидации
+        variant = product.variants.first()
+        variant.stock_quantity = 0
+        variant.save()
+
+        with pytest.raises(serializers.ValidationError) as exc_info:
+            serializer.save()
+        assert "Недостаточно" in str(exc_info.value)
+
+        # Транзакция откатилась: ни мастер, ни субзаказы не сохранились
+        assert Order.objects.count() == initial_order_count

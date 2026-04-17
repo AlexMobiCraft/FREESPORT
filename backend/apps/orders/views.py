@@ -14,8 +14,13 @@ from .serializers import OrderCreateSerializer, OrderDetailSerializer, OrderList
 
 
 class OrderViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet для управления заказами
+    """ViewSet для управления заказами.
+
+    Клиенту доступны только мастер-заказы (`is_master=True`). Субзаказы
+    (`is_master=False`, `parent_order=<master>`) — внутренняя структура для
+    экспорта в 1С (разбивка по ставкам НДС согласно Story 34-2/34-3) и
+    скрыты во всех клиентских endpoint (list/retrieve/cancel → 404 при
+    попытке обратиться к id субзаказа).
     """
 
     filter_backends = [DjangoFilterBackend]
@@ -40,20 +45,29 @@ class OrderViewSet(viewsets.ModelViewSet):
         return OrderDetailSerializer
 
     def get_queryset(self):
-        """Получить заказы пользователя"""
+        """Получить мастер-заказы пользователя (субзаказы клиенту не видны)."""
         user = self.request.user
         if user.is_authenticated:
             return (
-                Order.objects.filter(user=user)
+                Order.objects.filter(user=user, is_master=True)
                 .select_related("user")
-                .prefetch_related("items__product")
+                .prefetch_related(
+                    "items__product",
+                    "items__variant",
+                    "sub_orders__items__product",
+                    "sub_orders__items__variant",
+                )
                 .order_by("-created_at")
             )
         return Order.objects.none()
 
     @extend_schema(
         summary="Список заказов",
-        description="Получение списка заказов пользователя с базовой информацией",
+        description=(
+            "Возвращает только мастер-заказы пользователя (`is_master=True`). "
+            "Субзаказы — внутренняя разбивка по ставкам НДС для экспорта в 1С "
+            "и клиенту не видны."
+        ),
         responses={
             200: OrderListSerializer(many=True),
             401: OpenApiResponse(description="Пользователь не авторизован"),
@@ -66,7 +80,12 @@ class OrderViewSet(viewsets.ModelViewSet):
 
     @extend_schema(
         summary="Детали заказа",
-        description="Получение детальной информации о заказе с товарами",
+        description=(
+            "Получение детальной информации о мастер-заказе. Поле `items` "
+            "агрегирует позиции всех связанных субзаказов, `subtotal`, "
+            "`total_items`, `calculated_total` считаются суммарно. Попытка "
+            "открыть id субзаказа (`is_master=False`) возвращает 404."
+        ),
         responses={
             200: OrderDetailSerializer,
             401: OpenApiResponse(description="Пользователь не авторизован"),
@@ -104,13 +123,29 @@ class OrderViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         order = serializer.save()
 
-        # Возвращаем детализированную информацию о созданном заказе
+        # Re-fetch с prefetch_related, чтобы OrderDetailSerializer агрегировал
+        # items/subtotal/total_items/calculated_total из sub_orders без N+1.
+        order = (
+            Order.objects.select_related("user")
+            .prefetch_related(
+                "items__product",
+                "items__variant",
+                "sub_orders__items__product",
+                "sub_orders__items__variant",
+            )
+            .get(pk=order.pk)
+        )
         detail_serializer = OrderDetailSerializer(order, context={"request": request})
         return Response(detail_serializer.data, status=status.HTTP_201_CREATED)
 
     @extend_schema(
         summary="Отмена заказа",
-        description=("Отмена заказа пользователем (только для статусов pending, " "confirmed)"),
+        description=(
+            "Отмена мастер-заказа пользователем (только для статусов "
+            "pending, confirmed). Отмена каскадно проставляет статус "
+            "`cancelled` у всех субзаказов. Попытка отменить субзаказ "
+            "напрямую возвращает 404."
+        ),
         responses={
             200: OrderDetailSerializer,
             400: OpenApiResponse(
@@ -130,7 +165,10 @@ class OrderViewSet(viewsets.ModelViewSet):
     )
     @action(detail=True, methods=["post"])
     def cancel(self, request, pk=None):
-        """Отменить заказ"""
+        """Отменить мастер-заказ (субзаказы отменяются каскадно).
+
+        Субзаказы возвращают 404 за счёт фильтра is_master=True в get_queryset.
+        """
         order = self.get_object()
 
         self.check_object_permissions(request, order)
@@ -139,6 +177,12 @@ class OrderViewSet(viewsets.ModelViewSet):
             return Response(
                 {"error": "Идентификатор заказа не совпадает с найденным объектом"},
                 status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not order.is_master:
+            return Response(
+                {"error": "Субзаказ не может быть отменён напрямую"},
+                status=status.HTTP_404_NOT_FOUND,
             )
 
         if order.status not in ["pending", "confirmed"]:
@@ -150,6 +194,7 @@ class OrderViewSet(viewsets.ModelViewSet):
 
         order.status = "cancelled"
         order.save()
+        order.sub_orders.update(status="cancelled")
 
         serializer = self.get_serializer(order)
         return Response(serializer.data)

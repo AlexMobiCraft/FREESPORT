@@ -15,6 +15,7 @@ User = get_user_model()
 
 
 @pytest.mark.integration
+@pytest.mark.django_db
 class CartOrderIntegrationTest(TestCase):
     """Тестирование интеграции корзины и заказов"""
 
@@ -59,7 +60,9 @@ class CartOrderIntegrationTest(TestCase):
         )
 
     def test_full_cart_to_order_workflow(self):
-        """Полный workflow от корзины до заказа"""
+        """Полный workflow от корзины до заказа.
+        После Story 34-2: items видны через агрегацию из субзаказов.
+        """
         self.client.force_authenticate(user=self.user)
 
         # 1. Добавляем товары в корзину
@@ -86,18 +89,21 @@ class CartOrderIntegrationTest(TestCase):
         order_id = order_response.data["id"]
         order_detail_response = self.client.get(f"/api/v1/orders/{order_id}/")
 
+        # items агрегируются из субзаказов через OrderDetailSerializer.get_items()
         self.assertEqual(len(order_detail_response.data["items"]), 2)
         self.assertEqual(order_detail_response.data["total_items"], 3)
+        self.assertTrue(order_response.data["is_master"])
 
         # 5. Проверяем, что корзина очистилась
         cart_after_order = self.client.get("/api/v1/cart/")
         self.assertEqual(cart_after_order.data["total_items"], 0)
 
-        # 6. Проверяем снимок данных в OrderItem
+        # 6. Проверяем снимок данных в OrderItem (items в субзаказах)
         order = Order.objects.get(id=order_id)
-        order_items = order.items.all()
-
-        for item in order_items:
+        self.assertEqual(order.items.count(), 0)  # master не содержит direct items
+        sub_items = OrderItem.objects.filter(order__parent_order=order)
+        self.assertEqual(sub_items.count(), 2)
+        for item in sub_items:
             self.assertIsNotNone(item.product_name)
             self.assertIsNotNone(item.product_sku)
             self.assertGreater(item.unit_price, 0)
@@ -220,22 +226,21 @@ class CartOrderIntegrationTest(TestCase):
         order_response = self.client.post("/api/v1/orders/", order_data)
         self.assertEqual(order_response.status_code, 201)
 
-        # Проверяем, что vat_rate сохранился в OrderItem
+        # После Story 34-2: items находятся в субзаказах
         order_id = order_response.data["id"]
         order = Order.objects.get(id=order_id)
-        items = list(order.items.all())
+        self.assertTrue(order.is_master)
 
-        self.assertEqual(len(items), 1)
+        sub_items = list(OrderItem.objects.filter(order__parent_order=order))
+        self.assertEqual(len(sub_items), 1)
         self.assertEqual(
-            items[0].vat_rate,
+            sub_items[0].vat_rate,
             Decimal("5.00"),
             "vat_rate должен быть снят из variant при создании заказа через API (bulk_create path)",
         )
 
     def test_order_item_vat_rate_null_via_api_when_no_variant_vat(self):
         """[AI-Review][Medium] vat_rate остаётся None, если у variant нет vat_rate — проверка через API"""
-        from decimal import Decimal
-
         self.client.force_authenticate(user=self.user)
 
         # Убеждаемся, что у варианта нет vat_rate
@@ -254,13 +259,291 @@ class CartOrderIntegrationTest(TestCase):
         order_response = self.client.post("/api/v1/orders/", order_data)
         self.assertEqual(order_response.status_code, 201)
 
-        # Проверяем, что vat_rate = None
+        # После Story 34-2: items находятся в субзаказах
         order_id = order_response.data["id"]
         order = Order.objects.get(id=order_id)
-        items = list(order.items.all())
+        self.assertTrue(order.is_master)
 
-        self.assertEqual(len(items), 1)
+        sub_items = list(OrderItem.objects.filter(order__parent_order=order))
+        self.assertEqual(len(sub_items), 1)
         self.assertIsNone(
-            items[0].vat_rate,
+            sub_items[0].vat_rate,
             "vat_rate должен быть None, если у variant нет vat_rate",
         )
+
+
+@pytest.mark.integration
+@pytest.mark.django_db
+class VATSplitAPITest(TestCase):
+    """API-тесты разбивки заказов по VAT-группам (Story 34-2, Tasks 7.1-7.7)."""
+
+    def setUp(self):
+        from decimal import Decimal
+
+        self.client = APIClient()
+        self.user = User.objects.create_user(email="vat_test@example.com", password="testpass123", role="retail")
+
+        self.category = Category.objects.create(name="VAT Category", slug="vat-category")
+        self.brand = Brand.objects.create(name="VAT Brand", slug="vat-brand")
+
+        # Товар со ставкой НДС 5%
+        self.product_vat5 = Product.objects.create(
+            name="Product VAT 5%",
+            slug="product-vat-5",
+            category=self.category,
+            brand=self.brand,
+            is_active=True,
+        )
+        self.variant_vat5 = ProductVariant.objects.create(
+            product=self.product_vat5,
+            sku="VAT5-001",
+            onec_id="1C-VAT5-001",
+            retail_price=Decimal("100.00"),
+            stock_quantity=10,
+            is_active=True,
+            vat_rate=Decimal("5.00"),
+        )
+
+        # Товар со ставкой НДС 22%
+        self.product_vat22 = Product.objects.create(
+            name="Product VAT 22%",
+            slug="product-vat-22",
+            category=self.category,
+            brand=self.brand,
+            is_active=True,
+        )
+        self.variant_vat22 = ProductVariant.objects.create(
+            product=self.product_vat22,
+            sku="VAT22-001",
+            onec_id="1C-VAT22-001",
+            retail_price=Decimal("200.00"),
+            stock_quantity=10,
+            is_active=True,
+            vat_rate=Decimal("22.00"),
+        )
+
+    def _create_order_with_multi_vat_cart(self):
+        """Создаёт заказ из мульти-VAT корзины, возвращает response."""
+        self.client.force_authenticate(user=self.user)
+        self.client.post("/api/v1/cart/items/", {"variant_id": self.variant_vat5.id, "quantity": 2})
+        self.client.post("/api/v1/cart/items/", {"variant_id": self.variant_vat22.id, "quantity": 1})
+        return self.client.post(
+            "/api/v1/orders/",
+            {
+                "delivery_address": "Test Address",
+                "delivery_method": "pickup",
+                "payment_method": "card",
+            },
+        )
+
+    def test_multi_vat_creates_master_and_two_sub_orders(self):
+        """7.1: POST /orders/ с мульти-VAT → 201, 1 master + 2 sub-orders в БД, items в ответе."""
+        response = self._create_order_with_multi_vat_cart()
+        self.assertEqual(response.status_code, 201)
+        self.assertTrue(response.data["is_master"])
+
+        master = Order.objects.get(id=response.data["id"])
+        sub_orders = list(Order.objects.filter(parent_order=master))
+        self.assertEqual(len(sub_orders), 2)
+
+        vat_groups = {sub.vat_group for sub in sub_orders}
+        from decimal import Decimal
+
+        self.assertIn(Decimal("5.00"), vat_groups)
+        self.assertIn(Decimal("22.00"), vat_groups)
+
+        # Ответ содержит все позиции агрегировано
+        self.assertEqual(len(response.data["items"]), 2)
+
+    def test_multi_vat_master_calculated_total_includes_delivery(self):
+        """AC4/AC11: API response мастера — calculated_total = items всех субзаказов + delivery_cost."""
+        from decimal import Decimal
+
+        self.client.force_authenticate(user=self.user)
+        self.client.post("/api/v1/cart/items/", {"variant_id": self.variant_vat5.id, "quantity": 2})
+        self.client.post("/api/v1/cart/items/", {"variant_id": self.variant_vat22.id, "quantity": 1})
+
+        # delivery_method=courier → delivery_cost=500
+        response = self.client.post(
+            "/api/v1/orders/",
+            {
+                "delivery_address": "Test Address",
+                "delivery_method": "courier",
+                "payment_method": "card",
+            },
+        )
+        self.assertEqual(response.status_code, 201)
+
+        # 100*2 + 200*1 + 500 = 900
+        expected_total = Decimal("900.00")
+        self.assertEqual(Decimal(str(response.data["calculated_total"])), expected_total)
+        self.assertEqual(
+            Decimal(str(response.data["calculated_total"])),
+            Decimal(str(response.data["total_amount"])),
+            "calculated_total должен совпадать с total_amount мастера",
+        )
+
+        # Повторная проверка через GET retrieve
+        master_id = response.data["id"]
+        retrieve_response = self.client.get(f"/api/v1/orders/{master_id}/")
+        self.assertEqual(retrieve_response.status_code, 200)
+        self.assertEqual(
+            Decimal(str(retrieve_response.data["calculated_total"])),
+            expected_total,
+        )
+
+    def test_list_returns_only_masters(self):
+        """7.2: GET /orders/ возвращает только мастер-заказы."""
+        self._create_order_with_multi_vat_cart()
+
+        self.client.force_authenticate(user=self.user)
+        response = self.client.get("/api/v1/orders/")
+        self.assertEqual(response.status_code, 200)
+
+        results = response.data["results"] if "results" in response.data else response.data
+        for order_data in results:
+            self.assertTrue(order_data["is_master"])
+
+    def test_list_master_total_items_aggregates_from_sub_orders(self):
+        """AC12/AC13: total_items мастер-заказа в list endpoint корректно агрегируется из субзаказов.
+
+        Без агрегации Order.total_items возвращал бы 0 (у мастера нет direct items),
+        что ломает клиентский list-contract после VAT-split.
+        """
+        response_create = self._create_order_with_multi_vat_cart()
+        self.assertEqual(response_create.status_code, 201)
+
+        self.client.force_authenticate(user=self.user)
+        response = self.client.get("/api/v1/orders/")
+        self.assertEqual(response.status_code, 200)
+
+        results = response.data["results"] if "results" in response.data else response.data
+        self.assertEqual(len(results), 1)
+        # корзина: variant_vat5 x2 + variant_vat22 x1 → 3 позиции суммарно
+        self.assertEqual(results[0]["total_items"], 3)
+
+    def test_retrieve_sub_order_returns_404(self):
+        """7.3: GET /orders/<sub_order_id>/ → 404."""
+        self._create_order_with_multi_vat_cart()
+
+        master = Order.objects.filter(user=self.user, is_master=True).first()
+        sub = Order.objects.filter(parent_order=master).first()
+
+        self.client.force_authenticate(user=self.user)
+        response = self.client.get(f"/api/v1/orders/{sub.id}/")
+        self.assertEqual(response.status_code, 404)
+
+    def test_cancel_master_cascades_to_sub_orders(self):
+        """7.4: POST /orders/<master_id>/cancel/ → мастер + субзаказы в статусе cancelled."""
+        self._create_order_with_multi_vat_cart()
+
+        master = Order.objects.filter(user=self.user, is_master=True).first()
+
+        self.client.force_authenticate(user=self.user)
+        response = self.client.post(f"/api/v1/orders/{master.id}/cancel/")
+        self.assertEqual(response.status_code, 200)
+
+        master.refresh_from_db()
+        self.assertEqual(master.status, "cancelled")
+
+        sub_statuses = list(Order.objects.filter(parent_order=master).values_list("status", flat=True))
+        self.assertTrue(all(s == "cancelled" for s in sub_statuses))
+
+    def test_cancel_sub_order_returns_404(self):
+        """7.5: POST /orders/<sub_order_id>/cancel/ → 404."""
+        self._create_order_with_multi_vat_cart()
+
+        master = Order.objects.filter(user=self.user, is_master=True).first()
+        sub = Order.objects.filter(parent_order=master).first()
+
+        self.client.force_authenticate(user=self.user)
+        response = self.client.post(f"/api/v1/orders/{sub.id}/cancel/")
+        self.assertEqual(response.status_code, 404)
+
+    def test_api_rollback_on_concurrent_stock_depletion(self):
+        """Task 6.6 (API): conditional update ловит race condition при checkout.
+
+        Симулируется, что параллельный покупатель забрал stock между валидацией и
+        списанием остатков (вешаем pre_save signal, который обнуляет stock в момент
+        создания мастера). Ожидаем 400 + полный rollback (ни мастер, ни субзаказы
+        не сохранены, корзина не очищена).
+        """
+        from django.db.models.signals import pre_save
+
+        self.client.force_authenticate(user=self.user)
+        self.client.post("/api/v1/cart/items/", {"variant_id": self.variant_vat5.id, "quantity": 2})
+
+        initial_orders = Order.objects.count()
+        initial_cart_items = CartItem.objects.filter(cart__user=self.user).count()
+        variant_id = self.variant_vat5.id
+
+        def deplete_stock(sender, instance, **kwargs):
+            # Имитируем параллельный checkout: когда создаётся master (pk=None, is_master=True),
+            # сторонний процесс обнуляет stock ДО того, как сервис выполнит conditional update.
+            if getattr(instance, "is_master", False) and instance.pk is None:
+                ProductVariant.objects.filter(pk=variant_id).update(stock_quantity=0)
+
+        pre_save.connect(deplete_stock, sender=Order)
+        try:
+            response = self.client.post(
+                "/api/v1/orders/",
+                {
+                    "delivery_address": "Test Address",
+                    "delivery_method": "pickup",
+                    "payment_method": "card",
+                },
+            )
+        finally:
+            pre_save.disconnect(deplete_stock, sender=Order)
+
+        self.assertEqual(response.status_code, 400)
+        # Rollback: ни мастер, ни субзаказы не созданы, корзина не очищена
+        self.assertEqual(Order.objects.count(), initial_orders)
+        self.assertEqual(
+            CartItem.objects.filter(cart__user=self.user).count(),
+            initial_cart_items,
+        )
+
+    def test_homogeneous_cart_regression(self):
+        """7.6: Регрессия — однородная корзина (без vat_rate) работает как раньше.
+        Клиентский контракт не сломан: items в ответе, корзина очищена.
+        """
+        self.client.force_authenticate(user=self.user)
+
+        # Используем вариант без vat_rate (из setUp базового теста)
+        category = Category.objects.create(name="Regression Cat", slug="regression-cat")
+        brand = Brand.objects.create(name="Regression Brand", slug="regression-brand")
+        product = Product.objects.create(
+            name="Regression Product",
+            slug="regression-product",
+            category=category,
+            brand=brand,
+            is_active=True,
+        )
+        variant = ProductVariant.objects.create(
+            product=product,
+            sku="REG-001",
+            onec_id="1C-REG-001",
+            retail_price=100.00,
+            stock_quantity=10,
+            is_active=True,
+        )
+
+        self.client.post("/api/v1/cart/items/", {"variant_id": variant.id, "quantity": 1})
+
+        response = self.client.post(
+            "/api/v1/orders/",
+            {
+                "delivery_address": "Test",
+                "delivery_method": "pickup",
+                "payment_method": "cash",
+            },
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertTrue(response.data["is_master"])
+        self.assertEqual(len(response.data["items"]), 1)
+        self.assertEqual(response.data["items"][0]["quantity"], 1)
+
+        # Корзина очищена
+        cart_response = self.client.get("/api/v1/cart/")
+        self.assertEqual(cart_response.data["total_items"], 0)
