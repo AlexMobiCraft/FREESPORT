@@ -127,10 +127,30 @@ describe('OrderDetail', () => {
     expect(screen.getByText('Доставка по расписанию')).toBeInTheDocument();
   });
 
+  it('локализует post как Почтовая доставка (Story 34-2 regression)', () => {
+    render(<OrderDetail {...defaultProps} order={{ ...mockOrder, delivery_method: 'post' }} />);
+    expect(screen.getByText('Почтовая доставка')).toBeInTheDocument();
+  });
+
   it('renders payment information', () => {
     render(<OrderDetail {...defaultProps} />);
     expect(screen.getByText('Банковская карта')).toBeInTheDocument();
     expect(screen.getByText('Ожидает оплаты')).toBeInTheDocument();
+  });
+
+  it('локализует bank_transfer (Story 34-2 regression)', () => {
+    render(<OrderDetail {...defaultProps} order={{ ...mockOrder, payment_method: 'bank_transfer' }} />);
+    expect(screen.getByText('Банковский перевод')).toBeInTheDocument();
+  });
+
+  it('локализует payment_on_delivery (Story 34-2 regression)', () => {
+    render(<OrderDetail {...defaultProps} order={{ ...mockOrder, payment_method: 'payment_on_delivery' }} />);
+    expect(screen.getByText('Оплата при получении')).toBeInTheDocument();
+  });
+
+  it('локализует статус оплаты refunded как Возвращен (Story 34-2 regression)', () => {
+    render(<OrderDetail {...defaultProps} order={{ ...mockOrder, payment_status: 'refunded' }} />);
+    expect(screen.getByText('Возвращен')).toBeInTheDocument();
   });
 
   it('renders order totals', () => {

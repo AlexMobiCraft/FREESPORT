@@ -26,7 +26,7 @@ vi.mock('jspdf', () => ({
   },
 }));
 
-import { getDeliveryMethodLabel, generateOrderPdf } from '../orderPdfExport';
+import { getDeliveryMethodLabel, getPaymentMethodLabel, getPaymentStatusLabel, generateOrderPdf } from '../orderPdfExport';
 import type { Order } from '@/types/order';
 
 const baseOrder: Order = {
@@ -101,6 +101,50 @@ describe('getDeliveryMethodLabel', () => {
   });
 });
 
+describe('getPaymentMethodLabel', () => {
+  it('локализует card', () => {
+    expect(getPaymentMethodLabel('card')).toBe('Банковская карта');
+  });
+
+  it('локализует cash', () => {
+    expect(getPaymentMethodLabel('cash')).toBe('Наличные');
+  });
+
+  it('локализует bank_transfer (Story 34-2 regression)', () => {
+    expect(getPaymentMethodLabel('bank_transfer')).toBe('Банковский перевод');
+  });
+
+  it('локализует payment_on_delivery (Story 34-2 regression)', () => {
+    expect(getPaymentMethodLabel('payment_on_delivery')).toBe('Оплата при получении');
+  });
+
+  it('возвращает raw code для неизвестного значения', () => {
+    expect(getPaymentMethodLabel('unknown')).toBe('unknown');
+  });
+});
+
+describe('getPaymentStatusLabel', () => {
+  it('локализует pending', () => {
+    expect(getPaymentStatusLabel('pending')).toBe('Ожидает оплаты');
+  });
+
+  it('локализует paid', () => {
+    expect(getPaymentStatusLabel('paid')).toBe('Оплачен');
+  });
+
+  it('локализует failed', () => {
+    expect(getPaymentStatusLabel('failed')).toBe('Ошибка оплаты');
+  });
+
+  it('локализует refunded', () => {
+    expect(getPaymentStatusLabel('refunded')).toBe('Возвращен');
+  });
+
+  it('возвращает raw code для неизвестного значения', () => {
+    expect(getPaymentStatusLabel('unknown')).toBe('unknown');
+  });
+});
+
 describe('generateOrderPdf — delivery_method локализация', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -133,5 +177,26 @@ describe('generateOrderPdf — delivery_method локализация', () => {
   it('вызывает doc.save с именем файла на основе order_number', () => {
     generateOrderPdf(baseOrder);
     expect(mockSave).toHaveBeenCalledWith('order-ORD-001.pdf');
+  });
+
+  it('выводит локализованный label для bank_transfer (Story 34-2 regression)', () => {
+    generateOrderPdf({ ...baseOrder, payment_method: 'bank_transfer' });
+    const allText = getTextArgs().join(' ');
+    expect(allText).toContain('Банковский перевод');
+    expect(allText).not.toContain('bank_transfer');
+  });
+
+  it('выводит локализованный label для payment_on_delivery (Story 34-2 regression)', () => {
+    generateOrderPdf({ ...baseOrder, payment_method: 'payment_on_delivery' });
+    const allText = getTextArgs().join(' ');
+    expect(allText).toContain('Оплата при получении');
+    expect(allText).not.toContain('payment_on_delivery');
+  });
+
+  it('выводит локализованный статус оплаты refunded (Story 34-2 regression)', () => {
+    generateOrderPdf({ ...baseOrder, payment_status: 'refunded' });
+    const allText = getTextArgs().join(' ');
+    expect(allText).toContain('Возвращен');
+    expect(allText).not.toContain('refunded');
   });
 });

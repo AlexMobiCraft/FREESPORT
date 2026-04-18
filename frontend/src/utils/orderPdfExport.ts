@@ -61,6 +61,32 @@ export function getDeliveryMethodLabel(method: string): string {
 }
 
 /**
+ * Получает русское название способа оплаты (Story 34-2)
+ */
+export function getPaymentMethodLabel(method: string): string {
+  const paymentMethodLabels: Record<string, string> = {
+    card: 'Банковская карта',
+    cash: 'Наличные',
+    bank_transfer: 'Банковский перевод',
+    payment_on_delivery: 'Оплата при получении',
+  };
+  return paymentMethodLabels[method] || method;
+}
+
+/**
+ * Получает русское название статуса оплаты (Story 34-2)
+ */
+export function getPaymentStatusLabel(status: string): string {
+  const paymentStatusLabels: Record<string, string> = {
+    pending: 'Ожидает оплаты',
+    paid: 'Оплачен',
+    failed: 'Ошибка оплаты',
+    refunded: 'Возвращен',
+  };
+  return paymentStatusLabels[status] || status;
+}
+
+/**
  * Генерирует PDF документ заказа для B2B пользователей
  */
 export function generateOrderPdf(order: Order): void {
@@ -97,8 +123,8 @@ export function generateOrderPdf(order: Order): void {
 
   const orderInfo = [
     `Статус: ${getStatusLabel(order.status)}`,
-    `Способ оплаты: ${order.payment_method}`,
-    `Статус оплаты: ${order.payment_status}`,
+    `Способ оплаты: ${getPaymentMethodLabel(order.payment_method)}`,
+    `Статус оплаты: ${getPaymentStatusLabel(order.payment_status)}`,
     `Способ доставки: ${getDeliveryMethodLabel(order.delivery_method)}`,
   ];
 
