@@ -73,6 +73,7 @@ const deliveryMethodLabels: Record<string, string> = {
   courier: 'Курьерская доставка',
   post: 'Почта России',
   transport_company: 'Транспортная компания',
+  transport_schedule: 'Доставка по расписанию',
 };
 
 /**

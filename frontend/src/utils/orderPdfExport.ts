@@ -47,6 +47,20 @@ function getStatusLabel(status: string): string {
 }
 
 /**
+ * Получает русское название способа доставки (Story 34-2)
+ */
+export function getDeliveryMethodLabel(method: string): string {
+  const deliveryMethodLabels: Record<string, string> = {
+    pickup: 'Самовывоз',
+    courier: 'Курьерская доставка',
+    post: 'Почтовая доставка',
+    transport_company: 'Транспортная компания',
+    transport_schedule: 'Доставка по расписанию',
+  };
+  return deliveryMethodLabels[method] || method;
+}
+
+/**
  * Генерирует PDF документ заказа для B2B пользователей
  */
 export function generateOrderPdf(order: Order): void {
@@ -85,7 +99,7 @@ export function generateOrderPdf(order: Order): void {
     `Статус: ${getStatusLabel(order.status)}`,
     `Способ оплаты: ${order.payment_method}`,
     `Статус оплаты: ${order.payment_status}`,
-    `Способ доставки: ${order.delivery_method}`,
+    `Способ доставки: ${getDeliveryMethodLabel(order.delivery_method)}`,
   ];
 
   orderInfo.forEach(line => {

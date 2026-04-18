@@ -43,7 +43,8 @@ const deliveryMethodLabels: Record<string, string> = {
   pickup: 'Самовывоз',
   courier: 'Курьерская доставка',
   post: 'Почтовая доставка',
-  transport: 'Транспортная компания',
+  transport_company: 'Транспортная компания',
+  transport_schedule: 'Доставка по расписанию',
 };
 
 /**

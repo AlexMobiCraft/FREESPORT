@@ -117,6 +117,16 @@ describe('OrderDetail', () => {
     expect(screen.getByText('г. Москва, ул. Тестовая, д. 1, кв. 10')).toBeInTheDocument();
   });
 
+  it('локализует transport_company (Story 34-2 regression)', () => {
+    render(<OrderDetail {...defaultProps} order={{ ...mockOrder, delivery_method: 'transport_company' }} />);
+    expect(screen.getByText('Транспортная компания')).toBeInTheDocument();
+  });
+
+  it('локализует transport_schedule (Story 34-2 regression)', () => {
+    render(<OrderDetail {...defaultProps} order={{ ...mockOrder, delivery_method: 'transport_schedule' }} />);
+    expect(screen.getByText('Доставка по расписанию')).toBeInTheDocument();
+  });
+
   it('renders payment information', () => {
     render(<OrderDetail {...defaultProps} />);
     expect(screen.getByText('Банковская карта')).toBeInTheDocument();

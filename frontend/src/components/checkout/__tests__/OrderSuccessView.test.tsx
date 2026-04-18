@@ -275,6 +275,18 @@ describe('OrderSuccessView', () => {
       expect(screen.getByText('Самовывоз')).toBeInTheDocument();
     });
 
+    it('должен локализовать transport_company (Story 34-2 regression)', () => {
+      const order: Order = { ...mockOrder, delivery_method: 'transport_company' };
+      render(<OrderSuccessView order={order} />);
+      expect(screen.getByText('Транспортная компания')).toBeInTheDocument();
+    });
+
+    it('должен локализовать transport_schedule (Story 34-2 regression)', () => {
+      const order: Order = { ...mockOrder, delivery_method: 'transport_schedule' };
+      render(<OrderSuccessView order={order} />);
+      expect(screen.getByText('Доставка по расписанию')).toBeInTheDocument();
+    });
+
     it('должен обрабатывать строковые Decimal значения', () => {
       const orderWithStringDecimals: Order = {
         ...mockOrder,
