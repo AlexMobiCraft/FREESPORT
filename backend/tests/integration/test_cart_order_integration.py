@@ -658,3 +658,77 @@ class VATSplitAPITest(TestCase):
         # Субзаказы тоже не затронуты
         sub_statuses = list(Order.objects.filter(parent_order=master).values_list("status", flat=True))
         self.assertTrue(all(s != "cancelled" for s in sub_statuses))
+
+    def test_order_creation_with_non_zero_discount_amount(self):
+        """AC4: скидка передаётся через API и применяется только к мастер-заказу.
+
+        master.discount_amount = переданная скидка.
+        master.total_amount = items + delivery - discount.
+        Субзаказы discount_amount=0.
+        """
+        from decimal import Decimal
+
+        self.client.force_authenticate(user=self.user)
+        self.client.post("/api/v1/cart/items/", {"variant_id": self.variant_vat5.id, "quantity": 2})  # 100*2=200
+        self.client.post("/api/v1/cart/items/", {"variant_id": self.variant_vat22.id, "quantity": 1})  # 200*1=200
+
+        response = self.client.post(
+            "/api/v1/orders/",
+            {
+                "delivery_address": "Test Address",
+                "delivery_method": "pickup",
+                "payment_method": "card",
+                "discount_amount": "50.00",
+            },
+        )
+        self.assertEqual(response.status_code, 201)
+
+        master = Order.objects.get(id=response.data["id"])
+        # discount_amount только на мастере
+        self.assertEqual(master.discount_amount, Decimal("50.00"))
+        # total_amount = 200 + 200 + 0 (pickup) - 50 = 350
+        self.assertEqual(master.total_amount, Decimal("350.00"))
+        # API response содержит discount_amount
+        self.assertEqual(Decimal(str(response.data["discount_amount"])), Decimal("50.00"))
+
+        sub_orders = list(Order.objects.filter(parent_order=master))
+        self.assertEqual(len(sub_orders), 2)
+        for sub in sub_orders:
+            self.assertEqual(sub.discount_amount, Decimal("0.00"))
+
+    def test_calculated_total_equals_total_amount_with_discount_in_api_response(self):
+        """AC4/AC11 regression: API response calculated_total == total_amount при non-zero discount.
+
+        Проверяет, что serializer вычитает discount_amount в get_calculated_total(),
+        не давая POST/GET вернуть противоречивые total_amount vs calculated_total.
+        """
+        from decimal import Decimal
+
+        self.client.force_authenticate(user=self.user)
+        self.client.post("/api/v1/cart/items/", {"variant_id": self.variant_vat5.id, "quantity": 2})  # 100*2=200
+        self.client.post("/api/v1/cart/items/", {"variant_id": self.variant_vat22.id, "quantity": 1})  # 200*1=200
+
+        # items_sum=400, delivery pickup=0, discount=75 → total_amount = 325
+        response = self.client.post(
+            "/api/v1/orders/",
+            {
+                "delivery_address": "Test Address",
+                "delivery_method": "pickup",
+                "payment_method": "card",
+                "discount_amount": "75.00",
+            },
+        )
+        self.assertEqual(response.status_code, 201)
+
+        total_amount = Decimal(str(response.data["total_amount"]))
+        calculated_total = Decimal(str(response.data["calculated_total"]))
+        discount_amount = Decimal(str(response.data["discount_amount"]))
+
+        self.assertEqual(total_amount, Decimal("325.00"))
+        self.assertEqual(discount_amount, Decimal("75.00"))
+        self.assertEqual(
+            calculated_total,
+            total_amount,
+            msg=f"calculated_total={calculated_total} != total_amount={total_amount}: "
+            "serializer не вычитает discount_amount",
+        )

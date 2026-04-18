@@ -58,6 +58,7 @@ describe('CheckoutPage', () => {
       totalPrice: 100,
       totalItems: 1,
       fetchCart: vi.fn(),
+      getPromoDiscount: vi.fn().mockReturnValue(0),
     });
   });
 
@@ -171,6 +172,7 @@ describe('CheckoutPage', () => {
         totalPrice: 0,
         totalItems: 0,
         fetchCart: vi.fn(),
+        getPromoDiscount: vi.fn().mockReturnValue(0),
       });
 
       render(<CheckoutPageClient />);

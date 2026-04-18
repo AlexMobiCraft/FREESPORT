@@ -90,8 +90,9 @@ class OrderDetailSerializer(serializers.ModelSerializer):
             sub_items = self._collect_sub_items(obj)
             if sub_items:
                 items_total = Decimal(sum(item.total_price for item in sub_items))
-                delivery_cost = obj.delivery_cost or Decimal("0")
-                return items_total + Decimal(delivery_cost)
+                delivery_cost = Decimal(obj.delivery_cost or Decimal("0"))
+                discount_amount = Decimal(obj.discount_amount or Decimal("0"))
+                return items_total + delivery_cost - discount_amount
         return obj.calculated_total
 
     class Meta:
@@ -163,6 +164,7 @@ class OrderCreateSerializer(serializers.ModelSerializer):
             "customer_name",
             "customer_email",
             "customer_phone",
+            "discount_amount",
         ]
 
     def validate(self, attrs):
@@ -178,7 +180,8 @@ class OrderCreateSerializer(serializers.ModelSerializer):
         if not cart or not cart.items.exists():
             raise serializers.ValidationError("Корзина пуста")
 
-        # Проверяем наличие товаров
+        # Проверяем наличие товаров; заодно считаем сумму по snapshot-ценам
+        total_items_sum = Decimal("0")
         for item in cart.items.select_related("variant__product"):
             variant = item.variant
             product = variant.product if variant else None
@@ -203,6 +206,30 @@ class OrderCreateSerializer(serializers.ModelSerializer):
             if product.min_order_quantity > 1 and item.quantity < product.min_order_quantity:
                 raise serializers.ValidationError(
                     f"Минимальное количество для заказа товара '{product.name}': " f"{product.min_order_quantity} шт."
+                )
+
+            total_items_sum += Decimal(str(item.total_price))
+
+        # Валидация discount_amount: не отрицательная и не превышает сумму заказа.
+        # Защищает от злоумышленника, отправляющего завышенную скидку для получения
+        # произвольного или отрицательного total_amount (constraint снят миграцией 0003).
+        # SECURITY NOTE: Любое значение в диапазоне [0, order_total] принимается без
+        # проверки наличия реального промокода/права на скидку — авторитетная система
+        # промокодов на backend отсутствует. TODO: валидировать против PromoCode при реализации.
+        discount_amount = attrs.get("discount_amount") or Decimal("0")
+        if discount_amount < Decimal("0"):
+            raise serializers.ValidationError({"discount_amount": "Скидка не может быть отрицательной"})
+        if discount_amount > Decimal("0"):
+            delivery_method = attrs.get("delivery_method", "pickup")
+            delivery_cost = Decimal(str(self.calculate_delivery_cost(delivery_method)))
+            order_total = total_items_sum + delivery_cost
+            if discount_amount > order_total:
+                raise serializers.ValidationError(
+                    {
+                        "discount_amount": (
+                            f"Скидка ({discount_amount} ₽) не может превышать " f"сумму заказа ({order_total} ₽)"
+                        )
+                    }
                 )
 
         # Валидация способов доставки и оплаты

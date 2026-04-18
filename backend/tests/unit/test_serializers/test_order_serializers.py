@@ -101,6 +101,7 @@ class TestOrderDetailSerializer:
         assert data["total_amount"] == "5000.00"  # type: ignore
 
 
+@pytest.mark.unit
 @pytest.mark.django_db
 class TestOrderItemSerializer:
     """Тесты сериализатора элементов заказа"""
@@ -350,6 +351,7 @@ class TestOrderCreateSerializer:
         assert "delivery_address" in serializer.errors
 
 
+@pytest.mark.unit
 @pytest.mark.django_db
 class TestOrderStatusUpdate:
     """Тесты обновления статуса заказа через модель"""
@@ -561,6 +563,7 @@ class TestOrderDetailExtended:
         assert "total_amount" in data
 
 
+@pytest.mark.unit
 @pytest.mark.django_db
 class TestDeliveryAddressSerializer:
     """Тесты сериализатора адреса доставки"""
@@ -1229,3 +1232,243 @@ class TestOrderVATSplit:
 
         # master.total_amount = sub totals + delivery_cost (pickup=0)
         assert master.total_amount == Decimal("300.00")
+
+    def test_discount_amount_applied_to_master_only(
+        self,
+        user_factory,
+        cart_factory,
+        product_factory,
+        cart_item_factory,
+    ):
+        """AC4: non-zero discount_amount живёт только на мастере.
+
+        Скидка уменьшает master.total_amount = items + delivery - discount.
+        Субзаказы discount_amount не получают.
+        """
+        from unittest.mock import Mock
+
+        from apps.orders.models import Order
+
+        user = user_factory.create()
+        cart = cart_factory.create(user=user)
+
+        product1 = product_factory.create(retail_price=Decimal("200.00"))
+        product2 = product_factory.create(retail_price=Decimal("300.00"))
+        variant1 = product1.variants.first()
+        variant2 = product2.variants.first()
+        variant1.vat_rate = Decimal("5.00")
+        variant1.save()
+        variant2.vat_rate = Decimal("22.00")
+        variant2.save()
+
+        cart_item_factory.create(cart=cart, product=product1, quantity=1)  # 200
+        cart_item_factory.create(cart=cart, product=product2, quantity=1)  # 300
+        # items_sum = 500, delivery pickup = 0, discount = 50
+
+        mock_request = Mock()
+        mock_request.user = user
+
+        serializer = OrderCreateSerializer(
+            data={
+                "delivery_address": "Ул. Тестовая, 1",
+                "delivery_method": "pickup",
+                "payment_method": "card",
+                "discount_amount": "50.00",
+            },
+            context={"request": mock_request},
+        )
+        assert serializer.is_valid(), serializer.errors
+        master = serializer.save()
+
+        # discount_amount только на мастере
+        assert master.discount_amount == Decimal("50.00")
+        assert master.total_amount == Decimal("450.00")  # 500 + 0 - 50
+
+        sub_orders = list(Order.objects.filter(parent_order=master))
+        assert len(sub_orders) == 2
+        for sub in sub_orders:
+            assert sub.discount_amount == Decimal("0.00")
+            assert sub.discount_amount != Decimal("50.00")
+
+    def test_calculated_total_equals_total_amount_with_discount(
+        self,
+        user_factory,
+        cart_factory,
+        product_factory,
+        cart_item_factory,
+    ):
+        """AC4/AC11: serializer calculated_total совпадает с total_amount при non-zero discount.
+
+        Регрессия: get_calculated_total() должен вычитать discount_amount, как это делает
+        OrderCreateService, иначе POST/GET ответ вернёт противоречивые total_amount vs calculated_total.
+        """
+        from apps.orders.models import Order
+
+        user = user_factory.create()
+        cart = cart_factory.create(user=user)
+
+        product1 = product_factory.create(retail_price=Decimal("200.00"))
+        product2 = product_factory.create(retail_price=Decimal("300.00"))
+        variant1 = product1.variants.first()
+        variant2 = product2.variants.first()
+        variant1.vat_rate = Decimal("5.00")
+        variant1.save()
+        variant2.vat_rate = Decimal("22.00")
+        variant2.save()
+
+        cart_item_factory.create(cart=cart, product=product1, quantity=1)  # 200
+        cart_item_factory.create(cart=cart, product=product2, quantity=1)  # 300
+        # items_sum = 500, delivery pickup = 0, discount = 100
+        # expected total_amount = 400, expected calculated_total = 400
+
+        master = self._create_order_via_serializer(user, cart_factory, additional_data={"discount_amount": "100.00"})
+
+        master_from_db = Order.objects.prefetch_related("sub_orders__items").get(pk=master.pk)
+        data = OrderDetailSerializer(master_from_db).data
+
+        expected = master_from_db.total_amount  # 400.00
+        assert expected == Decimal("400.00"), f"total_amount={expected}, expected 400.00"
+        assert Decimal(str(data["calculated_total"])) == expected, (
+            f"calculated_total={data['calculated_total']} != total_amount={expected}: "
+            "serializer не вычитает discount_amount"
+        )
+        assert Decimal(str(data["calculated_total"])) == Decimal(
+            str(data["total_amount"])
+        ), "calculated_total и total_amount должны совпадать"
+
+    def test_discount_amount_validation_negative_rejected(
+        self,
+        user_factory,
+        cart_factory,
+        product_factory,
+        cart_item_factory,
+    ):
+        """[AI-Review][High] Отрицательная скидка должна отвергаться на сервере (AC4, security)."""
+        from unittest.mock import Mock
+
+        user = user_factory.create()
+        cart = cart_factory.create(user=user)
+        product = product_factory.create(retail_price=Decimal("200.00"))
+        cart_item_factory.create(cart=cart, product=product, quantity=1)
+
+        mock_request = Mock()
+        mock_request.user = user
+
+        serializer = OrderCreateSerializer(
+            data={
+                "delivery_address": "Ул. Тестовая, 1",
+                "delivery_method": "pickup",
+                "payment_method": "card",
+                "discount_amount": "-10.00",
+            },
+            context={"request": mock_request},
+        )
+        assert not serializer.is_valid()
+        assert "discount_amount" in serializer.errors
+
+    def test_discount_amount_validation_exceeds_total_rejected(
+        self,
+        user_factory,
+        cart_factory,
+        product_factory,
+        cart_item_factory,
+    ):
+        """[AI-Review][High] Скидка, превышающая total заказа, должна отвергаться на сервере (AC4, security)."""
+        from unittest.mock import Mock
+
+        user = user_factory.create()
+        cart = cart_factory.create(user=user)
+        product = product_factory.create(retail_price=Decimal("100.00"))
+        cart_item_factory.create(cart=cart, product=product, quantity=1)
+        # items_sum = 100, delivery pickup = 0, total = 100
+        # discount = 200 > 100 → должна быть отклонена
+
+        mock_request = Mock()
+        mock_request.user = user
+
+        serializer = OrderCreateSerializer(
+            data={
+                "delivery_address": "Ул. Тестовая, 1",
+                "delivery_method": "pickup",
+                "payment_method": "card",
+                "discount_amount": "200.00",
+            },
+            context={"request": mock_request},
+        )
+        assert not serializer.is_valid()
+        assert "discount_amount" in serializer.errors
+
+    def test_discount_amount_validation_equals_total_accepted(
+        self,
+        user_factory,
+        cart_factory,
+        product_factory,
+        cart_item_factory,
+    ):
+        """[AI-Review][High] Скидка равная total заказа должна приниматься (крайний case AC4)."""
+        from unittest.mock import Mock
+
+        user = user_factory.create()
+        cart = cart_factory.create(user=user)
+        product = product_factory.create(retail_price=Decimal("100.00"))
+        cart_item_factory.create(cart=cart, product=product, quantity=1)
+        # items_sum = 100, delivery pickup = 0, discount = 100 → total_amount = 0
+
+        mock_request = Mock()
+        mock_request.user = user
+
+        serializer = OrderCreateSerializer(
+            data={
+                "delivery_address": "Ул. Тестовая, 1",
+                "delivery_method": "pickup",
+                "payment_method": "card",
+                "discount_amount": "100.00",
+            },
+            context={"request": mock_request},
+        )
+        assert serializer.is_valid(), serializer.errors
+        master = serializer.save()
+        assert master.total_amount == Decimal("0.00")
+        assert master.discount_amount == Decimal("100.00")
+
+    def test_arbitrary_client_discount_within_valid_range_accepted_security_note(
+        self,
+        user_factory,
+        cart_factory,
+        product_factory,
+        cart_item_factory,
+    ):
+        """Security regression [Story 34-2, Seventeenth Follow-up, High]:
+        документирует, что backend принимает любой discount_amount в диапазоне
+        [0, order_total] без проверки против авторитетного прomo-состояния.
+
+        KNOWN LIMITATION: пока на backend не реализована система промокодов (PromoCode),
+        клиент может отправить произвольную скидку в допустимом диапазоне и она будет принята.
+        Если этот тест падает — прomo-система реализована; обновите тест для нового контракта.
+        """
+        from unittest.mock import Mock
+
+        user = user_factory.create()
+        cart = cart_factory.create(user=user)
+
+        product = product_factory.create(retail_price=Decimal("5000.00"))
+        cart_item_factory.create(cart=cart, product=product, quantity=1)
+        # order_total = 5000 (pickup, delivery=0)
+
+        mock_request = Mock()
+        mock_request.user = user
+
+        serializer = OrderCreateSerializer(
+            data={
+                "delivery_address": "Ул. Тестовая, 1",
+                "delivery_method": "pickup",
+                "payment_method": "card",
+                "discount_amount": "4999.00",  # 99.98% скидка, ничем не подтверждённая
+            },
+            context={"request": mock_request},
+        )
+        # KNOWN LIMITATION: принимается без проверки promo-системы
+        assert serializer.is_valid(), serializer.errors
+        master = serializer.save()
+        assert master.discount_amount == Decimal("4999.00")
+        assert master.total_amount == Decimal("1.00")

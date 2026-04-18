@@ -13,7 +13,7 @@
 
 import ordersService, { mapFormDataToPayload, parseApiError } from '../ordersService';
 import { server } from '../../__mocks__/api/server';
-import { ordersErrorHandlers, mockSuccessOrder } from '../../__mocks__/handlers/ordersHandlers';
+import { ordersErrorHandlers, mockSuccessOrder, mockOrdersList } from '../../__mocks__/handlers/ordersHandlers';
 import { AxiosError } from 'axios';
 import type { CheckoutFormData } from '@/schemas/checkoutSchema';
 import type { CartItem } from '@/types/cart';
@@ -101,6 +101,20 @@ describe('ordersService', () => {
       expect(payload.delivery_address).toContain('123456, г. Москва, ул. Ленина, д. 10');
       expect(payload.delivery_address).not.toContain('кв.');
       expect(payload.notes).toBeUndefined();
+    });
+
+    test('включает discount_amount в payload при ненулевой скидке (AC4 Story 34-2)', () => {
+      const payload = mapFormDataToPayload(mockFormData, mockCartItems, 500);
+
+      expect(payload.discount_amount).toBe('500.00');
+    });
+
+    test('не включает discount_amount в payload при нулевой скидке', () => {
+      const payloadNoDiscount = mapFormDataToPayload(mockFormData, mockCartItems, 0);
+      expect((payloadNoDiscount as Record<string, unknown>)['discount_amount']).toBeUndefined();
+
+      const payloadUndefined = mapFormDataToPayload(mockFormData, mockCartItems);
+      expect((payloadUndefined as Record<string, unknown>)['discount_amount']).toBeUndefined();
     });
   });
 
@@ -212,17 +226,31 @@ describe('ordersService', () => {
       );
     });
 
-    test('обрабатывает недоступный товар (variant_id=999)', async () => {
-      const itemsWithUnavailable: CartItem[] = [
-        {
-          ...mockCartItems[0],
-          variant_id: 999,
-        },
-      ];
+    test('обрабатывает серверную ошибку валидации (например, нет товара на складе)', async () => {
+      // Backend returns 400 when stock is depleted (server-side check).
+      // Frontend does not send items in payload — validation is purely server-side.
+      // parseApiError returns the top-level "error" field value from the response body.
+      server.use(ordersErrorHandlers.validation400);
 
-      await expect(ordersService.createOrder(mockFormData, itemsWithUnavailable)).rejects.toThrow(
+      await expect(ordersService.createOrder(mockFormData, mockCartItems)).rejects.toThrow(
         'Validation failed'
       );
+    });
+
+    test('передаёт discount_amount в запросе при ненулевой скидке', async () => {
+      let capturedBody: Record<string, unknown> | null = null;
+
+      server.use(
+        (await import('msw')).http.post('*/orders/', async ({ request }) => {
+          capturedBody = (await request.json()) as Record<string, unknown>;
+          return (await import('msw')).HttpResponse.json(mockSuccessOrder, { status: 201 });
+        })
+      );
+
+      await ordersService.createOrder(mockFormData, mockCartItems, 500);
+
+      expect(capturedBody).not.toBeNull();
+      expect(capturedBody!['discount_amount']).toBe('500.00');
     });
   });
 
@@ -239,6 +267,33 @@ describe('ordersService', () => {
       const result = await ordersService.getAll({ page: 1 });
 
       expect(result.results).toBeDefined();
+    });
+
+    test('list-contract содержит поля OrderListItem (Story 34-2)', async () => {
+      const result = await ordersService.getAll();
+
+      const first = result.results[0];
+      // Поля Story 34-2, обязательные в OrderListSerializer
+      expect(typeof first.is_master).toBe('boolean');
+      expect('vat_group' in first).toBe(true);
+      expect(typeof first.sent_to_1c).toBe('boolean');
+      expect(typeof first.total_items).toBe('number');
+      // is_master=true у первого мастера
+      expect(first.is_master).toBe(true);
+      // Проверяем, что в списке нет полей detail-only (items, calculated_total)
+      expect((first as Record<string, unknown>)['items']).toBeUndefined();
+      expect((first as Record<string, unknown>)['calculated_total']).toBeUndefined();
+    });
+
+    test('mock data соответствует mockOrdersList', async () => {
+      const result = await ordersService.getAll();
+
+      expect(result.results[0]).toMatchObject({
+        id: mockOrdersList[0].id,
+        order_number: mockOrdersList[0].order_number,
+        is_master: true,
+        sent_to_1c: false,
+      });
     });
   });
 

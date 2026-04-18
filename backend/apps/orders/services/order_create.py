@@ -32,6 +32,10 @@ class OrderCreateService:
         delivery_cost = self.delivery_cost
         validated_data = dict(self.validated_data)
 
+        # Pop discount_amount before spread — defaults to 0 if frontend does not send it
+        raw_discount = validated_data.pop("discount_amount", Decimal("0"))
+        discount_amount: Decimal = Decimal(str(raw_discount)) if raw_discount else Decimal("0")
+
         # 1. Сгруппировать позиции корзины по variant.vat_rate
         groups: dict[Decimal | None, list] = defaultdict(list)
         total_items_sum = Decimal("0")
@@ -54,7 +58,8 @@ class OrderCreateService:
             parent_order=None,
             vat_group=None,
             delivery_cost=delivery_cost,
-            total_amount=total_items_sum + delivery_cost,
+            discount_amount=discount_amount,
+            total_amount=total_items_sum + delivery_cost - discount_amount,
             **validated_data,
         )
         master.save()

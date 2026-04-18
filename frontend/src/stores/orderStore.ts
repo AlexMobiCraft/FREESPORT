@@ -50,16 +50,20 @@ export const useOrderStore = create<OrderState>()(
         set({ isSubmitting: true, error: null });
 
         try {
-          // Получаем товары из корзины
-          const cartItems = useCartStore.getState().items;
+          // Получаем товары и скидку из корзины
+          const cartState = useCartStore.getState();
+          const cartItems = cartState.items;
 
           // Проверка на пустую корзину
           if (!cartItems || cartItems.length === 0) {
             throw new Error('Корзина пуста, невозможно оформить заказ');
           }
 
+          // Скидка по промокоду (AC4 Story 34-2: только на мастер-заказ)
+          const discountAmount = cartState.getPromoDiscount();
+
           // Создаём заказ через API
-          const order = await ordersService.createOrder(data, cartItems);
+          const order = await ordersService.createOrder(data, cartItems, discountAmount || undefined);
 
           // Сохраняем созданный заказ
           set({ currentOrder: order, error: null });

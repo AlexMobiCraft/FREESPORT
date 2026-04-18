@@ -64,6 +64,7 @@ describe('CheckoutForm', () => {
       totalPrice: 200,
       totalItems: 2,
       fetchCart: vi.fn(),
+      getPromoDiscount: vi.fn().mockReturnValue(0),
     });
   });
 
@@ -193,12 +194,66 @@ describe('CheckoutForm', () => {
         totalPrice: 0,
         totalItems: 0,
         fetchCart: vi.fn(),
+        getPromoDiscount: vi.fn().mockReturnValue(0),
       });
 
       render(<CheckoutForm user={null} />);
 
       // Message may appear multiple times in different components
       expect(screen.getAllByText('Корзина пуста').length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('Discount UI (Story 34-2 regression)', () => {
+    it('не показывает строку скидки при нулевом промокоде', () => {
+      render(<CheckoutForm user={null} />);
+
+      expect(screen.queryByTestId('promo-discount-row')).not.toBeInTheDocument();
+    });
+
+    it('показывает строку скидки при promoDiscount > 0', () => {
+      (useCartStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+        items: mockCartItems,
+        totalPrice: 200,
+        totalItems: 2,
+        fetchCart: vi.fn(),
+        getPromoDiscount: vi.fn().mockReturnValue(50),
+      });
+
+      render(<CheckoutForm user={null} />);
+
+      expect(screen.getByTestId('promo-discount-row')).toBeInTheDocument();
+      expect(screen.getByTestId('promo-discount-amount')).toHaveTextContent('50');
+    });
+
+    it('итого уменьшается на размер скидки', () => {
+      (useCartStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+        items: mockCartItems,
+        totalPrice: 200,
+        totalItems: 2,
+        fetchCart: vi.fn(),
+        getPromoDiscount: vi.fn().mockReturnValue(50),
+      });
+
+      render(<CheckoutForm user={null} />);
+
+      // totalPrice - discount = 150
+      expect(screen.getByTestId('total-price')).toHaveTextContent('150');
+    });
+
+    it('показывает метку "До скидки" при наличии скидки', () => {
+      (useCartStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+        items: mockCartItems,
+        totalPrice: 200,
+        totalItems: 2,
+        fetchCart: vi.fn(),
+        getPromoDiscount: vi.fn().mockReturnValue(50),
+      });
+
+      render(<CheckoutForm user={null} />);
+
+      expect(screen.getByTestId('price-before-discount')).toBeInTheDocument();
+      expect(screen.getByTestId('price-before-discount')).toHaveTextContent('200');
     });
   });
 });

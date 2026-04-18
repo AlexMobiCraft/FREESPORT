@@ -103,24 +103,6 @@ export interface Cart {
   discount_amount?: number;
 }
 
-export interface Order {
-  id: number;
-  order_number: string;
-  status: 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
-  items: Array<{
-    id: number;
-    product_snapshot: {
-      name: string;
-      price: number;
-    };
-    quantity: number;
-    price: number;
-  }>;
-  total_amount: number;
-  created_at: string;
-  updated_at: string;
-}
-
 export interface Category {
   id: number;
   name: string;

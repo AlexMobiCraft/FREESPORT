@@ -82,6 +82,12 @@ export interface Order {
   payment_status: string;
   payment_id: string;
   notes: string;
+  // Story 34-1/34-2: поля 1С и VAT-split (OrderDetailSerializer)
+  sent_to_1c: boolean;
+  sent_to_1c_at: string | null;
+  status_1c: string;
+  is_master: boolean;
+  vat_group: string | null;
   created_at: string;
   updated_at: string;
   items: OrderItem[];
@@ -117,6 +123,9 @@ export interface CreateOrderPayload {
 
   // Комментарий (поле notes на модели)
   notes?: string;
+
+  // Сумма скидки (только на мастер-заказе, AC4 Story 34-2)
+  discount_amount?: string; // Decimal как строка, например "500.00"
 }
 
 /**

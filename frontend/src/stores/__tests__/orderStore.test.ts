@@ -11,6 +11,7 @@
  */
 
 import { act } from 'react';
+import { http, HttpResponse } from 'msw';
 import { useOrderStore } from '../orderStore';
 import { useCartStore } from '../cartStore';
 import { server } from '../../__mocks__/api/server';
@@ -182,6 +183,39 @@ describe('orderStore', () => {
 
       const state = useOrderStore.getState();
       expect(state.error).toBe('Корзина пуста, невозможно оформить заказ');
+    });
+
+    test('передаёт скидку из cartStore при создании заказа (AC4 Story 34-2)', async () => {
+      // Устанавливаем промокод в корзине
+      useCartStore.setState({
+        items: mockCartItems,
+        totalItems: 2,
+        totalPrice: 5000,
+        promoCode: 'PROMO10',
+        discountType: 'fixed',
+        discountValue: 500,
+        isLoading: false,
+        error: null,
+      });
+
+      let capturedPayload: Record<string, unknown> | null = null;
+
+      server.use(
+        http.post('*/orders/', async ({ request }) => {
+          capturedPayload = (await request.json()) as Record<string, unknown>;
+          return HttpResponse.json(mockSuccessOrder, { status: 201 });
+        })
+      );
+
+      const { createOrder } = useOrderStore.getState();
+
+      await act(async () => {
+        await createOrder(mockFormData);
+      });
+
+      expect(capturedPayload).not.toBeNull();
+      // getPromoDiscount() при fixed 500 и totalPrice 5000 = 500
+      expect(capturedPayload!['discount_amount']).toBe('500.00');
     });
 
     // TODO: Требует изолированного MSW - parseApiError тестирует логику обработки ошибок
