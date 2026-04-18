@@ -210,27 +210,15 @@ class OrderCreateSerializer(serializers.ModelSerializer):
 
             total_items_sum += Decimal(str(item.total_price))
 
-        # Валидация discount_amount: не отрицательная и не превышает сумму заказа.
-        # Защищает от злоумышленника, отправляющего завышенную скидку для получения
-        # произвольного или отрицательного total_amount (constraint снят миграцией 0003).
-        # SECURITY NOTE: Любое значение в диапазоне [0, order_total] принимается без
-        # проверки наличия реального промокода/права на скидку — авторитетная система
-        # промокодов на backend отсутствует. TODO: валидировать против PromoCode при реализации.
+        # Security: promo-система на backend не реализована.
+        # Клиентское значение discount_amount полностью игнорируется — скидка вычисляется
+        # только на сервере (сейчас всегда 0). Принятие клиентского значения без
+        # верификации промокода позволяло оформлять заказы с несанкционированной скидкой.
+        # TODO: заменить на валидацию PromoCode при реализации promo-системы (Epic X).
         discount_amount = attrs.get("discount_amount") or Decimal("0")
         if discount_amount < Decimal("0"):
             raise serializers.ValidationError({"discount_amount": "Скидка не может быть отрицательной"})
-        if discount_amount > Decimal("0"):
-            delivery_method = attrs.get("delivery_method", "pickup")
-            delivery_cost = Decimal(str(self.calculate_delivery_cost(delivery_method)))
-            order_total = total_items_sum + delivery_cost
-            if discount_amount > order_total:
-                raise serializers.ValidationError(
-                    {
-                        "discount_amount": (
-                            f"Скидка ({discount_amount} ₽) не может превышать " f"сумму заказа ({order_total} ₽)"
-                        )
-                    }
-                )
+        attrs["discount_amount"] = Decimal("0")
 
         # Валидация способов доставки и оплаты
         payment_method = attrs.get("payment_method")

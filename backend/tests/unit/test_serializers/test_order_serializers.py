@@ -1233,17 +1233,16 @@ class TestOrderVATSplit:
         # master.total_amount = sub totals + delivery_cost (pickup=0)
         assert master.total_amount == Decimal("300.00")
 
-    def test_discount_amount_applied_to_master_only(
+    def test_discount_amount_zero_on_master_and_subs_security_fix(
         self,
         user_factory,
         cart_factory,
         product_factory,
         cart_item_factory,
     ):
-        """AC4: non-zero discount_amount живёт только на мастере.
-
-        Скидка уменьшает master.total_amount = items + delivery - discount.
-        Субзаказы discount_amount не получают.
+        """AC4 + Security fix [Story 34-2, Twenty-Seventh Follow-up, High]:
+        discount_amount всегда 0 на мастере и субзаказах (promo-система не реализована).
+        Клиентское значение discount_amount=50 игнорируется сервером.
         """
         from unittest.mock import Mock
 
@@ -1263,7 +1262,7 @@ class TestOrderVATSplit:
 
         cart_item_factory.create(cart=cart, product=product1, quantity=1)  # 200
         cart_item_factory.create(cart=cart, product=product2, quantity=1)  # 300
-        # items_sum = 500, delivery pickup = 0, discount = 50
+        # items_sum = 500, delivery pickup = 0; discount zeroed by server
 
         mock_request = Mock()
         mock_request.user = user
@@ -1273,34 +1272,32 @@ class TestOrderVATSplit:
                 "delivery_address": "Ул. Тестовая, 1",
                 "delivery_method": "pickup",
                 "payment_method": "card",
-                "discount_amount": "50.00",
+                "discount_amount": "50.00",  # будет проигнорирован сервером
             },
             context={"request": mock_request},
         )
         assert serializer.is_valid(), serializer.errors
         master = serializer.save()
 
-        # discount_amount только на мастере
-        assert master.discount_amount == Decimal("50.00")
-        assert master.total_amount == Decimal("450.00")  # 500 + 0 - 50
+        # Server overrides discount to 0; total = items + delivery - 0 = 500
+        assert master.discount_amount == Decimal("0.00")
+        assert master.total_amount == Decimal("500.00")
 
         sub_orders = list(Order.objects.filter(parent_order=master))
         assert len(sub_orders) == 2
         for sub in sub_orders:
             assert sub.discount_amount == Decimal("0.00")
-            assert sub.discount_amount != Decimal("50.00")
 
-    def test_calculated_total_equals_total_amount_with_discount(
+    def test_calculated_total_equals_total_amount_with_discount_zeroed(
         self,
         user_factory,
         cart_factory,
         product_factory,
         cart_item_factory,
     ):
-        """AC4/AC11: serializer calculated_total совпадает с total_amount при non-zero discount.
-
-        Регрессия: get_calculated_total() должен вычитать discount_amount, как это делает
-        OrderCreateService, иначе POST/GET ответ вернёт противоречивые total_amount vs calculated_total.
+        """AC4/AC11 + Security fix [Story 34-2, Twenty-Seventh Follow-up, High]:
+        calculated_total совпадает с total_amount; discount_amount=0 (server override).
+        Клиентское discount_amount=100 игнорируется — promo-система не реализована.
         """
         from apps.orders.models import Order
 
@@ -1318,23 +1315,26 @@ class TestOrderVATSplit:
 
         cart_item_factory.create(cart=cart, product=product1, quantity=1)  # 200
         cart_item_factory.create(cart=cart, product=product2, quantity=1)  # 300
-        # items_sum = 500, delivery pickup = 0, discount = 100
-        # expected total_amount = 400, expected calculated_total = 400
+        # items_sum = 500, delivery pickup = 0, discount zeroed to 0
+        # expected total_amount = 500, calculated_total = 500
 
         master = self._create_order_via_serializer(user, cart_factory, additional_data={"discount_amount": "100.00"})
 
         master_from_db = Order.objects.prefetch_related("sub_orders__items").get(pk=master.pk)
         data = OrderDetailSerializer(master_from_db).data
 
-        expected = master_from_db.total_amount  # 400.00
-        assert expected == Decimal("400.00"), f"total_amount={expected}, expected 400.00"
+        expected = master_from_db.total_amount  # 500.00 (discount zeroed)
+        assert expected == Decimal("500.00"), f"total_amount={expected}, expected 500.00"
         assert Decimal(str(data["calculated_total"])) == expected, (
             f"calculated_total={data['calculated_total']} != total_amount={expected}: "
-            "serializer не вычитает discount_amount"
+            "serializer calculated_total должен совпадать с total_amount"
         )
         assert Decimal(str(data["calculated_total"])) == Decimal(
             str(data["total_amount"])
         ), "calculated_total и total_amount должны совпадать"
+        assert Decimal(str(data["discount_amount"])) == Decimal("0.00"), (
+            "discount_amount должен быть 0 (server override)"
+        )
 
     def test_discount_amount_validation_negative_rejected(
         self,
@@ -1366,22 +1366,23 @@ class TestOrderVATSplit:
         assert not serializer.is_valid()
         assert "discount_amount" in serializer.errors
 
-    def test_discount_amount_validation_exceeds_total_rejected(
+    def test_discount_amount_validation_exceeds_total_ignored_server_override(
         self,
         user_factory,
         cart_factory,
         product_factory,
         cart_item_factory,
     ):
-        """[AI-Review][High] Скидка, превышающая total заказа, должна отвергаться на сервере (AC4, security)."""
+        """Security fix [Story 34-2, Twenty-Seventh Follow-up, High]:
+        клиентский discount_amount игнорируется сервером — скидка всегда 0.
+        Даже discount_amount=200 при order_total=100 принимается, но обнуляется.
+        """
         from unittest.mock import Mock
 
         user = user_factory.create()
         cart = cart_factory.create(user=user)
         product = product_factory.create(retail_price=Decimal("100.00"))
         cart_item_factory.create(cart=cart, product=product, quantity=1)
-        # items_sum = 100, delivery pickup = 0, total = 100
-        # discount = 200 > 100 → должна быть отклонена
 
         mock_request = Mock()
         mock_request.user = user
@@ -1395,24 +1396,28 @@ class TestOrderVATSplit:
             },
             context={"request": mock_request},
         )
-        assert not serializer.is_valid()
-        assert "discount_amount" in serializer.errors
+        assert serializer.is_valid(), serializer.errors
+        master = serializer.save()
+        # Server overrides discount to 0 — no unauthorized discount applied
+        assert master.discount_amount == Decimal("0.00")
+        assert master.total_amount == Decimal("100.00")
 
-    def test_discount_amount_validation_equals_total_accepted(
+    def test_discount_amount_validation_equals_total_server_overrides_to_zero(
         self,
         user_factory,
         cart_factory,
         product_factory,
         cart_item_factory,
     ):
-        """[AI-Review][High] Скидка равная total заказа должна приниматься (крайний case AC4)."""
+        """Security fix [Story 34-2, Twenty-Seventh Follow-up, High]:
+        клиентский discount_amount=total игнорируется сервером — скидка всегда 0.
+        """
         from unittest.mock import Mock
 
         user = user_factory.create()
         cart = cart_factory.create(user=user)
         product = product_factory.create(retail_price=Decimal("100.00"))
         cart_item_factory.create(cart=cart, product=product, quantity=1)
-        # items_sum = 100, delivery pickup = 0, discount = 100 → total_amount = 0
 
         mock_request = Mock()
         mock_request.user = user
@@ -1428,23 +1433,23 @@ class TestOrderVATSplit:
         )
         assert serializer.is_valid(), serializer.errors
         master = serializer.save()
-        assert master.total_amount == Decimal("0.00")
-        assert master.discount_amount == Decimal("100.00")
+        # Server overrides discount to 0; total_amount = 100, not 0
+        assert master.discount_amount == Decimal("0.00")
+        assert master.total_amount == Decimal("100.00")
 
-    def test_arbitrary_client_discount_within_valid_range_accepted_security_note(
+    def test_arbitrary_client_discount_server_override_security_fix(
         self,
         user_factory,
         cart_factory,
         product_factory,
         cart_item_factory,
     ):
-        """Security regression [Story 34-2, Seventeenth Follow-up, High]:
-        документирует, что backend принимает любой discount_amount в диапазоне
-        [0, order_total] без проверки против авторитетного прomo-состояния.
+        """Security regression [Story 34-2, Twenty-Seventh Follow-up, High]:
+        подтверждает, что backend НЕ принимает произвольный discount_amount от клиента.
 
-        KNOWN LIMITATION: пока на backend не реализована система промокодов (PromoCode),
-        клиент может отправить произвольную скидку в допустимом диапазоне и она будет принята.
-        Если этот тест падает — прomo-система реализована; обновите тест для нового контракта.
+        Fix: клиентское значение discount_amount игнорируется; скидка всегда 0 на сервере
+        (promo-система не реализована). Если этот тест падает — promo-система появилась;
+        обновите тест для нового контракта.
         """
         from unittest.mock import Mock
 
@@ -1467,8 +1472,8 @@ class TestOrderVATSplit:
             },
             context={"request": mock_request},
         )
-        # KNOWN LIMITATION: принимается без проверки promo-системы
         assert serializer.is_valid(), serializer.errors
         master = serializer.save()
-        assert master.discount_amount == Decimal("4999.00")
-        assert master.total_amount == Decimal("1.00")
+        # Security fix: server overrides discount to 0
+        assert master.discount_amount == Decimal("0.00")
+        assert master.total_amount == Decimal("5000.00")

@@ -12,6 +12,7 @@ from django.db.models import F
 from django.db.models.manager import BaseManager
 from rest_framework import serializers
 
+from apps.cart.models import Cart
 from apps.orders.models import Order, OrderItem
 from apps.products.models import ProductVariant
 
@@ -28,13 +29,23 @@ class OrderCreateService:
     @transaction.atomic
     def create(self) -> Order:
         user = self.user
-        cart = self.cart
         delivery_cost = self.delivery_cost
         validated_data = dict(self.validated_data)
 
-        # Pop discount_amount before spread — defaults to 0 if frontend does not send it
-        raw_discount = validated_data.pop("discount_amount", Decimal("0"))
-        discount_amount: Decimal = Decimal(str(raw_discount)) if raw_discount else Decimal("0")
+        # Double-submit protection: блокируем строку корзины внутри транзакции.
+        # Второй параллельный запрос будет ждать снятия блокировки; после этого
+        # увидит пустую корзину (cart.clear() уже вызван) и получит ValidationError.
+        cart_manager = cast(BaseManager[Cart], getattr(Cart, "objects"))
+        cart = cart_manager.select_for_update().filter(pk=self.cart.pk).first()
+        if not cart or not cart.items.exists():
+            raise serializers.ValidationError(
+                "Корзина пуста или уже используется для создания заказа. "
+                "Обновите корзину и попробуйте снова."
+            )
+
+        # Pop discount_amount — always 0 (promo system not implemented; see serializer validate()).
+        validated_data.pop("discount_amount", None)
+        discount_amount: Decimal = Decimal("0")
 
         # 1. Сгруппировать позиции корзины по variant.vat_rate
         groups: dict[Decimal | None, list] = defaultdict(list)

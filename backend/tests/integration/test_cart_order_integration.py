@@ -659,11 +659,12 @@ class VATSplitAPITest(TestCase):
         sub_statuses = list(Order.objects.filter(parent_order=master).values_list("status", flat=True))
         self.assertTrue(all(s != "cancelled" for s in sub_statuses))
 
-    def test_order_creation_with_non_zero_discount_amount(self):
-        """AC4: скидка передаётся через API и применяется только к мастер-заказу.
+    def test_order_creation_discount_zeroed_by_server_security_fix(self):
+        """Security fix [Story 34-2, Twenty-Seventh Follow-up, High]:
+        клиентский discount_amount игнорируется сервером (promo-система не реализована).
 
-        master.discount_amount = переданная скидка.
-        master.total_amount = items + delivery - discount.
+        master.discount_amount = 0 (не переданные 50).
+        master.total_amount = items + delivery - 0 = 400.
         Субзаказы discount_amount=0.
         """
         from decimal import Decimal
@@ -678,29 +679,28 @@ class VATSplitAPITest(TestCase):
                 "delivery_address": "Test Address",
                 "delivery_method": "pickup",
                 "payment_method": "card",
-                "discount_amount": "50.00",
+                "discount_amount": "50.00",  # будет проигнорирован сервером
             },
         )
         self.assertEqual(response.status_code, 201)
 
         master = Order.objects.get(id=response.data["id"])
-        # discount_amount только на мастере
-        self.assertEqual(master.discount_amount, Decimal("50.00"))
-        # total_amount = 200 + 200 + 0 (pickup) - 50 = 350
-        self.assertEqual(master.total_amount, Decimal("350.00"))
-        # API response содержит discount_amount
-        self.assertEqual(Decimal(str(response.data["discount_amount"])), Decimal("50.00"))
+        # discount zeroed by server
+        self.assertEqual(master.discount_amount, Decimal("0.00"))
+        # total_amount = 200 + 200 + 0 (pickup) - 0 = 400
+        self.assertEqual(master.total_amount, Decimal("400.00"))
+        # API response отражает server-override
+        self.assertEqual(Decimal(str(response.data["discount_amount"])), Decimal("0.00"))
 
         sub_orders = list(Order.objects.filter(parent_order=master))
         self.assertEqual(len(sub_orders), 2)
         for sub in sub_orders:
             self.assertEqual(sub.discount_amount, Decimal("0.00"))
 
-    def test_calculated_total_equals_total_amount_with_discount_in_api_response(self):
-        """AC4/AC11 regression: API response calculated_total == total_amount при non-zero discount.
-
-        Проверяет, что serializer вычитает discount_amount в get_calculated_total(),
-        не давая POST/GET вернуть противоречивые total_amount vs calculated_total.
+    def test_calculated_total_equals_total_amount_discount_zeroed_in_api_response(self):
+        """AC4/AC11 regression + Security fix [Story 34-2, Twenty-Seventh Follow-up, High]:
+        API response: calculated_total == total_amount; discount_amount == 0 (server override).
+        Клиентское discount_amount=75 игнорируется — promo-система не реализована.
         """
         from decimal import Decimal
 
@@ -708,14 +708,14 @@ class VATSplitAPITest(TestCase):
         self.client.post("/api/v1/cart/items/", {"variant_id": self.variant_vat5.id, "quantity": 2})  # 100*2=200
         self.client.post("/api/v1/cart/items/", {"variant_id": self.variant_vat22.id, "quantity": 1})  # 200*1=200
 
-        # items_sum=400, delivery pickup=0, discount=75 → total_amount = 325
+        # items_sum=400, delivery pickup=0, discount zeroed → total_amount = 400
         response = self.client.post(
             "/api/v1/orders/",
             {
                 "delivery_address": "Test Address",
                 "delivery_method": "pickup",
                 "payment_method": "card",
-                "discount_amount": "75.00",
+                "discount_amount": "75.00",  # будет проигнорирован сервером
             },
         )
         self.assertEqual(response.status_code, 201)
@@ -724,11 +724,46 @@ class VATSplitAPITest(TestCase):
         calculated_total = Decimal(str(response.data["calculated_total"]))
         discount_amount = Decimal(str(response.data["discount_amount"]))
 
-        self.assertEqual(total_amount, Decimal("325.00"))
-        self.assertEqual(discount_amount, Decimal("75.00"))
+        self.assertEqual(total_amount, Decimal("400.00"))
+        self.assertEqual(discount_amount, Decimal("0.00"))
         self.assertEqual(
             calculated_total,
             total_amount,
             msg=f"calculated_total={calculated_total} != total_amount={total_amount}: "
-            "serializer не вычитает discount_amount",
+            "serializer calculated_total должен совпадать с total_amount",
         )
+
+    def test_double_submit_same_cart_creates_only_one_order(self):
+        """Security fix [Story 34-2, Twenty-Seventh Follow-up, High]:
+        Повторный POST /api/v1/orders/ из той же (уже пустой) корзины возвращает 400.
+
+        После первого успешного checkout корзина очищена — select_for_update + cart.clear()
+        делают повторный запрос невозможным (корзина пуста).
+        В БД остаётся ровно один мастер-заказ.
+        """
+        from decimal import Decimal
+
+        self.client.force_authenticate(user=self.user)
+        self.client.post("/api/v1/cart/items/", {"variant_id": self.variant_vat5.id, "quantity": 1})
+        self.client.post("/api/v1/cart/items/", {"variant_id": self.variant_vat22.id, "quantity": 1})
+
+        order_data = {
+            "delivery_address": "Test Double Submit",
+            "delivery_method": "pickup",
+            "payment_method": "card",
+        }
+
+        # Первый запрос — создаёт заказ
+        response1 = self.client.post("/api/v1/orders/", order_data)
+        self.assertEqual(response1.status_code, 201, f"First order failed: {response1.data}")
+
+        master_count_after_first = Order.objects.filter(is_master=True).count()
+        self.assertEqual(master_count_after_first, 1)
+
+        # Второй запрос — корзина уже пуста, должен вернуть 400
+        response2 = self.client.post("/api/v1/orders/", order_data)
+        self.assertEqual(response2.status_code, 400, f"Expected 400 on double submit, got {response2.status_code}")
+
+        # В БД остаётся ровно один мастер-заказ
+        master_count_final = Order.objects.filter(is_master=True).count()
+        self.assertEqual(master_count_final, 1, "Double submit created duplicate master order")
