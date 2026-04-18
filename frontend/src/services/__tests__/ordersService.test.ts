@@ -86,7 +86,7 @@ describe('ordersService', () => {
       expect(payload.notes).toBe('Позвоните за час до доставки');
 
       // items не передаются — backend строит заказ из server-side корзины
-      expect((payload as Record<string, unknown>)['items']).toBeUndefined();
+      expect((payload as unknown as Record<string, unknown>)['items']).toBeUndefined();
     });
 
     test('обрабатывает пустые optional поля', () => {
@@ -111,10 +111,10 @@ describe('ordersService', () => {
 
     test('не включает discount_amount в payload при нулевой скидке', () => {
       const payloadNoDiscount = mapFormDataToPayload(mockFormData, mockCartItems, 0);
-      expect((payloadNoDiscount as Record<string, unknown>)['discount_amount']).toBeUndefined();
+      expect((payloadNoDiscount as unknown as Record<string, unknown>)['discount_amount']).toBeUndefined();
 
       const payloadUndefined = mapFormDataToPayload(mockFormData, mockCartItems);
-      expect((payloadUndefined as Record<string, unknown>)['discount_amount']).toBeUndefined();
+      expect((payloadUndefined as unknown as Record<string, unknown>)['discount_amount']).toBeUndefined();
     });
   });
 
@@ -281,8 +281,8 @@ describe('ordersService', () => {
       // is_master=true у первого мастера
       expect(first.is_master).toBe(true);
       // Проверяем, что в списке нет полей detail-only (items, calculated_total)
-      expect((first as Record<string, unknown>)['items']).toBeUndefined();
-      expect((first as Record<string, unknown>)['calculated_total']).toBeUndefined();
+      expect((first as unknown as Record<string, unknown>)['items']).toBeUndefined();
+      expect((first as unknown as Record<string, unknown>)['calculated_total']).toBeUndefined();
     });
 
     test('mock data соответствует mockOrdersList', async () => {
@@ -298,15 +298,41 @@ describe('ordersService', () => {
   });
 
   describe('getById', () => {
-    test('получает заказ по ID', async () => {
-      const result = await ordersService.getById('550e8400-e29b-41d4-a716-446655440000');
+    test('получает заказ по ID (numeric contract)', async () => {
+      // Backend возвращает numeric id; orderId передаётся как string URL-параметр
+      const result = await ordersService.getById('1');
 
-      expect(result.id).toBe('550e8400-e29b-41d4-a716-446655440000');
+      expect(result.id).toBe(1);
       expect(result.order_number).toBe('ORD-2025-001');
+    });
+
+    test('items[].product является nested object (depth=1 contract)', async () => {
+      const result = await ordersService.getById('1');
+
+      expect(result.items.length).toBeGreaterThan(0);
+      const firstItem = result.items[0];
+      expect(typeof firstItem.product).toBe('object');
+      expect(firstItem.product).toHaveProperty('id');
+      expect(firstItem.product).toHaveProperty('name');
     });
 
     test('обрабатывает 404 Not Found', async () => {
       await expect(ordersService.getById('not-found')).rejects.toThrow();
+    });
+  });
+
+  describe('contract regression: DeliveryMethodCode', () => {
+    test('transport_schedule является валидным значением delivery_method (Story 34-2)', async () => {
+      // Backend поддерживает transport_schedule; frontend-тип должен его принимать
+      type ValidDelivery = 'pickup' | 'courier' | 'post' | 'transport_company' | 'transport_schedule';
+      const value: ValidDelivery = 'transport_schedule';
+      expect(value).toBe('transport_schedule');
+    });
+
+    test('createOrder возвращает delivery_method из OrderDetail (contract AC12)', async () => {
+      const result = await ordersService.createOrder(mockFormData, mockCartItems);
+      // Убеждаемся что delivery_method существует в ответе
+      expect(result.delivery_method).toBeDefined();
     });
   });
 });

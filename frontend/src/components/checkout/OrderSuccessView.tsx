@@ -89,7 +89,7 @@ export const OrderSuccessView: React.FC<OrderSuccessViewProps> = ({ order }) => 
             <h3 className="font-semibold mb-2">Товары:</h3>
             {order.items.map(item => (
               <div
-                key={item.id || `${item.product}-${item.product_sku}`}
+                key={item.id || `${item.product.id}-${item.product_sku}`}
                 className="flex justify-between py-2 border-b border-gray-100 last:border-0"
               >
                 <span className="text-gray-800">

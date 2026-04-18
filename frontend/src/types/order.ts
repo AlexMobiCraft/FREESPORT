@@ -17,9 +17,14 @@ export type OrderStatus =
 
 /**
  * Способ доставки (backend возвращает строку-код)
- * pickup | courier | post | transport
+ * pickup | courier | post | transport_company | transport_schedule
  */
-export type DeliveryMethodCode = 'pickup' | 'courier' | 'post' | 'transport_company';
+export type DeliveryMethodCode =
+  | 'pickup'
+  | 'courier'
+  | 'post'
+  | 'transport_company'
+  | 'transport_schedule';
 
 /**
  * Адрес доставки (backend возвращает как строку)
@@ -45,11 +50,20 @@ export interface OrderItemVariant {
 }
 
 /**
+ * Вложенный объект товара в элементе заказа (depth=1 в OrderItemSerializer).
+ * Содержит минимальный набор полей Product, используемых в клиентском коде.
+ */
+export interface OrderItemProduct {
+  id: number;
+  name: string;
+}
+
+/**
  * Элемент заказа (контракт backend OrderItemSerializer)
  */
 export interface OrderItem {
   id: number;
-  product: number; // product ID
+  product: OrderItemProduct; // nested product object (depth=1 в сериализаторе)
   variant: OrderItemVariant | null; // variant object (depth=1 в сериализаторе)
   product_name: string;
   product_sku: string;

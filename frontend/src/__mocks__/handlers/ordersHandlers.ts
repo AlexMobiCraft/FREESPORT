@@ -36,7 +36,7 @@ export const mockSuccessOrder = {
   items: [
     {
       id: 1,
-      product: 101,
+      product: { id: 101, name: 'Кроссовки Nike Air Max' },
       variant: {
         id: 1,
         sku: 'NIKE-AM-001',
@@ -53,7 +53,7 @@ export const mockSuccessOrder = {
     },
     {
       id: 2,
-      product: 102,
+      product: { id: 102, name: 'Футболка Adidas' },
       variant: {
         id: 2,
         sku: 'ADIDAS-TS-002',
@@ -190,9 +190,11 @@ export const ordersHandlers = [
       return HttpResponse.json({ detail: 'Not found' }, { status: 404 });
     }
 
+    // Backend возвращает numeric id; Number() парсит строку URL-параметра
+    const numericId = Number(id);
     return HttpResponse.json({
       ...mockSuccessOrder,
-      id: id as string,
+      id: Number.isFinite(numericId) ? numericId : mockSuccessOrder.id,
     });
   }),
 ];
