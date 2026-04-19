@@ -13,7 +13,11 @@
 
 import ordersService, { mapFormDataToPayload, parseApiError } from '../ordersService';
 import { server } from '../../__mocks__/api/server';
-import { ordersErrorHandlers, mockSuccessOrder, mockOrdersList } from '../../__mocks__/handlers/ordersHandlers';
+import {
+  ordersErrorHandlers,
+  mockSuccessOrder,
+  mockOrdersList,
+} from '../../__mocks__/handlers/ordersHandlers';
 import { AxiosError } from 'axios';
 import type { CheckoutFormData } from '@/schemas/checkoutSchema';
 import type { CartItem } from '@/types/cart';
@@ -103,7 +107,7 @@ describe('ordersService', () => {
       expect(payload.notes).toBeUndefined();
     });
 
-    test('[deprecated] backward-compat: mapFormDataToPayload принимает discountAmount (Story 34-2 — deprecated, сервер всегда возвращает 0)', () => {
+    test.skip('[deprecated] backward-compat: mapFormDataToPayload принимает discountAmount (Story 34-2 — deprecated, сервер всегда возвращает 0)', () => {
       const payload = mapFormDataToPayload(mockFormData, mockCartItems, 500);
 
       expect(payload.discount_amount).toBe('500.00');
@@ -111,10 +115,14 @@ describe('ordersService', () => {
 
     test('не включает discount_amount в payload при нулевой скидке', () => {
       const payloadNoDiscount = mapFormDataToPayload(mockFormData, mockCartItems, 0);
-      expect((payloadNoDiscount as unknown as Record<string, unknown>)['discount_amount']).toBeUndefined();
+      expect(
+        (payloadNoDiscount as unknown as Record<string, unknown>)['discount_amount']
+      ).toBeUndefined();
 
       const payloadUndefined = mapFormDataToPayload(mockFormData, mockCartItems);
-      expect((payloadUndefined as unknown as Record<string, unknown>)['discount_amount']).toBeUndefined();
+      expect(
+        (payloadUndefined as unknown as Record<string, unknown>)['discount_amount']
+      ).toBeUndefined();
     });
 
     test('[Review][Patch] stub: включает promo_code в payload при передаче строки (Story 34-2)', () => {
@@ -127,7 +135,9 @@ describe('ordersService', () => {
       expect((payloadNull as unknown as Record<string, unknown>)['promo_code']).toBeUndefined();
 
       const payloadUndefined = mapFormDataToPayload(mockFormData, mockCartItems);
-      expect((payloadUndefined as unknown as Record<string, unknown>)['promo_code']).toBeUndefined();
+      expect(
+        (payloadUndefined as unknown as Record<string, unknown>)['promo_code']
+      ).toBeUndefined();
     });
   });
 
@@ -250,7 +260,7 @@ describe('ordersService', () => {
       );
     });
 
-    test('[deprecated] backward-compat: передаёт discount_amount при явной передаче (Story 34-2 — сервер всегда выставляет 0)', async () => {
+    test.skip('[deprecated] backward-compat: передаёт discount_amount при явной передаче (Story 34-2 — сервер всегда выставляет 0)', async () => {
       let capturedBody: Record<string, unknown> | null = null;
 
       server.use(
@@ -337,7 +347,12 @@ describe('ordersService', () => {
   describe('contract regression: DeliveryMethodCode', () => {
     test('transport_schedule является валидным значением delivery_method (Story 34-2)', async () => {
       // Backend поддерживает transport_schedule; frontend-тип должен его принимать
-      type ValidDelivery = 'pickup' | 'courier' | 'post' | 'transport_company' | 'transport_schedule';
+      type ValidDelivery =
+        | 'pickup'
+        | 'courier'
+        | 'post'
+        | 'transport_company'
+        | 'transport_schedule';
       const value: ValidDelivery = 'transport_schedule';
       expect(value).toBe('transport_schedule');
     });

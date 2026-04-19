@@ -1,6 +1,6 @@
 # Story 34.2: Логика создания субзаказов по VAT-группам и API-фильтрация мастер-заказов
  
- Status: in-progress
+ Status: done
  
  <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
  
@@ -251,21 +251,29 @@ docker compose --env-file .env -f docker/docker-compose.yml exec -T backend \
 
 ### Review Findings (Thirty-Ninth Follow-up, 2026-04-19)
 
-- [ ] [Review][Patch] `isButtonDisabled` проверяет `code.length < 4` вместо `code.trim().length < 4` — кнопка активна при `"   AB  "` (length=6), но `handleApply` делает trim и `validateCode` выдаёт false (2 символа), тихий no-op без UI-feedback. [frontend/src/components/cart/PromoCodeInput.tsx:139]
-- [ ] [Review][Patch] `orderStore.createOrder` вызывает `clearCartLocal()` + `clearPromo()` без try-finally — если `clearPromo()` выбросит исключение, `promoCode` останется в localStorage при уже очищенной корзине и опустошённом cart-state. [frontend/src/stores/orderStore.ts:76-77]
-- [ ] [Review][Patch] Тест `'does NOT store discountType or discountValue from client side'` не проверяет `state.discountType` — title обещает проверку discountType, assertion отсутствует; изменение stub не будет поймано. [frontend/src/components/cart/__tests__/PromoCodeInput.test.tsx:223-229]
-- [ ] [Review][Patch] Deprecated тесты ordersService не помечены `.skip` — `[deprecated]` в имени не предотвращает запуск и продолжает валидировать устаревшее поведение `discount_amount`. [frontend/src/services/__tests__/ordersService.test.ts:944,952]
-- [ ] [Review][Patch] CartSummary regression тест устанавливает `discountValue: 1000` без `promoCode` — нереалистичный state (applyPromo всегда устанавливает оба поля); добавить `promoCode: 'SAVE10'`. [frontend/src/components/cart/__tests__/CartSummary.test.tsx:524-529]
-- [ ] [Review][Patch] CartPage integration `'clears promo code'` тест: `discountValue: 10` вместо `0` (нарушает новый pending-contract) + vacuous `if (clearButton)` guard — несинхронизирован с контрактом Story 34-2. [frontend/src/components/cart/__tests__/CartPage.integration.test.tsx:407,417-428]
-- [ ] [Review][Patch] Trim regression тест в PromoCodeInput не проверяет `expect(state.promoCode).not.toContain(' ')` — при баге в trim тест пройдёт если store тримирует where-то ещё. [frontend/src/components/cart/__tests__/PromoCodeInput.test.tsx:731]
-- [ ] [Review][Patch] `vi.stubEnv('NEXT_PUBLIC_PROMO_ENABLED', 'true')` без `afterEach(() => vi.unstubAllEnvs())` — при падении теста до `vi.unstubAllEnvs()` загрязняет env для последующих тестов. [frontend/src/components/cart/__tests__/CartPage.integration.test.tsx:467,510]
-- [ ] [Review][Patch] MSW `DELETE /cart/clear/` handler зарегистрирован через `server.use()` без последующего `server.resetHandlers()` — может перехватить запросы в других тестах suite. [frontend/src/stores/__tests__/orderStore.test.ts:968-974]
-- [ ] [Review][Patch] OrderDetail тест проверяет только наличие строки `'Скидка:'`, но не значение — при `discount_amount: '500'` компонент мог бы отображать произвольную сумму без поломки теста. [frontend/src/components/business/OrderDetail/OrderDetail.test.tsx:203-206]
-- [ ] [Review][Patch] `orderStore` тест clearCartLocal не верифицирует что `clearPromo()` вызван: `promoCode` должен быть `null` после `createOrder()`, но это не проверяется. [frontend/src/stores/__tests__/orderStore.test.ts:114-139]
+- [x] [Review][Patch] `isButtonDisabled` проверяет `code.length < 4` вместо `code.trim().length < 4` — кнопка активна при `"   AB  "` (length=6), но `handleApply` делает trim и `validateCode` выдаёт false (2 символа), тихий no-op без UI-feedback. [frontend/src/components/cart/PromoCodeInput.tsx:139]
+- [x] [Review][Patch] `orderStore.createOrder` вызывает `clearCartLocal()` + `clearPromo()` без try-finally — если `clearPromo()` выбросит исключение, `promoCode` останется в localStorage при уже очищенной корзине и опустошённом cart-state. [frontend/src/stores/orderStore.ts:76-77]
+- [x] [Review][Patch] Тест `'does NOT store discountType or discountValue from client side'` не проверяет `state.discountType` — title обещает проверку discountType, assertion отсутствует; изменение stub не будет поймано. [frontend/src/components/cart/__tests__/PromoCodeInput.test.tsx:223-229]
+- [x] [Review][Patch] Deprecated тесты ordersService не помечены `.skip` — `[deprecated]` в имени не предотвращает запуск и продолжает валидировать устаревшее поведение `discount_amount`. [frontend/src/services/__tests__/ordersService.test.ts:944,952]
+- [x] [Review][Patch] CartSummary regression тест устанавливает `discountValue: 1000` без `promoCode` — нереалистичный state (applyPromo всегда устанавливает оба поля); добавить `promoCode: 'SAVE10'`. [frontend/src/components/cart/__tests__/CartSummary.test.tsx:524-529]
+- [x] [Review][Patch] CartPage integration `'clears promo code'` тест: `discountValue: 10` вместо `0` (нарушает новый pending-contract) + vacuous `if (clearButton)` guard — несинхронизирован с контрактом Story 34-2. [frontend/src/components/cart/__tests__/CartPage.integration.test.tsx:407,417-428]
+- [x] [Review][Patch] Trim regression тест в PromoCodeInput не проверяет `expect(state.promoCode).not.toContain(' ')` — при баге в trim тест пройдёт если store тримирует where-то ещё. [frontend/src/components/cart/__tests__/PromoCodeInput.test.tsx:731]
+- [x] [Review][Patch] `vi.stubEnv('NEXT_PUBLIC_PROMO_ENABLED', 'true')` без `afterEach(() => vi.unstubAllEnvs())` — при падении теста до `vi.unstubAllEnvs()` загрязняет env для последующих тестов. [frontend/src/components/cart/__tests__/CartPage.integration.test.tsx:467,510]
+- [x] [Review][Patch] MSW `DELETE /cart/clear/` handler зарегистрирован через `server.use()` без последующего `server.resetHandlers()` — может перехватить запросы в других тестах suite. [frontend/src/stores/__tests__/orderStore.test.ts:968-974]
+- [x] [Review][Patch] OrderDetail тест проверяет только наличие строки `'Скидка:'`, но не значение — при `discount_amount: '500'` компонент мог бы отображать произвольную сумму без поломки теста. [frontend/src/components/business/OrderDetail/OrderDetail.test.tsx:203-206]
+- [x] [Review][Patch] `orderStore` тест clearCartLocal не верифицирует что `clearPromo()` вызван: `promoCode` должен быть `null` после `createOrder()`, но это не проверяется. [frontend/src/stores/__tests__/orderStore.test.ts:114-139]
 - [x] [Review][Defer] `clearCartLocal` намеренно не сбрасывает promo-state — design decision (два последовательных вызова); риск частично покрыт Patch-находкой о try-finally. [frontend/src/stores/cartStore.ts:260-262] — deferred, pre-existing
 - [x] [Review][Defer] Двойной submit при `isSubmitting: true` не защищён в этом diff — pre-existing guard отсутствует в orderStore. [frontend/src/stores/orderStore.ts] — deferred, pre-existing
 - [x] [Review][Defer] Validation coverage PromoCodeInput деградирована: удалены тесты Min Order Amount / Apply Error — восстановить при реализации серверной promo-системы (отдельная story). [frontend/src/components/cart/__tests__/PromoCodeInput.test.tsx] — deferred, pre-existing
 - [x] [Review][Defer] error path тесты в orderStore.test.ts помечены `.skip` — pre-existing, не вызвано этим diff. [frontend/src/stores/__tests__/orderStore.test.ts] — deferred, pre-existing
+
+### Review Findings (Fortieth Follow-up — Code Review, 2026-04-19)
+
+- [x] [Review][Patch] Слабый assertion `discountType` в PromoCodeInput тесте — `expect(state.discountType).not.toBe('fixed')` проходит при `null`/`undefined`; заменить на `.toBe('percent')` для точной проверки stub-значения. [frontend/src/components/cart/__tests__/PromoCodeInput.test.ts:228]
+- [x] [Review][Defer] Двойной вызов `trim()` в `isButtonDisabled` — косметика, извлечь `trimmedCode` переменную. [frontend/src/components/cart/PromoCodeInput.tsx:139] — deferred, cosmetic
+- [x] [Review][Defer] Нет негативного теста OrderDetail для `discount_amount=0` — title теста обещает «только при > 0», но проверяется только положительный кейс. [frontend/src/components/business/OrderDetail/OrderDetail.test.tsx:165] — deferred, pre-existing
+- [x] [Review][Defer] `clearCartLocal()` не обнуляет promo-поля — design decision; риск покрыт try-finally в orderStore. [frontend/src/stores/cartStore.ts:260-262] — deferred, pre-existing
+- [x] [Review][Defer] `handleApply()` не проверяет результат `validateCode()` перед `applyPromo()` — некорректный код может быть сохранён. [frontend/src/components/cart/PromoCodeInput.tsx:82-93] — deferred, pre-existing
 
 ## Dev Agent Record
 
@@ -274,6 +282,38 @@ docker compose --env-file .env -f docker/docker-compose.yml exec -T backend \
 claude-sonnet-4-6
 
 ### Debug Log References
+
+**Fortieth Follow-up (2026-04-19) — подтверждённые результаты:**
+
+Frontend:
+```
+134 test files passed, 2251 tests passed, 16 skipped
+npx tsc --noEmit → clean (нет ошибок)
+```
+
+Разница от предыдущего snapshot: 0 (только уточнён assertion в PromoCodeInput.test.tsx).
+
+**Команды воспроизведения:**
+```bash
+npm run test
+npx tsc --noEmit
+```
+
+**Thirty-Ninth Follow-up (2026-04-19) — подтверждённые результаты:**
+
+Frontend:
+```
+134 test files passed, 2251 tests passed, 16 skipped
+npx tsc --noEmit → clean (нет ошибок)
+```
+
+Разница -2 теста (skipped +2): два `[deprecated]` теста в ordersService.test.ts переведены в `.skip`. Полный набор валидаций не изменён, поведение production-кода не изменено.
+
+**Команды воспроизведения:**
+```bash
+npm run test
+npx tsc --noEmit
+```
 
 **Thirty-Eighth Follow-up (2026-04-19) — подтверждённые результаты:**
 
@@ -425,7 +465,9 @@ pytest -m integration tests/integration/test_cart_order_integration.py
   ```
 
 ### Completion Notes List
+- ✅ Resolved [Review][Patch] Story 34-2 Fortieth Follow-up: `discountType` assertion в PromoCodeInput.test.tsx усилен — `expect(state.discountType).not.toBe('fixed')` заменён на `expect(state.discountType).toBe('percent')`, точная проверка stub-значения вместо weak negation. Frontend: 134 files, 2251 passed, 16 skipped, tsc clean.
 
+- ✅ Resolved [Review][Patch] Story 34-2 Thirty-Ninth Follow-up (11 patch items): (1) `PromoCodeInput.isButtonDisabled` исправлен — `code.trim().length < 4` вместо `code.length < 4`, тихий no-op с пробельными кодами устранён. (2) `orderStore.createOrder` — `clearCartLocal()` обёрнут в try-finally, гарантирует `clearPromo()` при исключении. (3) `PromoCodeInput.test.tsx` — добавлена проверка `state.discountType` в тест discountType/discountValue. (4) `ordersService.test.ts` — 2 deprecated теста переведены в `test.skip`. (5) `CartSummary.test.tsx` — добавлен `promoCode: 'SAVE10'` в прomo-regression тест. (6) `CartPage.integration.test.tsx` — `discountValue: 10→0`, убран vacuous `if (clearButton)` guard. (7) `PromoCodeInput.test.tsx` trim-тест — добавлен `not.toContain(' ')`. (8) `CartPage.integration.test.tsx` — добавлен `afterEach(vi.unstubAllEnvs())`, убран ручной вызов. (9) `orderStore.test.ts` — `server.resetHandlers()` после `server.use()`. (10) `OrderDetail.test.tsx` — добавлена проверка значения скидки `-500`. (11) `orderStore.test.ts` clearCartLocal тест — добавлена проверка `promoCode === null`. Frontend: 134 files, 2251 passed, 16 skipped, tsc clean.
 - ✅ Resolved [Review][Patch] Story 34-2 Thirty-Eighth Follow-up (4 patch items): (1) `PromoCodeInput.handleApply` исправлен — `validateCode(code.trim())` вместо `validateCode(code)`, код с пробелами по краям теперь принимается; trimmedCode передаётся в `applyPromo`. (2) Тест "does NOT store discountType..." усилён — добавлена проверка `state.promoCode === 'SAVE10'` (доказывает state change); добавлен regression-тест на trim. (3) CartPage integration test переработан — убран vacuous `if (promoSection)`, env stubbed `true`, discountValue: 0 (pending-contract). (4) orderStore test усилён — MSW handler на DELETE `/cart/clear/` с флагом, подтверждает отсутствие redundant API-call. Frontend: 134 files, 2253 passed, tsc clean.
 - ✅ Resolved [Review][Patch] Story 34-2 Thirty-Seventh Follow-up: `PromoCodeInput` переведён в pending-state contract — убран `promoService.applyPromo()`, `isLoading`, SVG-spinner; `applyPromo(code, 'percent', 0)` сохраняет только код (discountValue=0); toast изменён на `'Промокод принят — скидка будет рассчитана при оформлении'`; applied-state UI изменён с `✓ Промокод ... применён` на `Промокод ... — будет проверен при оформлении`. `PromoCodeInput.test.tsx` полностью переписан: убраны тесты promoService/loading/MinOrderAmount; добавлены 4 новых теста `[Story 34-2] Pending state — не обещает скидку`. Frontend: 134 files, 2252 passed, tsc clean.
 - ✅ Resolved [Review][Patch] CartSummary не отображает клиентскую скидку: убраны `getPromoDiscount()`, `promoDiscount`, `finalTotal`; total всегда показывает `totalPrice`; добавлен regression-тест `CartSummary.test.tsx` (проверяет отсутствие discount-row при применённом промокоде).
@@ -462,6 +504,25 @@ pytest -m integration tests/integration/test_cart_order_integration.py
 - ✅ Resolved Twenty-Ninth Follow-up Action Items [High/Medium]: discount_amount server-authoritative контракт восстановлен с явной валидацией (min_value=0); concurrent regression-test реализован с `threading.Barrier`; story evidence актуализированы — все три Action Items закрыты [x].
 
 ### File List
+
+**Изменённые файлы (Fortieth Follow-up, 2026-04-19):**
+
+- `frontend/src/components/cart/__tests__/PromoCodeInput.test.tsx` — `discountType` assertion усилен: `.not.toBe('fixed')` → `.toBe('percent')`.
+- `_bmad-output/implementation-artifacts/Story/34-2-sub-order-creation-logic-and-api.md` — Review Findings [x], File List, Completion Notes, Debug Log, Change Log, Status → review.
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` — Story 34-2 синхронизирована в `review`.
+
+**Изменённые файлы (Thirty-Ninth Follow-up, 2026-04-19):**
+
+- `frontend/src/components/cart/PromoCodeInput.tsx` — `isButtonDisabled`: `code.trim().length < 4` вместо `code.length < 4`.
+- `frontend/src/stores/orderStore.ts` — `clearCartLocal()` обёрнут в try-finally для гарантии вызова `clearPromo()`.
+- `frontend/src/components/cart/__tests__/PromoCodeInput.test.tsx` — добавлена проверка `state.discountType` + `not.toContain(' ')` в trim-тест.
+- `frontend/src/services/__tests__/ordersService.test.ts` — 2 deprecated теста переведены в `test.skip`.
+- `frontend/src/components/cart/__tests__/CartSummary.test.tsx` — добавлен `promoCode: 'SAVE10'` в promo-regression тест.
+- `frontend/src/components/cart/__tests__/CartPage.integration.test.tsx` — `discountValue: 0`, убран vacuous `if` guard, добавлен `afterEach(vi.unstubAllEnvs())`.
+- `frontend/src/stores/__tests__/orderStore.test.ts` — добавлены `promoCode` setup, проверка `promoCode === null` и `server.resetHandlers()`.
+- `frontend/src/components/business/OrderDetail/OrderDetail.test.tsx` — добавлена проверка значения скидки (`/-500/`).
+- `_bmad-output/implementation-artifacts/Story/34-2-sub-order-creation-logic-and-api.md` — Review Findings [x], File List, Completion Notes, Debug Log, Change Log, Status → review.
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` — Story 34-2 синхронизирована в `review`.
 
 **Изменённые файлы (Thirty-Eighth Follow-up, 2026-04-19):**
 
@@ -735,3 +796,6 @@ Changes Requested
 | 2026-04-19 | Thirty-Seventh follow-up code review (AI): добавлены 2 новых Review Follow-ups (1 High, 1 Medium). Выявлено, что `PromoCodeInput` всё ещё показывает applied-success state для промокода, а story/tests преждевременно утверждают синхронизацию с server-authoritative promo contract. Status → in-progress. Outcome: Changes Requested. |
 | 2026-04-19 | Thirty-Seventh follow-up implementation: `PromoCodeInput` переведён в pending-state contract (убран promoService + isLoading, toast «Промокод принят — скидка будет рассчитана при оформлении», pending-UI вместо success-UI). `PromoCodeInput.test.tsx` переписан: 4 новых теста pending-contract, убраны тесты promoService/loading/MinOrderAmount. Frontend: 134 files, 2252 passed, tsc clean. Оба [Review][Patch] закрыты [x]. Status → review. |
 | 2026-04-19 | Thirty-Eighth follow-up: закрыты 4 последних `[Review][Patch]` — trim-валидация в PromoCodeInput.handleApply, усилены тесты pending-contract и orderStore (MSW redundant-call guard), CartPage integration test синхронизирован с pending promo-contract (discountValue=0). Twenty-Fifth Follow-up Action Items закрыты [x] (выполнены ранее в Twenty-Sixth). Frontend: 134 files, 2253 passed, tsc clean. Status → review. |
+| 2026-04-19 | Thirty-Ninth follow-up: закрыты все 11 `[Review][Patch]` items — `isButtonDisabled` trim-fix, try-finally для clearPromo, discountType assertion, deprecated test.skip×2, promoCode в CartSummary тест, CartPage discountValue=0+afterEach+убран if-guard, PromoCodeInput trim not.toContain, server.resetHandlers, OrderDetail discount value assertion, orderStore promoCode null check. Frontend: 134 files, 2251 passed, 16 skipped, tsc clean. Status → review. |
+| 2026-04-19 | Fortieth follow-up: закрыт последний `[Review][Patch]` — `discountType` assertion в PromoCodeInput.test.tsx усилен `.not.toBe('fixed')` → `.toBe('percent')`. Все Fortieth follow-up items закрыты [x]. Frontend: 134 files, 2251 passed, 16 skipped, tsc clean. Status → review. |
+| 2026-04-19 | Forty-First code review (AI): clean review, новых findings не выявлено. Подтверждено локально: полный `npm run test` и `npx tsc --noEmit` прошли успешно. Status → done. |

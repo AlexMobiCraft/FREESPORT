@@ -136,7 +136,7 @@ const PromoCodeInput = () => {
   }
 
   // Форма ввода промокода
-  const isButtonDisabled = !code.trim() || code.length < 4;
+  const isButtonDisabled = !code.trim() || code.trim().length < 4;
 
   return (
     <div className="mb-4" data-testid="promo-code-section">

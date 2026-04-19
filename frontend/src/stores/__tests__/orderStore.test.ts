@@ -112,6 +112,9 @@ describe('orderStore', () => {
     });
 
     test('[Review][Patch] Story 34-2: очищает корзину локально после успешного заказа без повторного API-вызова /cart/clear/', async () => {
+      // [Patch 11] Устанавливаем promoCode, чтобы проверить clearPromo() после createOrder
+      useCartStore.setState({ promoCode: 'TESTCODE', discountType: 'percent', discountValue: 0 });
+
       // Track if the /cart/clear/ API endpoint is hit (it must NOT be called)
       let cartClearApiCalled = false;
       server.use(
@@ -136,6 +139,10 @@ describe('orderStore', () => {
       expect(useCartStore.getState().totalItems).toBe(0);
       // [Story 34-2] backend already cleared cart in transaction — no redundant /cart/clear/ call
       expect(cartClearApiCalled).toBe(false);
+      // [Patch 9] Сбрасываем MSW handler, чтобы не перехватывал запросы в других тестах
+      server.resetHandlers();
+      // [Patch 11] clearPromo() должен быть вызван через try-finally в orderStore
+      expect(useCartStore.getState().promoCode).toBeNull();
     });
 
     test('устанавливает isSubmitting в true во время запроса', async () => {

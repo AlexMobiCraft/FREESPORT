@@ -357,6 +357,10 @@ describe('CartPage Integration Tests', () => {
   // ==================== Promo Code Flow ====================
 
   describe('Promo Code Flow', () => {
+    afterEach(() => {
+      vi.unstubAllEnvs();
+    });
+
     it('[Story 34-2] applies promo code in pending-state (discountValue=0, server-authoritative)', async () => {
       // Ensure promo section is visible for this test
       vi.stubEnv('NEXT_PUBLIC_PROMO_ENABLED', 'true');
@@ -391,12 +395,12 @@ describe('CartPage Integration Tests', () => {
         expect(state.discountType).toBe('percent');
         expect(state.discountValue).toBe(0);
       });
-
-      vi.unstubAllEnvs();
     });
 
     it('clears promo code and removes discount', async () => {
       // Устанавливаем состояние с применённым промокодом
+      // [Story 34-2 Patch 6] discountValue=0 — пендинг-контракт; видимость clear-кнопки обеспечивается promoCode=SAVE10
+      vi.stubEnv('NEXT_PUBLIC_PROMO_ENABLED', 'true');
       useCartStore.setState({
         items: mockItems,
         totalItems: 3,
@@ -404,7 +408,7 @@ describe('CartPage Integration Tests', () => {
         isLoading: false,
         promoCode: 'SAVE10',
         discountType: 'percent',
-        discountValue: 10,
+        discountValue: 0,
       });
 
       render(<CartPage />);
@@ -413,19 +417,16 @@ describe('CartPage Integration Tests', () => {
         expect(screen.getByTestId('cart-page')).toBeInTheDocument();
       });
 
-      // Ищем кнопку удаления промокода
-      const clearButton = screen.queryByTestId('clear-promo-button');
+      // Кнопка должна быть видна (так как promoCode установлен в сторе)
+      const clearButton = await screen.findByTestId('clear-promo-button');
+      await user.click(clearButton);
 
-      if (clearButton) {
-        await user.click(clearButton);
-
-        // Проверяем что промокод удалён
-        await waitFor(() => {
-          const state = useCartStore.getState();
-          expect(state.promoCode).toBeNull();
-          expect(state.discountValue).toBe(0);
-        });
-      }
+      // Проверяем что промокод удалён
+      await waitFor(() => {
+        const state = useCartStore.getState();
+        expect(state.promoCode).toBeNull();
+        expect(state.discountValue).toBe(0);
+      });
     });
   });
 

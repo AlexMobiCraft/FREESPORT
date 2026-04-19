@@ -73,8 +73,13 @@ export const useOrderStore = create<OrderState>()(
           // Backend уже очистил cart в той же транзакции — вызываем только
           // локальный clear без повторного API-запроса, чтобы избежать
           // rollback-эффекта при сбое избыточного /cart/clear/.
-          useCartStore.getState().clearCartLocal();
-          useCartStore.getState().clearPromo();
+          // try-finally гарантирует, что clearPromo() выполнится даже если
+          // clearCartLocal() бросит исключение (защита от stale promoCode в localStorage).
+          try {
+            useCartStore.getState().clearCartLocal();
+          } finally {
+            useCartStore.getState().clearPromo();
+          }
         } catch (error: unknown) {
           const errorMessage = error instanceof Error ? error.message : 'Ошибка создания заказа';
           set({ error: errorMessage });

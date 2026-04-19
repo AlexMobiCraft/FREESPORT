@@ -203,6 +203,7 @@ describe('CartSummary', () => {
       setCartState({
         items: mockCartItems,
         totalPrice: 13990,
+        promoCode: 'SAVE10',
         discountType: 'fixed',
         discountValue: 1000,
       });

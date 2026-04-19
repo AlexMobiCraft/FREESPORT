@@ -118,12 +118,22 @@ describe('OrderDetail', () => {
   });
 
   it('локализует transport_company (Story 34-2 regression)', () => {
-    render(<OrderDetail {...defaultProps} order={{ ...mockOrder, delivery_method: 'transport_company' }} />);
+    render(
+      <OrderDetail
+        {...defaultProps}
+        order={{ ...mockOrder, delivery_method: 'transport_company' }}
+      />
+    );
     expect(screen.getByText('Транспортная компания')).toBeInTheDocument();
   });
 
   it('локализует transport_schedule (Story 34-2 regression)', () => {
-    render(<OrderDetail {...defaultProps} order={{ ...mockOrder, delivery_method: 'transport_schedule' }} />);
+    render(
+      <OrderDetail
+        {...defaultProps}
+        order={{ ...mockOrder, delivery_method: 'transport_schedule' }}
+      />
+    );
     expect(screen.getByText('Доставка по расписанию')).toBeInTheDocument();
   });
 
@@ -139,12 +149,19 @@ describe('OrderDetail', () => {
   });
 
   it('локализует bank_transfer (Story 34-2 regression)', () => {
-    render(<OrderDetail {...defaultProps} order={{ ...mockOrder, payment_method: 'bank_transfer' }} />);
+    render(
+      <OrderDetail {...defaultProps} order={{ ...mockOrder, payment_method: 'bank_transfer' }} />
+    );
     expect(screen.getByText('Банковский перевод')).toBeInTheDocument();
   });
 
   it('локализует payment_on_delivery (Story 34-2 regression)', () => {
-    render(<OrderDetail {...defaultProps} order={{ ...mockOrder, payment_method: 'payment_on_delivery' }} />);
+    render(
+      <OrderDetail
+        {...defaultProps}
+        order={{ ...mockOrder, payment_method: 'payment_on_delivery' }}
+      />
+    );
     expect(screen.getByText('Оплата при получении')).toBeInTheDocument();
   });
 
@@ -165,6 +182,9 @@ describe('OrderDetail', () => {
   it('[Review][Patch] Story 34-2: показывает строку Скидка только при discount_amount > 0', () => {
     render(<OrderDetail {...defaultProps} order={{ ...mockOrder, discount_amount: '500' }} />);
     expect(screen.getByText('Скидка:')).toBeInTheDocument();
+    // [Patch 10] Проверяем не только наличие заголовка, но и значение скидки в UI
+    const discountValueEl = screen.getByText(/-500/);
+    expect(discountValueEl).toBeInTheDocument();
   });
 
   it('renders notes section when notes exist', () => {

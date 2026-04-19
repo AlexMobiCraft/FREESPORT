@@ -226,6 +226,8 @@ describe('PromoCodeInput', () => {
         expect(state.promoCode).toBe('SAVE10');
         // Stub: discountValue = 0, скидка не применяется клиентом до сервера
         expect(state.discountValue).toBe(0);
+        // [Story 34-2] discountType = 'percent' (stub, server-authoritative pending)
+        expect(state.discountType).toBe('percent');
       });
     });
 
@@ -251,6 +253,8 @@ describe('PromoCodeInput', () => {
         const state = useCartStore.getState();
         // Trimmed code is stored, not the raw value with spaces
         expect(state.promoCode).toBe('SAVE10');
+        // [Story 34-2 Patch 7] store trim regression: promoCode не должен содержать пробелы
+        expect(state.promoCode).not.toContain(' ');
       });
     });
 
