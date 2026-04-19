@@ -24,7 +24,7 @@ const mockOrder: Order = {
   customer_phone: '+7 999 123 45 67',
   status: 'pending',
   total_amount: '15500',
-  discount_amount: '500',
+  discount_amount: '0',
   delivery_cost: '500',
   delivery_address: 'г. Москва, ул. Тестовая, д. 1, кв. 10',
   delivery_method: 'courier',
@@ -156,9 +156,15 @@ describe('OrderDetail', () => {
   it('renders order totals', () => {
     render(<OrderDetail {...defaultProps} />);
     expect(screen.getByText('Подытог:')).toBeInTheDocument();
-    expect(screen.getByText('Скидка:')).toBeInTheDocument();
+    // Скидка не отображается при discount_amount='0' (server-authoritative, Story 34-2)
+    expect(screen.queryByText('Скидка:')).not.toBeInTheDocument();
     expect(screen.getByText('Доставка:')).toBeInTheDocument();
     expect(screen.getByText('Итого:')).toBeInTheDocument();
+  });
+
+  it('[Review][Patch] Story 34-2: показывает строку Скидка только при discount_amount > 0', () => {
+    render(<OrderDetail {...defaultProps} order={{ ...mockOrder, discount_amount: '500' }} />);
+    expect(screen.getByText('Скидка:')).toBeInTheDocument();
   });
 
   it('renders notes section when notes exist', () => {

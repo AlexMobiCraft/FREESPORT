@@ -27,6 +27,7 @@ interface CartStore extends CartStateType {
     quantity: number
   ) => Promise<{ success: boolean; error?: string }>;
   clearCart: () => Promise<void>;
+  clearCartLocal: () => void;
   fetchCart: () => Promise<void>;
 
   // Promo actions (Story 26.4)
@@ -252,6 +253,12 @@ export const useCartStore = create<CartStore>()(
 
             return { success: false, error: errorMsg };
           }
+        },
+
+        // Очистить корзину локально (без API-вызова) — использовать после checkout,
+        // где backend уже очистил cart в той же транзакции.
+        clearCartLocal: () => {
+          set({ items: [], totalItems: 0, totalPrice: 0, isLoading: false, error: null });
         },
 
         // Очистить корзину

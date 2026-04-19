@@ -69,8 +69,11 @@ export const useOrderStore = create<OrderState>()(
           // Сохраняем созданный заказ
           set({ currentOrder: order, error: null });
 
-          // Очищаем корзину и promo-state после успешного создания заказа
-          await useCartStore.getState().clearCart();
+          // Очищаем корзину и promo-state после успешного создания заказа.
+          // Backend уже очистил cart в той же транзакции — вызываем только
+          // локальный clear без повторного API-запроса, чтобы избежать
+          // rollback-эффекта при сбое избыточного /cart/clear/.
+          useCartStore.getState().clearCartLocal();
           useCartStore.getState().clearPromo();
         } catch (error: unknown) {
           const errorMessage = error instanceof Error ? error.message : 'Ошибка создания заказа';

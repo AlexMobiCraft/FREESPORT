@@ -111,7 +111,16 @@ describe('orderStore', () => {
       expect(state.error).toBeNull();
     });
 
-    test('очищает корзину после успешного создания заказа', async () => {
+    test('[Review][Patch] Story 34-2: очищает корзину локально после успешного заказа без повторного API-вызова /cart/clear/', async () => {
+      // Track if the /cart/clear/ API endpoint is hit (it must NOT be called)
+      let cartClearApiCalled = false;
+      server.use(
+        http.delete('*/cart/clear/', () => {
+          cartClearApiCalled = true;
+          return new HttpResponse(null, { status: 204 });
+        })
+      );
+
       // Проверяем что корзина не пуста
       expect(useCartStore.getState().items).toHaveLength(1);
 
@@ -121,9 +130,12 @@ describe('orderStore', () => {
         await createOrder(mockFormData);
       });
 
-      // После успешного заказа корзина должна быть очищена
-      // Примечание: clearCart вызывает API, который мы не мокали
-      // В реальном тесте нужно мокать cartService.clear()
+      // clearCartLocal() не вызывает API — корзина пуста сразу без мокирования cartService.clear()
+      expect(useCartStore.getState().items).toHaveLength(0);
+      expect(useCartStore.getState().totalPrice).toBe(0);
+      expect(useCartStore.getState().totalItems).toBe(0);
+      // [Story 34-2] backend already cleared cart in transaction — no redundant /cart/clear/ call
+      expect(cartClearApiCalled).toBe(false);
     });
 
     test('устанавливает isSubmitting в true во время запроса', async () => {

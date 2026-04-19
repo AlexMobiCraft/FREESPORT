@@ -21,7 +21,7 @@ export const mockSuccessOrder = {
   customer_phone: '+79001234567',
   status: 'pending' as const,
   total_amount: '15500',
-  discount_amount: '500',
+  discount_amount: '0',
   delivery_cost: '500',
   delivery_address: 'г. Москва, ул. Тестовая, д. 1, кв. 10',
   delivery_method: 'courier' as const,

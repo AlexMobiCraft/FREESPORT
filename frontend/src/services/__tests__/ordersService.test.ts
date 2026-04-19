@@ -103,7 +103,7 @@ describe('ordersService', () => {
       expect(payload.notes).toBeUndefined();
     });
 
-    test('включает discount_amount в payload при ненулевой скидке (AC4 Story 34-2)', () => {
+    test('[deprecated] backward-compat: mapFormDataToPayload принимает discountAmount (Story 34-2 — deprecated, сервер всегда возвращает 0)', () => {
       const payload = mapFormDataToPayload(mockFormData, mockCartItems, 500);
 
       expect(payload.discount_amount).toBe('500.00');
@@ -250,7 +250,7 @@ describe('ordersService', () => {
       );
     });
 
-    test('передаёт discount_amount в запросе при ненулевой скидке', async () => {
+    test('[deprecated] backward-compat: передаёт discount_amount при явной передаче (Story 34-2 — сервер всегда выставляет 0)', async () => {
       let capturedBody: Record<string, unknown> | null = null;
 
       server.use(

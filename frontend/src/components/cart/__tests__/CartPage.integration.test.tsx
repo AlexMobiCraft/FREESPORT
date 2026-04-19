@@ -357,7 +357,10 @@ describe('CartPage Integration Tests', () => {
   // ==================== Promo Code Flow ====================
 
   describe('Promo Code Flow', () => {
-    it('applies promo code and shows discount', async () => {
+    it('[Story 34-2] applies promo code in pending-state (discountValue=0, server-authoritative)', async () => {
+      // Ensure promo section is visible for this test
+      vi.stubEnv('NEXT_PUBLIC_PROMO_ENABLED', 'true');
+
       useCartStore.setState({
         items: mockItems,
         totalItems: 3,
@@ -371,25 +374,25 @@ describe('CartPage Integration Tests', () => {
         expect(screen.getByTestId('cart-page')).toBeInTheDocument();
       });
 
-      // Проверяем наличие promo code section
-      const promoSection = screen.queryByTestId('promo-code-section');
+      // Promo section must be present (promo enabled by env stub above)
+      const promoSection = await screen.findByTestId('promo-code-section');
+      expect(promoSection).toBeInTheDocument();
 
-      if (promoSection) {
-        // Вводим промокод
-        const input = within(promoSection).getByTestId('promo-code-input');
-        const applyButton = within(promoSection).getByTestId('apply-promo-button');
+      const input = within(promoSection).getByTestId('promo-code-input');
+      const applyButton = within(promoSection).getByTestId('apply-promo-button');
 
-        await user.type(input, 'SAVE10');
-        await user.click(applyButton);
+      await user.type(input, 'SAVE10');
+      await user.click(applyButton);
 
-        // Проверяем что store обновился
-        await waitFor(() => {
-          const state = useCartStore.getState();
-          expect(state.promoCode).toBe('SAVE10');
-          expect(state.discountType).toBe('percent');
-          expect(state.discountValue).toBe(10);
-        });
-      }
+      // [Story 34-2] pending-contract: code stored, discountValue=0 (server computes on checkout)
+      await waitFor(() => {
+        const state = useCartStore.getState();
+        expect(state.promoCode).toBe('SAVE10');
+        expect(state.discountType).toBe('percent');
+        expect(state.discountValue).toBe(0);
+      });
+
+      vi.unstubAllEnvs();
     });
 
     it('clears promo code and removes discount', async () => {

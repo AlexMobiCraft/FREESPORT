@@ -4,11 +4,11 @@
     "type": "split",
     "children": [
       {
-        "id": "8c80d6a72b9c707e",
+        "id": "9fa178be4d17aae3",
         "type": "tabs",
         "children": [
           {
-            "id": "ec9b9033c286afd1",
+            "id": "aa9e020d188fbca6",
             "type": "leaf",
             "state": {
               "type": "empty",
@@ -171,18 +171,21 @@
   "left-ribbon": {
     "hiddenItems": {
       "switcher:Меню быстрого перехода": false,
-      "graph:Граф": false,
       "canvas:Создать новый холст": false,
       "daily-notes:Сегодняшняя заметка": false,
       "templates:Вставить шаблон": false,
       "command-palette:Открыть палитру команд": false,
-      "bases:Создать новую базу": false
+      "bases:Создать новую базу": false,
+      "graph:Граф": false
     }
   },
-  "active": "ec9b9033c286afd1",
+  "active": "9d66b617743d53a1",
   "lastOpenFiles": [
-    "2026-04-17.md",
+    "Без названия 1.base",
     "Без названия.base",
+    "docs/api/views-documentation.md",
+    "docs/api/index.md",
+    "2026-04-17.md",
     "backend/venv/Lib/site-packages/pytz/zoneinfo/Pacific/Saipan.md",
     "AGENTS.md",
     "GEMINI.md",
@@ -204,8 +207,6 @@
     "_bmad-output/planning-artifacts/tech-debt.md",
     "_bmad-output/planning-artifacts/refined-prd.md",
     "_bmad-output/planning-artifacts/prd.md",
-    "docs/prd/2.md",
-    "docs/prd/index.md",
-    "docs/api-contracts.md"
+    "docs/prd/2.md"
   ]
 }
