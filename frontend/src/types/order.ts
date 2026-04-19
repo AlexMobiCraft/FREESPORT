@@ -138,8 +138,10 @@ export interface CreateOrderPayload {
   // Комментарий (поле notes на модели)
   notes?: string;
 
-  // Сумма скидки (только на мастер-заказе, AC4 Story 34-2)
-  discount_amount?: string; // Decimal как строка, например "500.00"
+  // @deprecated Поле backward-compatible; сервер всегда устанавливает discount_amount=0
+  // (promo-система не реализована). Поле принимается, но игнорируется backend.
+  // Используй promo_code для передачи промо-кода; скидка будет вычислена сервером.
+  discount_amount?: string;
 
   // Промо-код (stub Story 34-2 [Review][Patch]): принимается сервером, discount пока всегда 0.
   // Когда promo-система появится, backend будет проверять код и вычислять скидку.

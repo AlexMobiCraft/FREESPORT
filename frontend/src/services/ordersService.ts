@@ -35,7 +35,7 @@ export interface OrderFilters {
 /**
  * Маппинг CheckoutFormData -> CreateOrderPayload (контракт OrderCreateSerializer).
  * Backend строит заказ из server-side корзины; поле items в payload не передаётся.
- * @param discountAmount - сумма скидки из cartStore.getPromoDiscount() (AC4 Story 34-2)
+ * @param discountAmount - @deprecated всегда передавать undefined; сервер выставляет discount=0
  * @param promoCode - промо-код (stub Story 34-2 [Review][Patch]; сервер пока игнорирует)
  */
 function mapFormDataToPayload(

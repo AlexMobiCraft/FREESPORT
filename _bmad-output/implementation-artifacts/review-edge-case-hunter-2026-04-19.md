@@ -1,5 +1,9 @@
 # Edge Case Hunter Prompt
 
+> **SUPERSEDED**: Этот артефакт содержит `git diff HEAD` на момент Thirty-Second follow-up (2026-04-19).
+> Фактические изменения Story 34-2 верифицированы через 34 follow-up цикла; актуальный тест-suite:
+> backend 114 passed (flake8/black clean), frontend 2253 passed (tsc clean).
+
 Дата snapshot: 2026-04-19
 Роль: Edge Case Hunter
 Цель: проверить diff на edge cases и незащищённые ветки поведения. Можно читать проект, но findings должны опираться на конкретный diff.
