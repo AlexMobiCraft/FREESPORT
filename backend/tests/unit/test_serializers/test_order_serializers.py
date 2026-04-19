@@ -1332,18 +1332,24 @@ class TestOrderVATSplit:
         assert Decimal(str(data["calculated_total"])) == Decimal(
             str(data["total_amount"])
         ), "calculated_total и total_amount должны совпадать"
-        assert Decimal(str(data["discount_amount"])) == Decimal("0.00"), (
-            "discount_amount должен быть 0 (server override)"
-        )
+        assert Decimal(str(data["discount_amount"])) == Decimal(
+            "0.00"
+        ), "discount_amount должен быть 0 (server override)"
 
-    def test_discount_amount_validation_negative_rejected(
+    def test_discount_amount_negative_rejected_with_validation_error(
         self,
         user_factory,
         cart_factory,
         product_factory,
         cart_item_factory,
     ):
-        """[AI-Review][High] Отрицательная скидка должна отвергаться на сервере (AC4, security)."""
+        """Contract: отрицательный discount_amount явно отклоняется валидацией (400).
+
+        Поле discount_amount присутствует в Meta.fields с min_value=0, поэтому
+        отрицательные значения получают ValidationError, а не игнорируются молча.
+        Клиент видит явную ошибку вместо schema drift. AC4: сервер по-прежнему
+        устанавливает discount_amount=0 (promo-система не реализована).
+        """
         from unittest.mock import Mock
 
         user = user_factory.create()
@@ -1354,16 +1360,18 @@ class TestOrderVATSplit:
         mock_request = Mock()
         mock_request.user = user
 
+        # Client sends negative discount — field is in Meta.fields with min_value=0
         serializer = OrderCreateSerializer(
             data={
                 "delivery_address": "Ул. Тестовая, 1",
                 "delivery_method": "pickup",
                 "payment_method": "card",
-                "discount_amount": "-10.00",
+                "discount_amount": "-10.00",  # rejected by min_value=0
             },
             context={"request": mock_request},
         )
-        assert not serializer.is_valid()
+        # Explicit ValidationError — not silent ignore
+        assert not serializer.is_valid(), "Negative discount_amount should fail validation"
         assert "discount_amount" in serializer.errors
 
     def test_discount_amount_validation_exceeds_total_ignored_server_override(

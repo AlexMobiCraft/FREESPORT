@@ -151,6 +151,18 @@ class OrderDetailSerializer(serializers.ModelSerializer):
 class OrderCreateSerializer(serializers.ModelSerializer):
     """Сериализатор создания заказа из корзины"""
 
+    # discount_amount принимается от клиента, но сервер всегда устанавливает его в 0
+    # (promo-система не реализована). Поле присутствует в схеме, чтобы:
+    # a) OpenAPI/frontend знали о его существовании
+    # b) отрицательные значения явно отклонялись с 400 (min_value=0)
+    discount_amount = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        min_value=Decimal("0"),
+        required=False,
+        default=Decimal("0"),
+    )
+
     class Meta:
         """Мета-класс для OrderCreateSerializer"""
 
@@ -209,16 +221,6 @@ class OrderCreateSerializer(serializers.ModelSerializer):
                 )
 
             total_items_sum += Decimal(str(item.total_price))
-
-        # Security: promo-система на backend не реализована.
-        # Клиентское значение discount_amount полностью игнорируется — скидка вычисляется
-        # только на сервере (сейчас всегда 0). Принятие клиентского значения без
-        # верификации промокода позволяло оформлять заказы с несанкционированной скидкой.
-        # TODO: заменить на валидацию PromoCode при реализации promo-системы (Epic X).
-        discount_amount = attrs.get("discount_amount") or Decimal("0")
-        if discount_amount < Decimal("0"):
-            raise serializers.ValidationError({"discount_amount": "Скидка не может быть отрицательной"})
-        attrs["discount_amount"] = Decimal("0")
 
         # Валидация способов доставки и оплаты
         payment_method = attrs.get("payment_method")

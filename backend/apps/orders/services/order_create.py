@@ -39,11 +39,12 @@ class OrderCreateService:
         cart = cart_manager.select_for_update().filter(pk=self.cart.pk).first()
         if not cart or not cart.items.exists():
             raise serializers.ValidationError(
-                "Корзина пуста или уже используется для создания заказа. "
-                "Обновите корзину и попробуйте снова."
+                "Корзина пуста или уже используется для создания заказа. " "Обновите корзину и попробуйте снова."
             )
 
-        # Pop discount_amount — always 0 (promo system not implemented; see serializer validate()).
+        # discount_amount is server-authoritative; client field removed from input contract.
+        # Currently 0: promo system not implemented.
+        # Future: replace with PromoCode.calculate(cart, user) or similar server-side logic.
         validated_data.pop("discount_amount", None)
         discount_amount: Decimal = Decimal("0")
 

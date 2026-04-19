@@ -2,9 +2,11 @@
 Integration тесты интеграции корзины и заказов
 """
 
+import threading
+
 import pytest
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, TransactionTestCase
 from rest_framework.test import APIClient
 
 from apps.cart.models import Cart, CartItem
@@ -767,3 +769,119 @@ class VATSplitAPITest(TestCase):
         # В БД остаётся ровно один мастер-заказ
         master_count_final = Order.objects.filter(is_master=True).count()
         self.assertEqual(master_count_final, 1, "Double submit created duplicate master order")
+
+
+@pytest.mark.integration
+class ConcurrentCartCheckoutTests(TransactionTestCase):
+    """Тесты конкурентного double-submit одной корзины с реальными транзакциями.
+
+    TransactionTestCase используется вместо TestCase, так как select_for_update()
+    требует реальных commit/rollback транзакций для корректной работы между потоками.
+    """
+
+    def setUp(self):
+        from decimal import Decimal
+
+        self.user = User.objects.create_user(
+            email="concurrent_checkout@test.com",
+            password="testpass123",
+            role="retail",
+        )
+        self.category = Category.objects.create(name="Concurrent Cat", slug="concurrent-cat")
+        self.brand = Brand.objects.create(name="Concurrent Brand", slug="concurrent-brand")
+
+        self.product = Product.objects.create(
+            name="Concurrent Product",
+            slug="concurrent-product",
+            category=self.category,
+            brand=self.brand,
+            is_active=True,
+        )
+        self.variant = ProductVariant.objects.create(
+            product=self.product,
+            sku="CONC-001",
+            onec_id="1C-CONC-001",
+            retail_price=Decimal("100.00"),
+            stock_quantity=50,
+            is_active=True,
+            vat_rate=Decimal("5.00"),
+        )
+
+    def _fill_cart(self):
+        """Добавляет товар в корзину пользователя через API."""
+        client = APIClient()
+        client.force_authenticate(user=self.user)
+        client.post("/api/v1/cart/items/", {"variant_id": self.variant.id, "quantity": 1})
+
+    def test_concurrent_double_submit_creates_only_one_order(self):
+        """[Medium] Два параллельных checkout-запроса на одну корзину создают ровно один мастер.
+
+        Оба потока запускаются одновременно (Barrier) и конкурируют за блокировку корзины.
+        select_for_update() в OrderCreateService.create() гарантирует, что второй поток
+        увидит пустую корзину после того, как первый очистит её, и получит 400.
+        Тест явно проверяет, что проигравший поток возвращает 400, а не 500 —
+        это подтверждает, что select_for_update() отрабатывает без исключений сервера.
+        """
+        self._fill_cart()
+
+        order_data = {
+            "delivery_address": "Concurrent Test Address",
+            "delivery_method": "pickup",
+            "payment_method": "card",
+        }
+
+        results = []
+        errors = []
+        results_lock = threading.Lock()
+        barrier = threading.Barrier(2, timeout=10)
+
+        def checkout():
+            from django.db import connections
+
+            client = APIClient()
+            client.force_authenticate(user=self.user)
+            barrier.wait()  # Оба потока стартуют одновременно
+            try:
+                response = client.post("/api/v1/orders/", order_data)
+                with results_lock:
+                    results.append(response.status_code)
+            except Exception as exc:
+                with results_lock:
+                    errors.append(str(exc))
+            finally:
+                # Явно закрываем DB-соединение потока, чтобы не блокировать teardown
+                for conn in connections.all():
+                    conn.close()
+
+        t1 = threading.Thread(target=checkout)
+        t2 = threading.Thread(target=checkout)
+        t1.start()
+        t2.start()
+        t1.join(timeout=30)
+        t2.join(timeout=30)
+
+        # Ошибки внутри потоков означают проблемы тестовой инфраструктуры, не бизнес-логики
+        self.assertEqual(errors, [], f"Thread(s) raised unexpected exceptions: {errors}")
+        self.assertEqual(len(results), 2, f"Not all threads completed: results={results}, errors={errors}")
+        self.assertIn(201, results, f"No successful checkout: {results}")
+
+        # Проигравший поток ДОЛЖЕН вернуть 400, а не 500:
+        # 500 означал бы, что select_for_update() не сработал и транзакция упала с ошибкой сервера.
+        non_201 = [r for r in results if r != 201]
+        self.assertEqual(len(non_201), 1, f"Expected exactly one non-201 result, got: {results}")
+        self.assertEqual(
+            non_201[0],
+            400,
+            f"Losing thread returned HTTP {non_201[0]} instead of expected 400. "
+            f"Results: {results}. "
+            "A 500 indicates select_for_update() did not prevent double-submit cleanly.",
+        )
+
+        master_count = Order.objects.filter(is_master=True, user=self.user).count()
+        self.assertEqual(
+            master_count,
+            1,
+            f"Expected 1 master order, got {master_count}. "
+            f"Results: {results}. "
+            "select_for_update() may not be preventing double-checkout.",
+        )
