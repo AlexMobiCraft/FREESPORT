@@ -1,6 +1,6 @@
 # Story 34.3: OrderExportService — работа с субзаказами (один XML-документ на VAT-группу)
 
-Status: review
+Status: in-progress
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -352,6 +352,8 @@ pytest -xvs -m unit backend/tests/unit/test_order_export_service.py
 
 - [x] [Review][Patch] Переход `handle_query` на export-only sub-orders оставил полный `tests/integration/test_onec_export.py` в красном состоянии: legacy `order_for_export`-сценарии `mode=query/mode=success` больше не соответствуют новому контракту [backend/apps/integrations/onec_exchange/views.py:476]
 - [x] [Review][Patch] Story отмечает Task 6.2/7.2 и verification как выполненные, но `test_legacy_master_without_sub_orders_is_not_exported` не добавлен, а полный integration-прогон файла не зелёный [_bmad-output/implementation-artifacts/Story/34-3-order-export-service-sub-orders.md:110]
+- [ ] [Review][Patch] НДС строки всё ещё может переопределяться `warehouse_name` варианта, хотя AC5 требует цепочку `OrderItem.vat_rate -> variant.vat_rate -> _get_order_vat_rate(sub_order)` [backend/apps/orders/services/order_export.py:356]
+- [ ] [Review][Patch] Legacy-ветка `vat_group=None` всё ещё маршрутизирует документ через `warehouse_name` вместо `DEFAULT_ORGANIZATION/DEFAULT_WAREHOUSE` и не пишет обязательный warning из AC8 [backend/apps/orders/services/order_export.py:175]
 
 ### Agent Model Used
 
