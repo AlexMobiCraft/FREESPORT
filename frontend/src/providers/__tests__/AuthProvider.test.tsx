@@ -245,10 +245,10 @@ describe('AuthProvider - Session Initialization', () => {
     expect(attempt).toBeGreaterThan(1); // Должно было быть несколько попыток
   });
 
-  test('logs out after all retry attempts fail', async () => {
+  test('preserves tokens after all retry attempts fail (network error)', async () => {
     localStorageMock.setItem('refreshToken', 'valid-token');
 
-    // Mock /users/profile/ - все вызовы failят
+    // Mock /users/profile/ - все вызовы failят (network error, не 401/403)
     server.use(
       http.get('*/users/profile/', () => {
         return HttpResponse.error();
@@ -261,7 +261,8 @@ describe('AuthProvider - Session Initialization', () => {
       </AuthProvider>
     );
 
-    // После всех попыток должен logout
+    // После всех попыток инициализация завершается, но logout НЕ вызывается
+    // (сохраняем токены для повторных попыток при временной недоступности бэкенда)
     await waitFor(
       () => {
         expect(screen.getByTestId('app-content')).toBeInTheDocument();
@@ -271,7 +272,8 @@ describe('AuthProvider - Session Initialization', () => {
 
     const { isAuthenticated } = useAuthStore.getState();
     expect(isAuthenticated).toBe(false);
-    expect(localStorageMock.getItem('refreshToken')).toBeNull();
+    // Токены сохраняются — network error не должен приводить к потере сессии
+    expect(localStorageMock.getItem('refreshToken')).toBe('valid-token');
   });
 });
 

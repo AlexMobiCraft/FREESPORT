@@ -31,6 +31,7 @@ class GoodsData(TypedDict, total=False):
     brand_id: str
     images: list[str]
     property_values: list[PropertyValueData]  # Значения свойств товара
+    vat_rate: Decimal  # Ставка НДС из <СтавкаНДС>, например Decimal("22") или Decimal("5")
 
 
 class OfferCharacteristic(TypedDict):
@@ -43,6 +44,7 @@ class OfferData(TypedDict, total=False):
     name: str
     article: str
     characteristics: list[OfferCharacteristic]
+    images: list[str]
 
 
 class PriceItem(TypedDict):
@@ -281,6 +283,17 @@ class XMLDataParser:
                 if validated_images:
                     goods_data["images"] = validated_images
 
+            # Ставка НДС: "22%" → Decimal("22"), "5" → Decimal("5")
+            vat_rate_raw = self._find_text(product_element, "СтавкаНДС")
+            if vat_rate_raw:
+                vat_rate_str = vat_rate_raw.replace("%", "").strip()
+                try:
+                    goods_data["vat_rate"] = Decimal(vat_rate_str)
+                except Exception:
+                    logger.warning(
+                        f"Товар {goods_data.get('id', '?')}: " f"не удалось распарсить СтавкаНДС='{vat_rate_raw}'"
+                    )
+
             if goods_data.get("id"):  # Только если есть ID
                 goods_list.append(goods_data)
 
@@ -310,6 +323,23 @@ class XMLDataParser:
                         char_list.append({"name": char_name, "value": char_value})
                 if char_list:
                     offer_data["characteristics"] = char_list
+
+            # Извлечение и валидация путей изображений с дедупликацией
+            image_elements = offer_element.findall(".//Картинка")
+
+            if image_elements:
+                validated_images = []
+                seen_paths: set[str] = set()  # Для дедупликации
+
+                for image in image_elements:
+                    if image.text:
+                        validated_path = self._validate_image_path(image.text.strip())
+                        if validated_path and validated_path not in seen_paths:
+                            validated_images.append(validated_path)
+                            seen_paths.add(validated_path)
+
+                if validated_images:
+                    offer_data["images"] = validated_images
 
             if offer_data.get("id"):  # Только если есть ID
                 offers_list.append(offer_data)

@@ -7,8 +7,6 @@ from decimal import Decimal
 from typing import cast
 
 from django.core.exceptions import ObjectDoesNotExist
-from django.db import transaction
-from django.db.models import F
 from django.db.models.manager import BaseManager
 from rest_framework import serializers
 
@@ -47,14 +45,55 @@ class OrderItemSerializer(serializers.ModelSerializer):
 
 
 class OrderDetailSerializer(serializers.ModelSerializer):
-    """Детальный сериализатор заказа"""
+    """Детальный сериализатор заказа.
 
-    items = OrderItemSerializer(many=True, read_only=True)
+    Для мастер-заказов items/subtotal/total_items/calculated_total агрегируются
+    из субзаказов (sub_orders). Для субзаказов — собственные items.
+    """
+
+    items = serializers.SerializerMethodField()
     customer_display_name = serializers.CharField(read_only=True)
-    subtotal = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
-    total_items = serializers.IntegerField(read_only=True)
-    calculated_total = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+    subtotal = serializers.SerializerMethodField()
+    total_items = serializers.SerializerMethodField()
+    calculated_total = serializers.SerializerMethodField()
     can_be_cancelled = serializers.BooleanField(read_only=True)
+
+    def _collect_sub_items(self, obj: Order) -> list:
+        """Собрать OrderItem из всех субзаказов (список, использующий prefetch cache)."""
+        return [item for sub in obj.sub_orders.all() for item in sub.items.all()]
+
+    def get_items(self, obj: Order) -> list:
+        if obj.is_master:
+            sub_items = self._collect_sub_items(obj)
+            if sub_items:
+                return OrderItemSerializer(sub_items, many=True).data
+            # Legacy master (до VAT-split): позиции лежат на самом мастере
+        qs = obj.items.select_related("product", "variant")
+        return OrderItemSerializer(qs, many=True).data
+
+    def get_subtotal(self, obj: Order) -> Decimal:
+        if obj.is_master:
+            sub_items = self._collect_sub_items(obj)
+            if sub_items:
+                return Decimal(sum(item.total_price for item in sub_items))
+        return obj.subtotal
+
+    def get_total_items(self, obj: Order) -> int:
+        if obj.is_master:
+            sub_items = self._collect_sub_items(obj)
+            if sub_items:
+                return sum(item.quantity for item in sub_items)
+        return obj.total_items
+
+    def get_calculated_total(self, obj: Order) -> Decimal:
+        if obj.is_master:
+            sub_items = self._collect_sub_items(obj)
+            if sub_items:
+                items_total = Decimal(sum(item.total_price for item in sub_items))
+                delivery_cost = Decimal(obj.delivery_cost or Decimal("0"))
+                discount_amount = Decimal(obj.discount_amount or Decimal("0"))
+                return items_total + delivery_cost - discount_amount
+        return obj.calculated_total
 
     class Meta:
         """Мета-класс для OrderDetailSerializer"""
@@ -83,6 +122,8 @@ class OrderDetailSerializer(serializers.ModelSerializer):
             "sent_to_1c",
             "sent_to_1c_at",
             "status_1c",
+            "is_master",
+            "vat_group",
             "created_at",
             "updated_at",
             "items",
@@ -98,19 +139,39 @@ class OrderDetailSerializer(serializers.ModelSerializer):
             "customer_display_name",
             "created_at",
             "updated_at",
-            "items",
-            "subtotal",
-            "total_items",
-            "calculated_total",
             "can_be_cancelled",
             "sent_to_1c",
             "sent_to_1c_at",
             "status_1c",
+            "is_master",
+            "vat_group",
         ]
 
 
 class OrderCreateSerializer(serializers.ModelSerializer):
     """Сериализатор создания заказа из корзины"""
+
+    # discount_amount принимается от клиента, но сервер всегда устанавливает его в 0
+    # (promo-система не реализована). Поле присутствует в схеме, чтобы:
+    # a) OpenAPI/frontend знали о его существовании
+    # b) отрицательные значения явно отклонялись с 400 (min_value=0)
+    discount_amount = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        min_value=Decimal("0"),
+        required=False,
+        default=Decimal("0"),
+    )
+
+    # promo_code — заглушка под будущую promo-систему (Story 34-2 [Review][Patch]).
+    # Поле принимается от клиента, но на текущем этапе игнорируется сервером;
+    # discount_amount остаётся 0 до реализации PromoCode.validate(cart, user).
+    promo_code = serializers.CharField(
+        required=False,
+        allow_null=True,
+        allow_blank=True,
+        max_length=100,
+    )
 
     class Meta:
         """Мета-класс для OrderCreateSerializer"""
@@ -125,6 +186,8 @@ class OrderCreateSerializer(serializers.ModelSerializer):
             "customer_name",
             "customer_email",
             "customer_phone",
+            "discount_amount",
+            "promo_code",
         ]
 
     def validate(self, attrs):
@@ -140,7 +203,8 @@ class OrderCreateSerializer(serializers.ModelSerializer):
         if not cart or not cart.items.exists():
             raise serializers.ValidationError("Корзина пуста")
 
-        # Проверяем наличие товаров
+        # Проверяем наличие товаров; заодно считаем сумму по snapshot-ценам
+        total_items_sum = Decimal("0")
         for item in cart.items.select_related("variant__product"):
             variant = item.variant
             product = variant.product if variant else None
@@ -166,6 +230,8 @@ class OrderCreateSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(
                     f"Минимальное количество для заказа товара '{product.name}': " f"{product.min_order_quantity} шт."
                 )
+
+            total_items_sum += Decimal(str(item.total_price))
 
         # Валидация способов доставки и оплаты
         payment_method = attrs.get("payment_method")
@@ -198,93 +264,25 @@ class OrderCreateSerializer(serializers.ModelSerializer):
                     pass
         return None
 
-    @transaction.atomic
     def create(self, validated_data):
-        """Создание заказа из корзины с транзакционной логикой"""
+        """Создание заказа из корзины — делегирует OrderCreateService."""
+        from apps.orders.services.order_create import OrderCreateService
+
         cart = validated_data.pop("_cart")
         request = self.context.get("request")
         user = None
         if request and request.user and request.user.is_authenticated:
             user = request.user
 
-        # Расчет стоимости доставки (пока статичная)
-        delivery_cost = self.calculate_delivery_cost(validated_data["delivery_method"])
+        delivery_cost = Decimal(str(self.calculate_delivery_cost(validated_data["delivery_method"])))
 
-        # Создаем заказ
-        order_data = {"user": user, "delivery_cost": delivery_cost, **validated_data}
-
-        # Для гостевых заказов сохраняем контактные данные
-        if not user:
-            if request and hasattr(request, "data"):
-                order_data.update(
-                    {
-                        "customer_name": validated_data.get("customer_name", ""),
-                        "customer_email": validated_data.get("customer_email", ""),
-                        "customer_phone": validated_data.get("customer_phone", ""),
-                    }
-                )
-
-        order = Order(**order_data)
-
-        # Рассчитываем общую сумму заказа
-        total_amount = 0
-        order_items = []
-
-        variant_updates: list[tuple[int, int]] = []
-
-        for cart_item in cart.items.select_related("variant__product"):
-            variant = cart_item.variant
-            product = variant.product if variant else None
-
-            # Если по какой-то причине вариант потерян, валимся с понятной ошибкой
-            if not variant or not product:
-                raise serializers.ValidationError("Некорректный товар в корзине. Обновите корзину и попробуйте снова.")
-
-            user_price = variant.get_price_for_user(user)
-            item_total = user_price * cart_item.quantity
-            total_amount += item_total
-
-            # Формируем информацию о варианте (размер, цвет)
-            variant_info_parts = []
-            if variant.size_value:
-                variant_info_parts.append(f"Размер: {variant.size_value}")
-            if variant.color_name:
-                variant_info_parts.append(f"Цвет: {variant.color_name}")
-            variant_info_str = ", ".join(variant_info_parts)
-
-            order_items.append(
-                OrderItem(
-                    order=order,
-                    product=product,
-                    variant=variant,
-                    quantity=cart_item.quantity,
-                    unit_price=user_price,
-                    total_price=item_total,
-                    product_name=product.name,
-                    product_sku=variant.sku,
-                    variant_info=variant_info_str,
-                )
-            )
-
-            # Накопим данные для списания остатков по варианта
-            variant_updates.append((variant.pk, cart_item.quantity))
-
-        order.total_amount = total_amount + Decimal(delivery_cost)
-        order.save()
-
-        # Создаем элементы заказа
-        order_item_manager = cast(BaseManager[OrderItem], getattr(OrderItem, "objects"))
-        order_item_manager.bulk_create(order_items)
-
-        # Списываем физические остатки со склада
-        variant_manager = cast(BaseManager[ProductVariant], getattr(ProductVariant, "objects"))
-        for variant_pk, quantity in variant_updates:
-            variant_manager.filter(pk=variant_pk).update(stock_quantity=F("stock_quantity") - quantity)
-
-        # Очищаем корзину (это вызовет сигнал для уменьшения reserved_quantity)
-        cart.clear()
-
-        return order
+        service = OrderCreateService(
+            cart=cart,
+            user=user,
+            validated_data=validated_data,
+            delivery_cost=delivery_cost,
+        )
+        return service.create()
 
     def calculate_delivery_cost(self, delivery_method):
         """Расчет стоимости доставки"""
@@ -303,10 +301,23 @@ class OrderCreateSerializer(serializers.ModelSerializer):
 
 
 class OrderListSerializer(serializers.ModelSerializer):
-    """Сериализатор для списка заказов"""
+    """Сериализатор для списка заказов.
+
+    Для мастер-заказов `total_items` агрегируется из субзаказов: direct items
+    мастера всегда пусты (все позиции живут в sub_orders), поэтому использовать
+    Order.total_items напрямую нельзя — это даст 0 и сломает клиентский контракт.
+    """
 
     customer_display_name = serializers.CharField(read_only=True)
-    total_items = serializers.IntegerField(read_only=True)
+    total_items = serializers.SerializerMethodField()
+
+    def get_total_items(self, obj: Order) -> int:
+        if obj.is_master:
+            sub_items = [item for sub in obj.sub_orders.all() for item in sub.items.all()]
+            if sub_items:
+                return sum(item.quantity for item in sub_items)
+            # Legacy master (до VAT-split): позиции лежат на самом мастере
+        return obj.total_items
 
     class Meta:
         """Мета-класс для OrderListSerializer"""
@@ -322,6 +333,8 @@ class OrderListSerializer(serializers.ModelSerializer):
             "delivery_method",
             "payment_method",
             "payment_status",
+            "is_master",
+            "vat_group",
             "sent_to_1c",
             "created_at",
             "total_items",
@@ -336,6 +349,8 @@ class OrderListSerializer(serializers.ModelSerializer):
             "delivery_method",
             "payment_method",
             "payment_status",
+            "is_master",
+            "vat_group",
             "sent_to_1c",
             "created_at",
             "total_items",

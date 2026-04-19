@@ -198,6 +198,26 @@ describe('CartSummary', () => {
       render(<CartSummary />);
       expect(screen.queryByText('Скидка по промокоду')).not.toBeInTheDocument();
     });
+
+    it('[Review][Patch] Story 34-2: не показывает скидку даже при применённом промокоде (backend server-authoritative, discount=0)', async () => {
+      setCartState({
+        items: mockCartItems,
+        totalPrice: 13990,
+        promoCode: 'SAVE10',
+        discountType: 'fixed',
+        discountValue: 1000,
+      });
+      render(<CartSummary />);
+
+      // Discount row должен отсутствовать — cart summary не обещает скидку, которую backend не сохраняет
+      expect(screen.queryByTestId('promo-discount-amount')).not.toBeInTheDocument();
+      expect(screen.queryByText('Скидка по промокоду')).not.toBeInTheDocument();
+
+      // Total показывает полную цену без вычета клиентской скидки
+      await waitFor(() => {
+        expect(screen.getByTestId('total-amount')).toHaveTextContent('13 990 ₽');
+      });
+    });
   });
 
   // ================== Checkout Button ==================

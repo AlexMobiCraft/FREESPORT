@@ -44,6 +44,7 @@ class OrderAdmin(admin.ModelAdmin):
         "payment_status_display",
         "items_count",
         "total_amount",
+        "is_master",
         "sent_to_1c",
         "status_1c",
         "created_at",
@@ -53,6 +54,7 @@ class OrderAdmin(admin.ModelAdmin):
         "status",
         "payment_status",
         "delivery_method",
+        "is_master",
         "sent_to_1c",
         "created_at",
     ]
@@ -110,6 +112,12 @@ class OrderAdmin(admin.ModelAdmin):
             "Интеграция с 1С",
             {
                 "fields": ("sent_to_1c", "sent_to_1c_at", "status_1c"),
+            },
+        ),
+        (
+            "VAT / Субзаказы",
+            {
+                "fields": ("parent_order", "is_master", "vat_group"),
             },
         ),
         (

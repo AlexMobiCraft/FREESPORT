@@ -63,6 +63,8 @@ describe('CheckoutForm', () => {
       items: mockCartItems,
       totalPrice: 200,
       totalItems: 2,
+      fetchCart: vi.fn(),
+      getPromoDiscount: vi.fn().mockReturnValue(0),
     });
   });
 
@@ -191,12 +193,66 @@ describe('CheckoutForm', () => {
         items: [],
         totalPrice: 0,
         totalItems: 0,
+        fetchCart: vi.fn(),
+        getPromoDiscount: vi.fn().mockReturnValue(0),
       });
 
       render(<CheckoutForm user={null} />);
 
       // Message may appear multiple times in different components
       expect(screen.getAllByText('Корзина пуста').length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('Discount UI (Story 34-2 regression)', () => {
+    it('не показывает строку скидки при нулевом промокоде', () => {
+      render(<CheckoutForm user={null} />);
+
+      expect(screen.queryByTestId('promo-discount-row')).not.toBeInTheDocument();
+    });
+
+    it('не показывает строку скидки даже при promoDiscount > 0 (promo-система не серверная)', () => {
+      // [Review][Patch] Story 34-2: checkout не должен обещать скидку, которую order API не сохраняет
+      (useCartStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+        items: mockCartItems,
+        totalPrice: 200,
+        totalItems: 2,
+        fetchCart: vi.fn(),
+        getPromoDiscount: vi.fn().mockReturnValue(50),
+      });
+
+      render(<CheckoutForm user={null} />);
+
+      expect(screen.queryByTestId('promo-discount-row')).not.toBeInTheDocument();
+    });
+
+    it('итого равно полной цене без вычета скидки (сервер всегда выставляет discount_amount=0)', () => {
+      (useCartStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+        items: mockCartItems,
+        totalPrice: 200,
+        totalItems: 2,
+        fetchCart: vi.fn(),
+        getPromoDiscount: vi.fn().mockReturnValue(50),
+      });
+
+      render(<CheckoutForm user={null} />);
+
+      // Итого = totalPrice (200), скидка не вычитается в checkout
+      expect(screen.getByTestId('total-price')).toHaveTextContent('200');
+    });
+
+    it('не показывает метку "До скидки" (discount не применяется в checkout)', () => {
+      (useCartStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+        items: mockCartItems,
+        totalPrice: 200,
+        totalItems: 2,
+        fetchCart: vi.fn(),
+        getPromoDiscount: vi.fn().mockReturnValue(50),
+      });
+
+      render(<CheckoutForm user={null} />);
+
+      expect(screen.queryByTestId('price-before-discount')).not.toBeInTheDocument();
     });
   });
 });

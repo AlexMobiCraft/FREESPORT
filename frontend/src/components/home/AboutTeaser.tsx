@@ -48,7 +48,7 @@ export const AboutTeaser: React.FC = () => {
             <p className="text-base text-gray-600 leading-relaxed">{companyInfo.description}</p>
 
             {/* CTA Button */}
-            <div className="pt-4">
+            <div className="pt-4 text-center md:text-left">
               <Link href="/about">
                 <Button size="large" variant="primary">
                   Узнать больше о нас

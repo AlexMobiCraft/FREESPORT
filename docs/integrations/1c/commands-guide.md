@@ -145,7 +145,7 @@ python manage.py import_products_from_1c \
 
 ### Описание
 
-Обновляет только остатки товаров из файла `rests.xml`. Эта команда является легковесной альтернативой `import_products_from_1c --file-type=rests` и рекомендуется для частых запусков (например, через cron).
+Обновляет остатки товаров из файла `rests.xml` / `rests_*.xml`. Помимо `stock_quantity`, команда определяет основной склад варианта и автоматически обновляет `warehouse_id`, `warehouse_name` и `vat_rate` (ставка НДС по складу из `settings.ONEC_EXCHANGE["WAREHOUSE_RULES"]`). Является легковесной альтернативой `import_products_from_1c --file-type=rests` и рекомендуется для частых запусков (например, через cron).
 
 ### Синтаксис
 

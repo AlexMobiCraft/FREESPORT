@@ -195,3 +195,8 @@ DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "noreply@freesport.com
 # В Docker контейнере это будет /app/data/import_1c
 # В локальной разработке это BASE_DIR.parent / "data" / "import_1c"
 ONEC_DATA_DIR = os.environ.get("ONEC_DATA_DIR", str(BASE_DIR / "data" / "import_1c"))
+
+# Имя корневой категории в 1С для фильтрации при импорте.
+# Импортируются только подкатегории этой категории.
+# Если не задано (None) — импортируются все категории (обратная совместимость).
+ROOT_CATEGORY_NAME = os.environ.get("ROOT_CATEGORY_NAME", "СПОРТ")

@@ -7,8 +7,9 @@
 - AC2: target_url (cta_link) доступен в форме
 """
 
-import pytest
 from typing import Any, cast
+
+import pytest
 from django.contrib.admin.sites import AdminSite
 from django.core.exceptions import ValidationError
 from django.test import RequestFactory

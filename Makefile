@@ -68,53 +68,52 @@ down:
 # Все тесты
 test:
 	@echo "Запуск всех тестов..."
-	cd docker && docker compose -f docker-compose.test.yml down --remove-orphans --volumes
-	cd docker && docker compose -f docker-compose.test.yml up --build --abort-on-container-exit --exit-code-from backend
-	cd docker && docker compose -f docker-compose.test.yml down
+	cd docker && docker compose -p freesport-test --env-file .env -f docker-compose.test.yml down --remove-orphans --volumes
+	cd docker && docker compose -p freesport-test --env-file .env -f docker-compose.test.yml up --build --abort-on-container-exit --exit-code-from backend
+	cd docker && docker compose -p freesport-test --env-file .env -f docker-compose.test.yml down
 
 # Unit-тесты
 test-unit:
 	@echo "Запуск unit-тестов..."
-	cd docker && docker compose -f docker-compose.test.yml down --remove-orphans
-	cd docker && docker compose -f docker-compose.test.yml run --rm backend pytest -v -m unit --cov=apps --cov-report=term-missing
-	cd docker && docker compose -f docker-compose.test.yml down
+	cd docker && docker compose -p freesport-test --env-file .env -f docker-compose.test.yml down --remove-orphans
+	cd docker && docker compose -p freesport-test --env-file .env -f docker-compose.test.yml run --rm backend pytest -v -m unit --cov=apps --cov-report=term-missing
+	cd docker && docker compose -p freesport-test --env-file .env -f docker-compose.test.yml down
 
 # Интеграционные тесты
 test-integration:
 	@echo "Запуск интеграционных тестов..."
-	cd docker && docker compose -f docker-compose.test.yml down --remove-orphans
-	cd docker && docker compose -f docker-compose.test.yml run --rm backend pytest -v -m integration --cov=apps --cov-report=term-missing
-	cd docker && docker compose -f docker-compose.test.yml down
+	cd docker && docker compose -p freesport-test --env-file .env -f docker-compose.test.yml down --remove-orphans
+	cd docker && docker compose -p freesport-test --env-file .env -f docker-compose.test.yml run --rm backend pytest -v -m integration --cov=apps --cov-report=term-missing
+	cd docker && docker compose -p freesport-test --env-file .env -f docker-compose.test.yml down
 
 # Быстрые тесты (без сборки образов)
 test-fast:
 	@echo "Быстрый запуск тестов (без пересборки)..."
-	cd docker && docker compose -f docker-compose.test.yml run --rm backend pytest -v --tb=short
+	cd docker && docker compose -p freesport-test --env-file .env -f docker-compose.test.yml run --rm backend pytest -v --tb=short
 
 # Логи всех сервисов
 logs:
-	cd docker && docker compose logs -f
+	cd docker && docker compose -p freesport-test --env-file .env -f docker-compose.test.yml logs -f
 
 # Shell в backend контейнере
 shell:
-	cd docker && docker compose exec backend bash
+	cd docker && docker compose -p freesport-test --env-file .env -f docker-compose.test.yml exec backend bash
 
 # Подключение к БД
 db-shell:
-	docker-compose exec db psql -U freesport_user -d freesport
+	cd docker && docker compose -p freesport-test --env-file .env -f docker-compose.test.yml exec db psql -U freesport_user -d freesport
 
 # Очистка Docker volumes и неиспользуемых образов
 clean:
 	@echo "Очистка Docker volumes и образов..."
-	docker-compose down --volumes --remove-orphans
-	docker-compose -f docker-compose.test.yml down --volumes --remove-orphans
+	cd docker && docker compose --env-file .env -f docker-compose.yml down --volumes --remove-orphans
 	docker system prune -f
 	docker volume prune -f
 
 # Форматирование кода
 format:
-	docker-compose exec backend black .
-	docker-compose exec backend isort .
+	docker compose --env-file .env -f docker-compose.yml exec backend black .
+	docker compose --env-file .env -f docker-compose.yml exec backend isort .
 
 # Быстрое форматирование через lightweight Docker
 format-fast:
@@ -156,11 +155,11 @@ test-local:
 migrate:
 # Создание суперпользователя
 createsuperuser:
-	docker-compose exec backend python manage.py createsuperuser
+	docker compose --env-file .env -f docker-compose.yml exec backend python manage.py createsuperuser
 
 # Сбор статических файлов
 collectstatic:
-	docker-compose exec backend python manage.py collectstatic --noinput
+	docker compose --env-file .env -f docker-compose.yml exec backend python manage.py collectstatic --noinput
 
 # Валидация документации
 docs-validate:

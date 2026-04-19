@@ -233,6 +233,10 @@ class ICExchangeView(APIView):
             return self.handle_file_upload(request)
         elif mode == "import":
             return self.handle_import(request)
+        elif mode == "query":
+            return self.handle_query(request)
+        elif mode == "success":
+            return self.handle_success(request)
         elif mode == "complete":
             return self.handle_complete(request)
         elif mode == "deactivate":
@@ -356,12 +360,13 @@ class ICExchangeView(APIView):
             if file_service.is_complete():
                 logger.info(f"New exchange cycle detected for {sessid}. Performing full cleanup.")
                 file_service.cleanup_session(force=True)
-                
+
                 # Also clean up the shared import directory to prevent loops with old XML segments
                 from .routing_service import FileRoutingService
+
                 routing_service = FileRoutingService(sessid)
                 routing_service.cleanup_import_dir(force=True)
-                
+
                 file_service.clear_complete()
             else:
                 logger.info(f"Continuing existing exchange cycle for {sessid}. Accumulating files.")
@@ -371,13 +376,89 @@ class ICExchangeView(APIView):
         exchange_cfg = getattr(settings, "ONEC_EXCHANGE", {})
         zip_support = exchange_cfg.get("ZIP_SUPPORT", True)
         file_limit = exchange_cfg.get("FILE_LIMIT_BYTES", 100 * 1024 * 1024)
-        version = exchange_cfg.get("COMMERCEML_VERSION", "3.1")
+
+        exchange_type = request.query_params.get("type", "")
+        if exchange_type == "sale":
+            version = "2.09"
+        else:
+            version = exchange_cfg.get("COMMERCEML_VERSION", "3.1")
 
         response_text = (
-            f"zip={'yes' if zip_support else 'no'}\nfile_limit={file_limit}\n"
-            f"sessid={sessid}\nversion={version}"
+            f"zip={'yes' if zip_support else 'no'}\nfile_limit={file_limit}\n" f"sessid={sessid}\nversion={version}\n"
         )
         return HttpResponse(response_text, content_type="text/plain; charset=utf-8")
+
+    def _aggregate_master_sent_to_1c(self, sub_ids, now):
+        """После пометки субзаказов — пометить мастеров, у которых ВСЕ sub_orders отправлены.
+
+        Args:
+            sub_ids: PK субзаказов, которые были только что помечены sent_to_1c=True.
+            now: timestamp для sent_to_1c_at / updated_at.
+        Returns:
+            list master_id, которые были дополнительно помечены в рамках этой агрегации.
+        """
+        if not sub_ids:
+            return []
+        master_ids = set(
+            Order.objects.filter(pk__in=sub_ids, parent_order__isnull=False)
+            .values_list("parent_order_id", flat=True)
+        )
+        aggregated: list[int] = []
+        for master_id in master_ids:
+            has_pending = Order.objects.filter(
+                parent_order_id=master_id, sent_to_1c=False
+            ).exists()
+            if not has_pending:
+                updated = Order.objects.filter(
+                    pk=master_id, sent_to_1c=False, is_master=True
+                ).update(sent_to_1c=True, sent_to_1c_at=now, updated_at=now)
+                if updated > 0:
+                    aggregated.append(master_id)
+        return aggregated
+
+    def _mark_previous_query_as_sent(self, request):
+        """Mark orders from previous query as sent (implicit success).
+
+        1С УТ 11 does not send mode=success after processing orders.
+        Instead, it sends another mode=query. A repeated query means the
+        previous batch was successfully processed, so we mark those orders
+        as sent_to_1c=True before returning new results.
+        """
+        cache_key = f"1c_exported_ids_{request.session.session_key}"
+        prev_ids = cache.get(cache_key)
+        if not prev_ids:
+            return
+
+        now = timezone.now()
+        with transaction.atomic():
+            updated = Order.objects.filter(
+                pk__in=prev_ids,
+                sent_to_1c=False,
+            ).update(
+                sent_to_1c=True,
+                sent_to_1c_at=now,
+                updated_at=now,
+            )
+            aggregated_master_ids = self._aggregate_master_sent_to_1c(prev_ids, now)
+
+        if updated > 0:
+            logger.info(
+                f"[EXPORT IMPLICIT SUCCESS] Marked {updated} orders as sent_to_1c "
+                f"(implicit confirmation via repeated query)"
+            )
+            orders_bulk_updated.send(
+                sender=Order,
+                order_ids=prev_ids,
+                updated_count=updated,
+                field="sent_to_1c",
+                timestamp=now,
+                master_order_ids=aggregated_master_ids,
+            )
+
+        # Clean up previous state
+        cache.delete(cache_key)
+        if "last_1c_query_time" in request.session:
+            del request.session["last_1c_query_time"]
 
     def handle_query(self, request):
         """
@@ -389,19 +470,33 @@ class ICExchangeView(APIView):
         materializing large exports in RAM. For ZIP, uses tempfile to
         avoid doubling memory pressure.
         """
+        # 1С УТ 11 sends repeated query instead of mode=success.
+        # Treat a repeated query as implicit confirmation of previous batch.
+        self._mark_previous_query_as_sent(request)
+
         query_time = timezone.now()
 
+        # Экспортируем только субзаказы (is_master=False). Мастер-заказы — агрегирующие, в 1С не попадают.
         orders = (
             Order.objects.filter(
                 sent_to_1c=False,
                 export_skipped=False,
                 created_at__lte=query_time,
+                is_master=False,
+                parent_order__isnull=False,
             )
-            .select_related("user")
+            .select_related("user", "parent_order")
             .prefetch_related("items__variant")
         )
 
-        service = OrderExportService()
+        exchange_type = request.query_params.get("type", "")
+        if exchange_type == "sale":
+            schema_ver = "2.09"
+        else:
+            exchange_cfg = getattr(settings, "ONEC_EXCHANGE", {})
+            schema_ver = str(exchange_cfg.get("COMMERCEML_VERSION", "3.1"))
+
+        service = OrderExportService(schema_version=schema_ver)
         use_zip = request.query_params.get("zip", "").lower() == "yes"
 
         import tempfile
@@ -525,21 +620,31 @@ class ICExchangeView(APIView):
                 if timezone.is_naive(last_query_time):
                     last_query_time = timezone.make_aware(last_query_time)
 
-                # Fallback: mark orders that match the time window and are not skipped
+                # Fallback: mark only sub-orders in the time window (AC10)
                 now = timezone.now()
                 with transaction.atomic():
+                    fallback_sub_ids = list(
+                        Order.objects.filter(
+                            sent_to_1c=False,
+                            export_skipped=False,
+                            created_at__lte=last_query_time,
+                            is_master=False,
+                            parent_order__isnull=False,
+                        ).values_list("pk", flat=True)
+                    )
                     updated = Order.objects.filter(
-                        sent_to_1c=False,
-                        export_skipped=False,
-                        created_at__lte=last_query_time,
+                        pk__in=fallback_sub_ids,
                     ).update(
                         sent_to_1c=True,
                         sent_to_1c_at=now,
                         updated_at=now,
                     )
+                    aggregated_master_ids = self._aggregate_master_sent_to_1c(
+                        fallback_sub_ids, now
+                    )
 
                 logger.info(
-                    f"[EXPORT SUCCESS] Fallback: marked {updated} orders as sent_to_1c "
+                    f"[EXPORT SUCCESS] Fallback: marked {updated} sub-orders as sent_to_1c "
                     f"(time-window: created_at <= {last_query_time})"
                 )
 
@@ -570,6 +675,7 @@ class ICExchangeView(APIView):
                 sent_to_1c_at=now,
                 updated_at=now,
             )
+            aggregated_master_ids = self._aggregate_master_sent_to_1c(exported_ids, now)
 
         logger.info(f"[EXPORT SUCCESS] Marked {updated} orders as sent_to_1c (of {len(exported_ids)} exported)")
 
@@ -581,6 +687,7 @@ class ICExchangeView(APIView):
                 updated_count=updated,
                 field="sent_to_1c",
                 timestamp=now,
+                master_order_ids=aggregated_master_ids,
             )
 
         # Clear the session/cache state to prevent double-processing

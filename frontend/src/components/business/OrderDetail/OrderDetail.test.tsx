@@ -24,7 +24,7 @@ const mockOrder: Order = {
   customer_phone: '+7 999 123 45 67',
   status: 'pending',
   total_amount: '15500',
-  discount_amount: '500',
+  discount_amount: '0',
   delivery_cost: '500',
   delivery_address: 'г. Москва, ул. Тестовая, д. 1, кв. 10',
   delivery_method: 'courier',
@@ -39,7 +39,7 @@ const mockOrder: Order = {
   items: [
     {
       id: 1,
-      product: 101,
+      product: { id: 101, name: 'Кроссовки Nike Air Max' },
       product_name: 'Кроссовки Nike Air Max',
       product_sku: 'NIKE-AM-001',
       variant_info: 'Размер: 42, Цвет: Белый',
@@ -56,7 +56,7 @@ const mockOrder: Order = {
     },
     {
       id: 2,
-      product: 102,
+      product: { id: 102, name: 'Футболка Adidas' },
       product_name: 'Футболка Adidas',
       product_sku: 'ADIDAS-TS-002',
       variant_info: 'Размер: XL, Цвет: Чёрный',
@@ -76,6 +76,12 @@ const mockOrder: Order = {
   total_items: 3,
   calculated_total: '15500',
   can_be_cancelled: true,
+  // Story 34-1/34-2: поля 1С и VAT-split
+  sent_to_1c: false,
+  sent_to_1c_at: null,
+  status_1c: '',
+  is_master: true,
+  vat_group: null,
 };
 
 describe('OrderDetail', () => {
@@ -111,18 +117,74 @@ describe('OrderDetail', () => {
     expect(screen.getByText('г. Москва, ул. Тестовая, д. 1, кв. 10')).toBeInTheDocument();
   });
 
+  it('локализует transport_company (Story 34-2 regression)', () => {
+    render(
+      <OrderDetail
+        {...defaultProps}
+        order={{ ...mockOrder, delivery_method: 'transport_company' }}
+      />
+    );
+    expect(screen.getByText('Транспортная компания')).toBeInTheDocument();
+  });
+
+  it('локализует transport_schedule (Story 34-2 regression)', () => {
+    render(
+      <OrderDetail
+        {...defaultProps}
+        order={{ ...mockOrder, delivery_method: 'transport_schedule' }}
+      />
+    );
+    expect(screen.getByText('Доставка по расписанию')).toBeInTheDocument();
+  });
+
+  it('локализует post как Почтовая доставка (Story 34-2 regression)', () => {
+    render(<OrderDetail {...defaultProps} order={{ ...mockOrder, delivery_method: 'post' }} />);
+    expect(screen.getByText('Почтовая доставка')).toBeInTheDocument();
+  });
+
   it('renders payment information', () => {
     render(<OrderDetail {...defaultProps} />);
     expect(screen.getByText('Банковская карта')).toBeInTheDocument();
     expect(screen.getByText('Ожидает оплаты')).toBeInTheDocument();
   });
 
+  it('локализует bank_transfer (Story 34-2 regression)', () => {
+    render(
+      <OrderDetail {...defaultProps} order={{ ...mockOrder, payment_method: 'bank_transfer' }} />
+    );
+    expect(screen.getByText('Банковский перевод')).toBeInTheDocument();
+  });
+
+  it('локализует payment_on_delivery (Story 34-2 regression)', () => {
+    render(
+      <OrderDetail
+        {...defaultProps}
+        order={{ ...mockOrder, payment_method: 'payment_on_delivery' }}
+      />
+    );
+    expect(screen.getByText('Оплата при получении')).toBeInTheDocument();
+  });
+
+  it('локализует статус оплаты refunded как Возвращен (Story 34-2 regression)', () => {
+    render(<OrderDetail {...defaultProps} order={{ ...mockOrder, payment_status: 'refunded' }} />);
+    expect(screen.getByText('Возвращен')).toBeInTheDocument();
+  });
+
   it('renders order totals', () => {
     render(<OrderDetail {...defaultProps} />);
     expect(screen.getByText('Подытог:')).toBeInTheDocument();
-    expect(screen.getByText('Скидка:')).toBeInTheDocument();
+    // Скидка не отображается при discount_amount='0' (server-authoritative, Story 34-2)
+    expect(screen.queryByText('Скидка:')).not.toBeInTheDocument();
     expect(screen.getByText('Доставка:')).toBeInTheDocument();
     expect(screen.getByText('Итого:')).toBeInTheDocument();
+  });
+
+  it('[Review][Patch] Story 34-2: показывает строку Скидка только при discount_amount > 0', () => {
+    render(<OrderDetail {...defaultProps} order={{ ...mockOrder, discount_amount: '500' }} />);
+    expect(screen.getByText('Скидка:')).toBeInTheDocument();
+    // [Patch 10] Проверяем не только наличие заголовка, но и значение скидки в UI
+    const discountValueEl = screen.getByText(/-500/);
+    expect(discountValueEl).toBeInTheDocument();
   });
 
   it('renders notes section when notes exist', () => {

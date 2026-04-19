@@ -12,10 +12,10 @@ import { cn } from '@/utils/cn';
 import { Card } from '@/components/ui';
 import { OrderStatusBadge } from '@/components/business/OrderStatusBadge';
 import { ShoppingBag, Calendar, ChevronRight } from 'lucide-react';
-import type { Order } from '@/types/order';
+import type { OrderListItem } from '@/types/order';
 
 export interface OrderCardProps {
-  order: Order;
+  order: OrderListItem;
   className?: string;
 }
 
@@ -72,7 +72,7 @@ function getItemsLabel(count: number): string {
  * Компонент карточки заказа
  */
 export const OrderCard: React.FC<OrderCardProps> = ({ order, className }) => {
-  const itemsCount = order.total_items || order.items?.length || 0;
+  const itemsCount = order.total_items || 0;
 
   return (
     <Link href={`/profile/orders/${order.id}`} className={cn('block', className)}>

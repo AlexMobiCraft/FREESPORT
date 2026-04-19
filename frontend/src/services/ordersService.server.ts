@@ -6,7 +6,7 @@
  */
 
 import { cookies } from 'next/headers';
-import type { Order } from '@/types/order';
+import type { Order, OrderListItem } from '@/types/order';
 import type { PaginatedResponse } from '@/types/api';
 
 /**
@@ -85,7 +85,7 @@ export async function getOrdersServer(params?: {
   page?: number;
   page_size?: number;
   status?: string;
-}): Promise<PaginatedResponse<Order> | null> {
+}): Promise<PaginatedResponse<OrderListItem> | null> {
   try {
     const searchParams = new URLSearchParams();
     if (params?.page) searchParams.set('page', String(params.page));
@@ -95,7 +95,7 @@ export async function getOrdersServer(params?: {
     const query = searchParams.toString();
     const endpoint = `/orders/${query ? `?${query}` : ''}`;
 
-    return await serverFetch<PaginatedResponse<Order>>(endpoint);
+    return await serverFetch<PaginatedResponse<OrderListItem>>(endpoint);
   } catch (error) {
     console.error('Server fetch orders error:', error);
     return null;

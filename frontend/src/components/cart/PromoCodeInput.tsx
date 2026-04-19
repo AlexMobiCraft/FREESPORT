@@ -1,22 +1,25 @@
 /**
- * PromoCodeInput Component - Ввод и применение промокода
+ * PromoCodeInput Component - Ввод промокода
  *
  * Функции:
- * - Input поле для ввода промокода с валидацией
- * - Кнопка "Применить" с loading state
- * - Applied state: показывает код и кнопку удаления
- * - Toast уведомления (success/error)
+ * - Input поле для ввода промокода с клиентской валидацией формата
+ * - Pending state: показывает код как «будет проверен при оформлении» (stub)
+ * - Кнопка удаления pending-кода
  * - Feature flag: скрывается если NEXT_PUBLIC_PROMO_ENABLED !== 'true'
  * - Accessibility: aria-labels, focus management
  *
+ * NOTE (Story 34-2): Promo-система не реализована на сервере. Код сохраняется
+ * в cartStore и передаётся в `promo_code` при POST /orders/, но скидка всегда = 0.
+ * UI показывает pending-state, не обещает скидку до оформления.
+ *
  * @see Story 26.4: Promo Code Integration
+ * @see Story 34-2: server-authoritative discount contract
  */
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { useCartStore } from '@/stores/cartStore';
-import promoService from '@/services/promoService';
 
 /**
  * Проверка feature flag для promo функционала
@@ -28,12 +31,11 @@ const isPromoEnabled = () => process.env.NEXT_PUBLIC_PROMO_ENABLED === 'true';
  */
 const PromoCodeInput = () => {
   const [code, setCode] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Состояние из store
-  const { promoCode, totalPrice, applyPromo, clearPromo } = useCartStore();
+  const { promoCode, applyPromo, clearPromo } = useCartStore();
 
   // Если feature flag отключен - не рендерим компонент
   const [mounted, setMounted] = useState(false);
@@ -75,37 +77,19 @@ const PromoCodeInput = () => {
   };
 
   /**
-   * Обработчик применения промокода
+   * Обработчик применения промокода (stub: сохраняет код, сервер проверит при оформлении)
    */
-  const handleApply = async () => {
-    if (!code.trim() || !validateCode(code)) {
+  const handleApply = () => {
+    const trimmedCode = code.trim();
+    if (!trimmedCode || !validateCode(trimmedCode)) {
       inputRef.current?.focus();
       return;
     }
 
-    setIsLoading(true);
-    setValidationError(null);
-
-    try {
-      const response = await promoService.applyPromo(code, totalPrice);
-
-      if (response.success && response.code && response.discount_type && response.discount_value) {
-        // Успешно применён промокод
-        applyPromo(response.code, response.discount_type, response.discount_value);
-        toast.success('Промокод применён');
-        setCode('');
-      } else {
-        // Ошибка применения
-        const errorMsg = response.error || 'Промокод недействителен';
-        toast.error(errorMsg);
-        inputRef.current?.focus();
-      }
-    } catch {
-      toast.error('Не удалось применить промокод');
-      inputRef.current?.focus();
-    } finally {
-      setIsLoading(false);
-    }
+    // Stub: сохраняем код в store; реальная проверка — на сервере при POST /orders/
+    applyPromo(trimmedCode, 'percent', 0);
+    toast.success('Промокод принят — скидка будет рассчитана при оформлении');
+    setCode('');
   };
 
   /**
@@ -120,28 +104,28 @@ const PromoCodeInput = () => {
    * Обработчик нажатия Enter
    */
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && code.trim() && !isLoading) {
+    if (e.key === 'Enter' && code.trim()) {
       handleApply();
     }
   };
 
-  // Если промокод уже применён - показываем applied state
+  // Если промокод сохранён — показываем pending state (не «применён», а «будет проверен»)
   if (promoCode) {
     return (
       <div
-        className="flex items-center justify-between p-3 bg-[var(--color-accent-success-bg)] 
+        className="flex items-center justify-between p-3 bg-[var(--color-neutral-100)]
                     rounded-[var(--radius-sm)] mb-4"
         data-testid="promo-code-section"
       >
         <span
-          className="text-body-m font-medium text-[var(--color-accent-success)]"
+          className="text-body-m text-[var(--color-text-secondary)]"
           data-testid="applied-promo-code"
         >
-          ✓ Промокод {promoCode} применён
+          Промокод {promoCode} — будет проверен при оформлении
         </span>
         <button
           onClick={handleClearPromo}
-          className="text-body-s text-[var(--color-accent-success)] hover:underline"
+          className="text-body-s text-[var(--color-text-secondary)] hover:underline"
           aria-label="Удалить промокод"
           data-testid="clear-promo-button"
         >
@@ -152,7 +136,7 @@ const PromoCodeInput = () => {
   }
 
   // Форма ввода промокода
-  const isButtonDisabled = !code.trim() || code.length < 4 || isLoading;
+  const isButtonDisabled = !code.trim() || code.trim().length < 4;
 
   return (
     <div className="mb-4" data-testid="promo-code-section">
@@ -165,11 +149,9 @@ const PromoCodeInput = () => {
             onChange={handleChange}
             onKeyDown={handleKeyDown}
             placeholder="Введите промокод"
-            disabled={isLoading}
             className="w-full h-10 px-3 border border-[var(--color-neutral-400)] rounded-[var(--radius-sm)]
-                       text-body-m focus:outline-none focus:ring-[var(--focus-ring)] 
+                       text-body-m focus:outline-none focus:ring-[var(--focus-ring)]
                        focus:border-[var(--color-primary)] bg-[var(--bg-panel)]
-                       disabled:opacity-50 disabled:cursor-not-allowed
                        uppercase"
             data-testid="promo-code-input"
             aria-label="Промокод"
@@ -187,29 +169,7 @@ const PromoCodeInput = () => {
                      flex items-center justify-center min-w-[100px]"
           data-testid="apply-promo-button"
         >
-          {isLoading ? (
-            <span className="flex items-center gap-2">
-              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                  fill="none"
-                />
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                />
-              </svg>
-              Проверка
-            </span>
-          ) : (
-            'Применить'
-          )}
+          Применить
         </button>
       </div>
       {validationError && (

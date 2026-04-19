@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     from django.db.models import QuerySet
 
     from apps.orders.models import Order
+    from apps.products.models import ProductVariant
     from apps.users.models import User
 
 logger = logging.getLogger(__name__)
@@ -35,11 +36,17 @@ class OrderExportService:
 
     DEFAULT_SCHEMA_VERSION = "3.1"
 
+    def __init__(self, schema_version: str | None = None):
+        if schema_version:
+            self._schema_version = schema_version
+        else:
+            exchange_cfg = getattr(settings, "ONEC_EXCHANGE", {})
+            self._schema_version = str(exchange_cfg.get("COMMERCEML_VERSION", self.DEFAULT_SCHEMA_VERSION))
+
     @property
     def SCHEMA_VERSION(self) -> str:
-        """Read CommerceML version from settings, falling back to default."""
-        exchange_cfg = getattr(settings, "ONEC_EXCHANGE", {})
-        return str(exchange_cfg.get("COMMERCEML_VERSION", self.DEFAULT_SCHEMA_VERSION))
+        """Read CommerceML version from init or settings."""
+        return self._schema_version
 
     CURRENCY = "RUB"
     EXCHANGE_RATE = "1"
@@ -67,7 +74,9 @@ class OrderExportService:
         Generate CommerceML 3.1 XML for orders export to 1C.
 
         Args:
-            orders: QuerySet with prefetch_related('items__variant', 'user').
+            orders: QuerySet of **sub-orders** (is_master=False, parent_order__isnull=False)
+                    with prefetch_related('items__variant', 'user').
+                    vat_group субзаказа — авторитетный источник для организации/склада.
                     Guest orders (user=None) are supported — counterparty block is omitted.
 
         Returns:
@@ -92,7 +101,9 @@ class OrderExportService:
         Yields XML fragments that should be concatenated by the caller.
 
         Args:
-            orders: QuerySet with prefetch_related('items__variant', 'user').
+            orders: QuerySet of **sub-orders** (is_master=False, parent_order__isnull=False)
+                    with prefetch_related('items__variant', 'user').
+                    vat_group субзаказа — авторитетный источник для организации/склада.
                     Guest orders (user=None) are supported — counterparty block is omitted.
             exported_ids: Optional list to append exported order PKs to.
                          Allows callers to know exactly which orders were included.
@@ -112,6 +123,14 @@ class OrderExportService:
 
         # Stream each order as a Container with Document inside
         for order in orders.iterator(chunk_size=100):
+            if order.is_master:
+                logger.warning(
+                    f"Order {order.order_number}: is_master=True, export skipped — "
+                    f"OrderExportService expects sub-orders only"
+                )
+                if skipped_ids is not None:
+                    skipped_ids.append(order.pk)
+                continue
             if not self._validate_order(order):
                 if skipped_ids is not None:
                     skipped_ids.append(order.pk)
@@ -146,11 +165,26 @@ class OrderExportService:
         # Convert to local time before formatting to ensure correct date
         local_created_at = timezone.localtime(order.created_at)
         self._add_text_element(document, "Дата", local_created_at.strftime("%Y-%m-%d"))
+        self._add_text_element(document, "Время", local_created_at.strftime("%H:%M:%S"))
         self._add_text_element(document, "ХозОперация", self.OPERATION_TYPE)
         self._add_text_element(document, "Роль", self.ROLE)
         self._add_text_element(document, "Валюта", self.CURRENCY)
         self._add_text_element(document, "Курс", self.EXCHANGE_RATE)
         self._add_text_element(document, "Сумма", self._format_price(order.total_amount))
+
+        # sub_order.vat_group → ORGANIZATION_BY_VAT, однородная группа НДС.
+        # Fallback — по складу первого товара / vat_rate для старых данных.
+        order_warehouse_name = self._get_order_warehouse_name(order)
+        order_vat_rate = self._get_order_vat_rate(order)
+        org_name, warehouse_name = self._get_org_and_warehouse(order_vat_rate, order_warehouse_name)
+        exchange_cfg = getattr(settings, "ONEC_EXCHANGE", {})
+        agreement_name = exchange_cfg.get("DEFAULT_AGREEMENT", "Стандартное")
+
+        self._add_text_element(document, "Организация", org_name)
+        self._add_text_element(document, "Склад", warehouse_name)
+
+        agreement = ET.SubElement(document, "Соглашение")
+        self._add_text_element(agreement, "Наименование", agreement_name)
 
         # Блок контрагентов
         counterparties = self._create_counterparties_element(order)
@@ -160,6 +194,25 @@ class OrderExportService:
         products = self._create_products_element(order)
         document.append(products)
 
+        # Значения реквизитов документа (обязательные для УТ 11)
+        doc_props = ET.Element("ЗначенияРеквизитов")
+
+        order_defaults = self._get_order_defaults()
+
+        # Обязательные реквизиты УТ 11
+        # Организация, Склад и Соглашение берутся из динамически вычисленных значений
+        self._add_requisite(doc_props, "Операция", order_defaults["OPERATION"])
+        self._add_requisite(doc_props, "Статус заказа", order_defaults["STATUS"])
+        self._add_requisite(doc_props, "Организация", org_name)
+        self._add_requisite(doc_props, "Соглашение", agreement_name)
+        self._add_requisite(doc_props, "Склад", warehouse_name)
+
+        self._add_requisite(doc_props, "Отменен", "false")
+        self._add_requisite(doc_props, "Проведен", "false")
+        self._add_requisite(doc_props, "Сайт", "freesport.ru")
+
+        document.append(doc_props)
+
         return document
 
     def _create_counterparties_element(self, order: "Order") -> ET.Element:
@@ -167,6 +220,7 @@ class OrderExportService:
 
         Supports both registered users and guest orders. For guest orders,
         uses order.customer_name, customer_email, customer_phone fields.
+        Customer fields скопированы с мастера в Story 34-2, прямое использование безопасно.
         """
         counterparties = ET.Element("Контрагенты")
         counterparty = ET.Element("Контрагент")
@@ -189,6 +243,9 @@ class OrderExportService:
             else:
                 name = str(user.full_name or user.email or "")
                 self._add_text_element(counterparty, "Наименование", name)
+                self._add_text_element(counterparty, "ПолноеНаименование", name)
+
+            self._add_text_element(counterparty, "Роль", "Покупатель")
 
             # ИНН только если есть tax_id
             if user.tax_id:
@@ -217,6 +274,8 @@ class OrderExportService:
             # Наименование from customer_name or email
             name = order.customer_name or order.customer_email or f"Гость #{order.order_number}"
             self._add_text_element(counterparty, "Наименование", name)
+            self._add_text_element(counterparty, "ПолноеНаименование", name)
+            self._add_text_element(counterparty, "Роль", "Покупатель")
 
             # Контакты from order fields
             contacts = ET.Element("Контакты")
@@ -248,6 +307,11 @@ class OrderExportService:
         """Создание блока Товары."""
         products = ET.Element("Товары")
 
+        exchange_cfg = getattr(settings, "ONEC_EXCHANGE", {})
+        action = exchange_cfg.get("DEFAULT_ITEM_ACTION", "Резервировать")
+        price_type_name = self._get_price_type(order)
+        order_vat_rate = self._get_order_vat_rate(order)
+
         for item in order.items.all():
             # Defensive check: пропуск OrderItem с variant=None
             if item.variant is None:
@@ -276,9 +340,171 @@ class OrderExportService:
             self._add_text_element(product, "Количество", str(item.quantity))
             self._add_text_element(product, "Сумма", self._format_price(item.total_price))
 
+            # Действие строки — резервирование товара на складе
+            self._add_text_element(product, "Действие", action)
+
+            # Вид цены — зависит от категории (роли) покупателя
+            vid_ceny = ET.SubElement(product, "ВидЦены")
+            self._add_text_element(vid_ceny, "Наименование", price_type_name)
+
+            # НДС «в том числе» (включён в сумму строки)
+            # Приоритет snapshot (Story 34-1): OrderItem.vat_rate → variant.vat_rate → order default
+            if item.vat_rate is not None:
+                item_vat_rate = Decimal(str(item.vat_rate))
+            else:
+                item_vat_rate = self._get_variant_vat_rate(item.variant, order_vat_rate)
+            vat_amount = self._calc_vat_amount(item.total_price, item_vat_rate)
+
+            taxes = ET.SubElement(product, "Налоги")
+            tax = ET.SubElement(taxes, "Налог")
+            self._add_text_element(tax, "Наименование", "НДС")
+            self._add_text_element(tax, "УчтенВСумме", "true")
+            self._add_text_element(tax, "Ставка", str(int(item_vat_rate)))
+            self._add_text_element(tax, "Сумма", self._format_price(vat_amount))
+
+            # Реквизиты товара (обязательно для загрузки в 1С УТ)
+            props = ET.Element("ЗначенияРеквизитов")
+
+            prop1 = ET.Element("ЗначениеРеквизита")
+            self._add_text_element(prop1, "Наименование", "ВидНоменклатуры")
+            self._add_text_element(prop1, "Значение", "Товар")
+            props.append(prop1)
+
+            prop2 = ET.Element("ЗначениеРеквизита")
+            self._add_text_element(prop2, "Наименование", "ТипНоменклатуры")
+            self._add_text_element(prop2, "Значение", "Товар")
+            props.append(prop2)
+
+            product.append(props)
+
             products.append(product)
 
         return products
+
+    # -------------------------------------------------------------------------
+    # Вспомогательные методы для организации/склада/цены/НДС
+    # -------------------------------------------------------------------------
+
+    def _get_order_vat_rate(self, order: "Order") -> Decimal:
+        """
+        Определяет ставку НДС заказа.
+        Приоритет: order.vat_group (Story 34-2) → OrderItem.vat_rate (snapshot, Story 34-1)
+                 → variant.vat_rate → warehouse_name → DEFAULT_VAT_RATE.
+        """
+        if order.vat_group is not None:
+            return Decimal(str(order.vat_group))
+
+        exchange_cfg = getattr(settings, "ONEC_EXCHANGE", {})
+        default_rate = Decimal(str(exchange_cfg.get("DEFAULT_VAT_RATE", 22)))
+        for item in order.items.all():
+            # Приоритет snapshot (Story 34-1)
+            if item.vat_rate is not None:
+                return Decimal(str(item.vat_rate))
+            if not item.variant:
+                continue
+            if item.variant.vat_rate is not None:
+                return Decimal(str(item.variant.vat_rate))
+            warehouse_vat_rate = self._get_vat_rate_by_warehouse_name(item.variant.warehouse_name)
+            if warehouse_vat_rate is not None:
+                return warehouse_vat_rate
+        return default_rate
+
+    def _get_order_warehouse_name(self, order: "Order") -> str | None:
+        """Возвращает склад первого товара заказа, если он уже определён у варианта."""
+        for item in order.items.all():
+            if item.variant and item.variant.warehouse_name:
+                return str(item.variant.warehouse_name)
+        return None
+
+    def _get_org_and_warehouse(self, vat_rate: Decimal, warehouse_name: str | None = None) -> tuple[str, str]:
+        """
+        Возвращает (название организации, название склада).
+        Приоритет: warehouse_name -> vat_rate -> DEFAULT_*.
+        """
+        exchange_cfg = getattr(settings, "ONEC_EXCHANGE", {})
+        warehouse_rules = exchange_cfg.get("WAREHOUSE_RULES", {})
+        if warehouse_name:
+            warehouse_info = warehouse_rules.get(warehouse_name)
+            if warehouse_info:
+                return warehouse_info["organization"], warehouse_name
+
+        mapping = exchange_cfg.get("ORGANIZATION_BY_VAT", {})
+        info = mapping.get(int(vat_rate))
+        if info:
+            return info["name"], info["warehouse"]
+        return (
+            exchange_cfg.get("DEFAULT_ORGANIZATION", "ИП Семерюк Д. В."),
+            exchange_cfg.get("DEFAULT_WAREHOUSE", "1 СДВ склад"),
+        )
+
+    def _get_vat_rate_by_warehouse_name(self, warehouse_name: str | None) -> Decimal | None:
+        """Возвращает ставку НДС по имени склада."""
+        if not warehouse_name:
+            return None
+
+        exchange_cfg = getattr(settings, "ONEC_EXCHANGE", {})
+        warehouse_rules = exchange_cfg.get("WAREHOUSE_RULES", {})
+        info = warehouse_rules.get(warehouse_name)
+        if not info:
+            return None
+
+        vat_rate = info.get("vat_rate")
+        if vat_rate is None:
+            return None
+
+        return Decimal(str(vat_rate))
+
+    def _get_variant_vat_rate(self, variant: "ProductVariant", default_rate: Decimal) -> Decimal:
+        """Возвращает НДС варианта: собственный vat_rate, затем ставка по складу, затем default."""
+        if variant.vat_rate is not None:
+            return Decimal(str(variant.vat_rate))
+
+        warehouse_vat_rate = self._get_vat_rate_by_warehouse_name(variant.warehouse_name)
+        if warehouse_vat_rate is not None:
+            return warehouse_vat_rate
+
+        return default_rate
+
+    def _get_price_type(self, order: "Order") -> str:
+        """
+        Возвращает вид цены в 1С по роли пользователя.
+        Маппинг настраивается через ONEC_EXCHANGE['PRICE_TYPE_BY_ROLE'].
+        """
+        exchange_cfg = getattr(settings, "ONEC_EXCHANGE", {})
+        role_map = exchange_cfg.get("PRICE_TYPE_BY_ROLE", {})
+        default_pt = str(exchange_cfg.get("DEFAULT_PRICE_TYPE", "РРЦ"))
+        user = order.user
+        if user:
+            return str(role_map.get(user.role, default_pt))
+        return default_pt
+
+    def _calc_vat_amount(self, total_price: Decimal, vat_rate: Decimal) -> Decimal:
+        """
+        НДС «в том числе» (включён в цену):
+            НДС = сумма × ставка / (100 + ставка)
+        Пример: 2109.00 × 22 / 122 = 380.31
+        """
+        return (total_price * vat_rate / (Decimal("100") + vat_rate)).quantize(Decimal("0.01"))
+
+    def _get_order_defaults(self) -> dict:
+        """Read order default requisites from settings.ONEC_EXCHANGE.ORDER_DEFAULTS."""
+        exchange_cfg = getattr(settings, "ONEC_EXCHANGE", {})
+        defaults = exchange_cfg.get("ORDER_DEFAULTS", {})
+        return {
+            "OPERATION": defaults.get("OPERATION", "Реализация"),
+            "STATUS": defaults.get("STATUS", "Не согласован"),
+        }
+
+    def _add_requisite(self, parent: ET.Element, name: str, value: str) -> None:
+        """Добавление элемента ЗначениеРеквизита."""
+        prop = ET.Element("ЗначениеРеквизита")
+        self._add_text_element(prop, "Наименование", name)
+        self._add_text_element(prop, "Значение", value)
+        parent.append(prop)
+
+    # -------------------------------------------------------------------------
+    # Общие вспомогательные методы
+    # -------------------------------------------------------------------------
 
     def _add_text_element(self, parent: ET.Element, tag: str, text: str) -> ET.Element:
         """Добавление текстового элемента к родителю."""

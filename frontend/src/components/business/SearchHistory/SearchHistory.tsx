@@ -103,39 +103,40 @@ export function SearchHistory({
       {/* Список элементов истории */}
       <div className="py-1">
         {history.map((query, index) => (
-          <button
+          <div
             key={`${query}-${index}`}
             className={cn(
               'w-full px-4 py-2',
               'flex items-center justify-between gap-2',
               'text-left text-body text-text-primary',
               'hover:bg-[#F5F7FA]',
-              'transition-colors'
+              'transition-colors cursor-pointer'
             )}
             onClick={() => onSelect(query)}
+            onKeyDown={e => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onSelect(query);
+              }
+            }}
+            tabIndex={0}
             role="option"
             aria-selected={false}
             aria-label={`Выбрать запрос: ${query}`}
           >
-            <div className="flex items-center gap-2 flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-1 min-w-0 pointer-events-none">
               <Clock className="w-4 h-4 text-[#7A7A7A] flex-shrink-0" aria-hidden="true" />
               <span className="truncate">{query}</span>
             </div>
             <button
               type="button"
               onClick={e => handleRemove(e, query)}
-              onKeyDown={e => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  handleRemove(e as unknown as React.MouseEvent, query);
-                }
-              }}
-              className="p-1 rounded hover:bg-[#E3E8F2] transition-colors flex-shrink-0 cursor-pointer"
+              className="p-1 rounded hover:bg-[#E3E8F2] transition-colors flex-shrink-0 cursor-pointer relative z-10"
               aria-label={`Удалить запрос: ${query}`}
             >
               <X className="w-4 h-4 text-text-muted hover:text-text-primary" />
             </button>
-          </button>
+          </div>
         ))}
       </div>
 

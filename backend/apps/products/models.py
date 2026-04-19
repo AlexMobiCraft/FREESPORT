@@ -184,6 +184,10 @@ class Category(models.Model):
         ),
     )
     description = cast(str, models.TextField("Описание", blank=True))
+    icon = cast(
+        models.FileField,
+        models.FileField("Иконка", upload_to="categories/icons/", blank=True),
+    )
     image = cast(
         models.ImageField,
         models.ImageField("Изображение", upload_to="categories/", blank=True),
@@ -938,7 +942,46 @@ class ProductVariant(models.Model):
         ),
     )
 
+    # НДС
+    vat_rate = cast(
+        "Decimal | None",
+        models.DecimalField(
+            "Ставка НДС (%)",
+            max_digits=5,
+            decimal_places=2,
+            null=True,
+            blank=True,
+            help_text=(
+                "Ставка НДС в % (22 — импортные товары ИП Семерюк, "
+                "5 — российские товары ИП Терещенко). "
+                "Заполняется автоматически при импорте из 1С (<СтавкаНДС>). "
+                "Если не заполнено, используется DEFAULT_VAT_RATE из настроек."
+            ),
+        ),
+    )
+
     # Остатки
+    warehouse_id = cast(
+        str | None,
+        models.CharField(
+            "Идентификатор склада 1С",
+            max_length=64,
+            null=True,
+            blank=True,
+            db_index=True,
+            help_text="GUID склада из rests.xml, по которому определяется организация и ставка НДС",
+        ),
+    )
+    warehouse_name = cast(
+        str | None,
+        models.CharField(
+            "Склад",
+            max_length=255,
+            null=True,
+            blank=True,
+            help_text="Человекочитаемое имя склада 1С, например '1 СДВ склад'",
+        ),
+    )
     stock_quantity = cast(
         int,
         models.PositiveIntegerField(

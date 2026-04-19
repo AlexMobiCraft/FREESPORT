@@ -10,11 +10,13 @@
 
 'use client';
 
-import React, { Suspense } from 'react';
+import React, { Suspense, useEffect } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { LoginForm } from '@/components/auth/LoginForm';
 import { Spinner } from '@/components/ui/Spinner/Spinner';
+import { authSelectors } from '@/stores/authStore';
+import { isSafeRedirectUrl } from '@/utils/urlUtils';
 
 /**
  * LoginPageContent - отдельный компонент для использования useSearchParams
@@ -22,8 +24,28 @@ import { Spinner } from '@/components/ui/Spinner/Spinner';
  */
 function LoginPageContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const isAuthenticated = authSelectors.useIsAuthenticated();
   // Поддержка обоих параметров: 'next' (middleware) и 'redirect' (legacy)
   const redirectUrl = searchParams.get('next') || searchParams.get('redirect') || undefined;
+
+  // Редирект аутентифицированного пользователя со страницы логина
+  // Это обрабатывает случай, когда AuthProvider восстановил сессию из localStorage,
+  // но middleware уже перенаправил на /login (т.к. cookie отсутствовала)
+  useEffect(() => {
+    if (isAuthenticated) {
+      const target = isSafeRedirectUrl(redirectUrl) ? redirectUrl! : '/';
+      router.replace(target);
+    }
+  }, [isAuthenticated, redirectUrl, router]);
+
+  if (isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Spinner size="large" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[var(--color-neutral-100)] py-12 px-4 sm:px-6 lg:px-8">

@@ -2,12 +2,14 @@
  * MSW Handlers для Orders API
  * Story 15.2: Интеграция с Orders API
  * Story 16.2: История заказов с функцией повторного заказа
+ * Story 34-2: VAT-split контракт (customer_*, notes, discount_amount; items не передаются)
  */
 
 import { http, HttpResponse } from 'msw';
+import type { OrderListItem } from '@/types/order';
 
 /**
- * Mock данные успешного заказа (полный формат для Story 16.2)
+ * Mock данные успешного заказа (контракт OrderDetailSerializer, Story 34-2)
  */
 export const mockSuccessOrder = {
   id: 1,
@@ -19,10 +21,10 @@ export const mockSuccessOrder = {
   customer_phone: '+79001234567',
   status: 'pending' as const,
   total_amount: '15500',
-  discount_amount: '500',
+  discount_amount: '0',
   delivery_cost: '500',
   delivery_address: 'г. Москва, ул. Тестовая, д. 1, кв. 10',
-  delivery_method: 'courier',
+  delivery_method: 'courier' as const,
   delivery_date: null,
   tracking_number: '',
   payment_method: 'card',
@@ -34,18 +36,34 @@ export const mockSuccessOrder = {
   items: [
     {
       id: 1,
-      product: 101,
+      product: { id: 101, name: 'Кроссовки Nike Air Max' },
+      variant: {
+        id: 1,
+        sku: 'NIKE-AM-001',
+        color_name: 'Чёрный',
+        size_value: '42',
+        is_active: true,
+      },
       product_name: 'Кроссовки Nike Air Max',
       product_sku: 'NIKE-AM-001',
+      variant_info: 'Размер: 42, Цвет: Чёрный',
       quantity: 2,
       unit_price: '5000',
       total_price: '10000',
     },
     {
       id: 2,
-      product: 102,
+      product: { id: 102, name: 'Футболка Adidas' },
+      variant: {
+        id: 2,
+        sku: 'ADIDAS-TS-002',
+        color_name: 'Белый',
+        size_value: 'L',
+        is_active: true,
+      },
       product_name: 'Футболка Adidas',
       product_sku: 'ADIDAS-TS-002',
+      variant_info: 'Размер: L, Цвет: Белый',
       quantity: 1,
       unit_price: '5500',
       total_price: '5500',
@@ -55,33 +73,55 @@ export const mockSuccessOrder = {
   total_items: 3,
   calculated_total: '15500',
   can_be_cancelled: true,
+  // Story 34-1/34-2: поля 1С и VAT-split (полный контракт OrderDetailSerializer)
+  is_master: true,
+  vat_group: null,
+  sent_to_1c: false,
+  sent_to_1c_at: null,
+  status_1c: '',
 };
 
 /**
- * Mock данные для списка заказов (Story 16.2)
+ * Mock данные для списка заказов (контракт OrderListSerializer, Story 34-2)
+ * Узкий набор полей; соответствует OrderListItem type.
  */
-export const mockOrdersList = [
-  mockSuccessOrder,
+export const mockOrderListItem1: OrderListItem = {
+  id: 1,
+  user: 1,
+  order_number: 'ORD-2025-001',
+  customer_display_name: 'Тест Пользователь',
+  status: 'pending',
+  total_amount: '15500',
+  delivery_method: 'courier',
+  payment_method: 'card',
+  payment_status: 'pending',
+  is_master: true,
+  vat_group: null,
+  sent_to_1c: false,
+  created_at: '2025-01-15T10:30:00Z',
+  total_items: 3,
+};
+
+export const mockOrdersList: OrderListItem[] = [
+  mockOrderListItem1,
   {
-    ...mockSuccessOrder,
+    ...mockOrderListItem1,
     id: 2,
     order_number: 'ORD-2025-002',
-    status: 'delivered' as const,
+    status: 'delivered',
     total_amount: '25000',
     payment_status: 'paid',
     created_at: '2025-01-10T14:00:00Z',
-    tracking_number: 'TRK-123456',
     total_items: 5,
   },
   {
-    ...mockSuccessOrder,
+    ...mockOrderListItem1,
     id: 3,
     order_number: 'ORD-2025-003',
-    status: 'shipped' as const,
+    status: 'shipped',
     total_amount: '8000',
     payment_status: 'paid',
     created_at: '2025-01-12T09:15:00Z',
-    tracking_number: 'TRK-789012',
     total_items: 2,
   },
 ];
@@ -90,39 +130,26 @@ export const mockOrdersList = [
  * Orders API Handlers
  */
 export const ordersHandlers = [
-  // POST /orders/ - Создание заказа
+  // POST /orders/ - Создание заказа (контракт Story 34-2: customer_*, notes, discount_amount, promo_code)
   http.post('*/orders/', async ({ request }) => {
     const body = (await request.json()) as {
-      email: string;
-      phone: string;
-      first_name: string;
-      last_name: string;
-      delivery_address: string;
-      delivery_method: string;
-      payment_method: string;
-      items: Array<{ variant_id: number; quantity: number }>;
-      comment?: string;
+      customer_email?: string;
+      customer_phone?: string;
+      customer_name?: string;
+      delivery_address?: string;
+      delivery_method?: string;
+      payment_method?: string;
+      notes?: string;
+      discount_amount?: string;
+      promo_code?: string | null; // stub Story 34-2 [Review][Patch]
     };
 
-    if (!body.items || body.items.length === 0) {
+    if (!body.customer_email) {
       return HttpResponse.json(
         {
           error: 'Validation failed',
           details: {
-            items: ['Корзина пуста'],
-          },
-        },
-        { status: 400 }
-      );
-    }
-
-    const unavailableItem = body.items.find(item => item.variant_id === 999);
-    if (unavailableItem) {
-      return HttpResponse.json(
-        {
-          error: 'Validation failed',
-          details: {
-            items: ['Товар с ID 999 закончился на складе'],
+            customer_email: ['Это поле обязательно.'],
           },
         },
         { status: 400 }
@@ -164,9 +191,11 @@ export const ordersHandlers = [
       return HttpResponse.json({ detail: 'Not found' }, { status: 404 });
     }
 
+    // Backend возвращает numeric id; Number() парсит строку URL-параметра
+    const numericId = Number(id);
     return HttpResponse.json({
       ...mockSuccessOrder,
-      id: id as string,
+      id: Number.isFinite(numericId) ? numericId : mockSuccessOrder.id,
     });
   }),
 ];

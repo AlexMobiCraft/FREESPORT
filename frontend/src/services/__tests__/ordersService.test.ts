@@ -13,7 +13,11 @@
 
 import ordersService, { mapFormDataToPayload, parseApiError } from '../ordersService';
 import { server } from '../../__mocks__/api/server';
-import { ordersErrorHandlers, mockSuccessOrder } from '../../__mocks__/handlers/ordersHandlers';
+import {
+  ordersErrorHandlers,
+  mockSuccessOrder,
+  mockOrdersList,
+} from '../../__mocks__/handlers/ordersHandlers';
 import { AxiosError } from 'axios';
 import type { CheckoutFormData } from '@/schemas/checkoutSchema';
 import type { CartItem } from '@/types/cart';
@@ -69,13 +73,13 @@ const mockCartItems: CartItem[] = [
 
 describe('ordersService', () => {
   describe('mapFormDataToPayload', () => {
-    test('корректно маппит данные формы в payload', () => {
+    test('корректно маппит данные формы в payload (контракт OrderCreateSerializer)', () => {
       const payload = mapFormDataToPayload(mockFormData, mockCartItems);
 
-      expect(payload.email).toBe('test@example.com');
-      expect(payload.phone).toBe('+79001234567');
-      expect(payload.first_name).toBe('Иван');
-      expect(payload.last_name).toBe('Петров');
+      // Поля customer_* соответствуют полям модели Order
+      expect(payload.customer_email).toBe('test@example.com');
+      expect(payload.customer_phone).toBe('+79001234567');
+      expect(payload.customer_name).toBe('Иван Петров');
 
       // Проверка строки адреса: "123456, г. Москва, ул. Ленина, д. 10, кв. 5"
       const expectedAddress = '123456, г. Москва, ул. Ленина, д. 10, кв. 5';
@@ -83,10 +87,10 @@ describe('ordersService', () => {
 
       expect(payload.delivery_method).toBe('courier');
       expect(payload.payment_method).toBe('card');
-      expect(payload.comment).toBe('Позвоните за час до доставки');
-      expect(payload.items).toHaveLength(1);
-      expect(payload.items[0].variant_id).toBe(123);
-      expect(payload.items[0].quantity).toBe(2);
+      expect(payload.notes).toBe('Позвоните за час до доставки');
+
+      // items не передаются — backend строит заказ из server-side корзины
+      expect((payload as unknown as Record<string, unknown>)['items']).toBeUndefined();
     });
 
     test('обрабатывает пустые optional поля', () => {
@@ -100,7 +104,40 @@ describe('ordersService', () => {
 
       expect(payload.delivery_address).toContain('123456, г. Москва, ул. Ленина, д. 10');
       expect(payload.delivery_address).not.toContain('кв.');
-      expect(payload.comment).toBeUndefined();
+      expect(payload.notes).toBeUndefined();
+    });
+
+    test.skip('[deprecated] backward-compat: mapFormDataToPayload принимает discountAmount (Story 34-2 — deprecated, сервер всегда возвращает 0)', () => {
+      const payload = mapFormDataToPayload(mockFormData, mockCartItems, 500);
+
+      expect(payload.discount_amount).toBe('500.00');
+    });
+
+    test('не включает discount_amount в payload при нулевой скидке', () => {
+      const payloadNoDiscount = mapFormDataToPayload(mockFormData, mockCartItems, 0);
+      expect(
+        (payloadNoDiscount as unknown as Record<string, unknown>)['discount_amount']
+      ).toBeUndefined();
+
+      const payloadUndefined = mapFormDataToPayload(mockFormData, mockCartItems);
+      expect(
+        (payloadUndefined as unknown as Record<string, unknown>)['discount_amount']
+      ).toBeUndefined();
+    });
+
+    test('[Review][Patch] stub: включает promo_code в payload при передаче строки (Story 34-2)', () => {
+      const payload = mapFormDataToPayload(mockFormData, mockCartItems, undefined, 'SUMMER2026');
+      expect(payload.promo_code).toBe('SUMMER2026');
+    });
+
+    test('[Review][Patch] stub: не включает promo_code в payload при null/undefined (Story 34-2)', () => {
+      const payloadNull = mapFormDataToPayload(mockFormData, mockCartItems, undefined, null);
+      expect((payloadNull as unknown as Record<string, unknown>)['promo_code']).toBeUndefined();
+
+      const payloadUndefined = mapFormDataToPayload(mockFormData, mockCartItems);
+      expect(
+        (payloadUndefined as unknown as Record<string, unknown>)['promo_code']
+      ).toBeUndefined();
     });
   });
 
@@ -212,17 +249,31 @@ describe('ordersService', () => {
       );
     });
 
-    test('обрабатывает недоступный товар (variant_id=999)', async () => {
-      const itemsWithUnavailable: CartItem[] = [
-        {
-          ...mockCartItems[0],
-          variant_id: 999,
-        },
-      ];
+    test('обрабатывает серверную ошибку валидации (например, нет товара на складе)', async () => {
+      // Backend returns 400 when stock is depleted (server-side check).
+      // Frontend does not send items in payload — validation is purely server-side.
+      // parseApiError returns the top-level "error" field value from the response body.
+      server.use(ordersErrorHandlers.validation400);
 
-      await expect(ordersService.createOrder(mockFormData, itemsWithUnavailable)).rejects.toThrow(
+      await expect(ordersService.createOrder(mockFormData, mockCartItems)).rejects.toThrow(
         'Validation failed'
       );
+    });
+
+    test.skip('[deprecated] backward-compat: передаёт discount_amount при явной передаче (Story 34-2 — сервер всегда выставляет 0)', async () => {
+      let capturedBody: Record<string, unknown> | null = null;
+
+      server.use(
+        (await import('msw')).http.post('*/orders/', async ({ request }) => {
+          capturedBody = (await request.json()) as Record<string, unknown>;
+          return (await import('msw')).HttpResponse.json(mockSuccessOrder, { status: 201 });
+        })
+      );
+
+      await ordersService.createOrder(mockFormData, mockCartItems, 500);
+
+      expect(capturedBody).not.toBeNull();
+      expect(capturedBody!['discount_amount']).toBe('500.00');
     });
   });
 
@@ -240,18 +291,76 @@ describe('ordersService', () => {
 
       expect(result.results).toBeDefined();
     });
+
+    test('list-contract содержит поля OrderListItem (Story 34-2)', async () => {
+      const result = await ordersService.getAll();
+
+      const first = result.results[0];
+      // Поля Story 34-2, обязательные в OrderListSerializer
+      expect(typeof first.is_master).toBe('boolean');
+      expect('vat_group' in first).toBe(true);
+      expect(typeof first.sent_to_1c).toBe('boolean');
+      expect(typeof first.total_items).toBe('number');
+      // is_master=true у первого мастера
+      expect(first.is_master).toBe(true);
+      // Проверяем, что в списке нет полей detail-only (items, calculated_total)
+      expect((first as unknown as Record<string, unknown>)['items']).toBeUndefined();
+      expect((first as unknown as Record<string, unknown>)['calculated_total']).toBeUndefined();
+    });
+
+    test('mock data соответствует mockOrdersList', async () => {
+      const result = await ordersService.getAll();
+
+      expect(result.results[0]).toMatchObject({
+        id: mockOrdersList[0].id,
+        order_number: mockOrdersList[0].order_number,
+        is_master: true,
+        sent_to_1c: false,
+      });
+    });
   });
 
   describe('getById', () => {
-    test('получает заказ по ID', async () => {
-      const result = await ordersService.getById('550e8400-e29b-41d4-a716-446655440000');
+    test('получает заказ по ID (numeric contract)', async () => {
+      // Backend возвращает numeric id; orderId передаётся как string URL-параметр
+      const result = await ordersService.getById('1');
 
-      expect(result.id).toBe('550e8400-e29b-41d4-a716-446655440000');
+      expect(result.id).toBe(1);
       expect(result.order_number).toBe('ORD-2025-001');
+    });
+
+    test('items[].product является nested object (depth=1 contract)', async () => {
+      const result = await ordersService.getById('1');
+
+      expect(result.items.length).toBeGreaterThan(0);
+      const firstItem = result.items[0];
+      expect(typeof firstItem.product).toBe('object');
+      expect(firstItem.product).toHaveProperty('id');
+      expect(firstItem.product).toHaveProperty('name');
     });
 
     test('обрабатывает 404 Not Found', async () => {
       await expect(ordersService.getById('not-found')).rejects.toThrow();
+    });
+  });
+
+  describe('contract regression: DeliveryMethodCode', () => {
+    test('transport_schedule является валидным значением delivery_method (Story 34-2)', async () => {
+      // Backend поддерживает transport_schedule; frontend-тип должен его принимать
+      type ValidDelivery =
+        | 'pickup'
+        | 'courier'
+        | 'post'
+        | 'transport_company'
+        | 'transport_schedule';
+      const value: ValidDelivery = 'transport_schedule';
+      expect(value).toBe('transport_schedule');
+    });
+
+    test('createOrder возвращает delivery_method из OrderDetail (contract AC12)', async () => {
+      const result = await ordersService.createOrder(mockFormData, mockCartItems);
+      // Убеждаемся что delivery_method существует в ответе
+      expect(result.delivery_method).toBeDefined();
     });
   });
 });

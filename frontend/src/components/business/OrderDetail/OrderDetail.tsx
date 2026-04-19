@@ -22,6 +22,7 @@ import {
   Truck,
 } from 'lucide-react';
 import type { Order } from '@/types/order';
+import { getDeliveryMethodLabel } from '@/utils/orderPdfExport';
 
 export interface OrderDetailProps {
   order: Order;
@@ -66,23 +67,13 @@ function formatPrice(price: string): string {
 }
 
 /**
- * Маппинг способов доставки
- */
-const deliveryMethodLabels: Record<string, string> = {
-  pickup: 'Самовывоз',
-  courier: 'Курьерская доставка',
-  post: 'Почта России',
-  transport_company: 'Транспортная компания',
-};
-
-/**
  * Маппинг способов оплаты
  */
 const paymentMethodLabels: Record<string, string> = {
   card: 'Банковская карта',
-  cash: 'Наличными при получении',
-  invoice: 'Безналичный расчёт',
-  online: 'Онлайн оплата',
+  cash: 'Наличные',
+  bank_transfer: 'Банковский перевод',
+  payment_on_delivery: 'Оплата при получении',
 };
 
 /**
@@ -92,7 +83,7 @@ const paymentStatusLabels: Record<string, { label: string; color: string }> = {
   pending: { label: 'Ожидает оплаты', color: 'text-[#B07600]' },
   paid: { label: 'Оплачен', color: 'text-accent-success' },
   failed: { label: 'Ошибка оплаты', color: 'text-accent-danger' },
-  refunded: { label: 'Возврат', color: 'text-text-muted' },
+  refunded: { label: 'Возвращен', color: 'text-text-muted' },
 };
 
 /**
@@ -188,7 +179,7 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
           <div>
             <p className="text-body-s text-text-muted mb-1">Способ доставки</p>
             <p className="text-body-m text-text-primary">
-              {deliveryMethodLabels[order.delivery_method] || order.delivery_method}
+              {getDeliveryMethodLabel(order.delivery_method)}
             </p>
           </div>
           {order.delivery_address && (

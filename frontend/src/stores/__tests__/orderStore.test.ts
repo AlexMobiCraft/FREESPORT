@@ -11,6 +11,7 @@
  */
 
 import { act } from 'react';
+import { http, HttpResponse } from 'msw';
 import { useOrderStore } from '../orderStore';
 import { useCartStore } from '../cartStore';
 import { server } from '../../__mocks__/api/server';
@@ -110,7 +111,19 @@ describe('orderStore', () => {
       expect(state.error).toBeNull();
     });
 
-    test('очищает корзину после успешного создания заказа', async () => {
+    test('[Review][Patch] Story 34-2: очищает корзину локально после успешного заказа без повторного API-вызова /cart/clear/', async () => {
+      // [Patch 11] Устанавливаем promoCode, чтобы проверить clearPromo() после createOrder
+      useCartStore.setState({ promoCode: 'TESTCODE', discountType: 'percent', discountValue: 0 });
+
+      // Track if the /cart/clear/ API endpoint is hit (it must NOT be called)
+      let cartClearApiCalled = false;
+      server.use(
+        http.delete('*/cart/clear/', () => {
+          cartClearApiCalled = true;
+          return new HttpResponse(null, { status: 204 });
+        })
+      );
+
       // Проверяем что корзина не пуста
       expect(useCartStore.getState().items).toHaveLength(1);
 
@@ -120,9 +133,16 @@ describe('orderStore', () => {
         await createOrder(mockFormData);
       });
 
-      // После успешного заказа корзина должна быть очищена
-      // Примечание: clearCart вызывает API, который мы не мокали
-      // В реальном тесте нужно мокать cartService.clear()
+      // clearCartLocal() не вызывает API — корзина пуста сразу без мокирования cartService.clear()
+      expect(useCartStore.getState().items).toHaveLength(0);
+      expect(useCartStore.getState().totalPrice).toBe(0);
+      expect(useCartStore.getState().totalItems).toBe(0);
+      // [Story 34-2] backend already cleared cart in transaction — no redundant /cart/clear/ call
+      expect(cartClearApiCalled).toBe(false);
+      // [Patch 9] Сбрасываем MSW handler, чтобы не перехватывал запросы в других тестах
+      server.resetHandlers();
+      // [Patch 11] clearPromo() должен быть вызван через try-finally в orderStore
+      expect(useCartStore.getState().promoCode).toBeNull();
     });
 
     test('устанавливает isSubmitting в true во время запроса', async () => {
@@ -182,6 +202,96 @@ describe('orderStore', () => {
 
       const state = useOrderStore.getState();
       expect(state.error).toBe('Корзина пуста, невозможно оформить заказ');
+    });
+
+    test('передаёт promo_code из cartStore при создании заказа ([Review][Patch] Story 34-2)', async () => {
+      useCartStore.setState({
+        items: mockCartItems,
+        totalItems: 2,
+        totalPrice: 5000,
+        promoCode: 'SUMMER20',
+        discountType: null,
+        discountValue: 0,
+        isLoading: false,
+        error: null,
+      });
+
+      let capturedPayload: Record<string, unknown> | null = null;
+
+      server.use(
+        http.post('*/orders/', async ({ request }) => {
+          capturedPayload = (await request.json()) as Record<string, unknown>;
+          return HttpResponse.json(mockSuccessOrder, { status: 201 });
+        })
+      );
+
+      const { createOrder } = useOrderStore.getState();
+
+      await act(async () => {
+        await createOrder(mockFormData);
+      });
+
+      expect(capturedPayload).not.toBeNull();
+      expect(capturedPayload!['promo_code']).toBe('SUMMER20');
+    });
+
+    test('не передаёт discount_amount даже при ненулевом getPromoDiscount() ([Review][Patch] Story 34-2 regression)', async () => {
+      // promo-система не серверная: orderStore не должен вычислять и отправлять client-side discount_amount
+      useCartStore.setState({
+        items: mockCartItems,
+        totalItems: 2,
+        totalPrice: 5000,
+        promoCode: 'PROMO10',
+        discountType: 'fixed',
+        discountValue: 500,
+        isLoading: false,
+        error: null,
+      });
+
+      let capturedPayload: Record<string, unknown> | null = null;
+
+      server.use(
+        http.post('*/orders/', async ({ request }) => {
+          capturedPayload = (await request.json()) as Record<string, unknown>;
+          return HttpResponse.json(mockSuccessOrder, { status: 201 });
+        })
+      );
+
+      const { createOrder } = useOrderStore.getState();
+
+      await act(async () => {
+        await createOrder(mockFormData);
+      });
+
+      expect(capturedPayload).not.toBeNull();
+      // discount_amount НЕ должен приходить от клиента — сервер всегда выставляет 0
+      expect(capturedPayload!['discount_amount']).toBeUndefined();
+      // promo_code передаётся как stub для будущей серверной promo-системы
+      expect(capturedPayload!['promo_code']).toBe('PROMO10');
+    });
+
+    test('очищает promoCode из cartStore после успешного создания заказа ([Review][Patch] Story 34-2)', async () => {
+      useCartStore.setState({
+        items: mockCartItems,
+        totalItems: 2,
+        totalPrice: 5000,
+        promoCode: 'SUMMER20',
+        discountType: 'percent',
+        discountValue: 10,
+        isLoading: false,
+        error: null,
+      });
+
+      const { createOrder } = useOrderStore.getState();
+
+      await act(async () => {
+        await createOrder(mockFormData);
+      });
+
+      const cartState = useCartStore.getState();
+      expect(cartState.promoCode).toBeNull();
+      expect(cartState.discountType).toBeNull();
+      expect(cartState.discountValue).toBe(0);
     });
 
     // TODO: Требует изолированного MSW - parseApiError тестирует логику обработки ошибок

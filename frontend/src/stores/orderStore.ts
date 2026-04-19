@@ -51,21 +51,35 @@ export const useOrderStore = create<OrderState>()(
 
         try {
           // Получаем товары из корзины
-          const cartItems = useCartStore.getState().items;
+          const cartState = useCartStore.getState();
+          const cartItems = cartState.items;
 
           // Проверка на пустую корзину
           if (!cartItems || cartItems.length === 0) {
             throw new Error('Корзина пуста, невозможно оформить заказ');
           }
 
+          // promo_code — stub (Story 34-2 [Review][Patch]): передаём для будущей серверной promo-системы.
+          // discount_amount НЕ передаётся клиентом: сервер всегда выставляет 0 (promo-система в разработке).
+          const promoCode = cartState.promoCode;
+
           // Создаём заказ через API
-          const order = await ordersService.createOrder(data, cartItems);
+          const order = await ordersService.createOrder(data, cartItems, undefined, promoCode);
 
           // Сохраняем созданный заказ
           set({ currentOrder: order, error: null });
 
-          // Очищаем корзину после успешного создания заказа
-          await useCartStore.getState().clearCart();
+          // Очищаем корзину и promo-state после успешного создания заказа.
+          // Backend уже очистил cart в той же транзакции — вызываем только
+          // локальный clear без повторного API-запроса, чтобы избежать
+          // rollback-эффекта при сбое избыточного /cart/clear/.
+          // try-finally гарантирует, что clearPromo() выполнится даже если
+          // clearCartLocal() бросит исключение (защита от stale promoCode в localStorage).
+          try {
+            useCartStore.getState().clearCartLocal();
+          } finally {
+            useCartStore.getState().clearPromo();
+          }
         } catch (error: unknown) {
           const errorMessage = error instanceof Error ? error.message : 'Ошибка создания заказа';
           set({ error: errorMessage });

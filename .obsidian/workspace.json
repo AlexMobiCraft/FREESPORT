@@ -1,0 +1,213 @@
+{
+  "main": {
+    "id": "7e4fd425b6a35951",
+    "type": "split",
+    "children": [
+      {
+        "id": "9fa178be4d17aae3",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "aa9e020d188fbca6",
+            "type": "leaf",
+            "state": {
+              "type": "empty",
+              "state": {},
+              "icon": "lucide-file",
+              "title": "Новая вкладка"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "f307c558ff56861f",
+    "type": "split",
+    "children": [
+      {
+        "id": "9f90e49d83d8a5d3",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "9d66b617743d53a1",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Файловый менеджер"
+            }
+          },
+          {
+            "id": "b105d1d2470b12a7",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Поиск"
+            }
+          },
+          {
+            "id": "edd3cf0b1995642b",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "Закладки"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "edf90135fe61f004",
+    "type": "split",
+    "children": [
+      {
+        "id": "fb76ff9d025925e1",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "e3510a7427f5124e",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "_bmad-output/planning-artifacts/architecture.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Обратные ссылки для architecture"
+            }
+          },
+          {
+            "id": "b3a6448597c9657d",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "_bmad-output/planning-artifacts/architecture.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Исходящие ссылки из architecture"
+            }
+          },
+          {
+            "id": "78721350faba0cbd",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Теги"
+            }
+          },
+          {
+            "id": "ee6c9d2ed7db9554",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "Все свойства"
+            }
+          },
+          {
+            "id": "d70871dd4a08d9c8",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "_bmad-output/planning-artifacts/architecture.md",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Структура architecture"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Меню быстрого перехода": false,
+      "canvas:Создать новый холст": false,
+      "daily-notes:Сегодняшняя заметка": false,
+      "templates:Вставить шаблон": false,
+      "command-palette:Открыть палитру команд": false,
+      "bases:Создать новую базу": false,
+      "graph:Граф": false
+    }
+  },
+  "active": "9d66b617743d53a1",
+  "lastOpenFiles": [
+    "_bmad-output/implementation-artifacts/Story/34-3-order-export-service-sub-orders.md",
+    "Без названия 1.base",
+    "Без названия.base",
+    "docs/api/views-documentation.md",
+    "docs/api/index.md",
+    "2026-04-17.md",
+    "backend/venv/Lib/site-packages/pytz/zoneinfo/Pacific/Saipan.md",
+    "AGENTS.md",
+    "GEMINI.md",
+    "CLAUDE.md",
+    "frontend/node_modules/eslint-plugin-import/memo-parser/README.md",
+    "frontend/node_modules/zustand/readme.md",
+    "_bmad-output/planning-artifacts/architecture.md",
+    "docs/archive/v4/index_v4_backup.md",
+    "Prototype.md",
+    "project-context.md",
+    "docs/archive/v4/stories/epic-14/README.md",
+    "frontend/README.md",
+    "frontend/node_modules/eslint-plugin-import/docs/rules/no-namespace.md",
+    "frontend/node_modules/mime-types/README.md",
+    "docs/archive/v4/architecture.md",
+    "docs/front-end-spec.md",
+    "_bmad-output/implementation-artifacts/tech-spec/tech-spec-1c-import-bugs-fixes.md",
+    "_bmad-output/planning-artifacts/epics.md",
+    "_bmad-output/planning-artifacts/tech-debt.md",
+    "_bmad-output/planning-artifacts/refined-prd.md",
+    "_bmad-output/planning-artifacts/prd.md",
+    "docs/prd/2.md"
+  ]
+}

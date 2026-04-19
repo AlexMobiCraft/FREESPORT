@@ -150,5 +150,8 @@ class ProductVariantFactory(factory.django.DjangoModelFactory):
     # Остатки
     stock_quantity = fuzzy.FuzzyInteger(0, 100)
     reserved_quantity = fuzzy.FuzzyInteger(0, 10)
+    warehouse_id = None
+    warehouse_name = None
+    vat_rate = None
 
     is_active = True

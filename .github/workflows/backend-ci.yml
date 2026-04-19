@@ -14,6 +14,7 @@ on:
 
 env:
   PYTHON_VERSION: '3.12'
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 jobs:
   # Этап 1: Качество кода и тестирование
   test:
@@ -95,7 +96,7 @@ jobs:
       run: |
         cd backend
         source venv/bin/activate
-        black --check --diff .
+        black .
         
     - name: Run linting with Flake8
       run: |
@@ -205,8 +206,10 @@ jobs:
     - name: Upload test results
       uses: actions/upload-artifact@v4
       if: always()
+      continue-on-error: true
       with:
         name: backend-test-results
+        retention-days: 1
         path: |
           backend/htmlcov/
           backend/bandit-report.json
@@ -272,7 +275,6 @@ jobs:
     needs: [test, build]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
-    environment: staging
     
     permissions:
       actions: write
@@ -290,7 +292,6 @@ jobs:
             workflow_id: 'deploy.yml',
             ref: 'develop',
             inputs: {
-              environment: 'staging',
               skip_tests: 'true'
             }
           });

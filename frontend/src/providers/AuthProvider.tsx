@@ -89,9 +89,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
             );
             await new Promise(resolve => setTimeout(resolve, delay));
           } else {
-            // Все попытки исчерпаны - logout
-            console.warn('Auth initialization failed after retries:', error);
-            logout();
+            // Все попытки исчерпаны (сетевая ошибка, не 401/403)
+            // НЕ вызываем logout() - сохраняем токены для повторных попыток,
+            // чтобы временная недоступность бэкенда не приводила к потере сессии
+            console.warn('Auth initialization failed after retries (network error):', error);
             setIsInitialized(true);
             setIsLoading(false);
           }

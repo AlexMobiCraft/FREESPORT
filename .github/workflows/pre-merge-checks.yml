@@ -220,6 +220,7 @@ jobs:
         fi
 
     - name: Создание отчета о проверках
+      if: always()
       run: |
         echo "📊 Создание отчета о проверках..."
         
@@ -263,8 +264,10 @@ jobs:
     - name: Загрузка отчета
       uses: actions/upload-artifact@v4
       if: always()
+      continue-on-error: true
       with:
         name: pre-merge-checks-report
+        retention-days: 1
         path: |
           pre-merge-checks-report.md
           backend/safety-report.json

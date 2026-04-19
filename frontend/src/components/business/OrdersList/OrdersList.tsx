@@ -11,10 +11,10 @@ import { cn } from '@/utils/cn';
 import { Pagination, Spinner } from '@/components/ui';
 import { OrderCard } from '@/components/business/OrderCard';
 import { ShoppingBag } from 'lucide-react';
-import type { Order, OrderStatus } from '@/types/order';
+import type { OrderListItem, OrderStatus } from '@/types/order';
 
 export interface OrdersListProps {
-  orders: Order[];
+  orders: OrderListItem[];
   currentPage: number;
   totalPages: number;
   totalCount: number;

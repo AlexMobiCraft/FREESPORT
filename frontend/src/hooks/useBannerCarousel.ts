@@ -268,14 +268,14 @@ export function useBannerCarousel(options: UseBannerCarouselOptions = {}): UseBa
 
   /**
    * Autoplay lifecycle management with error handling and cleanup.
-   * 
+   *
    * Handles:
    * - Safe plugin access with try-catch (AC1: no errors when plugin unavailable)
    * - Race condition prevention via stable callback (AC2)
    * - Full play/pause/stop lifecycle (AC7)
    * - Memory leak prevention via cleanup (AC11)
    * - Method validation before calling (AC10)
-   * 
+   *
    * This effect manages autoplay plugin initialization and cleanup.
    * It handles cases where plugins are re-initialized dynamically (React 19, Strict Mode)
    * or when data loads asynchronously.

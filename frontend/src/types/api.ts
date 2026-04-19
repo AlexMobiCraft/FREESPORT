@@ -12,13 +12,13 @@ export interface User {
   last_name: string;
   phone: string;
   role:
-  | 'retail'
-  | 'wholesale_level1'
-  | 'wholesale_level2'
-  | 'wholesale_level3'
-  | 'trainer'
-  | 'federation_rep'
-  | 'admin';
+    | 'retail'
+    | 'wholesale_level1'
+    | 'wholesale_level2'
+    | 'wholesale_level3'
+    | 'trainer'
+    | 'federation_rep'
+    | 'admin';
   company_name?: string;
   tax_id?: string;
   is_verified?: boolean;
@@ -101,24 +101,6 @@ export interface Cart {
   total_amount: number;
   promo_code?: string;
   discount_amount?: number;
-}
-
-export interface Order {
-  id: number;
-  order_number: string;
-  status: 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
-  items: Array<{
-    id: number;
-    product_snapshot: {
-      name: string;
-      price: number;
-    };
-    quantity: number;
-    price: number;
-  }>;
-  total_amount: number;
-  created_at: string;
-  updated_at: string;
 }
 
 export interface Category {

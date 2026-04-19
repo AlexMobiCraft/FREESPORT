@@ -36,7 +36,7 @@ const mockOrder: Order = {
   items: [
     {
       id: 1,
-      product: 101,
+      product: { id: 101, name: 'Кроссовки Nike Air Max' },
       product_name: 'Кроссовки Nike Air Max',
       product_sku: 'NIKE-AM-001',
       quantity: 2,
@@ -47,7 +47,7 @@ const mockOrder: Order = {
     },
     {
       id: 2,
-      product: 102,
+      product: { id: 102, name: 'Футболка Adidas' },
       product_name: 'Футболка Adidas',
       product_sku: 'ADIDAS-TS-001',
       quantity: 1,
@@ -61,6 +61,12 @@ const mockOrder: Order = {
   total_items: 3,
   calculated_total: '15000.00',
   can_be_cancelled: true,
+  // Story 34-1/34-2: поля 1С и VAT-split
+  sent_to_1c: false,
+  sent_to_1c_at: null,
+  status_1c: '',
+  is_master: true,
+  vat_group: null,
 };
 
 describe('OrderSuccessView', () => {
@@ -269,6 +275,18 @@ describe('OrderSuccessView', () => {
       expect(screen.getByText('Самовывоз')).toBeInTheDocument();
     });
 
+    it('должен локализовать transport_company (Story 34-2 regression)', () => {
+      const order: Order = { ...mockOrder, delivery_method: 'transport_company' };
+      render(<OrderSuccessView order={order} />);
+      expect(screen.getByText('Транспортная компания')).toBeInTheDocument();
+    });
+
+    it('должен локализовать transport_schedule (Story 34-2 regression)', () => {
+      const order: Order = { ...mockOrder, delivery_method: 'transport_schedule' };
+      render(<OrderSuccessView order={order} />);
+      expect(screen.getByText('Доставка по расписанию')).toBeInTheDocument();
+    });
+
     it('должен обрабатывать строковые Decimal значения', () => {
       const orderWithStringDecimals: Order = {
         ...mockOrder,
@@ -276,7 +294,7 @@ describe('OrderSuccessView', () => {
         items: [
           {
             id: 1,
-            product: 101,
+            product: { id: 101, name: 'Тестовый товар' },
             product_name: 'Тестовый товар',
             product_sku: 'TEST-001',
             quantity: 1,

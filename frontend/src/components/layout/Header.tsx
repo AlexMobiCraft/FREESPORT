@@ -101,10 +101,11 @@ const Header: React.FC = () => {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`relative text-body-m font-medium transition-colors duration-short ${isActivePage(item.href)
-                  ? "text-primary after:content-[''] after:absolute after:bottom-[-4px] after:left-0 after:right-0 after:h-[3px] after:bg-primary after:rounded-full"
-                  : 'text-text-primary hover:text-text-secondary'
-                  }`}
+                className={`relative text-body-m font-medium transition-colors duration-short ${
+                  isActivePage(item.href)
+                    ? "text-primary after:content-[''] after:absolute after:bottom-[-4px] after:left-0 after:right-0 after:h-[3px] after:bg-primary after:rounded-full"
+                    : 'text-text-primary hover:text-text-secondary'
+                }`}
               >
                 {item.label}
               </Link>
@@ -127,6 +128,7 @@ const Header: React.FC = () => {
               {/* Избранное */}
               <Link
                 href="/profile/favorites"
+                prefetch={false}
                 aria-label="Избранное"
                 className="p-2 text-text-primary hover:text-text-secondary transition-colors duration-short focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-sm"
               >
@@ -160,6 +162,7 @@ const Header: React.FC = () => {
                   </span>
                   <Link
                     href="/profile"
+                    prefetch={false}
                     aria-label="Профиль"
                     className="p-2 text-text-primary hover:text-text-secondary transition-colors duration-short focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-sm"
                   >
@@ -212,10 +215,11 @@ const Header: React.FC = () => {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`block px-3 py-2 text-body-m font-medium rounded-sm transition-colors duration-short ${isActivePage(item.href)
-                    ? 'text-text-primary bg-neutral-200'
-                    : 'text-text-primary hover:text-text-secondary hover:bg-neutral-200'
-                    }`}
+                  className={`block px-3 py-2 text-body-m font-medium rounded-sm transition-colors duration-short ${
+                    isActivePage(item.href)
+                      ? 'text-text-primary bg-neutral-200'
+                      : 'text-text-primary hover:text-text-secondary hover:bg-neutral-200'
+                  }`}
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   {item.label}
@@ -242,6 +246,7 @@ const Header: React.FC = () => {
                       </Link>
                       <Link
                         href="/profile/favorites"
+                        prefetch={false}
                         onClick={() => setIsMobileMenuOpen(false)}
                         aria-label="Избранное"
                         className="p-2 text-text-primary hover:text-text-secondary transition-colors"
@@ -266,6 +271,7 @@ const Header: React.FC = () => {
                       </Link>
                       <Link
                         href="/profile"
+                        prefetch={false}
                         onClick={() => setIsMobileMenuOpen(false)}
                         aria-label="Профиль"
                         className="p-2 text-text-primary hover:text-text-secondary transition-colors"
@@ -299,6 +305,7 @@ const Header: React.FC = () => {
                       </Link>
                       <Link
                         href="/profile/favorites"
+                        prefetch={false}
                         onClick={() => setIsMobileMenuOpen(false)}
                         aria-label="Избранное"
                         className="p-2 text-text-primary hover:text-text-secondary transition-colors"

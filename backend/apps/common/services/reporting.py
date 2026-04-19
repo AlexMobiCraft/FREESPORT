@@ -29,7 +29,7 @@ class SyncReportGenerator:
         Returns:
             Словарь с данными отчета
         """
-        target_date = target_date or timezone.now().date()
+        target_date = target_date or timezone.localdate()
         logs = CustomerSyncLog.objects.filter(created_at__date=target_date)
 
         # Основная статистика
@@ -85,7 +85,7 @@ class SyncReportGenerator:
             Словарь с данными анализа ошибок
         """
         if start_date is None:
-            start_date = (timezone.now() - timedelta(days=7)).date()
+            start_date = (timezone.localtime() - timedelta(days=7)).date()
 
         end_date = start_date + timedelta(days=7)
 

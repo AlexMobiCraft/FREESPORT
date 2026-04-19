@@ -268,6 +268,10 @@ DATA_UPLOAD_MAX_NUMBER_FIELDS = 5000
 # Поддерживает переменную окружения ONEC_DATA_DIR
 ONEC_DATA_DIR = os.environ.get("ONEC_DATA_DIR", str(BASE_DIR / "data" / "import_1c"))
 
+# Имя корневой категории 1С для фильтрации при импорте
+# Подкатегории этой категории импортируются как корневые на сайте
+ROOT_CATEGORY_NAME = os.environ.get("ROOT_CATEGORY_NAME", "СПОРТ")
+
 if sys.version_info >= (3, 8):
     from typing import TypedDict
 
@@ -287,6 +291,50 @@ ONEC_EXCHANGE = {
     "COMMERCEML_VERSION": "3.1",  # CommerceML protocol version
     "TEMP_DIR": MEDIA_ROOT / "1c_temp",  # Temporary directory for chunked uploads
     "IMPORT_DIR": MEDIA_ROOT / "1c_import",  # Story 2.2: Directory for routed import files
+    # Реквизиты заказа для УТ 11 (фиксированные значения — операция и статус)
+    "ORDER_DEFAULTS": {
+        "OPERATION": "Реализация",
+        "STATUS": "Не согласован",
+        # Организация, Склад и Соглашение определяются динамически
+        # через ORGANIZATION_BY_VAT и DEFAULT_* ниже
+    },
+    # -------------------------------------------------------------------------
+    # Настройки экспорта заказов в 1С
+    # -------------------------------------------------------------------------
+    # Маппинг ставки НДС (int) → организация и склад
+    # Fallback для старых данных, где у варианта ещё нет warehouse_name
+    "ORGANIZATION_BY_VAT": {
+        22: {"name": "ИП Семерюк Д. В.", "warehouse": "1 СДВ склад"},
+        5: {"name": "ИП Терещенко Л.В.", "warehouse": "2 ТЛВ склад"},
+    },
+    # Основное правило: склад варианта -> организация + ставка НДС
+    "WAREHOUSE_RULES": {
+        "1 СДВ склад": {"organization": "ИП Семерюк Д. В.", "vat_rate": 22},
+        "2 ТЛВ склад": {"organization": "ИП Терещенко Л.В.", "vat_rate": 5},
+    },
+    # Маппинг GUID склада из rests.xml -> имя склада из storages.xml
+    "WAREHOUSE_NAME_BY_ID": {
+        "8f06f4f1-b3f0-11ea-81c3-00155d3cae02": "1 СДВ склад",
+        "b41f7acc-58e5-11f0-90b3-fa163ea88911": "2 ТЛВ склад",
+    },
+    # Значения по умолчанию (используются если vat_rate не задан у варианта)
+    "DEFAULT_VAT_RATE": 22,
+    "DEFAULT_ORGANIZATION": "ИП Семерюк Д. В.",
+    "DEFAULT_WAREHOUSE": "1 СДВ склад",
+    # Соглашение и действие строки — фиксированные значения
+    "DEFAULT_AGREEMENT": "Стандартное",
+    "DEFAULT_ITEM_ACTION": "Резервировать",
+    # Маппинг роли покупателя → вид цены в 1С
+    "PRICE_TYPE_BY_ROLE": {
+        "retail": "РРЦ",
+        "wholesale_level1": "Опт 1 (300-600 тыс.руб в квартал)",
+        "wholesale_level2": "Опт 2 (150-300 тыс.руб в квартал)",
+        "wholesale_level3": "Опт 3 (50-150 тыс.руб в квартал)",
+        "trainer": "Тренерская",
+        "federation_rep": "Партнер",
+        "admin": "РРЦ",
+    },
+    "DEFAULT_PRICE_TYPE": "РРЦ",
 }
 
 # Тип первичного ключа по умолчанию

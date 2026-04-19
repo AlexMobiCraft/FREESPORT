@@ -1,17 +1,21 @@
 /**
  * PromoCodeInput Component Tests
  *
+ * Story 34-2: синхронизировано с server-authoritative promo contract.
+ * PromoCodeInput сохраняет код в store (pending) и не обещает скидку до оформления.
+ *
  * Покрытие:
  * - Feature flag (компонент скрывается если disabled)
  * - Рендеринг input и кнопки
  * - Валидация формата (минимум 4 символа, буквы и цифры)
- * - Успешное применение промокода
- * - Ошибка (невалидный код)
- * - Удаление примененного промокода
- * - Loading state
+ * - Сохранение кода в store + toast «Промокод принят — скидка будет рассчитана при оформлении»
+ * - Pending state: текст «будет проверен при оформлении» (не «применён»)
+ * - Удаление pending-кода
+ * - Keyboard Interaction
  * - Accessibility
  *
  * @see Story 26.4: Promo Code Integration
+ * @see Story 34-2: server-authoritative discount contract
  */
 
 import React from 'react';
@@ -19,16 +23,6 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import PromoCodeInput from '../PromoCodeInput';
 import { useCartStore } from '@/stores/cartStore';
-import promoService from '@/services/promoService';
-
-// Mock promoService
-vi.mock('@/services/promoService', () => ({
-  default: {
-    applyPromo: vi.fn(),
-    clearPromo: vi.fn(),
-    validateFormat: vi.fn((code: string) => /^[A-Z0-9]{4,}$/i.test(code)),
-  },
-}));
 
 // Mock react-hot-toast
 vi.mock('react-hot-toast', () => ({
@@ -74,7 +68,6 @@ describe('PromoCodeInput', () => {
       setPromoEnabled(false);
       const { container } = render(<PromoCodeInput />);
 
-      // Ждём mount
       await waitFor(() => {
         expect(container.firstChild).toBeNull();
       });
@@ -168,49 +161,9 @@ describe('PromoCodeInput', () => {
     });
   });
 
-  // ================== Успешное применение ==================
-  describe('Apply Success', () => {
-    it('applies promo code successfully and shows toast', async () => {
-      const mockApplyPromo = vi.mocked(promoService.applyPromo);
-      mockApplyPromo.mockResolvedValueOnce({
-        success: true,
-        code: 'SAVE10',
-        discount_type: 'percent',
-        discount_value: 10,
-      });
-
-      const toast = await import('react-hot-toast');
-
-      render(<PromoCodeInput />);
-
-      await waitFor(() => {
-        expect(screen.getByTestId('promo-code-input')).toBeInTheDocument();
-      });
-
-      const input = screen.getByTestId('promo-code-input');
-      const button = screen.getByTestId('apply-promo-button');
-
-      fireEvent.change(input, { target: { value: 'SAVE10' } });
-      fireEvent.click(button);
-
-      await waitFor(() => {
-        expect(mockApplyPromo).toHaveBeenCalledWith('SAVE10', 5000);
-      });
-
-      await waitFor(() => {
-        expect(toast.default.success).toHaveBeenCalledWith('Промокод применён');
-      });
-    });
-
-    it('updates store with promo data on success', async () => {
-      const mockApplyPromo = vi.mocked(promoService.applyPromo);
-      mockApplyPromo.mockResolvedValueOnce({
-        success: true,
-        code: 'SAVE10',
-        discount_type: 'percent',
-        discount_value: 10,
-      });
-
+  // ================== Pending state (Story 34-2 contract) ==================
+  describe('[Story 34-2] Pending state — не обещает скидку', () => {
+    it('stores promo code in cart store when applied', async () => {
       render(<PromoCodeInput />);
 
       await waitFor(() => {
@@ -226,23 +179,59 @@ describe('PromoCodeInput', () => {
       await waitFor(() => {
         const state = useCartStore.getState();
         expect(state.promoCode).toBe('SAVE10');
+      });
+    });
+
+    it('shows pending toast (not success-applied) when code is entered', async () => {
+      const toast = await import('react-hot-toast');
+
+      render(<PromoCodeInput />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('promo-code-input')).toBeInTheDocument();
+      });
+
+      const input = screen.getByTestId('promo-code-input');
+      const button = screen.getByTestId('apply-promo-button');
+
+      fireEvent.change(input, { target: { value: 'SAVE10' } });
+      fireEvent.click(button);
+
+      await waitFor(() => {
+        expect(toast.default.success).toHaveBeenCalledWith(
+          'Промокод принят — скидка будет рассчитана при оформлении'
+        );
+      });
+
+      // [Story 34-2] НЕ должно быть старого успешного тоста «применён»
+      expect(toast.default.success).not.toHaveBeenCalledWith('Промокод применён');
+    });
+
+    it('does NOT store discountType or discountValue from client side', async () => {
+      render(<PromoCodeInput />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('promo-code-input')).toBeInTheDocument();
+      });
+
+      const input = screen.getByTestId('promo-code-input');
+      const button = screen.getByTestId('apply-promo-button');
+
+      fireEvent.change(input, { target: { value: 'SAVE10' } });
+      fireEvent.click(button);
+
+      await waitFor(() => {
+        const state = useCartStore.getState();
+        // Verify state actually changed (promoCode is set — proves applyPromo was called)
+        expect(state.promoCode).toBe('SAVE10');
+        // Stub: discountValue = 0, скидка не применяется клиентом до сервера
+        expect(state.discountValue).toBe(0);
+        // [Story 34-2] discountType = 'percent' (stub, server-authoritative pending)
         expect(state.discountType).toBe('percent');
-        expect(state.discountValue).toBe(10);
       });
     });
-  });
 
-  // ================== Ошибка применения ==================
-  describe('Apply Error', () => {
-    it('shows error toast when promo code is invalid', async () => {
-      const mockApplyPromo = vi.mocked(promoService.applyPromo);
-      mockApplyPromo.mockResolvedValueOnce({
-        success: false,
-        error: 'Промокод недействителен',
-      });
-
-      const toast = await import('react-hot-toast');
-
+    it('accepts promo code with leading/trailing spaces (trims before validate)', async () => {
       render(<PromoCodeInput />);
 
       await waitFor(() => {
@@ -252,64 +241,67 @@ describe('PromoCodeInput', () => {
       const input = screen.getByTestId('promo-code-input');
       const button = screen.getByTestId('apply-promo-button');
 
-      fireEvent.change(input, { target: { value: 'INVALID' } });
+      // Simulate paste with spaces: handleChange -> toUpperCase() keeps spaces
+      fireEvent.change(input, { target: { value: ' SAVE10 ' } });
+
+      // Button is enabled because code.trim() has length >= 4
+      expect(button).not.toBeDisabled();
+
       fireEvent.click(button);
 
       await waitFor(() => {
-        expect(toast.default.error).toHaveBeenCalledWith('Промокод недействителен');
+        const state = useCartStore.getState();
+        // Trimmed code is stored, not the raw value with spaces
+        expect(state.promoCode).toBe('SAVE10');
+        // [Story 34-2 Patch 7] store trim regression: promoCode не должен содержать пробелы
+        expect(state.promoCode).not.toContain(' ');
       });
     });
 
-    it('shows error toast when promo code is expired', async () => {
-      const mockApplyPromo = vi.mocked(promoService.applyPromo);
-      mockApplyPromo.mockResolvedValueOnce({
-        success: false,
-        error: 'Срок действия промокода истёк',
-      });
-
-      const toast = await import('react-hot-toast');
-
-      render(<PromoCodeInput />);
-
-      await waitFor(() => {
-        expect(screen.getByTestId('promo-code-input')).toBeInTheDocument();
-      });
-
-      const input = screen.getByTestId('promo-code-input');
-      const button = screen.getByTestId('apply-promo-button');
-
-      fireEvent.change(input, { target: { value: 'EXPIRED' } });
-      fireEvent.click(button);
-
-      await waitFor(() => {
-        expect(toast.default.error).toHaveBeenCalledWith('Срок действия промокода истёк');
-      });
-    });
-  });
-
-  // ================== Удаление промокода ==================
-  describe('Clear Promo', () => {
-    it('shows applied state when promo is active', async () => {
-      // Устанавливаем примененный промокод в store
+    it('shows pending text (not applied text) in pending state', async () => {
       useCartStore.setState({
         promoCode: 'SAVE10',
         discountType: 'percent',
-        discountValue: 10,
+        discountValue: 0,
       });
 
       render(<PromoCodeInput />);
 
       await waitFor(() => {
         expect(screen.getByTestId('applied-promo-code')).toBeInTheDocument();
-        expect(screen.getByText(/SAVE10 применён/)).toBeInTheDocument();
       });
-    });
 
-    it('shows clear button when promo is applied', async () => {
+      const pendingEl = screen.getByTestId('applied-promo-code');
+      // [Story 34-2] должен показывать «будет проверен», НЕ «применён»
+      expect(pendingEl.textContent).toContain('будет проверен при оформлении');
+      expect(pendingEl.textContent).not.toContain('применён');
+      expect(pendingEl.textContent).not.toContain('✓');
+    });
+  });
+
+  // ================== Удаление промокода ==================
+  describe('Clear Promo', () => {
+    it('shows pending state when promo code is set', async () => {
       useCartStore.setState({
         promoCode: 'SAVE10',
         discountType: 'percent',
-        discountValue: 10,
+        discountValue: 0,
+      });
+
+      render(<PromoCodeInput />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('applied-promo-code')).toBeInTheDocument();
+        // [Story 34-2] shows pending text, not success text
+        expect(screen.getByText(/будет проверен при оформлении/)).toBeInTheDocument();
+      });
+    });
+
+    it('shows clear button when promo code is set', async () => {
+      useCartStore.setState({
+        promoCode: 'SAVE10',
+        discountType: 'percent',
+        discountValue: 0,
       });
 
       render(<PromoCodeInput />);
@@ -323,7 +315,7 @@ describe('PromoCodeInput', () => {
       useCartStore.setState({
         promoCode: 'SAVE10',
         discountType: 'percent',
-        discountValue: 10,
+        discountValue: 0,
       });
 
       const toast = await import('react-hot-toast');
@@ -345,57 +337,10 @@ describe('PromoCodeInput', () => {
     });
   });
 
-  // ================== Loading State ==================
-  describe('Loading State', () => {
-    it('shows loading spinner when applying promo', async () => {
-      const mockApplyPromo = vi.mocked(promoService.applyPromo);
-      mockApplyPromo.mockImplementation(
-        () => new Promise(resolve => setTimeout(() => resolve({ success: false }), 100))
-      );
-
-      render(<PromoCodeInput />);
-
-      await waitFor(() => {
-        expect(screen.getByTestId('promo-code-input')).toBeInTheDocument();
-      });
-
-      const input = screen.getByTestId('promo-code-input');
-      const button = screen.getByTestId('apply-promo-button');
-
-      fireEvent.change(input, { target: { value: 'SAVE10' } });
-      fireEvent.click(button);
-
-      expect(screen.getByText('Проверка')).toBeInTheDocument();
-      expect(button).toBeDisabled();
-    });
-
-    it('disables input during loading', async () => {
-      const mockApplyPromo = vi.mocked(promoService.applyPromo);
-      mockApplyPromo.mockImplementation(
-        () => new Promise(resolve => setTimeout(() => resolve({ success: false }), 100))
-      );
-
-      render(<PromoCodeInput />);
-
-      await waitFor(() => {
-        expect(screen.getByTestId('promo-code-input')).toBeInTheDocument();
-      });
-
-      const input = screen.getByTestId('promo-code-input');
-      const button = screen.getByTestId('apply-promo-button');
-
-      fireEvent.change(input, { target: { value: 'SAVE10' } });
-      fireEvent.click(button);
-
-      expect(input).toBeDisabled();
-    });
-  });
-
   // ================== Keyboard Interaction ==================
   describe('Keyboard Interaction', () => {
-    it('triggers apply on Enter key press', async () => {
-      const mockApplyPromo = vi.mocked(promoService.applyPromo);
-      mockApplyPromo.mockResolvedValueOnce({ success: false });
+    it('stores code and shows pending toast on Enter key press', async () => {
+      const toast = await import('react-hot-toast');
 
       render(<PromoCodeInput />);
 
@@ -409,7 +354,9 @@ describe('PromoCodeInput', () => {
       fireEvent.keyDown(input, { key: 'Enter' });
 
       await waitFor(() => {
-        expect(mockApplyPromo).toHaveBeenCalled();
+        expect(toast.default.success).toHaveBeenCalledWith(
+          'Промокод принят — скидка будет рассчитана при оформлении'
+        );
       });
     });
   });
@@ -431,7 +378,7 @@ describe('PromoCodeInput', () => {
       useCartStore.setState({
         promoCode: 'SAVE10',
         discountType: 'percent',
-        discountValue: 10,
+        discountValue: 0,
       });
 
       render(<PromoCodeInput />);
@@ -442,39 +389,6 @@ describe('PromoCodeInput', () => {
 
       const clearButton = screen.getByTestId('clear-promo-button');
       expect(clearButton).toHaveAttribute('aria-label', 'Удалить промокод');
-    });
-  });
-
-  // ================== Min Order Amount ==================
-  describe('Min Order Amount', () => {
-    it('shows error for SAVE20 when cart total is below minimum', async () => {
-      useCartStore.setState({ totalPrice: 3000 }); // Меньше 5000
-
-      const mockApplyPromo = vi.mocked(promoService.applyPromo);
-      mockApplyPromo.mockResolvedValueOnce({
-        success: false,
-        error: 'Минимальная сумма заказа для этого промокода: 5000₽',
-      });
-
-      const toast = await import('react-hot-toast');
-
-      render(<PromoCodeInput />);
-
-      await waitFor(() => {
-        expect(screen.getByTestId('promo-code-input')).toBeInTheDocument();
-      });
-
-      const input = screen.getByTestId('promo-code-input');
-      const button = screen.getByTestId('apply-promo-button');
-
-      fireEvent.change(input, { target: { value: 'SAVE20' } });
-      fireEvent.click(button);
-
-      await waitFor(() => {
-        expect(toast.default.error).toHaveBeenCalledWith(
-          'Минимальная сумма заказа для этого промокода: 5000₽'
-        );
-      });
     });
   });
 });

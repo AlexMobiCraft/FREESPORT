@@ -80,6 +80,18 @@ class Banner(models.Model):
             help_text="Рекомендуемый размер: 1920×600px",
         ),
     )
+    mobile_image = cast(
+        models.ImageField,
+        models.ImageField(
+            "Мобильное изображение",
+            upload_to="promos/%Y/%m/",
+            blank=True,
+            help_text=(
+                "Изображение для мобильных устройств (21:9, рекомендуемый размер: 1260×540px). "
+                "Если не загружено — используется основное."
+            ),
+        ),
+    )
     image_alt = cast(
         str,
         models.CharField(

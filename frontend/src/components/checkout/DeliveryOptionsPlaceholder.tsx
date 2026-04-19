@@ -30,7 +30,7 @@ export function DeliveryOptionsPlaceholder({ form }: DeliveryOptionsPlaceholderP
   const deliveryOptions = [
     { id: 'courier', label: 'Курьерская доставка', description: 'Доставка до двери' },
     { id: 'pickup', label: 'Самовывоз', description: 'Забрать из пункта выдачи' },
-    { id: 'transport', label: 'Транспортная компания', description: 'Отправка ТК' },
+    { id: 'transport_company', label: 'Транспортная компания', description: 'Отправка ТК' },
   ];
 
   return (

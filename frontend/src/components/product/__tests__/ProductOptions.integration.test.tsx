@@ -453,8 +453,6 @@ describe('ProductOptions Integration (Story 13.5b)', () => {
 
       // Должен отображаться артикул выбранного варианта
       expect(screen.getAllByText('SIMPLE-VARIANT').length).toBeGreaterThan(0);
-
-
     });
   });
 });

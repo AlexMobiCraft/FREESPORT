@@ -17,9 +17,14 @@ export type OrderStatus =
 
 /**
  * Способ доставки (backend возвращает строку-код)
- * pickup | courier | post | transport
+ * pickup | courier | post | transport_company | transport_schedule
  */
-export type DeliveryMethodCode = 'pickup' | 'courier' | 'post' | 'transport_company';
+export type DeliveryMethodCode =
+  | 'pickup'
+  | 'courier'
+  | 'post'
+  | 'transport_company'
+  | 'transport_schedule';
 
 /**
  * Адрес доставки (backend возвращает как строку)
@@ -45,11 +50,20 @@ export interface OrderItemVariant {
 }
 
 /**
+ * Вложенный объект товара в элементе заказа (depth=1 в OrderItemSerializer).
+ * Содержит минимальный набор полей Product, используемых в клиентском коде.
+ */
+export interface OrderItemProduct {
+  id: number;
+  name: string;
+}
+
+/**
  * Элемент заказа (контракт backend OrderItemSerializer)
  */
 export interface OrderItem {
   id: number;
-  product: number; // product ID
+  product: OrderItemProduct; // nested product object (depth=1 в сериализаторе)
   variant: OrderItemVariant | null; // variant object (depth=1 в сериализаторе)
   product_name: string;
   product_sku: string;
@@ -82,6 +96,12 @@ export interface Order {
   payment_status: string;
   payment_id: string;
   notes: string;
+  // Story 34-1/34-2: поля 1С и VAT-split (OrderDetailSerializer)
+  sent_to_1c: boolean;
+  sent_to_1c_at: string | null;
+  status_1c: string;
+  is_master: boolean;
+  vat_group: string | null;
   created_at: string;
   updated_at: string;
   items: OrderItem[];
@@ -97,15 +117,14 @@ export interface Order {
 export type CreateOrderResponse = Order;
 
 /**
- * Payload для создания заказа
- * Маппится из CheckoutFormData + CartItem[]
+ * Payload для создания заказа (контракт OrderCreateSerializer)
+ * Маппится из CheckoutFormData; backend строит заказ из server-side корзины.
  */
 export interface CreateOrderPayload {
-  // Контактные данные
-  email: string;
-  phone: string;
-  first_name: string;
-  last_name: string;
+  // Контактные данные (соответствуют полям модели Order)
+  customer_email: string;
+  customer_phone: string;
+  customer_name: string; // "FirstName LastName"
 
   // Адрес доставки
   delivery_address: string;
@@ -116,14 +135,38 @@ export interface CreateOrderPayload {
   // Способ оплаты
   payment_method: string;
 
-  // Товары из корзины (используем variant_id из cartStore)
-  items: Array<{
-    variant_id: number;
-    quantity: number;
-  }>;
+  // Комментарий (поле notes на модели)
+  notes?: string;
 
-  // Комментарий
-  comment?: string;
+  // @deprecated Поле backward-compatible; сервер всегда устанавливает discount_amount=0
+  // (promo-система не реализована). Поле принимается, но игнорируется backend.
+  // Используй promo_code для передачи промо-кода; скидка будет вычислена сервером.
+  discount_amount?: string;
+
+  // Промо-код (stub Story 34-2 [Review][Patch]): принимается сервером, discount пока всегда 0.
+  // Когда promo-система появится, backend будет проверять код и вычислять скидку.
+  promo_code?: string | null;
+}
+
+/**
+ * Ответ GET /api/v1/orders/ — контракт OrderListSerializer.
+ * Узкий набор полей (без items, delivery_cost и т.д.).
+ */
+export interface OrderListItem {
+  id: number;
+  user: number | null;
+  order_number: string;
+  customer_display_name: string;
+  status: OrderStatus;
+  total_amount: string;
+  delivery_method: DeliveryMethodCode;
+  payment_method: string;
+  payment_status: string;
+  is_master: boolean;
+  vat_group: string | null;
+  sent_to_1c: boolean;
+  created_at: string;
+  total_items: number;
 }
 
 /**

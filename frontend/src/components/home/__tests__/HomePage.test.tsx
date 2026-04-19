@@ -9,18 +9,32 @@ import type { Brand } from '@/types/api';
 
 // Mock all section components as simple divs with data-testid
 vi.mock('../HeroSection', () => ({ default: () => <div data-testid="hero-section" /> }));
-vi.mock('../QuickLinksSection', () => ({ QuickLinksSection: () => <div data-testid="quick-links-section" /> }));
-vi.mock('../MarketingBannersSection', () => ({ MarketingBannersSection: () => <div data-testid="marketing-banners-section" /> }));
-vi.mock('../CategoriesSection', () => ({ CategoriesSection: () => <div data-testid="categories-section" /> }));
+vi.mock('../QuickLinksSection', () => ({
+  QuickLinksSection: () => <div data-testid="quick-links-section" />,
+}));
+vi.mock('../MarketingBannersSection', () => ({
+  MarketingBannersSection: () => <div data-testid="marketing-banners-section" />,
+}));
+vi.mock('../CategoriesSection', () => ({
+  CategoriesSection: () => <div data-testid="categories-section" />,
+}));
 vi.mock('../HitsSection', () => ({ HitsSection: () => <div data-testid="hits-section" /> }));
-vi.mock('../NewArrivalsSection', () => ({ NewArrivalsSection: () => <div data-testid="new-arrivals-section" /> }));
+vi.mock('../NewArrivalsSection', () => ({
+  NewArrivalsSection: () => <div data-testid="new-arrivals-section" />,
+}));
 vi.mock('../PromoSection', () => ({ PromoSection: () => <div data-testid="promo-section" /> }));
 vi.mock('../SaleSection', () => ({ SaleSection: () => <div data-testid="sale-section" /> }));
 vi.mock('../NewsSection', () => ({ NewsSection: () => <div data-testid="news-section" /> }));
 vi.mock('../BlogSection', () => ({ BlogSection: () => <div data-testid="blog-section" /> }));
-vi.mock('../SubscribeNewsSection', () => ({ SubscribeNewsSection: () => <div data-testid="subscribe-section" /> }));
-vi.mock('../WhyFreesportSection', () => ({ WhyFreesportSection: () => <div data-testid="why-section" /> }));
-vi.mock('../DeliveryTeaser', () => ({ DeliveryTeaser: () => <div data-testid="delivery-section" /> }));
+vi.mock('../SubscribeNewsSection', () => ({
+  SubscribeNewsSection: () => <div data-testid="subscribe-section" />,
+}));
+vi.mock('../WhyFreesportSection', () => ({
+  WhyFreesportSection: () => <div data-testid="why-section" />,
+}));
+vi.mock('../DeliveryTeaser', () => ({
+  DeliveryTeaser: () => <div data-testid="delivery-section" />,
+}));
 vi.mock('../AboutTeaser', () => ({ AboutTeaser: () => <div data-testid="about-section" /> }));
 vi.mock('@/components/business/home/BrandsBlock', () => ({
   BrandsBlock: ({ brands }: { brands: Brand[] }) => (
@@ -29,8 +43,24 @@ vi.mock('@/components/business/home/BrandsBlock', () => ({
 }));
 
 const mockBrands: Brand[] = [
-  { id: 1, name: 'Nike', slug: 'nike', image: '/media/brands/nike.png', description: null, website: null, is_featured: true },
-  { id: 2, name: 'Adidas', slug: 'adidas', image: '/media/brands/adidas.png', description: null, website: null, is_featured: true },
+  {
+    id: 1,
+    name: 'Nike',
+    slug: 'nike',
+    image: '/media/brands/nike.png',
+    description: null,
+    website: null,
+    is_featured: true,
+  },
+  {
+    id: 2,
+    name: 'Adidas',
+    slug: 'adidas',
+    image: '/media/brands/adidas.png',
+    description: null,
+    website: null,
+    is_featured: true,
+  },
 ];
 
 describe('HomePage', () => {

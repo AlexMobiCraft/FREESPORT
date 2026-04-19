@@ -213,6 +213,42 @@ class Product(models.Model):
     onec_id = models.CharField(max_length=100, blank=True, unique=True, null=True) # ID из offers.xml
     parent_onec_id = models.CharField(max_length=50, blank=True, null=True) # ID из goods.xml для связи
     last_sync_from_1c = models.DateTimeField(blank=True, null=True)
+
+# Модель варианта товара (ProductVariant)
+# Хранит SKU-уровень: размер, цвет, цены, остаток, данные склада и НДС.
+class ProductVariant(models.Model):
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='variants')
+    sku = models.CharField(max_length=100, unique=True)
+    onec_id = models.CharField(max_length=100, blank=True, unique=True, null=True)
+
+    # Ценообразование
+    retail_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    # ... (opt1_price, opt2_price, opt3_price, trainer_price, federation_price)
+
+    # НДС
+    vat_rate = models.DecimalField(
+        "Ставка НДС (%)", max_digits=5, decimal_places=2, null=True, blank=True,
+        help_text=(
+            "Ставка НДС в % (22 — импортные товары ИП Семерюк, "
+            "5 — российские товары ИП Терещенко). "
+            "Заполняется при импорте из 1С: сначала из <СтавкаНДС> в goods.xml, "
+            "затем переопределяется по складу из rests.xml через WAREHOUSE_RULES."
+        ),
+    )
+
+    # Склад (заполняется при импорте остатков из rests.xml)
+    warehouse_id = models.CharField(
+        "Идентификатор склада 1С", max_length=64, null=True, blank=True, db_index=True,
+        help_text="GUID склада из rests.xml, по которому определяется организация и ставка НДС",
+    )
+    warehouse_name = models.CharField(
+        "Склад", max_length=255, null=True, blank=True,
+        help_text="Человекочитаемое имя склада 1С, например '1 СДВ склад'",
+    )
+
+    # Остатки
+    stock_quantity = models.PositiveIntegerField("Количество на складе", default=0, db_index=True)
+    last_sync_at = models.DateTimeField(null=True, blank=True)
     
     # Системные поля
     created_at = models.DateTimeField(auto_now_add=True)

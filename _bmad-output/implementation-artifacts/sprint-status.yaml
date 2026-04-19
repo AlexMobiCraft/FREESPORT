@@ -35,6 +35,7 @@ project: "FREESPORT"
 project_key: "1C-HTTP-EXCHANGE"
 tracking_system: "file-system"
 story_location: "{project-root}/_bmad-output/implementation-artifacts"
+last_updated: "2026-04-19"  # Story 34-3 создана (bmad-create-story) → ready-for-dev
 
 development_status:
   # ========================================
@@ -112,9 +113,23 @@ development_status:
   # NFRs covered: NFR-1 to NFR-8.
   # Source: epics.md (Brands Block Feature)
   # ========================================
-  epic-33: in-progress
+  epic-33: done
   33-1-brand-model-admin-updates: done
   33-2-api-featured-brands-endpoint: done
   33-3-brandsblock-component-logic-ui: done
   33-4-integration-into-homepage: done
   epic-33-retrospective: optional
+
+  # ========================================
+  # Epic 34: Разбивка заказов по ставке НДС
+  # Goal: Обеспечить корректное создание и экспорт заказов с товарами разных ставок НДС,
+  #       с поддержкой независимых статусов субзаказов из 1С.
+  # FRs covered: разбивка Order на master/sub по vat_group, экспорт субзаказов, агрегация статусов
+  # Source: sprint-change-proposal-2026-04-16.md
+  # ========================================
+  epic-34: in-progress
+  34-1-order-model-vat-split-fields-migrations: done
+  34-2-sub-order-creation-logic-and-api: done
+  34-3-order-export-service-sub-orders: review
+  34-4-order-status-import-aggregation: backlog
+  34-5-tests-update-epics-4-5: backlog

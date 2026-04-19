@@ -5,13 +5,15 @@
 
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState, Suspense } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useState, Suspense } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import Button from '@/components/ui/Button';
 import { Checkbox } from '@/components/ui/Checkbox';
 import { SearchAutocomplete } from '@/components/business/SearchAutocomplete';
-import { Grid2x2, List } from 'lucide-react';
+import { Skeleton } from '@/components/ui/Skeleton';
+import { Grid2x2, List, ChevronDown } from 'lucide-react';
+import { cn } from '@/utils/cn';
 import { ProductCard as BusinessProductCard } from '@/components/business/ProductCard/ProductCard';
 import productsService, { type ProductFilters } from '@/services/productsService';
 import categoriesService from '@/services/categoriesService';
@@ -50,71 +52,27 @@ const PRICE_STEP = 500;
 const PAGE_SIZE = 12;
 const MAX_VISIBLE_PAGES = 5;
 const DEFAULT_ORDERING = 'name';
-const DEFAULT_CATEGORY_LABEL = 'Спорт';
 
-const CATEGORY_ICON_MAP: Record<string, string> = {
-  sport: '🏃',
-  спорт: '🏃',
-  tourism: '🥾',
-  туризм: '🥾',
-  fitness: '💪',
-  фитнес: '💪',
-  'фитнес и атлетика': '💪',
-  swimming: '🏊',
-  плавание: '🏊',
-  games: '⚽',
-  'спортивные игры': '⚽',
-  martial: '🥊',
-  единоборства: '🥊',
-  gymnastics: '🤸',
-  гимнастика: '🤸',
-  apparel: '👕',
-  'одежда спортивная': '👕',
-  transport: '🚲',
-  'детский транспорт': '🚲',
-};
+// Константы анимации фильтров (F2, F5, F6)
+const FILTER_ANIMATION_DURATION = 'duration-[180ms]';
+const CATEGORY_MAX_HEIGHT = 'max-h-[1000px]'; // ~40 категорий × 24px + padding
+const BRANDS_MAX_HEIGHT = 'max-h-[500px]'; // ~20 брендов × 24px + padding
+const DESKTOP_BREAKPOINT = '(min-width: 1024px)'; // Синхронизировано с Tailwind lg:
+
+// useLayoutEffect безопасен только на клиенте; на сервере fallback на useEffect (F1)
+const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
 const getNodeKey = (path: number[]) => path.join(' > ');
 
-const getIconForCategory = (name: string, slug?: string) => {
-  const normalizedSlug = slug
-    ?.toLowerCase()
-    .replace(/[^a-z0-9\-а-яё]/gi, '')
-    .trim();
-  const normalizedName = name.toLowerCase();
-  if (normalizedSlug && CATEGORY_ICON_MAP[normalizedSlug]) {
-    return CATEGORY_ICON_MAP[normalizedSlug];
-  }
-  if (CATEGORY_ICON_MAP[normalizedName]) {
-    return CATEGORY_ICON_MAP[normalizedName];
-  }
-  return undefined;
-};
-
 const mapCategoryTreeNode = (node: CategoryTreeResponse): CategoryNode => ({
   id: node.id,
   label: node.name,
   slug: node.slug,
-  icon: getIconForCategory(node.name, node.slug),
+  icon: node.icon || undefined,
   children: node.children?.map(mapCategoryTreeNode),
 });
-
-const findCategoryByLabel = (nodes: CategoryNode[], targetLabel: string): CategoryNode | null => {
-  for (const node of nodes) {
-    if (node.label === targetLabel) {
-      return node;
-    }
-    if (node.children) {
-      const child = findCategoryByLabel(node.children, targetLabel);
-      if (child) {
-        return child;
-      }
-    }
-  }
-  return null;
-};
 
 const findCategoryBySlug = (nodes: CategoryNode[], targetSlug: string): CategoryNode | null => {
   for (const node of nodes) {
@@ -229,10 +187,10 @@ const PriceRangeSlider: React.FC<PriceRangeSliderProps> = ({ min, max, step, val
           height: 18px;
           width: 18px;
           border-radius: 50%;
-          background: #FF6B00;
-          border: 4px solid #FFE0B2;
-          background: #FF6600;
-          border: 4px solid #FFD6B3;
+          background: #ff6b00;
+          border: 4px solid #ffe0b2;
+          background: #ff6600;
+          border: 4px solid #ffd6b3;
           box-shadow: 0 2px 6px rgba(255, 102, 0, 0.35);
           cursor: pointer;
           margin-top: -9px;
@@ -242,8 +200,8 @@ const PriceRangeSlider: React.FC<PriceRangeSliderProps> = ({ min, max, step, val
           height: 18px;
           width: 18px;
           border-radius: 50%;
-          background: #FF6600;
-          border: 4px solid #FFD6B3;
+          background: #ff6600;
+          border: 4px solid #ffd6b3;
           box-shadow: 0 2px 6px rgba(255, 102, 0, 0.35);
           cursor: pointer;
         }
@@ -300,13 +258,20 @@ const CategoryTree: React.FC<{
                 type="button"
                 onClick={() => onSelect(node)}
                 className={
-                  'flex-1 rounded-lg px-2 py-1 text-left text-sm transition-colors ' +
+                  'flex-1 min-w-0 rounded-lg px-2 py-1 text-left text-sm transition-colors ' +
                   (isActive
                     ? 'bg-primary-subtle text-primary font-semibold'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900')
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900') +
+                  ' flex items-start gap-2'
                 }
               >
-                {node.label}
+                {node.icon &&
+                  (node.icon.startsWith('http') || node.icon.startsWith('/') ? (
+                    <img src={node.icon} alt="" className="w-5 h-5 object-contain flex-shrink-0" />
+                  ) : (
+                    <span className="text-lg flex-shrink-0 leading-none">{node.icon}</span>
+                  ))}
+                <span className="break-words">{node.label}</span>
               </button>
             </div>
             {hasChildren && isExpanded && (
@@ -334,7 +299,11 @@ const CatalogContent: React.FC = () => {
   const [categoryTree, setCategoryTree] = useState<CategoryNode[]>([]);
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
   const [activeCategoryId, setActiveCategoryId] = useState<number | null>(null);
-  const [activeCategoryLabel, setActiveCategoryLabel] = useState(DEFAULT_CATEGORY_LABEL);
+  const [activeCategoryLabel, setActiveCategoryLabel] = useState('');
+  // Флаг означает "попытка загрузки категорий завершена" (включая ошибку) — F3
+  const [isCategoryLoadAttempted, setIsCategoryLoadAttempted] = useState(false);
+  const [isCategoriesOpen, setIsCategoriesOpen] = useState(true);
+  const [isBrandsOpen, setIsBrandsOpen] = useState(true);
 
   // Badge-фильтры из URL (is_new, is_hit, is_sale)
   const activeBadge = useMemo(() => {
@@ -394,6 +363,16 @@ const CatalogContent: React.FC = () => {
     }
   }, [user, fetchFavorites]);
 
+  // Responsive: на мобилке сворачиваем фильтры при маунте.
+  // useLayoutEffect выполняется ДО paint → исключает «мигание» на мобилках (F1)
+  useIsomorphicLayoutEffect(() => {
+    const isDesktop = window.matchMedia(DESKTOP_BREAKPOINT).matches;
+    if (!isDesktop) {
+      setIsCategoriesOpen(false);
+      setIsBrandsOpen(false);
+    }
+  }, []);
+
   const handleToggleFavorite = useCallback(
     async (productId: number) => {
       if (!user) {
@@ -436,15 +415,13 @@ const CatalogContent: React.FC = () => {
       return [...base, ...categorySegments];
     }
 
-    // Если активной категории нет или она не найдена в дереве, но есть activeCategoryLabel (например "Спорт")
-    // хотя в текущей логике activeCategoryLabel обновляется из activePathNodes,
-    // но на всякий случай оставим fallback, но без ссылки, так как slug неизвестен
-    if (activeCategoryLabel && activeCategoryLabel !== DEFAULT_CATEGORY_LABEL) {
+    // Если активная категория выбрана, но не найдена в дереве — fallback по label (F7)
+    if (activeCategoryId !== null && activeCategoryLabel) {
       return [...base, { label: activeCategoryLabel, href: null }];
     }
 
     return base;
-  }, [activePathNodes, activeCategoryLabel]);
+  }, [activePathNodes, activeCategoryId, activeCategoryLabel]);
 
   useEffect(() => {
     let isMounted = true;
@@ -463,11 +440,7 @@ const CatalogContent: React.FC = () => {
           initialCategory = findCategoryBySlug(mapped, categorySlug);
         }
 
-        if (!initialCategory && !hasBadgeFilter) {
-          // Если нет badge-фильтра, выбираем категорию по умолчанию
-          initialCategory =
-            findCategoryByLabel(mapped, DEFAULT_CATEGORY_LABEL) ?? mapped[0] ?? null;
-        }
+        // auto-select убран: при /catalog без параметров activeCategoryId остаётся null
 
         if (initialCategory) {
           setActiveCategoryId(initialCategory.id);
@@ -483,6 +456,7 @@ const CatalogContent: React.FC = () => {
       } finally {
         if (isMounted) {
           setIsCategoriesLoading(false);
+          setIsCategoryLoadAttempted(true);
         }
       }
     };
@@ -552,7 +526,7 @@ const CatalogContent: React.FC = () => {
       getKeysForPath(pathNodes).forEach(key => next.add(key));
       return next;
     });
-    setActiveCategoryLabel(pathNodes[pathNodes.length - 1]?.label ?? DEFAULT_CATEGORY_LABEL);
+    setActiveCategoryLabel(pathNodes[pathNodes.length - 1]?.label ?? '');
   }, [activeCategoryId, categoryTree]);
 
   // Функция для обновления URL параметров без перезагрузки страницы
@@ -636,12 +610,13 @@ const CatalogContent: React.FC = () => {
   ]);
 
   useEffect(() => {
-    // Ждём пока категория будет установлена перед запросом товаров
-    // При badge-фильтре запрашиваем без ожидания категории
-    if (activeCategoryId !== null || hasBadgeFilter) {
+    // Ждём пока попытка загрузки категорий завершится (даже с ошибкой — F3),
+    // чтобы URL-параметр category успел установить activeCategoryId.
+    // При badge-фильтре грузим сразу.
+    if (isCategoryLoadAttempted || hasBadgeFilter) {
       fetchProducts();
     }
-  }, [fetchProducts, activeCategoryId, hasBadgeFilter]);
+  }, [fetchProducts, isCategoryLoadAttempted, hasBadgeFilter]);
 
   // Ref для поля поиска
   const searchInputRef = React.useRef<HTMLInputElement>(null);
@@ -672,6 +647,20 @@ const CatalogContent: React.FC = () => {
     setActiveCategoryId(node.id);
     setActiveCategoryLabel(node.label);
     setPage(1);
+  };
+
+  const handleSelectAllCategories = () => {
+    if (activeCategoryId === null) {
+      // Галочка «Все» уже стоит — при клике разворачиваем фильтр если свёрнут
+      setIsCategoriesOpen(true);
+    } else {
+      // Галочка «Все» не стоит — ставим галочку, снимаем категорию
+      setActiveCategoryId(null);
+      setActiveCategoryLabel('');
+      setExpandedKeys(new Set()); // Очищаем развёрнутые подкатегории
+      setPage(1);
+      // Фильтр НЕ сворачиваем
+    }
   };
 
   const handlePriceRangeChange = (value: PriceRange) => {
@@ -708,14 +697,10 @@ const CatalogContent: React.FC = () => {
     // Очищаем параметр search из URL
     updateSearchParams('search', null);
 
-    if (categoryTree.length) {
-      const fallbackCategory =
-        findCategoryByLabel(categoryTree, DEFAULT_CATEGORY_LABEL) ?? categoryTree[0] ?? null;
-      if (fallbackCategory) {
-        setActiveCategoryId(fallbackCategory.id);
-        setActiveCategoryLabel(fallbackCategory.label);
-      }
-    }
+    // Сбрасываем категорию в «Все»
+    setActiveCategoryId(null);
+    setActiveCategoryLabel('');
+    setExpandedKeys(new Set()); // Очищаем развёрнутые подкатегории
   };
 
   const totalPages = Math.max(1, Math.ceil(totalProducts / PAGE_SIZE));
@@ -870,18 +855,33 @@ const CatalogContent: React.FC = () => {
           })}
         </nav>
 
-        {/* Заголовок и поиск выровнены по сетке основного контента */}
-        <div className="mt-6 grid gap-8 lg:grid-cols-[280px_1fr] items-center">
-          <h1 className="text-4xl font-semibold text-gray-900">{activeCategoryLabel}</h1>
+        {/* Единый грид для Поиска и Заголовка */}
+        <div className="mt-6 grid grid-cols-1 lg:grid-cols-[280px_1fr] lg:grid-rows-[auto_auto] gap-x-8 gap-y-4 lg:gap-y-6 items-start">
+          {/* 1. H1 - первый в DOM, визуально на второй строке.
+                 min-h адаптивен (2rem mobile, 2.5rem desktop), совпадая с размером шрифта. */}
+          <h1 className="lg:row-start-2 lg:col-span-2 self-start text-2xl md:text-4xl font-semibold text-neutral-900 break-words md:break-normal min-h-[2rem] md:min-h-[2.5rem]">
+            {isCategoriesLoading ? (
+              <Skeleton className="h-[2rem] md:h-[2.5rem] w-[60%] max-w-sm" />
+            ) : activeCategoryId !== null ? (
+              activeCategoryLabel
+            ) : (
+              'Каталог'
+            )}
+          </h1>
 
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+          {/* 2. Поиск - второй в DOM, визуально на первой строке в правой колонке. */}
+          <search
+            role="search"
+            className="lg:row-start-1 lg:col-start-2 flex flex-col sm:flex-row items-start sm:items-center gap-4 relative z-20 w-full"
+          >
+            {/* SearchAutocomplete должен растягиваться на w-full если нужно */}
             <SearchAutocomplete
               ref={searchInputRef}
               placeholder="Поиск в каталоге..."
               onSearch={handleSearchChange}
               minLength={2}
               debounceMs={300}
-              className="w-full sm:max-w-md"
+              className="w-full max-w-full relative z-30"
               aria-label="Поиск товаров в каталоге"
             />
 
@@ -897,36 +897,69 @@ const CatalogContent: React.FC = () => {
                 запросу «{searchQuery}»
               </span>
             )}
-          </div>
+          </search>
         </div>
 
+        {/* TODO (F9): Вынести CategoryFilterSection и BrandFilterSection в отдельные компоненты
+             для снижения размера CatalogContent (>1000 строк) */}
         <div className="mt-8 grid gap-8 lg:grid-cols-[280px_1fr]">
           <aside className="space-y-8">
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-              <details>
-                <summary className="cursor-pointer text-base font-semibold text-gray-900">
-                  Категории
-                </summary>
-                <div className="mt-4">
-                  {isCategoriesLoading ? (
-                    <div className="space-y-2">
-                      {Array.from({ length: 6 }).map((_, index) => (
-                        <div key={index} className="h-4 bg-gray-100 rounded animate-pulse" />
-                      ))}
-                    </div>
-                  ) : categoriesError ? (
-                    <p className="text-sm text-red-600">{categoriesError}</p>
-                  ) : (
-                    <CategoryTree
-                      nodes={categoryTree}
-                      activeId={activeCategoryId}
-                      expandedKeys={expandedKeys}
-                      onToggle={handleToggle}
-                      onSelect={handleSelectCategory}
-                    />
+              {/* Заголовок «Категории» + чекбокс «Все» */}
+              <div className="flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() => setIsCategoriesOpen(prev => !prev)}
+                  className={cn(
+                    'flex items-center gap-2 cursor-pointer text-base font-semibold text-gray-900',
+                    'min-h-[44px]' // Минимальный touch target для a11y (F8)
                   )}
-                </div>
-              </details>
+                  aria-expanded={isCategoriesOpen}
+                  aria-controls="filter-categories"
+                >
+                  <ChevronDown
+                    className={cn(
+                      `w-4 h-4 text-gray-500 transition-transform ${FILTER_ANIMATION_DURATION}`,
+                      isCategoriesOpen && 'rotate-180'
+                    )}
+                  />
+                  <span>Категории</span>
+                </button>
+                <Checkbox
+                  label="Все"
+                  checked={activeCategoryId === null}
+                  onChange={() => handleSelectAllCategories()}
+                />
+              </div>
+
+              {/* Содержимое — CategoryTree с анимацией */}
+              <div
+                id="filter-categories"
+                className={cn(
+                  `overflow-hidden transition-all ${FILTER_ANIMATION_DURATION}`,
+                  isCategoriesOpen
+                    ? `${CATEGORY_MAX_HEIGHT} opacity-100 mt-4`
+                    : 'max-h-0 opacity-0 mt-0'
+                )}
+              >
+                {isCategoriesLoading ? (
+                  <div className="space-y-2">
+                    {Array.from({ length: 6 }).map((_, index) => (
+                      <div key={index} className="h-4 bg-gray-100 rounded animate-pulse" />
+                    ))}
+                  </div>
+                ) : categoriesError ? (
+                  <p className="text-sm text-red-600">{categoriesError}</p>
+                ) : (
+                  <CategoryTree
+                    nodes={categoryTree}
+                    activeId={activeCategoryId}
+                    expandedKeys={expandedKeys}
+                    onToggle={handleToggle}
+                    onSelect={handleSelectCategory}
+                  />
+                )}
+              </div>
             </div>
 
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-6">
@@ -941,8 +974,31 @@ const CatalogContent: React.FC = () => {
               />
 
               <div className="space-y-2 text-sm text-gray-600">
-                <details open>
-                  <summary className="cursor-pointer font-medium text-gray-900">Бренд</summary>
+                <button
+                  type="button"
+                  onClick={() => setIsBrandsOpen(prev => !prev)}
+                  className={cn(
+                    'cursor-pointer font-medium text-gray-900 flex items-center gap-2 w-full',
+                    'min-h-[44px]' // Минимальный touch target для a11y (F8)
+                  )}
+                  aria-expanded={isBrandsOpen}
+                  aria-controls="filter-brands"
+                >
+                  <ChevronDown
+                    className={cn(
+                      `w-4 h-4 text-gray-500 transition-transform ${FILTER_ANIMATION_DURATION}`,
+                      isBrandsOpen && 'rotate-180'
+                    )}
+                  />
+                  <span>Бренд</span>
+                </button>
+                <div
+                  id="filter-brands"
+                  className={cn(
+                    `overflow-hidden transition-all ${FILTER_ANIMATION_DURATION}`,
+                    isBrandsOpen ? `${BRANDS_MAX_HEIGHT} opacity-100` : 'max-h-0 opacity-0'
+                  )}
+                >
                   <div className="mt-2 flex flex-col gap-1">
                     {isBrandsLoading && <p className="text-xs text-gray-400">Загрузка...</p>}
                     {brandsError && <p className="text-xs text-red-500">{brandsError}</p>}
@@ -961,7 +1017,7 @@ const CatalogContent: React.FC = () => {
                         </div>
                       ))}
                   </div>
-                </details>
+                </div>
               </div>
 
               {/* Чекбокс "В наличии" */}
@@ -996,16 +1052,18 @@ const CatalogContent: React.FC = () => {
               <div className="flex items-center gap-3">
                 <div className="inline-flex items-center rounded-full bg-gray-100 p-1">
                   <button
-                    className={`flex items-center gap-1 rounded-full px-3 py-2 text-sm font-medium ${viewMode === 'grid' ? 'bg-white text-gray-900 shadow' : 'text-gray-500'
-                      }`}
+                    className={`flex items-center gap-1 rounded-full px-3 py-2 text-sm font-medium ${
+                      viewMode === 'grid' ? 'bg-white text-gray-900 shadow' : 'text-gray-500'
+                    }`}
                     onClick={() => setViewMode('grid')}
                   >
                     <Grid2x2 className="h-4 w-4" />
                     <span className="hidden sm:inline">Сетка</span>
                   </button>
                   <button
-                    className={`flex items-center gap-1 rounded-full px-3 py-2 text-sm font-medium ${viewMode === 'list' ? 'bg-white text-gray-900 shadow' : 'text-gray-500'
-                      }`}
+                    className={`flex items-center gap-1 rounded-full px-3 py-2 text-sm font-medium ${
+                      viewMode === 'list' ? 'bg-white text-gray-900 shadow' : 'text-gray-500'
+                    }`}
                     onClick={() => setViewMode('list')}
                   >
                     <List className="h-4 w-4" />

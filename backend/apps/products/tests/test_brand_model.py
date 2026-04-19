@@ -12,8 +12,9 @@ Tests cover:
 - Brand.clean() normalized_name duplicate validation (review follow-up)
 """
 
-import pytest
 from typing import Any, cast
+
+import pytest
 from django.contrib.admin.sites import AdminSite
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile

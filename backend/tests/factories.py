@@ -56,6 +56,9 @@ class ProductVariantFactory(DjangoModelFactory):
     retail_price = factory.Faker("pydecimal", left_digits=4, right_digits=2, positive=True, min_value=100)
     stock_quantity = factory.Faker("random_int", min=0, max=100)
     reserved_quantity = 0
+    warehouse_id = None
+    warehouse_name = None
+    vat_rate = None
 
 
 class ProductFactory(DjangoModelFactory):

@@ -3,7 +3,7 @@
  *
  * Функции:
  * - Отображение итоговой суммы заказа (totalPrice из cartStore)
- * - Отображение скидки по промокоду (Story 26.4)
+ * - Поле ввода промокода (promo_code stub, скидка рассчитывается на backend)
  * - Кнопка "Оформить заказ" с условным рендерингом Link/button
  * - Sticky позиционирование на desktop
  * - Hydration паттерн с mounted state
@@ -27,7 +27,7 @@ import PromoCodeInput from './PromoCodeInput';
 export const CartSummary = () => {
   // Hydration паттерн - предотвращаем mismatch между server/client
   const [mounted, setMounted] = useState(false);
-  const { items, totalPrice, getPromoDiscount } = useCartStore();
+  const { items, totalPrice } = useCartStore();
 
   useEffect(() => {
     setMounted(true);
@@ -35,10 +35,6 @@ export const CartSummary = () => {
 
   // До монтирования или при пустой корзине - кнопка неактивна
   const isEmpty = !mounted || items.length === 0;
-
-  // Story 26.4: скидка по промокоду (динамический расчёт)
-  const promoDiscount = mounted ? getPromoDiscount() : 0;
-  const finalTotal = Math.max(0, totalPrice - promoDiscount);
 
   return (
     <div
@@ -64,18 +60,6 @@ export const CartSummary = () => {
           </span>
         </div>
 
-        {/* Скидка по промокоду (Story 26.4) */}
-        {promoDiscount > 0 && (
-          <div className="flex justify-between text-body-m">
-            <span className="text-[var(--color-accent-success)]">Скидка по промокоду</span>
-            <span
-              className="text-[var(--color-accent-success)] font-medium"
-              data-testid="promo-discount-amount"
-            >
-              -{formatPrice(promoDiscount)}
-            </span>
-          </div>
-        )}
       </div>
 
       {/* Divider */}
@@ -90,7 +74,7 @@ export const CartSummary = () => {
           className="text-headline-m font-bold text-[var(--color-text-primary)]"
           data-testid="total-amount"
         >
-          {mounted ? formatPrice(finalTotal) : '—'}
+          {mounted ? formatPrice(totalPrice) : '—'}
         </span>
       </div>
 

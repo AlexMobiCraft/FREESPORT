@@ -524,6 +524,59 @@ class TestVariantImportProcessor(TransactionTestCase):
         assert variant.stock_quantity == 80  # 50 + 30
         assert self.processor.stats["stocks_updated"] == 2
 
+    @override_settings(
+        ONEC_EXCHANGE={
+            "WAREHOUSE_NAME_BY_ID": {
+                "warehouse-001": "1 СДВ склад",
+                "warehouse-002": "2 ТЛВ склад",
+            },
+            "WAREHOUSE_RULES": {
+                "1 СДВ склад": {"organization": "ИП Семерюк Д. В.", "vat_rate": 22},
+                "2 ТЛВ склад": {"organization": "ИП Терещенко Л.В.", "vat_rate": 5},
+            },
+        }
+    )
+    def test_update_variant_stock_sets_primary_warehouse_and_vat_rate(self):
+        """Основной склад варианта определяется по максимальному остатку и обновляет vat_rate."""
+        product = Product.objects.create(
+            name="Тестовый товар склад",
+            slug="test-product-warehouse",
+            onec_id="test-product-warehouse-001",
+            parent_onec_id="test-product-warehouse-001",
+            brand=self.brand,
+            category=self.category,
+            description="",
+            is_active=True,
+        )
+        variant = ProductVariant.objects.create(
+            product=product,
+            sku="TEST-WH-001",
+            onec_id="test-product-warehouse-001#variant-001",
+            retail_price=Decimal("0"),
+            stock_quantity=0,
+        )
+
+        self.processor.update_variant_stock(
+            {
+                "id": "test-product-warehouse-001#variant-001",
+                "warehouse_id": "warehouse-001",
+                "quantity": 10,
+            }
+        )
+        self.processor.update_variant_stock(
+            {
+                "id": "test-product-warehouse-001#variant-001",
+                "warehouse_id": "warehouse-002",
+                "quantity": 30,
+            }
+        )
+
+        variant.refresh_from_db()
+        assert variant.stock_quantity == 40
+        assert variant.warehouse_id == "warehouse-002"
+        assert variant.warehouse_name == "2 ТЛВ склад"
+        assert variant.vat_rate == Decimal("5")
+
     def test_batch_processing(self):
         """AC9/NFR4: Batch processing по 500 записей"""
         # Создаём Product
@@ -626,6 +679,7 @@ class TestVariantImportProcessor(TransactionTestCase):
 class TestIntegrationVerification(TestCase):
     """Тесты Integration Verification (IV1, IV2, IV3)"""
 
+    @override_settings(ROOT_CATEGORY_NAME=None)
     def test_iv1_brands_categories_unchanged(self):
         """IV1: Импорт брендов и категорий работает без изменений
 
@@ -890,3 +944,104 @@ class TestHybridImagesLogic(TransactionTestCase):
         assert len(effective) == 2
         assert "products/base/image1.jpg" in effective[0]
         assert "products/base/image2.jpg" in effective[1]
+
+
+@pytest.mark.django_db(transaction=True)
+class TestVariantImportVatRate(TransactionTestCase):
+    """Тесты сохранения ставки НДС при импорте вариантов из 1С."""
+
+    def setUp(self):
+        self.session = ImportSession.objects.create(
+            import_type=ImportSession.ImportType.CATALOG,
+            status=ImportSession.ImportStatus.STARTED,
+        )
+        self.brand = Brand.objects.create(name="Brand VAT", slug="brand-vat", is_active=True)
+        self.category = Category.objects.create(name="Cat VAT", slug="cat-vat", onec_id="cat-vat-001", is_active=True)
+        self.processor = VariantImportProcessor(session_id=self.session.pk, batch_size=500)
+
+    def _make_product(self, onec_id: str) -> "Product":
+        return Product.objects.create(
+            name=f"Product {onec_id}",
+            slug=f"product-{onec_id}",
+            onec_id=onec_id,
+            parent_onec_id=onec_id,
+            brand=self.brand,
+            category=self.category,
+            description="",
+            is_active=False,
+        )
+
+    def test_process_product_from_goods_saves_vat_rate(self):
+        """vat_rate из goods_data сохраняется в _product_vat_rates маппинге."""
+        goods_data = {
+            "id": "vat-product-001",
+            "name": "Импортный товар",
+            "vat_rate": Decimal("22"),
+        }
+        self.processor.process_product_from_goods(goods_data)
+        assert self.processor._product_vat_rates.get("vat-product-001") == Decimal("22")
+
+    def test_process_product_from_goods_no_vat_rate_not_stored(self):
+        """Если vat_rate отсутствует в goods_data — маппинг не заполняется."""
+        goods_data = {
+            "id": "no-vat-product-001",
+            "name": "Товар без НДС",
+        }
+        self.processor.process_product_from_goods(goods_data)
+        assert "no-vat-product-001" not in self.processor._product_vat_rates
+
+    def test_create_new_variant_stores_vat_rate(self):
+        """process_variant_from_offer сохраняет vat_rate в созданный ProductVariant."""
+        self._make_product("vat-prod-create")
+        # Имитируем, что goods.xml уже был обработан
+        self.processor._product_vat_rates["vat-prod-create"] = Decimal("22")
+
+        offer_data = {
+            "id": "vat-prod-create#v-001",
+            "name": "Вариант 22%",
+            "article": "VAT-CREATE-001",
+        }
+        variant = self.processor.process_variant_from_offer(offer_data)
+
+        assert variant is not None
+        assert variant.vat_rate == Decimal("22")
+
+    def test_update_existing_variant_updates_vat_rate(self):
+        """process_variant_from_offer обновляет vat_rate существующего варианта."""
+        product = self._make_product("vat-prod-update")
+        # Создаём вариант со старой ставкой
+        existing = ProductVariant.objects.create(
+            product=product,
+            onec_id="vat-prod-update#v-001",
+            sku="VAT-UPDATE-001",
+            retail_price=Decimal("0"),
+            vat_rate=Decimal("5"),
+            is_active=True,
+        )
+        # Новые данные из 1С — ставка изменилась на 22
+        self.processor._product_vat_rates["vat-prod-update"] = Decimal("22")
+
+        offer_data = {
+            "id": "vat-prod-update#v-001",
+            "name": "Вариант обновлённый",
+            "article": "VAT-UPDATE-001",
+        }
+        self.processor.process_variant_from_offer(offer_data)
+
+        existing.refresh_from_db()
+        assert existing.vat_rate == Decimal("22")
+
+    def test_create_variant_without_vat_rate_has_null(self):
+        """Если vat_rate нет в маппинге — вариант создаётся с vat_rate=None."""
+        self._make_product("no-vat-prod")
+        # _product_vat_rates пуст — не добавляем
+
+        offer_data = {
+            "id": "no-vat-prod#v-001",
+            "name": "Вариант без НДС",
+            "article": "NO-VAT-001",
+        }
+        variant = self.processor.process_variant_from_offer(offer_data)
+
+        assert variant is not None
+        assert variant.vat_rate is None
