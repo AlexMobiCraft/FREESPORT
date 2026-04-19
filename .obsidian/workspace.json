@@ -11,10 +11,14 @@
             "id": "aa9e020d188fbca6",
             "type": "leaf",
             "state": {
-              "type": "empty",
-              "state": {},
+              "type": "markdown",
+              "state": {
+                "file": "AGENTS.md",
+                "mode": "source",
+                "source": false
+              },
               "icon": "lucide-file",
-              "title": "Новая вкладка"
+              "title": "AGENTS"
             }
           }
         ]
@@ -179,11 +183,12 @@
       "graph:Граф": false
     }
   },
-  "active": "9d66b617743d53a1",
+  "active": "aa9e020d188fbca6",
   "lastOpenFiles": [
+    "Без названия.base",
+    "backend/tests/integration/__pycache__/test_onec_export.cpython-314-pytest-7.4.3.pyc",
     "_bmad-output/implementation-artifacts/Story/34-3-order-export-service-sub-orders.md",
     "Без названия 1.base",
-    "Без названия.base",
     "docs/api/views-documentation.md",
     "docs/api/index.md",
     "2026-04-17.md",
@@ -207,7 +212,6 @@
     "_bmad-output/planning-artifacts/epics.md",
     "_bmad-output/planning-artifacts/tech-debt.md",
     "_bmad-output/planning-artifacts/refined-prd.md",
-    "_bmad-output/planning-artifacts/prd.md",
-    "docs/prd/2.md"
+    "_bmad-output/planning-artifacts/prd.md"
   ]
 }

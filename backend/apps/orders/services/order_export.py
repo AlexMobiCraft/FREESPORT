@@ -173,8 +173,14 @@ class OrderExportService:
         self._add_text_element(document, "Сумма", self._format_price(order.total_amount))
 
         # sub_order.vat_group → ORGANIZATION_BY_VAT, однородная группа НДС.
-        # Fallback — по складу первого товара / vat_rate для старых данных.
-        order_warehouse_name = self._get_order_warehouse_name(order)
+        # При установленном vat_group — это авторитетный источник; warehouse_name
+        # варианта игнорируется, чтобы мастер-заказ не мог перенаправить документ
+        # в чужой склад/организацию. Warehouse-rules работают только как legacy
+        # fallback для заказов без vat_group (до Story 34-2).
+        if order.vat_group is not None:
+            order_warehouse_name = None
+        else:
+            order_warehouse_name = self._get_order_warehouse_name(order)
         order_vat_rate = self._get_order_vat_rate(order)
         org_name, warehouse_name = self._get_org_and_warehouse(order_vat_rate, order_warehouse_name)
         exchange_cfg = getattr(settings, "ONEC_EXCHANGE", {})

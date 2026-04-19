@@ -400,18 +400,15 @@ class ICExchangeView(APIView):
         if not sub_ids:
             return []
         master_ids = set(
-            Order.objects.filter(pk__in=sub_ids, parent_order__isnull=False)
-            .values_list("parent_order_id", flat=True)
+            Order.objects.filter(pk__in=sub_ids, parent_order__isnull=False).values_list("parent_order_id", flat=True)
         )
         aggregated: list[int] = []
         for master_id in master_ids:
-            has_pending = Order.objects.filter(
-                parent_order_id=master_id, sent_to_1c=False
-            ).exists()
+            has_pending = Order.objects.filter(parent_order_id=master_id, sent_to_1c=False).exists()
             if not has_pending:
-                updated = Order.objects.filter(
-                    pk=master_id, sent_to_1c=False, is_master=True
-                ).update(sent_to_1c=True, sent_to_1c_at=now, updated_at=now)
+                updated = Order.objects.filter(pk=master_id, sent_to_1c=False, is_master=True).update(
+                    sent_to_1c=True, sent_to_1c_at=now, updated_at=now
+                )
                 if updated > 0:
                     aggregated.append(master_id)
         return aggregated
@@ -639,14 +636,26 @@ class ICExchangeView(APIView):
                         sent_to_1c_at=now,
                         updated_at=now,
                     )
-                    aggregated_master_ids = self._aggregate_master_sent_to_1c(
-                        fallback_sub_ids, now
-                    )
+                    aggregated_master_ids = self._aggregate_master_sent_to_1c(fallback_sub_ids, now)
 
                 logger.info(
                     f"[EXPORT SUCCESS] Fallback: marked {updated} sub-orders as sent_to_1c "
                     f"(time-window: created_at <= {last_query_time})"
                 )
+
+                # Signal audit (QuerySet.update bypasses post_save).
+                # Fallback-ветка обязана эмитить тот же сигнал, что и основная,
+                # чтобы downstream-обработчики (аудит, kafka, уведомления)
+                # получили консистентное событие и в случае потери cache.
+                if updated > 0:
+                    orders_bulk_updated.send(
+                        sender=Order,
+                        order_ids=fallback_sub_ids,
+                        updated_count=updated,
+                        field="sent_to_1c",
+                        timestamp=now,
+                        master_order_ids=aggregated_master_ids,
+                    )
 
                 # Clean up session state
                 del request.session["last_1c_query_time"]

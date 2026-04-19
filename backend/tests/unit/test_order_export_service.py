@@ -153,11 +153,19 @@ class TestOrderExportServiceTimezone:
         """
         from django.utils import timezone
 
-        # Arrange - Create order with UTC time that could be different day locally
+        # Arrange - Create master + sub with UTC time that could be different day locally
         user = UserFactory(email=f"test-tz-{get_unique_suffix()}@example.com")
         variant = ProductVariantFactory(
             onec_id=f"variant-tz-{get_unique_suffix()}",
             retail_price=Decimal("1000.00"),
+        )
+        master = Order.objects.create(
+            user=user,
+            total_amount=Decimal("1000.00"),
+            delivery_address="Адрес",
+            delivery_method="courier",
+            payment_method="card",
+            is_master=True,
         )
         order = Order.objects.create(
             user=user,
@@ -165,6 +173,8 @@ class TestOrderExportServiceTimezone:
             delivery_address="Адрес",
             delivery_method="courier",
             payment_method="card",
+            is_master=False,
+            parent_order=master,
         )
         OrderItem.objects.create(
             order=order,
@@ -218,12 +228,22 @@ class TestOrderExportServiceEmptyCounterpartyId:
             onec_id=f"variant-{get_unique_suffix()}",
             retail_price=Decimal("1000.00"),
         )
+        master = Order.objects.create(
+            user=user,
+            total_amount=Decimal("1000.00"),
+            delivery_address="Адрес",
+            delivery_method="courier",
+            payment_method="card",
+            is_master=True,
+        )
         order = Order.objects.create(
             user=user,
             total_amount=Decimal("1000.00"),
             delivery_address="Адрес",
             delivery_method="courier",
             payment_method="card",
+            is_master=False,
+            parent_order=master,
         )
         OrderItem.objects.create(
             order=order,
@@ -270,12 +290,22 @@ class TestOrderExportServiceMissingOnecId:
         variant_no_onec.onec_id = ""
         variant_no_onec.save()
 
+        master = Order.objects.create(
+            user=user,
+            total_amount=Decimal("1000.00"),
+            delivery_address="Адрес",
+            delivery_method="courier",
+            payment_method="card",
+            is_master=True,
+        )
         order = Order.objects.create(
             user=user,
             total_amount=Decimal("1000.00"),
             delivery_address="Адрес",
             delivery_method="courier",
             payment_method="card",
+            is_master=False,
+            parent_order=master,
         )
         OrderItem.objects.create(
             order=order,
@@ -320,12 +350,22 @@ class TestOrderExportServiceB2CWithoutINN:
             onec_id=f"variant-{get_unique_suffix()}",
             retail_price=Decimal("2000.00"),
         )
+        master = Order.objects.create(
+            user=user,
+            total_amount=Decimal("2000.00"),
+            delivery_address="456789, СПб, ул. Невский, д. 5",
+            delivery_method="courier",
+            payment_method="card",
+            is_master=True,
+        )
         order = Order.objects.create(
             user=user,
             total_amount=Decimal("2000.00"),
             delivery_address="456789, СПб, ул. Невский, д. 5",
             delivery_method="courier",
             payment_method="card",
+            is_master=False,
+            parent_order=master,
         )
         OrderItem.objects.create(
             order=order,
@@ -361,12 +401,22 @@ class TestOrderExportServiceXMLEscaping:
             onec_id=f"variant-{get_unique_suffix()}",
             retail_price=Decimal("1500.00"),
         )
+        master = Order.objects.create(
+            user=user,
+            total_amount=Decimal("1500.00"),
+            delivery_address="Адрес с <спецсимволами> & 'кавычками'",
+            delivery_method="courier",
+            payment_method="card",
+            is_master=True,
+        )
         order = Order.objects.create(
             user=user,
             total_amount=Decimal("1500.00"),
             delivery_address="Адрес с <спецсимволами> & 'кавычками'",
             delivery_method="courier",
             payment_method="card",
+            is_master=False,
+            parent_order=master,
         )
         # Product name with special characters
         OrderItem.objects.create(
@@ -408,12 +458,22 @@ class TestOrderExportServiceXMLEscaping:
             onec_id=f"variant-{get_unique_suffix()}",
             retail_price=Decimal("1000.00"),
         )
+        master = Order.objects.create(
+            user=user,
+            total_amount=Decimal("1000.00"),
+            delivery_address="Адрес с & спецсимволами",
+            delivery_method="courier",
+            payment_method="card",
+            is_master=True,
+        )
         order = Order.objects.create(
             user=user,
             total_amount=Decimal("1000.00"),
             delivery_address="Адрес с & спецсимволами",
             delivery_method="courier",
             payment_method="card",
+            is_master=False,
+            parent_order=master,
         )
         OrderItem.objects.create(
             order=order,
@@ -450,12 +510,22 @@ class TestOrderExportServiceOrderWithoutItems:
         """AC8: Order without items should be skipped with warning in logs."""
         # Arrange
         user = UserFactory(email=f"test-{get_unique_suffix()}@example.com")
+        master = Order.objects.create(
+            user=user,
+            total_amount=Decimal("0.00"),
+            delivery_address="Пустой заказ",
+            delivery_method="pickup",
+            payment_method="cash",
+            is_master=True,
+        )
         order = Order.objects.create(
             user=user,
             total_amount=Decimal("0.00"),
             delivery_address="Пустой заказ",
             delivery_method="pickup",
             payment_method="cash",
+            is_master=False,
+            parent_order=master,
         )
         # No OrderItems created
 
@@ -485,12 +555,22 @@ class TestOrderExportServiceVariantNone:
             onec_id=f"variant-{get_unique_suffix()}",
             retail_price=Decimal("1000.00"),
         )
+        master = Order.objects.create(
+            user=user,
+            total_amount=Decimal("2000.00"),
+            delivery_address="Адрес",
+            delivery_method="courier",
+            payment_method="card",
+            is_master=True,
+        )
         order = Order.objects.create(
             user=user,
             total_amount=Decimal("2000.00"),
             delivery_address="Адрес",
             delivery_method="courier",
             payment_method="card",
+            is_master=False,
+            parent_order=master,
         )
         # Valid item
         OrderItem.objects.create(
@@ -547,12 +627,22 @@ class TestOrderExportServiceB2BWithINN:
             onec_id=f"variant-{get_unique_suffix()}",
             retail_price=Decimal("5000.00"),
         )
+        master = Order.objects.create(
+            user=user,
+            total_amount=Decimal("10000.00"),
+            delivery_address="123456, Москва, ул. Бизнес, д. 100",
+            delivery_method="transport_company",
+            payment_method="bank_transfer",
+            is_master=True,
+        )
         order = Order.objects.create(
             user=user,
             total_amount=Decimal("10000.00"),
             delivery_address="123456, Москва, ул. Бизнес, д. 100",
             delivery_method="transport_company",
             payment_method="bank_transfer",
+            is_master=False,
+            parent_order=master,
         )
         OrderItem.objects.create(
             order=order,
@@ -600,12 +690,22 @@ class TestOrderExportServiceBatchOrders:
                 onec_id=f"variant-batch-{i}-{get_unique_suffix()}",
                 retail_price=Decimal("1000.00") * (i + 1),
             )
+            master = Order.objects.create(
+                user=user,
+                total_amount=Decimal("1000.00") * (i + 1),
+                delivery_address=f"Адрес {i + 1}",
+                delivery_method="courier",
+                payment_method="card",
+                is_master=True,
+            )
             order = Order.objects.create(
                 user=user,
                 total_amount=Decimal("1000.00") * (i + 1),
                 delivery_address=f"Адрес {i + 1}",
                 delivery_method="courier",
                 payment_method="card",
+                is_master=False,
+                parent_order=master,
             )
             OrderItem.objects.create(
                 order=order,
@@ -657,12 +757,22 @@ class TestOrderExportServiceDocumentStructure:
             onec_id=f"variant-{get_unique_suffix()}",
             retail_price=Decimal("1500.00"),
         )
+        master = Order.objects.create(
+            user=user,
+            total_amount=Decimal("3000.00"),
+            delivery_address="123456, Москва, ул. Тестовая, д. 1, кв. 10",
+            delivery_method="courier",
+            payment_method="card",
+            is_master=True,
+        )
         order = Order.objects.create(
             user=user,
             total_amount=Decimal("3000.00"),
             delivery_address="123456, Москва, ул. Тестовая, д. 1, кв. 10",
             delivery_method="courier",
             payment_method="card",
+            is_master=False,
+            parent_order=master,
         )
         OrderItem.objects.create(
             order=order,
@@ -720,12 +830,22 @@ class TestOrderExportServiceDocumentStructure:
             onec_id=f"variant-container-{get_unique_suffix()}",
             retail_price=Decimal("1000.00"),
         )
+        master = Order.objects.create(
+            user=user,
+            total_amount=Decimal("1000.00"),
+            delivery_address="Адрес",
+            delivery_method="courier",
+            payment_method="card",
+            is_master=True,
+        )
         order = Order.objects.create(
             user=user,
             total_amount=Decimal("1000.00"),
             delivery_address="Адрес",
             delivery_method="courier",
             payment_method="card",
+            is_master=False,
+            parent_order=master,
         )
         OrderItem.objects.create(
             order=order,
@@ -768,12 +888,22 @@ class TestOrderExportServiceImmutableOrderId:
             onec_id=f"variant-{get_unique_suffix()}",
             retail_price=Decimal("1000.00"),
         )
+        master = Order.objects.create(
+            user=user,
+            total_amount=Decimal("1000.00"),
+            delivery_address="Адрес",
+            delivery_method="courier",
+            payment_method="card",
+            is_master=True,
+        )
         order = Order.objects.create(
             user=user,
             total_amount=Decimal("1000.00"),
             delivery_address="Адрес",
             delivery_method="courier",
             payment_method="card",
+            is_master=False,
+            parent_order=master,
         )
         OrderItem.objects.create(
             order=order,
@@ -826,12 +956,22 @@ class TestOrderExportServicePrivacySafeCounterpartyId:
             onec_id=f"variant-{get_unique_suffix()}",
             retail_price=Decimal("1000.00"),
         )
+        master = Order.objects.create(
+            user=user,
+            total_amount=Decimal("1000.00"),
+            delivery_address="Адрес",
+            delivery_method="courier",
+            payment_method="card",
+            is_master=True,
+        )
         order = Order.objects.create(
             user=user,
             total_amount=Decimal("1000.00"),
             delivery_address="Адрес",
             delivery_method="courier",
             payment_method="card",
+            is_master=False,
+            parent_order=master,
         )
         OrderItem.objects.create(
             order=order,
@@ -881,12 +1021,22 @@ class TestOrderExportServiceRefactoring:
             onec_id=f"variant-refactor-{get_unique_suffix()}",
             retail_price=Decimal("1000.00"),
         )
+        master = Order.objects.create(
+            user=user,
+            total_amount=Decimal("1000.00"),
+            delivery_address="Адрес",
+            delivery_method="courier",
+            payment_method="card",
+            is_master=True,
+        )
         order = Order.objects.create(
             user=user,
             total_amount=Decimal("1000.00"),
             delivery_address="Адрес",
             delivery_method="courier",
             payment_method="card",
+            is_master=False,
+            parent_order=master,
         )
         OrderItem.objects.create(
             order=order,
@@ -944,12 +1094,22 @@ class TestOrderExportServiceRefactoring:
                 onec_id=f"variant-eff-{i}-{get_unique_suffix()}",
                 retail_price=Decimal("1000.00"),
             )
+            master = Order.objects.create(
+                user=user,
+                total_amount=Decimal("1000.00"),
+                delivery_address=f"Адрес {i}",
+                delivery_method="courier",
+                payment_method="card",
+                is_master=True,
+            )
             order = Order.objects.create(
                 user=user,
                 total_amount=Decimal("1000.00"),
                 delivery_address=f"Адрес {i}",
                 delivery_method="courier",
                 payment_method="card",
+                is_master=False,
+                parent_order=master,
             )
             OrderItem.objects.create(
                 order=order,
@@ -1001,12 +1161,22 @@ class TestOrderExportServicePricePrecision:
             onec_id=f"variant-price-{get_unique_suffix()}",
             retail_price=Decimal("1500.00"),
         )
+        master = Order.objects.create(
+            user=user,
+            total_amount=Decimal("3000"),  # No decimal places
+            delivery_address="Адрес",
+            delivery_method="courier",
+            payment_method="card",
+            is_master=True,
+        )
         order = Order.objects.create(
             user=user,
             total_amount=Decimal("3000"),  # No decimal places
             delivery_address="Адрес",
             delivery_method="courier",
             payment_method="card",
+            is_master=False,
+            parent_order=master,
         )
         OrderItem.objects.create(
             order=order,
@@ -1049,12 +1219,22 @@ class TestOrderExportServiceEmptyCounterparty:
         Контакты отсутствуют, если customer_email/phone не заданы.
         """
         # Arrange - Create order without user (guest order scenario)
+        master = Order.objects.create(
+            user=None,  # Guest order
+            total_amount=Decimal("1000.00"),
+            delivery_address="Гостевой адрес",
+            delivery_method="courier",
+            payment_method="cash",
+            is_master=True,
+        )
         order = Order.objects.create(
             user=None,  # Guest order
             total_amount=Decimal("1000.00"),
             delivery_address="Гостевой адрес",
             delivery_method="courier",
             payment_method="cash",
+            is_master=False,
+            parent_order=master,
         )
         # Add item to make order valid
         variant = ProductVariantFactory(
@@ -1112,12 +1292,22 @@ class TestOrderExportServiceEmptyCounterparty:
             onec_id=f"variant-user-{get_unique_suffix()}",
             retail_price=Decimal("1000.00"),
         )
+        master = Order.objects.create(
+            user=user,
+            total_amount=Decimal("1000.00"),
+            delivery_address="Адрес",
+            delivery_method="courier",
+            payment_method="card",
+            is_master=True,
+        )
         order = Order.objects.create(
             user=user,
             total_amount=Decimal("1000.00"),
             delivery_address="Адрес",
             delivery_method="courier",
             payment_method="card",
+            is_master=False,
+            parent_order=master,
         )
         OrderItem.objects.create(
             order=order,
@@ -1167,12 +1357,22 @@ class TestOrderExportServicePerformance:
                 onec_id=f"variant-perf-{i}-{get_unique_suffix()}",
                 retail_price=Decimal("1000.00"),
             )
+            master = Order.objects.create(
+                user=user,
+                total_amount=Decimal("1000.00"),
+                delivery_address=f"Адрес {i}",
+                delivery_method="courier",
+                payment_method="card",
+                is_master=True,
+            )
             order = Order.objects.create(
                 user=user,
                 total_amount=Decimal("1000.00"),
                 delivery_address=f"Адрес {i}",
                 delivery_method="courier",
                 payment_method="card",
+                is_master=False,
+                parent_order=master,
             )
             OrderItem.objects.create(
                 order=order,
@@ -1231,12 +1431,22 @@ class TestOrderExportServiceStreaming:
             onec_id=f"variant-stream-{get_unique_suffix()}",
             retail_price=Decimal("1000.00"),
         )
+        master = Order.objects.create(
+            user=user,
+            total_amount=Decimal("1000.00"),
+            delivery_address="Адрес",
+            delivery_method="courier",
+            payment_method="card",
+            is_master=True,
+        )
         order = Order.objects.create(
             user=user,
             total_amount=Decimal("1000.00"),
             delivery_address="Адрес",
             delivery_method="courier",
             payment_method="card",
+            is_master=False,
+            parent_order=master,
         )
         OrderItem.objects.create(
             order=order,
@@ -1274,12 +1484,22 @@ class TestOrderExportServiceStreaming:
             onec_id=f"variant-compare-{get_unique_suffix()}",
             retail_price=Decimal("2000.00"),
         )
+        master = Order.objects.create(
+            user=user,
+            total_amount=Decimal("2000.00"),
+            delivery_address="Адрес сравнения",
+            delivery_method="pickup",
+            payment_method="cash",
+            is_master=True,
+        )
         order = Order.objects.create(
             user=user,
             total_amount=Decimal("2000.00"),
             delivery_address="Адрес сравнения",
             delivery_method="pickup",
             payment_method="cash",
+            is_master=False,
+            parent_order=master,
         )
         OrderItem.objects.create(
             order=order,
@@ -1321,15 +1541,28 @@ class TestOrderExportServiceStreaming:
 
 
 def _make_order_with_variant(variant, user=None, total=Decimal("2109.00")):
-    """Helper: create Order + OrderItem for a given variant."""
+    """Helper: create master + sub-order + OrderItem for a given variant.
+
+    Returns the sub-order (is_master=False), which is the one exported to 1C.
+    """
     if user is None:
         user = UserFactory(email=f"test-{get_unique_suffix()}@example.com", role="retail")
+    master = Order.objects.create(
+        user=user,
+        total_amount=total,
+        delivery_address="Москва",
+        delivery_method="courier",
+        payment_method="card",
+        is_master=True,
+    )
     order = Order.objects.create(
         user=user,
         total_amount=total,
         delivery_address="Москва",
         delivery_method="courier",
         payment_method="card",
+        is_master=False,
+        parent_order=master,
     )
     OrderItem.objects.create(
         order=order,
@@ -1526,6 +1759,16 @@ class TestGetPriceType:
             "DEFAULT_PRICE_TYPE": "РРЦ",
         }
         variant = ProductVariantFactory(onec_id=f"v-{get_unique_suffix()}", retail_price=Decimal("100"))
+        master = Order.objects.create(
+            user=None,
+            customer_name="Гость",
+            customer_email=f"guest-{get_unique_suffix()}@example.com",
+            total_amount=Decimal("100.00"),
+            delivery_address="Адрес",
+            delivery_method="courier",
+            payment_method="card",
+            is_master=True,
+        )
         order = Order.objects.create(
             user=None,
             customer_name="Гость",
@@ -1534,6 +1777,8 @@ class TestGetPriceType:
             delivery_address="Адрес",
             delivery_method="courier",
             payment_method="card",
+            is_master=False,
+            parent_order=master,
         )
         OrderItem.objects.create(
             order=order,
@@ -1840,14 +2085,15 @@ class TestGetOrderVatRateSubOrder:
         service = OrderExportService()
         assert service._get_order_vat_rate(sub) == Decimal("5.00")
 
-    def test_falls_back_to_item_when_vat_group_none(self):
-        """AC3 fallback: при vat_group=None берётся variant.vat_rate."""
+    def test_falls_back_to_item_snapshot_when_vat_group_none(self):
+        """AC3 fallback: при vat_group=None snapshot в OrderItem.vat_rate приоритетнее variant.vat_rate."""
         _master, sub = _make_master_with_sub(
             vat_group=None,
             variant_vat_rate=Decimal("22"),
+            item_vat_rate=Decimal("5"),
         )
         service = OrderExportService()
-        assert service._get_order_vat_rate(sub) == Decimal("22")
+        assert service._get_order_vat_rate(sub) == Decimal("5")
 
 
 @pytest.mark.unit
@@ -1892,35 +2138,62 @@ class TestOrderExportServiceSubOrderDocument:
         }
         user = UserFactory(email=f"multi-{get_unique_suffix()}@example.com", role="retail")
         master = Order.objects.create(
-            user=user, total_amount=Decimal("4000.00"),
-            delivery_address="Москва", delivery_method="courier", payment_method="card",
+            user=user,
+            total_amount=Decimal("4000.00"),
+            delivery_address="Москва",
+            delivery_method="courier",
+            payment_method="card",
             is_master=True,
         )
         sub5 = Order.objects.create(
-            user=user, total_amount=Decimal("1000.00"),
-            delivery_address="Москва", delivery_method="courier", payment_method="card",
-            is_master=False, parent_order=master, vat_group=Decimal("5.00"),
+            user=user,
+            total_amount=Decimal("1000.00"),
+            delivery_address="Москва",
+            delivery_method="courier",
+            payment_method="card",
+            is_master=False,
+            parent_order=master,
+            vat_group=Decimal("5.00"),
         )
         v5 = ProductVariantFactory(
-            onec_id=f"v5-{get_unique_suffix()}", retail_price=Decimal("1000.00"), vat_rate=Decimal("5"),
+            onec_id=f"v5-{get_unique_suffix()}",
+            retail_price=Decimal("1000.00"),
+            vat_rate=Decimal("5"),
         )
         OrderItem.objects.create(
-            order=sub5, product=v5.product, variant=v5,
-            quantity=1, unit_price=Decimal("1000.00"), total_price=Decimal("1000.00"),
-            product_name=v5.product.name, product_sku=v5.sku,
+            order=sub5,
+            product=v5.product,
+            variant=v5,
+            quantity=1,
+            unit_price=Decimal("1000.00"),
+            total_price=Decimal("1000.00"),
+            product_name=v5.product.name,
+            product_sku=v5.sku,
         )
         sub22 = Order.objects.create(
-            user=user, total_amount=Decimal("3000.00"),
-            delivery_address="Москва", delivery_method="courier", payment_method="card",
-            is_master=False, parent_order=master, vat_group=Decimal("22.00"),
+            user=user,
+            total_amount=Decimal("3000.00"),
+            delivery_address="Москва",
+            delivery_method="courier",
+            payment_method="card",
+            is_master=False,
+            parent_order=master,
+            vat_group=Decimal("22.00"),
         )
         v22 = ProductVariantFactory(
-            onec_id=f"v22-{get_unique_suffix()}", retail_price=Decimal("3000.00"), vat_rate=Decimal("22"),
+            onec_id=f"v22-{get_unique_suffix()}",
+            retail_price=Decimal("3000.00"),
+            vat_rate=Decimal("22"),
         )
         OrderItem.objects.create(
-            order=sub22, product=v22.product, variant=v22,
-            quantity=1, unit_price=Decimal("3000.00"), total_price=Decimal("3000.00"),
-            product_name=v22.product.name, product_sku=v22.sku,
+            order=sub22,
+            product=v22.product,
+            variant=v22,
+            quantity=1,
+            unit_price=Decimal("3000.00"),
+            total_price=Decimal("3000.00"),
+            product_name=v22.product.name,
+            product_sku=v22.sku,
         )
 
         service = OrderExportService()
@@ -1959,6 +2232,38 @@ class TestOrderExportServiceSubOrderDocument:
         org = root.find(".//Документ/Организация")
         assert org is not None
         assert org.text == "ИП Семерюк Д. В."
+
+    def test_vat_group_is_authoritative_over_variant_warehouse_name(self, settings):
+        """AC4: vat_group — авторитетный источник; warehouse_name варианта не должен
+        перенаправить документ в другую организацию/склад."""
+        settings.ONEC_EXCHANGE = {
+            **getattr(settings, "ONEC_EXCHANGE", {}),
+            "ORGANIZATION_BY_VAT": {
+                22: {"name": "ИП Семерюк Д. В.", "warehouse": "1 СДВ склад"},
+                5: {"name": "ИП Терещенко Л.В.", "warehouse": "2 ТЛВ склад"},
+            },
+            "WAREHOUSE_RULES": {
+                "1 СДВ склад": {"organization": "ИП Семерюк Д. В.", "vat_rate": 22},
+                "2 ТЛВ склад": {"organization": "ИП Терещенко Л.В.", "vat_rate": 5},
+            },
+            "DEFAULT_VAT_RATE": 22,
+        }
+        # vat_group=5 (Терещенко), но warehouse_name варианта "1 СДВ склад" (Семерюк).
+        # Раньше warehouse_name побеждал vat_group — finding #1 code review.
+        _master, sub = _make_master_with_sub(
+            vat_group=Decimal("5.00"),
+            variant_vat_rate=Decimal("5"),
+            warehouse_name="1 СДВ склад",
+        )
+
+        service = OrderExportService()
+        xml_str = service.generate_xml(Order.objects.filter(id=sub.id))
+        root = ET.fromstring(xml_str)
+
+        doc = root.find("Контейнер/Документ")
+        assert doc is not None
+        assert doc.find("Организация").text == "ИП Терещенко Л.В."
+        assert doc.find("Склад").text == "2 ТЛВ склад"
 
     def test_vat_group_none_falls_back_to_defaults(self, settings):
         """AC8: vat_group=None + variant.vat_rate=None → DEFAULT."""

@@ -85,24 +85,43 @@ def product_variant(db):
 
 @pytest.fixture
 def order_for_export(db, customer_user, product_variant):
-    """Create an order ready for 1C export."""
-    order = Order.objects.create(
+    """Create a master + sub-order ready for 1C export.
+
+    Updated for Story 34-3: export now requires sub-orders
+    (is_master=False, parent_order__isnull=False).
+    Returns the sub-order (the one that appears in XML).
+    """
+    from decimal import Decimal
+
+    master = Order.objects.create(
         user=customer_user,
-        order_number="FS-TEST-001",
-        total_amount=1500,
+        order_number="FS-TEST-MASTER",
+        total_amount=Decimal("1500"),
         sent_to_1c=False,
         delivery_address="ул. Тестовая, 1",
         delivery_method="pickup",
         payment_method="card",
+        is_master=True,
+    )
+    order = Order.objects.create(
+        user=customer_user,
+        order_number="FS-TEST-001",
+        total_amount=Decimal("1500"),
+        sent_to_1c=False,
+        delivery_address="ул. Тестовая, 1",
+        delivery_method="pickup",
+        payment_method="card",
+        is_master=False,
+        parent_order=master,
     )
     OrderItem.objects.create(
         order=order,
         product=product_variant.product,
         variant=product_variant,
         product_name="Test Product",
-        unit_price=1500,
+        unit_price=Decimal("1500"),
         quantity=1,
-        total_price=1500,
+        total_price=Decimal("1500"),
     )
     return order
 
@@ -224,10 +243,12 @@ class TestModeQuery:
 
     def test_mode_query_includes_guest_orders(self, authenticated_client, product_variant, log_dir):
         """CRITICAL: Guest B2C orders (user=None) must be exported to 1C."""
-        guest_order = Order.objects.create(
+        from decimal import Decimal
+
+        guest_master = Order.objects.create(
             user=None,
-            order_number="FS-GUEST-001",
-            total_amount=2000,
+            order_number="FS-GUEST-MASTER",
+            total_amount=Decimal("2000"),
             sent_to_1c=False,
             delivery_address="ул. Гостевая, 5",
             delivery_method="courier",
@@ -235,15 +256,30 @@ class TestModeQuery:
             customer_name="Гость Иванов",
             customer_email="guest@example.com",
             customer_phone="+7-999-111-2233",
+            is_master=True,
+        )
+        guest_order = Order.objects.create(
+            user=None,
+            order_number="FS-GUEST-001",
+            total_amount=Decimal("2000"),
+            sent_to_1c=False,
+            delivery_address="ул. Гостевая, 5",
+            delivery_method="courier",
+            payment_method="card",
+            customer_name="Гость Иванов",
+            customer_email="guest@example.com",
+            customer_phone="+7-999-111-2233",
+            is_master=False,
+            parent_order=guest_master,
         )
         OrderItem.objects.create(
             order=guest_order,
             product=product_variant.product,
             variant=product_variant,
             product_name="Test Product",
-            unit_price=2000,
+            unit_price=Decimal("2000"),
             quantity=1,
-            total_price=2000,
+            total_price=Decimal("2000"),
         )
         response = authenticated_client.get(
             "/api/integration/1c/exchange/",
@@ -371,15 +407,29 @@ class TestModeSuccess:
     def test_mode_success_does_not_mark_skipped_orders(self, authenticated_client, customer_user, log_dir):
         """CRITICAL: Orders skipped by OrderExportService validation (no items)
         must NOT be marked as sent_to_1c in handle_success."""
-        # Create an order WITHOUT items — will be skipped by _validate_order
-        empty_order = Order.objects.create(
+        from decimal import Decimal
+
+        # Create a master + sub-order WITHOUT items — will be skipped by _validate_order
+        empty_master = Order.objects.create(
             user=customer_user,
-            order_number="FS-EMPTY-001",
-            total_amount=0,
+            order_number="FS-EMPTY-MASTER",
+            total_amount=Decimal("0"),
             sent_to_1c=False,
             delivery_address="ул. Пустая, 0",
             delivery_method="pickup",
             payment_method="card",
+            is_master=True,
+        )
+        empty_order = Order.objects.create(
+            user=customer_user,
+            order_number="FS-EMPTY-001",
+            total_amount=Decimal("0"),
+            sent_to_1c=False,
+            delivery_address="ул. Пустая, 0",
+            delivery_method="pickup",
+            payment_method="card",
+            is_master=False,
+            parent_order=empty_master,
         )
         # Query — empty_order is in timeframe but has no items
         response = authenticated_client.get(
@@ -894,9 +944,7 @@ def master_with_two_subs(db, customer_user, product_variant):
 class TestSubOrderQuery:
     """Story 34-3: handle_query returns only sub-orders (AC1, AC12)."""
 
-    def test_query_returns_only_sub_orders(
-        self, authenticated_client, master_with_two_subs, log_dir
-    ):
+    def test_query_returns_only_sub_orders(self, authenticated_client, master_with_two_subs, log_dir):
         """AC1+AC12: query возвращает только субзаказы, мастер исключён."""
         master, sub5, sub22 = master_with_two_subs
         response = authenticated_client.get(
@@ -909,9 +957,7 @@ class TestSubOrderQuery:
         assert sub22.order_number in content
         assert master.order_number not in content
 
-    def test_query_excludes_master_orders(
-        self, authenticated_client, master_with_two_subs, log_dir
-    ):
+    def test_query_excludes_master_orders(self, authenticated_client, master_with_two_subs, log_dir):
         """AC12: master с is_master=True НЕ попадает в XML."""
         master, _sub5, _sub22 = master_with_two_subs
         response = authenticated_client.get(
@@ -921,9 +967,7 @@ class TestSubOrderQuery:
         content = get_response_content(response).decode("utf-8")
         assert f"order-{master.id}" not in content
 
-    def test_multi_vat_produces_two_organizations(
-        self, authenticated_client, master_with_two_subs, log_dir, settings
-    ):
+    def test_multi_vat_produces_two_organizations(self, authenticated_client, master_with_two_subs, log_dir, settings):
         """AC1: два субзаказа с разными vat_group → два документа с разными организациями."""
         settings.ONEC_EXCHANGE = {
             **getattr(settings, "ONEC_EXCHANGE", {}),
@@ -947,9 +991,7 @@ class TestSubOrderQuery:
 class TestSubOrderSuccess:
     """Story 34-3: handle_success aggregation of master (AC9, AC10, AC11)."""
 
-    def test_success_aggregates_master_when_all_subs_sent(
-        self, authenticated_client, master_with_two_subs, log_dir
-    ):
+    def test_success_aggregates_master_when_all_subs_sent(self, authenticated_client, master_with_two_subs, log_dir):
         """AC9: success помечает оба субзаказа → мастер тоже помечается."""
         master, sub5, sub22 = master_with_two_subs
         authenticated_client.get(
@@ -968,163 +1010,249 @@ class TestSubOrderSuccess:
         assert master.sent_to_1c is True
         assert master.sent_to_1c_at is not None
 
-    def test_master_not_aggregated_when_sub_pending(
+    def test_repeated_query_marks_previous_batch_and_emits_master_ids(
         self, authenticated_client, master_with_two_subs, log_dir
     ):
-        """AC10: если один sub ещё не отправлен, мастер НЕ помечается."""
+        """AC9+AC11: повторный mode=query трактуется как implicit success.
+
+        1С УТ 11 обычно не вызывает mode=success после успешной обработки,
+        а делает следующий mode=query. Этот путь должен:
+        1. Пометить ранее экспортированные sub-order как sent_to_1c=True.
+        2. Агрегировать master, если все его sub-order подтверждены.
+        3. Эмитить orders_bulk_updated с master_order_ids.
+        """
+        from apps.orders.signals import orders_bulk_updated
+
         master, sub5, sub22 = master_with_two_subs
-        # Mark sub5 as already sent so only sub22 is exported
-        sub5.sent_to_1c = True
-        sub5.sent_to_1c_at = timezone.now()
-        sub5.save()
-        # Make sub22 also already sent — so nothing to export
-        sub22.sent_to_1c = True
-        sub22.sent_to_1c_at = timezone.now()
-        sub22.save()
+        received_kwargs = {}
 
-        # Create a new sub for a different master that is NOT sent
-        other_master = Order.objects.create(
-            user=master.user,
-            order_number="FS-MASTER-002",
-            total_amount=1000,
-            sent_to_1c=False,
-            delivery_address="ул. Другая, 2",
-            delivery_method="pickup",
-            payment_method="card",
-            is_master=True,
-        )
-        other_sub_sent = Order.objects.create(
-            user=master.user,
-            order_number="FS-SUB-SENT",
-            total_amount=500,
-            sent_to_1c=True,
-            delivery_address="ул. Другая, 2",
-            delivery_method="pickup",
-            payment_method="card",
-            is_master=False,
-            parent_order=other_master,
-            vat_group=22,
-        )
-        other_sub_pending = Order.objects.create(
-            user=master.user,
-            order_number="FS-SUB-PEND",
-            total_amount=500,
-            sent_to_1c=False,
-            delivery_address="ул. Другая, 2",
-            delivery_method="pickup",
-            payment_method="card",
-            is_master=False,
-            parent_order=other_master,
-            vat_group=5,
-        )
-        from apps.products.models import Brand, Category, Product, ProductVariant
+        def handler(sender, **kwargs):
+            received_kwargs.update(kwargs)
 
-        brand = Brand.objects.first() or Brand.objects.create(name="B", slug="b")
-        cat = Category.objects.first() or Category.objects.create(name="C", slug="c")
-        prod = Product.objects.first() or Product.objects.create(
-            name="P", slug="p", brand=brand, category=cat
-        )
-        var = ProductVariant.objects.first() or ProductVariant.objects.create(
-            product=prod, onec_id="var-test", sku="SKU-TEST", retail_price=500
-        )
-        OrderItem.objects.create(
-            order=other_sub_pending,
-            product=var.product,
-            variant=var,
-            product_name="Product",
-            unit_price=500,
-            quantity=1,
-            total_price=500,
-        )
+        orders_bulk_updated.connect(handler)
+        try:
+            first_response = authenticated_client.get(
+                "/api/integration/1c/exchange/",
+                data={"mode": "query"},
+            )
+            assert first_response.status_code == 200
 
-        # Query + success — exports only other_sub_pending
-        authenticated_client.get(
-            "/api/integration/1c/exchange/",
-            data={"mode": "query"},
-        )
-        authenticated_client.get(
-            "/api/integration/1c/exchange/",
-            data={"mode": "success"},
-        )
+            second_response = authenticated_client.get(
+                "/api/integration/1c/exchange/",
+                data={"mode": "query"},
+            )
+        finally:
+            orders_bulk_updated.disconnect(handler)
 
-        other_sub_pending.refresh_from_db()
-        assert other_sub_pending.sent_to_1c is True
-        # other_master still has other_sub_sent that was already sent,
-        # but other_sub_pending just got marked — all subs are now sent
-        # However, other_sub_sent was already sent before, so master should aggregate
-        # BUT we need to check: does _aggregate check ALL subs of master?
-        # Let's verify: other_sub_sent.sent_to_1c=True, other_sub_pending.sent_to_1c=True
-        # → no pending subs → master should be aggregated
-        other_master.refresh_from_db()
-        assert other_master.sent_to_1c is True
+        second_content = get_response_content(second_response).decode("utf-8")
 
-    def test_siblings_in_other_master_not_affected(
-        self, authenticated_client, master_with_two_subs, customer_user, log_dir
-    ):
-        """AC11: success не помечает субзаказы чужого мастера."""
-        master, sub5, sub22 = master_with_two_subs
-
-        # Create another master with a pending sub
-        other_master = Order.objects.create(
-            user=customer_user,
-            order_number="FS-OTHER-MASTER",
-            total_amount=999,
-            sent_to_1c=False,
-            delivery_address="ул. Чужая, 3",
-            delivery_method="pickup",
-            payment_method="card",
-            is_master=True,
-        )
-        other_sub = Order.objects.create(
-            user=customer_user,
-            order_number="FS-OTHER-SUB",
-            total_amount=999,
-            sent_to_1c=False,
-            delivery_address="ул. Чужая, 3",
-            delivery_method="pickup",
-            payment_method="card",
-            is_master=False,
-            parent_order=other_master,
-            vat_group=22,
-        )
-
-        # Query + success — exports sub5 + sub22 + other_sub
-        authenticated_client.get(
-            "/api/integration/1c/exchange/",
-            data={"mode": "query"},
-        )
-
-        # Before success, manually un-send other_sub so it stays pending
-        # Actually we want to test that other_master's sub IS exported,
-        # but we want to check that first master's aggregation doesn't
-        # affect other_master if it has pending subs.
-        # Let's make other_sub have no items → it will be skipped
-        # Actually, other_sub has no items, so it will be skipped by _validate_order
-        # This means other_sub won't be in exported_ids
-
-        authenticated_client.get(
-            "/api/integration/1c/exchange/",
-            data={"mode": "success"},
-        )
-
-        # sub5, sub22 should be sent; master should aggregate
         sub5.refresh_from_db()
         sub22.refresh_from_db()
         master.refresh_from_db()
+
         assert sub5.sent_to_1c is True
         assert sub22.sent_to_1c is True
         assert master.sent_to_1c is True
+        assert master.sent_to_1c_at is not None
 
-        # other_sub was skipped (no items) → not marked
-        other_sub.refresh_from_db()
-        assert other_sub.sent_to_1c is False
-        # other_master should NOT be aggregated (has pending sub)
-        other_master.refresh_from_db()
-        assert other_master.sent_to_1c is False
+        # После implicit success в повторный query старый batch не должен
+        # экспортироваться повторно, так как уже помечен sent_to_1c=True.
+        assert f"order-{sub5.pk}" not in second_content
+        assert f"order-{sub22.pk}" not in second_content
+        assert master.order_number not in second_content
 
-    def test_signal_includes_master_order_ids(
-        self, authenticated_client, master_with_two_subs, log_dir
+        assert received_kwargs.get("field") == "sent_to_1c"
+        assert set(received_kwargs.get("order_ids", [])) == {sub5.pk, sub22.pk}
+        assert master.pk in received_kwargs.get("master_order_ids", [])
+
+    def test_master_not_aggregated_when_sub_pending(
+        self, authenticated_client, customer_user, product_variant, log_dir
     ):
+        """AC10: если не все sub мастера отправлены, мастер НЕ помечается.
+
+        Сценарий: master + sub_ready (с items, экспортируется) + sub_blocked
+        (предзасланный sent_to_1c=False, но без items → _validate_order
+        пропустит его в export_skipped=True). После success: sub_ready=True,
+        sub_blocked остаётся sent_to_1c=False → master НЕ должен агрегироваться.
+        """
+        from decimal import Decimal
+
+        master = Order.objects.create(
+            user=customer_user,
+            order_number="FS-PEND-MASTER",
+            total_amount=Decimal("3500"),
+            sent_to_1c=False,
+            delivery_address="ул. Пенд, 1",
+            delivery_method="pickup",
+            payment_method="card",
+            is_master=True,
+        )
+        sub_ready = Order.objects.create(
+            user=customer_user,
+            order_number="FS-PEND-SUB-READY",
+            total_amount=Decimal("1500"),
+            sent_to_1c=False,
+            delivery_address="ул. Пенд, 1",
+            delivery_method="pickup",
+            payment_method="card",
+            is_master=False,
+            parent_order=master,
+            vat_group=Decimal("22.00"),
+        )
+        OrderItem.objects.create(
+            order=sub_ready,
+            product=product_variant.product,
+            variant=product_variant,
+            product_name="Test Product Ready",
+            unit_price=Decimal("1500"),
+            quantity=1,
+            total_price=Decimal("1500"),
+        )
+        # sub_blocked: ещё не отправлен, но без items → будет пропущен,
+        # и останется sent_to_1c=False. Это pending sibling для мастера.
+        sub_blocked = Order.objects.create(
+            user=customer_user,
+            order_number="FS-PEND-SUB-BLOCKED",
+            total_amount=Decimal("2000"),
+            sent_to_1c=False,
+            delivery_address="ул. Пенд, 1",
+            delivery_method="pickup",
+            payment_method="card",
+            is_master=False,
+            parent_order=master,
+            vat_group=Decimal("5.00"),
+        )
+
+        authenticated_client.get(
+            "/api/integration/1c/exchange/",
+            data={"mode": "query"},
+        )
+        authenticated_client.get(
+            "/api/integration/1c/exchange/",
+            data={"mode": "success"},
+        )
+
+        sub_ready.refresh_from_db()
+        sub_blocked.refresh_from_db()
+        master.refresh_from_db()
+        assert sub_ready.sent_to_1c is True
+        # sub_blocked остался pending
+        assert sub_blocked.sent_to_1c is False
+        assert sub_blocked.export_skipped is True
+        # Мастер НЕ должен агрегироваться, т.к. sub_blocked всё ещё pending
+        assert master.sent_to_1c is False
+        assert master.sent_to_1c_at is None
+
+    def test_siblings_in_other_master_not_affected(self, authenticated_client, customer_user, product_variant, log_dir):
+        """AC11: агрегация master_A не трогает sibling master_B и его субзаказы.
+
+        Сценарий: две независимые пары master+sub. Экспортируем через query
+        ОБОИХ (оба sub с items), но перед success — "помечаем, что master_B.sub
+        должен остаться pending". Это делаем через raw update на sub_b, чтобы
+        эмулировать ситуацию, когда 1С в mode=success подтвердила только часть
+        заказов. В данном тесте оба уходят на export, оба помечаются как
+        sent_to_1c=True, но затем я проверяю строгую изоляцию агрегатов.
+
+        Упрощённый сценарий: экспортируем только master_A (ставим master_B.sub
+        с `created_at` после query_time, чтобы он не попал в queryset).
+        """
+        from decimal import Decimal
+        from django.utils import timezone
+
+        # Master A: пройдёт полный цикл query+success, должен агрегироваться.
+        master_a = Order.objects.create(
+            user=customer_user,
+            order_number="FS-MASTER-A",
+            total_amount=Decimal("1500"),
+            sent_to_1c=False,
+            delivery_address="ул. А, 1",
+            delivery_method="pickup",
+            payment_method="card",
+            is_master=True,
+        )
+        sub_a = Order.objects.create(
+            user=customer_user,
+            order_number="FS-SUB-A",
+            total_amount=Decimal("1500"),
+            sent_to_1c=False,
+            delivery_address="ул. А, 1",
+            delivery_method="pickup",
+            payment_method="card",
+            is_master=False,
+            parent_order=master_a,
+            vat_group=Decimal("22.00"),
+        )
+        OrderItem.objects.create(
+            order=sub_a,
+            product=product_variant.product,
+            variant=product_variant,
+            product_name="Product A",
+            unit_price=Decimal("1500"),
+            quantity=1,
+            total_price=Decimal("1500"),
+        )
+
+        # Master B: sub_b создан ПОСЛЕ query (move created_at в будущее вручную),
+        # чтобы он НЕ попал в queryset handle_query (created_at__lte=query_time).
+        master_b = Order.objects.create(
+            user=customer_user,
+            order_number="FS-MASTER-B",
+            total_amount=Decimal("2000"),
+            sent_to_1c=False,
+            delivery_address="ул. Б, 2",
+            delivery_method="pickup",
+            payment_method="card",
+            is_master=True,
+        )
+        sub_b = Order.objects.create(
+            user=customer_user,
+            order_number="FS-SUB-B",
+            total_amount=Decimal("2000"),
+            sent_to_1c=False,
+            delivery_address="ул. Б, 2",
+            delivery_method="pickup",
+            payment_method="card",
+            is_master=False,
+            parent_order=master_b,
+            vat_group=Decimal("5.00"),
+        )
+        OrderItem.objects.create(
+            order=sub_b,
+            product=product_variant.product,
+            variant=product_variant,
+            product_name="Product B",
+            unit_price=Decimal("2000"),
+            quantity=1,
+            total_price=Decimal("2000"),
+        )
+        # Сдвинуть created_at sub_b в будущее → handle_query его не выберет.
+        future = timezone.now() + timezone.timedelta(hours=1)
+        Order.objects.filter(pk=sub_b.pk).update(created_at=future)
+
+        authenticated_client.get(
+            "/api/integration/1c/exchange/",
+            data={"mode": "query"},
+        )
+        authenticated_client.get(
+            "/api/integration/1c/exchange/",
+            data={"mode": "success"},
+        )
+
+        sub_a.refresh_from_db()
+        master_a.refresh_from_db()
+        sub_b.refresh_from_db()
+        master_b.refresh_from_db()
+
+        # Master A: полная цепочка — sub и master помечены.
+        assert sub_a.sent_to_1c is True
+        assert master_a.sent_to_1c is True
+
+        # Master B: изолирован — sub_b в query не попал, агрегация его не тронула.
+        assert sub_b.sent_to_1c is False
+        assert master_b.sent_to_1c is False
+        assert master_b.sent_to_1c_at is None
+
+    def test_signal_includes_master_order_ids(self, authenticated_client, master_with_two_subs, log_dir):
         """AC11: signal orders_bulk_updated содержит master_order_ids."""
         from apps.orders.signals import orders_bulk_updated
 
@@ -1149,9 +1277,7 @@ class TestSubOrderSuccess:
         finally:
             orders_bulk_updated.disconnect(handler)
 
-    def test_fallback_updates_only_sub_orders(
-        self, authenticated_client, master_with_two_subs, log_dir
-    ):
+    def test_fallback_updates_only_sub_orders(self, authenticated_client, master_with_two_subs, log_dir):
         """AC10: fallback (cache evicted) обновляет только субзаказы."""
         from django.core.cache import cache as django_cache
 
@@ -1180,3 +1306,86 @@ class TestSubOrderSuccess:
         assert sub22.sent_to_1c is True
         # Fallback also runs aggregation
         assert master.sent_to_1c is True
+
+    def test_fallback_emits_orders_bulk_updated_signal(self, authenticated_client, master_with_two_subs, log_dir):
+        """AC11: fallback-ветка эмитит orders_bulk_updated с master_order_ids."""
+        from django.core.cache import cache as django_cache
+        from apps.orders.signals import orders_bulk_updated
+
+        master, sub5, sub22 = master_with_two_subs
+        received_kwargs = {}
+
+        def handler(sender, **kwargs):
+            received_kwargs.update(kwargs)
+
+        authenticated_client.get(
+            "/api/integration/1c/exchange/",
+            data={"mode": "query"},
+        )
+        # Evict cache to trigger fallback
+        session = authenticated_client.session
+        cache_key = f"1c_exported_ids_{session.session_key}"
+        django_cache.delete(cache_key)
+
+        orders_bulk_updated.connect(handler)
+        try:
+            authenticated_client.get(
+                "/api/integration/1c/exchange/",
+                data={"mode": "success"},
+            )
+        finally:
+            orders_bulk_updated.disconnect(handler)
+
+        assert received_kwargs.get("field") == "sent_to_1c"
+        assert "order_ids" in received_kwargs
+        assert set(received_kwargs["order_ids"]) >= {sub5.pk, sub22.pk}
+        assert "master_order_ids" in received_kwargs
+        assert master.pk in received_kwargs["master_order_ids"]
+
+
+@pytest.mark.django_db
+@pytest.mark.integration
+class TestLegacyOrderExclusion:
+    """Story 34-3 Task 6.2: legacy master-only orders are excluded from export."""
+
+    def test_legacy_master_without_sub_orders_is_not_exported(
+        self, authenticated_client, customer_user, product_variant, log_dir
+    ):
+        """AC13: Order с is_master=True, parent_order=None (без субзаказов)
+        НЕ попадает в XML после перехода на sub-order queryset."""
+        from decimal import Decimal
+
+        legacy_order = Order.objects.create(
+            user=customer_user,
+            order_number="FS-LEGACY-001",
+            total_amount=Decimal("1500"),
+            sent_to_1c=False,
+            delivery_address="ул. Легаси, 1",
+            delivery_method="pickup",
+            payment_method="card",
+            is_master=True,
+            parent_order=None,
+        )
+        OrderItem.objects.create(
+            order=legacy_order,
+            product=product_variant.product,
+            variant=product_variant,
+            product_name="Legacy Product",
+            unit_price=Decimal("1500"),
+            quantity=1,
+            total_price=Decimal("1500"),
+        )
+
+        response = authenticated_client.get(
+            "/api/integration/1c/exchange/",
+            data={"mode": "query"},
+        )
+        assert response.status_code == 200
+        content = get_response_content(response).decode("utf-8")
+        assert "КоммерческаяИнформация" in content
+        assert "FS-LEGACY-001" not in content
+        assert f"order-{legacy_order.id}" not in content
+        assert "Документ" not in content
+
+        legacy_order.refresh_from_db()
+        assert legacy_order.sent_to_1c is False
