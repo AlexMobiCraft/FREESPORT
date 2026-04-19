@@ -1540,7 +1540,7 @@ class TestOrderExportServiceStreaming:
 # =============================================================================
 
 
-def _make_order_with_variant(variant, user=None, total=Decimal("2109.00")):
+def _make_order_with_variant(variant, user=None, total=Decimal("2109.00"), vat_group=None):
     """Helper: create master + sub-order + OrderItem for a given variant.
 
     Returns the sub-order (is_master=False), which is the one exported to 1C.
@@ -1563,6 +1563,7 @@ def _make_order_with_variant(variant, user=None, total=Decimal("2109.00")):
         payment_method="card",
         is_master=False,
         parent_order=master,
+        vat_group=vat_group,
     )
     OrderItem.objects.create(
         order=order,
@@ -1823,7 +1824,7 @@ class TestCalcVatAmount:
 class TestOrderExportVatAndOrgInXML:
     """Integration-style tests: verify new XML elements are present in output."""
 
-    def _create_order(self, vat_rate, role="retail", warehouse_name=None):
+    def _create_order(self, vat_rate, role="retail", warehouse_name=None, vat_group=None):
         user = UserFactory(email=f"test-vat-{get_unique_suffix()}@example.com", role=role)
         variant = ProductVariantFactory(
             onec_id=f"v-{get_unique_suffix()}",
@@ -1831,7 +1832,7 @@ class TestOrderExportVatAndOrgInXML:
             vat_rate=vat_rate,
             warehouse_name=warehouse_name,
         )
-        return _make_order_with_variant(variant, user=user, total=Decimal("2109.00"))
+        return _make_order_with_variant(variant, user=user, total=Decimal("2109.00"), vat_group=vat_group)
 
     def test_organization_in_xml_for_import_goods(self, settings):
         """НДС 22% → <Организация>ИП Семерюк Д. В.</Организация> in document."""
@@ -1872,7 +1873,8 @@ class TestOrderExportVatAndOrgInXML:
         assert wh.text == "1 СДВ склад"
 
     def test_organization_and_vat_in_xml_use_warehouse_rule(self, settings):
-        """При пустом vat_rate используются warehouse_name -> организация и ставка НДС."""
+        """AC8: vat_group=None + warehouse_name → org = DEFAULT (не WAREHOUSE_RULES).
+        VAT строки всё ещё через warehouse fallback в _get_order_vat_rate."""
         settings.ONEC_EXCHANGE = {
             **settings.ONEC_EXCHANGE,
             "WAREHOUSE_RULES": {
@@ -1880,6 +1882,8 @@ class TestOrderExportVatAndOrgInXML:
                 "2 ТЛВ склад": {"organization": "ИП Терещенко Л.В.", "vat_rate": 5},
             },
             "DEFAULT_VAT_RATE": 22,
+            "DEFAULT_ORGANIZATION": "ИП Семерюк Д. В.",
+            "DEFAULT_WAREHOUSE": "1 СДВ склад",
         }
         order = self._create_order(None, warehouse_name="2 ТЛВ склад")
         service = OrderExportService()
@@ -1890,7 +1894,9 @@ class TestOrderExportVatAndOrgInXML:
         vat = root.find(".//Товар/Налоги/Налог/Ставка")
         assert org is not None
         assert vat is not None
-        assert org.text == "ИП Терещенко Л.В."
+        # vat_group=None → DEFAULT_ORGANIZATION (warehouse_name больше не определяет org)
+        assert org.text == "ИП Семерюк Д. В."
+        # warehouse_name всё ещё влияет на VAT через _get_order_vat_rate order-level fallback
         assert vat.text == "5"
 
     def test_agreement_in_xml(self, settings):
@@ -1991,7 +1997,8 @@ class TestOrderExportVatAndOrgInXML:
         assert nds_summa.text == "380.31"
 
     def test_requisites_organization_uses_dynamic_value(self, settings):
-        """ЗначенияРеквизитов/Организация should match dynamic org (not static default)."""
+        """ЗначенияРеквизитов/Организация динамически определяется через ORGANIZATION_BY_VAT.
+        Sub-order с vat_group=5 → ORGANIZATION_BY_VAT[5] = ИП Терещенко Л.В."""
         settings.ONEC_EXCHANGE = {
             **settings.ONEC_EXCHANGE,
             "ORGANIZATION_BY_VAT": {
@@ -2000,7 +2007,8 @@ class TestOrderExportVatAndOrgInXML:
             },
             "DEFAULT_VAT_RATE": 5,
         }
-        order = self._create_order(Decimal("5"))
+        # vat_group=5 — авторитетный источник → ORGANIZATION_BY_VAT[5]
+        order = self._create_order(Decimal("5"), vat_group=Decimal("5.00"))
         service = OrderExportService()
         xml_str = service.generate_xml(Order.objects.filter(id=order.id))
         root = ET.fromstring(xml_str)
@@ -2265,8 +2273,8 @@ class TestOrderExportServiceSubOrderDocument:
         assert doc.find("Организация").text == "ИП Терещенко Л.В."
         assert doc.find("Склад").text == "2 ТЛВ склад"
 
-    def test_vat_group_none_falls_back_to_defaults(self, settings):
-        """AC8: vat_group=None + variant.vat_rate=None → DEFAULT."""
+    def test_vat_group_none_falls_back_to_defaults(self, settings, caplog):
+        """AC8: vat_group=None + variant.vat_rate=None → DEFAULT_* + warning logged."""
         settings.ONEC_EXCHANGE = {
             **getattr(settings, "ONEC_EXCHANGE", {}),
             "DEFAULT_VAT_RATE": 22,
@@ -2280,12 +2288,76 @@ class TestOrderExportServiceSubOrderDocument:
         )
 
         service = OrderExportService()
-        xml_str = service.generate_xml(Order.objects.filter(id=sub.id))
+        with caplog.at_level(logging.WARNING):
+            xml_str = service.generate_xml(Order.objects.filter(id=sub.id))
         root = ET.fromstring(xml_str)
 
         doc = root.find("Контейнер/Документ")
         assert doc is not None
         assert doc.find("Организация").text == "ИП Семерюк Д. В."
+        assert doc.find("Склад").text == "1 СДВ склад"
+        assert "vat_group is None, using defaults" in caplog.text
+
+    def test_vat_group_none_uses_defaults_not_warehouse_rules(self, settings, caplog):
+        """AC8: vat_group=None + warehouse_name в WAREHOUSE_RULES → DEFAULT_*, не WAREHOUSE_RULES."""
+        settings.ONEC_EXCHANGE = {
+            **getattr(settings, "ONEC_EXCHANGE", {}),
+            "WAREHOUSE_RULES": {
+                "2 ТЛВ склад": {"organization": "ИП Терещенко Л.В.", "vat_rate": 5},
+            },
+            "ORGANIZATION_BY_VAT": {
+                5: {"name": "ИП Терещенко Л.В.", "warehouse": "2 ТЛВ склад"},
+            },
+            "DEFAULT_ORGANIZATION": "ИП Семерюк Д. В.",
+            "DEFAULT_WAREHOUSE": "1 СДВ склад",
+            "DEFAULT_VAT_RATE": 22,
+        }
+        # warehouse_name варианта совпадает с WAREHOUSE_RULES, но vat_group=None → DEFAULT_* (AC8)
+        _master, sub = _make_master_with_sub(
+            vat_group=None,
+            variant_vat_rate=None,
+            warehouse_name="2 ТЛВ склад",
+        )
+
+        service = OrderExportService()
+        with caplog.at_level(logging.WARNING):
+            xml_str = service.generate_xml(Order.objects.filter(id=sub.id))
+        root = ET.fromstring(xml_str)
+
+        doc = root.find("Контейнер/Документ")
+        assert doc is not None
+        assert doc.find("Организация").text == "ИП Семерюк Д. В."
+        assert doc.find("Склад").text == "1 СДВ склад"
+        assert "vat_group is None, using defaults" in caplog.text
+
+    def test_item_vat_uses_order_vat_rate_when_variant_has_warehouse(self, settings):
+        """AC5: item.vat_rate=None, variant.vat_rate=None → item_vat_rate = order_vat_rate (из vat_group).
+        warehouse_name варианта НЕ используется для определения НДС строки."""
+        settings.ONEC_EXCHANGE = {
+            **getattr(settings, "ONEC_EXCHANGE", {}),
+            "WAREHOUSE_RULES": {
+                "2 ТЛВ склад": {"organization": "ИП Терещенко Л.В.", "vat_rate": 5},
+            },
+            "ORGANIZATION_BY_VAT": {
+                22: {"name": "ИП Семерюк Д. В.", "warehouse": "1 СДВ склад"},
+            },
+            "DEFAULT_VAT_RATE": 22,
+        }
+        # vat_group=22 → order_vat_rate=22; warehouse варианта "2 ТЛВ склад" → vat_rate=5 (должен игнорироваться)
+        _master, sub = _make_master_with_sub(
+            vat_group=Decimal("22.00"),
+            variant_vat_rate=None,
+            item_vat_rate=None,
+            warehouse_name="2 ТЛВ склад",
+        )
+
+        service = OrderExportService()
+        xml_str = service.generate_xml(Order.objects.filter(id=sub.id))
+        root = ET.fromstring(xml_str)
+
+        stavka = root.find(".//Товар/Налоги/Налог/Ставка")
+        assert stavka is not None
+        assert stavka.text == "22"  # vat_group=22 wins, NOT warehouse's 5
 
 
 @pytest.mark.unit

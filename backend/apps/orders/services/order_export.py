@@ -172,17 +172,17 @@ class OrderExportService:
         self._add_text_element(document, "Курс", self.EXCHANGE_RATE)
         self._add_text_element(document, "Сумма", self._format_price(order.total_amount))
 
-        # sub_order.vat_group → ORGANIZATION_BY_VAT, однородная группа НДС.
-        # При установленном vat_group — это авторитетный источник; warehouse_name
-        # варианта игнорируется, чтобы мастер-заказ не мог перенаправить документ
-        # в чужой склад/организацию. Warehouse-rules работают только как legacy
-        # fallback для заказов без vat_group (до Story 34-2).
-        if order.vat_group is not None:
-            order_warehouse_name = None
-        else:
-            order_warehouse_name = self._get_order_warehouse_name(order)
+        # sub_order.vat_group → ORGANIZATION_BY_VAT, однородная группа НДС (AC4).
+        # vat_group=None (AC8): DEFAULT_ORGANIZATION/DEFAULT_WAREHOUSE напрямую, warehouse_name не используется.
         order_vat_rate = self._get_order_vat_rate(order)
-        org_name, warehouse_name = self._get_org_and_warehouse(order_vat_rate, order_warehouse_name)
+        if order.vat_group is not None:
+            org_name, warehouse_name = self._get_org_and_warehouse(order_vat_rate, None)
+        else:
+            # AC8: vat_group=None → DEFAULT_* без warehouse_name routing
+            logger.warning(f"Sub-order {order.order_number}: vat_group is None, using defaults")
+            _exc_cfg = getattr(settings, "ONEC_EXCHANGE", {})
+            org_name = _exc_cfg.get("DEFAULT_ORGANIZATION", "ИП Семерюк Д. В.")
+            warehouse_name = _exc_cfg.get("DEFAULT_WAREHOUSE", "1 СДВ склад")
         exchange_cfg = getattr(settings, "ONEC_EXCHANGE", {})
         agreement_name = exchange_cfg.get("DEFAULT_AGREEMENT", "Стандартное")
 
@@ -354,11 +354,14 @@ class OrderExportService:
             self._add_text_element(vid_ceny, "Наименование", price_type_name)
 
             # НДС «в том числе» (включён в сумму строки)
-            # Приоритет snapshot (Story 34-1): OrderItem.vat_rate → variant.vat_rate → order default
+            # Цепочка AC5: OrderItem.vat_rate (snapshot) → variant.vat_rate → _get_order_vat_rate(sub)
+            # warehouse_name варианта НЕ используется для item-level VAT — только для order-level fallback.
             if item.vat_rate is not None:
                 item_vat_rate = Decimal(str(item.vat_rate))
+            elif item.variant.vat_rate is not None:
+                item_vat_rate = Decimal(str(item.variant.vat_rate))
             else:
-                item_vat_rate = self._get_variant_vat_rate(item.variant, order_vat_rate)
+                item_vat_rate = order_vat_rate
             vat_amount = self._calc_vat_amount(item.total_price, item_vat_rate)
 
             taxes = ET.SubElement(product, "Налоги")

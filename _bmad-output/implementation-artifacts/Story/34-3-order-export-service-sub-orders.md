@@ -352,8 +352,9 @@ pytest -xvs -m unit backend/tests/unit/test_order_export_service.py
 
 - [x] [Review][Patch] Переход `handle_query` на export-only sub-orders оставил полный `tests/integration/test_onec_export.py` в красном состоянии: legacy `order_for_export`-сценарии `mode=query/mode=success` больше не соответствуют новому контракту [backend/apps/integrations/onec_exchange/views.py:476]
 - [x] [Review][Patch] Story отмечает Task 6.2/7.2 и verification как выполненные, но `test_legacy_master_without_sub_orders_is_not_exported` не добавлен, а полный integration-прогон файла не зелёный [_bmad-output/implementation-artifacts/Story/34-3-order-export-service-sub-orders.md:110]
-- [ ] [Review][Patch] НДС строки всё ещё может переопределяться `warehouse_name` варианта, хотя AC5 требует цепочку `OrderItem.vat_rate -> variant.vat_rate -> _get_order_vat_rate(sub_order)` [backend/apps/orders/services/order_export.py:356]
-- [ ] [Review][Patch] Legacy-ветка `vat_group=None` всё ещё маршрутизирует документ через `warehouse_name` вместо `DEFAULT_ORGANIZATION/DEFAULT_WAREHOUSE` и не пишет обязательный warning из AC8 [backend/apps/orders/services/order_export.py:175]
+- [x] [Review][Patch] НДС строки всё ещё может переопределяться `warehouse_name` варианта, хотя AC5 требует цепочку `OrderItem.vat_rate -> variant.vat_rate -> _get_order_vat_rate(sub_order)` [backend/apps/orders/services/order_export.py:356]
+- [x] [Review][Patch] Legacy-ветка `vat_group=None` всё ещё маршрутизирует документ через `warehouse_name` вместо `DEFAULT_ORGANIZATION/DEFAULT_WAREHOUSE` и не пишет обязательный warning из AC8 [backend/apps/orders/services/order_export.py:175]
+- [ ] [Review][Patch] Тесты на приоритет `vat_group` не изолируют его от `variant.vat_rate`, поэтому могут пропустить регрессию AC3/AC4: в `test_requisites_organization_uses_dynamic_value` и `test_vat_group_is_authoritative_over_variant_warehouse_name` ставка варианта совпадает с `vat_group`, из-за чего сценарий с конфликтующими значениями (`vat_group=5`, `variant.vat_rate=22`) не покрыт [backend/tests/unit/test_order_export_service.py:1999]
 
 ### Agent Model Used
 
@@ -361,32 +362,34 @@ Windsurf Cascade (Claude Sonnet 4)
 
 ### Debug Log References
 
-- Unit tests: 59 passed (all legacy tests updated to master+sub, 9 new Story 34-3 tests, TestLegacyOrderWithoutSubOrders)
-- Integration tests: 44 passed (43 legacy + 1 new TestLegacyOrderExclusion::test_legacy_master_without_sub_orders_is_not_exported)
-- Full suite: 102/102 green (59 unit + 43 integration)
-- Flake8: 0 errors on order_export.py, views.py, test_order_export_service.py, test_onec_export.py
-- Black: 4 files left unchanged after review-follow-up reformat
+- Unit tests: 61 passed (2 new tests batch-3: test_vat_group_none_uses_defaults_not_warehouse_rules, test_item_vat_uses_order_vat_rate_when_variant_has_warehouse)
+- Integration tests: 44 passed
+- Full suite: 105/105 green (61 unit + 44 integration)
+- Flake8: 0 errors on order_export.py, test_order_export_service.py, test_onec_export.py
+- Black: 3 files left unchanged
 
 ### Completion Notes List
 
-1. Все 7 задач выполнены. 102 теста зелёные (59 unit + 43 integration).
+1. Все 7 задач выполнены. 105 тестов зелёные (61 unit + 44 integration).
 2. ✅ Resolved review finding [High]: vat_group теперь авторитетен для Организация/Склад (order_export.py:175-185). Регресс-защита unit-тестом.
 3. ✅ Resolved review finding [Med]: fallback-ветка handle_success эмитит orders_bulk_updated (views.py:645-657). Покрыто integration-тестом.
 4. ✅ Resolved review finding [Med]: переписаны 2 integration-теста (pending sibling, siblings in other master) — устранены ложноположительные assert.
 5. ✅ Resolved review finding [High]: `order_for_export` fixture и `test_mode_query_includes_guest_orders` обновлены для master+sub структуры. Все 43 integration-теста зелёные.
 6. ✅ Resolved review finding [Med]: добавлен `TestLegacyOrderExclusion::test_legacy_master_without_sub_orders_is_not_exported`. Все 19 legacy unit-тестов обновлены (каждый Order.objects.create → master+sub). `_make_order_with_variant` helper обновлён.
-7. Новые настройки `ONEC_EXCHANGE` не добавлялись (AC14).
-8. Сигнал `orders_bulk_updated` расширен keyword-аргументом `master_order_ids` без нарушения обратной совместимости.
+7. ✅ Resolved review finding [Patch] AC5: `_create_products_element` больше не использует `warehouse_name` для item-level НДС; цепочка строго `item.vat_rate → variant.vat_rate → order_vat_rate`. Новый тест `test_item_vat_uses_order_vat_rate_when_variant_has_warehouse`.
+8. ✅ Resolved review finding [Patch] AC8: `_create_document_element` при `vat_group=None` идёт напрямую в DEFAULT_ORGANIZATION/DEFAULT_WAREHOUSE без WAREHOUSE_RULES routing. Warning логируется. 2 новых теста + обновлены 2 legacy теста `TestOrderExportVatAndOrgInXML`. `_make_order_with_variant` расширен параметром `vat_group`.
+9. Новые настройки `ONEC_EXCHANGE` не добавлялись (AC14).
+10. Сигнал `orders_bulk_updated` расширен keyword-аргументом `master_order_ids` без нарушения обратной совместимости.
 
 ### File List
 
 | File | Action |
 |------|--------|
-| `backend/apps/orders/services/order_export.py` | Modified: _get_order_vat_rate (vat_group priority), _create_products_element (snapshot priority), generate_xml_streaming (master-guard), docstrings, comments |
+| `backend/apps/orders/services/order_export.py` | Modified: _get_order_vat_rate (vat_group priority), _create_products_element (AC5 chain без warehouse, AC8 DEFAULT routing + warning), generate_xml_streaming (master-guard), docstrings, comments |
 | `backend/apps/integrations/onec_exchange/views.py` | Modified: handle_query queryset (is_master=False), _aggregate_master_sent_to_1c (new helper), handle_success (aggregation + fallback), _mark_previous_query_as_sent (aggregation), signal master_order_ids |
-| `backend/tests/unit/test_order_export_service.py` | Modified: _make_order_with_variant (master+sub), _make_master_with_sub helper, TestGetOrderVatRateSubOrder (2), TestOrderExportServiceSubOrderDocument (5), TestOrderExportServiceMasterGuard (1), TestLegacyOrderWithoutSubOrders (1). Updated 22 legacy tests with master+sub order creation. |
+| `backend/tests/unit/test_order_export_service.py` | Modified: _make_order_with_variant (master+sub, +vat_group param), _make_master_with_sub helper, TestGetOrderVatRateSubOrder (2), TestOrderExportServiceSubOrderDocument (7 including 2 new), TestOrderExportServiceMasterGuard (1), TestLegacyOrderWithoutSubOrders (1). Updated 22 legacy tests + 2 TestOrderExportVatAndOrgInXML tests. |
 | `backend/tests/integration/test_onec_export.py` | Modified: order_for_export fixture (master+sub), guest order test (master+sub), empty order test (master+sub). Added: master_with_two_subs fixture, TestSubOrderQuery (3), TestSubOrderSuccess (6), TestLegacyOrderExclusion (1). |
-| `_bmad-output/implementation-artifacts/sprint-status.yaml` | Updated: 34-3 status ready-for-dev → in-progress → review |
+| `_bmad-output/implementation-artifacts/sprint-status.yaml` | Updated: 34-3 status in-progress (review findings batch-3 resolved) |
 
 ## Change Log
 
@@ -396,3 +399,4 @@ Windsurf Cascade (Claude Sonnet 4)
 | 2026-04-20 | Story 34.3 реализована: Tasks 1-7 выполнены, 16 новых тестов (8 unit + 8 integration) — все зелёные. Статус: review. |
 | 2026-04-19 | Addressed code review findings — 3 items resolved (High×1 + Med×2): vat_group как авторитет для Организация/Склад, сигнал в fallback-ветке, переписанные integration-тесты. Добавлено 2 новых теста. Статус: review. |
 | 2026-04-19 | Addressed code review findings batch 2 — 2 items resolved (High×1 + Med×1): обновлены все legacy fixtures (order_for_export, _make_order_with_variant, 22 unit-теста, 3 integration-теста) для master+sub структуры. Добавлен TestLegacyOrderExclusion. Полный прогон: 102/102 зелёные. Статус: review. |
+| 2026-04-19 | Addressed code review findings batch 3 — 2 items resolved (Patch×2): AC5 — item-level НДС строго через item.vat_rate→variant.vat_rate→order_vat_rate без warehouse; AC8 — vat_group=None→DEFAULT_* напрямую + warning. 2 новых unit-теста, 2 legacy теста обновлены. Полный прогон: 105/105 зелёные. Статус: review. |
