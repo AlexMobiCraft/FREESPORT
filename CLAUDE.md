@@ -181,6 +181,6 @@ docker compose --env-file .env -f docker/docker-compose.yml exec backend \
 - `docs/decisions/` — архитектурные решения
 - `docs/guides/` — руководства
 - `docs/qa/` — тестирование и QA
-- `docs/integrations/` — интеграции (CDEK, YuKassa и др.)
+- `docs/integrations/` — интеграции (1С,CDEK, YuKassa и др.)
 - `backend/docs/testing-standards.md` — стандарты тестирования
 - API Swagger UI: `/api/schema/swagger/` (на dev сервере)

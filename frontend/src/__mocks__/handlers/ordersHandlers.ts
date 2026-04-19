@@ -130,7 +130,7 @@ export const mockOrdersList: OrderListItem[] = [
  * Orders API Handlers
  */
 export const ordersHandlers = [
-  // POST /orders/ - Создание заказа (контракт Story 34-2: customer_*, notes, discount_amount)
+  // POST /orders/ - Создание заказа (контракт Story 34-2: customer_*, notes, discount_amount, promo_code)
   http.post('*/orders/', async ({ request }) => {
     const body = (await request.json()) as {
       customer_email?: string;
@@ -141,6 +141,7 @@ export const ordersHandlers = [
       payment_method?: string;
       notes?: string;
       discount_amount?: string;
+      promo_code?: string | null; // stub Story 34-2 [Review][Patch]
     };
 
     if (!body.customer_email) {

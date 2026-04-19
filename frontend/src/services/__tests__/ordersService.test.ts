@@ -116,6 +116,19 @@ describe('ordersService', () => {
       const payloadUndefined = mapFormDataToPayload(mockFormData, mockCartItems);
       expect((payloadUndefined as unknown as Record<string, unknown>)['discount_amount']).toBeUndefined();
     });
+
+    test('[Review][Patch] stub: включает promo_code в payload при передаче строки (Story 34-2)', () => {
+      const payload = mapFormDataToPayload(mockFormData, mockCartItems, undefined, 'SUMMER2026');
+      expect(payload.promo_code).toBe('SUMMER2026');
+    });
+
+    test('[Review][Patch] stub: не включает promo_code в payload при null/undefined (Story 34-2)', () => {
+      const payloadNull = mapFormDataToPayload(mockFormData, mockCartItems, undefined, null);
+      expect((payloadNull as unknown as Record<string, unknown>)['promo_code']).toBeUndefined();
+
+      const payloadUndefined = mapFormDataToPayload(mockFormData, mockCartItems);
+      expect((payloadUndefined as unknown as Record<string, unknown>)['promo_code']).toBeUndefined();
+    });
   });
 
   describe('parseApiError', () => {

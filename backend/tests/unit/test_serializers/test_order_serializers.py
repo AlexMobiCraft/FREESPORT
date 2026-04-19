@@ -1485,3 +1485,89 @@ class TestOrderVATSplit:
         # Security fix: server overrides discount to 0
         assert master.discount_amount == Decimal("0.00")
         assert master.total_amount == Decimal("5000.00")
+
+    def test_promo_code_stub_accepted_discount_stays_zero(
+        self,
+        user_factory,
+        cart_factory,
+        product_factory,
+        cart_item_factory,
+    ):
+        """[Review][Patch] Story 34-2: promo_code stub — поле принимается от клиента,
+        discount_amount на мастере остаётся 0 (promo-система не реализована).
+
+        AC4: discount_amount только на мастере = 0.
+        Когда PromoCode-система появится, этот тест должен быть обновлён.
+        """
+        from unittest.mock import Mock
+
+        user = user_factory.create()
+        cart = cart_factory.create(user=user)
+        product = product_factory.create(retail_price=Decimal("200.00"))
+        variant = product.variants.first()
+        variant.vat_rate = Decimal("20.00")
+        variant.save()
+        cart_item_factory.create(cart=cart, product=product, quantity=2)
+
+        mock_request = Mock()
+        mock_request.user = user
+
+        serializer = OrderCreateSerializer(
+            data={
+                "delivery_address": "Ул. Тестовая, 1",
+                "delivery_method": "pickup",
+                "payment_method": "card",
+                "promo_code": "SUMMER2026",  # stub: принимается, не применяется
+            },
+            context={"request": mock_request},
+        )
+        assert serializer.is_valid(), serializer.errors
+        master = serializer.save()
+
+        # promo_code не влияет на скидку — promo-система не реализована
+        assert master.discount_amount == Decimal("0.00")
+        assert master.total_amount == Decimal("400.00")  # 200 * 2 + pickup(0)
+
+    def test_promo_code_stub_null_and_empty_accepted(
+        self,
+        user_factory,
+        cart_factory,
+        product_factory,
+        cart_item_factory,
+    ):
+        """[Review][Patch] Story 34-2: promo_code=null и promo_code='' — валидны,
+        backward-compatible с checkout без промокода.
+        """
+        from unittest.mock import Mock
+
+        user = user_factory.create()
+        cart = cart_factory.create(user=user)
+        product = product_factory.create(retail_price=Decimal("100.00"))
+        variant = product.variants.first()
+        variant.vat_rate = Decimal("5.00")
+        variant.save()
+        cart_item_factory.create(cart=cart, product=product, quantity=1)
+
+        mock_request = Mock()
+        mock_request.user = user
+
+        for promo_value in [None, ""]:
+            user2 = user_factory.create()
+            cart2 = cart_factory.create(user=user2)
+            cart_item_factory.create(cart=cart2, product=product, quantity=1)
+
+            mock_req2 = Mock()
+            mock_req2.user = user2
+
+            serializer = OrderCreateSerializer(
+                data={
+                    "delivery_address": "Ул. Тестовая, 1",
+                    "delivery_method": "pickup",
+                    "payment_method": "card",
+                    "promo_code": promo_value,
+                },
+                context={"request": mock_req2},
+            )
+            assert serializer.is_valid(), f"promo_code={promo_value!r} should be valid: {serializer.errors}"
+            master = serializer.save()
+            assert master.discount_amount == Decimal("0.00")

@@ -50,7 +50,7 @@ export const useOrderStore = create<OrderState>()(
         set({ isSubmitting: true, error: null });
 
         try {
-          // Получаем товары и скидку из корзины
+          // Получаем товары из корзины
           const cartState = useCartStore.getState();
           const cartItems = cartState.items;
 
@@ -59,17 +59,19 @@ export const useOrderStore = create<OrderState>()(
             throw new Error('Корзина пуста, невозможно оформить заказ');
           }
 
-          // Скидка по промокоду (AC4 Story 34-2: только на мастер-заказ)
-          const discountAmount = cartState.getPromoDiscount();
+          // promo_code — stub (Story 34-2 [Review][Patch]): передаём для будущей серверной promo-системы.
+          // discount_amount НЕ передаётся клиентом: сервер всегда выставляет 0 (promo-система в разработке).
+          const promoCode = cartState.promoCode;
 
           // Создаём заказ через API
-          const order = await ordersService.createOrder(data, cartItems, discountAmount || undefined);
+          const order = await ordersService.createOrder(data, cartItems, undefined, promoCode);
 
           // Сохраняем созданный заказ
           set({ currentOrder: order, error: null });
 
-          // Очищаем корзину после успешного создания заказа
+          // Очищаем корзину и promo-state после успешного создания заказа
           await useCartStore.getState().clearCart();
+          useCartStore.getState().clearPromo();
         } catch (error: unknown) {
           const errorMessage = error instanceof Error ? error.message : 'Ошибка создания заказа';
           set({ error: errorMessage });

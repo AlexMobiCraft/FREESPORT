@@ -140,6 +140,10 @@ export interface CreateOrderPayload {
 
   // Сумма скидки (только на мастер-заказе, AC4 Story 34-2)
   discount_amount?: string; // Decimal как строка, например "500.00"
+
+  // Промо-код (stub Story 34-2 [Review][Patch]): принимается сервером, discount пока всегда 0.
+  // Когда promo-система появится, backend будет проверять код и вычислять скидку.
+  promo_code?: string | null;
 }
 
 /**

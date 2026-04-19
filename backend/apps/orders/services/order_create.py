@@ -42,10 +42,11 @@ class OrderCreateService:
                 "Корзина пуста или уже используется для создания заказа. " "Обновите корзину и попробуйте снова."
             )
 
-        # discount_amount is server-authoritative; client field removed from input contract.
-        # Currently 0: promo system not implemented.
-        # Future: replace with PromoCode.calculate(cart, user) or similar server-side logic.
+        # discount_amount is server-authoritative; client value ignored.
+        # promo_code is a stub: accepted from client, not yet validated against DB.
+        # Future: PromoCode.calculate(promo_code, cart, user) → discount_amount.
         validated_data.pop("discount_amount", None)
+        validated_data.pop("promo_code", None)
         discount_amount: Decimal = Decimal("0")
 
         # 1. Сгруппировать позиции корзины по variant.vat_rate

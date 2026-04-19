@@ -163,6 +163,16 @@ class OrderCreateSerializer(serializers.ModelSerializer):
         default=Decimal("0"),
     )
 
+    # promo_code — заглушка под будущую promo-систему (Story 34-2 [Review][Patch]).
+    # Поле принимается от клиента, но на текущем этапе игнорируется сервером;
+    # discount_amount остаётся 0 до реализации PromoCode.validate(cart, user).
+    promo_code = serializers.CharField(
+        required=False,
+        allow_null=True,
+        allow_blank=True,
+        max_length=100,
+    )
+
     class Meta:
         """Мета-класс для OrderCreateSerializer"""
 
@@ -177,6 +187,7 @@ class OrderCreateSerializer(serializers.ModelSerializer):
             "customer_email",
             "customer_phone",
             "discount_amount",
+            "promo_code",
         ]
 
     def validate(self, attrs):

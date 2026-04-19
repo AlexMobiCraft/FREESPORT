@@ -36,11 +36,13 @@ export interface OrderFilters {
  * Маппинг CheckoutFormData -> CreateOrderPayload (контракт OrderCreateSerializer).
  * Backend строит заказ из server-side корзины; поле items в payload не передаётся.
  * @param discountAmount - сумма скидки из cartStore.getPromoDiscount() (AC4 Story 34-2)
+ * @param promoCode - промо-код (stub Story 34-2 [Review][Patch]; сервер пока игнорирует)
  */
 function mapFormDataToPayload(
   formData: CheckoutFormData,
   _cartItems: CartItem[],
-  discountAmount?: number
+  discountAmount?: number,
+  promoCode?: string | null
 ): CreateOrderPayload {
   const payload: CreateOrderPayload = {
     customer_email: formData.email,
@@ -55,6 +57,9 @@ function mapFormDataToPayload(
   };
   if (discountAmount && discountAmount > 0) {
     payload.discount_amount = discountAmount.toFixed(2);
+  }
+  if (promoCode) {
+    payload.promo_code = promoCode;
   }
   return payload;
 }
@@ -117,17 +122,19 @@ class OrdersService {
   /**
    * Создать новый заказ
    * @param discountAmount - скидка из cartStore.getPromoDiscount() (AC4 Story 34-2)
+   * @param promoCode - промо-код (stub Story 34-2 [Review][Patch]; сервер пока игнорирует)
    */
   async createOrder(
     formData: CheckoutFormData,
     cartItems: CartItem[],
-    discountAmount?: number
+    discountAmount?: number,
+    promoCode?: string | null
   ): Promise<Order> {
     if (!cartItems || cartItems.length === 0) {
       throw new Error('Корзина пуста, невозможно оформить заказ');
     }
 
-    const payload = mapFormDataToPayload(formData, cartItems, discountAmount);
+    const payload = mapFormDataToPayload(formData, cartItems, discountAmount, promoCode);
 
     try {
       const response = await apiClient.post<CreateOrderResponse>('/orders/', payload);

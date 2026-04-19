@@ -211,7 +211,8 @@ describe('CheckoutForm', () => {
       expect(screen.queryByTestId('promo-discount-row')).not.toBeInTheDocument();
     });
 
-    it('показывает строку скидки при promoDiscount > 0', () => {
+    it('не показывает строку скидки даже при promoDiscount > 0 (promo-система не серверная)', () => {
+      // [Review][Patch] Story 34-2: checkout не должен обещать скидку, которую order API не сохраняет
       (useCartStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
         items: mockCartItems,
         totalPrice: 200,
@@ -222,11 +223,10 @@ describe('CheckoutForm', () => {
 
       render(<CheckoutForm user={null} />);
 
-      expect(screen.getByTestId('promo-discount-row')).toBeInTheDocument();
-      expect(screen.getByTestId('promo-discount-amount')).toHaveTextContent('50');
+      expect(screen.queryByTestId('promo-discount-row')).not.toBeInTheDocument();
     });
 
-    it('итого уменьшается на размер скидки', () => {
+    it('итого равно полной цене без вычета скидки (сервер всегда выставляет discount_amount=0)', () => {
       (useCartStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
         items: mockCartItems,
         totalPrice: 200,
@@ -237,11 +237,11 @@ describe('CheckoutForm', () => {
 
       render(<CheckoutForm user={null} />);
 
-      // totalPrice - discount = 150
-      expect(screen.getByTestId('total-price')).toHaveTextContent('150');
+      // Итого = totalPrice (200), скидка не вычитается в checkout
+      expect(screen.getByTestId('total-price')).toHaveTextContent('200');
     });
 
-    it('показывает метку "До скидки" при наличии скидки', () => {
+    it('не показывает метку "До скидки" (discount не применяется в checkout)', () => {
       (useCartStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
         items: mockCartItems,
         totalPrice: 200,
@@ -252,8 +252,7 @@ describe('CheckoutForm', () => {
 
       render(<CheckoutForm user={null} />);
 
-      expect(screen.getByTestId('price-before-discount')).toBeInTheDocument();
-      expect(screen.getByTestId('price-before-discount')).toHaveTextContent('200');
+      expect(screen.queryByTestId('price-before-discount')).not.toBeInTheDocument();
     });
   });
 });

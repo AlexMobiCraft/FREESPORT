@@ -230,6 +230,13 @@ docker compose --env-file .env -f docker/docker-compose.yml exec -T backend \
 
 - [x] [Review][Patch] Восстановить явный input-контракт `discount_amount` и валидацию вместо silent-ignore неизвестного поля: текущий diff убрал поле из `OrderCreateSerializer.Meta.fields`, а новый unit-тест закрепляет это поведение, хотя frontend/MSW/OpenAPI по-прежнему трактуют `discount_amount` как допустимый create-параметр; так invalid payload больше не получает 4xx, а schema drift остаётся незамеченным. [backend/apps/orders/serializers.py:158]
 - [x] [Review][Patch] Усилить regression-тест конкурентного checkout: сейчас он проверяет только наличие одного `201` и одного master-order, поэтому пропускает случаи, где проигравший запрос возвращает `500`/другую ошибку вместо ожидаемого `400`, а сбои внутри потоков маскируются слабой диагностикой. [backend/tests/integration/test_cart_order_integration.py:816]
+- [x] [Review][Patch] Заменить `discount_amount` на backend-authoritative `promo_code` stub в checkout-контракте: пользователь должен передавать промокод/фразу, backend — проверять код по БД действующих кодов и сам вычислять скидку; на текущем этапе нужна заглушка под будущую реализацию и синхронизация frontend/tests/docs, чтобы заказ не показывал скидку в UI и не сохранялся без неё молча. [backend/apps/orders/services/order_create.py:45]
+- [x] [Review][Defer] Определить consume-snapshot контракт корзины во время checkout [backend/apps/orders/services/order_create.py:35] — deferred, pre-existing. Причина: в дальнейшем создать отдельную спеку для реализации этой функции.
+- [x] [Review][Patch] Провести `promo_code` через реальный checkout flow: текущие `CheckoutForm -> orderStore -> ordersService` всё ещё передают только `discount_amount`, поэтому новый `promo_code` контракт не используется в runtime и промокод теряется до `POST /orders/`. [frontend/src/stores/orderStore.ts:66]
+- [x] [Review][Patch] Исправить невалидный статус story в `sprint-status.yaml`: значение `reviin-progress` не входит в поддерживаемый набор `backlog|ready-for-dev|in-progress|review|done` и ломает автоматический трекинг состояния. Исправлено при review sync на `in-progress`. [_bmad-output/implementation-artifacts/sprint-status.yaml:131]
+- [x] [Review][Patch] Синхронизировать runtime promo-контракт checkout с backend-authoritative stub: `orderStore` продолжает вычислять и передавать client-side `discount_amount`, а cart/checkout summary по-прежнему показывают локальную скидку, хотя backend безусловно создаёт заказ с `discount_amount=0`; пока promo-система не серверная, checkout не должен обещать скидку, которую order API не сохраняет. [frontend/src/stores/orderStore.ts:63]
+- [x] [Review][Patch] Очищать `promoCode` и discount state после успешного заказа: `createOrder()` вызывает только `clearCart()`, а `cartStore.clearCart()` сохраняет promo-state в persisted store, поэтому предыдущий код автоматически уходит в следующий checkout. [frontend/src/stores/orderStore.ts:72]
+- [x] [Review][Patch] Добавить regression-тест на реальный promo checkout-path (`promoCode` + ненулевой `getPromoDiscount()`): текущие новые тесты проверяют только pass-through stub с `discountValue=0` и не ловят расхождение между UI total и backend-created order total. [frontend/src/stores/__tests__/orderStore.test.ts:188]
 
 ## Dev Agent Record
 
@@ -238,6 +245,57 @@ docker compose --env-file .env -f docker/docker-compose.yml exec -T backend \
 claude-sonnet-4-6
 
 ### Debug Log References
+
+**Thirty-Fourth Follow-up (2026-04-19) — подтверждённые результаты:**
+
+Frontend:
+```
+134 test files passed, 2253 tests passed, 14 skipped
+npx tsc --noEmit → clean (нет ошибок)
+```
+
+**Команды воспроизведения:**
+```bash
+npm run test -- src/stores/__tests__/orderStore.test.ts src/components/checkout/__tests__/CheckoutForm.test.tsx
+npm run test
+npx tsc --noEmit
+```
+
+**Thirty-Third Follow-up (2026-04-19) — подтверждённые результаты:**
+
+Frontend:
+```
+134 test files passed, 2252 tests passed, 14 skipped
+npx tsc --noEmit → clean (нет ошибок)
+```
+
+**Команды воспроизведения:**
+```bash
+npm run test -- src/stores/__tests__/orderStore.test.ts
+npm run test
+npx tsc --noEmit
+```
+
+**Thirty-Second Follow-up (2026-04-19) — подтверждённые результаты:**
+
+Backend (orders area):
+```
+114 passed, 6 warnings in 56.03s
+```
+flake8 + black: чистый (3 файла без изменений).
+
+Frontend:
+```
+134 test files passed, 2251 tests passed, 14 skipped
+npx tsc --noEmit → clean (нет ошибок)
+```
+
+**Команды воспроизведения:**
+```bash
+pytest apps/orders tests/unit/test_models/test_order_models.py \
+       tests/unit/test_serializers/test_order_serializers.py \
+       tests/integration/test_cart_order_integration.py
+```
 
 **Thirty-First Follow-up (2026-04-19) — подтверждённые результаты:**
 
@@ -300,6 +358,11 @@ pytest -m integration tests/integration/test_cart_order_integration.py
 - ✅ Resolved review finding [Medium]: добавлен `ConcurrentCartCheckoutTests(TransactionTestCase)` с реальным concurrent тестом `test_concurrent_double_submit_creates_only_one_order` — два потока с `threading.Barrier` + `TransactionTestCase` (реальные транзакции). Тест подтверждает, что `select_for_update()` гарантирует создание ровно одного мастер-заказа при параллельных запросах.
 - ✅ Resolved [Patch] Восстановлен explicit input-контракт `discount_amount` в `OrderCreateSerializer`: поле добавлено обратно в `Meta.fields` с `min_value=0`; отрицательные значения явно отклоняются с 400 (не silent-ignore). Сервер по-прежнему выставляет `discount_amount=0` через service (promo-система TODO). Тест переименован в `test_discount_amount_negative_rejected_with_validation_error`.
 - ✅ Resolved [Patch] Усилен concurrent-тест `test_concurrent_double_submit_creates_only_one_order`: добавлен захват исключений потоков, явная проверка что проигравший поток возвращает HTTP 400 (не 500), информативные сообщения при провале.
+- ✅ Resolved [Patch] `promo_code` stub реализован в checkout-контракте (Story 34-2 Thirty-Second Follow-up): `OrderCreateSerializer` принимает optional `promo_code` CharField; `OrderCreateService` поп-ает поле (discount=0, promo-система TODO); `CreateOrderPayload` в frontend типах расширен; `mapFormDataToPayload`/`createOrder` принимают `promoCode`; MSW handler синхронизирован; 2 backend unit-теста + 2 frontend regression-теста добавлены. Backend: 114 passed, lint clean. Frontend: 2251 passed, tsc clean.
+- ✅ Resolved [Review][Patch] `promo_code` проведён через реальный checkout flow (Thirty-Third Follow-up): `orderStore.createOrder()` теперь извлекает `cartState.promoCode` и передаёт в `ordersService.createOrder()` как 4-й аргумент; добавлен regression-тест `передаёт promo_code из cartStore при создании заказа`. Frontend: 2252 passed, tsc clean.
+- ✅ Resolved [Review][Patch] checkout синхронизирован с backend-authoritative stub (Thirty-Fourth Follow-up): `orderStore` больше не вычисляет и не передаёт `discountAmount` (сервер всегда выставляет 0); `OrderSummary` не показывает discount-строку в checkout (не обещает скидку, которую order API не сохраняет).
+- ✅ Resolved [Review][Patch] `promoCode` и discount state очищаются после успешного заказа: добавлен `useCartStore.getState().clearPromo()` после `clearCart()` в `orderStore.createOrder()`.
+- ✅ Resolved [Review][Patch] добавлены regression-тесты на promo checkout-path: `'не передаёт discount_amount даже при ненулевом getPromoDiscount()'` и `'очищает promoCode из cartStore после успешного создания заказа'`; тесты `CheckoutForm.test.tsx` обновлены — верифицируют, что discount НЕ показывается в checkout. Frontend: 134 files, 2253 tests passed, tsc clean.
 
 ### File List
 
@@ -318,6 +381,33 @@ pytest -m integration tests/integration/test_cart_order_integration.py
 - `frontend/src/components/business/OrderDetail/OrderDetail.tsx` — добавлен `transport_schedule` в `deliveryMethodLabels`.
 - `frontend/src/components/checkout/__tests__/OrderSuccessView.test.tsx` — добавлены 2 regression-теста на локализацию `transport_company`/`transport_schedule`.
 - `frontend/src/components/business/OrderDetail/OrderDetail.test.tsx` — добавлены 2 regression-теста на локализацию `transport_company`/`transport_schedule`.
+
+**Изменённые файлы (Thirty-Fourth Follow-up, 2026-04-19):**
+
+- `frontend/src/stores/orderStore.ts` — убран `discountAmount` из `createOrder()`; добавлен `clearPromo()` после `clearCart()`.
+- `frontend/src/components/checkout/OrderSummary.tsx` — удалён `getPromoDiscount`, убраны discount-row и "До скидки" блоки; total показывает полную цену.
+- `frontend/src/stores/__tests__/orderStore.test.ts` — обновлён тест "передаёт скидку" → "не передаёт discount_amount"; добавлены тесты "не передаёт discount_amount при ненулевом getPromoDiscount()" и "очищает promoCode после успешного заказа".
+- `frontend/src/components/checkout/__tests__/CheckoutForm.test.tsx` — обновлён describe `Discount UI`: тесты верифицируют, что discount НЕ показывается в checkout.
+- `_bmad-output/implementation-artifacts/Story/34-2-sub-order-creation-logic-and-api.md` — Review Findings [x], File List, Completion Notes, Debug Log, Change Log, Status → review.
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` — Story 34-2 синхронизирована в `review`.
+
+**Изменённые файлы (Thirty-Third Follow-up, 2026-04-19):**
+
+- `frontend/src/stores/orderStore.ts` — `createOrder()` теперь извлекает `cartState.promoCode` и передаёт в `ordersService.createOrder()`.
+- `frontend/src/stores/__tests__/orderStore.test.ts` — добавлен regression-тест `передаёт promo_code из cartStore при создании заказа ([Review][Patch] Story 34-2)`.
+- `_bmad-output/implementation-artifacts/Story/34-2-sub-order-creation-logic-and-api.md` — Review Findings [x], File List, Completion Notes, Debug Log, Change Log, Status → review.
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` — Story 34-2 синхронизирована в `review`.
+
+**Изменённые файлы (Thirty-Second Follow-up, 2026-04-19):**
+
+- `backend/apps/orders/serializers.py` — добавлен `promo_code` CharField (optional, nullable, max_length=100) в `OrderCreateSerializer`; добавлен в `Meta.fields`.
+- `backend/apps/orders/services/order_create.py` — добавлен `validated_data.pop("promo_code", None)` рядом с `discount_amount` pop; обновлён комментарий.
+- `backend/tests/unit/test_serializers/test_order_serializers.py` — добавлены 2 теста: `test_promo_code_stub_accepted_discount_stays_zero` и `test_promo_code_stub_null_and_empty_accepted`.
+- `frontend/src/types/order.ts` — добавлено `promo_code?: string | null` в `CreateOrderPayload`.
+- `frontend/src/services/ordersService.ts` — `mapFormDataToPayload` и `createOrder` расширены опциональным параметром `promoCode?: string | null`.
+- `frontend/src/__mocks__/handlers/ordersHandlers.ts` — добавлен `promo_code?: string | null` в тип тела POST /orders/ handler.
+- `frontend/src/services/__tests__/ordersService.test.ts` — добавлены 2 regression-теста на promo_code stub.
+- `_bmad-output/implementation-artifacts/Story/34-2-sub-order-creation-logic-and-api.md` — Review Findings [x], File List, Completion Notes, Debug Log, Change Log, Status → review.
 
 **Изменённые файлы (Thirty-First Follow-up, 2026-04-19):**
 
@@ -500,3 +590,6 @@ Changes Requested
 | 2026-04-18 | Twenty-Ninth follow-up code review (AI): выявлено, что security fix по `discount_amount` сломал AC4/business-contract скидок, а новый test на double-submit не доказывает конкурентный сценарий для `select_for_update()`. Status → in-progress. Outcome: Changes Requested. |
 | 2026-04-18 | Thirtieth follow-up: `discount_amount` убран из client input fields (`OrderCreateSerializer.Meta.fields`) — server-authoritative контракт без удаления бизнес-функции; `test_discount_amount_client_payload_ignored` заменил старый тест валидации. Добавлен `ConcurrentCartCheckoutTests(TransactionTestCase)` с реальным concurrent тестом (`threading.Barrier`, два потока). Backend: 112 passed, flake8/black clean. Status → review. |
 | 2026-04-19 | Thirty-First follow-up: `discount_amount` возвращён в `Meta.fields` с `min_value=0` (explicit contract; отрицательные → 400; positive → 0 on server). Тест переименован в `test_discount_amount_negative_rejected_with_validation_error`. Concurrent-тест усилён: явная проверка HTTP 400 у проигравшего потока + exception capture. Backend: 112 passed, flake8/black clean. Status → review. |
+| 2026-04-19 | Thirty-Second follow-up: `promo_code` stub добавлен в checkout-контракт (backend serializer + service + 2 unit-тесты; frontend types + ordersService + MSW handler + 2 regression-тесты). `[Review][Patch]` закрыт [x]. Backend: 114 passed, lint clean. Frontend: 2251 passed, tsc clean. Status → review. |
+| 2026-04-19 | Thirty-Third follow-up: `promo_code` проведён через реальный checkout flow — `orderStore.createOrder()` передаёт `cartState.promoCode` в `ordersService.createOrder()`; добавлен regression-тест. `[Review][Patch]` закрыт [x]. Frontend: 2252 passed, tsc clean. Status → review. |
+| 2026-04-19 | Thirty-Fourth follow-up: синхронизирован runtime promo-контракт checkout — `orderStore` не вычисляет/не передаёт `discountAmount`, `OrderSummary` не показывает discount в checkout, добавлен `clearPromo()` после заказа, добавлены 2 regression-теста + обновлён CheckoutForm.test.tsx. Все 3 `[Review][Patch]` закрыты [x]. Frontend: 2253 passed, tsc clean. Status → review. |

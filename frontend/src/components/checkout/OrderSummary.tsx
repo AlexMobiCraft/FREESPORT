@@ -30,8 +30,7 @@ export interface OrderSummaryProps {
  * - Desktop: sticky sidebar справа
  */
 export function OrderSummary({ isSubmitting, submitError, isCartEmpty }: OrderSummaryProps) {
-  const { items, totalPrice, getPromoDiscount } = useCartStore();
-  const promoDiscount = getPromoDiscount();
+  const { items, totalPrice } = useCartStore();
 
   // Проверка на пустую корзину
   // Если в сторе есть товары, значит корзина НЕ пуста, даже если пропс говорит обратное (защита от гидратации)
@@ -89,29 +88,14 @@ export function OrderSummary({ isSubmitting, submitError, isCartEmpty }: OrderSu
               <span className="text-gray-600">Уточняется</span>
             </div>
 
-            {/* Скидка (показываем только если есть промокод) */}
-            {promoDiscount > 0 && (
-              <div className="mb-2 flex justify-between text-sm" data-testid="promo-discount-row">
-                <span className="text-green-600">Скидка:</span>
-                <span className="font-medium text-green-600" data-testid="promo-discount-amount">
-                  −{promoDiscount.toLocaleString('ru-RU')} ₽
-                </span>
-              </div>
-            )}
-
             {/* Общая сумма */}
             <div className="border-t border-gray-200 pt-4">
               <div className="flex justify-between">
                 <span className="text-lg font-semibold text-gray-900">Итого:</span>
                 <span className="text-lg font-semibold text-gray-900" data-testid="total-price">
-                  {(totalPrice - promoDiscount).toLocaleString('ru-RU')} ₽
+                  {totalPrice.toLocaleString('ru-RU')} ₽
                 </span>
               </div>
-              {promoDiscount > 0 && (
-                <p className="mt-1 text-xs text-gray-500" data-testid="price-before-discount">
-                  До скидки: {totalPrice.toLocaleString('ru-RU')} ₽
-                </p>
-              )}
               <p className="mt-1 text-xs text-gray-500">
                 Финальная стоимость с учётом доставки будет рассчитана после оформления
               </p>

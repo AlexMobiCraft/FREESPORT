@@ -185,8 +185,39 @@ describe('orderStore', () => {
       expect(state.error).toBe('Корзина пуста, невозможно оформить заказ');
     });
 
-    test('передаёт скидку из cartStore при создании заказа (AC4 Story 34-2)', async () => {
-      // Устанавливаем промокод в корзине
+    test('передаёт promo_code из cartStore при создании заказа ([Review][Patch] Story 34-2)', async () => {
+      useCartStore.setState({
+        items: mockCartItems,
+        totalItems: 2,
+        totalPrice: 5000,
+        promoCode: 'SUMMER20',
+        discountType: null,
+        discountValue: 0,
+        isLoading: false,
+        error: null,
+      });
+
+      let capturedPayload: Record<string, unknown> | null = null;
+
+      server.use(
+        http.post('*/orders/', async ({ request }) => {
+          capturedPayload = (await request.json()) as Record<string, unknown>;
+          return HttpResponse.json(mockSuccessOrder, { status: 201 });
+        })
+      );
+
+      const { createOrder } = useOrderStore.getState();
+
+      await act(async () => {
+        await createOrder(mockFormData);
+      });
+
+      expect(capturedPayload).not.toBeNull();
+      expect(capturedPayload!['promo_code']).toBe('SUMMER20');
+    });
+
+    test('не передаёт discount_amount даже при ненулевом getPromoDiscount() ([Review][Patch] Story 34-2 regression)', async () => {
+      // promo-система не серверная: orderStore не должен вычислять и отправлять client-side discount_amount
       useCartStore.setState({
         items: mockCartItems,
         totalItems: 2,
@@ -214,8 +245,34 @@ describe('orderStore', () => {
       });
 
       expect(capturedPayload).not.toBeNull();
-      // getPromoDiscount() при fixed 500 и totalPrice 5000 = 500
-      expect(capturedPayload!['discount_amount']).toBe('500.00');
+      // discount_amount НЕ должен приходить от клиента — сервер всегда выставляет 0
+      expect(capturedPayload!['discount_amount']).toBeUndefined();
+      // promo_code передаётся как stub для будущей серверной promo-системы
+      expect(capturedPayload!['promo_code']).toBe('PROMO10');
+    });
+
+    test('очищает promoCode из cartStore после успешного создания заказа ([Review][Patch] Story 34-2)', async () => {
+      useCartStore.setState({
+        items: mockCartItems,
+        totalItems: 2,
+        totalPrice: 5000,
+        promoCode: 'SUMMER20',
+        discountType: 'percent',
+        discountValue: 10,
+        isLoading: false,
+        error: null,
+      });
+
+      const { createOrder } = useOrderStore.getState();
+
+      await act(async () => {
+        await createOrder(mockFormData);
+      });
+
+      const cartState = useCartStore.getState();
+      expect(cartState.promoCode).toBeNull();
+      expect(cartState.discountType).toBeNull();
+      expect(cartState.discountValue).toBe(0);
     });
 
     // TODO: Требует изолированного MSW - parseApiError тестирует логику обработки ошибок
