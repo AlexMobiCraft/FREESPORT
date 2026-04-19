@@ -74,7 +74,9 @@ class OrderExportService:
         Generate CommerceML 3.1 XML for orders export to 1C.
 
         Args:
-            orders: QuerySet with prefetch_related('items__variant', 'user').
+            orders: QuerySet of **sub-orders** (is_master=False, parent_order__isnull=False)
+                    with prefetch_related('items__variant', 'user').
+                    vat_group субзаказа — авторитетный источник для организации/склада.
                     Guest orders (user=None) are supported — counterparty block is omitted.
 
         Returns:
@@ -99,7 +101,9 @@ class OrderExportService:
         Yields XML fragments that should be concatenated by the caller.
 
         Args:
-            orders: QuerySet with prefetch_related('items__variant', 'user').
+            orders: QuerySet of **sub-orders** (is_master=False, parent_order__isnull=False)
+                    with prefetch_related('items__variant', 'user').
+                    vat_group субзаказа — авторитетный источник для организации/склада.
                     Guest orders (user=None) are supported — counterparty block is omitted.
             exported_ids: Optional list to append exported order PKs to.
                          Allows callers to know exactly which orders were included.
@@ -119,6 +123,14 @@ class OrderExportService:
 
         # Stream each order as a Container with Document inside
         for order in orders.iterator(chunk_size=100):
+            if order.is_master:
+                logger.warning(
+                    f"Order {order.order_number}: is_master=True, export skipped — "
+                    f"OrderExportService expects sub-orders only"
+                )
+                if skipped_ids is not None:
+                    skipped_ids.append(order.pk)
+                continue
             if not self._validate_order(order):
                 if skipped_ids is not None:
                     skipped_ids.append(order.pk)
@@ -160,8 +172,8 @@ class OrderExportService:
         self._add_text_element(document, "Курс", self.EXCHANGE_RATE)
         self._add_text_element(document, "Сумма", self._format_price(order.total_amount))
 
-        # Организация и склад определяются по складу первого товара,
-        # fallback — по vat_rate для старых данных.
+        # sub_order.vat_group → ORGANIZATION_BY_VAT, однородная группа НДС.
+        # Fallback — по складу первого товара / vat_rate для старых данных.
         order_warehouse_name = self._get_order_warehouse_name(order)
         order_vat_rate = self._get_order_vat_rate(order)
         org_name, warehouse_name = self._get_org_and_warehouse(order_vat_rate, order_warehouse_name)
@@ -208,6 +220,7 @@ class OrderExportService:
 
         Supports both registered users and guest orders. For guest orders,
         uses order.customer_name, customer_email, customer_phone fields.
+        Customer fields скопированы с мастера в Story 34-2, прямое использование безопасно.
         """
         counterparties = ET.Element("Контрагенты")
         counterparty = ET.Element("Контрагент")
@@ -335,7 +348,11 @@ class OrderExportService:
             self._add_text_element(vid_ceny, "Наименование", price_type_name)
 
             # НДС «в том числе» (включён в сумму строки)
-            item_vat_rate = self._get_variant_vat_rate(item.variant, order_vat_rate)
+            # Приоритет snapshot (Story 34-1): OrderItem.vat_rate → variant.vat_rate → order default
+            if item.vat_rate is not None:
+                item_vat_rate = Decimal(str(item.vat_rate))
+            else:
+                item_vat_rate = self._get_variant_vat_rate(item.variant, order_vat_rate)
             vat_amount = self._calc_vat_amount(item.total_price, item_vat_rate)
 
             taxes = ET.SubElement(product, "Налоги")
@@ -370,12 +387,19 @@ class OrderExportService:
 
     def _get_order_vat_rate(self, order: "Order") -> Decimal:
         """
-        Определяет ставку НДС заказа по первому варианту товара:
-        сначала из vat_rate, затем по warehouse_name, затем по DEFAULT_VAT_RATE.
+        Определяет ставку НДС заказа.
+        Приоритет: order.vat_group (Story 34-2) → OrderItem.vat_rate (snapshot, Story 34-1)
+                 → variant.vat_rate → warehouse_name → DEFAULT_VAT_RATE.
         """
+        if order.vat_group is not None:
+            return Decimal(str(order.vat_group))
+
         exchange_cfg = getattr(settings, "ONEC_EXCHANGE", {})
         default_rate = Decimal(str(exchange_cfg.get("DEFAULT_VAT_RATE", 22)))
         for item in order.items.all():
+            # Приоритет snapshot (Story 34-1)
+            if item.vat_rate is not None:
+                return Decimal(str(item.vat_rate))
             if not item.variant:
                 continue
             if item.variant.vat_rate is not None:

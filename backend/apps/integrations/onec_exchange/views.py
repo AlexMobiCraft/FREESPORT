@@ -388,6 +388,34 @@ class ICExchangeView(APIView):
         )
         return HttpResponse(response_text, content_type="text/plain; charset=utf-8")
 
+    def _aggregate_master_sent_to_1c(self, sub_ids, now):
+        """После пометки субзаказов — пометить мастеров, у которых ВСЕ sub_orders отправлены.
+
+        Args:
+            sub_ids: PK субзаказов, которые были только что помечены sent_to_1c=True.
+            now: timestamp для sent_to_1c_at / updated_at.
+        Returns:
+            list master_id, которые были дополнительно помечены в рамках этой агрегации.
+        """
+        if not sub_ids:
+            return []
+        master_ids = set(
+            Order.objects.filter(pk__in=sub_ids, parent_order__isnull=False)
+            .values_list("parent_order_id", flat=True)
+        )
+        aggregated: list[int] = []
+        for master_id in master_ids:
+            has_pending = Order.objects.filter(
+                parent_order_id=master_id, sent_to_1c=False
+            ).exists()
+            if not has_pending:
+                updated = Order.objects.filter(
+                    pk=master_id, sent_to_1c=False, is_master=True
+                ).update(sent_to_1c=True, sent_to_1c_at=now, updated_at=now)
+                if updated > 0:
+                    aggregated.append(master_id)
+        return aggregated
+
     def _mark_previous_query_as_sent(self, request):
         """Mark orders from previous query as sent (implicit success).
 
@@ -411,6 +439,7 @@ class ICExchangeView(APIView):
                 sent_to_1c_at=now,
                 updated_at=now,
             )
+            aggregated_master_ids = self._aggregate_master_sent_to_1c(prev_ids, now)
 
         if updated > 0:
             logger.info(
@@ -423,6 +452,7 @@ class ICExchangeView(APIView):
                 updated_count=updated,
                 field="sent_to_1c",
                 timestamp=now,
+                master_order_ids=aggregated_master_ids,
             )
 
         # Clean up previous state
@@ -446,13 +476,16 @@ class ICExchangeView(APIView):
 
         query_time = timezone.now()
 
+        # Экспортируем только субзаказы (is_master=False). Мастер-заказы — агрегирующие, в 1С не попадают.
         orders = (
             Order.objects.filter(
                 sent_to_1c=False,
                 export_skipped=False,
                 created_at__lte=query_time,
+                is_master=False,
+                parent_order__isnull=False,
             )
-            .select_related("user")
+            .select_related("user", "parent_order")
             .prefetch_related("items__variant")
         )
 
@@ -587,21 +620,31 @@ class ICExchangeView(APIView):
                 if timezone.is_naive(last_query_time):
                     last_query_time = timezone.make_aware(last_query_time)
 
-                # Fallback: mark orders that match the time window and are not skipped
+                # Fallback: mark only sub-orders in the time window (AC10)
                 now = timezone.now()
                 with transaction.atomic():
+                    fallback_sub_ids = list(
+                        Order.objects.filter(
+                            sent_to_1c=False,
+                            export_skipped=False,
+                            created_at__lte=last_query_time,
+                            is_master=False,
+                            parent_order__isnull=False,
+                        ).values_list("pk", flat=True)
+                    )
                     updated = Order.objects.filter(
-                        sent_to_1c=False,
-                        export_skipped=False,
-                        created_at__lte=last_query_time,
+                        pk__in=fallback_sub_ids,
                     ).update(
                         sent_to_1c=True,
                         sent_to_1c_at=now,
                         updated_at=now,
                     )
+                    aggregated_master_ids = self._aggregate_master_sent_to_1c(
+                        fallback_sub_ids, now
+                    )
 
                 logger.info(
-                    f"[EXPORT SUCCESS] Fallback: marked {updated} orders as sent_to_1c "
+                    f"[EXPORT SUCCESS] Fallback: marked {updated} sub-orders as sent_to_1c "
                     f"(time-window: created_at <= {last_query_time})"
                 )
 
@@ -632,6 +675,7 @@ class ICExchangeView(APIView):
                 sent_to_1c_at=now,
                 updated_at=now,
             )
+            aggregated_master_ids = self._aggregate_master_sent_to_1c(exported_ids, now)
 
         logger.info(f"[EXPORT SUCCESS] Marked {updated} orders as sent_to_1c (of {len(exported_ids)} exported)")
 
@@ -643,6 +687,7 @@ class ICExchangeView(APIView):
                 updated_count=updated,
                 field="sent_to_1c",
                 timestamp=now,
+                master_order_ids=aggregated_master_ids,
             )
 
         # Clear the session/cache state to prevent double-processing

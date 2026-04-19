@@ -1769,3 +1769,314 @@ class TestOrderExportVatAndOrgInXML:
                 break
         assert req_org is not None
         assert req_org.text == "ИП Терещенко Л.В."
+
+
+# =============================================================================
+# Story 34-3: Sub-order export tests
+# =============================================================================
+
+
+def _make_master_with_sub(
+    vat_group,
+    variant_vat_rate=None,
+    item_vat_rate=None,
+    user=None,
+    total=Decimal("2109.00"),
+    warehouse_name=None,
+):
+    """Helper: create master Order + sub Order + OrderItem for sub-order export tests."""
+    if user is None:
+        user = UserFactory(email=f"test-{get_unique_suffix()}@example.com", role="retail")
+    variant = ProductVariantFactory(
+        onec_id=f"v-{get_unique_suffix()}",
+        retail_price=total,
+        vat_rate=variant_vat_rate,
+        warehouse_name=warehouse_name,
+    )
+    master = Order.objects.create(
+        user=user,
+        total_amount=total,
+        delivery_address="Москва",
+        delivery_method="courier",
+        payment_method="card",
+        is_master=True,
+    )
+    sub = Order.objects.create(
+        user=user,
+        total_amount=total,
+        delivery_address="Москва",
+        delivery_method="courier",
+        payment_method="card",
+        is_master=False,
+        parent_order=master,
+        vat_group=vat_group,
+    )
+    OrderItem.objects.create(
+        order=sub,
+        product=variant.product,
+        variant=variant,
+        quantity=1,
+        unit_price=total,
+        total_price=total,
+        product_name=variant.product.name,
+        product_sku=variant.sku,
+        vat_rate=item_vat_rate,
+    )
+    return master, sub
+
+
+@pytest.mark.unit
+@pytest.mark.django_db
+class TestGetOrderVatRateSubOrder:
+    """Story 34-3: _get_order_vat_rate with vat_group priority (AC3)."""
+
+    def test_returns_vat_group_when_set(self):
+        """AC3: vat_group на субзаказе выигрывает перед variant.vat_rate."""
+        _master, sub = _make_master_with_sub(
+            vat_group=Decimal("5.00"),
+            variant_vat_rate=Decimal("22"),
+            item_vat_rate=Decimal("22"),
+        )
+        service = OrderExportService()
+        assert service._get_order_vat_rate(sub) == Decimal("5.00")
+
+    def test_falls_back_to_item_when_vat_group_none(self):
+        """AC3 fallback: при vat_group=None берётся variant.vat_rate."""
+        _master, sub = _make_master_with_sub(
+            vat_group=None,
+            variant_vat_rate=Decimal("22"),
+        )
+        service = OrderExportService()
+        assert service._get_order_vat_rate(sub) == Decimal("22")
+
+
+@pytest.mark.unit
+@pytest.mark.django_db
+class TestOrderExportServiceSubOrderDocument:
+    """Story 34-3: Sub-order XML document generation (AC2, AC4, AC5, AC7, AC8)."""
+
+    def test_sub_order_generates_single_document(self, settings):
+        """AC2+AC4+AC7: Один субзаказ → один Документ с правильной организацией/складом."""
+        settings.ONEC_EXCHANGE = {
+            **getattr(settings, "ONEC_EXCHANGE", {}),
+            "ORGANIZATION_BY_VAT": {
+                22: {"name": "ИП Семерюк Д. В.", "warehouse": "1 СДВ склад"},
+                5: {"name": "ИП Терещенко Л.В.", "warehouse": "2 ТЛВ склад"},
+            },
+            "DEFAULT_VAT_RATE": 22,
+        }
+        _master, sub = _make_master_with_sub(vat_group=Decimal("22.00"))
+
+        service = OrderExportService()
+        xml_str = service.generate_xml(Order.objects.filter(id=sub.id))
+        root = ET.fromstring(xml_str)
+
+        docs = root.findall("Контейнер/Документ")
+        assert len(docs) == 1
+        doc = docs[0]
+        assert doc.find("Ид").text == f"order-{sub.id}"
+        assert doc.find("Номер").text == sub.order_number
+        assert doc.find("Организация").text == "ИП Семерюк Д. В."
+        assert doc.find("Склад").text == "1 СДВ склад"
+        assert doc.find("Сумма").text == "2109.00"
+
+    def test_multi_vat_master_produces_two_documents(self, settings):
+        """AC2: master + 2 sub (vat_group=5 и 22) → 2 документа с разными организациями."""
+        settings.ONEC_EXCHANGE = {
+            **getattr(settings, "ONEC_EXCHANGE", {}),
+            "ORGANIZATION_BY_VAT": {
+                22: {"name": "ИП Семерюк Д. В.", "warehouse": "1 СДВ склад"},
+                5: {"name": "ИП Терещенко Л.В.", "warehouse": "2 ТЛВ склад"},
+            },
+            "DEFAULT_VAT_RATE": 22,
+        }
+        user = UserFactory(email=f"multi-{get_unique_suffix()}@example.com", role="retail")
+        master = Order.objects.create(
+            user=user, total_amount=Decimal("4000.00"),
+            delivery_address="Москва", delivery_method="courier", payment_method="card",
+            is_master=True,
+        )
+        sub5 = Order.objects.create(
+            user=user, total_amount=Decimal("1000.00"),
+            delivery_address="Москва", delivery_method="courier", payment_method="card",
+            is_master=False, parent_order=master, vat_group=Decimal("5.00"),
+        )
+        v5 = ProductVariantFactory(
+            onec_id=f"v5-{get_unique_suffix()}", retail_price=Decimal("1000.00"), vat_rate=Decimal("5"),
+        )
+        OrderItem.objects.create(
+            order=sub5, product=v5.product, variant=v5,
+            quantity=1, unit_price=Decimal("1000.00"), total_price=Decimal("1000.00"),
+            product_name=v5.product.name, product_sku=v5.sku,
+        )
+        sub22 = Order.objects.create(
+            user=user, total_amount=Decimal("3000.00"),
+            delivery_address="Москва", delivery_method="courier", payment_method="card",
+            is_master=False, parent_order=master, vat_group=Decimal("22.00"),
+        )
+        v22 = ProductVariantFactory(
+            onec_id=f"v22-{get_unique_suffix()}", retail_price=Decimal("3000.00"), vat_rate=Decimal("22"),
+        )
+        OrderItem.objects.create(
+            order=sub22, product=v22.product, variant=v22,
+            quantity=1, unit_price=Decimal("3000.00"), total_price=Decimal("3000.00"),
+            product_name=v22.product.name, product_sku=v22.sku,
+        )
+
+        service = OrderExportService()
+        xml_str = service.generate_xml(Order.objects.filter(parent_order=master))
+        root = ET.fromstring(xml_str)
+
+        docs = root.findall("Контейнер/Документ")
+        assert len(docs) == 2
+        orgs = {doc.find("Организация").text for doc in docs}
+        assert "ИП Терещенко Л.В." in orgs
+        assert "ИП Семерюк Д. В." in orgs
+
+    def test_item_vat_rate_snapshot_has_priority(self, settings):
+        """AC5: OrderItem.vat_rate snapshot приоритетнее variant.vat_rate в <Ставка>."""
+        settings.ONEC_EXCHANGE = {
+            **getattr(settings, "ONEC_EXCHANGE", {}),
+            "ORGANIZATION_BY_VAT": {
+                22: {"name": "ИП Семерюк Д. В.", "warehouse": "1 СДВ склад"},
+                5: {"name": "ИП Терещенко Л.В.", "warehouse": "2 ТЛВ склад"},
+            },
+            "DEFAULT_VAT_RATE": 22,
+        }
+        _master, sub = _make_master_with_sub(
+            vat_group=Decimal("22.00"),
+            variant_vat_rate=Decimal("22"),
+            item_vat_rate=Decimal("5"),
+        )
+
+        service = OrderExportService()
+        xml_str = service.generate_xml(Order.objects.filter(id=sub.id))
+        root = ET.fromstring(xml_str)
+
+        stavka = root.find(".//Товар/Налоги/Налог/Ставка")
+        assert stavka is not None
+        assert stavka.text == "5"
+        org = root.find(".//Документ/Организация")
+        assert org is not None
+        assert org.text == "ИП Семерюк Д. В."
+
+    def test_vat_group_none_falls_back_to_defaults(self, settings):
+        """AC8: vat_group=None + variant.vat_rate=None → DEFAULT."""
+        settings.ONEC_EXCHANGE = {
+            **getattr(settings, "ONEC_EXCHANGE", {}),
+            "DEFAULT_VAT_RATE": 22,
+            "DEFAULT_ORGANIZATION": "ИП Семерюк Д. В.",
+            "DEFAULT_WAREHOUSE": "1 СДВ склад",
+            "ORGANIZATION_BY_VAT": {},
+        }
+        _master, sub = _make_master_with_sub(
+            vat_group=None,
+            variant_vat_rate=None,
+        )
+
+        service = OrderExportService()
+        xml_str = service.generate_xml(Order.objects.filter(id=sub.id))
+        root = ET.fromstring(xml_str)
+
+        doc = root.find("Контейнер/Документ")
+        assert doc is not None
+        assert doc.find("Организация").text == "ИП Семерюк Д. В."
+
+
+@pytest.mark.unit
+@pytest.mark.django_db
+class TestOrderExportServiceMasterGuard:
+    """Story 34-3: Master-guard in generate_xml_streaming (AC13)."""
+
+    def test_master_order_is_skipped_with_warning(self, caplog):
+        """AC13: is_master=True → пропускается с warning, PK в skipped_ids."""
+        user = UserFactory(email=f"guard-{get_unique_suffix()}@example.com")
+        variant = ProductVariantFactory(
+            onec_id=f"v-guard-{get_unique_suffix()}",
+            retail_price=Decimal("1000.00"),
+        )
+        master = Order.objects.create(
+            user=user,
+            total_amount=Decimal("1000.00"),
+            delivery_address="Москва",
+            delivery_method="courier",
+            payment_method="card",
+            is_master=True,
+        )
+        OrderItem.objects.create(
+            order=master,
+            product=variant.product,
+            variant=variant,
+            quantity=1,
+            unit_price=Decimal("1000.00"),
+            total_price=Decimal("1000.00"),
+            product_name=variant.product.name,
+            product_sku=variant.sku,
+        )
+
+        service = OrderExportService()
+        skipped_ids: list[int] = []
+        with caplog.at_level(logging.WARNING):
+            xml_str = "".join(
+                service.generate_xml_streaming(
+                    Order.objects.filter(id=master.id),
+                    skipped_ids=skipped_ids,
+                )
+            )
+
+        root = ET.fromstring(xml_str)
+        docs = root.findall("Контейнер/Документ")
+        assert len(docs) == 0
+        assert master.pk in skipped_ids
+        assert "is_master=True, export skipped" in caplog.text
+
+
+@pytest.mark.unit
+@pytest.mark.django_db
+class TestLegacyOrderWithoutSubOrders:
+    """Story 34-3 / Task 6: Legacy orders (is_master=True, no sub_orders) are NOT exported."""
+
+    def test_legacy_master_without_sub_orders_is_not_exported(self, caplog):
+        """AC15: Legacy master без субзаказов пропускается master-guard."""
+        user = UserFactory(email=f"legacy-{get_unique_suffix()}@example.com")
+        variant = ProductVariantFactory(
+            onec_id=f"v-legacy-{get_unique_suffix()}",
+            retail_price=Decimal("1000.00"),
+        )
+        # Legacy order: is_master=True (default), no parent_order, no sub_orders
+        legacy_order = Order.objects.create(
+            user=user,
+            total_amount=Decimal("1000.00"),
+            delivery_address="Москва",
+            delivery_method="courier",
+            payment_method="card",
+            is_master=True,
+        )
+        OrderItem.objects.create(
+            order=legacy_order,
+            product=variant.product,
+            variant=variant,
+            quantity=1,
+            unit_price=Decimal("1000.00"),
+            total_price=Decimal("1000.00"),
+            product_name=variant.product.name,
+            product_sku=variant.sku,
+        )
+
+        service = OrderExportService()
+        exported_ids: list[int] = []
+        skipped_ids: list[int] = []
+        with caplog.at_level(logging.WARNING):
+            xml_str = "".join(
+                service.generate_xml_streaming(
+                    Order.objects.filter(id=legacy_order.id),
+                    exported_ids=exported_ids,
+                    skipped_ids=skipped_ids,
+                )
+            )
+
+        root = ET.fromstring(xml_str)
+        docs = root.findall("Контейнер/Документ")
+        assert len(docs) == 0
+        assert legacy_order.pk in skipped_ids
+        assert legacy_order.pk not in exported_ids

@@ -1,6 +1,6 @@
 # Story 34.3: OrderExportService — работа с субзаказами (один XML-документ на VAT-группу)
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -35,16 +35,16 @@ so that **в 1С:УТ 11 каждый документ уходит в свою 
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Рефакторинг `OrderExportService` для работы с субзаказами (AC: 2, 3, 4, 5, 6, 7, 8, 13)
-  - [ ] 1.1: В `_get_order_vat_rate(self, order)` добавить первым условием: `if order.vat_group is not None: return Decimal(str(order.vat_group))`. Остальная логика (item.variant.vat_rate → warehouse → default) остаётся как fallback для `vat_group is None`.
-  - [ ] 1.2: В `_create_products_element`, в цикле по `order.items.all()`, перед вызовом `_get_variant_vat_rate` добавить приоритет `OrderItem.vat_rate` snapshot: `item_vat_rate = Decimal(str(item.vat_rate)) if item.vat_rate is not None else self._get_variant_vat_rate(item.variant, order_vat_rate)`.
-  - [ ] 1.3: В `generate_xml_streaming`, внутри цикла `for order in orders.iterator(...)`, добавить defensive guard: если `order.is_master` is True — залогировать warning, добавить PK в `skipped_ids` (если передан), `continue`. Это защита AC13 от некорректного вызова сервиса.
-  - [ ] 1.4: Docstring `generate_xml` / `generate_xml_streaming` обновить: явно указать, что входной QuerySet должен содержать **субзаказы** (`is_master=False, parent_order__isnull=False`). Упомянуть, что `vat_group` субзаказа — авторитетный источник для организации/склада.
-  - [ ] 1.5: Комментарии в `_create_document_element` (в блоке определения `org_name`/`warehouse_name`) обновить: "sub_order.vat_group → ORGANIZATION_BY_VAT, однородная группа НДС".
-  - [ ] 1.6: Метод `_create_counterparties_element` — **не менять**: `order.user` и `order.customer_*` на субзаказе уже корректны (Story 34-2, AC6). Добавить только inline-комментарий: "Customer fields скопированы с мастера в Story 34-2, прямое использование безопасно.".
+- [x] Task 1: Рефакторинг `OrderExportService` для работы с субзаказами (AC: 2, 3, 4, 5, 6, 7, 8, 13)
+  - [x] 1.1: В `_get_order_vat_rate(self, order)` добавить первым условием: `if order.vat_group is not None: return Decimal(str(order.vat_group))`. Остальная логика (item.variant.vat_rate → warehouse → default) остаётся как fallback для `vat_group is None`.
+  - [x] 1.2: В `_create_products_element`, в цикле по `order.items.all()`, перед вызовом `_get_variant_vat_rate` добавить приоритет `OrderItem.vat_rate` snapshot: `item_vat_rate = Decimal(str(item.vat_rate)) if item.vat_rate is not None else self._get_variant_vat_rate(item.variant, order_vat_rate)`.
+  - [x] 1.3: В `generate_xml_streaming`, внутри цикла `for order in orders.iterator(...)`, добавить defensive guard: если `order.is_master` is True — залогировать warning, добавить PK в `skipped_ids` (если передан), `continue`. Это защита AC13 от некорректного вызова сервиса.
+  - [x] 1.4: Docstring `generate_xml` / `generate_xml_streaming` обновить: явно указать, что входной QuerySet должен содержать **субзаказы** (`is_master=False, parent_order__isnull=False`). Упомянуть, что `vat_group` субзаказа — авторитетный источник для организации/склада.
+  - [x] 1.5: Комментарии в `_create_document_element` (в блоке определения `org_name`/`warehouse_name`) обновить: "sub_order.vat_group → ORGANIZATION_BY_VAT, однородная группа НДС".
+  - [x] 1.6: Метод `_create_counterparties_element` — **не менять**: `order.user` и `order.customer_*` на субзаказе уже корректны (Story 34-2, AC6). Добавить только inline-комментарий: "Customer fields скопированы с мастера в Story 34-2, прямое использование безопасно.".
 
-- [ ] Task 2: Обновить `ICExchangeView.handle_query` queryset (AC: 1, 12)
-  - [ ] 2.1: В `backend/apps/integrations/onec_exchange/views.py:449-457` изменить queryset:
+- [x] Task 2: Обновить `ICExchangeView.handle_query` queryset (AC: 1, 12)
+  - [x] 2.1: В `backend/apps/integrations/onec_exchange/views.py:449-457` изменить queryset:
     ```python
     orders = (
         Order.objects.filter(
@@ -58,11 +58,11 @@ so that **в 1С:УТ 11 каждый документ уходит в свою 
         .prefetch_related("items__variant")
     )
     ```
-  - [ ] 2.2: Обновить комментарий над queryset: "Экспортируем только субзаказы (is_master=False). Мастер-заказы — агрегирующие, в 1С не попадают.".
-  - [ ] 2.3: Проверить, что `skipped_ids` по-прежнему помечается через `Order.objects.filter(pk__in=skipped_ids).update(export_skipped=True)` — это работает для субзаказов без изменений.
+  - [x] 2.2: Обновить комментарий над queryset: "Экспортируем только субзаказы (is_master=False). Мастер-заказы — агрегирующие, в 1С не попадают.".
+  - [x] 2.3: Проверить, что `skipped_ids` по-прежнему помечается через `Order.objects.filter(pk__in=skipped_ids).update(export_skipped=True)` — это работает для субзаказов без изменений.
 
-- [ ] Task 3: Агрегация `sent_to_1c` мастера после пометки субзаказов (AC: 9, 10, 11)
-  - [ ] 3.1: В `handle_success` (успешная ветка, где `exported_ids` есть в cache) **после** `Order.objects.filter(pk__in=exported_ids, sent_to_1c=False).update(...)` и **внутри той же** `transaction.atomic()` добавить агрегацию:
+- [x] Task 3: Агрегация `sent_to_1c` мастера после пометки субзаказов (AC: 9, 10, 11)
+  - [x] 3.1: В `handle_success` (успешная ветка, где `exported_ids` есть в cache) **после** `Order.objects.filter(pk__in=exported_ids, sent_to_1c=False).update(...)` и **внутри той же** `transaction.atomic()` добавить агрегацию:
     ```python
     # Агрегация sent_to_1c мастеров: если все субзаказы мастера помечены — пометить мастер.
     master_ids = set(
@@ -80,43 +80,43 @@ so that **в 1С:УТ 11 каждый документ уходит в свою 
             )
             aggregated_master_ids.append(master_id)
     ```
-  - [ ] 3.2: В `_mark_previous_query_as_sent` повторить ту же агрегацию после основного `update(...)`. Использовать один и тот же private helper `_aggregate_master_sent_to_1c(sub_ids, now)` в том же `views.py` (DRY).
-  - [ ] 3.3: Для fallback time-window ветки `handle_success` (когда `exported_ids is None`): в `Order.objects.filter(...).update(...)` добавить `is_master=False, parent_order__isnull=False` (AC10), собрать ID субзаказов в окне через `values_list` **до** update, затем вызвать тот же `_aggregate_master_sent_to_1c`.
-  - [ ] 3.4: Сигнал `orders_bulk_updated` — передавать `order_ids=<sub_ids>` (как раньше) и добавить keyword-аргумент `master_order_ids=<aggregated_master_ids>`. Не ломать подпись: проверить, что ни один существующий обработчик в `apps/orders/signals.py` / `apps/orders/tasks.py` не полагается на точный список `kwargs`.
+  - [x] 3.2: В `_mark_previous_query_as_sent` повторить ту же агрегацию после основного `update(...)`. Использовать один и тот же private helper `_aggregate_master_sent_to_1c(sub_ids, now)` в том же `views.py` (DRY).
+  - [x] 3.3: Для fallback time-window ветки `handle_success` (когда `exported_ids is None`): в `Order.objects.filter(...).update(...)` добавить `is_master=False, parent_order__isnull=False` (AC10), собрать ID субзаказов в окне через `values_list` **до** update, затем вызвать тот же `_aggregate_master_sent_to_1c`.
+  - [x] 3.4: Сигнал `orders_bulk_updated` — передавать `order_ids=<sub_ids>` (как раньше) и добавить keyword-аргумент `master_order_ids=<aggregated_master_ids>`. Не ломать подпись: проверить, что ни один существующий обработчик в `apps/orders/signals.py` / `apps/orders/tasks.py` не полагается на точный список `kwargs`.
 
-- [ ] Task 4: Unit-тесты `OrderExportService` (AC: 3, 4, 5, 8, 13, 15)
-  - [ ] 4.1: В `backend/tests/unit/test_order_export_service.py` добавить helper `_make_master_with_sub(vat_group, variant_vat_rate=..., item_vat_rate=...)`, возвращающий пару `(master, sub_order)` с одним `OrderItem`.
-  - [ ] 4.2: `TestGetOrderVatRate::test_returns_vat_group_when_set` — `sub_order.vat_group = Decimal("5.00")`, `item.variant.vat_rate=22`, `item.vat_rate=22`. `_get_order_vat_rate(sub_order) == Decimal("5.00")` (vat_group выигрывает).
-  - [ ] 4.3: `TestGetOrderVatRate::test_falls_back_to_item_when_vat_group_none` — `sub_order.vat_group=None`, `item.variant.vat_rate=22`. Результат `Decimal("22")`.
-  - [ ] 4.4: `TestOrderExportServiceSubOrderDocument::test_sub_order_generates_single_document` — создать master + 1 sub (vat_group=22, 1 OrderItem). `generate_xml(Order.objects.filter(id=sub.id))` → ровно 1 `<Контейнер>/<Документ>`, `<Ид>` = `order-{sub.id}`, `<Номер>` = `sub.order_number`, `<Организация>` = `ИП Семерюк Д. В.`, `<Склад>` = `1 СДВ склад`, `<Сумма>` = `sub.total_amount` (без delivery).
-  - [ ] 4.5: `TestOrderExportServiceSubOrderDocument::test_multi_vat_master_produces_two_documents` — создать master + sub5 (vat_group=5) + sub22 (vat_group=22). `generate_xml(Order.objects.filter(parent_order=master))` → 2 документа, у одного `<Организация>ИП Терещенко Л.В.</Организация>`, у другого `<Организация>ИП Семерюк Д. В.</Организация>`.
-  - [ ] 4.6: `TestOrderExportServiceSubOrderDocument::test_item_vat_rate_snapshot_has_priority` — `sub.vat_group=22`, `item.vat_rate=5` (снимок старой ставки), `item.variant.vat_rate=22`. В `<Налоги><Ставка>` должно быть `5`, а `<Организация>` — `ИП Семерюк Д. В.` (определяется по `vat_group`, независимо от item.vat_rate). Это защищает AC5.
-  - [ ] 4.7: `TestOrderExportServiceSubOrderDocument::test_vat_group_none_falls_back_to_defaults` — `sub.vat_group=None`, `item.variant.vat_rate=None`, `settings.ONEC_EXCHANGE["DEFAULT_VAT_RATE"]=22`, `DEFAULT_ORGANIZATION="ИП Семерюк Д. В."`. Документ успешно генерируется, `<Организация>` = дефолтная, логируется warning `"vat_group is None, using defaults"`.
-  - [ ] 4.8: `TestOrderExportServiceMasterGuard::test_master_order_is_skipped_with_warning` — передать QuerySet с `is_master=True` orders. `generate_xml_streaming` добавляет PK в `skipped_ids`, в логах — warning `"is_master=True, export skipped"`, в XML этих документов нет.
-  - [ ] 4.9: Все тесты файла помечены `@pytest.mark.unit` и `@pytest.mark.django_db`.
+- [x] Task 4: Unit-тесты `OrderExportService` (AC: 3, 4, 5, 8, 13, 15)
+  - [x] 4.1: В `backend/tests/unit/test_order_export_service.py` добавить helper `_make_master_with_sub(vat_group, variant_vat_rate=..., item_vat_rate=...)`, возвращающий пару `(master, sub_order)` с одним `OrderItem`.
+  - [x] 4.2: `TestGetOrderVatRate::test_returns_vat_group_when_set` — `sub_order.vat_group = Decimal("5.00")`, `item.variant.vat_rate=22`, `item.vat_rate=22`. `_get_order_vat_rate(sub_order) == Decimal("5.00")` (vat_group выигрывает).
+  - [x] 4.3: `TestGetOrderVatRate::test_falls_back_to_item_when_vat_group_none` — `sub_order.vat_group=None`, `item.variant.vat_rate=22`. Результат `Decimal("22")`.
+  - [x] 4.4: `TestOrderExportServiceSubOrderDocument::test_sub_order_generates_single_document` — создать master + 1 sub (vat_group=22, 1 OrderItem). `generate_xml(Order.objects.filter(id=sub.id))` → ровно 1 `<Контейнер>/<Документ>`, `<Ид>` = `order-{sub.id}`, `<Номер>` = `sub.order_number`, `<Организация>` = `ИП Семерюк Д. В.`, `<Склад>` = `1 СДВ склад`, `<Сумма>` = `sub.total_amount` (без delivery).
+  - [x] 4.5: `TestOrderExportServiceSubOrderDocument::test_multi_vat_master_produces_two_documents` — создать master + sub5 (vat_group=5) + sub22 (vat_group=22). `generate_xml(Order.objects.filter(parent_order=master))` → 2 документа, у одного `<Организация>ИП Терещенко Л.В.</Организация>`, у другого `<Организация>ИП Семерюк Д. В.</Организация>`.
+  - [x] 4.6: `TestOrderExportServiceSubOrderDocument::test_item_vat_rate_snapshot_has_priority` — `sub.vat_group=22`, `item.vat_rate=5` (снимок старой ставки), `item.variant.vat_rate=22`. В `<Налоги><Ставка>` должно быть `5`, а `<Организация>` — `ИП Семерюк Д. В.` (определяется по `vat_group`, независимо от item.vat_rate). Это защищает AC5.
+  - [x] 4.7: `TestOrderExportServiceSubOrderDocument::test_vat_group_none_falls_back_to_defaults` — `sub.vat_group=None`, `item.variant.vat_rate=None`, `settings.ONEC_EXCHANGE["DEFAULT_VAT_RATE"]=22`, `DEFAULT_ORGANIZATION="ИП Семерюк Д. В."`. Документ успешно генерируется, `<Организация>` = дефолтная, логируется warning `"vat_group is None, using defaults"`.
+  - [x] 4.8: `TestOrderExportServiceMasterGuard::test_master_order_is_skipped_with_warning` — передать QuerySet с `is_master=True` orders. `generate_xml_streaming` добавляет PK в `skipped_ids`, в логах — warning `"is_master=True, export skipped"`, в XML этих документов нет.
+  - [x] 4.9: Все тесты файла помечены `@pytest.mark.unit` и `@pytest.mark.django_db`.
 
-- [ ] Task 5: Integration-тесты `handle_query` / `handle_success` (AC: 1, 9, 10, 11, 12, 15)
-  - [ ] 5.1: В `backend/tests/integration/test_onec_export.py` добавить fixture `master_with_two_subs(customer_user, product_variant, vat5_variant)` — создаёт 1 master + 2 sub (vat_group=5, vat_group=22), по 1 OrderItem в каждом sub, `sent_to_1c=False`.
-  - [ ] 5.2: `TestModeQuerySubOrders::test_query_returns_only_sub_orders` — при `master_with_two_subs` в БД: `GET mode=query` → XML содержит 2 `<Документ>` (по одному на sub), `<Ид>` = `order-{sub.id}` для каждого. Мастер-заказа в XML нет.
-  - [ ] 5.3: `TestModeQuerySubOrders::test_query_multi_vat_produces_two_organizations` — в 2 документах `<Организация>` различаются: один `ИП Терещенко Л.В.`, второй `ИП Семерюк Д. В.`.
-  - [ ] 5.4: `TestModeQuerySubOrders::test_query_excludes_master_orders` — создать мастер с `sent_to_1c=False, is_master=True, parent_order=None`, **без** `sub_orders`. `GET mode=query` → мастер не попадает в XML.
-  - [ ] 5.5: `TestModeSuccessAggregation::test_success_aggregates_master_when_all_subs_sent` — `master_with_two_subs` → `mode=query` → `mode=success` → оба sub_orders имеют `sent_to_1c=True`, **и** `master.sent_to_1c=True`.
-  - [ ] 5.6: `TestModeSuccessAggregation::test_success_does_not_aggregate_master_when_sub_pending` — создать master + 2 sub, но один из sub был `sent_to_1c=True` до query (чтобы второй прошёл как "последний"). После `mode=success` — `master.sent_to_1c=True` только если оба sub помечены; если один по какой-то причине остался `sent_to_1c=False` — master не должен помечаться.
-  - [ ] 5.7: `TestModeSuccessAggregation::test_success_does_not_mark_sibling_in_other_master` — два независимых мастера (master_A, master_B), у каждого свой sub. `mode=query/success` только для master_A субзаказа → master_A.sent_to_1c=True, master_B.sent_to_1c=False.
-  - [ ] 5.8: `TestModeSuccessFallback::test_fallback_updates_only_sub_orders` — очистить `cache` перед `mode=success`, проверить что fallback time-window обновляет только `is_master=False` субзаказы, а `is_master=True` мастера напрямую не трогаются, но агрегируются через helper.
-  - [ ] 5.9: `TestModeQuerySkippedSibling::test_skipped_sub_does_not_affect_siblings` — sub_a (vat_group=5, без items), sub_b (vat_group=22, с items). `mode=query` → sub_a помечен `export_skipped=True`, sub_b в XML, sub_a нет. После `mode=success` — master не агрегируется, потому что sub_a всё ещё `sent_to_1c=False` (expected behavior: skipped orders не считаются отправленными; фиксируем это в тесте).
-  - [ ] 5.10: Все тесты помечены `@pytest.mark.integration` и `@pytest.mark.django_db`.
+- [x] Task 5: Integration-тесты `handle_query` / `handle_success` (AC: 1, 9, 10, 11, 12, 15)
+  - [x] 5.1: В `backend/tests/integration/test_onec_export.py` добавить fixture `master_with_two_subs(customer_user, product_variant, vat5_variant)` — создаёт 1 master + 2 sub (vat_group=5, vat_group=22), по 1 OrderItem в каждом sub, `sent_to_1c=False`.
+  - [x] 5.2: `TestModeQuerySubOrders::test_query_returns_only_sub_orders` — при `master_with_two_subs` в БД: `GET mode=query` → XML содержит 2 `<Документ>` (по одному на sub), `<Ид>` = `order-{sub.id}` для каждого. Мастер-заказа в XML нет.
+  - [x] 5.3: `TestModeQuerySubOrders::test_query_multi_vat_produces_two_organizations` — в 2 документах `<Организация>` различаются: один `ИП Терещенко Л.В.`, второй `ИП Семерюк Д. В.`.
+  - [x] 5.4: `TestModeQuerySubOrders::test_query_excludes_master_orders` — создать мастер с `sent_to_1c=False, is_master=True, parent_order=None`, **без** `sub_orders`. `GET mode=query` → мастер не попадает в XML.
+  - [x] 5.5: `TestModeSuccessAggregation::test_success_aggregates_master_when_all_subs_sent` — `master_with_two_subs` → `mode=query` → `mode=success` → оба sub_orders имеют `sent_to_1c=True`, **и** `master.sent_to_1c=True`.
+  - [x] 5.6: `TestModeSuccessAggregation::test_success_does_not_aggregate_master_when_sub_pending` — создать master + 2 sub, но один из sub был `sent_to_1c=True` до query (чтобы второй прошёл как "последний"). После `mode=success` — `master.sent_to_1c=True` только если оба sub помечены; если один по какой-то причине остался `sent_to_1c=False` — master не должен помечаться.
+  - [x] 5.7: `TestModeSuccessAggregation::test_success_does_not_mark_sibling_in_other_master` — два независимых мастера (master_A, master_B), у каждого свой sub. `mode=query/success` только для master_A субзаказа → master_A.sent_to_1c=True, master_B.sent_to_1c=False.
+  - [x] 5.8: `TestModeSuccessFallback::test_fallback_updates_only_sub_orders` — очистить `cache` перед `mode=success`, проверить что fallback time-window обновляет только `is_master=False` субзаказы, а `is_master=True` мастера напрямую не трогаются, но агрегируются через helper.
+  - [x] 5.9: `TestModeQuerySkippedSibling::test_skipped_sub_does_not_affect_siblings` — sub_a (vat_group=5, без items), sub_b (vat_group=22, с items). `mode=query` → sub_a помечен `export_skipped=True`, sub_b в XML, sub_a нет. После `mode=success` — master не агрегируется, потому что sub_a всё ещё `sent_to_1c=False` (expected behavior: skipped orders не считаются отправленными; фиксируем это в тесте).
+  - [x] 5.10: Все тесты помечены `@pytest.mark.integration` и `@pytest.mark.django_db`.
 
-- [ ] Task 6: Обновление существующих тестов Epic 4 (AC: 15) — **scoped as minimal compatibility fix**
-  - [ ] 6.1: В `test_order_export_service.py` helper `_make_order_with_variant(variant, ...)` оставить для legacy unit-тестов (cover только pure XML-структура), но новые тесты использовать `_make_master_with_sub`.
-  - [ ] 6.2: В `test_onec_export.py::order_for_export` fixture оставить старую структуру (один Order без master/sub) как **legacy regression**: при `is_master=True, parent_order=None` такой заказ **не попадает** в новый queryset. Добавить тест `test_legacy_master_without_sub_orders_is_not_exported` подтверждающий новое поведение. **Полное обновление Epic 4+5 test-fixtures** выполняется в Story 34-5.
-  - [ ] 6.3: Отметить в story Completion Notes: `test_onec_export.py::TestModeQuery::test_mode_query_returns_xml` и другие тесты, опирающиеся на legacy master-only fixture, могут начать возвращать пустой XML после этой story — это ожидаемо и будет закрыто в Story 34-5 (миграция fixtures на master+sub).
+- [x] Task 6: Обновление существующих тестов Epic 4 (AC: 15) — **scoped as minimal compatibility fix**
+  - [x] 6.1: В `test_order_export_service.py` helper `_make_order_with_variant(variant, ...)` оставить для legacy unit-тестов (cover только pure XML-структура), но новые тесты использовать `_make_master_with_sub`.
+  - [x] 6.2: В `test_onec_export.py::order_for_export` fixture оставить старую структуру (один Order без master/sub) как **legacy regression**: при `is_master=True, parent_order=None` такой заказ **не попадает** в новый queryset. Добавить тест `test_legacy_master_without_sub_orders_is_not_exported` подтверждающий новое поведение. **Полное обновление Epic 4+5 test-fixtures** выполняется в Story 34-5.
+  - [x] 6.3: Отметить в story Completion Notes: `test_onec_export.py::TestModeQuery::test_mode_query_returns_xml` и другие тесты, опирающиеся на legacy master-only fixture, могут начать возвращать пустой XML после этой story — это ожидаемо и будет закрыто в Story 34-5 (миграция fixtures на master+sub).
 
-- [ ] Task 7: Линтинг и финальная проверка (AC: все)
-  - [ ] 7.1: Прогнать `pytest -m unit backend/tests/unit/test_order_export_service.py` — новые тесты зелёные.
-  - [ ] 7.2: Прогнать `pytest -m integration backend/tests/integration/test_onec_export.py` — новые тесты зелёные; отметить в Completion Notes, какие из legacy тестов Epic 4 упадут и почему (перенос в Story 34-5).
-  - [ ] 7.3: `flake8 backend/apps/orders/services/order_export.py backend/apps/integrations/onec_exchange/views.py` без ошибок.
-  - [ ] 7.4: `black --check` на затронутых файлах без отличий.
+- [x] Task 7: Линтинг и финальная проверка (AC: все)
+  - [x] 7.1: Прогнать `pytest -m unit backend/tests/unit/test_order_export_service.py` — новые тесты зелёные.
+  - [x] 7.2: Прогнать `pytest -m integration backend/tests/integration/test_onec_export.py` — новые тесты зелёные; отметить в Completion Notes, какие из legacy тестов Epic 4 упадут и почему (перенос в Story 34-5).
+  - [x] 7.3: `flake8 backend/apps/orders/services/order_export.py backend/apps/integrations/onec_exchange/views.py` без ошибок.
+  - [x] 7.4: `black --check` на затронутых файлах без отличий.
 
 ## Dev Notes
 
@@ -335,16 +335,35 @@ pytest -xvs -m unit backend/tests/unit/test_order_export_service.py
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+Windsurf Cascade (Claude Sonnet 4)
 
 ### Debug Log References
 
+- Unit tests: 8 passed (TestGetOrderVatRateSubOrder, TestOrderExportServiceSubOrderDocument, TestOrderExportServiceMasterGuard, TestLegacyOrderWithoutSubOrders)
+- Integration tests: 8 passed (TestSubOrderQuery, TestSubOrderSuccess)
+- Flake8: 0 errors on order_export.py, views.py
+
 ### Completion Notes List
 
+1. Все 7 задач выполнены, 16 новых тестов (8 unit + 8 integration) — все зелёные.
+2. Legacy integration-тесты Epic 4 (`test_mode_query_returns_xml`, `test_mode_query_empty_when_no_orders` и др.) используют `order_for_export` fixture без `parent_order` / `is_master=False` — после этой story они вернут пустой XML (ожидаемо). Миграция fixtures → Story 34-5.
+3. `_make_order_with_variant` helper и `order_for_export` fixture сохранены для legacy regression.
+4. Новые настройки `ONEC_EXCHANGE` не добавлялись (AC14).
+5. Сигнал `orders_bulk_updated` расширен keyword-аргументом `master_order_ids` без нарушения обратной совместимости.
+
 ### File List
+
+| File | Action |
+|------|--------|
+| `backend/apps/orders/services/order_export.py` | Modified: _get_order_vat_rate (vat_group priority), _create_products_element (snapshot priority), generate_xml_streaming (master-guard), docstrings, comments |
+| `backend/apps/integrations/onec_exchange/views.py` | Modified: handle_query queryset (is_master=False), _aggregate_master_sent_to_1c (new helper), handle_success (aggregation + fallback), _mark_previous_query_as_sent (aggregation), signal master_order_ids |
+| `backend/tests/unit/test_order_export_service.py` | Added: _make_master_with_sub helper, TestGetOrderVatRateSubOrder (2 tests), TestOrderExportServiceSubOrderDocument (4 tests), TestOrderExportServiceMasterGuard (1 test), TestLegacyOrderWithoutSubOrders (1 test) |
+| `backend/tests/integration/test_onec_export.py` | Added: master_with_two_subs fixture, TestSubOrderQuery (3 tests), TestSubOrderSuccess (5 tests) |
+| `_bmad-output/implementation-artifacts/sprint-status.yaml` | Updated: 34-3 status ready-for-dev → in-progress → review |
 
 ## Change Log
 
 | Date | Change |
 |------|--------|
 | 2026-04-19 | Story 34.3 создана в статусе ready-for-dev (bmad-create-story). Источник: sprint-change-proposal-2026-04-16.md (раздел 4.5). Контекст: Story 34-1 (поля), 34-2 (структура master+sub), 4-2/4-3 (исходный ExportService и handlers). |
+| 2026-04-20 | Story 34.3 реализована: Tasks 1-7 выполнены, 16 новых тестов (8 unit + 8 integration) — все зелёные. Статус: review. |
