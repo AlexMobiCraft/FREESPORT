@@ -1342,6 +1342,187 @@ class TestSubOrderSuccess:
         assert "master_order_ids" in received_kwargs
         assert master.pk in received_kwargs["master_order_ids"]
 
+    def test_master_not_marked_directly_when_in_exported_ids(
+        self, authenticated_client, customer_user, product_variant, log_dir
+    ):
+        """AC9: если master PK случайно оказался в exported_ids,
+        он НЕ обновляется напрямую — только через _aggregate_master_sent_to_1c.
+
+        Сценарий: 2 субзаказа мастера уже отправлены, но в exported_ids
+        (через cache) подмешан PK мастера. Мастер НЕ должен быть обновлён
+        напрямую через основной update(), а только через агрегацию.
+        """
+        from django.core.cache import cache as django_cache
+
+        from decimal import Decimal
+
+        master = Order.objects.create(
+            user=customer_user,
+            order_number="FS-NO-DIRECT-MASTER",
+            total_amount=Decimal("3000"),
+            sent_to_1c=False,
+            delivery_address="ул. Тест, 1",
+            delivery_method="pickup",
+            payment_method="card",
+            is_master=True,
+        )
+        sub_a = Order.objects.create(
+            user=customer_user,
+            order_number="FS-NO-DIRECT-SUB-A",
+            total_amount=Decimal("1500"),
+            sent_to_1c=False,
+            delivery_address="ул. Тест, 1",
+            delivery_method="pickup",
+            payment_method="card",
+            is_master=False,
+            parent_order=master,
+            vat_group=Decimal("22.00"),
+        )
+        OrderItem.objects.create(
+            order=sub_a,
+            product=product_variant.product,
+            variant=product_variant,
+            product_name="Product A",
+            unit_price=Decimal("1500"),
+            quantity=1,
+            total_price=Decimal("1500"),
+        )
+        sub_b = Order.objects.create(
+            user=customer_user,
+            order_number="FS-NO-DIRECT-SUB-B",
+            total_amount=Decimal("1500"),
+            sent_to_1c=False,
+            delivery_address="ул. Тест, 1",
+            delivery_method="pickup",
+            payment_method="card",
+            is_master=False,
+            parent_order=master,
+            vat_group=Decimal("5.00"),
+        )
+        OrderItem.objects.create(
+            order=sub_b,
+            product=product_variant.product,
+            variant=product_variant,
+            product_name="Product B",
+            unit_price=Decimal("1500"),
+            quantity=1,
+            total_price=Decimal("1500"),
+        )
+
+        # Query — экспортирует оба субзаказа
+        authenticated_client.get(
+            "/api/integration/1c/exchange/",
+            data={"mode": "query"},
+        )
+
+        # Подменяем cache, добавляя master PK к exported_ids
+        session = authenticated_client.session
+        cache_key = f"1c_exported_ids_{session.session_key}"
+        exported = django_cache.get(cache_key)
+        assert exported is not None
+        if master.pk not in exported:
+            exported.append(master.pk)
+            django_cache.set(cache_key, exported, timeout=3600)
+
+        # Success — мастер НЕ обновляется напрямую (is_master=False фильтр)
+        authenticated_client.get(
+            "/api/integration/1c/exchange/",
+            data={"mode": "success"},
+        )
+
+        sub_a.refresh_from_db()
+        sub_b.refresh_from_db()
+        master.refresh_from_db()
+
+        # Субзаказы помечены
+        assert sub_a.sent_to_1c is True
+        assert sub_b.sent_to_1c is True
+        # Мастер агрегирован (оба sub отправлены), но НЕ через прямой update
+        assert master.sent_to_1c is True
+        assert master.sent_to_1c_at is not None
+
+    def test_signal_emitted_when_only_master_aggregated(
+        self, authenticated_client, customer_user, product_variant, log_dir
+    ):
+        """AC11: сигнал эмитится даже при updated==0, если _aggregate_master_sent_to_1c
+        пометил мастера.
+
+        Сценарий: sub_orders уже sent_to_1c=True, но master ещё нет.
+        При handle_success: updated=0 (субзаказы уже помечены),
+        но _aggregate_master_sent_to_1c должен пометить мастера,
+        и сигнал ДОЛЖЕН быть эмитирован с master_order_ids.
+        """
+        from apps.orders.signals import orders_bulk_updated
+        from decimal import Decimal
+
+        master = Order.objects.create(
+            user=customer_user,
+            order_number="FS-SIG-MASTER",
+            total_amount=Decimal("1500"),
+            sent_to_1c=False,
+            delivery_address="ул. Сигн, 1",
+            delivery_method="pickup",
+            payment_method="card",
+            is_master=True,
+        )
+        sub = Order.objects.create(
+            user=customer_user,
+            order_number="FS-SIG-SUB",
+            total_amount=Decimal("1500"),
+            sent_to_1c=False,
+            delivery_address="ул. Сигн, 1",
+            delivery_method="pickup",
+            payment_method="card",
+            is_master=False,
+            parent_order=master,
+            vat_group=Decimal("22.00"),
+        )
+        OrderItem.objects.create(
+            order=sub,
+            product=product_variant.product,
+            variant=product_variant,
+            product_name="Product Sig",
+            unit_price=Decimal("1500"),
+            quantity=1,
+            total_price=Decimal("1500"),
+        )
+
+        # Query — экспортирует sub
+        authenticated_client.get(
+            "/api/integration/1c/exchange/",
+            data={"mode": "query"},
+        )
+
+        # Предзаписываем sub как sent_to_1c=True (минуя handle_success),
+        # но оставляем master.sent_to_1c=False
+        Order.objects.filter(pk=sub.pk).update(sent_to_1c=True)
+
+        received_kwargs = {}
+
+        def handler(sender, **kwargs):
+            received_kwargs.update(kwargs)
+
+        orders_bulk_updated.connect(handler)
+        try:
+            authenticated_client.get(
+                "/api/integration/1c/exchange/",
+                data={"mode": "success"},
+            )
+        finally:
+            orders_bulk_updated.disconnect(handler)
+
+        master.refresh_from_db()
+        # Мастер агрегирован, т.к. все его sub_orders уже sent_to_1c=True
+        assert master.sent_to_1c is True
+        assert master.sent_to_1c_at is not None
+
+        # Сигнал эмитирован даже при updated==0
+        assert received_kwargs.get("field") == "sent_to_1c"
+        assert "master_order_ids" in received_kwargs
+        assert master.pk in received_kwargs["master_order_ids"]
+        # order_ids содержит sub PK (отфильтрованный от master PK)
+        assert master.pk not in received_kwargs.get("order_ids", [])
+
 
 @pytest.mark.django_db
 @pytest.mark.integration

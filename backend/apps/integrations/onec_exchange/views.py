@@ -428,24 +428,38 @@ class ICExchangeView(APIView):
 
         now = timezone.now()
         with transaction.atomic():
-            updated = Order.objects.filter(
-                pk__in=prev_ids,
-                sent_to_1c=False,
-            ).update(
+            # AC9: обновляем ТОЛЬКО субзаказы; мастера — только через _aggregate_master_sent_to_1c
+            # sub_ids — все sub-order PK из prev_ids (для агрегации мастеров)
+            sub_ids = list(
+                Order.objects.filter(
+                    pk__in=prev_ids,
+                    is_master=False,
+                ).values_list("pk", flat=True)
+            )
+            # sub_ids_to_update — только ещё не отправленные (для update)
+            sub_ids_to_update = list(
+                Order.objects.filter(
+                    pk__in=sub_ids,
+                    sent_to_1c=False,
+                ).values_list("pk", flat=True)
+            )
+            updated = Order.objects.filter(pk__in=sub_ids_to_update).update(
                 sent_to_1c=True,
                 sent_to_1c_at=now,
                 updated_at=now,
             )
-            aggregated_master_ids = self._aggregate_master_sent_to_1c(prev_ids, now)
+            # Агрегация по ВСЕМ sub_ids, не только обновлённым
+            aggregated_master_ids = self._aggregate_master_sent_to_1c(sub_ids, now)
 
-        if updated > 0:
+        if updated > 0 or aggregated_master_ids:
             logger.info(
-                f"[EXPORT IMPLICIT SUCCESS] Marked {updated} orders as sent_to_1c "
+                f"[EXPORT IMPLICIT SUCCESS] Marked {updated} sub-orders as sent_to_1c, "
+                f"aggregated {len(aggregated_master_ids)} masters "
                 f"(implicit confirmation via repeated query)"
             )
             orders_bulk_updated.send(
                 sender=Order,
-                order_ids=prev_ids,
+                order_ids=sub_ids,
                 updated_count=updated,
                 field="sent_to_1c",
                 timestamp=now,
@@ -676,23 +690,39 @@ class ICExchangeView(APIView):
 
         now = timezone.now()
         with transaction.atomic():
-            updated = Order.objects.filter(
-                pk__in=exported_ids,
-                sent_to_1c=False,
-            ).update(
+            # AC9: обновляем ТОЛЬКО субзаказы; мастера — только через _aggregate_master_sent_to_1c
+            # sub_ids — все sub-order PK из exported_ids (для агрегации мастеров)
+            sub_ids = list(
+                Order.objects.filter(
+                    pk__in=exported_ids,
+                    is_master=False,
+                ).values_list("pk", flat=True)
+            )
+            # sub_ids_to_update — только ещё не отправленные (для update)
+            sub_ids_to_update = list(
+                Order.objects.filter(
+                    pk__in=sub_ids,
+                    sent_to_1c=False,
+                ).values_list("pk", flat=True)
+            )
+            updated = Order.objects.filter(pk__in=sub_ids_to_update).update(
                 sent_to_1c=True,
                 sent_to_1c_at=now,
                 updated_at=now,
             )
-            aggregated_master_ids = self._aggregate_master_sent_to_1c(exported_ids, now)
+            # Агрегация по ВСЕМ sub_ids, не только обновлённым
+            aggregated_master_ids = self._aggregate_master_sent_to_1c(sub_ids, now)
 
-        logger.info(f"[EXPORT SUCCESS] Marked {updated} orders as sent_to_1c (of {len(exported_ids)} exported)")
+        logger.info(
+            f"[EXPORT SUCCESS] Marked {updated} sub-orders as sent_to_1c "
+            f"(of {len(exported_ids)} exported), aggregated {len(aggregated_master_ids)} masters"
+        )
 
-        # Send custom signal for audit (QuerySet.update bypasses post_save)
-        if updated > 0:
+        # AC11: сигнал эмитится даже если sub-orders уже были помечены, но мастер агрегирован
+        if updated > 0 or aggregated_master_ids:
             orders_bulk_updated.send(
                 sender=Order,
-                order_ids=exported_ids,
+                order_ids=sub_ids,
                 updated_count=updated,
                 field="sent_to_1c",
                 timestamp=now,
