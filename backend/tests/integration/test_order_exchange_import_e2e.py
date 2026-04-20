@@ -3,6 +3,10 @@ Story 5.3: Интеграционные тесты полного цикла и�
 
 Тесты покрывают полный E2E цикл 1С:
 checkauth -> query -> success -> file (orders.xml).
+
+Updated for Story 34-3: handle_query exports only sub-orders
+(is_master=False, parent_order__isnull=False). _create_order_with_item
+now creates master + sub-order structure.
 """
 
 from __future__ import annotations
@@ -62,25 +66,40 @@ def _get_exchange(auth_client: APIClient, mode: str) -> Response:
     return cast(Response, auth_client.get(EXCHANGE_URL, data={"mode": mode}))
 
 
-def _align_order_number_with_id(order: Order) -> Order:
-    order.order_number = f"order-{order.pk}"
-    order.save(update_fields=["order_number"])
-    return order
-
-
 def _create_order_with_item(
     *,
     status: str = "pending",
     sent_to_1c: bool = False,
 ) -> Order:
+    """Create master + sub-order + OrderItem for E2E import tests.
+
+    Returns the sub-order (is_master=False), which is the one exported to 1C
+    and the one that receives status updates from 1C.
+    """
     variant = ProductVariantFactory.create()
-    order = OrderFactory.create(
+    master = Order.objects.create(
+        status=status,
+        sent_to_1c=False,
+        is_master=True,
+        total_amount=variant.retail_price,
+        delivery_address="ул. Тестовая, 1",
+        delivery_method="courier",
+        payment_method="card",
+    )
+    sub = Order.objects.create(
         status=status,
         sent_to_1c=sent_to_1c,
+        is_master=False,
+        parent_order=master,
+        total_amount=variant.retail_price,
+        delivery_address="ул. Тестовая, 1",
+        delivery_method="courier",
+        payment_method="card",
     )
-    order = _align_order_number_with_id(order)
+    sub.order_number = f"order-{sub.pk}"
+    sub.save(update_fields=["order_number"])
     OrderItemFactory.create(
-        order=order,
+        order=sub,
         product=variant.product,
         variant=variant,
         product_name=variant.product.name,
@@ -88,13 +107,13 @@ def _create_order_with_item(
         quantity=1,
         total_price=variant.retail_price,
     )
-    return order
+    return sub
 
 
 def test_full_cycle_export_then_import_updates_status(auth_client, log_dir, db):
-    """AC1: export -> success -> import updates shipped status."""
+    """AC1: export -> success -> import updates shipped status on sub-order."""
     # ARRANGE
-    order = _create_order_with_item()
+    sub = _create_order_with_item()
 
     # ACT — export query
     resp_query = _get_exchange(auth_client, "query")
@@ -102,19 +121,19 @@ def test_full_cycle_export_then_import_updates_status(auth_client, log_dir, db):
     root = parse_commerceml_response(resp_query)
     documents = root.findall(".//Документ")
     assert any(
-        doc.findtext("Номер") == order.order_number for doc in documents
-    ), "Exported XML must include the target order"
+        doc.findtext("Номер") == sub.order_number for doc in documents
+    ), "Exported XML must include the target sub-order"
 
     # ACT — export success
     resp_success = _get_exchange(auth_client, "success")
     assert resp_success.status_code == 200
 
-    order.refresh_from_db()
-    assert order.sent_to_1c is True
+    sub.refresh_from_db()
+    assert sub.sent_to_1c is True
 
     xml_data = _build_orders_xml(
-        order_id=f"order-{order.pk}",
-        order_number=f"order-{order.pk}",
+        order_id=f"order-{sub.pk}",
+        order_number=f"order-{sub.pk}",
         status_1c="Отгружен",
     )
 
@@ -124,10 +143,10 @@ def test_full_cycle_export_then_import_updates_status(auth_client, log_dir, db):
     assert resp_file.content.decode("utf-8").startswith("success")
 
     # ASSERT
-    order.refresh_from_db()
-    assert order.status == "shipped"
-    assert order.status_1c == "Отгружен"
-    assert order.sent_to_1c is True
+    sub.refresh_from_db()
+    assert sub.status == "shipped"
+    assert sub.status_1c == "Отгружен"
+    assert sub.sent_to_1c is True
 
 
 @pytest.mark.parametrize(
@@ -142,10 +161,10 @@ def test_full_cycle_export_then_import_updates_status(auth_client, log_dir, db):
 def test_status_mapping_from_1c(auth_client, log_dir, db, status_1c, expected_status):
     """AC2: 1C status mapping for processing/shipped/delivered/cancelled."""
     # ARRANGE
-    order = _create_order_with_item()
+    sub = _create_order_with_item()
     xml_data = _build_orders_xml(
-        order_id=f"order-{order.pk}",
-        order_number=f"order-{order.pk}",
+        order_id=f"order-{sub.pk}",
+        order_number=f"order-{sub.pk}",
         status_1c=status_1c,
     )
 
@@ -155,19 +174,18 @@ def test_status_mapping_from_1c(auth_client, log_dir, db, status_1c, expected_st
     assert response.content.decode("utf-8").startswith("success")
 
     # ASSERT
-    order.refresh_from_db()
-    assert order.status == expected_status
-    assert order.status_1c == status_1c
-    assert order.sent_to_1c is True
+    sub.refresh_from_db()
+    assert sub.status == expected_status
+    assert sub.status_1c == status_1c
 
 
 def test_dates_extracted_from_requisites(auth_client, log_dir, db):
     """AC3: paid_at/shipped_at extracted from requisites."""
     # ARRANGE
-    order = _create_order_with_item()
+    sub = _create_order_with_item()
     xml_data = _build_orders_xml(
-        order_id=f"order-{order.pk}",
-        order_number=f"order-{order.pk}",
+        order_id=f"order-{sub.pk}",
+        order_number=f"order-{sub.pk}",
         status_1c="Отгружен",
         paid_date="2026-02-01",
         shipped_date="2026-02-02",
@@ -179,11 +197,11 @@ def test_dates_extracted_from_requisites(auth_client, log_dir, db):
     assert response.content.decode("utf-8").startswith("success")
 
     # ASSERT
-    order.refresh_from_db()
-    assert order.paid_at is not None
-    assert timezone.localdate(order.paid_at) == date(2026, 2, 1)
-    assert order.shipped_at is not None
-    assert timezone.localdate(order.shipped_at) == date(2026, 2, 2)
+    sub.refresh_from_db()
+    assert sub.paid_at is not None
+    assert timezone.localdate(sub.paid_at) == date(2026, 2, 1)
+    assert sub.shipped_at is not None
+    assert timezone.localdate(sub.shipped_at) == date(2026, 2, 2)
 
 
 def test_invalid_xml_returns_failure(auth_client, log_dir, db):
@@ -204,8 +222,8 @@ def test_invalid_xml_returns_failure(auth_client, log_dir, db):
 def test_unknown_order_returns_failure(auth_client, log_dir, db):
     """AC4: unknown order returns failure and no updates."""
     # ARRANGE
-    existing_order = _create_order_with_item()
-    missing_id = existing_order.pk + 9999
+    existing_sub = _create_order_with_item()
+    missing_id = existing_sub.pk + 9999
     xml_data = _build_orders_xml(
         order_id=f"order-{missing_id}",
         order_number=f"order-{missing_id}",
@@ -219,6 +237,6 @@ def test_unknown_order_returns_failure(auth_client, log_dir, db):
     assert response.status_code == 200
     content = response.content.decode("utf-8")
     assert content.startswith("failure")
-    existing_order.refresh_from_db()
-    assert existing_order.status == "pending"
-    assert existing_order.sent_to_1c is False
+    existing_sub.refresh_from_db()
+    assert existing_sub.status == "pending"
+    assert existing_sub.sent_to_1c is False

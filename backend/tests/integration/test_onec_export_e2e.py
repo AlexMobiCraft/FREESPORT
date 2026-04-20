@@ -10,6 +10,10 @@ Tests cover:
 - AC6: Repeat cycle — empty XML after success
 - AC7: Testing standards compliance (Factory Boy + LazyFunction, AAA, markers)
 - AC8: Coverage >=90% for critical modules
+
+Updated for Story 34-3: handle_query exports only sub-orders
+(is_master=False, parent_order__isnull=False). All fixtures create
+master + sub-order structure; assertions target the sub-order.
 """
 
 import xml.etree.ElementTree as ET
@@ -45,6 +49,64 @@ def auth_client(onec_user) -> APIClient:
     return perform_1c_checkauth(client, onec_user.email, ONEC_PASSWORD)
 
 
+def _create_master_with_sub(
+    user=None,
+    variant=None,
+    sent_to_1c=False,
+    customer_name=None,
+    customer_email=None,
+    customer_phone=None,
+    delivery_address="ул. Тестовая, 1",
+    delivery_method="courier",
+):
+    """Create master + sub-order structure for export E2E tests.
+
+    Returns (master, sub) tuple. The sub-order is the one exported to 1C.
+    """
+    from apps.orders.models import Order
+
+    if variant is None:
+        variant = ProductVariantFactory.create()
+
+    common = {
+        "delivery_address": delivery_address,
+        "delivery_method": delivery_method,
+        "payment_method": "card",
+    }
+    if user is None:
+        common.update(
+            customer_name=customer_name or "Гость",
+            customer_email=customer_email or "guest@test.com",
+            customer_phone=customer_phone or "+79990000000",
+        )
+
+    master = Order.objects.create(
+        user=user,
+        sent_to_1c=False,
+        is_master=True,
+        total_amount=variant.retail_price,
+        **common,
+    )
+    sub = Order.objects.create(
+        user=user,
+        sent_to_1c=sent_to_1c,
+        is_master=False,
+        parent_order=master,
+        total_amount=variant.retail_price,
+        **common,
+    )
+    OrderItemFactory.create(
+        order=sub,
+        product=variant.product,
+        variant=variant,
+        product_name=variant.product.name,
+        unit_price=variant.retail_price,
+        quantity=1,
+        total_price=variant.retail_price,
+    )
+    return master, sub
+
+
 # ---------------------------------------------------------------------------
 # Task 2: Full cycle with tax_id (AC1, AC3)
 # ---------------------------------------------------------------------------
@@ -55,23 +117,15 @@ class TestFullExportCycleWithTaxId:
     """E2E: checkauth -> query -> success for B2B user with tax_id."""
 
     def test_full_cycle_checkauth_query_success_marks_order_as_sent(self, auth_client, log_dir, db):
-        """AC1: Full cycle marks order as sent_to_1c=True."""
+        """AC1: Full cycle marks sub-order (and aggregated master) as sent_to_1c=True."""
         # ARRANGE
         b2b_user = UserFactory.create(tax_id="1234567890", company_name="TestCo")
         v1 = ProductVariantFactory.create()
         v2 = ProductVariantFactory.create()
-        order = OrderFactory.create(user=b2b_user, sent_to_1c=False)
+        master, sub = _create_master_with_sub(user=b2b_user, variant=v1)
+        # Add second item to sub-order
         OrderItemFactory.create(
-            order=order,
-            product=v1.product,
-            variant=v1,
-            product_name=v1.product.name,
-            unit_price=v1.retail_price,
-            quantity=1,
-            total_price=v1.retail_price,
-        )
-        OrderItemFactory.create(
-            order=order,
+            order=sub,
             product=v2.product,
             variant=v2,
             product_name=v2.product.name,
@@ -88,10 +142,13 @@ class TestFullExportCycleWithTaxId:
         resp_s = auth_client.get("/api/integration/1c/exchange/", data={"mode": "success"})
         assert resp_s.status_code == 200
 
-        # ASSERT
-        order.refresh_from_db()
-        assert order.sent_to_1c is True
-        assert order.sent_to_1c_at is not None
+        # ASSERT — sub-order marked
+        sub.refresh_from_db()
+        assert sub.sent_to_1c is True
+        assert sub.sent_to_1c_at is not None
+        # ASSERT — master aggregated
+        master.refresh_from_db()
+        assert master.sent_to_1c is True
 
     def test_full_cycle_xml_contains_valid_commerceml_structure(self, auth_client, log_dir, db):
         """AC3: XML structure follows CommerceML 3.1."""
@@ -99,18 +156,10 @@ class TestFullExportCycleWithTaxId:
         b2b_user = UserFactory.create(tax_id="1234567890", company_name="XmlCo")
         v1 = ProductVariantFactory.create()
         v2 = ProductVariantFactory.create()
-        order = OrderFactory.create(user=b2b_user, sent_to_1c=False)
+        master, sub = _create_master_with_sub(user=b2b_user, variant=v1)
+        # Add second item to sub-order
         OrderItemFactory.create(
-            order=order,
-            product=v1.product,
-            variant=v1,
-            product_name=v1.product.name,
-            unit_price=v1.retail_price,
-            quantity=1,
-            total_price=v1.retail_price,
-        )
-        OrderItemFactory.create(
-            order=order,
+            order=sub,
             product=v2.product,
             variant=v2,
             product_name=v2.product.name,
@@ -161,17 +210,7 @@ class TestFullExportCycleWithoutTaxId:
         """AC2: XML valid, <ИНН> absent when user has no tax_id."""
         # ARRANGE
         user_no_tax = UserFactory.create()
-        variant = ProductVariantFactory.create()
-        order = OrderFactory.create(user=user_no_tax, sent_to_1c=False)
-        OrderItemFactory.create(
-            order=order,
-            product=variant.product,
-            variant=variant,
-            product_name=variant.product.name,
-            unit_price=variant.retail_price,
-            quantity=1,
-            total_price=variant.retail_price,
-        )
+        master, sub = _create_master_with_sub(user=user_no_tax)
 
         # ACT
         resp = auth_client.get("/api/integration/1c/exchange/", data={"mode": "query"})
@@ -197,23 +236,13 @@ class TestFullExportCycleMultipleOrders:
     """E2E: >=3 orders all marked as sent after success."""
 
     def test_full_cycle_multiple_orders_all_marked_as_sent(self, auth_client, log_dir, db):
-        """AC4: 3 orders from different users — all sent_to_1c=True."""
+        """AC4: 3 sub-orders from different users — all sent_to_1c=True."""
         # ARRANGE
-        orders = []
+        subs = []
         for _ in range(3):
             user = UserFactory.create()
-            variant = ProductVariantFactory.create()
-            order = OrderFactory.create(user=user, sent_to_1c=False)
-            OrderItemFactory.create(
-                order=order,
-                product=variant.product,
-                variant=variant,
-                product_name=variant.product.name,
-                unit_price=variant.retail_price,
-                quantity=1,
-                total_price=variant.retail_price,
-            )
-            orders.append(order)
+            master, sub = _create_master_with_sub(user=user)
+            subs.append((master, sub))
 
         # ACT
         resp_q = auth_client.get("/api/integration/1c/exchange/", data={"mode": "query"})
@@ -227,11 +256,13 @@ class TestFullExportCycleMultipleOrders:
         resp_s = auth_client.get("/api/integration/1c/exchange/", data={"mode": "success"})
         assert resp_s.status_code == 200
 
-        # ASSERT
-        for order in orders:
-            order.refresh_from_db()
-            assert order.sent_to_1c is True, f"Order {order.order_number} not marked"
-            assert order.sent_to_1c_at is not None, f"Order {order.order_number} sent_to_1c_at is None"
+        # ASSERT — all sub-orders marked
+        for master, sub in subs:
+            sub.refresh_from_db()
+            assert sub.sent_to_1c is True, f"Sub-order {sub.order_number} not marked"
+            assert sub.sent_to_1c_at is not None, f"Sub-order {sub.order_number} sent_to_1c_at is None"
+            master.refresh_from_db()
+            assert master.sent_to_1c is True, f"Master {master.order_number} not aggregated"
 
 
 # ---------------------------------------------------------------------------
@@ -246,24 +277,12 @@ class TestFullExportCycleGuestOrder:
     def test_full_cycle_guest_order_includes_customer_contact_in_xml(self, auth_client, log_dir, db):
         """AC5: Guest contact data appears in <Контрагенты>."""
         # ARRANGE
-        variant = ProductVariantFactory.create()
-        order = OrderFactory.create(
+        master, sub = _create_master_with_sub(
             user=None,
-            sent_to_1c=False,
             delivery_address="ул. Гостевая, 5",
-            delivery_method="courier",
             customer_name="Иван Гость",
             customer_email="guest-e2e@test.com",
             customer_phone="+79991112233",
-        )
-        OrderItemFactory.create(
-            order=order,
-            product=variant.product,
-            variant=variant,
-            product_name=variant.product.name,
-            unit_price=variant.retail_price,
-            quantity=1,
-            total_price=variant.retail_price,
         )
 
         # ACT
@@ -290,26 +309,14 @@ class TestFullExportCycleGuestOrder:
         ), f"Expected phone contact type 'Телефон', got: {contact_map}"
 
     def test_full_cycle_guest_order_marked_as_sent_after_success(self, auth_client, log_dir, db):
-        """AC5: Guest order marked sent_to_1c=True after success."""
+        """AC5: Guest sub-order marked sent_to_1c=True after success."""
         # ARRANGE
-        variant = ProductVariantFactory.create()
-        order = OrderFactory.create(
+        master, sub = _create_master_with_sub(
             user=None,
-            sent_to_1c=False,
             delivery_address="ул. Гостевая, 10",
-            delivery_method="pickup",
             customer_name="Гость Два",
             customer_email="guest2-e2e@test.com",
             customer_phone="+79992223344",
-        )
-        OrderItemFactory.create(
-            order=order,
-            product=variant.product,
-            variant=variant,
-            product_name=variant.product.name,
-            unit_price=variant.retail_price,
-            quantity=1,
-            total_price=variant.retail_price,
         )
 
         # ACT
@@ -318,8 +325,10 @@ class TestFullExportCycleGuestOrder:
         assert resp_s.status_code == 200
 
         # ASSERT
-        order.refresh_from_db()
-        assert order.sent_to_1c is True
+        sub.refresh_from_db()
+        assert sub.sent_to_1c is True
+        master.refresh_from_db()
+        assert master.sent_to_1c is True
 
 
 # ---------------------------------------------------------------------------
@@ -335,17 +344,7 @@ class TestFullExportCycleRepeat:
         """AC6: After success, second query has no <Документ>."""
         # ARRANGE
         user = UserFactory.create()
-        variant = ProductVariantFactory.create()
-        order = OrderFactory.create(user=user, sent_to_1c=False)
-        OrderItemFactory.create(
-            order=order,
-            product=variant.product,
-            variant=variant,
-            product_name=variant.product.name,
-            unit_price=variant.retail_price,
-            quantity=1,
-            total_price=variant.retail_price,
-        )
+        master, sub = _create_master_with_sub(user=user)
 
         # ACT — first cycle
         auth_client.get("/api/integration/1c/exchange/", data={"mode": "query"})
@@ -362,44 +361,26 @@ class TestFullExportCycleRepeat:
         assert len(documents) == 0, f"Expected 0 documents after success, got {len(documents)}"
 
     def test_new_order_after_success_appears_in_next_query(self, auth_client, log_dir, db):
-        """AC6: New order created after success appears in next query."""
+        """AC6: New sub-order created after success appears in next query."""
         # ARRANGE — first order + cycle
         user = UserFactory.create()
         variant = ProductVariantFactory.create()
-        order1 = OrderFactory.create(user=user, sent_to_1c=False)
-        OrderItemFactory.create(
-            order=order1,
-            product=variant.product,
-            variant=variant,
-            product_name=variant.product.name,
-            unit_price=variant.retail_price,
-            quantity=1,
-            total_price=variant.retail_price,
-        )
+        master1, sub1 = _create_master_with_sub(user=user, variant=variant)
 
         auth_client.get("/api/integration/1c/exchange/", data={"mode": "query"})
         auth_client.get("/api/integration/1c/exchange/", data={"mode": "success"})
 
-        # ARRANGE — new order
+        # ARRANGE — new sub-order
         variant2 = ProductVariantFactory.create()
-        order2 = OrderFactory.create(user=user, sent_to_1c=False)
-        OrderItemFactory.create(
-            order=order2,
-            product=variant2.product,
-            variant=variant2,
-            product_name=variant2.product.name,
-            unit_price=variant2.retail_price,
-            quantity=1,
-            total_price=variant2.retail_price,
-        )
+        master2, sub2 = _create_master_with_sub(user=user, variant=variant2)
 
         # ACT — second query
         resp = auth_client.get("/api/integration/1c/exchange/", data={"mode": "query"})
         assert resp.status_code == 200
         root = parse_commerceml_response(resp)
 
-        # ASSERT — only new order
+        # ASSERT — only new sub-order
         containers = root.findall("Контейнер")
         assert len(containers) == 1
         doc = containers[0].find("Документ")
-        assert doc.findtext("Номер") == order2.order_number
+        assert doc.findtext("Номер") == sub2.order_number
