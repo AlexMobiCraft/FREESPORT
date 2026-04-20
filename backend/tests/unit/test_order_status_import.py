@@ -111,6 +111,25 @@ def build_multi_order_xml(orders: list[dict]) -> str:
 """
 
 
+
+def _make_mock_order(**overrides):
+    """Создать mock заказа с дефолтными атрибутами (legacy order без sub_orders)."""
+    mock = MagicMock()
+    mock.is_master = True
+    mock.sub_orders.exists.return_value = False
+    mock.parent_order_id = None
+    mock.status = "pending"
+    mock.status_1c = ""
+    mock.paid_at = None
+    mock.shipped_at = None
+    mock.sent_to_1c = False
+    mock.sent_to_1c_at = None
+    mock.payment_status = "pending"
+    for k, v in overrides.items():
+        setattr(mock, k, v)
+    return mock
+
+
 # =============================================================================
 # Test Classes
 # =============================================================================
@@ -384,7 +403,7 @@ class TestOrderProcessing:
         )
 
         # Мокаем Order
-        mock_order = MagicMock()
+        mock_order = _make_mock_order()
         mock_order.order_number = order_number
         # [AI-Review][Medium] Data Integrity:
         # pk должен соответствовать order_id=order-123
@@ -416,7 +435,7 @@ class TestOrderProcessing:
         order_number = "FS-TEST-001"
         xml_data = build_test_xml(order_number=order_number, status="НеизвестныйСтатус")
 
-        mock_order = MagicMock()
+        mock_order = _make_mock_order()
         mock_order.order_number = order_number
         # [AI-Review][Medium] Data Integrity:
         # pk должен соответствовать order_id=order-123
@@ -447,7 +466,7 @@ class TestOrderProcessing:
             status="Отгружен",
         )
 
-        mock_order = MagicMock()
+        mock_order = _make_mock_order()
         mock_order.order_number = order_number
         # [AI-Review][Medium] Data Integrity:
         # pk должен соответствовать order_id=order-123
@@ -492,15 +511,11 @@ class TestOrderProcessing:
             ]
         )
 
-        mock_existing_order = MagicMock()
+        mock_existing_order = _make_mock_order()
         mock_existing_order.order_number = "EXISTS-1"
         # [AI-Review][Medium] Data Integrity:
         # pk должен соответствовать order_id=order-2
         mock_existing_order.pk = 2
-        mock_existing_order.status = "pending"
-        mock_existing_order.status_1c = ""
-        mock_existing_order.paid_at = None
-        mock_existing_order.shipped_at = None
 
         service = OrderStatusImportService()
 
@@ -528,7 +543,7 @@ class TestOrderProcessing:
         )
 
         # Заказ уже имеет такой же статус
-        mock_order = MagicMock()
+        mock_order = _make_mock_order()
         mock_order.order_number = order_number
         # [AI-Review][Medium] Data Integrity:
         # pk должен соответствовать order_id=order-123
@@ -570,7 +585,7 @@ class TestOrderProcessing:
         )
 
         # Заказ уже имеет такой же статус, но даты отсутствуют
-        mock_order = MagicMock()
+        mock_order = _make_mock_order()
         mock_order.order_number = order_number
         # [AI-Review][Medium] Data Integrity:
         # pk должен соответствовать order_id=order-123
@@ -606,7 +621,7 @@ class TestOrderProcessing:
             paid_date="2026-02-01",
         )
 
-        mock_order = MagicMock()
+        mock_order = _make_mock_order()
         mock_order.order_number = order_number
         # [AI-Review][Medium] Data Integrity:
         # pk должен соответствовать order_id=order-123
@@ -641,7 +656,7 @@ class TestOrderProcessing:
             paid_date="2026-02-01",
         )
 
-        mock_order = MagicMock()
+        mock_order = _make_mock_order()
         mock_order.order_number = order_number
         # [AI-Review][Medium] Data Integrity:
         # pk должен соответствовать order_id=order-123
@@ -716,7 +731,7 @@ class TestOrderProcessing:
         long_status = "А" * 300  # 300 символов кириллицы
         xml_data = build_test_xml(order_number=order_number, status=long_status)
 
-        mock_order = MagicMock()
+        mock_order = _make_mock_order()
         mock_order.order_number = order_number
         # [AI-Review][Medium] Data Integrity:
         # pk должен соответствовать order_id=order-123
@@ -765,7 +780,7 @@ class TestFindOrder:
             status_1c="Отгружен",
         )
 
-        mock_order = MagicMock()
+        mock_order = _make_mock_order()
         # [AI-Review][Medium] Data Integrity:
         # pk должен соответствовать order_id=order-999
         mock_order.pk = 999
@@ -798,7 +813,7 @@ class TestFindOrder:
             status_1c="Отгружен",
         )
 
-        mock_order = MagicMock()
+        mock_order = _make_mock_order()
         mock_order.pk = 42
         service = OrderStatusImportService()
 
@@ -817,7 +832,7 @@ class TestFindOrder:
         # ARRANGE
         xml_data = build_test_xml(order_id="order-42", order_number="")
 
-        mock_order = MagicMock()
+        mock_order = _make_mock_order()
         mock_order.status = "pending"
         mock_order.status_1c = ""
         mock_order.order_number = "FOUND-BY-ID"
@@ -1010,7 +1025,7 @@ class TestReviewFollowups:
     </Контейнер>
 </КоммерческаяИнформация>
 """
-            mock_order = MagicMock()
+            mock_order = _make_mock_order()
             mock_order.order_number = order_number
             mock_order.status = "pending"
             mock_order.status_1c = ""
@@ -1055,36 +1070,24 @@ class TestReviewFollowups:
         )
 
         # Mock orders
-        error_order = MagicMock()
+        error_order = _make_mock_order()
         error_order.order_number = "ERROR-ORDER"
         # [AI-Review][Medium] Data Integrity:
         # pk должен соответствовать order_id=order-1
         error_order.pk = 1
-        error_order.status = "pending"
-        error_order.status_1c = ""
-        error_order.paid_at = None
-        error_order.shipped_at = None
         error_order.save.side_effect = Exception("Database error!")
 
-        good_order_1 = MagicMock()
+        good_order_1 = _make_mock_order()
         good_order_1.order_number = "GOOD-ORDER-1"
         # [AI-Review][Medium] Data Integrity:
         # pk должен соответствовать order_id=order-2
         good_order_1.pk = 2
-        good_order_1.status = "pending"
-        good_order_1.status_1c = ""
-        good_order_1.paid_at = None
-        good_order_1.shipped_at = None
 
-        good_order_2 = MagicMock()
+        good_order_2 = _make_mock_order()
         good_order_2.order_number = "GOOD-ORDER-2"
         # [AI-Review][Medium] Data Integrity:
         # pk должен соответствовать order_id=order-3
         good_order_2.pk = 3
-        good_order_2.status = "pending"
-        good_order_2.status_1c = ""
-        good_order_2.paid_at = None
-        good_order_2.shipped_at = None
 
         service = OrderStatusImportService()
         # [AI-Review][High] Используем num: префикс для избежания коллизий
@@ -1164,7 +1167,7 @@ class TestReviewFollowups:
         order_number = "FS-SENT-001"
         xml_data = build_test_xml(order_number=order_number, status="Отгружен")
 
-        mock_order = MagicMock()
+        mock_order = _make_mock_order()
         mock_order.order_number = order_number
         # [AI-Review][Medium] Data Integrity:
         # pk должен соответствовать order_id=order-123
@@ -1240,7 +1243,7 @@ class TestRound3ReviewFollowups:
         order_number = "FS-SENT-AT-001"
         xml_data = build_test_xml(order_number=order_number, status="Отгружен")
 
-        mock_order = MagicMock()
+        mock_order = _make_mock_order()
         mock_order.order_number = order_number
         # [AI-Review][Medium] Data Integrity:
         # pk должен соответствовать order_id=order-123
@@ -1277,7 +1280,7 @@ class TestRound3ReviewFollowups:
 
         original_sync_time = timezone.now() - timedelta(days=1)
 
-        mock_order = MagicMock()
+        mock_order = _make_mock_order()
         mock_order.order_number = order_number
         # [AI-Review][Medium] Data Integrity:
         # pk должен соответствовать order_id=order-123
@@ -1371,26 +1374,16 @@ class TestRound6ReviewFollowups:
             status="Отгружен",
         )
 
-        mock_order_by_number = MagicMock()
+        mock_order_by_number = _make_mock_order()
         mock_order_by_number.order_number = order_number
         # [AI-Review][Medium] Data Integrity: pk должен соответствовать order_id
         mock_order_by_number.pk = order_pk
-        mock_order_by_number.status = "pending"
-        mock_order_by_number.status_1c = ""
-        mock_order_by_number.paid_at = None
-        mock_order_by_number.shipped_at = None
-        mock_order_by_number.sent_to_1c = False
 
         # [AI-Review][Medium] Data Integrity: второй заказ с тем же pk создаст конфликт
         # Тест проверяет, что num: и pk: ключи не путаются, поэтому используем один заказ
-        mock_order_by_pk = MagicMock()
+        mock_order_by_pk = _make_mock_order()
         mock_order_by_pk.order_number = "DIFFERENT"
         mock_order_by_pk.pk = 1000  # Другой pk, не связанный с текущим XML
-        mock_order_by_pk.status = "pending"
-        mock_order_by_pk.status_1c = ""
-        mock_order_by_pk.paid_at = None
-        mock_order_by_pk.shipped_at = None
-        mock_order_by_pk.sent_to_1c = False
 
         service = OrderStatusImportService()
 
@@ -1433,11 +1426,11 @@ class TestRound6ReviewFollowups:
             ),
         ]
 
-        mock_order_1 = MagicMock()
+        mock_order_1 = _make_mock_order()
         mock_order_1.order_number = "FS-TEST-001"
         mock_order_1.pk = 42
 
-        mock_order_2 = MagicMock()
+        mock_order_2 = _make_mock_order()
         mock_order_2.order_number = "FS-TEST-002"
         mock_order_2.pk = 100
 
@@ -1483,7 +1476,7 @@ class TestRound6ReviewFollowups:
             status_1c="Отгружен",
         )
 
-        mock_order = MagicMock()
+        mock_order = _make_mock_order()
         mock_order.order_number = order_number
         mock_order.pk = 50
 
@@ -1512,7 +1505,7 @@ class TestRound6ReviewFollowups:
             status_1c="Отгружен",
         )
 
-        mock_order = MagicMock()
+        mock_order = _make_mock_order()
         mock_order.order_number = "FS-LOCK-001"
         mock_order.pk = 77
 
@@ -1547,7 +1540,7 @@ class TestRound6ReviewFollowups:
             status_1c="Отгружен",
         )
 
-        mock_order = MagicMock()
+        mock_order = _make_mock_order()
         mock_order.pk = 88
 
         service = OrderStatusImportService()
@@ -1601,7 +1594,7 @@ class TestRound7ReviewFollowups:
             </Контейнер>
         </КоммерческаяИнформация>"""
 
-        mock_order = MagicMock()
+        mock_order = _make_mock_order()
         mock_order.order_number = order_number
         # [AI-Review][Medium] Data Integrity:
         # pk должен соответствовать order_id=order-123
@@ -1646,7 +1639,7 @@ class TestRound7ReviewFollowups:
             </Контейнер>
         </КоммерческаяИнформация>"""
 
-        mock_order = MagicMock()
+        mock_order = _make_mock_order()
         mock_order.order_number = order_number
         # [AI-Review][Medium] Data Integrity:
         # pk должен соответствовать order_id=order-124
@@ -1710,7 +1703,7 @@ class TestRound7ReviewFollowups:
         order_number = "FS-FINAL-001"
         xml_data = build_test_xml(order_number=order_number, status="Отгружен")
 
-        mock_order = MagicMock()
+        mock_order = _make_mock_order()
         mock_order.order_number = order_number
         # [AI-Review][Medium] Data Integrity:
         # pk должен соответствовать order_id=order-123
@@ -1761,7 +1754,7 @@ class TestRound7ReviewFollowups:
         order_number = f"FS-FINAL-TRANS-{get_unique_suffix()}"
         xml_data = build_test_xml(order_number=order_number, status=new_1c_status)
 
-        mock_order = MagicMock()
+        mock_order = _make_mock_order()
         mock_order.order_number = order_number
         # [AI-Review][Medium] Data Integrity:
         # pk должен соответствовать order_id=order-123
@@ -1794,7 +1787,7 @@ class TestRound7ReviewFollowups:
         order_number = "FS-LOG-DEBUG-001"
         xml_data = build_test_xml(order_number=order_number, status="Отгружен")
 
-        mock_order = MagicMock()
+        mock_order = _make_mock_order()
         mock_order.order_number = order_number
         # [AI-Review][Medium] Data Integrity:
         # pk должен соответствовать order_id=order-123
@@ -2032,7 +2025,7 @@ class TestRound13ReviewFollowups:
             status="Отгружен",
         )
 
-        mock_order = MagicMock()
+        mock_order = _make_mock_order()
         mock_order.order_number = order_number
         mock_order.pk = 1  # Не совпадает с order-999
 
@@ -2048,3 +2041,471 @@ class TestRound13ReviewFollowups:
             assert result.updated == 0
             conflict_errors = [e for e in result.errors if "conflict" in e.lower()]
             assert len(conflict_errors) == 1
+
+
+# =============================================================================
+# Story 34-4: Master Status Aggregation
+# =============================================================================
+
+
+def _make_master_with_subs(
+    sub_statuses: list[str],
+    sub_payment_statuses: list[str] | None = None,
+    master_status: str = "pending",
+    master_payment_status: str = "pending",
+) -> tuple:
+    """Helper: создать master + sub_orders в БД."""
+    from decimal import Decimal
+
+    from tests.conftest import create_factories
+
+    factories = create_factories()
+    OrderFactory = factories["OrderFactory"]
+
+    suffix = get_unique_suffix()
+    master = OrderFactory(
+        order_number=f"FS-MASTER-{suffix}",
+        is_master=True,
+        parent_order=None,
+        status=master_status,
+        payment_status=master_payment_status,
+        total_amount=Decimal("1000.00"),
+    )
+
+    subs = []
+    for i, status in enumerate(sub_statuses):
+        ps = sub_payment_statuses[i] if sub_payment_statuses else "pending"
+        sub = OrderFactory(
+            order_number=f"FS-SUB-{suffix}-{i}",
+            is_master=False,
+            parent_order=master,
+            status=status,
+            payment_status=ps,
+            total_amount=Decimal("500.00"),
+        )
+        subs.append(sub)
+    return master, subs
+
+
+@pytest.mark.unit
+class TestMasterStatusAggregation:
+    """Тесты агрегации master.status (Story 34-4, AC4, AC5, AC6, AC7, AC8)."""
+
+    def test_aggregate_all_same_status(self):
+        # ARRANGE
+        master, subs = _make_master_with_subs(["confirmed", "confirmed"])
+        service = OrderStatusImportService()
+
+        # ACT
+        new_status, regression_blocked = service._aggregate_master_status(master)
+
+        # ASSERT
+        assert new_status == "confirmed"
+        assert regression_blocked is False
+
+    def test_aggregate_mixed_with_pending(self):
+        # ARRANGE — master в confirmed, но есть sub в pending → должно стать pending
+        master, subs = _make_master_with_subs(
+            ["pending", "confirmed"], master_status="confirmed"
+        )
+        service = OrderStatusImportService()
+
+        # ACT
+        new_status, _ = service._aggregate_master_status(master)
+
+        # ASSERT
+        assert new_status == "pending"
+
+    def test_aggregate_mixed_no_pending_returns_earliest(self):
+        # ARRANGE
+        master, subs = _make_master_with_subs(["confirmed", "shipped"])
+        service = OrderStatusImportService()
+
+        # ACT
+        new_status, _ = service._aggregate_master_status(master)
+
+        # ASSERT
+        assert new_status == "confirmed"
+
+    def test_aggregate_mixed_processing_and_delivered(self):
+        # ARRANGE
+        master, subs = _make_master_with_subs(["processing", "delivered"])
+        service = OrderStatusImportService()
+
+        # ACT
+        new_status, _ = service._aggregate_master_status(master)
+
+        # ASSERT
+        assert new_status == "processing"
+
+    def test_aggregate_all_cancelled(self):
+        # ARRANGE
+        master, subs = _make_master_with_subs(["cancelled", "cancelled"])
+        service = OrderStatusImportService()
+
+        # ACT
+        new_status, _ = service._aggregate_master_status(master)
+
+        # ASSERT
+        assert new_status == "cancelled"
+
+    def test_aggregate_cancelled_plus_active(self):
+        # ARRANGE
+        master, subs = _make_master_with_subs(["cancelled", "shipped"])
+        service = OrderStatusImportService()
+
+        # ACT
+        new_status, _ = service._aggregate_master_status(master)
+
+        # ASSERT
+        assert new_status == "shipped"
+
+    def test_aggregate_cancelled_plus_refunded(self):
+        # ARRANGE
+        master, subs = _make_master_with_subs(["cancelled", "refunded"])
+        service = OrderStatusImportService()
+
+        # ACT
+        new_status, _ = service._aggregate_master_status(master)
+
+        # ASSERT
+        assert new_status == "cancelled"
+
+    def test_aggregate_all_delivered(self):
+        # ARRANGE
+        master, subs = _make_master_with_subs(["delivered", "delivered"])
+        service = OrderStatusImportService()
+
+        # ACT
+        new_status, _ = service._aggregate_master_status(master)
+
+        # ASSERT
+        assert new_status == "delivered"
+
+    def test_aggregate_empty_sub_orders(self):
+        """Legacy master без subs — не трогаем."""
+        # ARRANGE
+        from decimal import Decimal
+
+        from tests.conftest import create_factories
+
+        factories = create_factories()
+        OrderFactory = factories["OrderFactory"]
+
+        master = OrderFactory(
+            order_number=f"FS-LEGACY-{get_unique_suffix()}",
+            is_master=True,
+            parent_order=None,
+            status="pending",
+            total_amount=Decimal("100.00"),
+        )
+        service = OrderStatusImportService()
+
+        # ACT
+        new_status, regression_blocked = service._aggregate_master_status(master)
+
+        # ASSERT
+        assert new_status is None
+        assert regression_blocked is False
+
+    def test_aggregate_status_regression_blocked(self):
+        """AC5: блокировка регрессии финального статуса мастера."""
+        # ARRANGE
+        master, subs = _make_master_with_subs(
+            ["shipped", "shipped"],
+            master_status="delivered",
+        )
+        service = OrderStatusImportService()
+
+        # ACT
+        new_status, regression_blocked = service._aggregate_master_status(master)
+
+        # ASSERT
+        assert new_status is None
+        assert regression_blocked is True
+
+    def test_aggregate_payment_all_paid(self):
+        """AC6: все субзаказы оплачены → master.payment_status='paid'."""
+        # ARRANGE
+        master, subs = _make_master_with_subs(
+            ["confirmed", "confirmed"],
+            sub_payment_statuses=["paid", "paid"],
+        )
+        service = OrderStatusImportService()
+
+        # ACT
+        new_ps = service._aggregate_master_payment_status(master)
+
+        # ASSERT
+        assert new_ps == "paid"
+
+    def test_aggregate_payment_refunded_priority(self):
+        """AC6: refunded приоритетнее paid."""
+        # ARRANGE
+        master, subs = _make_master_with_subs(
+            ["cancelled", "confirmed"],
+            sub_payment_statuses=["refunded", "paid"],
+        )
+        service = OrderStatusImportService()
+
+        # ACT
+        new_ps = service._aggregate_master_payment_status(master)
+
+        # ASSERT
+        assert new_ps == "refunded"
+
+    def test_aggregate_payment_mixed_pending_paid(self):
+        """AC6: mixed pending+paid → pending."""
+        # ARRANGE — master в paid, но есть sub в pending → должно стать pending
+        master, subs = _make_master_with_subs(
+            ["pending", "confirmed"],
+            sub_payment_statuses=["pending", "paid"],
+            master_payment_status="paid",
+        )
+        service = OrderStatusImportService()
+
+        # ACT
+        new_ps = service._aggregate_master_payment_status(master)
+
+        # ASSERT
+        assert new_ps == "pending"
+
+    def test_aggregate_sent_to_1c_at_max(self):
+        """AC7: master.sent_to_1c_at = max(sub.sent_to_1c_at)."""
+        # ARRANGE
+        master, subs = _make_master_with_subs(["confirmed", "confirmed"])
+        t1 = timezone.now() - timedelta(hours=2)
+        t2 = timezone.now()
+        subs[0].sent_to_1c_at = t1
+        subs[0].save(update_fields=["sent_to_1c_at"])
+        subs[1].sent_to_1c_at = t2
+        subs[1].save(update_fields=["sent_to_1c_at"])
+        service = OrderStatusImportService()
+
+        # ACT
+        new_ts = service._aggregate_master_sent_to_1c_at(master)
+
+        # ASSERT
+        assert new_ts == t2
+
+    def test_aggregate_sent_to_1c_at_none_filter(self):
+        """AC7: None значения игнорируются."""
+        # ARRANGE
+        master, subs = _make_master_with_subs(["confirmed", "confirmed"])
+        t1 = timezone.now()
+        subs[0].sent_to_1c_at = t1
+        subs[0].save(update_fields=["sent_to_1c_at"])
+        subs[1].sent_to_1c_at = None
+        subs[1].save(update_fields=["sent_to_1c_at"])
+        service = OrderStatusImportService()
+
+        # ACT
+        new_ts = service._aggregate_master_sent_to_1c_at(master)
+
+        # ASSERT
+        assert new_ts == t1
+
+    def test_master_paid_at_shipped_at_not_aggregated(self):
+        """AC8: paid_at/shipped_at мастера не изменяются."""
+        # ARRANGE
+        master, subs = _make_master_with_subs(["confirmed", "confirmed"])
+        master.paid_at = None
+        master.shipped_at = None
+        master.save(update_fields=["paid_at", "shipped_at"])
+        t = timezone.now()
+        subs[0].paid_at = t
+        subs[0].save(update_fields=["paid_at"])
+        subs[1].paid_at = None
+        subs[1].save(update_fields=["paid_at"])
+        service = OrderStatusImportService()
+        result = ImportResult()
+        aggregated_ids = []
+
+        # ACT
+        service._apply_master_aggregation({master.pk}, result, aggregated_ids)
+
+        # ASSERT — master.paid_at/shipped_at не попали в update_fields
+        master.refresh_from_db()
+        assert master.paid_at is None
+        assert master.shipped_at is None
+
+    def test_aggregate_idempotent_no_save_if_unchanged(self):
+        """AC12: если статус уже верный — save() не вызывается."""
+        # ARRANGE
+        master, subs = _make_master_with_subs(
+            ["confirmed", "confirmed"],
+            master_status="confirmed",
+        )
+        service = OrderStatusImportService()
+
+        # ACT
+        new_status, regression_blocked = service._aggregate_master_status(master)
+
+        # ASSERT
+        assert new_status is None
+        assert regression_blocked is False
+
+    def test_vat_group_none_sub_included_in_aggregation(self):
+        """AC13: sub с vat_group=None участвует в агрегации."""
+        # ARRANGE
+        from decimal import Decimal
+
+        from tests.conftest import create_factories
+
+        factories = create_factories()
+        OrderFactory = factories["OrderFactory"]
+
+        suffix = get_unique_suffix()
+        master = OrderFactory(
+            order_number=f"FS-MASTER-{suffix}",
+            is_master=True,
+            parent_order=None,
+            status="pending",
+            total_amount=Decimal("1000.00"),
+        )
+        sub_no_vat = OrderFactory(
+            order_number=f"FS-SUB-NV-{suffix}",
+            is_master=False,
+            parent_order=master,
+            vat_group=None,
+            status="confirmed",
+            total_amount=Decimal("500.00"),
+        )
+        sub_with_vat = OrderFactory(
+            order_number=f"FS-SUB-V5-{suffix}",
+            is_master=False,
+            parent_order=master,
+            vat_group=Decimal("5.00"),
+            status="confirmed",
+            total_amount=Decimal("500.00"),
+        )
+        service = OrderStatusImportService()
+
+        # ACT
+        new_status, _ = service._aggregate_master_status(master)
+
+        # ASSERT
+        assert new_status == "confirmed"
+
+
+@pytest.mark.unit
+class TestMasterGuardInImport:
+    """Тесты master-guard (Story 34-4, AC2)."""
+
+    def test_master_with_subs_is_rejected(self):
+        """AC2: XML с номером мастера с subs → SKIPPED_MASTER_UNEXPECTED."""
+        # ARRANGE
+        from decimal import Decimal
+
+        from tests.conftest import create_factories
+
+        factories = create_factories()
+        OrderFactory = factories["OrderFactory"]
+
+        suffix = get_unique_suffix()
+        master = OrderFactory(
+            order_number=f"FS-MG-{suffix}",
+            is_master=True,
+            parent_order=None,
+            status="pending",
+            sent_to_1c=False,
+            total_amount=Decimal("1000.00"),
+        )
+        OrderFactory(
+            order_number=f"FS-MG-SUB-{suffix}",
+            is_master=False,
+            parent_order=master,
+            status="pending",
+            total_amount=Decimal("500.00"),
+        )
+        xml_data = build_test_xml(
+            order_id=f"{ORDER_ID_PREFIX}{master.pk}",
+            order_number=master.order_number,
+            status="Отгружен",
+        )
+        service = OrderStatusImportService()
+
+        # ACT
+        result = service.process(xml_data)
+
+        # ASSERT
+        assert result.skipped_master_unexpected == 1
+        assert result.updated == 0
+
+    def test_legacy_master_without_subs_processed_normally(self):
+        """AC2: legacy master без subs обновляется как раньше."""
+        # ARRANGE
+        from decimal import Decimal
+
+        from tests.conftest import create_factories
+
+        factories = create_factories()
+        OrderFactory = factories["OrderFactory"]
+
+        suffix = get_unique_suffix()
+        master = OrderFactory(
+            order_number=f"FS-LEG-{suffix}",
+            is_master=True,
+            parent_order=None,
+            status="pending",
+            sent_to_1c=False,
+            total_amount=Decimal("100.00"),
+        )
+        xml_data = build_test_xml(
+            order_id=f"{ORDER_ID_PREFIX}{master.pk}",
+            order_number=master.order_number,
+            status="Отгружен",
+        )
+        service = OrderStatusImportService()
+
+        # ACT
+        result = service.process(xml_data)
+
+        # ASSERT
+        assert result.updated == 1
+        master.refresh_from_db()
+        assert master.status == "shipped"
+
+    def test_sub_order_processed_normally(self):
+        """AC1: XML с номером субзаказа → sub обновлён, master агрегирован."""
+        # ARRANGE
+        from decimal import Decimal
+
+        from tests.conftest import create_factories
+
+        factories = create_factories()
+        OrderFactory = factories["OrderFactory"]
+
+        suffix = get_unique_suffix()
+        master = OrderFactory(
+            order_number=f"FS-MSUB-{suffix}",
+            is_master=True,
+            parent_order=None,
+            status="pending",
+            sent_to_1c=False,
+            total_amount=Decimal("1000.00"),
+        )
+        sub = OrderFactory(
+            order_number=f"FS-MSUB-S1-{suffix}",
+            is_master=False,
+            parent_order=master,
+            status="pending",
+            sent_to_1c=False,
+            total_amount=Decimal("500.00"),
+        )
+        xml_data = build_test_xml(
+            order_id=f"{ORDER_ID_PREFIX}{sub.pk}",
+            order_number=sub.order_number,
+            status="Подтвержден",
+        )
+        service = OrderStatusImportService()
+
+        # ACT
+        result = service.process(xml_data)
+
+        # ASSERT
+        assert result.updated == 1
+        sub.refresh_from_db()
+        assert sub.status == "confirmed"
+        master.refresh_from_db()
+        assert master.status == "confirmed"

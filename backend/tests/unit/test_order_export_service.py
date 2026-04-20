@@ -1998,7 +1998,8 @@ class TestOrderExportVatAndOrgInXML:
 
     def test_requisites_organization_uses_dynamic_value(self, settings):
         """ЗначенияРеквизитов/Организация динамически определяется через ORGANIZATION_BY_VAT.
-        Sub-order с vat_group=5 → ORGANIZATION_BY_VAT[5] = ИП Терещенко Л.В."""
+        Sub-order с vat_group=5 → ORGANIZATION_BY_VAT[5] = ИП Терещенко Л.В.,
+        даже если variant.vat_rate=22 (конфликт: vat_group побеждает, AC3/AC4)."""
         settings.ONEC_EXCHANGE = {
             **settings.ONEC_EXCHANGE,
             "ORGANIZATION_BY_VAT": {
@@ -2007,8 +2008,8 @@ class TestOrderExportVatAndOrgInXML:
             },
             "DEFAULT_VAT_RATE": 5,
         }
-        # vat_group=5 — авторитетный источник → ORGANIZATION_BY_VAT[5]
-        order = self._create_order(Decimal("5"), vat_group=Decimal("5.00"))
+        # vat_group=5 — авторитетный источник → ORGANIZATION_BY_VAT[5], variant.vat_rate=22 игнорируется
+        order = self._create_order(Decimal("22"), vat_group=Decimal("5.00"))
         service = OrderExportService()
         xml_str = service.generate_xml(Order.objects.filter(id=order.id))
         root = ET.fromstring(xml_str)
@@ -2242,8 +2243,10 @@ class TestOrderExportServiceSubOrderDocument:
         assert org.text == "ИП Семерюк Д. В."
 
     def test_vat_group_is_authoritative_over_variant_warehouse_name(self, settings):
-        """AC4: vat_group — авторитетный источник; warehouse_name варианта не должен
-        перенаправить документ в другую организацию/склад."""
+        """AC4: vat_group — авторитетный источник; ни warehouse_name, ни variant.vat_rate
+        не должны перенаправить документ в другую организацию/склад.
+        Конфликтный сценарий: vat_group=5, variant.vat_rate=22, warehouse_name="1 СДВ склад" — все указывают на Семерюк,
+        но vat_group=5 должен привести в Терещенко."""
         settings.ONEC_EXCHANGE = {
             **getattr(settings, "ONEC_EXCHANGE", {}),
             "ORGANIZATION_BY_VAT": {
@@ -2256,11 +2259,11 @@ class TestOrderExportServiceSubOrderDocument:
             },
             "DEFAULT_VAT_RATE": 22,
         }
-        # vat_group=5 (Терещенко), но warehouse_name варианта "1 СДВ склад" (Семерюк).
-        # Раньше warehouse_name побеждал vat_group — finding #1 code review.
+        # vat_group=5 (Терещенко), variant.vat_rate=22 и warehouse_name="1 СДВ склад" указывают на Семерюк.
+        # vat_group должен побеждать все конфликтующие поля (AC3/AC4).
         _master, sub = _make_master_with_sub(
             vat_group=Decimal("5.00"),
-            variant_vat_rate=Decimal("5"),
+            variant_vat_rate=Decimal("22"),
             warehouse_name="1 СДВ склад",
         )
 

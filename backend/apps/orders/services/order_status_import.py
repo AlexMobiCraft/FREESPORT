@@ -74,6 +74,10 @@ class ImportResult:
     skipped_data_conflict: int = 0  # Пропущено: конфликт данных (номер/ID)
     skipped_status_regression: int = 0  # Пропущено: попытка регрессии статуса
     skipped_invalid: int = 0  # Пропущено: некорректные документы
+    # [Story 34-4] Метрики агрегации мастера
+    skipped_master_unexpected: int = 0  # XML на master с sub_orders
+    skipped_master_regression: int = 0  # Блокировка регрессии master.status
+    aggregated_master_count: int = 0  # Сколько мастеров реально обновлено
     not_found: int = 0  # Заказ не найден в БД
     errors: list[str] = field(default_factory=list)  # Ошибки парсинга/обработки
 
@@ -92,6 +96,8 @@ class ImportResult:
             + self.skipped_data_conflict
             + self.skipped_status_regression
             + self.skipped_invalid
+            + self.skipped_master_unexpected
+            + self.skipped_master_regression
         )
 
 
@@ -110,6 +116,12 @@ class OrderStatusImportService:
 
     Реализует Service Layer паттерн — вся бизнес-логика обновления статусов
     инкапсулирована в этом классе.
+
+    Master Status Aggregation (Story 34-4):
+    При обновлении субзаказа (is_master=False) — автоматически пересчитывается
+    master.status по правилам агрегации (см. _aggregate_master_status).
+    XML с <Ид>/<Номер> мастера + sub_orders отклоняется как
+    SKIPPED_MASTER_UNEXPECTED.
 
     Usage:
         service = OrderStatusImportService()
@@ -169,6 +181,10 @@ class OrderStatusImportService:
         consecutive_errors = 0
         log_suppressed = False
 
+        # [Story 34-4] Списки для агрегации и сигнала
+        aggregated_master_ids: list[int] = []
+        updated_sub_ids: list[int] = []
+
         # [AI-Review][Medium] Batch processing — сокращаем длительные блокировки
         batch_size = self._get_batch_size()
 
@@ -179,6 +195,8 @@ class OrderStatusImportService:
                 with transaction.atomic():
                     # BULK FETCH: загрузить заказы для пакета (оптимизация N+1)
                     orders_cache = self._bulk_fetch_orders(batch)
+                    # [Story 34-4] Собираем master_ids для агрегации после batch
+                    master_ids_in_batch: set[int] = set()
 
                     for order_data in batch:
                         try:
@@ -187,14 +205,25 @@ class OrderStatusImportService:
                             if status == ProcessingStatus.UPDATED:
                                 result.updated += 1
                                 consecutive_errors = 0  # Сброс счётчика при успехе
+                                # [Story 34-4] Собираем parent_order_id для агрегации
+                                sub = self._find_in_cache(order_data, orders_cache)
+                                if sub is not None and sub.parent_order_id is not None:
+                                    master_ids_in_batch.add(sub.parent_order_id)
+                                    updated_sub_ids.append(sub.pk)
                             elif status == ProcessingStatus.SKIPPED_UP_TO_DATE:
                                 result.skipped_up_to_date += 1
+                                # [Story 34-4] SKIPPED_UP_TO_DATE тоже затрагивает sub
+                                sub = self._find_in_cache(order_data, orders_cache)
+                                if sub is not None and sub.parent_order_id is not None:
+                                    master_ids_in_batch.add(sub.parent_order_id)
                             elif status == ProcessingStatus.SKIPPED_UNKNOWN_STATUS:
                                 result.skipped_unknown_status += 1
                             elif status == ProcessingStatus.SKIPPED_DATA_CONFLICT:
                                 result.skipped_data_conflict += 1
                             elif status == ProcessingStatus.SKIPPED_STATUS_REGRESSION:
                                 result.skipped_status_regression += 1
+                            elif status == ProcessingStatus.SKIPPED_MASTER_UNEXPECTED:
+                                result.skipped_master_unexpected += 1
                             elif status == ProcessingStatus.NOT_FOUND:
                                 result.not_found += 1
                                 consecutive_errors += 1
@@ -220,6 +249,10 @@ class OrderStatusImportService:
 
                             if len(result.errors) < MAX_ERRORS:
                                 result.errors.append(update_error)
+
+                    # [Story 34-4] Применить агрегацию мастеров для batch
+                    if master_ids_in_batch:
+                        self._apply_master_aggregation(master_ids_in_batch, result, aggregated_master_ids)
             except OperationalError as e:
                 consecutive_errors += 1
                 update_error = f"Database error during bulk fetch: {e}"
@@ -239,6 +272,24 @@ class OrderStatusImportService:
             logger.info(
                 f"Processing complete. Total errors suppressed: " f"{consecutive_errors - MAX_CONSECUTIVE_ERRORS}"
             )
+
+        # [Story 34-4] Сигнал orders_bulk_updated с master_order_ids (AC11)
+        if result.updated > 0 or result.aggregated_master_count > 0:
+            try:
+                from apps.orders.signals import orders_bulk_updated
+
+                orders_bulk_updated.send(
+                    sender=self.__class__,
+                    order_ids=updated_sub_ids,
+                    updated_count=result.updated,
+                    field="status_from_1c",
+                    timestamp=timezone.now(),
+                    master_order_ids=aggregated_master_ids,
+                )
+            except Exception as e:
+                logger.exception(f"Error emitting orders_bulk_updated signal: {e}")
+                if len(result.errors) < MAX_ERRORS:
+                    result.errors.append(f"Signal error: {e}")
 
         return result
 
@@ -577,6 +628,8 @@ class OrderStatusImportService:
                 "sent_to_1c",
                 "sent_to_1c_at",
                 "updated_at",
+                "is_master",
+                "parent_order_id",
             )
         )
 
@@ -622,6 +675,15 @@ class OrderStatusImportService:
             error_msg = f"Order not found: number='{order_data.order_number}', " f"id='{order_data.order_id}'"
             logger.error(error_msg)
             return ProcessingStatus.NOT_FOUND, error_msg
+
+        # [Story 34-4] Master-guard: XML должен адресовать субзаказ, не мастер
+        if order.is_master and order.sub_orders.exists():
+            error_msg = (
+                f"Order {order.order_number}: is_master=True with sub_orders, "
+                f"status imports must target sub-orders (check 1C export config)"
+            )
+            logger.warning(error_msg)
+            return ProcessingStatus.SKIPPED_MASTER_UNEXPECTED, error_msg
 
         # [AI-Review][Low] Code Style: оптимизированный регистронезависимый маппинг
         # Используем pre-computed STATUS_MAPPING_LOWER вместо цикла
@@ -721,6 +783,121 @@ class OrderStatusImportService:
 
         logger.debug(f"Order {order.order_number}: status updated to " f"'{new_status}' (1C: '{order_data.status_1c}')")
         return ProcessingStatus.UPDATED, None
+
+    # =========================================================================
+    # Master Aggregation Methods (Story 34-4)
+    # =========================================================================
+
+    def _aggregate_master_status(self, master: Order) -> tuple[str | None, bool]:
+        """Пересчёт master.status на основе sub_orders (Story 34-4, AC4, AC5).
+
+        Returns:
+            tuple[new_status | None, regression_blocked].
+            - (new_status, False) — статус нужно обновить
+            - (None, False) — статус не изменился
+            - (None, True) — регрессия финального статуса заблокирована
+        """
+        statuses = list(master.sub_orders.values_list("status", flat=True))
+        if not statuses:
+            return None, False  # legacy master без subs
+
+        if all(s == statuses[0] for s in statuses):
+            new_status = statuses[0]
+        elif "pending" in statuses:
+            new_status = "pending"
+        else:
+            non_terminal = [s for s in statuses if STATUS_PRIORITY.get(s, 0) > 0]
+            if non_terminal:
+                new_status = min(non_terminal, key=lambda s: STATUS_PRIORITY[s])
+            else:
+                new_status = "cancelled"
+
+        if new_status == master.status:
+            return None, False
+
+        if master.status in FINAL_STATUSES:
+            logger.warning(
+                f"Order {master.order_number}: master status regression from final "
+                f"'{master.status}' to '{new_status}' blocked"
+            )
+            return None, True
+
+        return new_status, False
+
+    def _aggregate_master_payment_status(self, master: Order) -> str | None:
+        """Пересчёт master.payment_status (Story 34-4, AC6)."""
+        payments = list(master.sub_orders.values_list("payment_status", flat=True))
+        if not payments:
+            return None
+        if "refunded" in payments:
+            new_ps = "refunded"
+        elif all(p == "paid" for p in payments):
+            new_ps = "paid"
+        else:
+            new_ps = "pending"
+        return new_ps if new_ps != master.payment_status else None
+
+    def _aggregate_master_sent_to_1c_at(self, master: Order) -> datetime | None:
+        """max(sub.sent_to_1c_at) игнорируя None (Story 34-4, AC7)."""
+        timestamps = [ts for ts in master.sub_orders.values_list("sent_to_1c_at", flat=True) if ts is not None]
+        if not timestamps:
+            return None
+        new_ts = max(timestamps)
+        return new_ts if new_ts != master.sent_to_1c_at else None
+
+    def _apply_master_aggregation(
+        self,
+        master_ids: set[int],
+        result: ImportResult,
+        aggregated_master_ids: list[int],
+    ) -> None:
+        """Применить агрегацию на всех затронутых мастерах (Story 34-4, AC3, AC10)."""
+        for master_id in master_ids:
+            try:
+                master = Order.objects.select_for_update().get(pk=master_id)
+            except Order.DoesNotExist:
+                logger.warning(f"Master order {master_id} not found during aggregation")
+                continue
+
+            update_fields: list[str] = []
+
+            new_status, regression_blocked = self._aggregate_master_status(master)
+            if regression_blocked:
+                result.skipped_master_regression += 1
+            elif new_status is not None:
+                master.status = new_status
+                update_fields.append("status")
+
+            new_ps = self._aggregate_master_payment_status(master)
+            if new_ps is not None:
+                master.payment_status = new_ps
+                update_fields.append("payment_status")
+
+            new_ts = self._aggregate_master_sent_to_1c_at(master)
+            if new_ts is not None:
+                master.sent_to_1c_at = new_ts
+                update_fields.append("sent_to_1c_at")
+
+            if update_fields:
+                update_fields.append("updated_at")
+                master.save(update_fields=update_fields)
+                # Считаем только meaningful изменения (status/payment_status)
+                if "status" in update_fields or "payment_status" in update_fields:
+                    result.aggregated_master_count += 1
+                aggregated_master_ids.append(master_id)
+
+    def _find_in_cache(self, order_data: OrderUpdateData, orders_cache: dict[str, Order] | None) -> Order | None:
+        """Искать заказ только в кэше (не DB)."""
+        if orders_cache is None:
+            return None
+        if order_data.order_number:
+            o = orders_cache.get(f"num:{order_data.order_number}")
+            if o:
+                return o
+        pk = self._parse_order_id_to_pk(order_data.order_id, log_invalid=False)
+        if pk is not None:
+            return orders_cache.get(f"pk:{pk}")
+        return None
 
     def _find_order(
         self,

@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 from typing import Any, cast
 
 import pytest
+from django.db import OperationalError
 from django.test import TestCase
 from django.utils import timezone
 
@@ -278,14 +279,15 @@ class TestOrderStatusImportDBIntegration(TestCase):
 """
 
         # ACT
-        # Query count breakdown (6 total):
+        # Query count breakdown (9 total):
         # 1. SAVEPOINT — transaction.atomic() start
         # 2. SELECT ... FOR UPDATE — bulk fetch all 3 orders in one query
-        # 3. UPDATE order 1 — save() with update_fields
-        # 4. UPDATE order 2 — save() with update_fields
-        # 5. UPDATE order 3 — save() with update_fields
-        # 6. RELEASE SAVEPOINT — transaction.atomic() commit
-        with cast(Any, self).assertNumQueries(6):
+        # 3-5. SELECT EXISTS — sub_orders.exists() check per order (Story 34-4 master-guard)
+        # 6. UPDATE order 1 — save() with update_fields
+        # 7. UPDATE order 2 — save() with update_fields
+        # 8. UPDATE order 3 — save() with update_fields
+        # 9. RELEASE SAVEPOINT — transaction.atomic() commit
+        with cast(Any, self).assertNumQueries(9):
             result = self.service.process(xml_data)
 
         # ASSERT — все 3 заказа обновлены
@@ -447,3 +449,217 @@ class TestFinalStatusTransitionsDB(TestCase):
         self.assertEqual(result.updated, 0)
         self.assertEqual(result.skipped_status_regression, 1)
         self.assertEqual(self.order.status, "cancelled")
+
+
+# =============================================================================
+# Story 34-4: Master Aggregation Integration Tests
+# =============================================================================
+
+
+def _build_multi_sub_xml(subs_data: list[dict]) -> str:
+    """Генерирует XML с несколькими документами (для субзаказов)."""
+    containers = []
+    for sd in subs_data:
+        containers.append(
+            f"""
+        <Контейнер>
+            <Документ>
+                <Ид>{sd['order_id']}</Ид>
+                <Номер>{sd['order_number']}</Номер>
+                <Дата>2026-02-02</Дата>
+                <ХозОперация>Заказ товара</ХозОперация>
+                <ЗначенияРеквизитов>
+                    <ЗначениеРеквизита>
+                        <Наименование>СтатусЗаказа</Наименование>
+                        <Значение>{sd['status']}</Значение>
+                    </ЗначениеРеквизита>
+                </ЗначенияРеквизитов>
+            </Документ>
+        </Контейнер>
+        """
+        )
+    return f"""<?xml version="1.0" encoding="UTF-8"?>
+<КоммерческаяИнформация ВерсияСхемы="3.1" ДатаФормирования="2026-02-02T12:00:00">
+    {''.join(containers)}
+</КоммерческаяИнформация>
+"""
+
+
+@pytest.mark.integration
+@pytest.mark.django_db
+class TestMasterAggregationDB(TestCase):
+    """Интеграционные тесты агрегации мастера (Story 34-4, AC3, AC9, AC10, AC11, AC12)."""
+
+    def setUp(self):
+        from decimal import Decimal
+
+        self.master = Order.objects.create(
+            order_number=f"FS-AGG-M-{get_unique_suffix()}",
+            is_master=True,
+            parent_order=None,
+            status="pending",
+            payment_status="pending",
+            sent_to_1c=False,
+            sent_to_1c_at=None,
+            total_amount=Decimal("2000.00"),
+            delivery_address="Test",
+            delivery_method="courier",
+            payment_method="card",
+        )
+        self.sub5 = Order.objects.create(
+            order_number=f"FS-AGG-S5-{get_unique_suffix()}",
+            is_master=False,
+            parent_order=self.master,
+            status="pending",
+            payment_status="pending",
+            sent_to_1c=False,
+            sent_to_1c_at=None,
+            total_amount=Decimal("1000.00"),
+            delivery_address="Test",
+            delivery_method="courier",
+            payment_method="card",
+        )
+        self.sub22 = Order.objects.create(
+            order_number=f"FS-AGG-S22-{get_unique_suffix()}",
+            is_master=False,
+            parent_order=self.master,
+            status="pending",
+            payment_status="pending",
+            sent_to_1c=False,
+            sent_to_1c_at=None,
+            total_amount=Decimal("1000.00"),
+            delivery_address="Test",
+            delivery_method="courier",
+            payment_method="card",
+        )
+        self.service = OrderStatusImportService()
+
+    def test_batch_both_subs_confirmed_aggregates_master(self):
+        """AC3+AC10: оба sub→confirmed, одна агрегация мастера."""
+        # ARRANGE
+        xml_data = _build_multi_sub_xml([
+            {"order_id": f"{ORDER_ID_PREFIX}{self.sub5.pk}", "order_number": self.sub5.order_number, "status": "Подтвержден"},
+            {"order_id": f"{ORDER_ID_PREFIX}{self.sub22.pk}", "order_number": self.sub22.order_number, "status": "Подтвержден"},
+        ])
+
+        # ACT
+        result = self.service.process(xml_data)
+
+        # ASSERT
+        self.assertEqual(result.updated, 2)
+        self.assertEqual(result.aggregated_master_count, 1)
+        self.master.refresh_from_db()
+        self.assertEqual(self.master.status, "confirmed")
+
+    def test_batch_mixed_statuses_aggregates_to_pending(self):
+        """Только один sub обновлён — master остаётся pending."""
+        # ARRANGE — master в confirmed, чтобы увидеть изменение
+        self.master.status = "confirmed"
+        self.master.save(update_fields=["status"])
+
+        xml_data = build_test_xml(
+            order_id=f"{ORDER_ID_PREFIX}{self.sub5.pk}",
+            order_number=self.sub5.order_number,
+            status="Отгружен",
+        )
+
+        # ACT
+        result = self.service.process(xml_data)
+
+        # ASSERT
+        self.assertEqual(result.updated, 1)
+        self.assertEqual(result.aggregated_master_count, 1)
+        self.master.refresh_from_db()
+        self.assertEqual(self.master.status, "pending")
+        self.sub5.refresh_from_db()
+        self.assertEqual(self.sub5.status, "shipped")
+
+    def test_signal_master_order_ids_emitted(self):
+        """AC11: сигнал содержит master_order_ids."""
+        # ARRANGE
+        from apps.orders.signals import orders_bulk_updated
+
+        received_kwargs = {}
+
+        def handler(sender, **kwargs):
+            received_kwargs.update(kwargs)
+
+        orders_bulk_updated.connect(handler)
+        try:
+            xml_data = _build_multi_sub_xml([
+                {"order_id": f"{ORDER_ID_PREFIX}{self.sub5.pk}", "order_number": self.sub5.order_number, "status": "Подтвержден"},
+                {"order_id": f"{ORDER_ID_PREFIX}{self.sub22.pk}", "order_number": self.sub22.order_number, "status": "Подтвержден"},
+            ])
+
+            # ACT
+            result = self.service.process(xml_data)
+
+            # ASSERT
+            self.assertEqual(result.updated, 2)
+            self.assertIn("master_order_ids", received_kwargs)
+            self.assertIn(self.master.pk, received_kwargs["master_order_ids"])
+            self.assertIn(self.sub5.pk, received_kwargs["order_ids"])
+            self.assertIn(self.sub22.pk, received_kwargs["order_ids"])
+        finally:
+            orders_bulk_updated.disconnect(handler)
+
+    def test_idempotent_repeat_import_no_master_save(self):
+        """AC12: повторный импорт — aggregated_master_count=0."""
+        # ARRANGE
+        xml_data = _build_multi_sub_xml([
+            {"order_id": f"{ORDER_ID_PREFIX}{self.sub5.pk}", "order_number": self.sub5.order_number, "status": "Подтвержден"},
+            {"order_id": f"{ORDER_ID_PREFIX}{self.sub22.pk}", "order_number": self.sub22.order_number, "status": "Подтвержден"},
+        ])
+
+        # ACT — первый импорт
+        result1 = self.service.process(xml_data)
+        # ACT — второй импорт (тот же XML)
+        result2 = self.service.process(xml_data)
+
+        # ASSERT
+        self.assertEqual(result1.aggregated_master_count, 1)
+        self.assertEqual(result2.aggregated_master_count, 0)
+        self.master.refresh_from_db()
+        self.assertEqual(self.master.status, "confirmed")
+
+    def test_master_regression_from_delivered_blocked(self):
+        """AC5: регрессия delivered→shipped на мастере блокируется, sub обновляется."""
+        # ARRANGE
+        self.master.status = "delivered"
+        self.master.save(update_fields=["status"])
+
+        xml_data = build_test_xml(
+            order_id=f"{ORDER_ID_PREFIX}{self.sub5.pk}",
+            order_number=self.sub5.order_number,
+            status="Отгружен",
+        )
+
+        # ACT
+        result = self.service.process(xml_data)
+
+        # ASSERT — sub обновлён, мастер нет
+        self.assertEqual(result.updated, 1)
+        self.assertEqual(result.skipped_master_regression, 1)
+        self.sub5.refresh_from_db()
+        self.assertEqual(self.sub5.status, "shipped")
+        self.master.refresh_from_db()
+        self.assertEqual(self.master.status, "delivered")
+
+    def test_aggregation_rollback_on_error(self):
+        """AC9: rollback при ошибке агрегации."""
+        # ARRANGE
+        from unittest.mock import patch
+
+        xml_data = _build_multi_sub_xml([
+            {"order_id": f"{ORDER_ID_PREFIX}{self.sub5.pk}", "order_number": self.sub5.order_number, "status": "Подтвержден"},
+        ])
+
+        with patch("apps.orders.models.Order.save", side_effect=OperationalError("DB error")):
+            # ACT
+            result = self.service.process(xml_data)
+
+        # ASSERT — rollback: sub и master не изменились
+        self.sub5.refresh_from_db()
+        self.master.refresh_from_db()
+        self.assertEqual(self.sub5.status, "pending")
+        self.assertEqual(self.master.status, "pending")

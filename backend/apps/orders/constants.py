@@ -93,6 +93,9 @@ class ProcessingStatus(str, Enum):
     SKIPPED_STATUS_REGRESSION = "skipped_status_regression"
     """Заказ пропущен из-за попытки регрессии финального статуса."""
 
+    SKIPPED_MASTER_UNEXPECTED = "skipped_master_unexpected"
+    """Заказ пропущен — XML адресован мастеру с sub_orders (Story 34-4)."""
+
     NOT_FOUND = "not_found"
     """Заказ не найден в БД."""
 

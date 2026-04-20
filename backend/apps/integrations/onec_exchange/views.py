@@ -808,6 +808,7 @@ class ICExchangeView(APIView):
             logger.info(
                 f"[ORDERS IMPORT] processed={result.processed}, "
                 f"updated={result.updated}, skipped={result.skipped}, "
+                f"aggregated_masters={result.aggregated_master_count}, "
                 f"not_found={result.not_found}, errors={len(result.errors)}"
             )
 
