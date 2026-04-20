@@ -15,7 +15,8 @@
   },
   "enabledPlugins": {
     "telegram@claude-plugins-official": true,
-    "codex@openai-codex": true
+    "codex@openai-codex": true,
+    "andrej-karpathy-skills@karpathy-skills": true
   },
   "extraKnownMarketplaces": {
     "openai-codex": {
