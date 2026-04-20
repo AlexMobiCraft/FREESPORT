@@ -1,6 +1,6 @@
 # Story 34.3: OrderExportService — работа с субзаказами (один XML-документ на VAT-группу)
 
-Status: in-progress
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -355,7 +355,8 @@ pytest -xvs -m unit backend/tests/unit/test_order_export_service.py
 - [x] [Review][Patch] НДС строки всё ещё может переопределяться `warehouse_name` варианта, хотя AC5 требует цепочку `OrderItem.vat_rate -> variant.vat_rate -> _get_order_vat_rate(sub_order)` [backend/apps/orders/services/order_export.py:356]
 - [x] [Review][Patch] Legacy-ветка `vat_group=None` всё ещё маршрутизирует документ через `warehouse_name` вместо `DEFAULT_ORGANIZATION/DEFAULT_WAREHOUSE` и не пишет обязательный warning из AC8 [backend/apps/orders/services/order_export.py:175]
 - [x] [Review][Patch] Тесты на приоритет `vat_group` не изолируют его от `variant.vat_rate`, поэтому могут пропустить регрессию AC3/AC4: в `test_requisites_organization_uses_dynamic_value` и `test_vat_group_is_authoritative_over_variant_warehouse_name` ставка варианта совпадает с `vat_group`, из-за чего сценарий с конфликтующими значениями (`vat_group=5`, `variant.vat_rate=22`) не покрыт [backend/tests/unit/test_order_export_service.py:1999]
-- [ ] [Review][Patch] Конфликтный сценарий `vat_group=5` / `variant.vat_rate=22` по-прежнему не проверяет НДС строки XML, поэтому регрессия приоритета `variant.vat_rate` над `order_vat_rate` может пройти незамеченной [backend/tests/unit/test_order_export_service.py:1997]
+- [x] [Review][Patch] Конфликтный сценарий `vat_group=5` / `variant.vat_rate=22` по-прежнему не проверяет НДС строки XML, поэтому регрессия приоритета `variant.vat_rate` над `order_vat_rate` может пройти незамеченной [backend/tests/unit/test_order_export_service.py:1997]
+- [ ] [Review][Med] Полный E2E-контур 1С не обновлён под export-only sub-orders: в `tests/integration/test_onec_export_e2e.py` и `tests/integration/test_order_exchange_import_e2e.py` по-прежнему создаются legacy/master-only заказы через `OrderFactory.create(...)`, после чего тесты ожидают прямой экспорт и `sent_to_1c` у мастера. Это больше не соответствует контракту Story 34-3 (`handle_query` выбирает только `is_master=False, parent_order__isnull=False`) и уже проявляется падениями в `freesport-backend-test`: `test_full_cycle_checkauth_query_success_marks_order_as_sent`, `test_full_cycle_multiple_orders_all_marked_as_sent`, оба guest E2E-сценария и `test_new_order_after_success_appears_in_next_query` [backend/tests/integration/test_onec_export_e2e.py:63] [backend/tests/integration/test_order_exchange_import_e2e.py:77] [backend/apps/integrations/onec_exchange/views.py:478]
 
 ### Agent Model Used
 
@@ -381,6 +382,7 @@ Windsurf Cascade (Claude Sonnet 4)
 9. Новые настройки `ONEC_EXCHANGE` не добавлялись (AC14).
 10. Сигнал `orders_bulk_updated` расширен keyword-аргументом `master_order_ids` без нарушения обратной совместимости.
 11. ✅ Resolved review finding [Patch] AC3/AC4 test isolation: `test_requisites_organization_uses_dynamic_value` и `test_vat_group_is_authoritative_over_variant_warehouse_name` изменены для использования конфликтующих значений (`vat_group=5`, `variant.vat_rate=22`). Тесты теперь действительно доказывают приоритет `vat_group` над `variant.vat_rate` при определении Организации/Склада.
+12. ✅ Resolved review finding [Patch] AC5 line VAT verification: добавлены assertions `<Ставка>22</Ставка>` в `test_requisites_organization_uses_dynamic_value` и `test_vat_group_is_authoritative_over_variant_warehouse_name` — оба теста теперь проверяют, что `variant.vat_rate=22` побеждает `order_vat_rate=5` (из vat_group) в строке XML. Полный прогон: 105/105 зелёных (61 unit + 44 integration).
 
 ### File List
 
@@ -402,3 +404,5 @@ Windsurf Cascade (Claude Sonnet 4)
 | 2026-04-19 | Addressed code review findings batch 2 — 2 items resolved (High×1 + Med×1): обновлены все legacy fixtures (order_for_export, _make_order_with_variant, 22 unit-теста, 3 integration-теста) для master+sub структуры. Добавлен TestLegacyOrderExclusion. Полный прогон: 102/102 зелёные. Статус: review. |
 | 2026-04-19 | Addressed code review findings batch 3 — 2 items resolved (Patch×2): AC5 — item-level НДС строго через item.vat_rate→variant.vat_rate→order_vat_rate без warehouse; AC8 — vat_group=None→DEFAULT_* напрямую + warning. 2 новых unit-теста, 2 legacy теста обновлены. Полный прогон: 105/105 зелёные. Статус: review. |
 | 2026-04-19 | Addressed code review finding batch 4 — 1 item resolved (Patch): test_requisites_organization_uses_dynamic_value (variant.vat_rate=22, vat_group=5) и test_vat_group_is_authoritative_over_variant_warehouse_name (variant_vat_rate=22, vat_group=5) — оба теста теперь используют конфликтные значения, доказывая приоритет vat_group. Unit: 61/61. Integration Story 34-3: 11/11. Статус: review. |
+| 2026-04-20 | Addressed code review finding batch 5 — 1 item resolved (Patch): добавлены assertions `<Ставка>22</Ставка>` в оба конфликтных теста (vat_group=5/variant.vat_rate=22), доказывая что variant.vat_rate побеждает order_vat_rate в строке XML (AC5). Unit: 61/61. Integration: 44/44. Статус: review. |
+| 2026-04-20 | New code review finding: полный E2E-контур 1С (`test_onec_export_e2e.py`, `test_order_exchange_import_e2e.py`) всё ещё использует legacy master-only fixtures и не адаптирован к контракту Story 34-3 с export-only sub-orders. Зафиксированы падения в уже запущенном `freesport-backend-test`; требуется перевести E2E-фикстуры и ожидания на `master + sub_orders` и проверку агрегации мастера. |

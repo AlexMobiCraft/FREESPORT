@@ -2024,6 +2024,11 @@ class TestOrderExportVatAndOrgInXML:
         assert req_org is not None
         assert req_org.text == "ИП Терещенко Л.В."
 
+        # AC5: variant.vat_rate=22 побеждает order_vat_rate=5 (из vat_group) для строки XML
+        stavka = root.find(".//Товар/Налоги/Налог/Ставка")
+        assert stavka is not None
+        assert stavka.text == "22"
+
 
 # =============================================================================
 # Story 34-3: Sub-order export tests
@@ -2275,6 +2280,11 @@ class TestOrderExportServiceSubOrderDocument:
         assert doc is not None
         assert doc.find("Организация").text == "ИП Терещенко Л.В."
         assert doc.find("Склад").text == "2 ТЛВ склад"
+
+        # AC5: variant.vat_rate=22 побеждает order_vat_rate=5 (из vat_group) для строки XML
+        stavka = root.find(".//Товар/Налоги/Налог/Ставка")
+        assert stavka is not None
+        assert stavka.text == "22"
 
     def test_vat_group_none_falls_back_to_defaults(self, settings, caplog):
         """AC8: vat_group=None + variant.vat_rate=None → DEFAULT_* + warning logged."""
