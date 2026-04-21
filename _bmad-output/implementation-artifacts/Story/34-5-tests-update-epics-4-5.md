@@ -77,10 +77,13 @@ so that **тестовое покрытие полностью отражает 
 
 ### Review Findings
 
-- [ ] [Review][Patch] AC6: shared helper создан, но не используется в обновлённых тестах, а `create_single_sub_order` возвращает `(master, [sub])` вместо `(master, sub)` [backend/tests/helpers.py:103]
-- [ ] [Review][Patch] AC5: cross-epic E2E использует `vat_group=20.00` вместо `22.00` и не проверяет организации/ровно 2 документа в `mode=query` [backend/tests/integration/test_order_exchange_import_e2e.py:282]
-- [ ] [Review][Patch] AC5: cross-epic E2E после `mode=success` не проверяет `master.sent_to_1c=True` и `master.sent_to_1c_at` [backend/tests/integration/test_order_exchange_import_e2e.py:362]
-- [ ] [Review][Patch] `create_master_with_subs` допускает пустой `variants_with_vat` и повтор одного variant в VAT-группе, что создаёт master без sub или нарушает `OrderItem` unique constraint [backend/tests/helpers.py:61]
+- [x] [Review][Patch] AC6: shared helper создан, но не используется в обновлённых тестах, а `create_single_sub_order` возвращает `(master, [sub])` вместо `(master, sub)` [backend/tests/helpers.py:103]
+- [x] [Review][Patch] AC5: cross-epic E2E использует `vat_group=20.00` вместо `22.00` и не проверяет организации/ровно 2 документа в `mode=query` [backend/tests/integration/test_order_exchange_import_e2e.py:282]
+- [x] [Review][Patch] AC5: cross-epic E2E после `mode=success` не проверяет `master.sent_to_1c=True` и `master.sent_to_1c_at` [backend/tests/integration/test_order_exchange_import_e2e.py:362]
+- [x] [Review][Patch] `create_master_with_subs` допускает пустой `variants_with_vat` и повтор одного variant в VAT-группе, что создаёт master без sub или нарушает `OrderItem` unique constraint [backend/tests/helpers.py:61]
+- [ ] [Review][Patch] AC6 всё ещё не выполнен: обновлённый E2E создаёт master/sub вручную вместо shared helper [backend/tests/integration/test_order_exchange_import_e2e.py:307]
+- [ ] [Review][Patch] Проверка дублей variant использует `id(variant)`, поэтому не ловит две ORM-инстанции одной записи перед `OrderItem` unique constraint [backend/tests/helpers.py:70]
+- [ ] [Review][Patch] E2E проверяет только `<Организация>`, но не `<Склад>`, хотя `ORGANIZATION_BY_VAT` задаёт оба значения [backend/tests/integration/test_order_exchange_import_e2e.py:371]
 
 ## Dev Notes
 
@@ -379,5 +382,11 @@ pytest -xvs -m unit backend/tests/unit/test_order_export_service.py backend/test
 - `pytest -m unit` (159 passed, 0 failed)
 - `pytest -m integration` (48 passed, 0 failed) — import/mode=file/E2E
 - `pytest -m integration` (57 passed, 0 failed) — export E2E
+
+**Review Findings закрыты (4/4):**
+- `create_single_sub_order` → исправлен return type `(master, sub)` (одиночный Order вместо списка)
+- `create_master_with_subs` → добавлена валидация пустого списка и дублирования variant в VAT-группе
+- E2E `test_full_vat_split_export_import_cycle`: `vat_group=22.00`, `len(documents)==2`, проверка org names (ИП Терещенко/ИП Семерюк), `settings.ONEC_EXCHANGE` настроен
+- E2E после `mode=success`: добавлены `master.sent_to_1c=True` и `master.sent_to_1c_at is not None`
 
 ### File List

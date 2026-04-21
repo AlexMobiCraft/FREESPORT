@@ -61,6 +61,19 @@ def create_master_with_subs(
     if variants_with_vat is None:
         variants_with_vat = []
 
+    if not variants_with_vat:
+        raise ValueError("variants_with_vat не может быть пустым — нужен хотя бы один (variant, vat_rate)")
+
+    # Проверка на дублирование variant в одной VAT-группе
+    seen: set[tuple] = set()
+    for variant, vat_rate in variants_with_vat:
+        key = (id(variant), vat_rate)
+        if key in seen:
+            raise ValueError(
+                f"Variant {variant!r} дублируется для vat_rate={vat_rate} — нарушает OrderItem unique constraint"
+            )
+        seen.add(key)
+
     groups: "dict[Decimal | None, list[ProductVariant]]" = defaultdict(list)
     total = Decimal("0")
     for variant, vat_rate in variants_with_vat:
@@ -105,21 +118,23 @@ def create_single_sub_order(
     variant: "ProductVariant | None" = None,
     vat_rate: "Decimal | None" = None,
     **order_kwargs,
-) -> "tuple[Order, list[Order]]":
+) -> "tuple[Order, Order]":
     """Shortcut: 1 master + 1 sub с одним OrderItem.
 
     Returns:
-        (master, [sub]) — распакуй как: master, subs = ...; sub = subs[0].
+        (master, sub) — оба как отдельные объекты Order.
     """
     if variant is None:
         from tests.conftest import ProductVariantFactory
         variant = ProductVariantFactory.create()
+    assert variant is not None
 
-    return create_master_with_subs(
+    master, subs = create_master_with_subs(
         user=user,
         variants_with_vat=[(variant, vat_rate)],
         **order_kwargs,
     )
+    return master, subs[0]
 
 
 def build_test_xml_for_sub(

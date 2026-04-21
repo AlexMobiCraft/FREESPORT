@@ -279,18 +279,26 @@ def _build_multi_orders_xml(subs_data: list[dict]) -> bytes:
     return xml_str.encode("utf-8")
 
 
-def test_full_vat_split_export_import_cycle(auth_client, log_dir, db):
+def test_full_vat_split_export_import_cycle(auth_client, log_dir, db, settings):
     """Cross-epic E2E: VAT-split master+subs полный цикл (Story 34-5, AC5).
 
     Покрывает:
-    - Экспорт двух sub-orders с разными vat_group (5 и 20)
-    - mode=query → XML содержит оба субзаказа
-    - mode=success → оба субзаказа помечены sent_to_1c=True
+    - Экспорт двух sub-orders с разными vat_group (5 и 22)
+    - mode=query → XML содержит ровно 2 документа с разными организациями
+    - mode=success → оба субзаказа и master помечены sent_to_1c=True
     - POST orders.xml с разными статусами для каждого субзаказа
     - sub1.status='shipped', sub2.status='confirmed'
     - master.status агрегирован по правилу min-priority → 'confirmed'
     """
     from decimal import Decimal
+
+    settings.ONEC_EXCHANGE = {
+        **getattr(settings, "ONEC_EXCHANGE", {}),
+        "ORGANIZATION_BY_VAT": {
+            22: {"name": "ИП Семерюк Д. В.", "warehouse": "1 СДВ склад"},
+            5: {"name": "ИП Терещенко Л.В.", "warehouse": "2 ТЛВ склад"},
+        },
+    }
 
     # ARRANGE — master + 2 subs с разными VAT-группами
     variant1 = ProductVariantFactory.create(retail_price=Decimal("1000.00"))
@@ -331,7 +339,7 @@ def test_full_vat_split_export_import_cycle(auth_client, log_dir, db):
     sub2 = Order.objects.create(
         is_master=False,
         parent_order=master,
-        vat_group=Decimal("20.00"),
+        vat_group=Decimal("22.00"),
         status="pending",
         sent_to_1c=False,
         total_amount=Decimal("2000.00"),
@@ -355,9 +363,19 @@ def test_full_vat_split_export_import_cycle(auth_client, log_dir, db):
     assert resp_query.status_code == 200
     root = parse_commerceml_response(resp_query)
     documents = root.findall(".//Документ")
+    assert len(documents) == 2, f"Ожидали ровно 2 документа, получили {len(documents)}"
     exported_numbers = {doc.findtext("Номер") for doc in documents}
     assert sub1.order_number in exported_numbers, "sub1 должен быть в экспорте"
     assert sub2.order_number in exported_numbers, "sub2 должен быть в экспорте"
+
+    # Проверяем организации по vat_group (AC5: разные org для vat=5 и vat=22)
+    org_by_number = {doc.findtext("Номер"): doc.findtext("Организация") for doc in documents}
+    assert org_by_number[sub1.order_number] == "ИП Терещенко Л.В.", (
+        f"sub1 (vat_group=5): ожидали 'ИП Терещенко Л.В.', получили {org_by_number[sub1.order_number]!r}"
+    )
+    assert org_by_number[sub2.order_number] == "ИП Семерюк Д. В.", (
+        f"sub2 (vat_group=22): ожидали 'ИП Семерюк Д. В.', получили {org_by_number[sub2.order_number]!r}"
+    )
 
     # ACT 2 — mode=success: помечаем как отправленные
     resp_success = _get_exchange(auth_client, "success")
@@ -365,8 +383,11 @@ def test_full_vat_split_export_import_cycle(auth_client, log_dir, db):
 
     sub1.refresh_from_db()
     sub2.refresh_from_db()
+    master.refresh_from_db()
     assert sub1.sent_to_1c is True
     assert sub2.sent_to_1c is True
+    assert master.sent_to_1c is True, "master должен быть помечен sent_to_1c=True после того, как все sub отправлены"
+    assert master.sent_to_1c_at is not None, "master.sent_to_1c_at должен быть заполнен"
 
     # ACT 3 — импорт: POST orders.xml с разными статусами
     xml_data = _build_multi_orders_xml([
