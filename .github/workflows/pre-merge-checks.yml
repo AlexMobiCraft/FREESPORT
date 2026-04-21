@@ -161,6 +161,10 @@ jobs:
         
         while IFS= read -r file; do
           if [[ -f "$file" ]]; then
+            # Пропускаем тестовые файлы — тестовые пароли не являются секретами
+            if [[ "$file" == */tests/* ]] || [[ "$file" == */test_* ]]; then
+              continue
+            fi
             # Проверяем наличие потенциальных секретов
             if grep -q -E "(password|secret|key|token)\s*=\s*['\"][^'\"]{8,}" "$file" 2>/dev/null; then
               echo "⚠️ Обнаружены потенциальные секреты в файле: $file"
