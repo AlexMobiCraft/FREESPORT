@@ -35,7 +35,7 @@ project: "FREESPORT"
 project_key: "1C-HTTP-EXCHANGE"
 tracking_system: "file-system"
 story_location: "{project-root}/_bmad-output/implementation-artifacts"
-last_updated: "2026-04-21"  # Story 34-4: clean review → done
+last_updated: "2026-04-21"  # Story 34-5: created, ready-for-dev
 
 development_status:
   # ========================================
@@ -132,4 +132,4 @@ development_status:
   34-2-sub-order-creation-logic-and-api: done
   34-3-order-export-service-sub-orders: done
   34-4-order-status-import-aggregation: done
-  34-5-tests-update-epics-4-5: backlog
+  34-5-tests-update-epics-4-5: ready-for-dev
