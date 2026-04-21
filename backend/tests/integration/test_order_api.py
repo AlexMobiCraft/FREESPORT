@@ -69,7 +69,8 @@ def test_create_order_from_cart(authenticated_client, cart_with_item):
     }
     response = authenticated_client.post(url, data, format="json")
     assert response.status_code == status.HTTP_201_CREATED
-    assert Order.objects.count() == 1
+    assert Order.objects.filter(is_master=True).count() == 1
+    assert Order.objects.filter(is_master=False).count() == 1
     assert OrderItem.objects.count() == 1
     cart_with_item.refresh_from_db()
     assert cart_with_item.items.count() == 0
