@@ -240,3 +240,159 @@ def test_unknown_order_returns_failure(auth_client, log_dir, db):
     existing_sub.refresh_from_db()
     assert existing_sub.status == "pending"
     assert existing_sub.sent_to_1c is False
+
+
+# =============================================================================
+# Story 34-5: Cross-epic E2E тест полного VAT-split цикла экспорт→импорт
+# =============================================================================
+
+
+def _build_multi_orders_xml(subs_data: list[dict]) -> bytes:
+    """Строит XML с несколькими документами для batch-импорта."""
+    from django.utils import timezone as tz
+
+    now_str = tz.now().strftime("%Y-%m-%dT%H:%M:%S")
+    containers = []
+    for sd in subs_data:
+        containers.append(
+            f"""
+    <Контейнер>
+        <Документ>
+            <Ид>{sd['order_id']}</Ид>
+            <Номер>{sd['order_number']}</Номер>
+            <Дата>{now_str[:10]}</Дата>
+            <ХозОперация>Заказ товара</ХозОперация>
+            <ЗначенияРеквизитов>
+                <ЗначениеРеквизита>
+                    <Наименование>СтатусЗаказа</Наименование>
+                    <Значение>{sd['status_1c']}</Значение>
+                </ЗначениеРеквизита>
+            </ЗначенияРеквизитов>
+        </Документ>
+    </Контейнер>"""
+        )
+    xml_str = f"""<?xml version="1.0" encoding="UTF-8"?>
+<КоммерческаяИнформация ВерсияСхемы="3.1" ДатаФормирования="{now_str}">
+    {''.join(containers)}
+</КоммерческаяИнформация>
+"""
+    return xml_str.encode("utf-8")
+
+
+def test_full_vat_split_export_import_cycle(auth_client, log_dir, db):
+    """Cross-epic E2E: VAT-split master+subs полный цикл (Story 34-5, AC5).
+
+    Покрывает:
+    - Экспорт двух sub-orders с разными vat_group (5 и 20)
+    - mode=query → XML содержит оба субзаказа
+    - mode=success → оба субзаказа помечены sent_to_1c=True
+    - POST orders.xml с разными статусами для каждого субзаказа
+    - sub1.status='shipped', sub2.status='confirmed'
+    - master.status агрегирован по правилу min-priority → 'confirmed'
+    """
+    from decimal import Decimal
+
+    # ARRANGE — master + 2 subs с разными VAT-группами
+    variant1 = ProductVariantFactory.create(retail_price=Decimal("1000.00"))
+    variant2 = ProductVariantFactory.create(retail_price=Decimal("2000.00"))
+
+    master = Order.objects.create(
+        is_master=True,
+        status="pending",
+        sent_to_1c=False,
+        total_amount=Decimal("3000.00"),
+        delivery_address="ул. Тестовая, 1",
+        delivery_method="courier",
+        payment_method="card",
+    )
+
+    sub1 = Order.objects.create(
+        is_master=False,
+        parent_order=master,
+        vat_group=Decimal("5.00"),
+        status="pending",
+        sent_to_1c=False,
+        total_amount=Decimal("1000.00"),
+        delivery_address="ул. Тестовая, 1",
+        delivery_method="courier",
+        payment_method="card",
+    )
+    sub1.order_number = f"order-{sub1.pk}"
+    sub1.save(update_fields=["order_number"])
+    OrderItemFactory.create(
+        order=sub1,
+        product=variant1.product,
+        variant=variant1,
+        unit_price=Decimal("1000.00"),
+        quantity=1,
+        total_price=Decimal("1000.00"),
+    )
+
+    sub2 = Order.objects.create(
+        is_master=False,
+        parent_order=master,
+        vat_group=Decimal("20.00"),
+        status="pending",
+        sent_to_1c=False,
+        total_amount=Decimal("2000.00"),
+        delivery_address="ул. Тестовая, 1",
+        delivery_method="courier",
+        payment_method="card",
+    )
+    sub2.order_number = f"order-{sub2.pk}"
+    sub2.save(update_fields=["order_number"])
+    OrderItemFactory.create(
+        order=sub2,
+        product=variant2.product,
+        variant=variant2,
+        unit_price=Decimal("2000.00"),
+        quantity=1,
+        total_price=Decimal("2000.00"),
+    )
+
+    # ACT 1 — экспорт: mode=query
+    resp_query = _get_exchange(auth_client, "query")
+    assert resp_query.status_code == 200
+    root = parse_commerceml_response(resp_query)
+    documents = root.findall(".//Документ")
+    exported_numbers = {doc.findtext("Номер") for doc in documents}
+    assert sub1.order_number in exported_numbers, "sub1 должен быть в экспорте"
+    assert sub2.order_number in exported_numbers, "sub2 должен быть в экспорте"
+
+    # ACT 2 — mode=success: помечаем как отправленные
+    resp_success = _get_exchange(auth_client, "success")
+    assert resp_success.status_code == 200
+
+    sub1.refresh_from_db()
+    sub2.refresh_from_db()
+    assert sub1.sent_to_1c is True
+    assert sub2.sent_to_1c is True
+
+    # ACT 3 — импорт: POST orders.xml с разными статусами
+    xml_data = _build_multi_orders_xml([
+        {
+            "order_id": f"order-{sub1.pk}",
+            "order_number": sub1.order_number,
+            "status_1c": "Отгружен",
+        },
+        {
+            "order_id": f"order-{sub2.pk}",
+            "order_number": sub2.order_number,
+            "status_1c": "Подтвержден",
+        },
+    ])
+    resp_import = _post_orders_xml(auth_client, xml_data)
+    assert resp_import.status_code == 200
+    assert resp_import.content.decode("utf-8").startswith("success")
+
+    # ASSERT — субзаказы обновлены
+    sub1.refresh_from_db()
+    sub2.refresh_from_db()
+    assert sub1.status == "shipped", f"sub1.status={sub1.status!r}, ожидали 'shipped'"
+    assert sub2.status == "confirmed", f"sub2.status={sub2.status!r}, ожидали 'confirmed'"
+
+    # ASSERT — мастер агрегирован (min-priority: confirmed(2) < shipped(4))
+    master.refresh_from_db()
+    assert master.status == "confirmed", (
+        f"master.status={master.status!r}, ожидали 'confirmed' (min-priority агрегация)"
+    )

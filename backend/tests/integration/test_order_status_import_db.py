@@ -75,10 +75,23 @@ class TestOrderStatusImportDBIntegration(TestCase):
     """
 
     def setUp(self):
-        """Создать тестовый заказ в БД."""
+        """Создать master + sub-order в БД (Story 34-5).
+
+        self.order — субзаказ (is_master=False), получает статус из 1С.
+        self.master — мастер-заказ, агрегирует статус от sub_orders.
+        """
         from decimal import Decimal
 
         self.order_number = f"FS-INT-{get_unique_suffix()}"
+        self.master = Order.objects.create(
+            order_number=f"FS-INT-M-{get_unique_suffix()}",
+            is_master=True,
+            status="pending",
+            delivery_address="Тестовый адрес",
+            delivery_method="courier",
+            payment_method="card",
+            total_amount=Decimal("100.00"),
+        )
         self.order = Order.objects.create(
             order_number=self.order_number,
             status="pending",
@@ -91,6 +104,8 @@ class TestOrderStatusImportDBIntegration(TestCase):
             delivery_method="courier",
             payment_method="card",
             total_amount=Decimal("100.00"),
+            is_master=False,
+            parent_order=self.master,
         )
         self.service = OrderStatusImportService()
 
@@ -219,7 +234,7 @@ class TestOrderStatusImportDBIntegration(TestCase):
         """Проверка bulk fetch: несколько заказов загружаются одним запросом."""
         from decimal import Decimal
 
-        # ARRANGE — создаём ещё 2 заказа
+        # ARRANGE — создаём ещё 2 субзаказа того же мастера
         order2_number = f"FS-INT2-{get_unique_suffix()}"
         order3_number = f"FS-INT3-{get_unique_suffix()}"
 
@@ -230,6 +245,8 @@ class TestOrderStatusImportDBIntegration(TestCase):
             delivery_method="courier",
             payment_method="card",
             total_amount=Decimal("200.00"),
+            is_master=False,
+            parent_order=self.master,
         )
         order3 = Order.objects.create(
             order_number=order3_number,
@@ -238,6 +255,8 @@ class TestOrderStatusImportDBIntegration(TestCase):
             delivery_method="courier",
             payment_method="card",
             total_amount=Decimal("300.00"),
+            is_master=False,
+            parent_order=self.master,
         )
 
         xml_data = f"""<?xml version="1.0" encoding="UTF-8"?>
@@ -279,15 +298,21 @@ class TestOrderStatusImportDBIntegration(TestCase):
 """
 
         # ACT
-        # Query count breakdown (9 total):
+        # Query count breakdown (11 total) после Story 34-5 (master+sub):
         # 1. SAVEPOINT — transaction.atomic() start
-        # 2. SELECT ... FOR UPDATE — bulk fetch all 3 orders in one query
-        # 3-5. SELECT EXISTS — sub_orders.exists() check per order (Story 34-4 master-guard)
-        # 6. UPDATE order 1 — save() with update_fields
-        # 7. UPDATE order 2 — save() with update_fields
-        # 8. UPDATE order 3 — save() with update_fields
-        # 9. RELEASE SAVEPOINT — transaction.atomic() commit
-        with cast(Any, self).assertNumQueries(9):
+        # 2. SELECT ... FOR UPDATE — bulk fetch all 3 sub-orders in one query
+        # (no EXISTS: is_master=False short-circuits master-guard)
+        # 3. UPDATE sub1 — save() with update_fields
+        # 4. UPDATE sub2 — save() with update_fields
+        # 5. UPDATE sub3 — save() with update_fields
+        # [Master aggregation — 1 shared master]
+        # 6. SELECT FOR UPDATE master — get master by pk
+        # 7. SELECT sub_orders.status — _aggregate_master_status
+        # 8. SELECT sub_orders.payment_status — _aggregate_master_payment_status
+        # 9. SELECT sub_orders.sent_to_1c_at — _aggregate_master_sent_to_1c_at
+        # 10. UPDATE master — save() with update_fields
+        # 11. RELEASE SAVEPOINT — transaction.atomic() commit
+        with cast(Any, self).assertNumQueries(11):
             result = self.service.process(xml_data)
 
         # ASSERT — все 3 заказа обновлены

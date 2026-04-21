@@ -2506,3 +2506,149 @@ class TestMasterGuardInImport:
         assert sub.status == "confirmed"
         master.refresh_from_db()
         assert master.status == "confirmed"
+
+
+# =============================================================================
+# Story 34-5: Modern-flow unit tests (Group B) — sub-order mock-based
+# =============================================================================
+
+
+def _make_sub_mock_order(parent_order_id: int = 9999, **overrides):
+    """Создать mock субзаказа (is_master=False, parent_order_id задан).
+
+    Returns:
+        MagicMock, симулирующий sub-order для unit-тестов импорта.
+    """
+    mock = _make_mock_order()
+    mock.is_master = False
+    mock.parent_order_id = parent_order_id
+    mock.sub_orders.exists.return_value = False
+    for key, value in overrides.items():
+        setattr(mock, key, value)
+    return mock
+
+
+@pytest.mark.unit
+class TestModernSubOrderImportUnit:
+    """Group B: modern-flow unit-тесты с mock sub-orders (Story 34-5, AC3).
+
+    Проверяют, что import service корректно обрабатывает sub-order:
+    - master-guard не отклоняет is_master=False заказы
+    - статус субзаказа обновляется
+    - parent_order_id фигурирует для агрегации (даже если мастер не в DB)
+    """
+
+    def test_sub_order_not_rejected_by_master_guard(self):
+        """Sub-order (is_master=False) не отклоняется master-guard."""
+        order_number = f"FS-SUB-UNIT-{get_unique_suffix()}"
+        xml_data = build_test_xml(
+            order_id="order-500",
+            order_number=order_number,
+            status="Подтвержден",
+        )
+        mock_sub = _make_sub_mock_order(parent_order_id=1001)
+        mock_sub.pk = 500
+        mock_sub.order_number = order_number
+        mock_sub.status = "pending"
+        mock_sub.status_1c = ""
+        mock_sub.sent_to_1c = False
+        mock_sub.sent_to_1c_at = None
+        mock_sub.paid_at = None
+        mock_sub.shipped_at = None
+
+        service = OrderStatusImportService()
+        mock_cache = {f"num:{order_number}": mock_sub}
+
+        with patch.object(service, "_bulk_fetch_orders", return_value=mock_cache):
+            result = service.process(xml_data)
+
+        assert result.updated == 1
+        assert result.skipped_master_unexpected == 0
+        mock_sub.save.assert_called_once()
+
+    def test_sub_order_status_updated_to_shipped(self):
+        """XML Отгружен → sub.status='shipped' после обработки."""
+        order_number = f"FS-SUB-SHIP-{get_unique_suffix()}"
+        sub_pk = 600
+        xml_data = build_test_xml(
+            order_id=f"order-{sub_pk}",
+            order_number=order_number,
+            status="Отгружен",
+        )
+        mock_sub = _make_sub_mock_order(parent_order_id=1002)
+        mock_sub.pk = sub_pk
+        mock_sub.order_number = order_number
+        mock_sub.status = "pending"
+        mock_sub.status_1c = ""
+        mock_sub.sent_to_1c = False
+        mock_sub.sent_to_1c_at = None
+        mock_sub.paid_at = None
+        mock_sub.shipped_at = None
+
+        service = OrderStatusImportService()
+        mock_cache = {f"num:{order_number}": mock_sub}
+
+        with patch.object(service, "_bulk_fetch_orders", return_value=mock_cache):
+            result = service.process(xml_data)
+
+        assert result.updated == 1
+        assert mock_sub.status == "shipped"
+        assert mock_sub.status_1c == "Отгружен"
+        assert mock_sub.sent_to_1c is True
+
+    def test_sub_order_xml_addressed_by_sub_pk(self):
+        """XML <Ід>order-{sub.pk}</Ід> корректно парсится для субзаказа."""
+        sub_pk = 700
+        order_number = f"FS-SUB-ID-{get_unique_suffix()}"
+        xml_data = build_test_xml(
+            order_id=f"order-{sub_pk}",
+            order_number=order_number,
+            status="Доставлен",
+        )
+        mock_sub = _make_sub_mock_order(parent_order_id=1003)
+        mock_sub.pk = sub_pk
+        mock_sub.order_number = order_number
+        mock_sub.status = "shipped"
+        mock_sub.status_1c = "Отгружен"
+        mock_sub.sent_to_1c = True
+        mock_sub.sent_to_1c_at = timezone.now()
+        mock_sub.paid_at = None
+        mock_sub.shipped_at = None
+
+        service = OrderStatusImportService()
+        mock_cache = {f"num:{order_number}": mock_sub}
+
+        with patch.object(service, "_bulk_fetch_orders", return_value=mock_cache):
+            result = service.process(xml_data)
+
+        assert result.updated == 1
+        assert mock_sub.status == "delivered"
+
+    def test_sub_order_regression_blocked_same_as_legacy(self):
+        """Статусная регрессия блокируется для sub-order так же, как для legacy."""
+        order_number = f"FS-SUB-REG-{get_unique_suffix()}"
+        xml_data = build_test_xml(
+            order_id="order-800",
+            order_number=order_number,
+            status="Подтвержден",  # confirmed < shipped
+        )
+        mock_sub = _make_sub_mock_order(parent_order_id=1004)
+        mock_sub.pk = 800
+        mock_sub.order_number = order_number
+        mock_sub.status = "shipped"
+        mock_sub.status_1c = "Отгружен"
+        mock_sub.sent_to_1c = True
+        mock_sub.sent_to_1c_at = timezone.now()
+        mock_sub.paid_at = None
+        mock_sub.shipped_at = None
+
+        service = OrderStatusImportService()
+        mock_cache = {f"num:{order_number}": mock_sub}
+
+        with patch.object(service, "_bulk_fetch_orders", return_value=mock_cache):
+            result = service.process(xml_data)
+
+        assert result.skipped_status_regression == 1
+        assert result.updated == 0
+        assert mock_sub.status == "shipped"
+        mock_sub.save.assert_not_called()

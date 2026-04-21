@@ -55,11 +55,22 @@ class TestOrdersXmlModeFile:
     # ===================================================================
 
     def test_successful_status_update(self):
-        """POST orders.xml обновляет статус заказа в БД."""
-        # ARRANGE
+        """POST orders.xml обновляет статус субзаказа и агрегирует мастер."""
+        # ARRANGE — master + sub (Story 34-5)
         order_number = f"FS-INT-{get_unique_suffix()}"
-        order = Order.objects.create(
+        master = Order.objects.create(
+            order_number=f"FS-INT-M-{get_unique_suffix()}",
+            is_master=True,
+            status="pending",
+            delivery_address="Test",
+            delivery_method="courier",
+            payment_method="card",
+            total_amount=Decimal("100.00"),
+        )
+        sub = Order.objects.create(
             order_number=order_number,
+            is_master=False,
+            parent_order=master,
             status="pending",
             status_1c="",
             sent_to_1c=False,
@@ -69,7 +80,7 @@ class TestOrdersXmlModeFile:
             total_amount=Decimal("100.00"),
         )
         xml_data = _build_orders_xml(
-            order_id=f"order-{order.pk}",
+            order_id=f"order-{sub.pk}",
             order_number=order_number,
             status_1c="Отгружен",
         )
@@ -82,11 +93,14 @@ class TestOrdersXmlModeFile:
         content = response.content.decode("utf-8")
         assert content.startswith("success")
 
-        order.refresh_from_db()
-        assert order.status == "shipped"
-        assert order.status_1c == "Отгружен"
-        assert order.sent_to_1c is True
-        assert order.sent_to_1c_at is not None
+        sub.refresh_from_db()
+        assert sub.status == "shipped"
+        assert sub.status_1c == "Отгружен"
+        assert sub.sent_to_1c is True
+        assert sub.sent_to_1c_at is not None
+
+        master.refresh_from_db()
+        assert master.status == "shipped"
 
     # ===================================================================
     # 4.2: Идемпотентность — повторная отправка того же XML (AC4)

@@ -44,12 +44,23 @@ class TestOrderExportServiceXMLValidation:
             onec_id=f"variant-{get_unique_suffix()}",
             retail_price=Decimal("1500.00"),
         )
+        master = Order.objects.create(
+            user=user,
+            total_amount=Decimal("3000.00"),
+            delivery_address="123456, Москва, ул. Ленина, д. 1",
+            delivery_method="courier",
+            payment_method="card",
+            is_master=True,
+            sent_to_1c=False,
+        )
         order = Order.objects.create(
             user=user,
             total_amount=Decimal("3000.00"),
             delivery_address="123456, Москва, ул. Ленина, д. 1",
             delivery_method="courier",
             payment_method="card",
+            is_master=False,
+            parent_order=master,
             sent_to_1c=False,
         )
         OrderItem.objects.create(
@@ -80,12 +91,22 @@ class TestOrderExportServiceXMLValidation:
             onec_id=f"variant-{get_unique_suffix()}",
             retail_price=Decimal("1000.00"),
         )
+        master = Order.objects.create(
+            user=user,
+            total_amount=Decimal("1000.00"),
+            delivery_address="Тестовый адрес",
+            delivery_method="pickup",
+            payment_method="cash",
+            is_master=True,
+        )
         order = Order.objects.create(
             user=user,
             total_amount=Decimal("1000.00"),
             delivery_address="Тестовый адрес",
             delivery_method="pickup",
             payment_method="cash",
+            is_master=False,
+            parent_order=master,
         )
         OrderItem.objects.create(
             order=order,
@@ -113,12 +134,22 @@ class TestOrderExportServiceXMLValidation:
             onec_id=f"variant-{get_unique_suffix()}",
             retail_price=Decimal("500.00"),
         )
+        master = Order.objects.create(
+            user=user,
+            total_amount=Decimal("500.00"),
+            delivery_address="Адрес",
+            delivery_method="post",
+            payment_method="bank_transfer",
+            is_master=True,
+        )
         order = Order.objects.create(
             user=user,
             total_amount=Decimal("500.00"),
             delivery_address="Адрес",
             delivery_method="post",
             payment_method="bank_transfer",
+            is_master=False,
+            parent_order=master,
         )
         OrderItem.objects.create(
             order=order,
