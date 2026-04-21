@@ -602,3 +602,78 @@ class TestOrdersXmlModeFile:
         # At least one response should be 429
         status_codes = [r.status_code for r in responses]
         assert 429 in status_codes, f"Expected at least one 429 response, got: {status_codes}"
+
+    # ===================================================================
+    # 4.19: Story 34-4 — sub-orders + master aggregation через mode=file
+    # ===================================================================
+
+    def test_sub_orders_status_update_aggregates_master(self):
+        """AC15/Task 11.8: sub5→shipped + sub22→shipped через HTTP → master=shipped."""
+        # ARRANGE
+        master = Order.objects.create(
+            order_number=f"FS-E2E-M-{get_unique_suffix()}",
+            is_master=True,
+            parent_order=None,
+            status="pending",
+            payment_status="pending",
+            sent_to_1c=False,
+            total_amount=Decimal("2000.00"),
+            delivery_address="Test",
+            delivery_method="courier",
+            payment_method="card",
+        )
+        sub5 = Order.objects.create(
+            order_number=f"FS-E2E-S5-{get_unique_suffix()}",
+            is_master=False,
+            parent_order=master,
+            status="pending",
+            payment_status="pending",
+            sent_to_1c=False,
+            total_amount=Decimal("1000.00"),
+            delivery_address="Test",
+            delivery_method="courier",
+            payment_method="card",
+        )
+        sub22 = Order.objects.create(
+            order_number=f"FS-E2E-S22-{get_unique_suffix()}",
+            is_master=False,
+            parent_order=master,
+            status="pending",
+            payment_status="pending",
+            sent_to_1c=False,
+            total_amount=Decimal("1000.00"),
+            delivery_address="Test",
+            delivery_method="courier",
+            payment_method="card",
+        )
+
+        xml_data = _build_multi_orders_xml(
+            [
+                {
+                    "order_id": f"order-{sub5.pk}",
+                    "order_number": sub5.order_number,
+                    "status_1c": "Отгружен",
+                },
+                {
+                    "order_id": f"order-{sub22.pk}",
+                    "order_number": sub22.order_number,
+                    "status_1c": "Отгружен",
+                },
+            ]
+        )
+
+        # ACT
+        response = self._post_orders_xml(xml_data)
+
+        # ASSERT
+        assert response.status_code == 200
+        content = response.content.decode("utf-8")
+        assert content.startswith("success")
+
+        sub5.refresh_from_db()
+        sub22.refresh_from_db()
+        master.refresh_from_db()
+
+        assert sub5.status == "shipped"
+        assert sub22.status == "shipped"
+        assert master.status == "shipped"

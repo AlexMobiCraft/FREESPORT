@@ -111,7 +111,6 @@ def build_multi_order_xml(orders: list[dict]) -> str:
 """
 
 
-
 def _make_mock_order(**overrides):
     """Создать mock заказа с дефолтными атрибутами (legacy order без sub_orders)."""
     mock = MagicMock()
@@ -2105,9 +2104,7 @@ class TestMasterStatusAggregation:
 
     def test_aggregate_mixed_with_pending(self):
         # ARRANGE — master в confirmed, но есть sub в pending → должно стать pending
-        master, subs = _make_master_with_subs(
-            ["pending", "confirmed"], master_status="confirmed"
-        )
+        master, subs = _make_master_with_subs(["pending", "confirmed"], master_status="confirmed")
         service = OrderStatusImportService()
 
         # ACT
@@ -2319,7 +2316,7 @@ class TestMasterStatusAggregation:
         subs[1].save(update_fields=["paid_at"])
         service = OrderStatusImportService()
         result = ImportResult()
-        aggregated_ids = []
+        aggregated_ids: set[int] = set()
 
         # ACT
         service._apply_master_aggregation({master.pk}, result, aggregated_ids)

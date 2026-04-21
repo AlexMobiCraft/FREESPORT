@@ -182,7 +182,7 @@ class OrderStatusImportService:
         log_suppressed = False
 
         # [Story 34-4] Списки для агрегации и сигнала
-        aggregated_master_ids: list[int] = []
+        aggregated_master_ids: set[int] = set()
         updated_sub_ids: list[int] = []
 
         # [AI-Review][Medium] Batch processing — сокращаем длительные блокировки
@@ -207,9 +207,10 @@ class OrderStatusImportService:
                                 consecutive_errors = 0  # Сброс счётчика при успехе
                                 # [Story 34-4] Собираем parent_order_id для агрегации
                                 sub = self._find_in_cache(order_data, orders_cache)
-                                if sub is not None and sub.parent_order_id is not None:
-                                    master_ids_in_batch.add(sub.parent_order_id)
+                                if sub is not None:
                                     updated_sub_ids.append(sub.pk)
+                                    if sub.parent_order_id is not None:
+                                        master_ids_in_batch.add(sub.parent_order_id)
                             elif status == ProcessingStatus.SKIPPED_UP_TO_DATE:
                                 result.skipped_up_to_date += 1
                                 # [Story 34-4] SKIPPED_UP_TO_DATE тоже затрагивает sub
@@ -284,7 +285,7 @@ class OrderStatusImportService:
                     updated_count=result.updated,
                     field="status_from_1c",
                     timestamp=timezone.now(),
-                    master_order_ids=aggregated_master_ids,
+                    master_order_ids=list(aggregated_master_ids),
                 )
             except Exception as e:
                 logger.exception(f"Error emitting orders_bulk_updated signal: {e}")
@@ -849,7 +850,7 @@ class OrderStatusImportService:
         self,
         master_ids: set[int],
         result: ImportResult,
-        aggregated_master_ids: list[int],
+        aggregated_master_ids: set[int],
     ) -> None:
         """Применить агрегацию на всех затронутых мастерах (Story 34-4, AC3, AC10)."""
         for master_id in master_ids:
@@ -881,10 +882,11 @@ class OrderStatusImportService:
             if update_fields:
                 update_fields.append("updated_at")
                 master.save(update_fields=update_fields)
-                # Считаем только meaningful изменения (status/payment_status)
+                # AC11: только мастера с изменённым status/payment_status
                 if "status" in update_fields or "payment_status" in update_fields:
-                    result.aggregated_master_count += 1
-                aggregated_master_ids.append(master_id)
+                    if master_id not in aggregated_master_ids:
+                        result.aggregated_master_count += 1
+                    aggregated_master_ids.add(master_id)
 
     def _find_in_cache(self, order_data: OrderUpdateData, orders_cache: dict[str, Order] | None) -> Order | None:
         """Искать заказ только в кэше (не DB)."""

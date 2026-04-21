@@ -537,10 +537,20 @@ class TestMasterAggregationDB(TestCase):
     def test_batch_both_subs_confirmed_aggregates_master(self):
         """AC3+AC10: оба sub→confirmed, одна агрегация мастера."""
         # ARRANGE
-        xml_data = _build_multi_sub_xml([
-            {"order_id": f"{ORDER_ID_PREFIX}{self.sub5.pk}", "order_number": self.sub5.order_number, "status": "Подтвержден"},
-            {"order_id": f"{ORDER_ID_PREFIX}{self.sub22.pk}", "order_number": self.sub22.order_number, "status": "Подтвержден"},
-        ])
+        xml_data = _build_multi_sub_xml(
+            [
+                {
+                    "order_id": f"{ORDER_ID_PREFIX}{self.sub5.pk}",
+                    "order_number": self.sub5.order_number,
+                    "status": "Подтвержден",
+                },
+                {
+                    "order_id": f"{ORDER_ID_PREFIX}{self.sub22.pk}",
+                    "order_number": self.sub22.order_number,
+                    "status": "Подтвержден",
+                },
+            ]
+        )
 
         # ACT
         result = self.service.process(xml_data)
@@ -586,10 +596,20 @@ class TestMasterAggregationDB(TestCase):
 
         orders_bulk_updated.connect(handler)
         try:
-            xml_data = _build_multi_sub_xml([
-                {"order_id": f"{ORDER_ID_PREFIX}{self.sub5.pk}", "order_number": self.sub5.order_number, "status": "Подтвержден"},
-                {"order_id": f"{ORDER_ID_PREFIX}{self.sub22.pk}", "order_number": self.sub22.order_number, "status": "Подтвержден"},
-            ])
+            xml_data = _build_multi_sub_xml(
+                [
+                    {
+                        "order_id": f"{ORDER_ID_PREFIX}{self.sub5.pk}",
+                        "order_number": self.sub5.order_number,
+                        "status": "Подтвержден",
+                    },
+                    {
+                        "order_id": f"{ORDER_ID_PREFIX}{self.sub22.pk}",
+                        "order_number": self.sub22.order_number,
+                        "status": "Подтвержден",
+                    },
+                ]
+            )
 
             # ACT
             result = self.service.process(xml_data)
@@ -606,10 +626,20 @@ class TestMasterAggregationDB(TestCase):
     def test_idempotent_repeat_import_no_master_save(self):
         """AC12: повторный импорт — aggregated_master_count=0."""
         # ARRANGE
-        xml_data = _build_multi_sub_xml([
-            {"order_id": f"{ORDER_ID_PREFIX}{self.sub5.pk}", "order_number": self.sub5.order_number, "status": "Подтвержден"},
-            {"order_id": f"{ORDER_ID_PREFIX}{self.sub22.pk}", "order_number": self.sub22.order_number, "status": "Подтвержден"},
-        ])
+        xml_data = _build_multi_sub_xml(
+            [
+                {
+                    "order_id": f"{ORDER_ID_PREFIX}{self.sub5.pk}",
+                    "order_number": self.sub5.order_number,
+                    "status": "Подтвержден",
+                },
+                {
+                    "order_id": f"{ORDER_ID_PREFIX}{self.sub22.pk}",
+                    "order_number": self.sub22.order_number,
+                    "status": "Подтвержден",
+                },
+            ]
+        )
 
         # ACT — первый импорт
         result1 = self.service.process(xml_data)
@@ -645,14 +675,72 @@ class TestMasterAggregationDB(TestCase):
         self.master.refresh_from_db()
         self.assertEqual(self.master.status, "delivered")
 
+    def test_vat_group_none_sub_included_in_xml_import_aggregation(self):
+        """AC13: sub с vat_group=None участвует в агрегации через XML-импорт."""
+        from decimal import Decimal
+
+        # ARRANGE — sub с vat_group=None
+        sub_none = Order.objects.create(
+            order_number=f"FS-AGG-SN-{get_unique_suffix()}",
+            is_master=False,
+            parent_order=self.master,
+            vat_group=None,
+            status="pending",
+            payment_status="pending",
+            sent_to_1c=False,
+            sent_to_1c_at=None,
+            total_amount=Decimal("500.00"),
+            delivery_address="Test",
+            delivery_method="courier",
+            payment_method="card",
+        )
+
+        # Все три sub → confirmed через XML
+        xml_data = _build_multi_sub_xml(
+            [
+                {
+                    "order_id": f"{ORDER_ID_PREFIX}{self.sub5.pk}",
+                    "order_number": self.sub5.order_number,
+                    "status": "Подтвержден",
+                },
+                {
+                    "order_id": f"{ORDER_ID_PREFIX}{self.sub22.pk}",
+                    "order_number": self.sub22.order_number,
+                    "status": "Подтвержден",
+                },
+                {
+                    "order_id": f"{ORDER_ID_PREFIX}{sub_none.pk}",
+                    "order_number": sub_none.order_number,
+                    "status": "Подтвержден",
+                },
+            ]
+        )
+
+        # ACT
+        result = self.service.process(xml_data)
+
+        # ASSERT — все 3 sub обновлены, master агрегирован
+        self.assertEqual(result.updated, 3)
+        self.assertEqual(result.aggregated_master_count, 1)
+        self.master.refresh_from_db()
+        self.assertEqual(self.master.status, "confirmed")
+        sub_none.refresh_from_db()
+        self.assertEqual(sub_none.status, "confirmed")
+
     def test_aggregation_rollback_on_error(self):
         """AC9: rollback при ошибке агрегации."""
         # ARRANGE
         from unittest.mock import patch
 
-        xml_data = _build_multi_sub_xml([
-            {"order_id": f"{ORDER_ID_PREFIX}{self.sub5.pk}", "order_number": self.sub5.order_number, "status": "Подтвержден"},
-        ])
+        xml_data = _build_multi_sub_xml(
+            [
+                {
+                    "order_id": f"{ORDER_ID_PREFIX}{self.sub5.pk}",
+                    "order_number": self.sub5.order_number,
+                    "status": "Подтвержден",
+                },
+            ]
+        )
 
         with patch("apps.orders.models.Order.save", side_effect=OperationalError("DB error")):
             # ACT
