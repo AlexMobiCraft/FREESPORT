@@ -1,6 +1,6 @@
 # Story 34.3: OrderExportService — работа с субзаказами (один XML-документ на VAT-группу)
 
-Status: review
+Status: in-progress
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -345,13 +345,18 @@ pytest -xvs -m unit backend/tests/unit/test_order_export_service.py
 2. **Finding #2 fixed** — fallback-ветка `handle_success` эмитит `orders_bulk_updated` с тем же набором kwargs, что и основная ветка (`order_ids`, `updated_count`, `field="sent_to_1c"`, `timestamp`, `master_order_ids`). Новый integration-тест `TestSubOrderSuccess::test_fallback_emits_orders_bulk_updated_signal` (эвиктит cache → подтверждает сигнал с master_order_ids).
 3. **Finding #3 fixed** — `test_master_not_aggregated_when_sub_pending` переписан: master + sub_ready (items, экспортируется) + sub_blocked (без items → export_skipped=True, остаётся sent_to_1c=False) → master НЕ агрегируется (assertion: `master.sent_to_1c is False`, `master.sent_to_1c_at is None`). `test_siblings_in_other_master_not_affected` переписан: два независимых мастера, sub_b через raw `update(created_at=future)` выведен из окна query → остаётся нетронут, master_b не агрегируется.
 
+**Review findings (2026-04-19, batch 2):**
+
+- [x] [Review][Patch] Переход `handle_query` на export-only sub-orders оставил полный `tests/integration/test_onec_export.py` в красном состоянии: legacy `order_for_export`-сценарии `mode=query/mode=success` больше не соответствуют новому контракту [backend/apps/integrations/onec_exchange/views.py:476]
+- [x] [Review][Patch] Story отмечает Task 6.2/7.2 и verification как выполненные, но `test_legacy_master_without_sub_orders_is_not_exported` не добавлен, а полный integration-прогон файла не зелёный [_bmad-output/implementation-artifacts/Story/34-3-order-export-service-sub-orders.md:110]
+
 **Resolution notes (2026-04-19, batch 2):**
 
 4. **Finding #4 fixed** — `order_for_export` fixture обновлён: создаёт master + sub-order (is_master=False, parent_order=master). `test_mode_query_includes_guest_orders` обновлён: guest_master + guest_sub. `test_mode_success_does_not_mark_skipped_orders` обновлён: empty_master + empty_sub. Все legacy integration-тесты (43 total) теперь зелёные.
 5. **Finding #5 fixed** — Добавлен `TestLegacyOrderExclusion::test_legacy_master_without_sub_orders_is_not_exported` (integration-тест: legacy order с is_master=True, parent_order=None не попадает в XML). Все 19 legacy unit-тестов обновлены: каждый `Order.objects.create` теперь создаёт master+sub структуру. `_make_order_with_variant` helper обновлён аналогично. Полный прогон: 102/102 тестов зелёные (59 unit + 43 integration).
 
-- [x] [Review][Patch] Переход `handle_query` на export-only sub-orders оставил полный `tests/integration/test_onec_export.py` в красном состоянии: legacy `order_for_export`-сценарии `mode=query/mode=success` больше не соответствуют новому контракту [backend/apps/integrations/onec_exchange/views.py:476]
-- [x] [Review][Patch] Story отмечает Task 6.2/7.2 и verification как выполненные, но `test_legacy_master_without_sub_orders_is_not_exported` не добавлен, а полный integration-прогон файла не зелёный [_bmad-output/implementation-artifacts/Story/34-3-order-export-service-sub-orders.md:110]
+**Review findings (2026-04-19/20, batches 3-7):**
+
 - [x] [Review][Patch] НДС строки всё ещё может переопределяться `warehouse_name` варианта, хотя AC5 требует цепочку `OrderItem.vat_rate -> variant.vat_rate -> _get_order_vat_rate(sub_order)` [backend/apps/orders/services/order_export.py:356]
 - [x] [Review][Patch] Legacy-ветка `vat_group=None` всё ещё маршрутизирует документ через `warehouse_name` вместо `DEFAULT_ORGANIZATION/DEFAULT_WAREHOUSE` и не пишет обязательный warning из AC8 [backend/apps/orders/services/order_export.py:175]
 - [x] [Review][Patch] Тесты на приоритет `vat_group` не изолируют его от `variant.vat_rate`, поэтому могут пропустить регрессию AC3/AC4: в `test_requisites_organization_uses_dynamic_value` и `test_vat_group_is_authoritative_over_variant_warehouse_name` ставка варианта совпадает с `vat_group`, из-за чего сценарий с конфликтующими значениями (`vat_group=5`, `variant.vat_rate=22`) не покрыт [backend/tests/unit/test_order_export_service.py:1999]
@@ -359,6 +364,16 @@ pytest -xvs -m unit backend/tests/unit/test_order_export_service.py
 - [x] [Review][Med] Полный E2E-контур 1С не обновлён под export-only sub-orders: в `tests/integration/test_onec_export_e2e.py` и `tests/integration/test_order_exchange_import_e2e.py` по-прежнему создаются legacy/master-only заказы через `OrderFactory.create(...)`, после чего тесты ожидают прямой экспорт и `sent_to_1c` у мастера. Это больше не соответствует контракту Story 34-3 (`handle_query` выбирает только `is_master=False, parent_order__isnull=False`) и уже проявляется падениями в `freesport-backend-test`: `test_full_cycle_checkauth_query_success_marks_order_as_sent`, `test_full_cycle_multiple_orders_all_marked_as_sent`, оба guest E2E-сценария и `test_new_order_after_success_appears_in_next_query` [backend/tests/integration/test_onec_export_e2e.py:63] [backend/tests/integration/test_order_exchange_import_e2e.py:77] [backend/apps/integrations/onec_exchange/views.py:478]
 - [x] [Review][Patch] `_mark_previous_query_as_sent` и `handle_success` по-прежнему обновляют `sent_to_1c` по сырому `prev_ids/exported_ids`, поэтому master-заказы могут быть помечены напрямую, минуя helper-агрегацию, а `orders_bulk_updated.order_ids` получает master PK вопреки AC9/AC11 [backend/apps/integrations/onec_exchange/views.py:431]
 - [x] [Review][Patch] `orders_bulk_updated` не эмитится, если в этой итерации не изменился ни один sub-order, но `_aggregate_master_sent_to_1c()` всё же пометил master; в таком случае downstream не узнает о смене `master.sent_to_1c` [backend/apps/integrations/onec_exchange/views.py:441]
+
+**Review findings (2026-04-20/21, fallback rework):**
+
+- [ ] [Review][Patch] Вернуть fallback `mode=success` к touched-only поведению: `fallback_sub_ids_to_update` должен быть единственным набором для `update(...)`, `_aggregate_master_sent_to_1c(...)` и `orders_bulk_updated.order_ids`; если `updated == 0`, fallback не агрегирует master и не эмитит сигнал. Удалить или инвертировать ожидания `test_fallback_aggregates_master_when_all_subs_already_sent` и `test_fallback_emits_signal_when_only_master_aggregated`, добавить/оставить тест, что fallback не агрегирует master при `updated == 0`. Редкий repair-сценарий, где sub-order уже помечены, а master ещё нет, должен решаться отдельной management-командой или отдельной story, а не побочным эффектом `mode=success`. [backend/apps/integrations/onec_exchange/views.py:640]
+
+**Устаревшие resolution notes (2026-04-20, batches 8-9):**
+
+8. **Заменено доработкой 2026-04-21** — batch 8 сделал fallback repair-режимом: `fallback_sub_ids` собирал ВСЕ sub-order PK в окне `created_at <= last_query_time` для `_aggregate_master_sent_to_1c`, а `fallback_sub_ids_to_update` использовался только для `update(...)`. Это больше не является финальным решением story.
+9. **Заменено доработкой 2026-04-21** — guard fallback-ветки был расширен до `if updated > 0 or aggregated_master_ids`, чтобы сигнал эмитился при `updated == 0`, если master агрегирован. После rework fallback не должен агрегировать master при `updated == 0`, поэтому этот guard нужно вернуть к поведению «только фактически затронутые sub-order».
+10. **Частично сохранено** — решение batch 9 по семантике `orders_bulk_updated.order_ids = только реально обновлённые sub PK` остаётся. Часть про all-history scan внутри `_aggregate_master_sent_to_1c` для fallback отклонена checkpoint-решением 2026-04-21.
 
 ### Agent Model Used
 
@@ -390,18 +405,22 @@ Windsurf Cascade (Claude Sonnet 4)
 12. ✅ Resolved review finding [Patch] AC5 line VAT verification: добавлены assertions `<Ставка>22</Ставка>` в `test_requisites_organization_uses_dynamic_value` и `test_vat_group_is_authoritative_over_variant_warehouse_name` — оба теста теперь проверяют, что `variant.vat_rate=22` побеждает `order_vat_rate=5` (из vat_group) в строке XML. Полный прогон: 105/105 зелёных (61 unit + 44 integration).
 13. ✅ Resolved review finding [Med]: E2E-тесты (`test_onec_export_e2e.py`, `test_order_exchange_import_e2e.py`) обновлены под export-only sub-orders. Добавлен `_create_master_with_sub()` helper; `_create_order_with_item()` возвращает sub-order. Все assertions обновлены на `sub.sent_to_1c` + `master.sent_to_1c` (агрегация). Полный прогон: E2E export 8/8, E2E import 8/8, unit 61/61, integration 44/44 — итого 121 тест зелёный.
 14. ✅ Resolved review finding [Patch] AC9/AC11: `_mark_previous_query_as_sent` и `handle_success` теперь фильтруют `is_master=False` перед update, отделяя `sub_ids` (для агрегации) от `sub_ids_to_update` (для update). `order_ids` в сигнале содержит только sub-order PK, мастер PK исключены. Guard `if updated > 0 or aggregated_master_ids` эмитит сигнал даже при updated==0. Новые тесты: `test_master_not_marked_directly_when_in_exported_ids`, `test_signal_emitted_when_only_master_aggregated`. Полный прогон: 123/123 зелёных (61 unit + 46 integration + 16 E2E).
+15. Заменено checkpoint-доработкой 2026-04-21: batch 8 fallback aggregation сделал `mode=success` repair-механизмом по всему окну `created_at <= last_query_time`. Это больше не финальное решение story.
+16. Заменено checkpoint-доработкой 2026-04-21: batch 8 fallback signal guard `updated > 0 or aggregated_master_ids` должен быть пересмотрен, потому что fallback не должен агрегировать master при `updated == 0`.
+17. Частично сохранено: batch 9 контракт `orders_bulk_updated.order_ids = только реально изменённые sub PK` остаётся правильным. Часть про all-history scan внутри fallback `_aggregate_master_sent_to_1c` отклонена и требует доработки к поведению «только фактически затронутые sub-order».
+18. Открытая доработка записана в стандартном BMAD-формате `Review Findings`: использовать `fallback_sub_ids_to_update` как единственный набор для fallback `update(...)`, `_aggregate_master_sent_to_1c(...)` и `orders_bulk_updated.order_ids`; при `updated == 0` fallback не агрегирует master и не эмитит сигнал.
 
 ### File List
 
 | File | Action |
 |------|--------|
 | `backend/apps/orders/services/order_export.py` | Modified: _get_order_vat_rate (vat_group priority), _create_products_element (AC5 chain без warehouse, AC8 DEFAULT routing + warning), generate_xml_streaming (master-guard), docstrings, comments |
-| `backend/apps/integrations/onec_exchange/views.py` | Modified: handle_query queryset (is_master=False), _aggregate_master_sent_to_1c (new helper), handle_success (aggregation + fallback), _mark_previous_query_as_sent (aggregation), signal master_order_ids |
+| `backend/apps/integrations/onec_exchange/views.py` | Modified: handle_query queryset (is_master=False), _aggregate_master_sent_to_1c (new helper), handle_success (aggregation + fallback), _mark_previous_query_as_sent (aggregation), signal master_order_ids, order_ids → *_to_update (batch 9 Decision). Fallback all-history aggregation помечен к доработке на поведение «только фактически затронутые sub-order» (2026-04-21). |
 | `backend/tests/unit/test_order_export_service.py` | Modified: _make_order_with_variant (master+sub, +vat_group param), _make_master_with_sub helper, TestGetOrderVatRateSubOrder (2), TestOrderExportServiceSubOrderDocument (7 including 2 new), TestOrderExportServiceMasterGuard (1), TestLegacyOrderWithoutSubOrders (1). Updated 22 legacy tests + 2 TestOrderExportVatAndOrgInXML tests. |
-| `backend/tests/integration/test_onec_export.py` | Modified: order_for_export fixture (master+sub), guest order test (master+sub), empty order test (master+sub). Added: master_with_two_subs fixture, TestSubOrderQuery (3), TestSubOrderSuccess (9 including 2 new AC9/AC11 tests), TestLegacyOrderExclusion (1). |
+| `backend/tests/integration/test_onec_export.py` | Modified: order_for_export fixture (master+sub), guest order test (master+sub), empty order test (master+sub), strengthened signal assertions (batch 9: equality + order_ids==[] checks). Added: master_with_two_subs fixture, TestSubOrderQuery, TestSubOrderSuccess, TestLegacyOrderExclusion. Batch 8 fallback-only-master tests помечены к доработке. |
 | `backend/tests/integration/test_onec_export_e2e.py` | Modified: All fixtures updated to master+sub structure. Added `_create_master_with_sub()` helper. Updated 8 tests for export-only sub-orders with master aggregation assertions. |
 | `backend/tests/integration/test_order_exchange_import_e2e.py` | Modified: `_create_order_with_item()` returns sub-order (master+sub structure). Updated all 8 tests for sub-order export + import cycle. |
-| `_bmad-output/implementation-artifacts/sprint-status.yaml` | Updated: 34-3 status in-progress (review findings batch-3 resolved) |
+| `_bmad-output/implementation-artifacts/sprint-status.yaml` | Updated: 34-3 status in-progress после checkpoint rework finding. |
 
 ## Change Log
 
@@ -417,3 +436,6 @@ Windsurf Cascade (Claude Sonnet 4)
 | 2026-04-20 | New code review finding: полный E2E-контур 1С (`test_onec_export_e2e.py`, `test_order_exchange_import_e2e.py`) всё ещё использует legacy master-only fixtures и не адаптирован к контракту Story 34-3 с export-only sub-orders. Зафиксированы падения в уже запущенном `freesport-backend-test`; требуется перевести E2E-фикстуры и ожидания на `master + sub_orders` и проверку агрегации мастера. |
 | 2026-04-20 | Addressed code review finding batch 6 — 1 item resolved [Med]: E2E-тесты (`test_onec_export_e2e.py` 8 тестов, `test_order_exchange_import_e2e.py` 8 тестов) обновлены под export-only sub-orders. Helper `_create_master_with_sub()` в export E2E; `_create_order_with_item()` возвращает sub-order в import E2E. Assertions обновлены на sub.sent_to_1c + master.sent_to_1c (агрегация). Полный прогон: 121/121 зелёных (61 unit + 44 integration + 16 E2E). Статус: review. |
 | 2026-04-20 | Addressed code review finding batch 7 — 2 items resolved [Patch×2]: AC9/AC11 — `_mark_previous_query_as_sent` и `handle_success` фильтруют `is_master=False` перед update; `sub_ids` (для агрегации) отделён от `sub_ids_to_update` (для update); `order_ids` в сигнале содержит только sub-order PK; guard `updated > 0 or aggregated_master_ids` эмитит сигнал при updated==0. 2 новых integration-теста. Полный прогон: 123/123 зелёных (61 unit + 46 integration + 16 E2E). Статус: review. |
+| 2026-04-20 | Batch 8 implemented fallback repair behavior: fallback собирал все sub-order PK в окне для `_aggregate_master_sent_to_1c` и эмитил сигнал при `updated > 0 or aggregated_master_ids`. Позже superseded checkpoint-решением 2026-04-21. |
+| 2026-04-20 | Batch 9 clarified signal scope: `orders_bulk_updated.order_ids` переведён на `sub_ids_to_update` / `fallback_sub_ids_to_update` (только реально изменённые sub PK). Эта часть сохранена; all-history scan fallback заменён checkpoint-решением 2026-04-21. |
+| 2026-04-21 | Checkpoint rework записан в стандартном BMAD-формате `Review Findings`: fallback после потери cache должен работать только с фактически затронутыми sub-order, а не repair-сканом всей истории окна. Статус: in-progress, ожидает доработки. |

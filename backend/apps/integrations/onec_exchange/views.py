@@ -457,9 +457,13 @@ class ICExchangeView(APIView):
                 f"aggregated {len(aggregated_master_ids)} masters "
                 f"(implicit confirmation via repeated query)"
             )
+            # AC11 / Decision batch 9: order_ids = только реально обновлённые sub PK
+            # (sub_ids_to_update). sub_ids (all-history) используется ТОЛЬКО для
+            # _aggregate_master_sent_to_1c. Это предотвращает переизлучение чужих
+            # PK из предыдущих batch в downstream-обработчики.
             orders_bulk_updated.send(
                 sender=Order,
-                order_ids=sub_ids,
+                order_ids=sub_ids_to_update,
                 updated_count=updated,
                 field="sent_to_1c",
                 timestamp=now,
@@ -634,37 +638,51 @@ class ICExchangeView(APIView):
                 # Fallback: mark only sub-orders in the time window (AC10)
                 now = timezone.now()
                 with transaction.atomic():
+                    # AC9+AC10: все sub-order PK в окне (включая уже отправленные)
+                    # — нужны целиком для _aggregate_master_sent_to_1c, иначе
+                    # master не будет помечен, если все sub-order уже sent_to_1c=True.
                     fallback_sub_ids = list(
                         Order.objects.filter(
-                            sent_to_1c=False,
                             export_skipped=False,
                             created_at__lte=last_query_time,
                             is_master=False,
                             parent_order__isnull=False,
                         ).values_list("pk", flat=True)
                     )
-                    updated = Order.objects.filter(
-                        pk__in=fallback_sub_ids,
-                    ).update(
+                    # Update только ещё не отправленные sub-orders
+                    fallback_sub_ids_to_update = list(
+                        Order.objects.filter(
+                            pk__in=fallback_sub_ids,
+                            sent_to_1c=False,
+                        ).values_list("pk", flat=True)
+                    )
+                    updated = Order.objects.filter(pk__in=fallback_sub_ids_to_update).update(
                         sent_to_1c=True,
                         sent_to_1c_at=now,
                         updated_at=now,
                     )
+                    # Агрегация по ВСЕМ sub_ids в окне, не только обновлённым
                     aggregated_master_ids = self._aggregate_master_sent_to_1c(fallback_sub_ids, now)
 
                 logger.info(
                     f"[EXPORT SUCCESS] Fallback: marked {updated} sub-orders as sent_to_1c "
-                    f"(time-window: created_at <= {last_query_time})"
+                    f"(time-window: created_at <= {last_query_time}), "
+                    f"aggregated {len(aggregated_master_ids)} masters"
                 )
 
                 # Signal audit (QuerySet.update bypasses post_save).
                 # Fallback-ветка обязана эмитить тот же сигнал, что и основная,
                 # чтобы downstream-обработчики (аудит, kafka, уведомления)
                 # получили консистентное событие и в случае потери cache.
-                if updated > 0:
+                # AC11: эмитим даже при updated==0, если мастер агрегирован.
+                # Decision batch 9: order_ids = только реально обновлённые sub PK
+                # (fallback_sub_ids_to_update). fallback_sub_ids (all-history в окне)
+                # используется ТОЛЬКО для агрегации, чтобы fallback не переизлучал
+                # чужие PK из старых batch в сигнале.
+                if updated > 0 or aggregated_master_ids:
                     orders_bulk_updated.send(
                         sender=Order,
-                        order_ids=fallback_sub_ids,
+                        order_ids=fallback_sub_ids_to_update,
                         updated_count=updated,
                         field="sent_to_1c",
                         timestamp=now,
@@ -719,10 +737,12 @@ class ICExchangeView(APIView):
         )
 
         # AC11: сигнал эмитится даже если sub-orders уже были помечены, но мастер агрегирован
+        # Decision batch 9: order_ids = только реально обновлённые sub PK (sub_ids_to_update).
+        # sub_ids (all-history) используется ТОЛЬКО для _aggregate_master_sent_to_1c.
         if updated > 0 or aggregated_master_ids:
             orders_bulk_updated.send(
                 sender=Order,
-                order_ids=sub_ids,
+                order_ids=sub_ids_to_update,
                 updated_count=updated,
                 field="sent_to_1c",
                 timestamp=now,

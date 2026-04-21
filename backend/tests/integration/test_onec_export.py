@@ -1338,9 +1338,105 @@ class TestSubOrderSuccess:
 
         assert received_kwargs.get("field") == "sent_to_1c"
         assert "order_ids" in received_kwargs
-        assert set(received_kwargs["order_ids"]) >= {sub5.pk, sub22.pk}
+        # Decision batch 9: order_ids содержит ТОЛЬКО реально обновлённые sub PK,
+        # не все sub в окне created_at<=last_query_time (all-history scan идёт
+        # только в master_order_ids через _aggregate_master_sent_to_1c).
+        assert set(received_kwargs["order_ids"]) == {sub5.pk, sub22.pk}
         assert "master_order_ids" in received_kwargs
         assert master.pk in received_kwargs["master_order_ids"]
+
+    def test_fallback_aggregates_master_when_all_subs_already_sent(
+        self, authenticated_client, master_with_two_subs, log_dir
+    ):
+        """AC9 + AC10: fallback-ветка агрегирует master, даже если все sub
+        уже были sent_to_1c=True до запуска fallback.
+
+        Сценарий: sub-orders были помечены sent_to_1c=True вне handle_success
+        (например, через _mark_previous_query_as_sent), master остался
+        sent_to_1c=False, cache потерян. Fallback должен собрать sub-orders
+        в окне created_at<=last_query_time ВКЛЮЧАЯ уже отправленные
+        и передать их в _aggregate_master_sent_to_1c для пометки мастера.
+        """
+        from django.core.cache import cache as django_cache
+
+        master, sub5, sub22 = master_with_two_subs
+
+        # Query — фиксирует last_query_time в сессии
+        authenticated_client.get(
+            "/api/integration/1c/exchange/",
+            data={"mode": "query"},
+        )
+
+        # Subs уже отправлены (минуя handle_success), master остался.
+        Order.objects.filter(pk__in=[sub5.pk, sub22.pk]).update(sent_to_1c=True)
+
+        # Evict cache → fallback срабатывает
+        session = authenticated_client.session
+        cache_key = f"1c_exported_ids_{session.session_key}"
+        django_cache.delete(cache_key)
+
+        response = authenticated_client.get(
+            "/api/integration/1c/exchange/",
+            data={"mode": "success"},
+        )
+        assert response.status_code == 200
+        assert "success" in get_response_content(response).decode("utf-8")
+
+        master.refresh_from_db()
+        # Мастер должен быть агрегирован — все sub_orders помечены
+        assert master.sent_to_1c is True
+        assert master.sent_to_1c_at is not None
+
+    def test_fallback_emits_signal_when_only_master_aggregated(
+        self, authenticated_client, master_with_two_subs, log_dir
+    ):
+        """AC11: fallback эмитит orders_bulk_updated при updated==0,
+        если _aggregate_master_sent_to_1c пометил master.
+        """
+        from django.core.cache import cache as django_cache
+        from apps.orders.signals import orders_bulk_updated
+
+        master, sub5, sub22 = master_with_two_subs
+
+        authenticated_client.get(
+            "/api/integration/1c/exchange/",
+            data={"mode": "query"},
+        )
+
+        # Subs уже отправлены → fallback update пометит 0 записей
+        Order.objects.filter(pk__in=[sub5.pk, sub22.pk]).update(sent_to_1c=True)
+
+        # Evict cache
+        session = authenticated_client.session
+        cache_key = f"1c_exported_ids_{session.session_key}"
+        django_cache.delete(cache_key)
+
+        received_kwargs: dict = {}
+
+        def handler(sender, **kwargs):
+            received_kwargs.update(kwargs)
+
+        orders_bulk_updated.connect(handler)
+        try:
+            authenticated_client.get(
+                "/api/integration/1c/exchange/",
+                data={"mode": "success"},
+            )
+        finally:
+            orders_bulk_updated.disconnect(handler)
+
+        master.refresh_from_db()
+        assert master.sent_to_1c is True
+
+        # Сигнал эмитирован, несмотря на updated==0
+        assert received_kwargs.get("field") == "sent_to_1c"
+        assert received_kwargs.get("updated_count") == 0
+        assert "master_order_ids" in received_kwargs
+        assert master.pk in received_kwargs["master_order_ids"]
+        # Decision batch 9: order_ids содержит только реально обновлённые sub PK.
+        # Все sub уже были sent_to_1c=True → order_ids пуст, master всё равно
+        # попадает в сигнал через master_order_ids.
+        assert list(received_kwargs.get("order_ids", [])) == []
 
     def test_master_not_marked_directly_when_in_exported_ids(
         self, authenticated_client, customer_user, product_variant, log_dir
@@ -1520,8 +1616,61 @@ class TestSubOrderSuccess:
         assert received_kwargs.get("field") == "sent_to_1c"
         assert "master_order_ids" in received_kwargs
         assert master.pk in received_kwargs["master_order_ids"]
-        # order_ids содержит sub PK (отфильтрованный от master PK)
+        # Decision batch 9: order_ids содержит ТОЛЬКО реально обновлённые sub PK.
+        # sub уже был sent_to_1c=True до success → updated=0 → order_ids пуст.
+        # master.pk не должен попадать в order_ids ни при каких обстоятельствах.
         assert master.pk not in received_kwargs.get("order_ids", [])
+        assert list(received_kwargs.get("order_ids", [])) == []
+
+    def test_implicit_success_signal_excludes_already_sent_subs(
+        self, authenticated_client, master_with_two_subs, log_dir
+    ):
+        """Decision batch 9: при implicit success (_mark_previous_query_as_sent)
+        сигнал orders_bulk_updated.order_ids содержит ТОЛЬКО реально обновлённые
+        sub PK, а не весь prev_ids из cache.
+
+        Сценарий: первый mode=query экспортирует оба sub → cache[prev_ids]=[sub5, sub22].
+        sub5 помечается sent_to_1c=True вручную (имитируем внешнее обновление).
+        Второй mode=query триггерит _mark_previous_query_as_sent: prev_ids=[sub5, sub22],
+        но update затрагивает только sub22. Сигнал должен отразить это честно.
+        """
+        from apps.orders.signals import orders_bulk_updated
+
+        master, sub5, sub22 = master_with_two_subs
+
+        authenticated_client.get(
+            "/api/integration/1c/exchange/",
+            data={"mode": "query"},
+        )
+
+        # Внешнее обновление sub5 (например, через _mark_previous_query_as_sent
+        # параллельной сессии, ручную правку админа, скрипт миграции и т.п.).
+        Order.objects.filter(pk=sub5.pk).update(sent_to_1c=True)
+
+        received_kwargs: dict = {}
+
+        def handler(sender, **kwargs):
+            received_kwargs.update(kwargs)
+
+        orders_bulk_updated.connect(handler)
+        try:
+            authenticated_client.get(
+                "/api/integration/1c/exchange/",
+                data={"mode": "query"},
+            )
+        finally:
+            orders_bulk_updated.disconnect(handler)
+
+        sub22.refresh_from_db()
+        master.refresh_from_db()
+        assert sub22.sent_to_1c is True
+        assert master.sent_to_1c is True
+
+        # order_ids содержит только реально обновлённый sub22.
+        # sub5 (уже sent до второго query) в сигнале не переизлучается.
+        assert set(received_kwargs.get("order_ids", [])) == {sub22.pk}
+        assert sub5.pk not in received_kwargs.get("order_ids", [])
+        assert master.pk in received_kwargs.get("master_order_ids", [])
 
 
 @pytest.mark.django_db
