@@ -21,6 +21,7 @@ from rest_framework.test import APIClient
 
 from apps.orders.models import Order
 from tests.conftest import OrderFactory, OrderItemFactory, ProductVariantFactory, UserFactory
+from tests.helpers import create_master_with_subs
 from tests.utils import EXCHANGE_URL, ONEC_PASSWORD
 from tests.utils import build_orders_xml as _build_orders_xml
 from tests.utils import parse_commerceml_response, perform_1c_checkauth
@@ -300,63 +301,25 @@ def test_full_vat_split_export_import_cycle(auth_client, log_dir, db, settings):
         },
     }
 
-    # ARRANGE — master + 2 subs с разными VAT-группами
+    # ARRANGE — master + 2 subs с разными VAT-группами (через shared helper AC6)
     variant1 = ProductVariantFactory.create(retail_price=Decimal("1000.00"))
     variant2 = ProductVariantFactory.create(retail_price=Decimal("2000.00"))
 
-    master = Order.objects.create(
-        is_master=True,
+    master, subs = create_master_with_subs(
+        variants_with_vat=[
+            (variant1, Decimal("5.00")),
+            (variant2, Decimal("22.00")),
+        ],
         status="pending",
         sent_to_1c=False,
-        total_amount=Decimal("3000.00"),
-        delivery_address="ул. Тестовая, 1",
-        delivery_method="courier",
-        payment_method="card",
     )
+    sub1, sub2 = subs
 
-    sub1 = Order.objects.create(
-        is_master=False,
-        parent_order=master,
-        vat_group=Decimal("5.00"),
-        status="pending",
-        sent_to_1c=False,
-        total_amount=Decimal("1000.00"),
-        delivery_address="ул. Тестовая, 1",
-        delivery_method="courier",
-        payment_method="card",
-    )
+    # Устанавливаем order_number для XML-ссылок
     sub1.order_number = f"order-{sub1.pk}"
     sub1.save(update_fields=["order_number"])
-    OrderItemFactory.create(
-        order=sub1,
-        product=variant1.product,
-        variant=variant1,
-        unit_price=Decimal("1000.00"),
-        quantity=1,
-        total_price=Decimal("1000.00"),
-    )
-
-    sub2 = Order.objects.create(
-        is_master=False,
-        parent_order=master,
-        vat_group=Decimal("22.00"),
-        status="pending",
-        sent_to_1c=False,
-        total_amount=Decimal("2000.00"),
-        delivery_address="ул. Тестовая, 1",
-        delivery_method="courier",
-        payment_method="card",
-    )
     sub2.order_number = f"order-{sub2.pk}"
     sub2.save(update_fields=["order_number"])
-    OrderItemFactory.create(
-        order=sub2,
-        product=variant2.product,
-        variant=variant2,
-        unit_price=Decimal("2000.00"),
-        quantity=1,
-        total_price=Decimal("2000.00"),
-    )
 
     # ACT 1 — экспорт: mode=query
     resp_query = _get_exchange(auth_client, "query")
@@ -375,6 +338,15 @@ def test_full_vat_split_export_import_cycle(auth_client, log_dir, db, settings):
     )
     assert org_by_number[sub2.order_number] == "ИП Семерюк Д. В.", (
         f"sub2 (vat_group=22): ожидали 'ИП Семерюк Д. В.', получили {org_by_number[sub2.order_number]!r}"
+    )
+
+    # Проверяем склады по vat_group (AC5: ORGANIZATION_BY_VAT задаёт и Склад)
+    warehouse_by_number = {doc.findtext("Номер"): doc.findtext("Склад") for doc in documents}
+    assert warehouse_by_number[sub1.order_number] == "2 ТЛВ склад", (
+        f"sub1 (vat_group=5): ожидали '2 ТЛВ склад', получили {warehouse_by_number[sub1.order_number]!r}"
+    )
+    assert warehouse_by_number[sub2.order_number] == "1 СДВ склад", (
+        f"sub2 (vat_group=22): ожидали '1 СДВ склад', получили {warehouse_by_number[sub2.order_number]!r}"
     )
 
     # ACT 2 — mode=success: помечаем как отправленные

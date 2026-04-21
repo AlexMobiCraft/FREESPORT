@@ -64,13 +64,13 @@ def create_master_with_subs(
     if not variants_with_vat:
         raise ValueError("variants_with_vat не может быть пустым — нужен хотя бы один (variant, vat_rate)")
 
-    # Проверка на дублирование variant в одной VAT-группе
+    # Проверка на дублирование variant в одной VAT-группе (по pk, не по id() объекта)
     seen: set[tuple] = set()
     for variant, vat_rate in variants_with_vat:
-        key = (id(variant), vat_rate)
+        key = (variant.pk, vat_rate)
         if key in seen:
             raise ValueError(
-                f"Variant {variant!r} дублируется для vat_rate={vat_rate} — нарушает OrderItem unique constraint"
+                f"Variant pk={variant.pk} дублируется для vat_rate={vat_rate} — нарушает OrderItem unique constraint"
             )
         seen.add(key)
 

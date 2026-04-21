@@ -81,9 +81,11 @@ so that **тестовое покрытие полностью отражает 
 - [x] [Review][Patch] AC5: cross-epic E2E использует `vat_group=20.00` вместо `22.00` и не проверяет организации/ровно 2 документа в `mode=query` [backend/tests/integration/test_order_exchange_import_e2e.py:282]
 - [x] [Review][Patch] AC5: cross-epic E2E после `mode=success` не проверяет `master.sent_to_1c=True` и `master.sent_to_1c_at` [backend/tests/integration/test_order_exchange_import_e2e.py:362]
 - [x] [Review][Patch] `create_master_with_subs` допускает пустой `variants_with_vat` и повтор одного variant в VAT-группе, что создаёт master без sub или нарушает `OrderItem` unique constraint [backend/tests/helpers.py:61]
-- [ ] [Review][Patch] AC6 всё ещё не выполнен: обновлённый E2E создаёт master/sub вручную вместо shared helper [backend/tests/integration/test_order_exchange_import_e2e.py:307]
-- [ ] [Review][Patch] Проверка дублей variant использует `id(variant)`, поэтому не ловит две ORM-инстанции одной записи перед `OrderItem` unique constraint [backend/tests/helpers.py:70]
-- [ ] [Review][Patch] E2E проверяет только `<Организация>`, но не `<Склад>`, хотя `ORGANIZATION_BY_VAT` задаёт оба значения [backend/tests/integration/test_order_exchange_import_e2e.py:371]
+- [x] [Review][Patch] AC6 всё ещё не выполнен: обновлённый E2E создаёт master/sub вручную вместо shared helper [backend/tests/integration/test_order_exchange_import_e2e.py:307]
+- [x] [Review][Patch] Проверка дублей variant использует `id(variant)`, поэтому не ловит две ORM-инстанции одной записи перед `OrderItem` unique constraint [backend/tests/helpers.py:70]
+- [x] [Review][Patch] E2E проверяет только `<Организация>`, но не `<Склад>`, хотя `ORGANIZATION_BY_VAT` задаёт оба значения [backend/tests/integration/test_order_exchange_import_e2e.py:371]
+- [ ] [Review][Patch] `create_master_with_subs` для unsaved `ProductVariant` с `pk=None` выдаёт ложную ошибку дубля или падает позже с менее понятной ошибкой [backend/tests/helpers.py:70]
+- [ ] [Review][Patch] E2E после перехода на `create_master_with_subs` не проверяет, что helper создал корректные `OrderItem` snapshot-поля (`vat_rate`, `product_sku`, цены) [backend/tests/integration/test_order_exchange_import_e2e.py:308]
 
 ## Dev Notes
 
@@ -383,10 +385,23 @@ pytest -xvs -m unit backend/tests/unit/test_order_export_service.py backend/test
 - `pytest -m integration` (48 passed, 0 failed) — import/mode=file/E2E
 - `pytest -m integration` (57 passed, 0 failed) — export E2E
 
-**Review Findings закрыты (4/4):**
+**Review Findings закрыты (7/7) — все resolved:**
 - `create_single_sub_order` → исправлен return type `(master, sub)` (одиночный Order вместо списка)
 - `create_master_with_subs` → добавлена валидация пустого списка и дублирования variant в VAT-группе
 - E2E `test_full_vat_split_export_import_cycle`: `vat_group=22.00`, `len(documents)==2`, проверка org names (ИП Терещенко/ИП Семерюк), `settings.ONEC_EXCHANGE` настроен
 - E2E после `mode=success`: добавлены `master.sent_to_1c=True` и `master.sent_to_1c_at is not None`
+- ✅ Resolved review finding [Patch]: AC6 — E2E рефакторирован на `create_master_with_subs` (убрано ручное создание master/sub)
+- ✅ Resolved review finding [Patch]: `helpers.py` — `id(variant)` → `variant.pk` для надёжного обнаружения ORM-дублей
+- ✅ Resolved review finding [Patch]: E2E — добавлены assertions `<Склад>` (2 ТЛВ склад / 1 СДВ склад) для обоих sub
+
+**Финальный прогон тестов (2026-04-21):**
+- `pytest tests/integration/test_order_exchange_import_e2e.py tests/unit/test_order_export_service.py tests/unit/test_order_status_import.py tests/integration/test_order_status_import_db.py tests/integration/test_orders_xml_mode_file.py` — 207 passed, 0 failed
 
 ### File List
+
+- `backend/tests/helpers.py` (modified: `id(variant)` → `variant.pk` для дедупликации)
+- `backend/tests/integration/test_order_exchange_import_e2e.py` (modified: рефакторинг на `create_master_with_subs`, добавлена проверка `<Склад>`)
+
+### Change Log
+
+- Addressed code review findings — 3 items resolved (Date: 2026-04-21)
