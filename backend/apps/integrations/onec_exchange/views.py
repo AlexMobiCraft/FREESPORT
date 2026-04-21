@@ -638,21 +638,20 @@ class ICExchangeView(APIView):
                 # Fallback: mark only sub-orders in the time window (AC10)
                 now = timezone.now()
                 with transaction.atomic():
-                    # AC9+AC10: все sub-order PK в окне (включая уже отправленные)
-                    # — нужны целиком для _aggregate_master_sent_to_1c, иначе
-                    # master не будет помечен, если все sub-order уже sent_to_1c=True.
-                    fallback_sub_ids = list(
+                    # AC10 (2026-04-21 rework): fallback работает только с
+                    # фактически затронутыми sub-order — touched-only поведение.
+                    # fallback_sub_ids_to_update — единственный набор для
+                    # update(...), _aggregate_master_sent_to_1c(...) и
+                    # orders_bulk_updated.order_ids. Repair-сценарий, где
+                    # sub-order уже помечены, а master ещё нет, решается
+                    # отдельной management-командой, а не побочным эффектом
+                    # mode=success.
+                    fallback_sub_ids_to_update = list(
                         Order.objects.filter(
                             export_skipped=False,
                             created_at__lte=last_query_time,
                             is_master=False,
                             parent_order__isnull=False,
-                        ).values_list("pk", flat=True)
-                    )
-                    # Update только ещё не отправленные sub-orders
-                    fallback_sub_ids_to_update = list(
-                        Order.objects.filter(
-                            pk__in=fallback_sub_ids,
                             sent_to_1c=False,
                         ).values_list("pk", flat=True)
                     )
@@ -661,8 +660,12 @@ class ICExchangeView(APIView):
                         sent_to_1c_at=now,
                         updated_at=now,
                     )
-                    # Агрегация по ВСЕМ sub_ids в окне, не только обновлённым
-                    aggregated_master_ids = self._aggregate_master_sent_to_1c(fallback_sub_ids, now)
+                    # Агрегация только по реально обновлённым sub-order.
+                    # При updated == 0 агрегация не запускается.
+                    if updated > 0:
+                        aggregated_master_ids = self._aggregate_master_sent_to_1c(fallback_sub_ids_to_update, now)
+                    else:
+                        aggregated_master_ids = []
 
                 logger.info(
                     f"[EXPORT SUCCESS] Fallback: marked {updated} sub-orders as sent_to_1c "
@@ -671,15 +674,11 @@ class ICExchangeView(APIView):
                 )
 
                 # Signal audit (QuerySet.update bypasses post_save).
-                # Fallback-ветка обязана эмитить тот же сигнал, что и основная,
-                # чтобы downstream-обработчики (аудит, kafka, уведомления)
-                # получили консистентное событие и в случае потери cache.
-                # AC11: эмитим даже при updated==0, если мастер агрегирован.
-                # Decision batch 9: order_ids = только реально обновлённые sub PK
-                # (fallback_sub_ids_to_update). fallback_sub_ids (all-history в окне)
-                # используется ТОЛЬКО для агрегации, чтобы fallback не переизлучал
-                # чужие PK из старых batch в сигнале.
-                if updated > 0 or aggregated_master_ids:
+                # Touched-only rework (2026-04-21): если ни один sub-order
+                # фактически не был обновлён — fallback не агрегирует master
+                # и не эмитит сигнал. Это предотвращает repair-эффект для
+                # всего окна created_at <= last_query_time.
+                if updated > 0:
                     orders_bulk_updated.send(
                         sender=Order,
                         order_ids=fallback_sub_ids_to_update,

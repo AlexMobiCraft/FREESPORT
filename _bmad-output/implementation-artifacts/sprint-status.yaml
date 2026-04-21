@@ -35,7 +35,7 @@ project: "FREESPORT"
 project_key: "1C-HTTP-EXCHANGE"
 tracking_system: "file-system"
 story_location: "{project-root}/_bmad-output/implementation-artifacts"
-last_updated: "2026-04-21"  # Story 34-3: checkpoint rework finding → in-progress
+last_updated: "2026-04-21"  # Story 34-3: all review findings resolved → done
 
 development_status:
   # ========================================
@@ -130,6 +130,6 @@ development_status:
   epic-34: in-progress
   34-1-order-model-vat-split-fields-migrations: done
   34-2-sub-order-creation-logic-and-api: done
-  34-3-order-export-service-sub-orders: in-progress
+  34-3-order-export-service-sub-orders: done
   34-4-order-status-import-aggregation: review
   34-5-tests-update-epics-4-5: backlog

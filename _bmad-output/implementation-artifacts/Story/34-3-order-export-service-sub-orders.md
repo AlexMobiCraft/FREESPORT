@@ -1,6 +1,6 @@
 # Story 34.3: OrderExportService — работа с субзаказами (один XML-документ на VAT-группу)
 
-Status: in-progress
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -81,8 +81,8 @@ so that **в 1С:УТ 11 каждый документ уходит в свою 
             aggregated_master_ids.append(master_id)
     ```
   - [x] 3.2: В `_mark_previous_query_as_sent` повторить ту же агрегацию после основного `update(...)`. Использовать один и тот же private helper `_aggregate_master_sent_to_1c(sub_ids, now)` в том же `views.py` (DRY).
-  - [x] 3.3: Для fallback time-window ветки `handle_success` (когда `exported_ids is None`): в `Order.objects.filter(...).update(...)` добавить `is_master=False, parent_order__isnull=False` (AC10), собрать ID субзаказов в окне через `values_list` **до** update, затем вызвать тот же `_aggregate_master_sent_to_1c`.
-  - [x] 3.4: Сигнал `orders_bulk_updated` — передавать `order_ids=<sub_ids>` (как раньше) и добавить keyword-аргумент `master_order_ids=<aggregated_master_ids>`. Не ломать подпись: проверить, что ни один существующий обработчик в `apps/orders/signals.py` / `apps/orders/tasks.py` не полагается на точный список `kwargs`.
+  - [x] 3.3: Для fallback time-window ветки `handle_success` (когда `exported_ids is None`): собрать `fallback_sub_ids_to_update` через `values_list` **до** update с фильтрами `sent_to_1c=False`, `is_master=False`, `parent_order__isnull=False` (AC10). `fallback_sub_ids_to_update` — единственный набор для `update(...)`, `_aggregate_master_sent_to_1c(...)` и `orders_bulk_updated.order_ids`; если `updated == 0`, fallback не запускает агрегацию мастера и не эмитит сигнал.
+  - [x] 3.4: Сигнал `orders_bulk_updated` — передавать `order_ids=<sub_ids_to_update>` / `order_ids=<fallback_sub_ids_to_update>` (только фактически обновлённые sub-order PK) и добавить keyword-аргумент `master_order_ids=<aggregated_master_ids>`. Не ломать подпись: проверить, что ни один существующий обработчик в `apps/orders/signals.py` / `apps/orders/tasks.py` не полагается на точный список `kwargs`.
 
 - [x] Task 4: Unit-тесты `OrderExportService` (AC: 3, 4, 5, 8, 13, 15)
   - [x] 4.1: В `backend/tests/unit/test_order_export_service.py` добавить helper `_make_master_with_sub(vat_group, variant_vat_rate=..., item_vat_rate=...)`, возвращающий пару `(master, sub_order)` с одним `OrderItem`.
@@ -367,13 +367,26 @@ pytest -xvs -m unit backend/tests/unit/test_order_export_service.py
 
 **Review findings (2026-04-20/21, fallback rework):**
 
-- [ ] [Review][Patch] Вернуть fallback `mode=success` к touched-only поведению: `fallback_sub_ids_to_update` должен быть единственным набором для `update(...)`, `_aggregate_master_sent_to_1c(...)` и `orders_bulk_updated.order_ids`; если `updated == 0`, fallback не агрегирует master и не эмитит сигнал. Удалить или инвертировать ожидания `test_fallback_aggregates_master_when_all_subs_already_sent` и `test_fallback_emits_signal_when_only_master_aggregated`, добавить/оставить тест, что fallback не агрегирует master при `updated == 0`. Редкий repair-сценарий, где sub-order уже помечены, а master ещё нет, должен решаться отдельной management-командой или отдельной story, а не побочным эффектом `mode=success`. [backend/apps/integrations/onec_exchange/views.py:640]
+- [x] [Review][Patch] Вернуть fallback `mode=success` к touched-only поведению: `fallback_sub_ids_to_update` должен быть единственным набором для `update(...)`, `_aggregate_master_sent_to_1c(...)` и `orders_bulk_updated.order_ids`; если `updated == 0`, fallback не агрегирует master и не эмитит сигнал. Удалить или инвертировать ожидания `test_fallback_aggregates_master_when_all_subs_already_sent` и `test_fallback_emits_signal_when_only_master_aggregated`, добавить/оставить тест, что fallback не агрегирует master при `updated == 0`. Редкий repair-сценарий, где sub-order уже помечены, а master ещё нет, должен решаться отдельной management-командой или отдельной story, а не побочным эффектом `mode=success`. [backend/apps/integrations/onec_exchange/views.py:640]
 
 **Устаревшие resolution notes (2026-04-20, batches 8-9):**
 
 8. **Заменено доработкой 2026-04-21** — batch 8 сделал fallback repair-режимом: `fallback_sub_ids` собирал ВСЕ sub-order PK в окне `created_at <= last_query_time` для `_aggregate_master_sent_to_1c`, а `fallback_sub_ids_to_update` использовался только для `update(...)`. Это больше не является финальным решением story.
 9. **Заменено доработкой 2026-04-21** — guard fallback-ветки был расширен до `if updated > 0 or aggregated_master_ids`, чтобы сигнал эмитился при `updated == 0`, если master агрегирован. После rework fallback не должен агрегировать master при `updated == 0`, поэтому этот guard нужно вернуть к поведению «только фактически затронутые sub-order».
 10. **Частично сохранено** — решение batch 9 по семантике `orders_bulk_updated.order_ids = только реально обновлённые sub PK` остаётся. Часть про all-history scan внутри `_aggregate_master_sent_to_1c` для fallback отклонена checkpoint-решением 2026-04-21.
+
+**Resolution note (2026-04-21, fallback touched-only rework):**
+
+11. **Finding fixed** — fallback `mode=success` переведён на touched-only поведение: `fallback_sub_ids_to_update` — единственный набор для `update(...)`, `_aggregate_master_sent_to_1c(...)` и `orders_bulk_updated.order_ids`. При `updated == 0` агрегация master не запускается и сигнал не эмитируется. Guard упрощён с `if updated > 0 or aggregated_master_ids` до `if updated > 0`. Тесты `test_fallback_aggregates_master_when_all_subs_already_sent` и `test_fallback_emits_signal_when_only_master_aggregated` заменены на `test_fallback_does_not_aggregate_master_when_updated_is_zero` и `test_fallback_does_not_emit_signal_when_updated_is_zero`. Полный прогон: 126/126 зелёных (61 unit + 49 integration + 16 E2E).
+
+**Review findings (2026-04-21, BMAD code review):**
+
+- [x] [Review][Patch] Story artifact still contains superseded fallback notes: Completion Notes/File List/Change Log continue to describe the fallback rework as open or pending, despite the new resolution note marking it fixed. [_bmad-output/implementation-artifacts/Story/34-3-order-export-service-sub-orders.md:414]
+
+### Review Findings
+
+- [x] [Review][Patch] Актуализировать Task 3.3 под финальное touched-only поведение fallback [_bmad-output/implementation-artifacts/Story/34-3-order-export-service-sub-orders.md:84]
+- [x] [Review][Patch] Обновить File List для sprint-status.yaml после перевода story в review [_bmad-output/implementation-artifacts/Story/34-3-order-export-service-sub-orders.md:432]
 
 ### Agent Model Used
 
@@ -382,10 +395,9 @@ Windsurf Cascade (Claude Sonnet 4)
 ### Debug Log References
 
 - Unit tests: 61 passed (batch-4: test_requisites_organization_uses_dynamic_value и test_vat_group_is_authoritative_over_variant_warehouse_name переработаны для конфликтного сценария vat_group=5/variant.vat_rate=22)
-- Integration tests (Story 34-3 specific): 9/9 passed (TestSubOrderQuery×3, TestSubOrderSuccess×9, TestLegacyOrderExclusion×1 = 13 Story 34-3 specific)
-- All integration: 46/46 passed
+- Integration tests (Story 34-3 specific): 49/49 passed (TestSubOrderQuery×3, TestSubOrderSuccess×11, TestLegacyOrderExclusion×1 + legacy tests)
 - E2E tests: 16/16 passed (8 export + 8 import)
-- Total: 123/123 passed
+- Total: 126/126 passed (61 unit + 49 integration + 16 E2E)
 - Flake8: 0 errors on order_export.py, test_order_export_service.py, test_onec_export.py, views.py
 - Black: 3 files left unchanged
 
@@ -405,22 +417,24 @@ Windsurf Cascade (Claude Sonnet 4)
 12. ✅ Resolved review finding [Patch] AC5 line VAT verification: добавлены assertions `<Ставка>22</Ставка>` в `test_requisites_organization_uses_dynamic_value` и `test_vat_group_is_authoritative_over_variant_warehouse_name` — оба теста теперь проверяют, что `variant.vat_rate=22` побеждает `order_vat_rate=5` (из vat_group) в строке XML. Полный прогон: 105/105 зелёных (61 unit + 44 integration).
 13. ✅ Resolved review finding [Med]: E2E-тесты (`test_onec_export_e2e.py`, `test_order_exchange_import_e2e.py`) обновлены под export-only sub-orders. Добавлен `_create_master_with_sub()` helper; `_create_order_with_item()` возвращает sub-order. Все assertions обновлены на `sub.sent_to_1c` + `master.sent_to_1c` (агрегация). Полный прогон: E2E export 8/8, E2E import 8/8, unit 61/61, integration 44/44 — итого 121 тест зелёный.
 14. ✅ Resolved review finding [Patch] AC9/AC11: `_mark_previous_query_as_sent` и `handle_success` теперь фильтруют `is_master=False` перед update, отделяя `sub_ids` (для агрегации) от `sub_ids_to_update` (для update). `order_ids` в сигнале содержит только sub-order PK, мастер PK исключены. Guard `if updated > 0 or aggregated_master_ids` эмитит сигнал даже при updated==0. Новые тесты: `test_master_not_marked_directly_when_in_exported_ids`, `test_signal_emitted_when_only_master_aggregated`. Полный прогон: 123/123 зелёных (61 unit + 46 integration + 16 E2E).
-15. Заменено checkpoint-доработкой 2026-04-21: batch 8 fallback aggregation сделал `mode=success` repair-механизмом по всему окну `created_at <= last_query_time`. Это больше не финальное решение story.
-16. Заменено checkpoint-доработкой 2026-04-21: batch 8 fallback signal guard `updated > 0 or aggregated_master_ids` должен быть пересмотрен, потому что fallback не должен агрегировать master при `updated == 0`.
-17. Частично сохранено: batch 9 контракт `orders_bulk_updated.order_ids = только реально изменённые sub PK` остаётся правильным. Часть про all-history scan внутри fallback `_aggregate_master_sent_to_1c` отклонена и требует доработки к поведению «только фактически затронутые sub-order».
-18. Открытая доработка записана в стандартном BMAD-формате `Review Findings`: использовать `fallback_sub_ids_to_update` как единственный набор для fallback `update(...)`, `_aggregate_master_sent_to_1c(...)` и `orders_bulk_updated.order_ids`; при `updated == 0` fallback не агрегирует master и не эмитит сигнал.
+15. ~~Superseded~~ (resolved в note 19): batch 8 fallback aggregation был repair-механизмом по всему окну — заменён touched-only поведением в note 19.
+16. ~~Superseded~~ (resolved в note 19): fallback signal guard упрощён до `if updated > 0` — при `updated == 0` агрегация и сигнал не запускаются.
+17. ~~Superseded~~ (resolved в note 19): batch 9 контракт `order_ids = только реально изменённые sub PK` сохранён. All-history scan отклонён и заменён touched-only поведением.
+18. ~~Superseded~~ (resolved в note 19): `fallback_sub_ids_to_update` реализован как единственный набор для update/aggregate/signal. При `updated == 0` fallback не агрегирует master и не эмитит сигнал.
+19. ✅ Resolved review finding [Patch] (2026-04-21): fallback `mode=success` переведён на touched-only поведение. При `updated == 0` агрегация master не запускается, сигнал не эмитируется. 2 старых теста заменены на `test_fallback_does_not_aggregate_master_when_updated_is_zero` и `test_fallback_does_not_emit_signal_when_updated_is_zero`. Полный прогон: 126/126 зелёных.
+20. ✅ Resolved review finding [Patch] (2026-04-21, BMAD code review): очистка устаревших описаний fallback rework в Completion Notes 15-18, File List и Change Log — помечены как ~~Superseded~~ (resolved в note 19). Статус: review.
 
 ### File List
 
 | File | Action |
 |------|--------|
 | `backend/apps/orders/services/order_export.py` | Modified: _get_order_vat_rate (vat_group priority), _create_products_element (AC5 chain без warehouse, AC8 DEFAULT routing + warning), generate_xml_streaming (master-guard), docstrings, comments |
-| `backend/apps/integrations/onec_exchange/views.py` | Modified: handle_query queryset (is_master=False), _aggregate_master_sent_to_1c (new helper), handle_success (aggregation + fallback), _mark_previous_query_as_sent (aggregation), signal master_order_ids, order_ids → *_to_update (batch 9 Decision). Fallback all-history aggregation помечен к доработке на поведение «только фактически затронутые sub-order» (2026-04-21). |
+| `backend/apps/integrations/onec_exchange/views.py` | Modified: handle_query queryset (is_master=False), _aggregate_master_sent_to_1c (new helper), handle_success (aggregation + touched-only fallback), _mark_previous_query_as_sent (aggregation), signal master_order_ids, order_ids → *_to_update. Fallback переведён на touched-only поведение (2026-04-21). |
 | `backend/tests/unit/test_order_export_service.py` | Modified: _make_order_with_variant (master+sub, +vat_group param), _make_master_with_sub helper, TestGetOrderVatRateSubOrder (2), TestOrderExportServiceSubOrderDocument (7 including 2 new), TestOrderExportServiceMasterGuard (1), TestLegacyOrderWithoutSubOrders (1). Updated 22 legacy tests + 2 TestOrderExportVatAndOrgInXML tests. |
-| `backend/tests/integration/test_onec_export.py` | Modified: order_for_export fixture (master+sub), guest order test (master+sub), empty order test (master+sub), strengthened signal assertions (batch 9: equality + order_ids==[] checks). Added: master_with_two_subs fixture, TestSubOrderQuery, TestSubOrderSuccess, TestLegacyOrderExclusion. Batch 8 fallback-only-master tests помечены к доработке. |
+| `backend/tests/integration/test_onec_export.py` | Modified: order_for_export fixture (master+sub), guest order test (master+sub), empty order test (master+sub), strengthened signal assertions (batch 9: equality + order_ids==[] checks). Added: master_with_two_subs fixture, TestSubOrderQuery, TestSubOrderSuccess, TestLegacyOrderExclusion. Fallback tests заменены на touched-only варианты (2026-04-21). |
 | `backend/tests/integration/test_onec_export_e2e.py` | Modified: All fixtures updated to master+sub structure. Added `_create_master_with_sub()` helper. Updated 8 tests for export-only sub-orders with master aggregation assertions. |
 | `backend/tests/integration/test_order_exchange_import_e2e.py` | Modified: `_create_order_with_item()` returns sub-order (master+sub structure). Updated all 8 tests for sub-order export + import cycle. |
-| `_bmad-output/implementation-artifacts/sprint-status.yaml` | Updated: 34-3 status in-progress после checkpoint rework finding. |
+| `_bmad-output/implementation-artifacts/sprint-status.yaml` | Updated: 34-3 status done после закрытия BMAD code review findings. |
 
 ## Change Log
 
@@ -438,4 +452,6 @@ Windsurf Cascade (Claude Sonnet 4)
 | 2026-04-20 | Addressed code review finding batch 7 — 2 items resolved [Patch×2]: AC9/AC11 — `_mark_previous_query_as_sent` и `handle_success` фильтруют `is_master=False` перед update; `sub_ids` (для агрегации) отделён от `sub_ids_to_update` (для update); `order_ids` в сигнале содержит только sub-order PK; guard `updated > 0 or aggregated_master_ids` эмитит сигнал при updated==0. 2 новых integration-теста. Полный прогон: 123/123 зелёных (61 unit + 46 integration + 16 E2E). Статус: review. |
 | 2026-04-20 | Batch 8 implemented fallback repair behavior: fallback собирал все sub-order PK в окне для `_aggregate_master_sent_to_1c` и эмитил сигнал при `updated > 0 or aggregated_master_ids`. Позже superseded checkpoint-решением 2026-04-21. |
 | 2026-04-20 | Batch 9 clarified signal scope: `orders_bulk_updated.order_ids` переведён на `sub_ids_to_update` / `fallback_sub_ids_to_update` (только реально изменённые sub PK). Эта часть сохранена; all-history scan fallback заменён checkpoint-решением 2026-04-21. |
-| 2026-04-21 | Checkpoint rework записан в стандартном BMAD-формате `Review Findings`: fallback после потери cache должен работать только с фактически затронутыми sub-order, а не repair-сканом всей истории окна. Статус: in-progress, ожидает доработки. |
+| 2026-04-21 | Checkpoint rework записан в стандартном BMAD-формате `Review Findings`: fallback после потери cache должен работать только с фактически затронутыми sub-order, а не repair-сканом всей истории окна. Resolved в следующем entry. |
+| 2026-04-21 | Addressed code review finding (fallback touched-only rework): fallback `mode=success` переведён на touched-only поведение — `fallback_sub_ids_to_update` как единственный набор для update/aggregate/signal. При `updated == 0` агрегация и сигнал не запускаются. 2 теста заменены. Полный прогон: 126/126 зелёных. Статус: review. |
+| 2026-04-21 | Addressed BMAD code review finding [Patch]: очистка устаревших описаний fallback rework в Completion Notes 15-18, File List и Change Log — помечены как ~~Superseded~~ (resolved в note 19). Статус: review. |

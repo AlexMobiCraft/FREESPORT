@@ -1345,17 +1345,18 @@ class TestSubOrderSuccess:
         assert "master_order_ids" in received_kwargs
         assert master.pk in received_kwargs["master_order_ids"]
 
-    def test_fallback_aggregates_master_when_all_subs_already_sent(
+    def test_fallback_does_not_aggregate_master_when_updated_is_zero(
         self, authenticated_client, master_with_two_subs, log_dir
     ):
-        """AC9 + AC10: fallback-ветка агрегирует master, даже если все sub
-        уже были sent_to_1c=True до запуска fallback.
+        """AC10 (2026-04-21 touched-only rework): fallback НЕ агрегирует
+        master, если ни один sub-order не был фактически обновлён.
 
-        Сценарий: sub-orders были помечены sent_to_1c=True вне handle_success
-        (например, через _mark_previous_query_as_sent), master остался
-        sent_to_1c=False, cache потерян. Fallback должен собрать sub-orders
-        в окне created_at<=last_query_time ВКЛЮЧАЯ уже отправленные
-        и передать их в _aggregate_master_sent_to_1c для пометки мастера.
+        Сценарий: sub-orders уже были sent_to_1c=True (например, через
+        _mark_previous_query_as_sent), master остался sent_to_1c=False,
+        cache потерян. Fallback видит `updated == 0` в окне и не должен
+        запускать _aggregate_master_sent_to_1c. Repair-сценарий
+        (sub отправлены, master ещё нет) должен решаться отдельной
+        management-командой, а не побочным эффектом mode=success.
         """
         from django.core.cache import cache as django_cache
 
@@ -1383,15 +1384,20 @@ class TestSubOrderSuccess:
         assert "success" in get_response_content(response).decode("utf-8")
 
         master.refresh_from_db()
-        # Мастер должен быть агрегирован — все sub_orders помечены
-        assert master.sent_to_1c is True
-        assert master.sent_to_1c_at is not None
+        # Мастер НЕ должен быть агрегирован — fallback не трогает окно,
+        # когда нечего обновлять.
+        assert master.sent_to_1c is False
+        assert master.sent_to_1c_at is None
 
-    def test_fallback_emits_signal_when_only_master_aggregated(
+    def test_fallback_does_not_emit_signal_when_updated_is_zero(
         self, authenticated_client, master_with_two_subs, log_dir
     ):
-        """AC11: fallback эмитит orders_bulk_updated при updated==0,
-        если _aggregate_master_sent_to_1c пометил master.
+        """AC11 (2026-04-21 touched-only rework): fallback НЕ эмитит
+        orders_bulk_updated при updated==0.
+
+        Даже если master остался sent_to_1c=False, а sub-order уже отправлены —
+        fallback не должен эмитить сигнал, потому что он работает только с
+        фактически затронутыми записями.
         """
         from django.core.cache import cache as django_cache
         from apps.orders.signals import orders_bulk_updated
@@ -1411,10 +1417,10 @@ class TestSubOrderSuccess:
         cache_key = f"1c_exported_ids_{session.session_key}"
         django_cache.delete(cache_key)
 
-        received_kwargs: dict = {}
+        received_calls: list[dict] = []
 
         def handler(sender, **kwargs):
-            received_kwargs.update(kwargs)
+            received_calls.append(kwargs)
 
         orders_bulk_updated.connect(handler)
         try:
@@ -1426,17 +1432,12 @@ class TestSubOrderSuccess:
             orders_bulk_updated.disconnect(handler)
 
         master.refresh_from_db()
-        assert master.sent_to_1c is True
+        # Master остаётся не помеченным — fallback не запускает агрегацию.
+        assert master.sent_to_1c is False
 
-        # Сигнал эмитирован, несмотря на updated==0
-        assert received_kwargs.get("field") == "sent_to_1c"
-        assert received_kwargs.get("updated_count") == 0
-        assert "master_order_ids" in received_kwargs
-        assert master.pk in received_kwargs["master_order_ids"]
-        # Decision batch 9: order_ids содержит только реально обновлённые sub PK.
-        # Все sub уже были sent_to_1c=True → order_ids пуст, master всё равно
-        # попадает в сигнал через master_order_ids.
-        assert list(received_kwargs.get("order_ids", [])) == []
+        # Сигнал НЕ эмитирован — touched-only rework: при updated==0
+        # fallback вообще не шлёт orders_bulk_updated.
+        assert received_calls == []
 
     def test_master_not_marked_directly_when_in_exported_ids(
         self, authenticated_client, customer_user, product_variant, log_dir
