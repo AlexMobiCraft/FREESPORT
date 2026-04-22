@@ -29,6 +29,7 @@
 Базовое описание товара.
 - **base_images**: JSON-список URL изображений из 1С (fallback).
 - **specifications**: JSONB-поле для технических характеристик.
+- **vat_rate**: Ставка НДС базового товара из `goods.xml`. Используется как fallback для `ProductVariant.vat_rate`, если ставка пришла отдельно от `offers.xml`.
 - **Маркетинговые флаги**: `is_hit`, `is_new`, `is_sale`, `is_promo`, `is_premium`.
 
 ### ProductVariant (SKU)
@@ -37,6 +38,8 @@
 - **Цены (6 типов)**: `retail_price`, `opt1-3_price`, `trainer_price`, `federation_price`.
 - **Остатки**: `stock_quantity`, `reserved_quantity`.
 - **Характеристики**: `color_name`, `size_value`.
+- **vat_rate**: Основной каталожный источник НДС для создания заказа и fallback при экспорте.
+- **warehouse_id / warehouse_name**: GUID и имя склада из 1С; используются для split заказов и выбора склада в CommerceML.
 
 ### Category & Brand
 - **Category**: Иерархическая структура (Self-referencing FK).
@@ -56,10 +59,12 @@
 - **total_amount**: Сумма (товары + доставка - скидки).
 - **Статусы**: `pending`, `confirmed`, `processing`, `shipped`, `delivered`, `cancelled`.
 - **Платежи**: Интеграция с ЮKassa через `payment_id`.
+- **parent_order / is_master / vat_group**: Структура `master-order` + технические `sub-orders` для экспорта в 1С. `sub-order` группируется по `(vat_rate, warehouse_name)`, а `vat_group` является авторитетной ставкой документа CommerceML.
 
 ### OrderItem
 Снимок (Snapshot) купленного товара.
 - Копирует `product_name`, `product_sku` и `unit_price` из `ProductVariant` в момент создания заказа. Это гарантирует неизменность истории заказов.
+- **vat_rate**: Snapshot ставки НДС на момент заказа. Последующие изменения `Product` или `ProductVariant` не меняют уже созданную позицию.
 
 ---
 

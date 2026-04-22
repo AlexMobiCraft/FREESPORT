@@ -18,6 +18,7 @@
 ## 📦 Интеграции и Модули
 
 - **[Интеграция с 1С](./integrations/1c/architecture.md)** — асинхронная синхронизация CommerceML.
+- **[VAT-split и складской routing заказов для 1С](./integrations/1c/order-vat-warehouse-routing.md)** — НДС, склады, master/sub-orders и экспорт CommerceML.
 - **[Инвентаризация UI компонентов](./component-inventory-frontend.md)** — библиотека визуальных элементов.
 - **[Система развертывания](./deploy/README.md)** — Docker, Nginx и скрипты деплоя.
 
@@ -27,4 +28,4 @@
 Актуальный статус реализации доступных фич и задач находится в **[PROJECT_PROGRESS.md](./PROJECT_PROGRESS.md)**.
 
 ---
-*Документация обновлена: 18.01.2026. Агент: Paige (Technical Writer)*
+*Документация обновлена: 22.04.2026. Агент: Paige (Technical Writer)*

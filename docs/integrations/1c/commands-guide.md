@@ -147,6 +147,8 @@ python manage.py import_products_from_1c \
 
 Обновляет остатки товаров из файла `rests.xml` / `rests_*.xml`. Помимо `stock_quantity`, команда определяет основной склад варианта и автоматически обновляет `warehouse_id`, `warehouse_name` и `vat_rate` (ставка НДС по складу из `settings.ONEC_EXCHANGE["WAREHOUSE_RULES"]`). Является легковесной альтернативой `import_products_from_1c --file-type=rests` и рекомендуется для частых запусков (например, через cron).
 
+Важно: для корректного split заказов в 1С нужны и ставка НДС, и склад варианта. Если НДС приходит в `goods.xml`, он сначала сохраняется в `Product.vat_rate`, затем синхронизируется в `ProductVariant.vat_rate` при обработке `offers.xml` или при обновлении существующего товара.
+
 ### Синтаксис
 
 ```bash
@@ -596,6 +598,31 @@ python manage.py shell
 ...     products = Product.objects.filter(onec_id=dup['onec_id']).order_by('created_at')
 ...     products.exclude(id=products.last().id).delete()
 ```
+
+### В 1С пришел один заказ вместо нескольких
+
+**Проблема**: ожидалось несколько документов CommerceML, но `mode=query` отдал один документ.
+
+**Причины и проверка**:
+
+1. Заказ был создан до изменения split-логики. Старые заказы не пересчитываются автоматически.
+2. В корзину не попал товар из отдельной группы. Например, для проверки `78 + 4441 + 4925` отсутствие `variant_id=78` означает, что документа `5% / 2 ТЛВ склад` не будет.
+3. У товаров одинаковый `vat_rate`, но разные склады не были сохранены в `ProductVariant.warehouse_name`.
+4. `OrderItem.vat_rate` не заполнен snapshot-ом, или `sub_order.vat_group` пустой.
+
+Проверить структуру заказа:
+
+```python
+from apps.orders.models import Order
+
+master = Order.objects.get(id=<MASTER_ID>)
+for sub in master.sub_orders.prefetch_related("items__variant"):
+    print(sub.id, sub.vat_group, sub.total_amount)
+    for item in sub.items.all():
+        print(item.variant_id, item.vat_rate, item.variant.warehouse_name)
+```
+
+Актуальное правило: `sub-order` создается по паре `(vat_rate, warehouse_name)`, а `mode=query` экспортирует только `sub-orders`. Подробности: [VAT-split и складской routing заказов для 1С](./order-vat-warehouse-routing.md).
 
 ### Backup не создается
 

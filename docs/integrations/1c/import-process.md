@@ -63,6 +63,8 @@ flowchart TD
   - The core logic for processing imported data.
   - Implements the "Hybrid" image import strategy (Base images in Product, Variant images in ProductVariant).
   - Handles the creation and update of `Product`, `ProductVariant`, `Category`, and `Brand`.
+  - During `goods.xml` processing, stores VAT on `Product.vat_rate` and synchronizes it to existing variants.
+  - During `offers.xml` processing, copies VAT from the `goods.xml` cache or `Product.vat_rate` into `ProductVariant.vat_rate`.
   - During stock processing (`rests_*.xml`), determines the primary warehouse and VAT rate per variant:
     - `_select_primary_warehouse_id` — returns the warehouse GUID with the highest cumulative stock (current warehouse is preferred on tie).
     - `_resolve_warehouse_name` — maps GUID → human-readable name via `settings.ONEC_EXCHANGE["WAREHOUSE_NAME_BY_ID"]`.
@@ -75,10 +77,12 @@ flowchart TD
 ### 3. Data Flow
 
 1. **Categories & Brands**: Loaded from `groups.xml` and `propertiesGoods.xml`.
-2. **Products**: Created from `goods.xml`. Base images are imported here.
-3. **Variants**: Created from `offers.xml`. SKU, characteristics (Size, Color), and variant-specific images are processed.
+2. **Products**: Created from `goods.xml`. Base images and `Product.vat_rate` are imported here.
+3. **Variants**: Created from `offers.xml`. SKU, characteristics (Size, Color), variant-specific images, and `ProductVariant.vat_rate` are processed. If VAT was received only in `goods.xml`, the variant inherits it from `Product.vat_rate`.
 4. **Prices**: Updated from `prices.xml`. Linked to specific variants.
 5. **Stock**: Updated from `rests_*.xml`. Linked to specific variants. In addition to `stock_quantity`, the processor determines the **primary warehouse** (highest total stock) and updates `warehouse_id`, `warehouse_name`, and `vat_rate` on each `ProductVariant` via `ONEC_EXCHANGE` settings.
+
+Order creation and CommerceML export use the VAT and warehouse data imported here. The current split rule is documented in [VAT-split и складской routing заказов для 1С](./order-vat-warehouse-routing.md): sub-orders are grouped by `(vat_rate, warehouse_name)`, not only by VAT.
 
 ## Usage
 

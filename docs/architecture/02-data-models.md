@@ -212,6 +212,7 @@ class Product(models.Model):
     # Интеграция с 1С
     onec_id = models.CharField(max_length=100, blank=True, unique=True, null=True) # ID из offers.xml
     parent_onec_id = models.CharField(max_length=50, blank=True, null=True) # ID из goods.xml для связи
+    vat_rate = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True) # НДС из goods.xml
     last_sync_from_1c = models.DateTimeField(blank=True, null=True)
 
 # Модель варианта товара (ProductVariant)
@@ -231,8 +232,8 @@ class ProductVariant(models.Model):
         help_text=(
             "Ставка НДС в % (22 — импортные товары ИП Семерюк, "
             "5 — российские товары ИП Терещенко). "
-            "Заполняется при импорте из 1С: сначала из <СтавкаНДС> в goods.xml, "
-            "затем переопределяется по складу из rests.xml через WAREHOUSE_RULES."
+            "Заполняется при импорте из 1С: из Product.vat_rate/goods.xml, "
+            "затем может переопределяться по складу из rests.xml через WAREHOUSE_RULES."
         ),
     )
 
@@ -321,6 +322,11 @@ class Order(models.Model):
     exported_to_1c = models.BooleanField(default=False)
     export_to_1c_at = models.DateTimeField(blank=True, null=True)
     last_sync_from_1c = models.DateTimeField(blank=True, null=True)
+
+    # VAT / субзаказы для 1С
+    parent_order = models.ForeignKey("self", on_delete=models.CASCADE, null=True, blank=True, related_name="sub_orders")
+    is_master = models.BooleanField(default=True)
+    vat_group = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     
     # Системные поля
     created_at = models.DateTimeField(auto_now_add=True)
@@ -370,6 +376,7 @@ class OrderItem(models.Model):
     unit_price = models.DecimalField(max_digits=10, decimal_places=2)
     # Интеграция с 1С
     onec_product_id = models.CharField(max_length=50, blank=True)
+    vat_rate = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True) # snapshot НДС
 
 ### Banner Model
 

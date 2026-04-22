@@ -29,12 +29,14 @@ Core catalog item.
 - **Pricing**: Has `discount_percent` and `is_sale/is_promo` flags.
 - **1C Integration**: `onec_id`, `parent_onec_id` (sync with goods.xml).
 - **Hybrid Images**: `base_images` (JSON list from 1C).
+- **VAT**: `vat_rate` from `goods.xml`; fallback source for variants when VAT is imported separately from offers.
 
 ### `ProductVariant` (SKU)
 Specific variation (Size/Color).
 - **Prices**: Stores 6 price types (`retail_price`, `opt1_price`, etc.).
 - **Inventory**: `stock_quantity`, `reserved_quantity`.
 - **1C**: `onec_id`, `sku`.
+- **VAT/Warehouse**: `vat_rate`, `warehouse_id`, `warehouse_name`. `ProductVariant.vat_rate` is the primary catalog VAT source for order creation and export fallback.
 
 ### `Category`
 Hierarchical category tree.
@@ -51,5 +53,5 @@ EAV system for product properties.
 ---
 
 ## Others
-- **Orders**: `Order`, `OrderItem` (Snapshot of product data).
+- **Orders**: `Order`, `OrderItem` (Snapshot of product data). Orders use a client-facing master plus technical sub-orders for 1C. Sub-orders are grouped by `(vat_rate, warehouse_name)`; `Order.vat_group` is authoritative for document VAT, and `OrderItem.vat_rate` snapshots item VAT at checkout time.
 - **Cart**: Redis-backed (No persistent model, serialized on the fly).

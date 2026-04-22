@@ -25,7 +25,10 @@ The 1C integration is **asynchronous** and **file-based** (or API-based dependin
 
 1. **Import**: 1C uploads XML files (`goods.xml`, `offers.xml`, `rests.xml`).
 2. **Processing**: Celery tasks parse XML and update DB models.
-3. **Conflict Resolution**: `onec_id` is the source of truth.
+3. **Order export**: checkout creates one client-facing master order and technical sub-orders for CommerceML.
+4. **Conflict Resolution**: `onec_id` is the source of truth.
+
+Для заказов split выполняется по паре `(vat_rate, warehouse_name)`: разные ставки НДС или разные склады внутри одной ставки уходят в 1С отдельными документами. Подробная логика описана в [VAT-split и складской routing заказов для 1С](./1c/order-vat-warehouse-routing.md).
 
 ## Data Flow Diagram
 
