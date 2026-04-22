@@ -191,10 +191,10 @@ class ProductsService {
    * Поиск товаров
    */
   async search(query: string): Promise<{ results: Product[] }> {
-    const response = await apiClient.get<{ results: Product[] }>('/products/search/', {
-      params: { q: query },
+    const response = await apiClient.get<PaginatedResponse<Product>>('/products/', {
+      params: { search: query },
     });
-    return response.data;
+    return { results: response.data.results };
   }
 
   /**

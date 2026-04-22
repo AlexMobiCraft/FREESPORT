@@ -73,9 +73,16 @@ describe('productsService', () => {
 
   describe('search', () => {
     test('searches products successfully', async () => {
+      let capturedSearchParam: string | null = null;
+
       server.use(
-        http.get('http://localhost:8001/api/v1/products/search/', () => {
+        http.get('http://localhost:8001/api/v1/products/', ({ request }) => {
+          capturedSearchParam = new URL(request.url).searchParams.get('search');
+
           return HttpResponse.json({
+            count: 1,
+            next: null,
+            previous: null,
             results: [
               {
                 id: 1,
@@ -94,6 +101,7 @@ describe('productsService', () => {
 
       const result = await productsService.search('test query');
 
+      expect(capturedSearchParam).toBe('test query');
       expect(result.results).toHaveLength(1);
       expect(result.results[0].name).toBe('Search Result');
     });
