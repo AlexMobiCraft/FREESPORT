@@ -7,6 +7,7 @@ from collections import defaultdict
 from decimal import Decimal
 from typing import cast
 
+from django.conf import settings
 from django.db import transaction
 from django.db.models import F
 from django.db.models.manager import BaseManager
@@ -49,7 +50,7 @@ class OrderCreateService:
         validated_data.pop("promo_code", None)
         discount_amount: Decimal = Decimal("0")
 
-        # 1. Сгруппировать позиции корзины по variant.vat_rate
+        # 1. Сгруппировать позиции корзины по устойчивой ставке НДС.
         groups: dict[Decimal | None, list] = defaultdict(list)
         total_items_sum = Decimal("0")
 
@@ -58,8 +59,7 @@ class OrderCreateService:
             product = variant.product if variant else None
             if not variant or not product:
                 raise serializers.ValidationError("Некорректный товар в корзине. Обновите корзину и попробуйте снова.")
-            raw_vat = getattr(variant, "vat_rate", None)
-            key: Decimal | None = Decimal(str(raw_vat)) if raw_vat is not None else None
+            key = self._resolve_item_vat_rate(variant, product)
             groups[key].append(ci)
             # Используем снимок цены из корзины, а не пересчитываем по текущему каталогу.
             total_items_sum += ci.total_price
@@ -145,3 +145,41 @@ class OrderCreateService:
         cart.clear()
 
         return master
+
+    def _resolve_item_vat_rate(self, variant: ProductVariant, product) -> Decimal | None:
+        """
+        Возвращает ставку НДС для группировки заказа.
+
+        Приоритет соответствует источникам импорта 1С:
+        ProductVariant.vat_rate → Product.vat_rate → warehouse_name → DEFAULT_VAT_RATE.
+        Product.vat_rate нужен для реального обмена, где goods.xml и offers.xml
+        могут импортироваться раздельными задачами.
+        """
+        raw_vat = getattr(variant, "vat_rate", None)
+        if raw_vat is not None:
+            return Decimal(str(raw_vat))
+
+        product_vat = getattr(product, "vat_rate", None)
+        if product_vat is not None:
+            return Decimal(str(product_vat))
+
+        warehouse_vat = self._get_vat_rate_by_warehouse_name(getattr(variant, "warehouse_name", None))
+        if warehouse_vat is not None:
+            return warehouse_vat
+
+        exchange_cfg = getattr(settings, "ONEC_EXCHANGE", {})
+        default_vat = exchange_cfg.get("DEFAULT_VAT_RATE")
+        return Decimal(str(default_vat)) if default_vat is not None else None
+
+    def _get_vat_rate_by_warehouse_name(self, warehouse_name: str | None) -> Decimal | None:
+        if not warehouse_name:
+            return None
+
+        exchange_cfg = getattr(settings, "ONEC_EXCHANGE", {})
+        warehouse_rules = exchange_cfg.get("WAREHOUSE_RULES", {})
+        info = warehouse_rules.get(warehouse_name)
+        if not info:
+            return None
+
+        vat_rate = info.get("vat_rate")
+        return Decimal(str(vat_rate)) if vat_rate is not None else None

@@ -1963,10 +1963,11 @@ class TestOrderExportVatAndOrgInXML:
         assert action.text == "Резервировать"
 
     def test_vid_tseny_in_item(self, settings):
-        """Each <Товар> has <ВидЦены><Наименование>...</Наименование></ВидЦены>."""
+        """Each <Товар> has <ВидЦены> with 1C id and name."""
         settings.ONEC_EXCHANGE = {
             **settings.ONEC_EXCHANGE,
             "PRICE_TYPE_BY_ROLE": {"retail": "РРЦ"},
+            "PRICE_TYPE_ID_BY_NAME": {"РРЦ": "price-type-rrp-id"},
             "DEFAULT_PRICE_TYPE": "РРЦ",
             "DEFAULT_VAT_RATE": 22,
         }
@@ -1975,9 +1976,12 @@ class TestOrderExportVatAndOrgInXML:
         xml_str = service.generate_xml(Order.objects.filter(id=order.id))
         root = ET.fromstring(xml_str)
 
-        vid_ceny = root.find(".//Товар/ВидЦены/Наименование")
-        assert vid_ceny is not None
-        assert vid_ceny.text == "РРЦ"
+        vid_ceny_id = root.find(".//Товар/ВидЦены/Ид")
+        vid_ceny_name = root.find(".//Товар/ВидЦены/Наименование")
+        assert vid_ceny_id is not None
+        assert vid_ceny_id.text == "price-type-rrp-id"
+        assert vid_ceny_name is not None
+        assert vid_ceny_name.text == "РРЦ"
 
     def test_nds_uchten_v_summe_true(self, settings):
         """Each <Товар> has <Налоги> with <УчтенВСумме>true</УчтенВСумме>."""

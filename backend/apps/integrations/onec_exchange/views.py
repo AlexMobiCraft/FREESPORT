@@ -501,7 +501,7 @@ class ICExchangeView(APIView):
                 parent_order__isnull=False,
             )
             .select_related("user", "parent_order")
-            .prefetch_related("items__variant")
+            .prefetch_related("items__variant", "items__product")
         )
 
         exchange_type = request.query_params.get("type", "")

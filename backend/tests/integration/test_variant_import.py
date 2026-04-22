@@ -972,13 +972,16 @@ class TestVariantImportVatRate(TransactionTestCase):
         )
 
     def test_process_product_from_goods_saves_vat_rate(self):
-        """vat_rate из goods_data сохраняется в _product_vat_rates маппинге."""
+        """vat_rate из goods_data сохраняется на Product и в runtime-маппинге."""
         goods_data = {
             "id": "vat-product-001",
             "name": "Импортный товар",
             "vat_rate": Decimal("22"),
         }
-        self.processor.process_product_from_goods(goods_data)
+        product = self.processor.process_product_from_goods(goods_data)
+        product.refresh_from_db()
+
+        assert product.vat_rate == Decimal("22")
         assert self.processor._product_vat_rates.get("vat-product-001") == Decimal("22")
 
     def test_process_product_from_goods_no_vat_rate_not_stored(self):
@@ -989,6 +992,51 @@ class TestVariantImportVatRate(TransactionTestCase):
         }
         self.processor.process_product_from_goods(goods_data)
         assert "no-vat-product-001" not in self.processor._product_vat_rates
+
+    def test_goods_import_updates_existing_variant_vat_rate(self):
+        """goods.xml после offers.xml backfill-ит vat_rate уже созданных вариантов."""
+        product = self._make_product("vat-prod-existing")
+        variant = ProductVariant.objects.create(
+            product=product,
+            onec_id="vat-prod-existing#v-001",
+            sku="VAT-EXISTING-001",
+            retail_price=Decimal("0"),
+            vat_rate=None,
+            is_active=True,
+        )
+
+        self.processor.process_product_from_goods(
+            {
+                "id": "vat-prod-existing",
+                "name": "Товар с НДС",
+                "vat_rate": Decimal("10"),
+            }
+        )
+
+        variant.refresh_from_db()
+        assert variant.vat_rate == Decimal("10")
+
+    def test_separate_offer_import_reads_persisted_product_vat_rate(self):
+        """Раздельные задачи goods.xml/offers.xml не теряют vat_rate."""
+        self.processor.process_product_from_goods(
+            {
+                "id": "vat-prod-separated",
+                "name": "Товар с раздельным импортом",
+                "vat_rate": Decimal("10"),
+            }
+        )
+        next_processor = VariantImportProcessor(session_id=self.session.pk, batch_size=500)
+
+        variant = next_processor.process_variant_from_offer(
+            {
+                "id": "vat-prod-separated#v-001",
+                "name": "Вариант 10%",
+                "article": "VAT-SEPARATED-001",
+            }
+        )
+
+        assert variant is not None
+        assert variant.vat_rate == Decimal("10")
 
     def test_create_new_variant_stores_vat_rate(self):
         """process_variant_from_offer сохраняет vat_rate в созданный ProductVariant."""

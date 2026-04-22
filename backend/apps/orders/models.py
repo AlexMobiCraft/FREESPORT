@@ -432,6 +432,8 @@ class OrderItem(models.Model):
             if getattr(variant, "color_name", None):
                 parts.append(f"Цвет: {variant.color_name}")
         raw_vat = getattr(variant, "vat_rate", None) if variant else None
+        if raw_vat is None and product is not None:
+            raw_vat = getattr(product, "vat_rate", None)
         return {
             "product_name": product.name if product else "",
             "product_sku": getattr(variant, "sku", "") if variant else "",

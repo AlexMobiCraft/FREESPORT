@@ -412,6 +412,21 @@ class Product(models.Model):
             help_text="ID базового товара из goods.xml",
         ),
     )
+    vat_rate = cast(
+        "Decimal | None",
+        models.DecimalField(
+            "Ставка НДС (%)",
+            max_digits=5,
+            decimal_places=2,
+            null=True,
+            blank=True,
+            db_index=True,
+            help_text=(
+                "Ставка НДС базового товара из goods.xml. "
+                "Используется как устойчивый источник для вариантов при раздельном импорте 1С."
+            ),
+        ),
+    )
     onec_brand_id = cast(
         str | None,
         models.CharField(
@@ -953,7 +968,7 @@ class ProductVariant(models.Model):
             blank=True,
             help_text=(
                 "Ставка НДС в % (22 — импортные товары ИП Семерюк, "
-                "5 — российские товары ИП Терещенко). "
+                "10/5 — товары ИП Терещенко). "
                 "Заполняется автоматически при импорте из 1С (<СтавкаНДС>). "
                 "Если не заполнено, используется DEFAULT_VAT_RATE из настроек."
             ),

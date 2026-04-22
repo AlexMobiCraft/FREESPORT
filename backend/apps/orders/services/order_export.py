@@ -75,7 +75,7 @@ class OrderExportService:
 
         Args:
             orders: QuerySet of **sub-orders** (is_master=False, parent_order__isnull=False)
-                    with prefetch_related('items__variant', 'user').
+                    with prefetch_related('items__variant', 'items__product', 'user').
                     vat_group субзаказа — авторитетный источник для организации/склада.
                     Guest orders (user=None) are supported — counterparty block is omitted.
 
@@ -102,7 +102,7 @@ class OrderExportService:
 
         Args:
             orders: QuerySet of **sub-orders** (is_master=False, parent_order__isnull=False)
-                    with prefetch_related('items__variant', 'user').
+                    with prefetch_related('items__variant', 'items__product', 'user').
                     vat_group субзаказа — авторитетный источник для организации/склада.
                     Guest orders (user=None) are supported — counterparty block is omitted.
             exported_ids: Optional list to append exported order PKs to.
@@ -316,6 +316,7 @@ class OrderExportService:
         exchange_cfg = getattr(settings, "ONEC_EXCHANGE", {})
         action = exchange_cfg.get("DEFAULT_ITEM_ACTION", "Резервировать")
         price_type_name = self._get_price_type(order)
+        price_type_id = self._get_price_type_id(price_type_name)
         order_vat_rate = self._get_order_vat_rate(order)
 
         for item in order.items.all():
@@ -351,6 +352,8 @@ class OrderExportService:
 
             # Вид цены — зависит от категории (роли) покупателя
             vid_ceny = ET.SubElement(product, "ВидЦены")
+            if price_type_id:
+                self._add_text_element(vid_ceny, "Ид", price_type_id)
             self._add_text_element(vid_ceny, "Наименование", price_type_name)
 
             # НДС «в том числе» (включён в сумму строки)
@@ -361,7 +364,8 @@ class OrderExportService:
             elif item.variant.vat_rate is not None:
                 item_vat_rate = Decimal(str(item.variant.vat_rate))
             else:
-                item_vat_rate = order_vat_rate
+                product_vat_rate = self._get_prefetched_product_vat_rate(item)
+                item_vat_rate = product_vat_rate if product_vat_rate is not None else order_vat_rate
             vat_amount = self._calc_vat_amount(item.total_price, item_vat_rate)
 
             taxes = ET.SubElement(product, "Налоги")
@@ -409,6 +413,9 @@ class OrderExportService:
             # Приоритет snapshot (Story 34-1)
             if item.vat_rate is not None:
                 return Decimal(str(item.vat_rate))
+            product_vat_rate = self._get_prefetched_product_vat_rate(item)
+            if product_vat_rate is not None:
+                return product_vat_rate
             if not item.variant:
                 continue
             if item.variant.vat_rate is not None:
@@ -417,6 +424,13 @@ class OrderExportService:
             if warehouse_vat_rate is not None:
                 return warehouse_vat_rate
         return default_rate
+
+    def _get_prefetched_product_vat_rate(self, item) -> Decimal | None:
+        """Возвращает Product.vat_rate без неявного SQL-запроса к item.product."""
+        product = getattr(item._state, "fields_cache", {}).get("product")
+        if product is None or product.vat_rate is None:
+            return None
+        return Decimal(str(product.vat_rate))
 
     def _get_order_warehouse_name(self, order: "Order") -> str | None:
         """Возвращает склад первого товара заказа, если он уже определён у варианта."""
@@ -486,6 +500,13 @@ class OrderExportService:
         if user:
             return str(role_map.get(user.role, default_pt))
         return default_pt
+
+    def _get_price_type_id(self, price_type_name: str) -> str | None:
+        """Возвращает GUID типа цены 1С по имени без SQL-запросов."""
+        exchange_cfg = getattr(settings, "ONEC_EXCHANGE", {})
+        mapping = exchange_cfg.get("PRICE_TYPE_ID_BY_NAME", {})
+        price_type_id = str(mapping.get(price_type_name, "")).strip()
+        return price_type_id or None
 
     def _calc_vat_amount(self, total_price: Decimal, vat_rate: Decimal) -> Decimal:
         """

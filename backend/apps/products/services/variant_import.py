@@ -423,7 +423,9 @@ class VariantImportProcessor:
             # Сохраняем ставку НДС для последующего использования при создании вариантов
             vat_rate = goods_data.get("vat_rate")
             if vat_rate is not None:
-                self._product_vat_rates[parent_id] = Decimal(str(vat_rate))
+                vat_rate = Decimal(str(vat_rate))
+                goods_data["vat_rate"] = vat_rate
+                self._product_vat_rates[parent_id] = vat_rate
 
             # Проверка существующего товара
             existing = Product.objects.filter(models.Q(onec_id=parent_id) | models.Q(parent_onec_id=parent_id)).first()
@@ -474,8 +476,18 @@ class VariantImportProcessor:
             product.description = description
             fields_to_update.append("description")
 
+        vat_rate = goods_data.get("vat_rate")
+        if vat_rate is not None:
+            vat_rate = Decimal(str(vat_rate))
+            if product.vat_rate != vat_rate:
+                product.vat_rate = vat_rate
+                fields_to_update.append("vat_rate")
+
         if fields_to_update:
             product.save(update_fields=fields_to_update)
+
+        if vat_rate is not None:
+            self._sync_product_variants_vat_rate(product, vat_rate)
 
         # Импорт изображений в base_images (Hybrid подход)
         if not skip_images and base_dir and "images" in goods_data:
@@ -524,6 +536,7 @@ class VariantImportProcessor:
             description=goods_data.get("description", ""),
             brand=brand,
             category=category,
+            vat_rate=Decimal(str(goods_data["vat_rate"])) if goods_data.get("vat_rate") is not None else None,
             is_active=False,  # Активируется после создания variants
             sync_status=Product.SyncStatus.PENDING,
             base_images=[],  # Будет заполнено при импорте изображений
@@ -543,6 +556,22 @@ class VariantImportProcessor:
         except Exception as e:
             self._log_error(f"Error saving product: {e}", goods_data)
             return None
+
+    def _sync_product_variants_vat_rate(self, product: Any, vat_rate: Decimal) -> int:
+        """Обновляет ставки НДС существующих вариантов после раздельного импорта goods.xml."""
+        from apps.products.models import ProductVariant
+
+        updated = (
+            ProductVariant.objects.filter(product=product)
+            .filter(models.Q(vat_rate__isnull=True) | ~models.Q(vat_rate=vat_rate))
+            .update(vat_rate=vat_rate)
+        )
+        if updated:
+            self.stats["variants_updated"] += updated
+            logger.info(
+                f"Product {product.onec_id}: synchronized vat_rate={vat_rate} " f"to {updated} existing variants"
+            )
+        return updated
 
     def _import_base_images(
         self,
@@ -652,6 +681,8 @@ class VariantImportProcessor:
 
             # Ставка НДС из маппинга goods.xml → variants
             vat_rate = self._product_vat_rates.get(parent_id)
+            if vat_rate is None and product.vat_rate is not None:
+                vat_rate = Decimal(str(product.vat_rate))
 
             # Проверка существующего варианта
             existing_variant = ProductVariant.objects.filter(onec_id=onec_id).first()
@@ -932,6 +963,7 @@ class VariantImportProcessor:
                 trainer_price=None,
                 federation_price=None,
                 stock_quantity=0,
+                vat_rate=Decimal(str(product.vat_rate)) if product.vat_rate is not None else None,
             )
             default_variants.append(variant)
 

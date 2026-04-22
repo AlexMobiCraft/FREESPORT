@@ -813,7 +813,7 @@ class TestOrderVATSplit:
         product_factory,
         cart_item_factory,
     ):
-        """AC7: смесь vat_rate=None и vat_rate=5 → 2 субзаказа (vat_group=None и vat_group=5)."""
+        """AC7: смесь vat_rate=None и vat_rate=5 → fallback DEFAULT_VAT_RATE и отдельная группа 5."""
         from apps.orders.models import Order
 
         user = user_factory.create()
@@ -839,8 +839,38 @@ class TestOrderVATSplit:
         assert len(sub_orders) == 2
 
         vat_groups = {sub.vat_group for sub in sub_orders}
-        assert None in vat_groups
+        assert Decimal("22.00") in vat_groups
         assert Decimal("5.00") in vat_groups
+
+    def test_product_vat_rate_used_when_variant_vat_missing(
+        self,
+        user_factory,
+        cart_factory,
+        product_factory,
+        cart_item_factory,
+    ):
+        """Product.vat_rate используется при раздельном импорте goods.xml/offers.xml."""
+        from apps.orders.models import Order
+
+        user = user_factory.create()
+        cart = cart_factory.create(user=user)
+
+        product = product_factory.create(retail_price=Decimal("100.00"))
+        product.vat_rate = Decimal("10.00")
+        product.save(update_fields=["vat_rate"])
+
+        variant = product.variants.first()
+        variant.vat_rate = None
+        variant.save(update_fields=["vat_rate"])
+
+        cart_item_factory.create(cart=cart, product=product, quantity=1)
+
+        master = self._create_order_via_serializer(user, cart_factory)
+        sub_order = Order.objects.get(parent_order=master)
+        item = sub_order.items.get()
+
+        assert sub_order.vat_group == Decimal("10.00")
+        assert item.vat_rate == Decimal("10.00")
 
     def test_master_has_no_direct_items(
         self,
