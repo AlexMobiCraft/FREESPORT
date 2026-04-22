@@ -50,8 +50,10 @@ class OrderCreateService:
         validated_data.pop("promo_code", None)
         discount_amount: Decimal = Decimal("0")
 
-        # 1. Сгруппировать позиции корзины по устойчивой ставке НДС.
-        groups: dict[Decimal | None, list] = defaultdict(list)
+        # 1. Сгруппировать позиции корзины по устойчивой ставке НДС и складу.
+        # 1С требует отдельные документы не только для разных ставок НДС, но и
+        # для разных складов внутри одной ставки (например 1 СДВ и Intex ОСНОВНОЙ).
+        groups: dict[tuple[Decimal | None, str | None], list] = defaultdict(list)
         total_items_sum = Decimal("0")
 
         for ci in cart.items.select_related("variant__product"):
@@ -59,7 +61,9 @@ class OrderCreateService:
             product = variant.product if variant else None
             if not variant or not product:
                 raise serializers.ValidationError("Некорректный товар в корзине. Обновите корзину и попробуйте снова.")
-            key = self._resolve_item_vat_rate(variant, product)
+            vat_key = self._resolve_item_vat_rate(variant, product)
+            warehouse_key = getattr(variant, "warehouse_name", None) or None
+            key = (vat_key, warehouse_key)
             groups[key].append(ci)
             # Используем снимок цены из корзины, а не пересчитываем по текущему каталогу.
             total_items_sum += ci.total_price
@@ -81,7 +85,7 @@ class OrderCreateService:
         variant_updates: list[tuple[int, int]] = []
         order_item_manager = cast(BaseManager[OrderItem], getattr(OrderItem, "objects"))
 
-        for vat_key, items in groups.items():
+        for (vat_key, _warehouse_key), items in groups.items():
             group_total = Decimal(sum(ci.total_price for ci in items))
             sub = Order(
                 user=user,

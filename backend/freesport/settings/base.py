@@ -313,7 +313,7 @@ ONEC_EXCHANGE = {
     "WAREHOUSE_RULES": {
         "1 СДВ склад": {"organization": "ИП Семерюк Д. В.", "vat_rate": 22},
         "Intex ОСНОВНОЙ": {"organization": "ИП Семерюк Д. В.", "vat_rate": 22},
-        "2 ТЛВ склад": {"organization": "ИП Терещенко Л.В.", "vat_rate": 10},
+        "2 ТЛВ склад": {"organization": "ИП Терещенко Л.В.", "vat_rate": 5},
     },
     # Маппинг GUID склада из rests.xml -> имя склада из storages.xml
     "WAREHOUSE_NAME_BY_ID": {

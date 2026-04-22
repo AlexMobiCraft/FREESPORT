@@ -2175,6 +2175,35 @@ class TestOrderExportServiceSubOrderDocument:
         assert doc.find("Склад").text == "1 СДВ склад"
         assert doc.find("Сумма").text == "2109.00"
 
+    def test_sub_order_uses_warehouse_rule_when_vat_group_matches(self, settings):
+        """Субзаказ 22% со складом Intex ОСНОВНОЙ экспортируется именно на этот склад."""
+        settings.ONEC_EXCHANGE = {
+            **getattr(settings, "ONEC_EXCHANGE", {}),
+            "ORGANIZATION_BY_VAT": {
+                22: {"name": "ИП Семерюк Д. В.", "warehouse": "1 СДВ склад"},
+                5: {"name": "ИП Терещенко Л.В.", "warehouse": "2 ТЛВ склад"},
+            },
+            "WAREHOUSE_RULES": {
+                "1 СДВ склад": {"organization": "ИП Семерюк Д. В.", "vat_rate": 22},
+                "Intex ОСНОВНОЙ": {"organization": "ИП Семерюк Д. В.", "vat_rate": 22},
+            },
+            "DEFAULT_VAT_RATE": 22,
+        }
+        _master, sub = _make_master_with_sub(
+            vat_group=Decimal("22.00"),
+            variant_vat_rate=Decimal("22"),
+            warehouse_name="Intex ОСНОВНОЙ",
+        )
+
+        service = OrderExportService()
+        xml_str = service.generate_xml(Order.objects.filter(id=sub.id))
+        root = ET.fromstring(xml_str)
+
+        doc = root.find("Контейнер/Документ")
+        assert doc is not None
+        assert doc.find("Организация").text == "ИП Семерюк Д. В."
+        assert doc.find("Склад").text == "Intex ОСНОВНОЙ"
+
     def test_multi_vat_master_produces_two_documents(self, settings):
         """AC2: master + 2 sub (vat_group=5 и 22) → 2 документа с разными организациями."""
         settings.ONEC_EXCHANGE = {

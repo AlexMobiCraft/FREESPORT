@@ -176,7 +176,8 @@ class OrderExportService:
         # vat_group=None (AC8): DEFAULT_ORGANIZATION/DEFAULT_WAREHOUSE напрямую, warehouse_name не используется.
         order_vat_rate = self._get_order_vat_rate(order)
         if order.vat_group is not None:
-            org_name, warehouse_name = self._get_org_and_warehouse(order_vat_rate, None)
+            order_warehouse_name = self._get_order_warehouse_name_for_vat(order, order_vat_rate)
+            org_name, warehouse_name = self._get_org_and_warehouse(order_vat_rate, order_warehouse_name)
         else:
             # AC8: vat_group=None → DEFAULT_* без warehouse_name routing
             logger.warning(f"Sub-order {order.order_number}: vat_group is None, using defaults")
@@ -437,6 +438,22 @@ class OrderExportService:
         for item in order.items.all():
             if item.variant and item.variant.warehouse_name:
                 return str(item.variant.warehouse_name)
+        return None
+
+    def _get_order_warehouse_name_for_vat(self, order: "Order", vat_rate: Decimal) -> str | None:
+        """Возвращает склад субзаказа, только если он однозначен и соответствует vat_group."""
+        warehouse_names = {
+            str(item.variant.warehouse_name)
+            for item in order.items.all()
+            if item.variant and item.variant.warehouse_name
+        }
+        if len(warehouse_names) != 1:
+            return None
+
+        warehouse_name = next(iter(warehouse_names))
+        warehouse_vat_rate = self._get_vat_rate_by_warehouse_name(warehouse_name)
+        if warehouse_vat_rate == Decimal(str(vat_rate)):
+            return warehouse_name
         return None
 
     def _get_org_and_warehouse(self, vat_rate: Decimal, warehouse_name: str | None = None) -> tuple[str, str]:

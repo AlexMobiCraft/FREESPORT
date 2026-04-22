@@ -776,6 +776,44 @@ class TestOrderVATSplit:
             assert not sub.is_master
             assert sub.parent_order_id == master.pk
 
+    def test_same_vat_split_two_warehouses(
+        self,
+        user_factory,
+        cart_factory,
+        product_factory,
+        cart_item_factory,
+    ):
+        """Одинаковый НДС, но разные склады → отдельные субзаказы для 1С."""
+        from apps.orders.models import Order
+
+        user = user_factory.create()
+        cart = cart_factory.create(user=user)
+
+        product1 = product_factory.create(retail_price=Decimal("100.00"))
+        product2 = product_factory.create(retail_price=Decimal("200.00"))
+
+        variant1 = product1.variants.first()
+        variant2 = product2.variants.first()
+        variant1.vat_rate = Decimal("22.00")
+        variant1.warehouse_name = "1 СДВ склад"
+        variant1.save(update_fields=["vat_rate", "warehouse_name"])
+        variant2.vat_rate = Decimal("22.00")
+        variant2.warehouse_name = "Intex ОСНОВНОЙ"
+        variant2.save(update_fields=["vat_rate", "warehouse_name"])
+
+        cart_item_factory.create(cart=cart, product=product1, quantity=1)
+        cart_item_factory.create(cart=cart, product=product2, quantity=1)
+
+        master = self._create_order_via_serializer(user, cart_factory)
+
+        sub_orders = list(Order.objects.filter(parent_order=master).prefetch_related("items__variant"))
+        assert len(sub_orders) == 2
+        assert {sub.vat_group for sub in sub_orders} == {Decimal("22.00")}
+        assert {sub.items.get().variant.warehouse_name for sub in sub_orders} == {
+            "1 СДВ склад",
+            "Intex ОСНОВНОЙ",
+        }
+
     def test_homogeneous_cart_one_rate(
         self,
         user_factory,
