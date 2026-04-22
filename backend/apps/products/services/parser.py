@@ -2,7 +2,6 @@
 XMLDataParser - парсер для XML файлов из 1С (CommerceML 3.1)
 """
 
-import logging
 import os
 from decimal import Decimal
 from typing import Any, Iterator, TypedDict, cast
@@ -10,8 +9,6 @@ from xml.etree.ElementTree import Element, ElementTree
 
 import defusedxml.ElementTree as ET
 from django.conf import settings
-
-logger = logging.getLogger(__name__)
 
 
 class PropertyValueData(TypedDict):
@@ -31,7 +28,7 @@ class GoodsData(TypedDict, total=False):
     brand_id: str
     images: list[str]
     property_values: list[PropertyValueData]  # Значения свойств товара
-    vat_rate: Decimal  # Ставка НДС из <СтавкаНДС>, например Decimal("22") или Decimal("5")
+    vat_rate: Decimal  # Ставка НДС из <СтавкаНДС> или <СтавкиНалогов>, например Decimal("22")
 
 
 class OfferCharacteristic(TypedDict):
@@ -169,6 +166,49 @@ class XMLDataParser:
             return child.text.strip()
         return default
 
+    def _parse_vat_rate_value(self, raw_value: str) -> Decimal | None:
+        """Нормализует строковое значение ставки НДС из CommerceML."""
+
+        if not raw_value:
+            return None
+
+        value = raw_value.replace("%", "").replace(",", ".").strip()
+        if not value:
+            return None
+
+        try:
+            return Decimal(value)
+        except Exception:
+            return None
+
+    def _extract_vat_rate(self, product_element: Element) -> Decimal | None:
+        """
+        Извлекает НДС товара из поддерживаемых CommerceML-форматов.
+
+        Реальная выгрузка 1С часто отдаёт ставку в:
+        <СтавкиНалогов><СтавкаНалога><Наименование>НДС</Наименование><Ставка>10</Ставка>.
+        Старый кастомный формат <СтавкаНДС>22%</СтавкаНДС> оставлен для совместимости.
+        """
+
+        direct_vat_rate = self._parse_vat_rate_value(self._find_text(product_element, "СтавкаНДС"))
+        if direct_vat_rate is not None:
+            return direct_vat_rate
+
+        tax_rates_element = self._find_child(product_element, "СтавкиНалогов")
+        if tax_rates_element is None:
+            return None
+
+        for tax_rate_element in self._find_children(tax_rates_element, "СтавкаНалога"):
+            tax_name = self._find_text(tax_rate_element, "Наименование").strip().lower()
+            if tax_name and tax_name != "ндс":
+                continue
+
+            vat_rate = self._parse_vat_rate_value(self._find_text(tax_rate_element, "Ставка"))
+            if vat_rate is not None:
+                return vat_rate
+
+        return None
+
     def _validate_image_path(self, path: str) -> str | None:
         """
         Валидация и нормализация пути к изображению.
@@ -283,16 +323,9 @@ class XMLDataParser:
                 if validated_images:
                     goods_data["images"] = validated_images
 
-            # Ставка НДС: "22%" → Decimal("22"), "5" → Decimal("5")
-            vat_rate_raw = self._find_text(product_element, "СтавкаНДС")
-            if vat_rate_raw:
-                vat_rate_str = vat_rate_raw.replace("%", "").strip()
-                try:
-                    goods_data["vat_rate"] = Decimal(vat_rate_str)
-                except Exception:
-                    logger.warning(
-                        f"Товар {goods_data.get('id', '?')}: " f"не удалось распарсить СтавкаНДС='{vat_rate_raw}'"
-                    )
+            vat_rate = self._extract_vat_rate(product_element)
+            if vat_rate is not None:
+                goods_data["vat_rate"] = vat_rate
 
             if goods_data.get("id"):  # Только если есть ID
                 goods_list.append(goods_data)

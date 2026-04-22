@@ -652,7 +652,7 @@ class TestXMLDataParserBrandParsing:
 
 @pytest.mark.unit
 class TestXMLDataParserVatRate:
-    """Тесты парсинга ставки НДС из <СтавкаНДС> в goods.xml."""
+    """Тесты парсинга ставки НДС из goods.xml."""
 
     def _make_goods_xml(self, vat_rate_tag: str, tmp_path) -> str:
         xml = f"""<?xml version="1.0" encoding="UTF-8"?>
@@ -686,6 +686,38 @@ class TestXMLDataParserVatRate:
         path = self._make_goods_xml("<СтавкаНДС>5%</СтавкаНДС>", tmp_path)
         result = XMLDataParser().parse_goods_xml(path)
         assert result[0]["vat_rate"] == Decimal("5")
+
+    def test_vat_rate_from_tax_rates_block(self, tmp_path):
+        """Реальный CommerceML: <СтавкиНалогов>/<СтавкаНалога>/<Ставка>."""
+        path = self._make_goods_xml(
+            """
+      <СтавкиНалогов>
+        <СтавкаНалога>
+          <Наименование>НДС</Наименование>
+          <Ставка>10</Ставка>
+        </СтавкаНалога>
+      </СтавкиНалогов>
+      """,
+            tmp_path,
+        )
+        result = XMLDataParser().parse_goods_xml(path)
+        assert result[0]["vat_rate"] == Decimal("10")
+
+    def test_vat_rate_from_tax_rates_block_with_percent_and_comma(self, tmp_path):
+        """Значение в блоке налогов нормализуется так же, как <СтавкаНДС>."""
+        path = self._make_goods_xml(
+            """
+      <СтавкиНалогов>
+        <СтавкаНалога>
+          <Наименование>НДС</Наименование>
+          <Ставка>9,5%</Ставка>
+        </СтавкаНалога>
+      </СтавкиНалогов>
+      """,
+            tmp_path,
+        )
+        result = XMLDataParser().parse_goods_xml(path)
+        assert result[0]["vat_rate"] == Decimal("9.5")
 
     def test_vat_rate_absent_tag(self, tmp_path):
         """Отсутствие тега <СтавкаНДС> → поле vat_rate не добавляется в dict."""
