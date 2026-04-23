@@ -11,17 +11,15 @@ import logging
 import xml.etree.ElementTree as ET
 from datetime import datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING, Iterator, Union
+from typing import Any, Iterator, Union
 
 from django.conf import settings
+from django.db.models import QuerySet
 from django.utils import timezone
 
-if TYPE_CHECKING:
-    from django.db.models import QuerySet
-
-    from apps.orders.models import Order
-    from apps.products.models import ProductVariant
-    from apps.users.models import User
+from apps.orders.models import Order
+from apps.products.models import ProductVariant
+from apps.users.models import User
 
 logger = logging.getLogger(__name__)
 
@@ -122,7 +120,8 @@ class OrderExportService:
         yield f'ДатаФормирования="{formation_date}">\n'
 
         # Stream each order as a Container with Document inside
-        for order in orders.iterator(chunk_size=100):
+        for _order in orders.iterator(chunk_size=100):
+            order: Any = _order
             if order.is_master:
                 logger.warning(
                     f"Order {order.order_number}: is_master=True, export skipped — "
@@ -238,7 +237,7 @@ class OrderExportService:
             counterparty_id = self._get_counterparty_id(user)
             if not user.onec_id:
                 logger.warning(
-                    f"Order {order.order_number}: User {user.id} has no onec_id, "
+                    f"Order {order.order_number}: User {user.id} has no onec_id, "  # type: ignore[attr-defined]
                     f"using fallback ID: {counterparty_id}"
                 )
             self._add_text_element(counterparty, "Ид", counterparty_id)
@@ -372,7 +371,8 @@ class OrderExportService:
             taxes = ET.SubElement(product, "Налоги")
             tax = ET.SubElement(taxes, "Налог")
             self._add_text_element(tax, "Наименование", "НДС")
-            self._add_text_element(tax, "УчтенВСумме", "true")
+            # CommerceML/Bitrix expects the standard "included in sum" flag name.
+            self._add_text_element(tax, "УчтеноВСумме", "true")
             self._add_text_element(tax, "Ставка", str(int(item_vat_rate)))
             self._add_text_element(tax, "Сумма", self._format_price(vat_amount))
 
@@ -579,7 +579,7 @@ class OrderExportService:
         unlike order_number which could theoretically be changed.
         Format: 'order-{id}' for clarity in 1C.
         """
-        return f"order-{order.id}"
+        return f"order-{order.id}"  # type: ignore[attr-defined]
 
     def _get_counterparty_id(self, user: "User") -> str:
         """
@@ -594,7 +594,7 @@ class OrderExportService:
             # Use first 16 chars of SHA256 hash for reasonable uniqueness
             email_hash = hashlib.sha256(str(user.email).encode()).hexdigest()[:16]
             return f"email-{email_hash}"
-        return f"user-{user.id}"
+        return f"user-{user.id}"  # type: ignore[attr-defined]
 
     def _get_guest_counterparty_id(self, order: "Order") -> str:
         """
@@ -606,4 +606,4 @@ class OrderExportService:
         if order.customer_email:
             email_hash = hashlib.sha256(order.customer_email.encode()).hexdigest()[:16]
             return f"guest-{email_hash}"
-        return f"guest-order-{order.id}"
+        return f"guest-order-{order.id}"  # type: ignore[attr-defined]

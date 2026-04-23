@@ -1983,8 +1983,8 @@ class TestOrderExportVatAndOrgInXML:
         assert vid_ceny_name is not None
         assert vid_ceny_name.text == "РРЦ"
 
-    def test_nds_uchten_v_summe_true(self, settings):
-        """Each <Товар> has <Налоги> with <УчтенВСумме>true</УчтенВСумме>."""
+    def test_nds_uchteno_v_summe_true_and_gross_price_preserved(self, settings):
+        """Each <Товар> marks VAT as included in sum without changing gross unit price."""
         settings.ONEC_EXCHANGE = {
             **settings.ONEC_EXCHANGE,
             "DEFAULT_VAT_RATE": 22,
@@ -1995,9 +1995,14 @@ class TestOrderExportVatAndOrgInXML:
         xml_str = service.generate_xml(Order.objects.filter(id=order.id))
         root = ET.fromstring(xml_str)
 
-        uchten = root.find(".//Товар/Налоги/Налог/УчтенВСумме")
-        assert uchten is not None
-        assert uchten.text == "true"
+        unit_price = root.find(".//Товар/ЦенаЗаЕдиницу")
+        assert unit_price is not None
+        assert unit_price.text == "2109.00"
+
+        uchteno = root.find(".//Товар/Налоги/Налог/УчтеноВСумме")
+        assert uchteno is not None
+        assert uchteno.text == "true"
+        assert root.find(".//Товар/Налоги/Налог/УчтенВСумме") is None
 
     def test_nds_stavka_22_in_item(self, settings):
         """НДС ставка 22% correctly exported in <Ставка>22</Ставка>."""
