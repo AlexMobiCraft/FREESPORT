@@ -61,6 +61,7 @@ context:
 
 - Runtime evidence: свежий `backend/var/1c_exchange/logs/20260423_172536_orders.xml` уже показывает брутто-цены `995.00`, `189.00`, `194.00` и корректно вычисленные суммы НДС, но использует нестандартный тег `УчтенВСумме`.
 - Repo evidence: фикстуры `backend/tests/fixtures/1c-data/prices/*.xml` и `backend/tests/fixtures/1c-data/priceLists/priceLists.xml` уже используют стандартное имя `УчтеноВСумме`, поэтому bugfix должен выровнять order export с остальным CommerceML-контрактом проекта.
+- Post-fix note (23.04.2026): реальный импорт в 1С показал, что переименование тега в строке товара само по себе недостаточно. Модуль `БУС_ЗагрузкаСервер` выставляет `Цена включает НДС` из `ДокументXML.НДСВСумме`, а этот флаг читается из `Документ/Налоги`, поэтому финальный рабочий фикс добавил налоговый блок и на уровень документа.
 
 ## Verification
 
@@ -76,14 +77,14 @@ context:
 
 **XML-контракт**
 
-- Точка входа: меняем имя тега без изменения расчёта НДС и цены строки.
-  [`order_export.py:375`](../../backend/apps/orders/services/order_export.py#L375)
+- Точка входа: добавляем документ-level налоговый блок для флага `ЦенаВключаетНДС`.
+  [`order_export.py:196`](../../backend/apps/orders/services/order_export.py#L196)
 
-- Документация фиксирует, что цена сайта уже брутто и не должна пересчитываться.
-  [`order-vat-warehouse-routing.md:167`](../../docs/integrations/1c/order-vat-warehouse-routing.md#L167)
+- Документация фиксирует реальную причину инцидента и итоговое решение.
+  [`order-vat-warehouse-routing.md:173`](../../docs/integrations/1c/order-vat-warehouse-routing.md#L173)
 
 - Диагностический sample выровнен с фактическим контрактом экспорта.
-  [`order-export-org-warehouse-diagnostic.xml:39`](../../docs/integrations/1c/samples/order-export-org-warehouse-diagnostic.xml#L39)
+  [`order-export-org-warehouse-diagnostic.xml:19`](../../docs/integrations/1c/samples/order-export-org-warehouse-diagnostic.xml#L19)
 
 **Регрессия**
 

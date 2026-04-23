@@ -1984,7 +1984,7 @@ class TestOrderExportVatAndOrgInXML:
         assert vid_ceny_name.text == "РРЦ"
 
     def test_nds_uchteno_v_summe_true_and_gross_price_preserved(self, settings):
-        """Each <Товар> marks VAT as included in sum without changing gross unit price."""
+        """Документ и строка товара помечают, что НДС уже включен в цену сайта."""
         settings.ONEC_EXCHANGE = {
             **settings.ONEC_EXCHANGE,
             "DEFAULT_VAT_RATE": 22,
@@ -1999,9 +1999,14 @@ class TestOrderExportVatAndOrgInXML:
         assert unit_price is not None
         assert unit_price.text == "2109.00"
 
+        doc_uchteno = root.find(".//Документ/Налоги/Налог/УчтеноВСумме")
+        assert doc_uchteno is not None
+        assert doc_uchteno.text == "true"
+
         uchteno = root.find(".//Товар/Налоги/Налог/УчтеноВСумме")
         assert uchteno is not None
         assert uchteno.text == "true"
+        assert root.find(".//Документ/Налоги/Налог/УчтенВСумме") is None
         assert root.find(".//Товар/Налоги/Налог/УчтенВСумме") is None
 
     def test_nds_stavka_22_in_item(self, settings):
@@ -2021,7 +2026,7 @@ class TestOrderExportVatAndOrgInXML:
         assert stavka.text == "22"
 
     def test_nds_summa_calculated_inclusively(self, settings):
-        """НДС сумма = 2109 × 22 / 122 = 380.31 (в том числе)."""
+        """НДС сумма на уровне строки и документа = 2109 × 22 / 122 = 380.31."""
         settings.ONEC_EXCHANGE = {
             **settings.ONEC_EXCHANGE,
             "DEFAULT_VAT_RATE": 22,
@@ -2035,6 +2040,10 @@ class TestOrderExportVatAndOrgInXML:
         nds_summa = root.find(".//Товар/Налоги/Налог/Сумма")
         assert nds_summa is not None
         assert nds_summa.text == "380.31"
+
+        doc_nds_summa = root.find(".//Документ/Налоги/Налог/Сумма")
+        assert doc_nds_summa is not None
+        assert doc_nds_summa.text == "380.31"
 
     def test_requisites_organization_uses_dynamic_value(self, settings):
         """ЗначенияРеквизитов/Организация динамически определяется через ORGANIZATION_BY_VAT.

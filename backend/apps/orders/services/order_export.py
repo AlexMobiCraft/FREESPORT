@@ -192,6 +192,9 @@ class OrderExportService:
         agreement = ET.SubElement(document, "Соглашение")
         self._add_text_element(agreement, "Наименование", agreement_name)
 
+        # 1C-БУС читает флаг "Цена включает НДС" из Документ.Налоги, а не из строк товара.
+        document.append(self._create_document_taxes_element(order, order_vat_rate))
+
         # Блок контрагентов
         counterparties = self._create_counterparties_element(order)
         document.append(counterparties)
@@ -220,6 +223,16 @@ class OrderExportService:
         document.append(doc_props)
 
         return document
+
+    def _create_document_taxes_element(self, order: "Order", order_vat_rate: Decimal) -> ET.Element:
+        """Создаёт блок Документ/Налоги для 1С, чтобы импорт выставил ЦенаВключаетНДС."""
+        taxes = ET.Element("Налоги")
+        tax = ET.SubElement(taxes, "Налог")
+        self._add_text_element(tax, "Наименование", "НДС")
+        self._add_text_element(tax, "УчтеноВСумме", "true")
+        self._add_text_element(tax, "Ставка", str(int(order_vat_rate)))
+        self._add_text_element(tax, "Сумма", self._format_price(self._get_document_vat_amount(order, order_vat_rate)))
+        return taxes
 
     def _create_counterparties_element(self, order: "Order") -> ET.Element:
         """Создание блока Контрагенты.
@@ -356,16 +369,8 @@ class OrderExportService:
                 self._add_text_element(vid_ceny, "Ид", price_type_id)
             self._add_text_element(vid_ceny, "Наименование", price_type_name)
 
-            # НДС «в том числе» (включён в сумму строки)
-            # Цепочка AC5: OrderItem.vat_rate (snapshot) → variant.vat_rate → _get_order_vat_rate(sub)
-            # warehouse_name варианта НЕ используется для item-level VAT — только для order-level fallback.
-            if item.vat_rate is not None:
-                item_vat_rate = Decimal(str(item.vat_rate))
-            elif item.variant.vat_rate is not None:
-                item_vat_rate = Decimal(str(item.variant.vat_rate))
-            else:
-                product_vat_rate = self._get_prefetched_product_vat_rate(item)
-                item_vat_rate = product_vat_rate if product_vat_rate is not None else order_vat_rate
+            # НДС «в том числе» (включён в сумму строки).
+            item_vat_rate = self._resolve_item_vat_rate_for_export(item, order_vat_rate)
             vat_amount = self._calc_vat_amount(item.total_price, item_vat_rate)
 
             taxes = ET.SubElement(product, "Налоги")
@@ -394,6 +399,25 @@ class OrderExportService:
             products.append(product)
 
         return products
+
+    def _resolve_item_vat_rate_for_export(self, item, order_vat_rate: Decimal) -> Decimal:
+        """Возвращает ставку НДС строки для XML-экспорта заказа."""
+        # Цепочка AC5: OrderItem.vat_rate (snapshot) → variant.vat_rate → product.vat_rate → order_vat_rate.
+        # warehouse_name варианта НЕ используется для item-level VAT — только для order-level fallback.
+        if item.vat_rate is not None:
+            return Decimal(str(item.vat_rate))
+        if item.variant.vat_rate is not None:
+            return Decimal(str(item.variant.vat_rate))
+        product_vat_rate = self._get_prefetched_product_vat_rate(item)
+        return product_vat_rate if product_vat_rate is not None else order_vat_rate
+
+    def _get_document_vat_amount(self, order: "Order", order_vat_rate: Decimal) -> Decimal:
+        """Сумма НДС документа как сумма НДС строк, чтобы совпадать с товарными блоками."""
+        total_vat = Decimal("0.00")
+        for item in order.items.all():
+            item_vat_rate = self._resolve_item_vat_rate_for_export(item, order_vat_rate)
+            total_vat += self._calc_vat_amount(item.total_price, item_vat_rate)
+        return total_vat.quantize(Decimal("0.01"))
 
     # -------------------------------------------------------------------------
     # Вспомогательные методы для организации/склада/цены/НДС
