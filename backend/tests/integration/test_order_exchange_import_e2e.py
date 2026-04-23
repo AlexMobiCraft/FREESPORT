@@ -296,7 +296,7 @@ def test_full_vat_split_export_import_cycle(auth_client, log_dir, db, settings):
     settings.ONEC_EXCHANGE = {
         **getattr(settings, "ONEC_EXCHANGE", {}),
         "ORGANIZATION_BY_VAT": {
-            22: {"name": "ИП Семерюк Д. В.", "warehouse": "1 СДВ склад"},
+            22: {"name": "ИП Семерюк Д.В.", "warehouse": "1 СДВ склад"},
             5: {"name": "ИП Терещенко Л.В.", "warehouse": "2 ТЛВ склад"},
         },
     }
@@ -336,8 +336,8 @@ def test_full_vat_split_export_import_cycle(auth_client, log_dir, db, settings):
     assert org_by_number[sub1.order_number] == "ИП Терещенко Л.В.", (
         f"sub1 (vat_group=5): ожидали 'ИП Терещенко Л.В.', получили {org_by_number[sub1.order_number]!r}"
     )
-    assert org_by_number[sub2.order_number] == "ИП Семерюк Д. В.", (
-        f"sub2 (vat_group=22): ожидали 'ИП Семерюк Д. В.', получили {org_by_number[sub2.order_number]!r}"
+    assert org_by_number[sub2.order_number] == "ИП Семерюк Д.В.", (
+        f"sub2 (vat_group=22): ожидали 'ИП Семерюк Д.В.', получили {org_by_number[sub2.order_number]!r}"
     )
 
     # Проверяем склады по vat_group (AC5: ORGANIZATION_BY_VAT задаёт и Склад)

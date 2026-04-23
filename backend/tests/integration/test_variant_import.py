@@ -531,7 +531,7 @@ class TestVariantImportProcessor(TransactionTestCase):
                 "warehouse-002": "2 ТЛВ склад",
             },
             "WAREHOUSE_RULES": {
-                "1 СДВ склад": {"organization": "ИП Семерюк Д. В.", "vat_rate": 22},
+                "1 СДВ склад": {"organization": "ИП Семерюк Д.В.", "vat_rate": 22},
                 "2 ТЛВ склад": {"organization": "ИП Терещенко Л.В.", "vat_rate": 5},
             },
         }

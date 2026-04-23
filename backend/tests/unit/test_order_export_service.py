@@ -1644,7 +1644,7 @@ class TestGetOrderVatRate:
         settings.ONEC_EXCHANGE = {
             **settings.ONEC_EXCHANGE,
             "WAREHOUSE_RULES": {
-                "1 СДВ склад": {"organization": "ИП Семерюк Д. В.", "vat_rate": 22},
+                "1 СДВ склад": {"organization": "ИП Семерюк Д.В.", "vat_rate": 22},
                 "2 ТЛВ склад": {"organization": "ИП Терещенко Л.В.", "vat_rate": 5},
             },
             "DEFAULT_VAT_RATE": 22,
@@ -1678,17 +1678,17 @@ class TestGetOrgAndWarehouse:
     """Unit tests for OrderExportService._get_org_and_warehouse()."""
 
     def test_vat_22_returns_ip_semeryuk(self, settings):
-        """НДС 22% → ИП Семерюк Д. В. + 1 СДВ склад."""
+        """НДС 22% → ИП Семерюк Д.В. + 1 СДВ склад."""
         settings.ONEC_EXCHANGE = {
             **settings.ONEC_EXCHANGE,
             "ORGANIZATION_BY_VAT": {
-                22: {"name": "ИП Семерюк Д. В.", "warehouse": "1 СДВ склад"},
+                22: {"name": "ИП Семерюк Д.В.", "warehouse": "1 СДВ склад"},
                 5: {"name": "ИП Терещенко Л.В.", "warehouse": "2 ТЛВ склад"},
             },
         }
         service = OrderExportService()
         org, wh = service._get_org_and_warehouse(Decimal("22"))
-        assert org == "ИП Семерюк Д. В."
+        assert org == "ИП Семерюк Д.В."
         assert wh == "1 СДВ склад"
 
     def test_vat_5_returns_ip_tereshchenko(self, settings):
@@ -1696,7 +1696,7 @@ class TestGetOrgAndWarehouse:
         settings.ONEC_EXCHANGE = {
             **settings.ONEC_EXCHANGE,
             "ORGANIZATION_BY_VAT": {
-                22: {"name": "ИП Семерюк Д. В.", "warehouse": "1 СДВ склад"},
+                22: {"name": "ИП Семерюк Д.В.", "warehouse": "1 СДВ склад"},
                 5: {"name": "ИП Терещенко Л.В.", "warehouse": "2 ТЛВ склад"},
             },
         }
@@ -1710,7 +1710,7 @@ class TestGetOrgAndWarehouse:
         settings.ONEC_EXCHANGE = {
             **settings.ONEC_EXCHANGE,
             "WAREHOUSE_RULES": {
-                "1 СДВ склад": {"organization": "ИП Семерюк Д. В.", "vat_rate": 22},
+                "1 СДВ склад": {"organization": "ИП Семерюк Д.В.", "vat_rate": 22},
                 "2 ТЛВ склад": {"organization": "ИП Терещенко Л.В.", "vat_rate": 5},
             },
             "ORGANIZATION_BY_VAT": {
@@ -1719,7 +1719,7 @@ class TestGetOrgAndWarehouse:
         }
         service = OrderExportService()
         org, wh = service._get_org_and_warehouse(Decimal("22"), "1 СДВ склад")
-        assert org == "ИП Семерюк Д. В."
+        assert org == "ИП Семерюк Д.В."
         assert wh == "1 СДВ склад"
 
     def test_unknown_vat_uses_defaults(self, settings):
@@ -1727,12 +1727,12 @@ class TestGetOrgAndWarehouse:
         settings.ONEC_EXCHANGE = {
             **settings.ONEC_EXCHANGE,
             "ORGANIZATION_BY_VAT": {},
-            "DEFAULT_ORGANIZATION": "ИП Семерюк Д. В.",
+            "DEFAULT_ORGANIZATION": "ИП Семерюк Д.В.",
             "DEFAULT_WAREHOUSE": "1 СДВ склад",
         }
         service = OrderExportService()
         org, wh = service._get_org_and_warehouse(Decimal("20"))
-        assert org == "ИП Семерюк Д. В."
+        assert org == "ИП Семерюк Д.В."
         assert wh == "1 СДВ склад"
 
 
@@ -1866,11 +1866,11 @@ class TestOrderExportVatAndOrgInXML:
         return _make_order_with_variant(variant, user=user, total=Decimal("2109.00"), vat_group=vat_group)
 
     def test_organization_in_xml_for_import_goods(self, settings):
-        """НДС 22% → <Организация>ИП Семерюк Д. В.</Организация> in document."""
+        """НДС 22% → <Организация>ИП Семерюк Д.В.</Организация> in document."""
         settings.ONEC_EXCHANGE = {
             **settings.ONEC_EXCHANGE,
             "ORGANIZATION_BY_VAT": {
-                22: {"name": "ИП Семерюк Д. В.", "warehouse": "1 СДВ склад"},
+                22: {"name": "ИП Семерюк Д.В.", "warehouse": "1 СДВ склад"},
                 5: {"name": "ИП Терещенко Л.В.", "warehouse": "2 ТЛВ склад"},
             },
             "DEFAULT_VAT_RATE": 22,
@@ -1882,14 +1882,14 @@ class TestOrderExportVatAndOrgInXML:
 
         org = root.find(".//Документ/Организация")
         assert org is not None
-        assert org.text == "ИП Семерюк Д. В."
+        assert org.text == "ИП Семерюк Д.В."
 
     def test_warehouse_in_xml_for_import_goods(self, settings):
         """НДС 22% → <Склад>1 СДВ склад</Склад> in document."""
         settings.ONEC_EXCHANGE = {
             **settings.ONEC_EXCHANGE,
             "ORGANIZATION_BY_VAT": {
-                22: {"name": "ИП Семерюк Д. В.", "warehouse": "1 СДВ склад"},
+                22: {"name": "ИП Семерюк Д.В.", "warehouse": "1 СДВ склад"},
                 5: {"name": "ИП Терещенко Л.В.", "warehouse": "2 ТЛВ склад"},
             },
             "DEFAULT_VAT_RATE": 22,
@@ -1909,11 +1909,11 @@ class TestOrderExportVatAndOrgInXML:
         settings.ONEC_EXCHANGE = {
             **settings.ONEC_EXCHANGE,
             "WAREHOUSE_RULES": {
-                "1 СДВ склад": {"organization": "ИП Семерюк Д. В.", "vat_rate": 22},
+                "1 СДВ склад": {"organization": "ИП Семерюк Д.В.", "vat_rate": 22},
                 "2 ТЛВ склад": {"organization": "ИП Терещенко Л.В.", "vat_rate": 5},
             },
             "DEFAULT_VAT_RATE": 22,
-            "DEFAULT_ORGANIZATION": "ИП Семерюк Д. В.",
+            "DEFAULT_ORGANIZATION": "ИП Семерюк Д.В.",
             "DEFAULT_WAREHOUSE": "1 СДВ склад",
         }
         order = self._create_order(None, warehouse_name="2 ТЛВ склад")
@@ -1926,7 +1926,7 @@ class TestOrderExportVatAndOrgInXML:
         assert org is not None
         assert vat is not None
         # vat_group=None → DEFAULT_ORGANIZATION (warehouse_name больше не определяет org)
-        assert org.text == "ИП Семерюк Д. В."
+        assert org.text == "ИП Семерюк Д.В."
         # warehouse_name всё ещё влияет на VAT через _get_order_vat_rate order-level fallback
         assert vat.text == "5"
 
@@ -1988,7 +1988,7 @@ class TestOrderExportVatAndOrgInXML:
         settings.ONEC_EXCHANGE = {
             **settings.ONEC_EXCHANGE,
             "DEFAULT_VAT_RATE": 22,
-            "ORGANIZATION_BY_VAT": {22: {"name": "ИП Семерюк Д. В.", "warehouse": "1 СДВ склад"}},
+            "ORGANIZATION_BY_VAT": {22: {"name": "ИП Семерюк Д.В.", "warehouse": "1 СДВ склад"}},
         }
         order = self._create_order(Decimal("22"))
         service = OrderExportService()
@@ -2004,7 +2004,7 @@ class TestOrderExportVatAndOrgInXML:
         settings.ONEC_EXCHANGE = {
             **settings.ONEC_EXCHANGE,
             "DEFAULT_VAT_RATE": 22,
-            "ORGANIZATION_BY_VAT": {22: {"name": "ИП Семерюк Д. В.", "warehouse": "1 СДВ склад"}},
+            "ORGANIZATION_BY_VAT": {22: {"name": "ИП Семерюк Д.В.", "warehouse": "1 СДВ склад"}},
         }
         order = self._create_order(Decimal("22"))
         service = OrderExportService()
@@ -2020,7 +2020,7 @@ class TestOrderExportVatAndOrgInXML:
         settings.ONEC_EXCHANGE = {
             **settings.ONEC_EXCHANGE,
             "DEFAULT_VAT_RATE": 22,
-            "ORGANIZATION_BY_VAT": {22: {"name": "ИП Семерюк Д. В.", "warehouse": "1 СДВ склад"}},
+            "ORGANIZATION_BY_VAT": {22: {"name": "ИП Семерюк Д.В.", "warehouse": "1 СДВ склад"}},
         }
         order = self._create_order(Decimal("22"))
         service = OrderExportService()
@@ -2038,7 +2038,7 @@ class TestOrderExportVatAndOrgInXML:
         settings.ONEC_EXCHANGE = {
             **settings.ONEC_EXCHANGE,
             "ORGANIZATION_BY_VAT": {
-                22: {"name": "ИП Семерюк Д. В.", "warehouse": "1 СДВ склад"},
+                22: {"name": "ИП Семерюк Д.В.", "warehouse": "1 СДВ склад"},
                 5: {"name": "ИП Терещенко Л.В.", "warehouse": "2 ТЛВ склад"},
             },
             "DEFAULT_VAT_RATE": 5,
@@ -2155,7 +2155,7 @@ class TestOrderExportServiceSubOrderDocument:
         settings.ONEC_EXCHANGE = {
             **getattr(settings, "ONEC_EXCHANGE", {}),
             "ORGANIZATION_BY_VAT": {
-                22: {"name": "ИП Семерюк Д. В.", "warehouse": "1 СДВ склад"},
+                22: {"name": "ИП Семерюк Д.В.", "warehouse": "1 СДВ склад"},
                 5: {"name": "ИП Терещенко Л.В.", "warehouse": "2 ТЛВ склад"},
             },
             "DEFAULT_VAT_RATE": 22,
@@ -2171,7 +2171,7 @@ class TestOrderExportServiceSubOrderDocument:
         doc = docs[0]
         assert doc.find("Ид").text == f"order-{sub.id}"
         assert doc.find("Номер").text == sub.order_number
-        assert doc.find("Организация").text == "ИП Семерюк Д. В."
+        assert doc.find("Организация").text == "ИП Семерюк Д.В."
         assert doc.find("Склад").text == "1 СДВ склад"
         assert doc.find("Сумма").text == "2109.00"
 
@@ -2180,12 +2180,12 @@ class TestOrderExportServiceSubOrderDocument:
         settings.ONEC_EXCHANGE = {
             **getattr(settings, "ONEC_EXCHANGE", {}),
             "ORGANIZATION_BY_VAT": {
-                22: {"name": "ИП Семерюк Д. В.", "warehouse": "1 СДВ склад"},
+                22: {"name": "ИП Семерюк Д.В.", "warehouse": "1 СДВ склад"},
                 5: {"name": "ИП Терещенко Л.В.", "warehouse": "2 ТЛВ склад"},
             },
             "WAREHOUSE_RULES": {
-                "1 СДВ склад": {"organization": "ИП Семерюк Д. В.", "vat_rate": 22},
-                "Intex ОСНОВНОЙ": {"organization": "ИП Семерюк Д. В.", "vat_rate": 22},
+                "1 СДВ склад": {"organization": "ИП Семерюк Д.В.", "vat_rate": 22},
+                "Intex ОСНОВНОЙ": {"organization": "ИП Семерюк Д.В.", "vat_rate": 22},
             },
             "DEFAULT_VAT_RATE": 22,
         }
@@ -2201,7 +2201,7 @@ class TestOrderExportServiceSubOrderDocument:
 
         doc = root.find("Контейнер/Документ")
         assert doc is not None
-        assert doc.find("Организация").text == "ИП Семерюк Д. В."
+        assert doc.find("Организация").text == "ИП Семерюк Д.В."
         assert doc.find("Склад").text == "Intex ОСНОВНОЙ"
 
     def test_multi_vat_master_produces_two_documents(self, settings):
@@ -2209,7 +2209,7 @@ class TestOrderExportServiceSubOrderDocument:
         settings.ONEC_EXCHANGE = {
             **getattr(settings, "ONEC_EXCHANGE", {}),
             "ORGANIZATION_BY_VAT": {
-                22: {"name": "ИП Семерюк Д. В.", "warehouse": "1 СДВ склад"},
+                22: {"name": "ИП Семерюк Д.В.", "warehouse": "1 СДВ склад"},
                 5: {"name": "ИП Терещенко Л.В.", "warehouse": "2 ТЛВ склад"},
             },
             "DEFAULT_VAT_RATE": 22,
@@ -2282,14 +2282,14 @@ class TestOrderExportServiceSubOrderDocument:
         assert len(docs) == 2
         orgs = {doc.find("Организация").text for doc in docs}
         assert "ИП Терещенко Л.В." in orgs
-        assert "ИП Семерюк Д. В." in orgs
+        assert "ИП Семерюк Д.В." in orgs
 
     def test_item_vat_rate_snapshot_has_priority(self, settings):
         """AC5: OrderItem.vat_rate snapshot приоритетнее variant.vat_rate в <Ставка>."""
         settings.ONEC_EXCHANGE = {
             **getattr(settings, "ONEC_EXCHANGE", {}),
             "ORGANIZATION_BY_VAT": {
-                22: {"name": "ИП Семерюк Д. В.", "warehouse": "1 СДВ склад"},
+                22: {"name": "ИП Семерюк Д.В.", "warehouse": "1 СДВ склад"},
                 5: {"name": "ИП Терещенко Л.В.", "warehouse": "2 ТЛВ склад"},
             },
             "DEFAULT_VAT_RATE": 22,
@@ -2309,7 +2309,7 @@ class TestOrderExportServiceSubOrderDocument:
         assert stavka.text == "5"
         org = root.find(".//Документ/Организация")
         assert org is not None
-        assert org.text == "ИП Семерюк Д. В."
+        assert org.text == "ИП Семерюк Д.В."
 
     def test_vat_group_is_authoritative_over_variant_warehouse_name(self, settings):
         """AC4: vat_group — авторитетный источник; ни warehouse_name, ни variant.vat_rate
@@ -2319,11 +2319,11 @@ class TestOrderExportServiceSubOrderDocument:
         settings.ONEC_EXCHANGE = {
             **getattr(settings, "ONEC_EXCHANGE", {}),
             "ORGANIZATION_BY_VAT": {
-                22: {"name": "ИП Семерюк Д. В.", "warehouse": "1 СДВ склад"},
+                22: {"name": "ИП Семерюк Д.В.", "warehouse": "1 СДВ склад"},
                 5: {"name": "ИП Терещенко Л.В.", "warehouse": "2 ТЛВ склад"},
             },
             "WAREHOUSE_RULES": {
-                "1 СДВ склад": {"organization": "ИП Семерюк Д. В.", "vat_rate": 22},
+                "1 СДВ склад": {"organization": "ИП Семерюк Д.В.", "vat_rate": 22},
                 "2 ТЛВ склад": {"organization": "ИП Терещенко Л.В.", "vat_rate": 5},
             },
             "DEFAULT_VAT_RATE": 22,
@@ -2355,7 +2355,7 @@ class TestOrderExportServiceSubOrderDocument:
         settings.ONEC_EXCHANGE = {
             **getattr(settings, "ONEC_EXCHANGE", {}),
             "DEFAULT_VAT_RATE": 22,
-            "DEFAULT_ORGANIZATION": "ИП Семерюк Д. В.",
+            "DEFAULT_ORGANIZATION": "ИП Семерюк Д.В.",
             "DEFAULT_WAREHOUSE": "1 СДВ склад",
             "ORGANIZATION_BY_VAT": {},
         }
@@ -2371,7 +2371,7 @@ class TestOrderExportServiceSubOrderDocument:
 
         doc = root.find("Контейнер/Документ")
         assert doc is not None
-        assert doc.find("Организация").text == "ИП Семерюк Д. В."
+        assert doc.find("Организация").text == "ИП Семерюк Д.В."
         assert doc.find("Склад").text == "1 СДВ склад"
         assert "vat_group is None, using defaults" in caplog.text
 
@@ -2385,7 +2385,7 @@ class TestOrderExportServiceSubOrderDocument:
             "ORGANIZATION_BY_VAT": {
                 5: {"name": "ИП Терещенко Л.В.", "warehouse": "2 ТЛВ склад"},
             },
-            "DEFAULT_ORGANIZATION": "ИП Семерюк Д. В.",
+            "DEFAULT_ORGANIZATION": "ИП Семерюк Д.В.",
             "DEFAULT_WAREHOUSE": "1 СДВ склад",
             "DEFAULT_VAT_RATE": 22,
         }
@@ -2403,7 +2403,7 @@ class TestOrderExportServiceSubOrderDocument:
 
         doc = root.find("Контейнер/Документ")
         assert doc is not None
-        assert doc.find("Организация").text == "ИП Семерюк Д. В."
+        assert doc.find("Организация").text == "ИП Семерюк Д.В."
         assert doc.find("Склад").text == "1 СДВ склад"
         assert "vat_group is None, using defaults" in caplog.text
 
@@ -2416,7 +2416,7 @@ class TestOrderExportServiceSubOrderDocument:
                 "2 ТЛВ склад": {"organization": "ИП Терещенко Л.В.", "vat_rate": 5},
             },
             "ORGANIZATION_BY_VAT": {
-                22: {"name": "ИП Семерюк Д. В.", "warehouse": "1 СДВ склад"},
+                22: {"name": "ИП Семерюк Д.В.", "warehouse": "1 СДВ склад"},
             },
             "DEFAULT_VAT_RATE": 22,
         }

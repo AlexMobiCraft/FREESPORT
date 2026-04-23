@@ -972,7 +972,7 @@ class TestSubOrderQuery:
         settings.ONEC_EXCHANGE = {
             **getattr(settings, "ONEC_EXCHANGE", {}),
             "ORGANIZATION_BY_VAT": {
-                22: {"name": "ИП Семерюк Д. В.", "warehouse": "1 СДВ склад"},
+                22: {"name": "ИП Семерюк Д.В.", "warehouse": "1 СДВ склад"},
                 5: {"name": "ИП Терещенко Л.В.", "warehouse": "2 ТЛВ склад"},
             },
             "DEFAULT_VAT_RATE": 22,
@@ -982,7 +982,7 @@ class TestSubOrderQuery:
             data={"mode": "query"},
         )
         content = get_response_content(response).decode("utf-8")
-        assert "ИП Семерюк Д. В." in content
+        assert "ИП Семерюк Д.В." in content
         assert "ИП Терещенко Л.В." in content
 
 

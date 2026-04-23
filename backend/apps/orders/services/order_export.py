@@ -182,7 +182,7 @@ class OrderExportService:
             # AC8: vat_group=None → DEFAULT_* без warehouse_name routing
             logger.warning(f"Sub-order {order.order_number}: vat_group is None, using defaults")
             _exc_cfg = getattr(settings, "ONEC_EXCHANGE", {})
-            org_name = _exc_cfg.get("DEFAULT_ORGANIZATION", "ИП Семерюк Д. В.")
+            org_name = _exc_cfg.get("DEFAULT_ORGANIZATION", "ИП Семерюк Д.В.")
             warehouse_name = _exc_cfg.get("DEFAULT_WAREHOUSE", "1 СДВ склад")
         exchange_cfg = getattr(settings, "ONEC_EXCHANGE", {})
         agreement_name = exchange_cfg.get("DEFAULT_AGREEMENT", "Стандартное")
@@ -473,7 +473,7 @@ class OrderExportService:
         if info:
             return info["name"], info["warehouse"]
         return (
-            exchange_cfg.get("DEFAULT_ORGANIZATION", "ИП Семерюк Д. В."),
+            exchange_cfg.get("DEFAULT_ORGANIZATION", "ИП Семерюк Д.В."),
             exchange_cfg.get("DEFAULT_WAREHOUSE", "1 СДВ склад"),
         )
 

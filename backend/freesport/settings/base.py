@@ -304,15 +304,15 @@ ONEC_EXCHANGE = {
     # Маппинг ставки НДС (int) → организация и склад
     # Fallback для старых данных, где у варианта ещё нет warehouse_name
     "ORGANIZATION_BY_VAT": {
-        22: {"name": "ИП Семерюк Д. В.", "warehouse": "1 СДВ склад"},
-        20: {"name": "ИП Семерюк Д. В.", "warehouse": "1 СДВ склад"},
+        22: {"name": "ИП Семерюк Д.В.", "warehouse": "1 СДВ склад"},
+        20: {"name": "ИП Семерюк Д.В.", "warehouse": "1 СДВ склад"},
         10: {"name": "ИП Терещенко Л.В.", "warehouse": "2 ТЛВ склад"},
         5: {"name": "ИП Терещенко Л.В.", "warehouse": "2 ТЛВ склад"},
     },
     # Основное правило: склад варианта -> организация + ставка НДС
     "WAREHOUSE_RULES": {
-        "1 СДВ склад": {"organization": "ИП Семерюк Д. В.", "vat_rate": 22},
-        "Intex ОСНОВНОЙ": {"organization": "ИП Семерюк Д. В.", "vat_rate": 22},
+        "1 СДВ склад": {"organization": "ИП Семерюк Д.В.", "vat_rate": 22},
+        "Intex ОСНОВНОЙ": {"organization": "ИП Семерюк Д.В.", "vat_rate": 22},
         "2 ТЛВ склад": {"organization": "ИП Терещенко Л.В.", "vat_rate": 5},
     },
     # Маппинг GUID склада из rests.xml -> имя склада из storages.xml
@@ -323,7 +323,7 @@ ONEC_EXCHANGE = {
     },
     # Значения по умолчанию (используются если vat_rate не задан у варианта)
     "DEFAULT_VAT_RATE": 22,
-    "DEFAULT_ORGANIZATION": "ИП Семерюк Д. В.",
+    "DEFAULT_ORGANIZATION": "ИП Семерюк Д.В.",
     "DEFAULT_WAREHOUSE": "1 СДВ склад",
     # Соглашение и действие строки — фиксированные значения
     "DEFAULT_AGREEMENT": "Стандартное",
