@@ -55,6 +55,12 @@ jobs:
           # 8. Удаление самих workflow файлов для публичного репозитория
           # Это решает проблему отсутствия прав 'workflow' у PAT и скрывает внутренние CI процессы
           rm -rf .github/workflows/ 
+
+          # 9. Удаление файлов с конфиденциальной информацией
+          rm -f .env .env.local .env.example .env.test
+          
+          # 10. Удаление файлов с отчетами
+          rm -f Отчет.md
           
           echo "Cleanup finished."
 

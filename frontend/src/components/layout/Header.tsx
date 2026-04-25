@@ -64,7 +64,7 @@ const Header: React.FC = () => {
     { href: '/catalog', label: 'Каталог' },
     { href: '/news', label: 'Новости' },
     { href: '/blog', label: 'Блог' },
-    { href: '/partners', label: 'Партнёрам' },
+    { href: '/partners', label: 'Партнерам' },
   ];
 
   const isActivePage = (href: string) => {

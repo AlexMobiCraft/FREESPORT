@@ -119,11 +119,11 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
                       href={`/blog?page=${currentPage + 1}`}
                       className="px-4 py-2 border border-neutral-300 rounded-lg hover:bg-neutral-100 transition-colors text-text-primary"
                     >
-                      Вперёд →
+                      Вперед →
                     </Link>
                   ) : (
                     <span className="px-4 py-2 border border-neutral-200 rounded-lg text-text-disabled cursor-not-allowed">
-                      Вперёд →
+                      Вперед →
                     </span>
                   )}
                 </div>

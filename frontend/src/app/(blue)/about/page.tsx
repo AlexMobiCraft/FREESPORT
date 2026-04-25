@@ -42,12 +42,12 @@ const values = [
   {
     icon: Lightbulb,
     title: 'Инновации',
-    description: 'Современные технологии и решения для партнёров',
+    description: 'Современные технологии и решения для партнеров',
   },
   {
     icon: Shield,
-    title: 'Надёжность',
-    description: 'Гарантия качества на все товары и долгосрочное партнёрство',
+    title: 'Надежность',
+    description: 'Гарантия качества на все товары и долгосрочное партнерство',
   },
 ];
 
@@ -96,7 +96,7 @@ export default function AboutPage() {
                 Компания разрабатывает собственную продукцию, контролирует производственные процессы
                 и обеспечивает стабильные оптовые поставки по всей России.
               </p>
-              <p>Основные принципы работы — качество, надёжность и долгосрочное партнёрство.</p>
+              <p>Основные принципы работы — качество, надежность и долгосрочное партнерство.</p>
             </div>
           </div>
         </div>
@@ -144,7 +144,7 @@ export default function AboutPage() {
       <section className="bg-primary py-16 sm:py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-3xl sm:text-4xl font-bold text-white mb-6">
-            Присоединяйтесь к числу наших партнёров!
+            Присоединяйтесь к числу наших партнеров!
           </h2>
           <p className="text-lg text-white/90 mb-8 max-w-2xl mx-auto">
             Станьте частью команды профессионалов и получите доступ к эксклюзивным условиям
@@ -152,7 +152,7 @@ export default function AboutPage() {
           </p>
           <Link href="/register">
             <Button variant="secondary" size="large">
-              Стать партнёром
+              Стать партнером
             </Button>
           </Link>
         </div>

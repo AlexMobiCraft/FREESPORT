@@ -45,7 +45,7 @@ export const WhyFreesportSection: React.FC = () => {
         {/* Header */}
         <div className="text-center mb-8">
           <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-            Почему партнёры выбирают нас?
+            Почему партнеры выбирают нас?
           </h2>
         </div>
 
@@ -66,7 +66,7 @@ export const WhyFreesportSection: React.FC = () => {
         <div className="text-center">
           <Link href="/partners">
             <Button size="large" variant="primary">
-              Стать партнёром
+              Стать партнером
             </Button>
           </Link>
         </div>

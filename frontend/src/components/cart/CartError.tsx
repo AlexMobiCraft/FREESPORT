@@ -33,7 +33,7 @@ export const CartError = ({ error, onRetry }: CartErrorProps) => {
         <h2 className="text-title-l font-semibold text-text-primary mb-2">Ошибка загрузки</h2>
 
         <p className="text-body-m text-text-secondary mb-2 text-center max-w-md">
-          Не удалось загрузить корзину. Пожалуйста, попробуйте ещё раз.
+          Не удалось загрузить корзину. Пожалуйста, попробуйте еще раз.
         </p>
 
         <p className="text-body-s text-red-500 mb-8 text-center max-w-md">{error}</p>

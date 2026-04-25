@@ -48,7 +48,7 @@ const clientTypes = [
   {
     icon: Trophy,
     title: 'Федерации',
-    description: 'Партнёрство со спортивными федерациями',
+    description: 'Партнерство со спортивными федерациями',
   },
   {
     icon: GraduationCap,
@@ -105,7 +105,7 @@ export default function PartnersPage() {
       <Breadcrumb
         items={[
           { label: 'Главная', href: '/' },
-          { label: 'Партнёрам', href: '/partners' },
+          { label: 'Партнерам', href: '/partners' },
         ]}
         className="mb-6"
       />
@@ -113,7 +113,7 @@ export default function PartnersPage() {
       {/* Hero секция */}
       <section className="mb-12 text-center">
         <h1 className="mb-4 text-4xl font-bold text-gray-900">Условия сотрудничества</h1>
-        <p className="text-lg text-gray-600">Выстраиваем долгосрочные партнёрские отношения</p>
+        <p className="text-lg text-gray-600">Выстраиваем долгосрочные партнерские отношения</p>
       </section>
 
       {/* Типы клиентов */}

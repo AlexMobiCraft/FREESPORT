@@ -22,7 +22,7 @@ const companyInfo = {
     { icon: Zap, label: 'Оперативность' },
     { icon: Check, label: 'Качество' },
     { icon: Lightbulb, label: 'Инновации' },
-    { icon: Shield, label: 'Надёжность' },
+    { icon: Shield, label: 'Надежность' },
   ] as CompanyValue[],
 };
 
