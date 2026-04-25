@@ -39,7 +39,7 @@ describe('RegisterForm', () => {
       render(<RegisterForm />);
 
       expect(screen.getByLabelText(/имя/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/^email$/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/электронная почта/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/^пароль$/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/подтверждение пароля/i)).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /зарегистрироваться/i })).toBeInTheDocument();
@@ -49,7 +49,7 @@ describe('RegisterForm', () => {
       render(<RegisterForm />);
 
       const nameInput = screen.getByLabelText(/имя/i);
-      const emailInput = screen.getByLabelText(/^email$/i);
+      const emailInput = screen.getByLabelText(/электронная почта/i);
       const passwordInput = screen.getByLabelText(/^пароль$/i);
       const confirmInput = screen.getByLabelText(/подтверждение пароля/i);
 
@@ -85,7 +85,7 @@ describe('RegisterForm', () => {
       render(<RegisterForm />);
 
       const nameInput = screen.getByLabelText(/имя/i);
-      const emailInput = screen.getByLabelText(/^email$/i);
+      const emailInput = screen.getByLabelText(/электронная почта/i);
       const passwordInput = screen.getByLabelText(/^пароль$/i);
       const confirmInput = screen.getByLabelText(/подтверждение пароля/i);
       const submitButton = screen.getByRole('button', { name: /зарегистрироваться/i });
@@ -109,7 +109,7 @@ describe('RegisterForm', () => {
       render(<RegisterForm />);
 
       const nameInput = screen.getByLabelText(/имя/i);
-      const emailInput = screen.getByLabelText(/^email$/i);
+      const emailInput = screen.getByLabelText(/электронная почта/i);
       const passwordInput = screen.getByLabelText(/^пароль$/i);
       const confirmInput = screen.getByLabelText(/подтверждение пароля/i);
       const submitButton = screen.getByRole('button', { name: /зарегистрироваться/i });
@@ -128,7 +128,7 @@ describe('RegisterForm', () => {
       render(<RegisterForm />);
 
       const nameInput = screen.getByLabelText(/имя/i);
-      const emailInput = screen.getByLabelText(/^email$/i);
+      const emailInput = screen.getByLabelText(/электронная почта/i);
       const passwordInput = screen.getByLabelText(/^пароль$/i);
       const confirmInput = screen.getByLabelText(/подтверждение пароля/i);
       const submitButton = screen.getByRole('button', { name: /зарегистрироваться/i });
@@ -147,7 +147,7 @@ describe('RegisterForm', () => {
       render(<RegisterForm />);
 
       const nameInput = screen.getByLabelText(/имя/i);
-      const emailInput = screen.getByLabelText(/^email$/i);
+      const emailInput = screen.getByLabelText(/электронная почта/i);
       const passwordInput = screen.getByLabelText(/^пароль$/i);
       const confirmInput = screen.getByLabelText(/подтверждение пароля/i);
       const submitButton = screen.getByRole('button', { name: /зарегистрироваться/i });
@@ -183,7 +183,7 @@ describe('RegisterForm', () => {
       render(<RegisterForm />);
 
       const nameInput = screen.getByLabelText(/имя/i);
-      const emailInput = screen.getByLabelText(/^email$/i);
+      const emailInput = screen.getByLabelText(/электронная почта/i);
       const passwordInput = screen.getByLabelText(/^пароль$/i);
       const confirmInput = screen.getByLabelText(/подтверждение пароля/i);
       const submitButton = screen.getByRole('button', { name: /зарегистрироваться/i });
@@ -236,7 +236,7 @@ describe('RegisterForm', () => {
       render(<RegisterForm onSuccess={mockOnSuccess} />);
 
       const nameInput = screen.getByLabelText(/имя/i);
-      const emailInput = screen.getByLabelText(/^email$/i);
+      const emailInput = screen.getByLabelText(/электронная почта/i);
       const passwordInput = screen.getByLabelText(/^пароль$/i);
       const confirmInput = screen.getByLabelText(/подтверждение пароля/i);
       const submitButton = screen.getByRole('button', { name: /зарегистрироваться/i });
@@ -272,7 +272,7 @@ describe('RegisterForm', () => {
       render(<RegisterForm redirectUrl="/custom/path" />);
 
       await user.type(screen.getByLabelText(/имя/i), 'Test');
-      await user.type(screen.getByLabelText(/^email$/i), 'test@example.com');
+      await user.type(screen.getByLabelText(/электронная почта/i), 'test@example.com');
       await user.type(screen.getByLabelText(/^пароль$/i), 'SecurePass123');
       await user.type(screen.getByLabelText(/подтверждение пароля/i), 'SecurePass123');
       await user.click(screen.getByRole('button', { name: /зарегистрироваться/i }));
@@ -298,7 +298,7 @@ describe('RegisterForm', () => {
       render(<RegisterForm />);
 
       const nameInput = screen.getByLabelText(/имя/i);
-      const emailInput = screen.getByLabelText(/^email$/i);
+      const emailInput = screen.getByLabelText(/электронная почта/i);
       const passwordInput = screen.getByLabelText(/^пароль$/i);
       const confirmInput = screen.getByLabelText(/подтверждение пароля/i);
       const submitButton = screen.getByRole('button', { name: /зарегистрироваться/i });
@@ -333,7 +333,7 @@ describe('RegisterForm', () => {
       render(<RegisterForm />);
 
       const nameInput = screen.getByLabelText(/имя/i);
-      const emailInput = screen.getByLabelText(/^email$/i);
+      const emailInput = screen.getByLabelText(/электронная почта/i);
       const passwordInput = screen.getByLabelText(/^пароль$/i);
       const confirmInput = screen.getByLabelText(/подтверждение пароля/i);
       const submitButton = screen.getByRole('button', { name: /зарегистрироваться/i });
@@ -360,7 +360,7 @@ describe('RegisterForm', () => {
       render(<RegisterForm />);
 
       const nameInput = screen.getByLabelText(/имя/i);
-      const emailInput = screen.getByLabelText(/^email$/i);
+      const emailInput = screen.getByLabelText(/электронная почта/i);
       const passwordInput = screen.getByLabelText(/^пароль$/i);
       const confirmInput = screen.getByLabelText(/подтверждение пароля/i);
       const submitButton = screen.getByRole('button', { name: /зарегистрироваться/i });
@@ -406,7 +406,7 @@ describe('RegisterForm', () => {
       render(<RegisterForm />);
 
       const nameInput = screen.getByLabelText(/имя/i);
-      const emailInput = screen.getByLabelText(/^email$/i);
+      const emailInput = screen.getByLabelText(/электронная почта/i);
       const passwordInput = screen.getByLabelText(/^пароль$/i);
       const confirmInput = screen.getByLabelText(/подтверждение пароля/i);
       const submitButton = screen.getByRole('button', { name: /зарегистрироваться/i });
@@ -455,7 +455,7 @@ describe('RegisterForm', () => {
       render(<RegisterForm />);
 
       const nameInput = screen.getByLabelText(/имя/i) as HTMLInputElement;
-      const emailInput = screen.getByLabelText(/^email$/i) as HTMLInputElement;
+      const emailInput = screen.getByLabelText(/электронная почта/i) as HTMLInputElement;
       const passwordInput = screen.getByLabelText(/^пароль$/i) as HTMLInputElement;
       const confirmInput = screen.getByLabelText(/подтверждение пароля/i) as HTMLInputElement;
       const submitButton = screen.getByRole('button', { name: /зарегистрироваться/i });
@@ -483,7 +483,7 @@ describe('RegisterForm', () => {
       render(<RegisterForm />);
 
       const nameInput = screen.getByLabelText(/имя/i);
-      const emailInput = screen.getByLabelText(/^email$/i);
+      const emailInput = screen.getByLabelText(/электронная почта/i);
       const passwordInput = screen.getByLabelText(/^пароль$/i);
       const confirmInput = screen.getByLabelText(/подтверждение пароля/i);
 
@@ -506,7 +506,7 @@ describe('RegisterForm', () => {
       render(<RegisterForm />);
 
       const nameInput = screen.getByLabelText(/имя/i);
-      const emailInput = screen.getByLabelText(/^email$/i);
+      const emailInput = screen.getByLabelText(/электронная почта/i);
       const passwordInput = screen.getByLabelText(/^пароль$/i);
       const confirmInput = screen.getByLabelText(/подтверждение пароля/i);
       const submitButton = screen.getByRole('button', { name: /зарегистрироваться/i });
@@ -625,7 +625,7 @@ describe('RegisterForm', () => {
 
       const roleSelect = screen.getByLabelText(/тип аккаунта/i);
       const nameInput = screen.getByLabelText(/имя/i);
-      const emailInput = screen.getByLabelText(/^email$/i);
+      const emailInput = screen.getByLabelText(/электронная почта/i);
       const passwordInput = screen.getByLabelText(/^пароль$/i);
       const confirmInput = screen.getByLabelText(/подтверждение пароля/i);
       const submitButton = screen.getByRole('button', { name: /зарегистрироваться/i });
