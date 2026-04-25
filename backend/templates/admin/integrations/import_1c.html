@@ -1,5 +1,4 @@
-{% extends "admin/base_site.html" %} {% load i18n static %} {% block extrahead
-%} {{ block.super }}
+{% extends "admin/base_site.html" %} {% load i18n static %} {% block extrahead %} {{ block.super }}
 <style>
   .import-form-container {
     max-width: 900px;
@@ -297,10 +296,7 @@
         />
         <label for="import_{{ import_type.value }}">
           <span class="radio-label-header">
-            {% if import_type.value == "catalog" %}📦{% elif import_type.value
-            == "images" %}🖼️{% elif import_type.value == "stocks" %}📊{% elif
-            import_type.value == "prices" %}💰{% else %}👥{% endif %} {{
-            import_type.label }}
+            {% if import_type.value == "catalog" %}📦{% elif import_type.value == "images" %}🖼️{% elif import_type.value == "stocks" %}📊{% elif import_type.value == "prices" %}💰{% else %}👥{% endif %} {{ import_type.label }}
           </span>
           <span class="radio-description">{{ import_type.description }}</span>
           <span class="radio-files">Файлы: {{ import_type.files }}</span>
