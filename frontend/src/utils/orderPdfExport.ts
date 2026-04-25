@@ -9,7 +9,13 @@ import type { Order } from '@/types/order';
 async function loadFont(doc: jsPDF, url: string, name: string): Promise<void> {
   const res = await fetch(url);
   const buf = await res.arrayBuffer();
-  const b64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
+  const bytes = new Uint8Array(buf);
+  let binary = '';
+  const chunkSize = 8192;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+  }
+  const b64 = btoa(binary);
   doc.addFileToVFS(name, b64);
   doc.addFont(name, 'Arial', name === 'arialbd.ttf' ? 'bold' : 'normal');
 }
