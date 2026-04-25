@@ -14,9 +14,19 @@
 'use client';
 
 import React, { useEffect, useState, createContext, useContext } from 'react';
+import axios from 'axios';
 import { useAuthStore } from '@/stores/authStore';
-import apiClient from '@/services/api-client';
+import apiClient, { API_URL_PUBLIC } from '@/services/api-client';
 import type { User } from '@/types/api';
+
+/**
+ * Читает значение cookie по имени (только в браузере).
+ */
+function readCookie(name: string): string | null {
+  if (typeof document === 'undefined') return null;
+  const match = document.cookie.match(new RegExp('(^|; )' + name + '=([^;]+)'));
+  return match ? decodeURIComponent(match[2]) : null;
+}
 
 interface AuthContextValue {
   /** Флаг завершения инициализации */
@@ -40,20 +50,41 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
   const [isInitialized, setIsInitialized] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const { setUser, logout, getRefreshToken } = useAuthStore();
+  const { setUser, setTokens, logout, getRefreshToken } = useAuthStore();
 
   useEffect(() => {
     /**
      * Инициализация сессии с retry logic
      */
     async function initializeAuth(retries = 3) {
-      const refreshToken = getRefreshToken();
+      // Источник истины — localStorage; но при первой инициализации после
+      // обновления кэша браузера он может быть пуст, тогда как middleware
+      // и backend всё ещё видят cookie. В этом случае читаем cookie и
+      // зеркалируем его в localStorage, иначе AuthProvider выйдет рано
+      // и store останется пустым → Header показывает кнопки входа,
+      // а middleware блокирует переход на /login (бесконечный цикл).
+      let refreshToken = getRefreshToken();
+      if (!refreshToken) {
+        const cookieRefreshToken = readCookie('refreshToken');
+        if (cookieRefreshToken) {
+          localStorage.setItem('refreshToken', cookieRefreshToken);
+          refreshToken = cookieRefreshToken;
+        }
+      }
 
       // Нет refresh token - пользователь не залогинен
       if (!refreshToken) {
         setIsLoading(false);
         setIsInitialized(true);
         return;
+      }
+
+      // Гидрируем accessToken из cookie ДО запроса профиля, чтобы axios
+      // мог отправить Authorization-заголовок и не зависеть от Django session.
+      // Если cookie нет, явный refresh ниже синхронизирует store.
+      const cookieAccessToken = readCookie('accessToken');
+      if (cookieAccessToken) {
+        setTokens(cookieAccessToken, refreshToken);
       }
 
       // Попытка восстановить сессию
@@ -64,6 +95,32 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
           // AC 2.3: Обновляем authStore при успехе
           setUser(response.data);
+
+          // Если accessToken cookie не было (сценарий когда профиль ответил
+          // через Django SessionAuthentication), store всё ещё с
+          // isAuthenticated=false. Делаем явный refresh, чтобы получить
+          // свежий access token и установить isAuthenticated=true.
+          if (!cookieAccessToken) {
+            try {
+              // Используем raw axios (без interceptors), чтобы не словить
+              // рекурсивный 401 → refresh → retry того же /auth/refresh/.
+              const { data } = await axios.post<{ access: string; refresh?: string }>(
+                `${API_URL_PUBLIC}/auth/refresh/`,
+                { refresh: refreshToken },
+                { withCredentials: true }
+              );
+              const newRefresh = data.refresh || refreshToken;
+              setTokens(data.access, newRefresh);
+            } catch (refreshErr) {
+              // Если refresh упал — выходим, чтобы показать гостевой UI вместо
+              // зависшего состояния "залогинен по cookie, но store пустой".
+              console.warn('Failed to refresh tokens during init:', refreshErr);
+              logout(true);
+              setIsInitialized(true);
+              setIsLoading(false);
+              return;
+            }
+          }
 
           // Сессия успешно восстановлена
           setIsInitialized(true);
@@ -90,14 +147,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
             await new Promise(resolve => setTimeout(resolve, delay));
           } else {
             // Все попытки исчерпаны (сетевая ошибка, не 401/403)
-            // НЕ вызываем logout() - сохраняем localStorage для повторных попыток,
-            // чтобы временная недоступность бэкенда не приводила к потере сессии.
-            // НО удаляем cookies, чтобы middleware не блокировал переход на /login:
-            // пользователь должен иметь возможность войти заново если нужно.
-            if (typeof document !== 'undefined') {
-              document.cookie = 'refreshToken=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;';
-              document.cookie = 'accessToken=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;';
-            }
+            // НЕ вызываем logout() - сохраняем токены для повторных попыток,
+            // чтобы временная недоступность бэкенда не приводила к потере сессии
             console.warn('Auth initialization failed after retries (network error):', error);
             setIsInitialized(true);
             setIsLoading(false);
@@ -107,7 +158,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
 
     initializeAuth();
-  }, [setUser, logout, getRefreshToken]);
+  }, [setUser, setTokens, logout, getRefreshToken]);
 
   // AC 6.1: Loading state до завершения инициализации
   if (isLoading) {
