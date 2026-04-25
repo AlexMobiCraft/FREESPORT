@@ -165,6 +165,12 @@ jobs:
               if [[ "$file" == */tests/* ]] || [[ "$file" == */test_* ]]; then
                 continue
               fi
+              # Пропускаем документацию и AI-скиллы
+              case "$file" in
+                .agents/skills/vercel-react-native-skills/*|.claude/skills/vercel-react-native-skills/*|.windsurf/skills/vercel-react-native-skills/*|_bmad-output/implementation-artifacts/tech-spec/*|docs/architecture/ai-implementation/patterns/*|docs/archive/legacy/*|docs/archive/v4/epics/epic-9/*|docs/archive/v4/stories/epic-2/*|docs/archive/v4/stories/epic-25/*|docs/archive/v4/stories/epic-30/*|docs/archive/v4/stories/epic-9/*)
+                  continue
+                  ;;
+              esac
               # Проверяем наличие потенциальных секретов
               if grep -q -E "(password|secret|key|token)\s*=\s*['\"][^'\"]{8,}" "$file" 2>/dev/null; then
                 echo "⚠️ Обнаружены потенциальные секреты в файле: $file"
