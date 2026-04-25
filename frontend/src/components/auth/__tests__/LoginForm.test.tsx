@@ -38,7 +38,7 @@ describe('LoginForm', () => {
     test('should render email and password fields', () => {
       render(<LoginForm />);
 
-      expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/электронная почта/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/^пароль$/i)).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /войти/i })).toBeInTheDocument();
     });
@@ -46,7 +46,7 @@ describe('LoginForm', () => {
     test('should have proper autocomplete attributes', () => {
       render(<LoginForm />);
 
-      const emailInput = screen.getByLabelText(/email/i);
+      const emailInput = screen.getByLabelText(/электронная почта/i);
       const passwordInput = screen.getByLabelText(/^пароль$/i);
 
       expect(emailInput).toHaveAttribute('autocomplete', 'email');
@@ -60,7 +60,7 @@ describe('LoginForm', () => {
       const mockLogin = vi.mocked(authService.login);
       render(<LoginForm />);
 
-      const emailInput = screen.getByLabelText(/email/i);
+      const emailInput = screen.getByLabelText(/электронная почта/i);
       const passwordInput = screen.getByLabelText(/^пароль$/i);
       const submitButton = screen.getByRole('button', { name: /войти/i });
 
@@ -82,7 +82,7 @@ describe('LoginForm', () => {
       const user = userEvent.setup();
       render(<LoginForm />);
 
-      const emailInput = screen.getByLabelText(/email/i);
+      const emailInput = screen.getByLabelText(/электронная почта/i);
       const passwordInput = screen.getByLabelText(/^пароль$/i);
       const submitButton = screen.getByRole('button', { name: /войти/i });
 
@@ -97,7 +97,7 @@ describe('LoginForm', () => {
       const user = userEvent.setup();
       render(<LoginForm />);
 
-      const emailInput = screen.getByLabelText(/email/i);
+      const emailInput = screen.getByLabelText(/электронная почта/i);
       const passwordInput = screen.getByLabelText(/^пароль$/i);
       const submitButton = screen.getByRole('button', { name: /войти/i });
 
@@ -112,7 +112,7 @@ describe('LoginForm', () => {
       const user = userEvent.setup();
       render(<LoginForm />);
 
-      const emailInput = screen.getByLabelText(/email/i);
+      const emailInput = screen.getByLabelText(/электронная почта/i);
       const passwordInput = screen.getByLabelText(/^пароль$/i);
       const submitButton = screen.getByRole('button', { name: /войти/i });
 
@@ -144,7 +144,7 @@ describe('LoginForm', () => {
 
       render(<LoginForm />);
 
-      const emailInput = screen.getByLabelText(/email/i);
+      const emailInput = screen.getByLabelText(/электронная почта/i);
       const passwordInput = screen.getByLabelText(/^пароль$/i);
       const submitButton = screen.getByRole('button', { name: /войти/i });
 
@@ -184,7 +184,7 @@ describe('LoginForm', () => {
 
       render(<LoginForm redirectUrl="/dashboard" />);
 
-      const emailInput = screen.getByLabelText(/email/i);
+      const emailInput = screen.getByLabelText(/электронная почта/i);
       const passwordInput = screen.getByLabelText(/^пароль$/i);
       const submitButton = screen.getByRole('button', { name: /войти/i });
 
@@ -211,7 +211,7 @@ describe('LoginForm', () => {
 
       render(<LoginForm />);
 
-      const emailInput = screen.getByLabelText(/email/i);
+      const emailInput = screen.getByLabelText(/электронная почта/i);
       const passwordInput = screen.getByLabelText(/^пароль$/i);
       const submitButton = screen.getByRole('button', { name: /войти/i });
 
@@ -234,7 +234,7 @@ describe('LoginForm', () => {
 
       render(<LoginForm />);
 
-      const emailInput = screen.getByLabelText(/email/i);
+      const emailInput = screen.getByLabelText(/электронная почта/i);
       const passwordInput = screen.getByLabelText(/^пароль$/i);
       const submitButton = screen.getByRole('button', { name: /войти/i });
 
@@ -277,7 +277,7 @@ describe('LoginForm', () => {
 
       render(<LoginForm />);
 
-      const emailInput = screen.getByLabelText(/email/i);
+      const emailInput = screen.getByLabelText(/электронная почта/i);
       const passwordInput = screen.getByLabelText(/^пароль$/i);
       const submitButton = screen.getByRole('button', { name: /войти/i });
 
@@ -323,7 +323,7 @@ describe('LoginForm', () => {
 
       render(<LoginForm />);
 
-      const emailInput = screen.getByLabelText(/email/i) as HTMLInputElement;
+      const emailInput = screen.getByLabelText(/электронная почта/i) as HTMLInputElement;
       const passwordInput = screen.getByLabelText(/^пароль$/i) as HTMLInputElement;
       const submitButton = screen.getByRole('button', { name: /войти/i });
 
@@ -346,7 +346,7 @@ describe('LoginForm', () => {
     test('should have proper labels for inputs', () => {
       render(<LoginForm />);
 
-      const emailInput = screen.getByLabelText(/email/i);
+      const emailInput = screen.getByLabelText(/электронная почта/i);
       const passwordInput = screen.getByLabelText(/^пароль$/i);
 
       // Labels should exist and be associated
@@ -358,7 +358,7 @@ describe('LoginForm', () => {
       const user = userEvent.setup();
       render(<LoginForm />);
 
-      const emailInput = screen.getByLabelText(/email/i);
+      const emailInput = screen.getByLabelText(/электронная почта/i);
       const passwordInput = screen.getByLabelText(/^пароль$/i);
       const submitButton = screen.getByRole('button', { name: /войти/i });
 
@@ -386,7 +386,7 @@ describe('LoginForm', () => {
 
       render(<LoginForm />);
 
-      const emailInput = screen.getByLabelText(/email/i);
+      const emailInput = screen.getByLabelText(/электронная почта/i);
       const passwordInput = screen.getByLabelText(/^пароль$/i);
       const submitButton = screen.getByRole('button', { name: /войти/i });
 

@@ -36,7 +36,7 @@ describe('B2BRegisterForm', () => {
 
       expect(screen.getByLabelText(/^имя$/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/фамилия/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/^email$/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/электронная почта/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/телефон/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/название компании/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/^инн$/i)).toBeInTheDocument();
@@ -66,7 +66,7 @@ describe('B2BRegisterForm', () => {
 
       // Check specific important inputs have labels
       expect(screen.getByLabelText(/^имя$/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/^email$/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/электронная почта/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/^инн$/i)).toBeInTheDocument();
     });
   });
@@ -94,7 +94,7 @@ describe('B2BRegisterForm', () => {
 
       await user.type(screen.getByLabelText(/^имя$/i), 'Иван');
       await user.type(screen.getByLabelText(/фамилия/i), 'Петров');
-      await user.type(screen.getByLabelText(/^email$/i), 'b2b@example.com');
+      await user.type(screen.getByLabelText(/электронная почта/i), 'b2b@example.com');
       await user.type(screen.getByLabelText(/телефон/i), '+79991234567');
       await user.type(screen.getByLabelText(/название компании/i), 'ООО Тест');
       await user.type(screen.getByLabelText(/^инн$/i), '1234567890');
