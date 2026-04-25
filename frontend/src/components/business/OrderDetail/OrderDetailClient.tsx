@@ -112,7 +112,7 @@ export function OrderDetailClient({ order }: OrderDetailClientProps) {
     setIsExportLoading(true);
 
     try {
-      generateOrderPdf(order);
+      await generateOrderPdf(order);
       toast.success(`Заказ №${order.order_number} экспортирован в PDF`, 'Экспорт завершён');
     } catch (err) {
       console.error('Failed to export PDF:', err);

@@ -6,6 +6,14 @@
 import { jsPDF } from 'jspdf';
 import type { Order } from '@/types/order';
 
+async function loadFont(doc: jsPDF, url: string, name: string): Promise<void> {
+  const res = await fetch(url);
+  const buf = await res.arrayBuffer();
+  const b64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
+  doc.addFileToVFS(name, b64);
+  doc.addFont(name, 'Arial', name === 'arialbd.ttf' ? 'bold' : 'normal');
+}
+
 /**
  * Форматирует дату в читаемый формат
  */
@@ -89,12 +97,15 @@ export function getPaymentStatusLabel(status: string): string {
 /**
  * Генерирует PDF документ заказа для B2B пользователей
  */
-export function generateOrderPdf(order: Order): void {
+export async function generateOrderPdf(order: Order): Promise<void> {
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
     format: 'a4',
   });
+
+  await loadFont(doc, '/fonts/arial.ttf', 'arial.ttf');
+  await loadFont(doc, '/fonts/arialbd.ttf', 'arialbd.ttf');
 
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 20;
@@ -102,24 +113,24 @@ export function generateOrderPdf(order: Order): void {
 
   // Заголовок документа
   doc.setFontSize(18);
-  doc.setFont('helvetica', 'bold');
+  doc.setFont('Arial', 'bold');
   doc.text(`Заказ №${order.order_number}`, pageWidth / 2, yPosition, { align: 'center' });
   yPosition += 12;
 
   // Дата создания
   doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
+  doc.setFont('Arial', 'normal');
   doc.text(`Дата: ${formatDate(order.created_at)}`, pageWidth / 2, yPosition, { align: 'center' });
   yPosition += 15;
 
   // Информация о заказе
   doc.setFontSize(12);
-  doc.setFont('helvetica', 'bold');
+  doc.setFont('Arial', 'bold');
   doc.text('Информация о заказе', margin, yPosition);
   yPosition += 8;
 
   doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
+  doc.setFont('Arial', 'normal');
 
   const orderInfo = [
     `Статус: ${getStatusLabel(order.status)}`,
@@ -137,19 +148,19 @@ export function generateOrderPdf(order: Order): void {
 
   // Адрес доставки
   if (order.delivery_address) {
-    doc.setFont('helvetica', 'bold');
+    doc.setFont('Arial', 'bold');
     doc.text('Адрес доставки:', margin, yPosition);
     yPosition += 6;
-    doc.setFont('helvetica', 'normal');
+    doc.setFont('Arial', 'normal');
     doc.text(order.delivery_address, margin, yPosition);
     yPosition += 10;
   }
 
   // Информация о клиенте
-  doc.setFont('helvetica', 'bold');
+  doc.setFont('Arial', 'bold');
   doc.text('Получатель:', margin, yPosition);
   yPosition += 6;
-  doc.setFont('helvetica', 'normal');
+  doc.setFont('Arial', 'normal');
   doc.text(`${order.customer_name}`, margin, yPosition);
   yPosition += 5;
   doc.text(`Тел: ${order.customer_phone}`, margin, yPosition);
@@ -158,14 +169,14 @@ export function generateOrderPdf(order: Order): void {
   yPosition += 15;
 
   // Таблица товаров
-  doc.setFont('helvetica', 'bold');
+  doc.setFont('Arial', 'bold');
   doc.setFontSize(12);
   doc.text('Товары', margin, yPosition);
   yPosition += 8;
 
   // Заголовки таблицы
   doc.setFontSize(9);
-  doc.setFont('helvetica', 'bold');
+  doc.setFont('Arial', 'bold');
   const colWidths = [80, 25, 30, 35];
   const headers = ['Наименование', 'Кол-во', 'Цена', 'Сумма'];
   let xPos = margin;
@@ -182,7 +193,7 @@ export function generateOrderPdf(order: Order): void {
   yPosition += 5;
 
   // Строки товаров
-  doc.setFont('helvetica', 'normal');
+  doc.setFont('Arial', 'normal');
   order.items.forEach(item => {
     // Проверяем, нужна ли новая страница
     if (yPosition > 270) {
@@ -244,7 +255,7 @@ export function generateOrderPdf(order: Order): void {
     yPosition += 6;
   }
 
-  doc.setFont('helvetica', 'bold');
+  doc.setFont('Arial', 'bold');
   doc.setFontSize(12);
   doc.text('Итого:', totalsX, yPosition);
   doc.text(formatPrice(order.total_amount), pageWidth - margin, yPosition, { align: 'right' });
@@ -252,7 +263,7 @@ export function generateOrderPdf(order: Order): void {
   // Футер
   yPosition = 280;
   doc.setFontSize(8);
-  doc.setFont('helvetica', 'normal');
+  doc.setFont('Arial', 'normal');
   doc.setTextColor(128);
   doc.text(
     `Документ сформирован ${new Date().toLocaleString('ru-RU')} | FREESPORT`,

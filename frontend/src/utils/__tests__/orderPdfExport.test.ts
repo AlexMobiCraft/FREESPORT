@@ -17,6 +17,8 @@ vi.mock('jspdf', () => ({
       setFont: vi.fn(),
       setLineWidth: vi.fn(),
       setTextColor: vi.fn(),
+      addFileToVFS: vi.fn(),
+      addFont: vi.fn(),
       text: mockText,
       line: mockLine,
       addPage: vi.fn(),
@@ -25,6 +27,11 @@ vi.mock('jspdf', () => ({
     };
   },
 }));
+
+// Мок fetch для загрузки шрифтов — новый Response на каждый вызов (MSW клонирует body)
+vi.stubGlobal('fetch', vi.fn().mockImplementation(() =>
+  Promise.resolve(new Response(new ArrayBuffer(0)))
+));
 
 import { getDeliveryMethodLabel, getPaymentMethodLabel, getPaymentStatusLabel, generateOrderPdf } from '../orderPdfExport';
 import type { Order } from '@/types/order';
@@ -154,47 +161,47 @@ describe('generateOrderPdf — delivery_method локализация', () => {
     return mockText.mock.calls.map((args: unknown[]) => args[0] as string);
   }
 
-  it('выводит локализованный label для transport_company (Story 34-2 regression)', () => {
-    generateOrderPdf({ ...baseOrder, delivery_method: 'transport_company' });
+  it('выводит локализованный label для transport_company (Story 34-2 regression)', async () => {
+    await generateOrderPdf({ ...baseOrder, delivery_method: 'transport_company' });
     const allText = getTextArgs().join(' ');
     expect(allText).toContain('Транспортная компания');
     expect(allText).not.toContain('transport_company');
   });
 
-  it('выводит локализованный label для transport_schedule (Story 34-2 regression)', () => {
-    generateOrderPdf({ ...baseOrder, delivery_method: 'transport_schedule' });
+  it('выводит локализованный label для transport_schedule (Story 34-2 regression)', async () => {
+    await generateOrderPdf({ ...baseOrder, delivery_method: 'transport_schedule' });
     const allText = getTextArgs().join(' ');
     expect(allText).toContain('Доставка по расписанию');
     expect(allText).not.toContain('transport_schedule');
   });
 
-  it('выводит локализованный label для courier', () => {
-    generateOrderPdf({ ...baseOrder, delivery_method: 'courier' });
+  it('выводит локализованный label для courier', async () => {
+    await generateOrderPdf({ ...baseOrder, delivery_method: 'courier' });
     const allText = getTextArgs().join(' ');
     expect(allText).toContain('Курьерская доставка');
   });
 
-  it('вызывает doc.save с именем файла на основе order_number', () => {
-    generateOrderPdf(baseOrder);
+  it('вызывает doc.save с именем файла на основе order_number', async () => {
+    await generateOrderPdf(baseOrder);
     expect(mockSave).toHaveBeenCalledWith('order-ORD-001.pdf');
   });
 
-  it('выводит локализованный label для bank_transfer (Story 34-2 regression)', () => {
-    generateOrderPdf({ ...baseOrder, payment_method: 'bank_transfer' });
+  it('выводит локализованный label для bank_transfer (Story 34-2 regression)', async () => {
+    await generateOrderPdf({ ...baseOrder, payment_method: 'bank_transfer' });
     const allText = getTextArgs().join(' ');
     expect(allText).toContain('Банковский перевод');
     expect(allText).not.toContain('bank_transfer');
   });
 
-  it('выводит локализованный label для payment_on_delivery (Story 34-2 regression)', () => {
-    generateOrderPdf({ ...baseOrder, payment_method: 'payment_on_delivery' });
+  it('выводит локализованный label для payment_on_delivery (Story 34-2 regression)', async () => {
+    await generateOrderPdf({ ...baseOrder, payment_method: 'payment_on_delivery' });
     const allText = getTextArgs().join(' ');
     expect(allText).toContain('Оплата при получении');
     expect(allText).not.toContain('payment_on_delivery');
   });
 
-  it('выводит локализованный статус оплаты refunded (Story 34-2 regression)', () => {
-    generateOrderPdf({ ...baseOrder, payment_status: 'refunded' });
+  it('выводит локализованный статус оплаты refunded (Story 34-2 regression)', async () => {
+    await generateOrderPdf({ ...baseOrder, payment_status: 'refunded' });
     const allText = getTextArgs().join(' ');
     expect(allText).toContain('Возвращен');
     expect(allText).not.toContain('refunded');
