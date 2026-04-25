@@ -11,7 +11,7 @@ describe('AboutTeaser', () => {
   it('renders company title correctly', () => {
     render(<AboutTeaser />);
 
-    const title = screen.getByText('FREESPORT');
+    const title = screen.getByText('О компании');
     expect(title).toBeInTheDocument();
     expect(title.tagName).toBe('H2');
   });

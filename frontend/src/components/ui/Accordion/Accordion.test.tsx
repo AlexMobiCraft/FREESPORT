@@ -11,7 +11,7 @@ import { Accordion } from './Accordion';
 describe('Accordion', () => {
   const mockFAQ = [
     { question: 'Какие документы нужны?', answer: 'ИНН, ОГРН, реквизиты' },
-    { question: 'Как происходит оплата?', answer: 'По безналичному расчёту' },
+    { question: 'Как происходит оплата?', answer: 'Оплата безналичным расчетом по реквизитам в сопроводительных документах.' },
     { question: 'Какие сроки доставки?', answer: 'От 1 до 7 рабочих дней' },
   ];
 
@@ -23,7 +23,7 @@ describe('Accordion', () => {
     expect(screen.getByText('Какие сроки доставки?')).toBeInTheDocument();
 
     // Ответы должны быть скрыты (в DOM, но с max-height: 0)
-    const answers = screen.getAllByText(/ИНН|безналичному|рабочих/);
+    const answers = screen.getAllByText(/ИНН|безналичным|рабочих/);
     expect(answers.length).toBeGreaterThan(0);
   });
 

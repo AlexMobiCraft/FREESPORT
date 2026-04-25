@@ -18,11 +18,11 @@ import { Zap, Check, Lightbulb, Shield } from 'lucide-react';
 import { Breadcrumb, FeatureCard, StatCounter, Button } from '@/components/ui';
 
 export const metadata: Metadata = {
-  title: 'О компании | FREESPORT',
+  title: 'О компании',
   description:
-    'FREESPORT — федеральный оптовый поставщик и производитель спортивных товаров. Более 1000 товаров, 50+ брендов, 10+ лет на рынке.',
+    'Федеральный оптовый поставщик и производитель спортивных товаров. Более 1000 товаров, 50+ брендов, 10+ лет на рынке.',
   openGraph: {
-    title: 'О компании | FREESPORT',
+    title: 'О компании',
     description: 'Федеральный оптовый поставщик спортивных товаров',
   },
 };
@@ -73,7 +73,7 @@ export default function AboutPage() {
       <section className="bg-white py-16 sm:py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-text-primary mb-4">
-            О компании FREESPORT
+            О компании
           </h1>
           <p className="text-lg sm:text-xl text-text-secondary max-w-3xl mx-auto">
             Федеральный оптовый поставщик и производитель спортивных товаров с 2015 года
@@ -90,8 +90,7 @@ export default function AboutPage() {
             </h2>
             <div className="prose prose-lg max-w-none text-text-secondary space-y-4">
               <p>
-                <strong>FREESPORT</strong> — федеральный оптовый поставщик и производитель
-                спортивных товаров.
+                Федеральный оптовый поставщик и производитель спортивных товаров.
               </p>
               <p>
                 Компания разрабатывает собственную продукцию, контролирует производственные процессы

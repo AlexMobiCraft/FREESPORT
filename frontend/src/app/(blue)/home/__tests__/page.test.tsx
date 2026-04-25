@@ -108,7 +108,7 @@ describe('Главная страница (/)', () => {
 
       // Проверка наличия hero секции по заголовку (ждём загрузку)
       expect(
-        await screen.findByText(/FREESPORT - Спортивные товары для профессионалов и любителей/i)
+        await screen.findByText(/Спортивные товары для профессионалов и любителей/i)
       ).toBeInTheDocument();
     });
 
@@ -150,7 +150,7 @@ describe('Главная страница (/)', () => {
 
   describe('SEO Metadata', () => {
     it('должна содержать правильный title', () => {
-      expect(metadata.title).toBe('FREESPORT - Спортивные товары оптом и в розницу');
+      expect(metadata.title).toBe('Спортивные товары оптом и в розницу');
     });
 
     it('должна содержать правильный description', () => {
@@ -161,12 +161,11 @@ describe('Главная страница (/)', () => {
     it('должна содержать keywords', () => {
       expect(metadata.keywords).toBeDefined();
       expect(metadata.keywords).toContain('спортивные товары оптом');
-      expect(metadata.keywords).toContain('FREESPORT');
     });
 
     it('должна содержать OpenGraph метатеги', () => {
       expect(metadata.openGraph).toBeDefined();
-      expect(metadata.openGraph?.title).toBe('FREESPORT - Спортивные товары оптом и в розницу');
+      expect(metadata.openGraph?.title).toBe('Спортивные товары оптом и в розницу');
       expect(metadata.openGraph?.description).toContain('Платформа для оптовых и розничных продаж');
     });
 
@@ -180,7 +179,7 @@ describe('Главная страница (/)', () => {
       expect(metadata.twitter).toBeDefined();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       expect((metadata.twitter as any)?.card).toBe('summary_large_image');
-      expect(metadata.twitter?.title).toBe('FREESPORT - Спортивные товары оптом и в розницу');
+      expect(metadata.twitter?.title).toBe('Спортивные товары оптом и в розницу');
     });
   });
 
@@ -227,7 +226,7 @@ describe('Главная страница (/)', () => {
       // HeroSection должен показывать баннер (может быть любой текст из баннера)
       await waitFor(() => {
         expect(
-          screen.getByText(/FREESPORT - Спортивные товары для профессионалов и любителей/i)
+          screen.getByText(/Спортивные товары для профессионалов и любителей/i)
         ).toBeInTheDocument();
       });
     });
@@ -250,7 +249,7 @@ describe('Главная страница (/)', () => {
       // HeroSection должен показывать баннер (может быть любой текст из баннера)
       await waitFor(() => {
         expect(
-          screen.getByText(/FREESPORT - Спортивные товары для профессионалов и любителей/i)
+          screen.getByText(/Спортивные товары для профессионалов и любителей/i)
         ).toBeInTheDocument();
       });
     });

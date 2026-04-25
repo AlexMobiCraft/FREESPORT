@@ -157,7 +157,7 @@ describe('HeroSection Component', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText(/FREESPORT - Спортивные товары для профессионалов и любителей/i)
+          screen.getByText(/Спортивные товары для профессионалов и любителей/i)
         ).toBeInTheDocument();
       });
     });
@@ -179,7 +179,7 @@ describe('HeroSection Component', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText(/FREESPORT - Спортивные товары для профессионалов и любителей/i)
+          screen.getByText(/Спортивные товары для профессионалов и любителей/i)
         ).toBeInTheDocument();
       });
     });
@@ -328,7 +328,7 @@ describe('HeroSection Component', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText(/FREESPORT - Спортивные товары для профессионалов и любителей/i)
+          screen.getByText(/Спортивные товары для профессионалов и любителей/i)
         ).toBeInTheDocument();
         expect(
           screen.getByText(/5 брендов. 1000\+ товаров. Доставка по всей России./i)

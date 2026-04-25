@@ -524,7 +524,7 @@ const bannersHandlersLocal = [
       {
         id: 1,
         type: 'hero',
-        title: 'FREESPORT - Спортивные товары для профессионалов и любителей',
+        title: 'Спортивные товары для профессионалов и любителей',
         subtitle: '5 брендов. 1000+ товаров. Доставка по всей России.',
         image_url: '/test-banner.jpg',
         image_alt: 'FREESPORT баннер',

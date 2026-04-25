@@ -40,7 +40,9 @@ describe('AboutPage (/about)', () => {
     it('должна отображать breadcrumb', () => {
       render(<AboutPage />);
       expect(screen.getByText('Главная')).toBeInTheDocument();
-      expect(screen.getByText('О компании')).toBeInTheDocument();
+      expect(
+        screen.getByText('О компании', { selector: 'span[aria-current="page"]' })
+      ).toBeInTheDocument();
     });
 
     it('должна иметь ссылку на главную', () => {
@@ -54,7 +56,7 @@ describe('AboutPage (/about)', () => {
     it('должна отображать заголовок h1', () => {
       render(<AboutPage />);
       const heading = screen.getByRole('heading', { level: 1 });
-      expect(heading).toHaveTextContent('О компании FREESPORT');
+      expect(heading).toHaveTextContent('О компании');
     });
 
     it('должна отображать подзаголовок', () => {
@@ -175,12 +177,11 @@ describe('AboutPage (/about)', () => {
 
   describe('SEO Metadata', () => {
     it('должна содержать правильный title', () => {
-      expect(metadata.title).toBe('О компании | FREESPORT');
+      expect(metadata.title).toBe('О компании');
     });
 
     it('должна содержать правильный description', () => {
-      expect(metadata.description).toContain('FREESPORT');
-      expect(metadata.description).toContain('федеральный оптовый поставщик');
+      expect(metadata.description).toContain('Федеральный оптовый поставщик');
       expect(metadata.description).toContain('1000 товаров');
       expect(metadata.description).toContain('50+ брендов');
       expect(metadata.description).toContain('10+ лет');
@@ -188,7 +189,7 @@ describe('AboutPage (/about)', () => {
 
     it('должна содержать OpenGraph метатеги', () => {
       expect(metadata.openGraph).toBeDefined();
-      expect(metadata.openGraph?.title).toBe('О компании | FREESPORT');
+      expect(metadata.openGraph?.title).toBe('О компании');
       expect(metadata.openGraph?.description).toContain('Федеральный оптовый поставщик');
     });
   });
@@ -242,7 +243,7 @@ describe('AboutPage (/about)', () => {
       const sections = container.querySelectorAll('section');
 
       // Проверяем наличие текстовых маркеров для каждой секции
-      expect(sections[0].textContent).toContain('О компании FREESPORT');
+      expect(sections[0].textContent).toContain('О компании');
       expect(sections[1].textContent).toContain('Кто мы');
       expect(sections[2].textContent).toContain('Наши ценности');
       expect(sections[3].textContent).toContain('В цифрах');

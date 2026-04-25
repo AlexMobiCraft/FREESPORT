@@ -46,7 +46,7 @@ export default function RegisterPage() {
         {/* Header */}
         <div className="text-center">
           <h1 className="text-heading-l font-bold text-[var(--color-text-primary)] mb-2">
-            Регистрация в FREESPORT
+            Регистрация
           </h1>
           <p className="text-body-m text-[var(--color-text-muted)]">
             Создайте аккаунт для доступа к платформе
