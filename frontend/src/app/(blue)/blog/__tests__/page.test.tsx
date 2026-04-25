@@ -114,7 +114,7 @@ describe('BlogPage (/blog)', () => {
       render(await BlogPage({ searchParams: Promise.resolve({}) }));
       expect(
         screen.getByText(
-          /Полезные статьи о спорте, тренировках и экипировке от экспертов FREESPORT/i
+          /Полезные статьи о спорте, тренировках и экипировке от наших экспертов/i
         )
       ).toBeInTheDocument();
     });
@@ -172,7 +172,7 @@ describe('BlogPage (/blog)', () => {
       vi.mocked(blogService.getBlogPosts).mockResolvedValue(mockBlogData);
       render(await BlogPage({ searchParams: Promise.resolve({}) }));
       expect(screen.getByText('← Назад')).toBeInTheDocument();
-      expect(screen.getByText('Вперёд →')).toBeInTheDocument();
+      expect(screen.getByText('Вперед →')).toBeInTheDocument();
     });
 
     it('должна отображать номера страниц', async () => {

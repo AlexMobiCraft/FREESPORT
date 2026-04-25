@@ -123,7 +123,7 @@ describe('CheckoutPage', () => {
 
       render(<CheckoutPageClient />);
 
-      const emailInput = screen.getByLabelText('Email') as HTMLInputElement;
+      const emailInput = screen.getByLabelText('Электронная почта') as HTMLInputElement;
       const phoneInput = screen.getByLabelText('Телефон') as HTMLInputElement;
 
       expect(emailInput.value).toBe('');

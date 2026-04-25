@@ -87,7 +87,7 @@ describe('AboutPage (/about)', () => {
     it('должна отображать принципы работы', () => {
       render(<AboutPage />);
       expect(
-        screen.getByText(/качество, надёжность и долгосрочное партнёрство/i)
+        screen.getByText(/качество, надежность и долгосрочное партнерство/i)
       ).toBeInTheDocument();
     });
   });
@@ -104,7 +104,7 @@ describe('AboutPage (/about)', () => {
       expect(screen.getByText('Оперативность')).toBeInTheDocument();
       expect(screen.getByText('Качество')).toBeInTheDocument();
       expect(screen.getByText('Инновации')).toBeInTheDocument();
-      expect(screen.getByText('Надёжность')).toBeInTheDocument();
+      expect(screen.getByText('Надежность')).toBeInTheDocument();
     });
 
     it('должна отображать описания ценностей', () => {
@@ -151,19 +151,19 @@ describe('AboutPage (/about)', () => {
     it('должна отображать заголовок CTA', () => {
       render(<AboutPage />);
       expect(
-        screen.getByRole('heading', { level: 2, name: /Присоединяйтесь к числу наших партнёров/i })
+        screen.getByRole('heading', { level: 2, name: /Присоединяйтесь к числу наших партнеров/i })
       ).toBeInTheDocument();
     });
 
-    it('должна отображать кнопку "Стать партнёром"', () => {
+    it('должна отображать кнопку "Стать партнером"', () => {
       render(<AboutPage />);
-      const button = screen.getByText('Стать партнёром');
+      const button = screen.getByText('Стать партнером');
       expect(button).toBeInTheDocument();
     });
 
     it('должна иметь ссылку на /register', () => {
       render(<AboutPage />);
-      const link = screen.getByText('Стать партнёром').closest('a');
+      const link = screen.getByText('Стать партнером').closest('a');
       expect(link).toBeTruthy();
       expect(link).toHaveAttribute('href', '/register');
     });

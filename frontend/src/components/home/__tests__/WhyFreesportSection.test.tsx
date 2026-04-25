@@ -11,7 +11,7 @@ describe('WhyFreesportSection', () => {
   it('renders section title correctly', () => {
     render(<WhyFreesportSection />);
 
-    const title = screen.getByText('Почему партнёры выбирают FREESPORT?');
+    const title = screen.getByText('Почему партнеры выбирают нас?');
     expect(title).toBeInTheDocument();
     expect(title.tagName).toBe('H2');
   });
@@ -38,7 +38,7 @@ describe('WhyFreesportSection', () => {
   it('renders CTA button with link to /partners', () => {
     render(<WhyFreesportSection />);
 
-    const ctaButton = screen.getByRole('button', { name: 'Стать партнёром' });
+    const ctaButton = screen.getByRole('button', { name: 'Стать партнером' });
     expect(ctaButton).toBeInTheDocument();
 
     // Проверяем, что кнопка обёрнута в Link с правильным href
