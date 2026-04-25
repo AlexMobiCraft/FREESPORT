@@ -29,7 +29,7 @@ describe('PasswordResetRequestForm', () => {
     test('should render email field and submit button', () => {
       render(<PasswordResetRequestForm />);
 
-      expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/электронная почта/i)).toBeInTheDocument();
       expect(
         screen.getByRole('button', { name: /отправить ссылку для сброса/i })
       ).toBeInTheDocument();
@@ -38,14 +38,14 @@ describe('PasswordResetRequestForm', () => {
     test('should have proper autocomplete attribute', () => {
       render(<PasswordResetRequestForm />);
 
-      const emailInput = screen.getByLabelText(/email/i);
+      const emailInput = screen.getByLabelText(/электронная почта/i);
       expect(emailInput).toHaveAttribute('autocomplete', 'email');
     });
 
     test('should have email placeholder', () => {
       render(<PasswordResetRequestForm />);
 
-      const emailInput = screen.getByLabelText(/email/i);
+      const emailInput = screen.getByLabelText(/электронная почта/i);
       expect(emailInput).toHaveAttribute('placeholder', 'example@email.com');
     });
   });
@@ -73,7 +73,7 @@ describe('PasswordResetRequestForm', () => {
       const mockRequestPasswordReset = vi.mocked(authService.requestPasswordReset);
       render(<PasswordResetRequestForm />);
 
-      const emailInput = screen.getByLabelText(/email/i);
+      const emailInput = screen.getByLabelText(/электронная почта/i);
       const submitButton = screen.getByRole('button', {
         name: /отправить ссылку для сброса/i,
       });
@@ -99,7 +99,7 @@ describe('PasswordResetRequestForm', () => {
 
       render(<PasswordResetRequestForm />);
 
-      const emailInput = screen.getByLabelText(/email/i);
+      const emailInput = screen.getByLabelText(/электронная почта/i);
       const submitButton = screen.getByRole('button', {
         name: /отправить ссылку для сброса/i,
       });
@@ -121,7 +121,7 @@ describe('PasswordResetRequestForm', () => {
 
       render(<PasswordResetRequestForm />);
 
-      const emailInput = screen.getByLabelText(/email/i);
+      const emailInput = screen.getByLabelText(/электронная почта/i);
       const submitButton = screen.getByRole('button', {
         name: /отправить ссылку для сброса/i,
       });
@@ -143,7 +143,7 @@ describe('PasswordResetRequestForm', () => {
 
       render(<PasswordResetRequestForm />);
 
-      const emailInput = screen.getByLabelText(/email/i);
+      const emailInput = screen.getByLabelText(/электронная почта/i);
       const submitButton = screen.getByRole('button', {
         name: /отправить ссылку для сброса/i,
       });
@@ -153,7 +153,7 @@ describe('PasswordResetRequestForm', () => {
 
       // Wait for success state
       await waitFor(() => {
-        expect(screen.queryByLabelText(/email/i)).not.toBeInTheDocument();
+        expect(screen.queryByLabelText(/электронная почта/i)).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: /отправить/i })).not.toBeInTheDocument();
       });
     });
@@ -167,7 +167,7 @@ describe('PasswordResetRequestForm', () => {
 
       render(<PasswordResetRequestForm />);
 
-      const emailInput = screen.getByLabelText(/email/i);
+      const emailInput = screen.getByLabelText(/электронная почта/i);
       const submitButton = screen.getByRole('button', {
         name: /отправить ссылку для сброса/i,
       });
@@ -191,7 +191,7 @@ describe('PasswordResetRequestForm', () => {
 
       render(<PasswordResetRequestForm />);
 
-      const emailInput = screen.getByLabelText(/email/i);
+      const emailInput = screen.getByLabelText(/электронная почта/i);
       const submitButton = screen.getByRole('button', {
         name: /отправить ссылку для сброса/i,
       });
@@ -230,7 +230,7 @@ describe('PasswordResetRequestForm', () => {
 
       render(<PasswordResetRequestForm />);
 
-      const emailInput = screen.getByLabelText(/email/i);
+      const emailInput = screen.getByLabelText(/электронная почта/i);
       const submitButton = screen.getByRole('button', {
         name: /отправить ссылку для сброса/i,
       });
@@ -261,7 +261,7 @@ describe('PasswordResetRequestForm', () => {
 
       render(<PasswordResetRequestForm />);
 
-      const emailInput = screen.getByLabelText(/email/i) as HTMLInputElement;
+      const emailInput = screen.getByLabelText(/электронная почта/i) as HTMLInputElement;
       const submitButton = screen.getByRole('button', {
         name: /отправить ссылку для сброса/i,
       });
@@ -273,7 +273,7 @@ describe('PasswordResetRequestForm', () => {
       expect(emailInput).toBeDisabled();
 
       await waitFor(() => {
-        expect(screen.queryByLabelText(/email/i)).not.toBeInTheDocument(); // Form is replaced with success message
+        expect(screen.queryByLabelText(/электронная почта/i)).not.toBeInTheDocument(); // Form is replaced with success message
       });
     });
   });
@@ -282,14 +282,14 @@ describe('PasswordResetRequestForm', () => {
     test('should have proper label for email input', () => {
       render(<PasswordResetRequestForm />);
 
-      const emailInput = screen.getByLabelText(/email/i);
+      const emailInput = screen.getByLabelText(/электронная почта/i);
       expect(emailInput).toHaveAccessibleName();
     });
 
     test('should have aria-required on email field', () => {
       render(<PasswordResetRequestForm />);
 
-      const emailInput = screen.getByLabelText(/email/i);
+      const emailInput = screen.getByLabelText(/электронная почта/i);
       expect(emailInput).toHaveAttribute('aria-required', 'true');
     });
 
@@ -300,7 +300,7 @@ describe('PasswordResetRequestForm', () => {
 
       render(<PasswordResetRequestForm />);
 
-      const emailInput = screen.getByLabelText(/email/i);
+      const emailInput = screen.getByLabelText(/электронная почта/i);
       const submitButton = screen.getByRole('button', {
         name: /отправить ссылку для сброса/i,
       });
