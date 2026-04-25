@@ -209,7 +209,7 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
         />
 
         <Input
-          label="Email"
+          label="Электронная почта"
           type="email"
           {...register('email')}
           error={errors.email?.message}

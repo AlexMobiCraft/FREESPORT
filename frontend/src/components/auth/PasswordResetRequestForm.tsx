@@ -68,7 +68,7 @@ export const PasswordResetRequestForm = () => {
       {/* Email Input */}
       <div>
         <Input
-          label="Email"
+          label="Электронная почта"
           type="email"
           {...register('email')}
           error={errors.email?.message}

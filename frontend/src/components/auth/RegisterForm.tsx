@@ -161,7 +161,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
       />
 
       <Input
-        label="Email"
+        label="Электронная почта"
         type="email"
         {...register('email')}
         error={errors.email?.message}

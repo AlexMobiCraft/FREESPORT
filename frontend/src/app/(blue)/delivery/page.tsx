@@ -195,7 +195,7 @@ export default function DeliveryPage() {
 
             {/* Email */}
             <div className="flex items-baseline gap-2">
-              <span className="text-body-s text-text-secondary whitespace-nowrap">Email:</span>
+              <span className="text-body-s text-text-secondary whitespace-nowrap">Электронная почта:</span>
               <a
                 href={contacts.emailLink}
                 className={cn(

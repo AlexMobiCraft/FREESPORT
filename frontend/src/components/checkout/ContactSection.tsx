@@ -39,7 +39,7 @@ export function ContactSection({ form }: ContactSectionProps) {
         <div className="md:col-span-2">
           <Input
             {...register('email')}
-            label="Email"
+            label="Электронная почта"
             type="email"
             placeholder="example@mail.com"
             error={errors.email?.message}

@@ -22,7 +22,7 @@ export default function PasswordResetPage() {
         <div className="text-center">
           <h1 className="text-3xl font-bold text-gray-900">Восстановление пароля</h1>
           <p className="mt-2 text-sm text-gray-600">
-            Введите ваш email для получения ссылки на сброс пароля
+            Введите вашу электронную почту для получения ссылки на сброс пароля
           </p>
         </div>
 

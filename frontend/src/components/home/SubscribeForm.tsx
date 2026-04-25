@@ -53,7 +53,7 @@ export const SubscribeForm: React.FC = () => {
         Получайте первыми информацию о новинках и акциях
       </p>
       <Input
-        label="Email"
+        label="Электронная почта"
         type="email"
         placeholder="your@email.com"
         error={errors.email?.message}
