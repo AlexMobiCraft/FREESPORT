@@ -55,7 +55,7 @@ export default async function NewsPage({ searchParams }: NewsPageProps) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h1 className="text-4xl sm:text-5xl font-bold text-text-primary mb-4">Новости</h1>
           <p className="text-lg text-text-secondary max-w-2xl mx-auto">
-            Актуальные новости, акции и события компании FREESPORT
+            Актуальные новости, акции и события компании
           </p>
         </div>
       </section>

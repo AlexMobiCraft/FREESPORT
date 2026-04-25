@@ -53,7 +53,7 @@ function LoginPageContent() {
         {/* Header */}
         <div className="text-center">
           <h1 className="text-heading-l font-bold text-[var(--color-text-primary)] mb-2">
-            Вход в FREESPORT
+            Вход на портал
           </h1>
           <p className="text-body-m text-[var(--color-text-muted)]">
             Войдите в свой аккаунт для доступа к платформе

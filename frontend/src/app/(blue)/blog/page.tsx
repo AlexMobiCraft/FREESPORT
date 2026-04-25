@@ -55,7 +55,7 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h1 className="text-4xl sm:text-5xl font-bold text-text-primary mb-4">Блог</h1>
           <p className="text-lg text-text-secondary max-w-2xl mx-auto">
-            Полезные статьи о спорте, тренировках и экипировке от экспертов FREESPORT
+            Полезные статьи о спорте, тренировках и экипировке от наших экспертов
           </p>
         </div>
       </section>
