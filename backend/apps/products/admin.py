@@ -593,7 +593,19 @@ class ProductVariantAdmin(admin.ModelAdmin):
         "stock_quantity",
         "is_active",
     )
-    list_filter = ("is_active", "color_name", "size_value", "vat_rate")
+    list_filter = (
+        "is_active",
+        "product__brand",
+        "product__category",
+        "product__sync_status",
+        "product__is_hit",
+        "product__is_new",
+        "product__is_sale",
+        "product__is_promo",
+        "product__is_premium",
+        "vat_rate",
+        "created_at",
+    )
     search_fields = ("sku", "onec_id", "product__name")
     raw_id_fields = ("product",)
     readonly_fields = ("created_at", "updated_at", "last_sync_at")
