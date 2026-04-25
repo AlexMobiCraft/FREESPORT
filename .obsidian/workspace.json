@@ -200,13 +200,23 @@
   },
   "active": "1f30e3d293a0d4cd",
   "lastOpenFiles": [
+    "frontend/node_modules/next/dist/server/lib/disk-lru-cache.external.d.ts",
+    "frontend/node_modules/next/dist/server/lib/disk-lru-cache.external.js.map",
+    "frontend/node_modules/next/dist/esm/server/lib/disk-lru-cache.external.js.map",
+    "frontend/node_modules/happy-dom/src/screen/ScreenDetails.ts",
+    "frontend/node_modules/happy-dom/lib/screen/ScreenDetails.d.ts",
+    "frontend/node_modules/happy-dom/src/screen/ScreenDetailed.ts",
+    "frontend/node_modules/happy-dom/src/module/types/IResolveNodeModules.ts",
+    "frontend/node_modules/happy-dom/src/module/types/IModuleInit.ts",
+    "frontend/node_modules/happy-dom/src/module/types/IModuleImportMapScope.ts",
+    "frontend/node_modules/happy-dom/src/module/types/IModuleImportMapRule.ts",
+    "frontend/node_modules/happy-dom/src/module/types/IModuleImportMap.ts",
+    "frontend/node_modules/entities/readme.md",
+    "frontend/node_modules/@types/ws/README.md",
     "Исправить.md",
     "README.md",
     "AGENTS.md",
-    "Без названия.base",
-    "backend/tests/integration/__pycache__/test_onec_export.cpython-314-pytest-7.4.3.pyc",
     "_bmad-output/implementation-artifacts/Story/34-3-order-export-service-sub-orders.md",
-    "Без названия 1.base",
     "docs/api/views-documentation.md",
     "docs/api/index.md",
     "2026-04-17.md",
@@ -225,9 +235,6 @@
     "frontend/node_modules/mime-types/README.md",
     "docs/archive/v4/architecture.md",
     "docs/front-end-spec.md",
-    "_bmad-output/implementation-artifacts/tech-spec/tech-spec-1c-import-bugs-fixes.md",
-    "_bmad-output/planning-artifacts/epics.md",
-    "_bmad-output/planning-artifacts/tech-debt.md",
-    "_bmad-output/planning-artifacts/refined-prd.md"
+    "_bmad-output/implementation-artifacts/tech-spec/tech-spec-1c-import-bugs-fixes.md"
   ]
 }
