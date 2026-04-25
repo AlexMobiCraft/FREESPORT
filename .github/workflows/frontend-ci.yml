@@ -166,8 +166,9 @@ jobs:
     needs: [test, build]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
-    environment: staging
-    
+    environment:
+      name: staging
+
     permissions:
       actions: write
       id-token: write
