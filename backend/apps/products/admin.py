@@ -381,6 +381,7 @@ class ProductAdmin(admin.ModelAdmin):
         "is_promo",
         "is_premium",
         "discount_percent",
+        "vat_rate",
         "onec_id",
     )
     list_filter = (
@@ -394,6 +395,7 @@ class ProductAdmin(admin.ModelAdmin):
         "is_sale",
         "is_promo",
         "is_premium",
+        "vat_rate",
         "created_at",
     )
     search_fields = ("name", "onec_id", "parent_onec_id", "onec_brand_id")
@@ -459,6 +461,12 @@ class ProductAdmin(admin.ModelAdmin):
                     "is_premium",
                     "discount_percent",
                 ),
+            },
+        ),
+        (
+            "НДС",
+            {
+                "fields": ("vat_rate",),
             },
         ),
         (
@@ -581,10 +589,11 @@ class ProductVariantAdmin(admin.ModelAdmin):
         "retail_price",
         "rrp",
         "msrp",
+        "vat_rate",
         "stock_quantity",
         "is_active",
     )
-    list_filter = ("is_active", "color_name", "size_value")
+    list_filter = ("is_active", "color_name", "size_value", "vat_rate")
     search_fields = ("sku", "onec_id", "product__name")
     raw_id_fields = ("product",)
     readonly_fields = ("created_at", "updated_at", "last_sync_at")
@@ -620,6 +629,7 @@ class ProductVariantAdmin(admin.ModelAdmin):
                     "opt3_price",
                     "trainer_price",
                     "federation_price",
+                    "vat_rate",
                 )
             },
         ),
