@@ -45,7 +45,7 @@ describe('AboutTeaser', () => {
     expect(screen.getByText('Оперативность')).toBeInTheDocument();
     expect(screen.getByText('Качество')).toBeInTheDocument();
     expect(screen.getByText('Инновации')).toBeInTheDocument();
-    expect(screen.getByText('Надёжность')).toBeInTheDocument();
+    expect(screen.getByText('Надежность')).toBeInTheDocument();
   });
 
   it('renders CTA button with link to /about', () => {

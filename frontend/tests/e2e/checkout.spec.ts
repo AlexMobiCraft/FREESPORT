@@ -187,7 +187,7 @@ async function setupApiMocks(page: Page) {
  */
 async function fillCheckoutForm(page: Page, data: typeof testCheckoutData) {
   // Контактные данные
-  await page.getByLabel('Email').fill(data.email);
+  await page.getByLabel('Электронная почта').fill(data.email);
   // Используем фокусировку и последовательный ввод для обхода маски
   await page.getByLabel('Телефон').focus();
   await page.getByLabel('Телефон').fill(''); // Очищаем
@@ -269,13 +269,13 @@ test.describe('Checkout Flow E2E Tests', () => {
     await page.goto('/checkout');
 
     // Заполняем только контактные данные
-    await page.getByLabel('Email').fill(testCheckoutData.email);
+    await page.getByLabel('Электронная почта').fill(testCheckoutData.email);
     await page.getByLabel('Телефон').fill(testCheckoutData.phone);
     await page.getByLabel('Имя').fill(testCheckoutData.firstName);
     await page.getByLabel('Фамилия').fill(testCheckoutData.lastName);
 
     // Проверяем значения
-    await expect(page.getByLabel('Email')).toHaveValue(testCheckoutData.email);
+    await expect(page.getByLabel('Электронная почта')).toHaveValue(testCheckoutData.email);
     // Очищаем и вводим заново для надежности
     await page.getByLabel('Телефон').focus();
     await page.getByLabel('Телефон').fill('');
@@ -454,7 +454,7 @@ test.describe('Checkout Form Validation E2E Tests', () => {
     // Вводим слишком короткое имя
     await page.getByLabel('Имя').fill('А');
     await page.getByLabel('Фамилия').fill('Б');
-    await page.getByLabel('Email').fill(testCheckoutData.email); // blur
+    await page.getByLabel('Электронная почта').fill(testCheckoutData.email); // blur
 
     // Проверяем ошибки минимальной длины
     const minLengthErrors = page.locator('text=Минимум 2 символа');
@@ -463,7 +463,7 @@ test.describe('Checkout Form Validation E2E Tests', () => {
     // Исправляем поля
     await page.getByLabel('Имя').fill('Иван');
     await page.getByLabel('Фамилия').fill('Петров');
-    await page.getByLabel('Email').fill(testCheckoutData.email);
+    await page.getByLabel('Электронная почта').fill(testCheckoutData.email);
 
     // Ошибки должны исчезнуть
     await expect(page.locator('text=Минимум 2 символа')).not.toBeVisible();

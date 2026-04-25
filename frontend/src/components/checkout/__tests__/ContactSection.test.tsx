@@ -37,7 +37,7 @@ describe('ContactSection', () => {
     it('должен отображать все поля контактных данных', () => {
       render(<ContactSectionWrapper />);
 
-      expect(screen.getByLabelText('Email')).toBeInTheDocument();
+      expect(screen.getByLabelText('Электронная почта')).toBeInTheDocument();
       expect(screen.getByLabelText('Телефон')).toBeInTheDocument();
       expect(screen.getByLabelText('Имя')).toBeInTheDocument();
       expect(screen.getByLabelText('Фамилия')).toBeInTheDocument();
@@ -72,7 +72,7 @@ describe('ContactSection', () => {
     it('должен показывать ошибку для некорректного email', async () => {
       render(<ContactSectionWrapper />);
 
-      const emailInput = screen.getByLabelText('Email');
+      const emailInput = screen.getByLabelText('Электронная почта');
       fireEvent.change(emailInput, { target: { value: 'invalid-email' } });
       fireEvent.blur(emailInput);
 
@@ -86,7 +86,7 @@ describe('ContactSection', () => {
     it('должен принимать корректный email', async () => {
       render(<ContactSectionWrapper />);
 
-      const emailInput = screen.getByLabelText('Email');
+      const emailInput = screen.getByLabelText('Электронная почта');
       fireEvent.change(emailInput, { target: { value: 'valid@example.com' } });
       fireEvent.blur(emailInput);
 
@@ -98,7 +98,7 @@ describe('ContactSection', () => {
     it('должен показывать ошибку для пустого email', async () => {
       render(<ContactSectionWrapper />);
 
-      const emailInput = screen.getByLabelText('Email');
+      const emailInput = screen.getByLabelText('Электронная почта');
       fireEvent.focus(emailInput);
       fireEvent.blur(emailInput);
 
@@ -170,7 +170,7 @@ describe('ContactSection', () => {
     it('должен иметь aria-required для обязательных полей', () => {
       render(<ContactSectionWrapper />);
 
-      const emailInput = screen.getByLabelText('Email');
+      const emailInput = screen.getByLabelText('Электронная почта');
       const phoneInput = screen.getByLabelText('Телефон');
       const firstNameInput = screen.getByLabelText('Имя');
       const lastNameInput = screen.getByLabelText('Фамилия');
@@ -184,7 +184,7 @@ describe('ContactSection', () => {
     it('должен иметь правильный autocomplete для полей', () => {
       render(<ContactSectionWrapper />);
 
-      const emailInput = screen.getByLabelText('Email');
+      const emailInput = screen.getByLabelText('Электронная почта');
       const phoneInput = screen.getByLabelText('Телефон');
 
       expect(emailInput).toHaveAttribute('autocomplete', 'email');

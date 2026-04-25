@@ -103,7 +103,7 @@ describe('CheckoutForm', () => {
     it('должен отображать пустые поля для неавторизованных пользователей', () => {
       render(<CheckoutForm user={null} />);
 
-      const emailInput = screen.getByLabelText('Email') as HTMLInputElement;
+      const emailInput = screen.getByLabelText('Электронная почта') as HTMLInputElement;
       const phoneInput = screen.getByLabelText('Телефон') as HTMLInputElement;
 
       expect(emailInput.value).toBe('');
@@ -131,7 +131,7 @@ describe('CheckoutForm', () => {
     it('должен показывать ошибку при некорректном формате email', async () => {
       render(<CheckoutForm user={null} />);
 
-      const emailInput = screen.getByLabelText('Email');
+      const emailInput = screen.getByLabelText('Электронная почта');
       fireEvent.change(emailInput, { target: { value: 'invalid-email' } });
       fireEvent.blur(emailInput);
 

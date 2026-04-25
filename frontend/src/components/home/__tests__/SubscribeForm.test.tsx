@@ -35,7 +35,7 @@ describe('SubscribeForm', () => {
     render(<SubscribeForm />);
 
     expect(screen.getByText('Подписаться на рассылку')).toBeInTheDocument();
-    expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/электронная почта/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /подписаться/i })).toBeInTheDocument();
   });
 
@@ -43,7 +43,7 @@ describe('SubscribeForm', () => {
     const user = userEvent.setup();
     render(<SubscribeForm />);
 
-    const input = screen.getByLabelText(/email/i);
+    const input = screen.getByLabelText(/электронная почта/i);
     const button = screen.getByRole('button', { name: /подписаться/i });
 
     // Email that passes HTML5 type=email validation but fails our regex pattern
@@ -77,7 +77,7 @@ describe('SubscribeForm', () => {
     const user = userEvent.setup();
     render(<SubscribeForm />);
 
-    const input = screen.getByLabelText(/email/i);
+    const input = screen.getByLabelText(/электронная почта/i);
     const button = screen.getByRole('button', { name: /подписаться/i });
 
     await user.type(input, 'new@example.com');
@@ -98,7 +98,7 @@ describe('SubscribeForm', () => {
     const user = userEvent.setup();
     render(<SubscribeForm />);
 
-    const input = screen.getByLabelText(/email/i);
+    const input = screen.getByLabelText(/электронная почта/i);
     const button = screen.getByRole('button', { name: /подписаться/i });
 
     await user.type(input, 'existing@example.com');
@@ -116,7 +116,7 @@ describe('SubscribeForm', () => {
     const user = userEvent.setup();
     render(<SubscribeForm />);
 
-    const input = screen.getByLabelText(/email/i);
+    const input = screen.getByLabelText(/электронная почта/i);
     const button = screen.getByRole('button', { name: /подписаться/i });
 
     await user.type(input, 'test@example.com');
@@ -140,7 +140,7 @@ describe('SubscribeForm', () => {
     const user = userEvent.setup();
     render(<SubscribeForm />);
 
-    const input = screen.getByLabelText(/email/i);
+    const input = screen.getByLabelText(/электронная почта/i);
     const button = screen.getByRole('button', { name: /подписаться/i });
 
     await user.type(input, 'test@example.com');
